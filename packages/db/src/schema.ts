@@ -48,6 +48,8 @@ export const classes = sqliteTable('classes', {
     startTime: integer('start_time', { mode: 'timestamp' }).notNull(),
     durationMinutes: integer('duration_minutes').notNull(),
     capacity: integer('capacity'),
+    price: integer('price').default(0), // In cents
+    currency: text('currency').default('usd'),
     zoomMeetingUrl: text('zoom_meeting_url'),
     thumbnailUrl: text('thumbnail_url'),
     cloudflareStreamId: text('cloudflare_stream_id'),

@@ -1,0 +1,73 @@
+import Stripe from 'stripe';
+
+export class StripeService {
+    private stripe: Stripe;
+
+    constructor(apiKey: string) {
+        this.stripe = new Stripe(apiKey, {
+            apiVersion: '2023-10-16', // Use latest stable
+        });
+    }
+
+    /**
+     * Generate OAuth link for Standard Connect
+     */
+    getConnectUrl(clientId: string, redirectUri: string, state: string) {
+        const params = new URLSearchParams({
+            response_type: 'code',
+            client_id: clientId,
+            scope: 'read_write',
+            redirect_uri: redirectUri,
+            state: state
+        });
+        return `https://connect.stripe.com/oauth/authorize?${params.toString()}`;
+    }
+
+    /**
+     * Exchange auth code for Account ID
+     */
+    async connectAccount(code: string) {
+        const response = await this.stripe.oauth.token({
+            grant_type: 'authorization_code',
+            code,
+        });
+        return response.stripe_user_id;
+    }
+
+    /**
+     * Create Checkout Session for a Class
+     */
+    async createCheckoutSession(
+        connectedAccountId: string,
+        params: {
+            title: string;
+            amount: number; // cents
+            currency: string;
+            successUrl: string;
+            cancelUrl: string;
+            metadata: Record<string, string>;
+            customerEmail?: string;
+        }
+    ) {
+        return this.stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items: [{
+                price_data: {
+                    currency: params.currency,
+                    product_data: {
+                        name: params.title,
+                    },
+                    unit_amount: params.amount,
+                },
+                quantity: 1,
+            }],
+            mode: 'payment',
+            success_url: params.successUrl,
+            cancel_url: params.cancelUrl,
+            metadata: params.metadata,
+            customer_email: params.customerEmail,
+        }, {
+            stripeAccount: connectedAccountId, // DIRECT CHARGE on behalf of Connected Account
+        });
+    }
+}

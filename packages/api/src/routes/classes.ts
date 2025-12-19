@@ -9,6 +9,7 @@ type Bindings = {
     ZOOM_ACCOUNT_ID: string;
     ZOOM_CLIENT_ID: string;
     ZOOM_CLIENT_SECRET: string;
+    STRIPE_SECRET_KEY: string;
 };
 
 type Variables = {
@@ -44,7 +45,7 @@ app.post('/', async (c) => {
     const userId = c.get('auth').userId;
 
     const body = await c.req.json();
-    const { title, description, startTime, durationMinutes, capacity, locationId, createZoomMeeting } = body;
+    const { title, description, startTime, durationMinutes, capacity, locationId, createZoomMeeting, price, currency } = body;
 
     const id = crypto.randomUUID();
     let zoomMeetingUrl: string | undefined = undefined;
@@ -71,7 +72,9 @@ app.post('/', async (c) => {
             durationMinutes,
             capacity,
             locationId,
-            zoomMeetingUrl
+            zoomMeetingUrl,
+            price: price || 0,
+            currency: currency || 'usd'
         });
         return c.json({ id, title, zoomMeetingUrl }, 201);
     } catch (e: any) {
