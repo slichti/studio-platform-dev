@@ -111,4 +111,30 @@ app.post('/:id/book', async (c) => {
     }
 });
 
+app.get('/:id/bookings', async (c) => {
+    const db = createDb(c.env.DB);
+    const classId = c.req.param('id');
+    const { users } = await import('db/src/schema');
+
+    try {
+        const results = await db.select({
+            id: bookings.id,
+            status: bookings.status,
+            user: {
+                id: users.id,
+                email: users.email,
+                profile: users.profile
+            },
+            createdAt: bookings.createdAt
+        })
+            .from(bookings)
+            .innerJoin(users, eq(bookings.userId, users.id))
+            .where(eq(bookings.classId, classId));
+
+        return c.json(results);
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
 export default app;
