@@ -30,7 +30,20 @@ import locationRoutes from './routes/locations';
 
 import { authMiddleware } from './middleware/auth';
 
+import { cors } from 'hono/cors';
+import { logger } from 'hono/logger';
+
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>()
+
+app.use('*', logger());
+app.use('*', cors({
+  origin: ['https://studio-platform-web.pages.dev', 'https://studio-platform-dev.slichti.org', 'http://localhost:5173'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+  allowMethods: ['POST', 'GET', 'OPTIONS', 'DELETE', 'PUT'],
+  exposeHeaders: ['Content-Length'],
+  maxAge: 600,
+  credentials: true,
+}));
 
 // Public routes
 app.get('/', (c) => {

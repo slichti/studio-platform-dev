@@ -47,7 +47,7 @@ const entryServer = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineP
 const links = () => [
   { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" }
 ];
-const loader$4 = (args) => rootAuthLoader(args);
+const loader$5 = (args) => rootAuthLoader(args);
 function App() {
   return /* @__PURE__ */ jsxs("html", { lang: "en", children: [
     /* @__PURE__ */ jsxs("head", { children: [
@@ -68,7 +68,7 @@ const route0 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProper
   __proto__: null,
   default: root,
   links,
-  loader: loader$4
+  loader: loader$5
 }, Symbol.toStringTag, { value: "Module" }));
 const API_URL = "http://localhost:8787";
 async function apiRequest(path, token, options = {}) {
@@ -89,7 +89,7 @@ async function apiRequest(path, token, options = {}) {
   }
   return res.json();
 }
-const loader$3 = async (args) => {
+const loader$4 = async (args) => {
   const { params } = args;
   const { getToken } = await getAuth(args);
   const token = await getToken();
@@ -135,10 +135,10 @@ function ClassRoster() {
 const route1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: ClassRoster,
-  loader: loader$3
+  loader: loader$4
 }, Symbol.toStringTag, { value: "Module" }));
 const MOCK_VIDEO_ID = "";
-const loader$2 = async (args) => {
+const loader$3 = async (args) => {
   const { params } = args;
   const { getToken } = await getAuth(args);
   return json({
@@ -175,7 +175,7 @@ function WatchRecording() {
 const route2 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: WatchRecording,
-  loader: loader$2
+  loader: loader$3
 }, Symbol.toStringTag, { value: "Module" }));
 function ImageUploader({ onUploadComplete }) {
   const { getToken } = useAuth();
@@ -227,7 +227,7 @@ function ImageUploader({ onUploadComplete }) {
     preview && /* @__PURE__ */ jsx("div", { style: { marginTop: "10px" }, children: /* @__PURE__ */ jsx("img", { src: preview, alt: "Preview", style: { width: "100px", height: "100px", objectFit: "cover", borderRadius: "6px" } }) })
   ] });
 }
-const loader$1 = async (args) => {
+const loader$2 = async (args) => {
   const { getToken } = await getAuth(args);
   const token = await getToken();
   const classes = await apiRequest("/classes", token);
@@ -315,7 +315,7 @@ const route3 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProper
   __proto__: null,
   action,
   default: ClassesRoute,
-  loader: loader$1
+  loader: loader$2
 }, Symbol.toStringTag, { value: "Module" }));
 function DashboardIndex() {
   return /* @__PURE__ */ jsxs("div", { children: [
@@ -347,7 +347,7 @@ function Layout({ children }) {
     /* @__PURE__ */ jsx("main", { style: { flex: 1, padding: "40px", overflowY: "auto" }, children })
   ] });
 }
-const loader = async (args) => {
+const loader$1 = async (args) => {
   const { userId } = await getAuth(args);
   if (!userId) {
     return redirect("/sign-in");
@@ -360,7 +360,7 @@ function DashboardRoute() {
 const route5 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: DashboardRoute,
-  loader
+  loader: loader$1
 }, Symbol.toStringTag, { value: "Module" }));
 function SignInPage() {
   return /* @__PURE__ */ jsx("div", { style: { display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }, children: /* @__PURE__ */ jsx(SignIn, {}) });
@@ -393,7 +393,66 @@ const route8 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProper
   default: Index,
   meta
 }, Symbol.toStringTag, { value: "Module" }));
-const serverManifest = { "entry": { "module": "/assets/entry.client-i0UxmGHa.js", "imports": ["/assets/jsx-runtime-Cs6DZD4Z.js", "/assets/components-CrqNjzMe.js", "/assets/browser-C3UHr21k.js"], "css": [] }, "routes": { "root": { "id": "root", "parentId": void 0, "path": "", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/root-m_iEBZRC.js", "imports": ["/assets/jsx-runtime-Cs6DZD4Z.js", "/assets/components-CrqNjzMe.js", "/assets/browser-C3UHr21k.js", "/assets/index-BE8IIHCl.js"], "css": [] }, "routes/dashboard.classes.$id.roster": { "id": "routes/dashboard.classes.$id.roster", "parentId": "routes/dashboard.classes", "path": ":id/roster", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/dashboard.classes._id.roster-Da0wmmY8.js", "imports": ["/assets/jsx-runtime-Cs6DZD4Z.js", "/assets/components-CrqNjzMe.js"], "css": [] }, "routes/dashboard.classes.$id.watch": { "id": "routes/dashboard.classes.$id.watch", "parentId": "routes/dashboard.classes", "path": ":id/watch", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/dashboard.classes._id.watch-B88onev0.js", "imports": ["/assets/jsx-runtime-Cs6DZD4Z.js", "/assets/components-CrqNjzMe.js"], "css": [] }, "routes/dashboard.classes": { "id": "routes/dashboard.classes", "parentId": "routes/dashboard", "path": "classes", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/dashboard.classes-f7GLoRoY.js", "imports": ["/assets/jsx-runtime-Cs6DZD4Z.js", "/assets/index-BE8IIHCl.js", "/assets/components-CrqNjzMe.js", "/assets/browser-C3UHr21k.js"], "css": [] }, "routes/dashboard._index": { "id": "routes/dashboard._index", "parentId": "routes/dashboard", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/dashboard._index-6o9MHmjb.js", "imports": ["/assets/jsx-runtime-Cs6DZD4Z.js"], "css": [] }, "routes/dashboard": { "id": "routes/dashboard", "parentId": "root", "path": "dashboard", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/dashboard-Ddvz8YoG.js", "imports": ["/assets/jsx-runtime-Cs6DZD4Z.js", "/assets/index-BE8IIHCl.js", "/assets/components-CrqNjzMe.js", "/assets/browser-C3UHr21k.js"], "css": [] }, "routes/sign-in.$": { "id": "routes/sign-in.$", "parentId": "root", "path": "sign-in/*", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/sign-in._-DL5hwWYu.js", "imports": ["/assets/jsx-runtime-Cs6DZD4Z.js", "/assets/index-BE8IIHCl.js", "/assets/components-CrqNjzMe.js", "/assets/browser-C3UHr21k.js"], "css": [] }, "routes/sign-up.$": { "id": "routes/sign-up.$", "parentId": "root", "path": "sign-up/*", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/sign-up._-MJpHPQB3.js", "imports": ["/assets/jsx-runtime-Cs6DZD4Z.js", "/assets/index-BE8IIHCl.js", "/assets/components-CrqNjzMe.js", "/assets/browser-C3UHr21k.js"], "css": [] }, "routes/_index": { "id": "routes/_index", "parentId": "root", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/_index-C7u98psk.js", "imports": ["/assets/jsx-runtime-Cs6DZD4Z.js"], "css": [] } }, "url": "/assets/manifest-ee848c94.js", "version": "ee848c94" };
+const loader = async (args) => {
+  const { getToken } = await getAuth(args);
+  const token = await getToken();
+  try {
+    const tenants = await apiRequest("/admin/tenants", token);
+    const logs = await apiRequest("/admin/logs", token);
+    return json({ tenants, logs });
+  } catch (e) {
+    return json({ error: "Unauthorized" }, { status: 403 });
+  }
+};
+function AdminDashboard() {
+  const { tenants, logs, error } = useLoaderData();
+  const [impersonating, setImpersonating] = useState(false);
+  if (error) return /* @__PURE__ */ jsxs("div", { style: { padding: "40px", color: "red" }, children: [
+    "Error: ",
+    error
+  ] });
+  return /* @__PURE__ */ jsxs("div", { style: { padding: "40px", fontFamily: "system-ui, sans-serif" }, children: [
+    /* @__PURE__ */ jsx("h1", { style: { fontSize: "2rem", fontWeight: "bold", marginBottom: "30px" }, children: "Admin Support Dashboard" }),
+    /* @__PURE__ */ jsxs("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "40px" }, children: [
+      /* @__PURE__ */ jsxs("div", { children: [
+        /* @__PURE__ */ jsx("h2", { style: { fontSize: "1.5rem", marginBottom: "20px" }, children: "Tenants" }),
+        /* @__PURE__ */ jsx("div", { style: { background: "white", border: "1px solid #e4e4e7", borderRadius: "8px" }, children: tenants.map((t) => /* @__PURE__ */ jsxs("div", { style: { padding: "15px", borderBottom: "1px solid #e4e4e7", display: "flex", justifyContent: "space-between" }, children: [
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("strong", { children: t.name }),
+            " (",
+            t.slug,
+            ")",
+            /* @__PURE__ */ jsxs("div", { style: { fontSize: "0.8rem", color: "#71717a" }, children: [
+              "ID: ",
+              t.id
+            ] })
+          ] }),
+          /* @__PURE__ */ jsx("button", { onClick: () => alert("TODO: List users for this tenant to impersonate"), style: { padding: "6px 12px", background: "#f4f4f5", borderRadius: "4px", border: "none", cursor: "pointer" }, children: "View Users" })
+        ] }, t.id)) })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { children: [
+        /* @__PURE__ */ jsx("h2", { style: { fontSize: "1.5rem", marginBottom: "20px" }, children: "System Logs" }),
+        /* @__PURE__ */ jsx("div", { style: { background: "#18181b", color: "#22c55e", padding: "20px", borderRadius: "8px", fontSize: "0.875rem", height: "400px", overflowY: "auto" }, children: logs.map((log) => /* @__PURE__ */ jsxs("div", { style: { marginBottom: "10px", fontFamily: "monospace" }, children: [
+          /* @__PURE__ */ jsx("span", { style: { color: "#71717a" }, children: new Date(log.createdAt).toLocaleTimeString() }),
+          " ",
+          /* @__PURE__ */ jsxs("span", { style: { color: "#eab308" }, children: [
+            "[",
+            log.action,
+            "]"
+          ] }),
+          " ",
+          log.details
+        ] }, log.id)) })
+      ] })
+    ] })
+  ] });
+}
+const route9 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  default: AdminDashboard,
+  loader
+}, Symbol.toStringTag, { value: "Module" }));
+const serverManifest = { "entry": { "module": "/assets/entry.client-i0UxmGHa.js", "imports": ["/assets/jsx-runtime-Cs6DZD4Z.js", "/assets/components-CrqNjzMe.js", "/assets/browser-C3UHr21k.js"], "css": [] }, "routes": { "root": { "id": "root", "parentId": void 0, "path": "", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/root-m_iEBZRC.js", "imports": ["/assets/jsx-runtime-Cs6DZD4Z.js", "/assets/components-CrqNjzMe.js", "/assets/browser-C3UHr21k.js", "/assets/index-BE8IIHCl.js"], "css": [] }, "routes/dashboard.classes.$id.roster": { "id": "routes/dashboard.classes.$id.roster", "parentId": "routes/dashboard.classes", "path": ":id/roster", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/dashboard.classes._id.roster-Da0wmmY8.js", "imports": ["/assets/jsx-runtime-Cs6DZD4Z.js", "/assets/components-CrqNjzMe.js"], "css": [] }, "routes/dashboard.classes.$id.watch": { "id": "routes/dashboard.classes.$id.watch", "parentId": "routes/dashboard.classes", "path": ":id/watch", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/dashboard.classes._id.watch-B88onev0.js", "imports": ["/assets/jsx-runtime-Cs6DZD4Z.js", "/assets/components-CrqNjzMe.js"], "css": [] }, "routes/dashboard.classes": { "id": "routes/dashboard.classes", "parentId": "routes/dashboard", "path": "classes", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/dashboard.classes-f7GLoRoY.js", "imports": ["/assets/jsx-runtime-Cs6DZD4Z.js", "/assets/index-BE8IIHCl.js", "/assets/components-CrqNjzMe.js", "/assets/browser-C3UHr21k.js"], "css": [] }, "routes/dashboard._index": { "id": "routes/dashboard._index", "parentId": "routes/dashboard", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/dashboard._index-6o9MHmjb.js", "imports": ["/assets/jsx-runtime-Cs6DZD4Z.js"], "css": [] }, "routes/dashboard": { "id": "routes/dashboard", "parentId": "root", "path": "dashboard", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/dashboard-Ddvz8YoG.js", "imports": ["/assets/jsx-runtime-Cs6DZD4Z.js", "/assets/index-BE8IIHCl.js", "/assets/components-CrqNjzMe.js", "/assets/browser-C3UHr21k.js"], "css": [] }, "routes/sign-in.$": { "id": "routes/sign-in.$", "parentId": "root", "path": "sign-in/*", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/sign-in._-DL5hwWYu.js", "imports": ["/assets/jsx-runtime-Cs6DZD4Z.js", "/assets/index-BE8IIHCl.js", "/assets/components-CrqNjzMe.js", "/assets/browser-C3UHr21k.js"], "css": [] }, "routes/sign-up.$": { "id": "routes/sign-up.$", "parentId": "root", "path": "sign-up/*", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/sign-up._-MJpHPQB3.js", "imports": ["/assets/jsx-runtime-Cs6DZD4Z.js", "/assets/index-BE8IIHCl.js", "/assets/components-CrqNjzMe.js", "/assets/browser-C3UHr21k.js"], "css": [] }, "routes/_index": { "id": "routes/_index", "parentId": "root", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/_index-C7u98psk.js", "imports": ["/assets/jsx-runtime-Cs6DZD4Z.js"], "css": [] }, "routes/admin": { "id": "routes/admin", "parentId": "root", "path": "admin", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasErrorBoundary": false, "module": "/assets/admin-eXUm1D8y.js", "imports": ["/assets/jsx-runtime-Cs6DZD4Z.js", "/assets/components-CrqNjzMe.js"], "css": [] } }, "url": "/assets/manifest-63ee6411.js", "version": "63ee6411" };
 const mode = "production";
 const assetsBuildDirectory = "build/client";
 const basename = "/";
@@ -473,6 +532,14 @@ const routes = {
     index: true,
     caseSensitive: void 0,
     module: route8
+  },
+  "routes/admin": {
+    id: "routes/admin",
+    parentId: "root",
+    path: "admin",
+    index: void 0,
+    caseSensitive: void 0,
+    module: route9
   }
 };
 export {
