@@ -4,14 +4,19 @@ import {
     Outlet,
     Scripts,
     ScrollRestoration,
+    useLoaderData,
 } from "@remix-run/react";
-import type { LinksFunction } from "@remix-run/cloudflare";
+import type { LinksFunction, LoaderFunction } from "@remix-run/cloudflare";
+import { rootAuthLoader } from "@clerk/remix/ssr.server";
+import { ClerkApp } from "@clerk/remix";
 
 export const links: LinksFunction = () => [
     { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" },
 ];
 
-export default function App() {
+export const loader: LoaderFunction = (args) => rootAuthLoader(args);
+
+function App() {
     return (
         <html lang="en">
             <head>
@@ -28,3 +33,5 @@ export default function App() {
         </html>
     );
 }
+
+export default ClerkApp(App);
