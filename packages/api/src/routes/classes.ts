@@ -2,9 +2,13 @@ import { Hono } from 'hono';
 import { classes, tenants, bookings } from 'db/src/schema';
 import { createDb } from '../db';
 import { eq, and } from 'drizzle-orm';
+import { ZoomService } from '../services/zoom';
 
 type Bindings = {
     DB: D1Database;
+    ZOOM_ACCOUNT_ID: string;
+    ZOOM_CLIENT_ID: string;
+    ZOOM_CLIENT_SECRET: string;
 };
 
 type Variables = {
@@ -40,9 +44,21 @@ app.post('/', async (c) => {
     const userId = c.get('auth').userId;
 
     const body = await c.req.json();
-    const { title, description, startTime, durationMinutes, capacity, locationId } = body;
+    const { title, description, startTime, durationMinutes, capacity, locationId, createZoomMeeting } = body;
 
     const id = crypto.randomUUID();
+    let zoomMeetingUrl: string | undefined = undefined;
+
+    if (createZoomMeeting && c.env.ZOOM_ACCOUNT_ID) {
+        try {
+            const zoom = new ZoomService(c.env.ZOOM_ACCOUNT_ID, c.env.ZOOM_CLIENT_ID, c.env.ZOOM_CLIENT_SECRET);
+            zoomMeetingUrl = await zoom.createMeeting(userId, title, new Date(startTime), durationMinutes);
+        } catch (e) {
+            console.error("Zoom creation failed:", e);
+            // Don't fail the whole request, just proceed without Zoom? Or return error?
+            // Let's log and proceed for now, but in production we might want to alert.
+        }
+    }
 
     try {
         await db.insert(classes).values({
@@ -54,9 +70,10 @@ app.post('/', async (c) => {
             startTime: new Date(startTime),
             durationMinutes,
             capacity,
-            locationId
+            locationId,
+            zoomMeetingUrl
         });
-        return c.json({ id, title }, 201);
+        return c.json({ id, title, zoomMeetingUrl }, 201);
     } catch (e: any) {
         return c.json({ error: e.message }, 500);
     }

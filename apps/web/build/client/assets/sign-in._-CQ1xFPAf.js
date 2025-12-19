@@ -1,0 +1,1 @@
+import{j as t}from"./jsx-runtime-Cs6DZD4Z.js";import{d as e}from"./index-9HuUc1Q2.js";import"./browser-BNw5Zs2j.js";function s(){return t.jsx("div",{style:{display:"flex",justifyContent:"center",alignItems:"center",height:"100vh"},children:t.jsx(e.SignIn,{})})}export{s as default};

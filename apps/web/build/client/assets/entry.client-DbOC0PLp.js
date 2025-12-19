@@ -1,0 +1,1 @@
+import{r,j as t}from"./jsx-runtime-Cs6DZD4Z.js";import{r as s,R as e}from"./browser-BNw5Zs2j.js";var a,o=s;o.createRoot,a=o.hydrateRoot;r.startTransition(()=>{a(document,t.jsx(r.StrictMode,{children:t.jsx(e,{})}))});

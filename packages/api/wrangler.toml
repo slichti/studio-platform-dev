@@ -7,5 +7,5 @@ ENVIRONMENT = "dev"
 [[d1_databases]]
 binding = "DB"
 database_name = "studio-platform-db"
-database_id = "xxxx-xxxx-xxxx" # To be replaced with actual ID after creation
+database_id = "41de24ac-e5d7-4a7a-b49b-f55f46dc81b8"
 

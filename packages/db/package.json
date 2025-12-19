@@ -7,7 +7,9 @@
         "up": "drizzle-kit up:sqlite"
     },
     "dependencies": {
-        "drizzle-orm": "^0.29.3"
+        "drizzle-orm": "^0.29.5",
+        "pg": "^8.16.3",
+        "postgres": "^3.4.7"
     },
     "devDependencies": {
         "drizzle-kit": "^0.20.13",

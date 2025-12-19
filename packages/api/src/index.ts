@@ -5,6 +5,10 @@ import { tenants } from 'db/src/schema'; // Ensure this import path is valid giv
 type Bindings = {
   DB: D1Database;
   CLERK_SECRET_KEY: string;
+  ZOOM_ACCOUNT_ID: string;
+  ZOOM_CLIENT_ID: string;
+  ZOOM_CLIENT_SECRET: string;
+  ZOOM_WEBHOOK_SECRET_TOKEN: string;
 };
 
 type Variables = {
@@ -49,9 +53,14 @@ tenantApp.get('/info', (c) => {
   })
 })
 
+import webhookRoutes from './routes/webhooks';
+
+// ... (existing routes)
+
 app.route('/tenant', tenantApp);
 app.route('/studios', studioRoutes);
 app.route('/classes', classRoutes);
 app.route('/locations', locationRoutes);
+app.route('/webhooks', webhookRoutes);
 
 export default app
