@@ -2,6 +2,8 @@ import { json, LoaderFunction, ActionFunction } from "@remix-run/cloudflare";
 import { useLoaderData, useActionData, Form, useNavigation } from "@remix-run/react";
 import { getAuth } from "@clerk/remix/ssr.server";
 import { apiRequest } from "../utils/api";
+import ImageUploader from "../components/ImageUploader";
+import { useState } from "react";
 
 type ClassItem = {
     id: string;
@@ -27,6 +29,7 @@ export const action: ActionFunction = async (args) => {
     const startTime = formData.get("startTime");
     const duration = formData.get("duration");
     const createZoom = formData.get("createZoom") === "on";
+    const thumbnailId = formData.get("thumbnailId");
 
     try {
         await apiRequest("/classes", token, {
@@ -37,7 +40,8 @@ export const action: ActionFunction = async (args) => {
                 startTime,
                 durationMinutes: Number(duration),
                 capacity: 20, // Default
-                createZoomMeeting: createZoom
+                createZoomMeeting: createZoom,
+                thumbnailUrl: thumbnailId ? `https://imagedelivery.net/<ACCOUNT_HASH>/${thumbnailId}/public` : undefined // Need Hash
             })
         });
         return json({ success: true });
@@ -51,6 +55,8 @@ export default function ClassesRoute() {
     const actionData = useActionData();
     const navigation = useNavigation();
     const isSubmitting = navigation.state === "submitting";
+
+    const [thumbnailId, setThumbnailId] = useState<string | null>(null);
 
     return (
         <div>
@@ -74,6 +80,8 @@ export default function ClassesRoute() {
                         <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '5px' }}>Duration (min)</label>
                         <input name="duration" required type="number" defaultValue="60" style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #d4d4d8' }} />
                     </div>
+                    {/* Hidden input to pass the ID to the action */}
+                    <input type="hidden" name="thumbnailId" value={thumbnailId || ''} />
 
                     <div style={{ marginBottom: '10px' }}>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.875rem' }}>
@@ -86,6 +94,9 @@ export default function ClassesRoute() {
                         {isSubmitting ? 'Creating...' : 'Create Class'}
                     </button>
                 </Form>
+                <div style={{ marginTop: '10px' }}>
+                    <ImageUploader onUploadComplete={(id) => setThumbnailId(id)} />
+                </div>
                 {actionData?.error && <p style={{ color: 'red', marginTop: '10px' }}>{actionData.error}</p>}
             </div>
 

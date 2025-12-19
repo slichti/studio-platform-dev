@@ -49,6 +49,7 @@ export const classes = sqliteTable('classes', {
     durationMinutes: integer('duration_minutes').notNull(),
     capacity: integer('capacity'),
     zoomMeetingUrl: text('zoom_meeting_url'),
+    thumbnailUrl: text('thumbnail_url'),
     cloudflareStreamId: text('cloudflare_stream_id'),
     recordingStatus: text('recording_status', { enum: ['processing', 'ready', 'error'] }),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
