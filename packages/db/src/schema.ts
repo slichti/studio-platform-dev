@@ -21,11 +21,23 @@ export const users = sqliteTable('users', {
     email: text('email').notNull(),
     passwordHash: text('password_hash'),
     profile: text('profile', { mode: 'json' }), // { bio, portraitUrl, etc. }
+    isSuperAdmin: integer('is_super_admin', { mode: 'boolean' }).default(false),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     emailIdx: index('email_idx').on(table.email),
     tenantIdx: index('tenant_idx').on(table.tenantId),
 }));
+
+// --- Audit Logs ---
+export const auditLogs = sqliteTable('audit_logs', {
+    id: text('id').primaryKey(),
+    actorId: text('actor_id'), // User who performed the action
+    action: text('action').notNull(), // e.g., 'impersonate', 'update_settings'
+    targetId: text('target_id'), // User/Class/Tenant ID affected
+    details: text('details', { mode: 'json' }),
+    ipAddress: text('ip_address'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+});
 
 // --- Locations ---
 export const locations = sqliteTable('locations', {

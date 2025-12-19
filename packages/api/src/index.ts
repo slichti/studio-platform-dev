@@ -60,6 +60,7 @@ tenantApp.get('/info', (c) => {
 
 import webhookRoutes from './routes/webhooks';
 import uploadRoutes from './routes/uploads';
+import adminRoutes from './routes/admin';
 
 // ... (existing routes)
 
@@ -69,5 +70,6 @@ app.route('/classes', classRoutes);
 app.route('/locations', locationRoutes);
 app.route('/webhooks', webhookRoutes);
 app.route('/uploads', uploadRoutes);
+app.route('/admin', adminRoutes);
 
 export default app

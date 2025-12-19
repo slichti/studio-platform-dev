@@ -17,8 +17,23 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables }>(asy
     const token = authHeader.split(' ')[1];
 
     try {
-        // Ideally pass secret key from env, verifyToken usually looks for CLERK_SECRET_KEY in env
-        // or we pass it explicitly if we access it via c.env
+        // 1. Check for Impersonation Token (Custom JWT, HS256)
+        // We use dynamic import or assume hono/jwt is available
+        const { verify } = await import('hono/jwt');
+        try {
+            const payload = await verify(token, (c.env as any).CLERK_SECRET_KEY);
+            if (payload.impersonatorId) {
+                c.set('auth', {
+                    userId: payload.sub as string,
+                    claims: payload as any,
+                });
+                return await next();
+            }
+        } catch (ignore) {
+            // Not a custom token, proceed to Clerk
+        }
+
+        // 2. Clerk Verification (RS256)
         const verified = await verifyToken(token, {
             secretKey: (c.env as any).CLERK_SECRET_KEY,
         });
