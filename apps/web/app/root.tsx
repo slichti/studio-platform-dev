@@ -17,6 +17,15 @@ export const links: LinksFunction = () => [
 ];
 
 export async function loader(args: LoaderFunctionArgs) {
+    const { context } = args;
+    console.log("Root Loader Context Keys:", Object.keys(context));
+    // Check for Env in context
+    if (context && typeof context === 'object' && 'env' in context) {
+        console.log("Env keys available:", Object.keys((context as any).env));
+    } else {
+        console.log("No 'env' found in context");
+    }
+
     return rootAuthLoader(args, ({ request }) => {
         return { message: "Auth Loaded" };
     });

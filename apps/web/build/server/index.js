@@ -19,12 +19,14 @@ async function handleRequest(request, responseStatusCode, responseHeaders, route
   if (isbot(request.headers.get("user-agent") || "")) {
     await body.allReady;
   }
-  responseHeaders.set("Content-Type", "text/html");
-  return new Response(body.pipeThrough(new TransformStream({
+  const transformStream = new TransformStream({
     start(controller) {
       controller.enqueue(new TextEncoder().encode("<!DOCTYPE html>\n"));
+    },
+    flush(controller) {
     }
-  })), {
+  });
+  return new Response(body.pipeThrough(transformStream), {
     headers: responseHeaders,
     status: responseStatusCode
   });
@@ -38,6 +40,15 @@ const links = () => [{
   href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
 }];
 async function loader$5(args) {
+  const {
+    context
+  } = args;
+  console.log("Root Loader Context Keys:", Object.keys(context));
+  if (context && typeof context === "object" && "env" in context) {
+    console.log("Env keys available:", Object.keys(context.env));
+  } else {
+    console.log("No 'env' found in context");
+  }
   return rootAuthLoader(args, ({
     request
   }) => {
