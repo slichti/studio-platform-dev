@@ -1,0 +1,11 @@
+name = "studio-platform-api"
+compatibility_date = "2024-02-08"
+
+[vars]
+ENVIRONMENT = "dev"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "studio-platform-db"
+database_id = "xxxx-xxxx-xxxx" # To be replaced with actual ID after creation
+
