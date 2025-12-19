@@ -1,6 +1,6 @@
-import { json, LoaderFunction } from "@remix-run/cloudflare";
-import { useLoaderData, Form } from "@remix-run/react";
-import { getAuth } from "@clerk/remix/ssr.server";
+import { LoaderFunction } from "react-router";
+import { useLoaderData, Form } from "react-router";
+import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
 import { useState } from "react";
 
@@ -11,10 +11,10 @@ export const loader: LoaderFunction = async (args) => {
     try {
         const tenants = await apiRequest("/admin/tenants", token);
         const logs = await apiRequest("/admin/logs", token);
-        return json({ tenants, logs });
+        return { tenants, logs };
     } catch (e) {
         // If 403, redirect or show error
-        return json({ error: "Unauthorized" }, { status: 403 });
+        throw new Response("Unauthorized", { status: 403 });
     }
 };
 

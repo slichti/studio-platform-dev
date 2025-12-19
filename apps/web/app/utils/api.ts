@@ -1,4 +1,4 @@
-import { useAuth } from "@clerk/remix";
+import { useAuth } from "@clerk/react-router";
 
 export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8787";
 

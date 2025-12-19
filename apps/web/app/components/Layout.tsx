@@ -1,5 +1,5 @@
-import { UserButton, useUser } from "@clerk/remix";
-import { Link, NavLink } from "@remix-run/react";
+import { UserButton, useUser } from "@clerk/react-router";
+import { Link, NavLink, useLocation } from "react-router";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
     const { user, isLoaded } = useUser();

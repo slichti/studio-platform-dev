@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { apiRequest } from "../utils/api";
-import { useAuth } from "@clerk/remix";
+import { useAuth } from "@clerk/react-router";
 
 export default function ImageUploader({ onUploadComplete }: { onUploadComplete: (url: string) => void }) {
     const { getToken } = useAuth();

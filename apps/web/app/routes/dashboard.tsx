@@ -1,6 +1,8 @@
-import { Outlet, redirect } from "@remix-run/react";
-import { getAuth } from "@clerk/remix/ssr.server";
-import { LoaderFunction } from "@remix-run/cloudflare";
+
+import { Outlet, Link, useLoaderData, Form, redirect } from "react-router";
+import { LoaderFunction } from "react-router";
+import { getAuth } from "@clerk/react-router/ssr.server";
+import { UserButton } from "@clerk/react-router";
 import Layout from "../components/Layout";
 
 export const loader: LoaderFunction = async (args) => {
@@ -8,7 +10,7 @@ export const loader: LoaderFunction = async (args) => {
     if (!userId) {
         return redirect("/sign-in");
     }
-    return null;
+    return {};
 };
 
 export default function DashboardRoute() {

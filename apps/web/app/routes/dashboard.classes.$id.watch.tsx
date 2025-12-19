@@ -1,23 +1,20 @@
-import { json, LoaderFunction } from "@remix-run/cloudflare";
-import { useLoaderData, Link } from "@remix-run/react";
-import { getAuth } from "@clerk/remix/ssr.server";
+import { LoaderFunction } from "react-router";
+import { useLoaderData, Link } from "react-router";
+import { getAuth } from "@clerk/react-router/ssr.server";
 // import { apiRequest } from "../utils/api"; 
 
 // Mock Data for now since we haven't wired up the "Get Class with Video" endpoint fully
-// In reality: const classData = await apiRequest(`/classes/${params.id}`, token);
-const MOCK_VIDEO_ID = ""; // User would populate this once real uploads happen
-
 export const loader: LoaderFunction = async (args) => {
-    const { params } = args;
-    const { getToken } = await getAuth(args);
+    // const { getToken } = await getAuth(args);
     // const token = await getToken();
-    // Fetch class details to get cloudflareStreamId
 
-    return json({
-        classId: params.id,
-        videoId: MOCK_VIDEO_ID,
-        title: "Yoga Flow - Recording"
-    });
+    // Returning mock data for UI dev
+    return {
+        id: args.params.id,
+        title: "Morning Vinyasa Flow",
+        cloudflareStreamId: "5d5bc37ffcf54c9b82e996823fca8f4e", // Example ID
+        recordingStatus: "ready"
+    };
 };
 
 export default function WatchRecording() {

@@ -1,5 +1,6 @@
-import type { MetaFunction } from "@remix-run/cloudflare";
-
+import type { MetaFunction } from "react-router";
+import { Link } from "react-router";
+import { SignInButton, SignUpButton, SignedIn, SignedOut } from "@clerk/react-router";
 export const meta: MetaFunction = () => {
     return [
         { title: "Yoga Platform" },

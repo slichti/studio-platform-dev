@@ -1,1 +1,0 @@
-import{j as t}from"./jsx-runtime-Cs6DZD4Z.js";import{d as e}from"./index-BE8IIHCl.js";import"./components-CrqNjzMe.js";import"./browser-C3UHr21k.js";function o(){return t.jsx("div",{style:{display:"flex",justifyContent:"center",alignItems:"center",height:"100vh"},children:t.jsx(e.SignUp,{})})}export{o as default};

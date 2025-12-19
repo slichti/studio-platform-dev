@@ -1,6 +1,6 @@
-import { json, LoaderFunction } from "@remix-run/cloudflare";
-import { useLoaderData, Link } from "@remix-run/react";
-import { getAuth } from "@clerk/remix/ssr.server";
+import { LoaderFunction } from "react-router";
+import { useLoaderData, Link } from "react-router";
+import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
 
 type Booking = {
@@ -15,11 +15,10 @@ type Booking = {
 };
 
 export const loader: LoaderFunction = async (args) => {
-    const { params } = args;
     const { getToken } = await getAuth(args);
     const token = await getToken();
-    const bookings = await apiRequest(`/classes/${params.id}/bookings`, token);
-    return json({ bookings, classId: params.id });
+    const bookings = await apiRequest(`/classes/${args.params.id}/bookings`, token);
+    return { bookings, classId: args.params.id };
 };
 
 export default function ClassRoster() {

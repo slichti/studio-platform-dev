@@ -1,0 +1,1 @@
+import{w as n,o as t}from"./chunk-JMJ3UQ3L-BcnvHMJ6.js";import{S as e}from"./uiComponents-BkGlm5Ew.js";import"./index-Cs1IdFfL.js";import"./index-CMwWdKhW.js";const p=n(function(){return t.jsx("div",{style:{display:"flex",justifyContent:"center",alignItems:"center",height:"100vh"},children:t.jsx(e,{})})});export{p as default};

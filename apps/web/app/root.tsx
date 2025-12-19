@@ -5,33 +5,59 @@ import {
     Scripts,
     ScrollRestoration,
     useLoaderData,
-} from "@remix-run/react";
-import type { LinksFunction, LoaderFunction } from "@remix-run/cloudflare";
-import { rootAuthLoader } from "@clerk/remix/ssr.server";
-import { ClerkApp } from "@clerk/remix";
+    useRouteError,
+    type LinksFunction,
+    type LoaderFunctionArgs,
+} from "react-router";
+import { ClerkProvider } from "@clerk/react-router";
+import { rootAuthLoader } from "@clerk/react-router/ssr.server";
 
 export const links: LinksFunction = () => [
     { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" },
 ];
 
-export const loader: LoaderFunction = (args) => rootAuthLoader(args);
+export async function loader(args: LoaderFunctionArgs) {
+    return rootAuthLoader(args, ({ request }) => {
+        return { message: "Auth Loaded" };
+    });
+}
 
-function App() {
+export default function App() {
+    const loaderData = useLoaderData();
+    return (
+        <ClerkProvider loaderData={loaderData} signUpFallbackRedirectUrl="/" signInFallbackRedirectUrl="/dashboard">
+            <html lang="en">
+                <head>
+                    <meta charSet="utf-8" />
+                    <meta name="viewport" content="width=device-width, initial-scale=1" />
+                    <Meta />
+                    <Links />
+                </head>
+                <body>
+                    <Outlet />
+                    <ScrollRestoration />
+                    <Scripts />
+                </body>
+            </html>
+        </ClerkProvider>
+    );
+}
+
+export function ErrorBoundary() {
+    const error = useRouteError();
+    console.error(error);
     return (
         <html lang="en">
             <head>
-                <meta charSet="utf-8" />
-                <meta name="viewport" content="width=device-width, initial-scale=1" />
+                <title>Oh no!</title>
                 <Meta />
                 <Links />
             </head>
-            <body>
-                <Outlet />
-                <ScrollRestoration />
+            <body style={{ padding: "20px", fontFamily: "system-ui" }}>
+                <h1>App Error</h1>
+                <pre>{error instanceof Error ? error.message : JSON.stringify(error)}</pre>
                 <Scripts />
             </body>
         </html>
     );
 }
-
-export default ClerkApp(App);

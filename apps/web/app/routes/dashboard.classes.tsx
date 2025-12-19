@@ -1,6 +1,6 @@
-import { json, LoaderFunction, ActionFunction } from "@remix-run/cloudflare";
-import { useLoaderData, useActionData, Form, useNavigation } from "@remix-run/react";
-import { getAuth } from "@clerk/remix/ssr.server";
+import { LoaderFunction, ActionFunction } from "react-router";
+import { useLoaderData, Form, useActionData, useNavigation, Link } from "react-router";
+import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
 import ImageUploader from "../components/ImageUploader";
 import { useState } from "react";
@@ -16,7 +16,7 @@ export const loader: LoaderFunction = async (args) => {
     const { getToken } = await getAuth(args);
     const token = await getToken();
     const classes = await apiRequest("/classes", token);
-    return json({ classes });
+    return { classes };
 };
 
 export const action: ActionFunction = async (args) => {
@@ -44,9 +44,9 @@ export const action: ActionFunction = async (args) => {
                 thumbnailUrl: thumbnailId ? `https://imagedelivery.net/<ACCOUNT_HASH>/${thumbnailId}/public` : undefined // Need Hash
             })
         });
-        return json({ success: true });
+        return { success: true };
     } catch (e: any) {
-        return json({ error: e.message }, { status: 500 });
+        return { error: e.message };
     }
 };
 
