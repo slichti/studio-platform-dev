@@ -5,7 +5,7 @@ export default {
     out: "./migrations",
     driver: "d1",
     dbCredentials: {
-        wranglerConfigPath: "wrangler.toml",
+        wranglerConfigPath: "../api/wrangler.toml",
         dbName: "studio-platform-db",
     }
 } satisfies Config;

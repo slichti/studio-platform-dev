@@ -10,6 +10,10 @@ type Variables = {
   tenant: typeof tenants.$inferSelect;
 };
 
+import studioRoutes from './routes/studios';
+import classRoutes from './routes/classes';
+import locationRoutes from './routes/locations';
+
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>()
 
 // Public routes
@@ -34,5 +38,8 @@ tenantApp.get('/info', (c) => {
 })
 
 app.route('/tenant', tenantApp);
+app.route('/studios', studioRoutes);
+app.route('/classes', classRoutes);
+app.route('/locations', locationRoutes);
 
 export default app

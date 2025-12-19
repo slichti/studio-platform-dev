@@ -27,27 +27,51 @@ export const users = sqliteTable('users', {
     tenantIdx: index('tenant_idx').on(table.tenantId),
 }));
 
+// --- Locations ---
+export const locations = sqliteTable('locations', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    name: text('name').notNull(),
+    address: text('address'),
+    timezone: text('timezone').default('UTC'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+});
+
 // --- Classes ---
 export const classes = sqliteTable('classes', {
     id: text('id').primaryKey(),
     tenantId: text('tenant_id').notNull().references(() => tenants.id),
     instructorId: text('instructor_id').notNull().references(() => users.id),
+    locationId: text('location_id').references(() => locations.id),
     title: text('title').notNull(),
     description: text('description'),
     startTime: integer('start_time', { mode: 'timestamp' }).notNull(),
     durationMinutes: integer('duration_minutes').notNull(),
+    capacity: integer('capacity'),
     zoomMeetingUrl: text('zoom_meeting_url'),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     tenantTimeIdx: index('tenant_time_idx').on(table.tenantId, table.startTime),
 }));
 
-// --- Sub Requests (Instructor Substitution) ---
-export const subRequests = sqliteTable('sub_requests', {
+// --- Subscriptions ---
+export const subscriptions = sqliteTable('subscriptions', {
     id: text('id').primaryKey(),
-    classId: text('class_id').notNull().references(() => classes.id),
-    requesterId: text('requester_id').notNull().references(() => users.id),
-    status: text('status', { enum: ['open', 'accepted', 'cancelled'] }).default('open'),
-    acceptedById: text('accepted_by_id').references(() => users.id),
+    userId: text('user_id').notNull().references(() => users.id),
+    status: text('status', { enum: ['active', 'past_due', 'canceled', 'incomplete'] }).notNull(),
+    tier: text('tier', { enum: ['basic', 'premium'] }).default('basic'),
+    currentPeriodEnd: integer('current_period_end', { mode: 'timestamp' }),
+    stripeSubscriptionId: text('stripe_subscription_id'),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
+
+// --- Bookings ---
+export const bookings = sqliteTable('bookings', {
+    id: text('id').primaryKey(),
+    classId: text('class_id').notNull().references(() => classes.id),
+    userId: text('user_id').notNull().references(() => users.id),
+    status: text('status', { enum: ['confirmed', 'cancelled', 'waitlisted'] }).default('confirmed'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    userClassIdx: index('user_class_idx').on(table.userId, table.classId),
+}));
