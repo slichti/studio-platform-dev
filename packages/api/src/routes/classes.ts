@@ -44,8 +44,36 @@ app.post('/', async (c) => {
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
     const userId = c.get('auth').userId;
 
+    // RBAC: Only Instructors or Owners can create classes
+    const { assertRole } = await import('../utils/rbac');
+    try {
+        assertRole(c, ['instructor', 'owner']);
+    } catch (e: any) {
+        return c.json({ error: e.message }, 403);
+    }
+
     const body = await c.req.json();
-    const { title, description, startTime, durationMinutes, capacity, locationId, createZoomMeeting, price, currency } = body;
+
+    // Zod Validation
+    const { z } = await import('zod');
+    const createClassSchema = z.object({
+        title: z.string().min(1),
+        description: z.string().optional(),
+        startTime: z.string().or(z.date()).pipe(z.coerce.date()), // Handle ISO strings
+        durationMinutes: z.number().int().positive(),
+        capacity: z.number().int().positive().optional(),
+        locationId: z.string().optional(),
+        createZoomMeeting: z.boolean().optional(),
+        price: z.number().int().nonnegative().optional().default(0),
+        currency: z.string().default('usd')
+    });
+
+    const parseResult = createClassSchema.safeParse(body);
+    if (!parseResult.success) {
+        return c.json({ error: 'Invalid input', details: parseResult.error.format() }, 400);
+    }
+
+    const { title, description, startTime, durationMinutes, capacity, locationId, createZoomMeeting, price, currency } = parseResult.data;
 
     const id = crypto.randomUUID();
     let zoomMeetingUrl: string | undefined = undefined;

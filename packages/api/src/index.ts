@@ -54,10 +54,18 @@ app.get('/', (c) => {
 app.use('/studios/*', authMiddleware);
 app.use('/classes/*', authMiddleware);
 app.use('/locations/*', authMiddleware);
+// Apply Tenant Middleware to these routes as well to enforce RBAC/Membership
+app.use('/classes/*', tenantMiddleware);
+app.use('/locations/*', tenantMiddleware);
+// Note: '/studios/*' is creating tenants, so it might not be inside a tenant yet?
+// Actually 'POST /studios' creates one. 'GET /studios/:id' views one.
+// If we enforce tenantMiddleware on ALL /studios/*, we break creation.
+// So let's apply explicitly to sub-resources.
 
-// Tenant Middleware Application
+// Tenant Middleware Application (for domain-based access)
 const tenantApp = new Hono<{ Bindings: Bindings, Variables: Variables }>()
-tenantApp.use('*', tenantMiddleware)
+tenantApp.use('*', authMiddleware); // Auth first
+tenantApp.use('*', tenantMiddleware); // Then Tenant (which checks membership)
 
 tenantApp.get('/info', (c) => {
   const tenant = c.get('tenant');

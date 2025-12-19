@@ -59,6 +59,31 @@ app.post('/zoom', async (c) => {
     }
 
     if (body.event === 'recording.completed') {
+        const signature = c.req.header('x-zm-signature');
+        const timestamp = c.req.header('x-zm-request-timestamp');
+        const secret = c.env.ZOOM_WEBHOOK_SECRET_TOKEN;
+
+        if (signature && timestamp && secret) {
+            const message = `v0:${timestamp}:${JSON.stringify(body)}`;
+            const encoder = new TextEncoder();
+            const key = await crypto.subtle.importKey(
+                'raw',
+                encoder.encode(secret),
+                { name: 'HMAC', hash: 'SHA-256' },
+                false,
+                ['sign']
+            );
+            const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(message));
+            const generatedSignature = 'v0=' + Array.from(new Uint8Array(signatureBuffer))
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+
+            if (generatedSignature !== signature) {
+                console.error("Invalid Zoom Webhook Signature");
+                return c.json({ error: 'Invalid signature' }, 401);
+            }
+        }
+
         const payload = body.payload.object;
         console.log(`Recording completed for meeting ${payload.id}`);
         // Zoom recording files usually come as a list. Look for 'MP4' type.

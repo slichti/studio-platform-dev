@@ -2,6 +2,8 @@ import { Hono } from 'hono';
 import { tenants } from 'db/src/schema'; // Ensure proper export from db/src/index.ts
 import { createDb } from '../db';
 import { eq } from 'drizzle-orm';
+import { tenantMiddleware } from '../middleware/tenant';
+import { authMiddleware } from '../middleware/auth';
 
 type Bindings = {
     DB: D1Database;
@@ -55,7 +57,18 @@ app.get('/stripe/callback', async (c) => {
 app.post('/', async (c) => {
     const db = createDb(c.env.DB);
     const body = await c.req.json();
-    const { name, slug } = body;
+
+    const { z } = await import('zod');
+    const createStudioSchema = z.object({
+        name: z.string().min(1),
+        slug: z.string().min(1).regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric"),
+    });
+
+    const parseResult = createStudioSchema.safeParse(body);
+    if (!parseResult.success) {
+        return c.json({ error: 'Invalid input', details: parseResult.error.format() }, 400);
+    }
+    const { name, slug } = parseResult.data;
 
     const id = crypto.randomUUID();
 
