@@ -16,7 +16,7 @@ export default async function handleRequest(
             signal: request.signal,
             onError(error: unknown) {
                 // Log streaming rendering errors from inside the shell
-                console.error(error);
+                console.error("SSR Error:", error);
                 responseStatusCode = 500;
             },
         }
@@ -27,7 +27,12 @@ export default async function handleRequest(
     }
 
     responseHeaders.set("Content-Type", "text/html");
-    return new Response(body, {
+    // Prepend DOCTYPE
+    return new Response(body.pipeThrough(new TransformStream({
+        start(controller) {
+            controller.enqueue(new TextEncoder().encode("<!DOCTYPE html>\n"));
+        }
+    })), {
         headers: responseHeaders,
         status: responseStatusCode,
     });

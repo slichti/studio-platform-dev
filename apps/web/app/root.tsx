@@ -23,7 +23,8 @@ export async function loader(args: LoaderFunctionArgs) {
 }
 
 export default function App() {
-    const loaderData = useLoaderData();
+    const loaderData = useLoaderData<typeof loader>();
+
     return (
         <ClerkProvider loaderData={loaderData} signUpFallbackRedirectUrl="/" signInFallbackRedirectUrl="/dashboard">
             <html lang="en">

@@ -11,7 +11,7 @@ async function handleRequest(request, responseStatusCode, responseHeaders, route
     {
       signal: request.signal,
       onError(error) {
-        console.error(error);
+        console.error("SSR Error:", error);
         responseStatusCode = 500;
       }
     }
@@ -20,7 +20,11 @@ async function handleRequest(request, responseStatusCode, responseHeaders, route
     await body.allReady;
   }
   responseHeaders.set("Content-Type", "text/html");
-  return new Response(body, {
+  return new Response(body.pipeThrough(new TransformStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode("<!DOCTYPE html>\n"));
+    }
+  })), {
     headers: responseHeaders,
     status: responseStatusCode
   });
