@@ -9,6 +9,8 @@ type Bindings = {
   ZOOM_CLIENT_ID: string;
   ZOOM_CLIENT_SECRET: string;
   ZOOM_WEBHOOK_SECRET_TOKEN: string;
+  CLOUDFLARE_ACCOUNT_ID: string;
+  CLOUDFLARE_API_TOKEN: string;
 };
 
 type Variables = {

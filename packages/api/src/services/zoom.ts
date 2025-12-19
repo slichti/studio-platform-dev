@@ -23,7 +23,7 @@ export class ZoomService {
         this.clientSecret = clientSecret;
     }
 
-    private async getAccessToken(): Promise<string> {
+    public async getAccessToken(): Promise<string> {
         const credentials = btoa(`${this.clientId}:${this.clientSecret}`);
         const params = new URLSearchParams({
             grant_type: 'account_credentials',
