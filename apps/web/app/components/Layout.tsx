@@ -92,9 +92,6 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
                             <NavLink to="/dashboard" style={({ isActive }) => ({ display: 'block', padding: '10px 12px', borderRadius: '8px', background: isActive ? colors.navActiveBg : 'transparent', textDecoration: 'none', color: isActive ? colors.navActiveText : colors.textMuted, fontSize: '0.95rem', fontWeight: isActive ? 600 : 400, transition: 'all 0.2s' })}>
                                 Overview
                             </NavLink>
-                            <NavLink to="/dashboard/classes" style={({ isActive }) => ({ display: 'block', padding: '10px 12px', borderRadius: '8px', background: isActive ? colors.navActiveBg : 'transparent', textDecoration: 'none', color: isActive ? colors.navActiveText : colors.textMuted, fontSize: '0.95rem', fontWeight: isActive ? 600 : 400, transition: 'all 0.2s' })}>
-                                Classes
-                            </NavLink>
                         </>
                     )}
                 </nav>
