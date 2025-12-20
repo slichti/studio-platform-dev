@@ -132,8 +132,11 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
                         {/* User Info Dropdown Trigger */}
                         {isLoaded && user && (
                             <div style={{ position: 'relative' }}>
-                                <button
+                                <div
+                                    role="button"
+                                    tabIndex={0}
                                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsDropdownOpen(!isDropdownOpen); }}
                                     style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px', borderRadius: '8px', transition: 'background 0.2s' }}
                                     onMouseEnter={(e) => e.currentTarget.style.background = 'var(--hover-bg)'}
                                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
@@ -156,7 +159,7 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                         <polyline points="6 9 12 15 18 9"></polyline>
                                     </svg>
-                                </button>
+                                </div>
 
                                 {/* Dropdown Menu */}
                                 {isDropdownOpen && (
