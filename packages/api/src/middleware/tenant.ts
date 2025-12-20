@@ -11,7 +11,8 @@ type Bindings = {
 type Variables = {
     tenant: typeof tenants.$inferSelect;
     auth?: { userId: string; claims: any };
-    user?: any; // users.$inferSelect - avoiding circular dependency if possible, or use 'any' for now then refine
+    member?: any; // tenantMembers.$inferSelect
+    roles?: string[];
 };
 
 export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variables: Variables }>, next: Next) => {
@@ -27,12 +28,20 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
     const db = createDb(c.env.DB);
 
     // 0. Check Header (Strongly preferred for API calls)
+    // 0. Check Header (Strongly preferred for API calls)
     const headerTenantId = c.req.header('X-Tenant-Id');
+    const headerTenantSlug = c.req.header('X-Tenant-Slug');
     let tenant;
 
     if (headerTenantId) {
         tenant = await db.query.tenants.findFirst({
             where: eq(tenants.id, headerTenantId),
+        });
+    }
+
+    if (!tenant && headerTenantSlug) {
+        tenant = await db.query.tenants.findFirst({
+            where: eq(tenants.slug, headerTenantSlug),
         });
     }
 
@@ -63,23 +72,35 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
     // 3. Security Check: If User is Authenticated, Verify Membership
     const auth = c.get('auth');
     if (auth && auth.userId) {
-        // ... (rest is fine)
-        // Fetch User Record for this Tenant
-        const { users } = await import('db/src/schema');
-        const user = await db.query.users.findFirst({
-            where: (users, { and, eq }) => and(
-                eq(users.id, auth.userId),
-                eq(users.tenantId, tenant.id)
+        // Import schema
+        const { tenantMembers, tenantRoles } = await import('db/src/schema');
+
+        // Find Member record
+        const member = await db.query.tenantMembers.findFirst({
+            where: (members, { and, eq }) => and(
+                eq(members.userId, auth.userId),
+                eq(members.tenantId, tenant.id)
             ),
+            with: {
+                // Determine roles? No "with" relation query in definition yet, or need to verify relations export
+                // Let's do a separate query or join if needed. For now simple query.
+            }
         });
 
-        if (!user) {
-            // User exists in Clerk (Auth) but NOT in this Tenant's user table.
+        if (!member) {
+            // User exists in Clerk (Auth) but NOT in this Tenant's members table.
             return c.json({ error: 'Access Denied: You are not a member of this studio.' }, 403);
         }
 
-        // Expose User Record (with Role) to downstream handlers
-        c.set('user', user);
+        // Fetch Roles
+        const rolesResult = await db.query.tenantRoles.findMany({
+            where: eq(tenantRoles.memberId, member.id)
+        });
+        const roles = rolesResult.map(r => r.role);
+
+        // Expose Member and Roles to downstream handlers
+        c.set('member', member);
+        c.set('roles', roles);
     }
 
     await next();

@@ -16,14 +16,24 @@ app.use('*', async (c, next) => {
     const auth = c.get('auth');
     if (!auth) return c.json({ error: 'Unauthorized' }, 401);
 
-    // For MVP, we can trust a hardcoded email OR the isSuperAdmin flag if it was populated.
-    // Let's use the DB flag since we added it.
     const db = createDb(c.env.DB);
-    const user = await db.select().from(users).where(eq(users.id, auth.userId)).get();
+    let user = await db.select().from(users).where(eq(users.id, auth.userId)).get();
 
-    // Fallback for bootstrap: if no users are super admin, allow if email matches a specific env var?
-    // Or just manually update the DB row for the first user.
-    if (!user || !user.isSuperAdmin) {
+    // Bootstrap: Auto-promote specific email if not yet admin
+    // This allows the initial owner to get access without manual DB hacks
+    if (user && user.email === 'slichti@gmail.com' && !user.isSystemAdmin) {
+        console.log(`Bootstrapping system admin for ${user.email}`);
+        await db.update(users)
+            .set({ isSystemAdmin: true })
+            .where(eq(users.id, user.id))
+            .run();
+        // Refresh user record
+        user = await db.select().from(users).where(eq(users.id, auth.userId)).get();
+    }
+
+    // Check system admin flag
+    if (!user || !user.isSystemAdmin) {
+        // Double check via email if user record missing? No, we need a user record.
         return c.json({ error: 'Forbidden: Admins only' }, 403);
     }
 
@@ -44,6 +54,39 @@ app.get('/logs', async (c) => {
     return c.json(results);
 });
 
+app.get('/users', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.query('tenantId');
+
+    if (tenantId) {
+        // Get members of this tenant
+        // We need to join with Users to get email/name
+        // But schema.ts imports might need adjustment if we use join
+        const { tenantMembers, users } = await import('db/src/schema');
+        const members = await db.select({
+            user: users,
+            member: tenantMembers
+        })
+            .from(tenantMembers)
+            .innerJoin(users, eq(tenantMembers.userId, users.id))
+            .where(eq(tenantMembers.tenantId, tenantId))
+            .all();
+
+        return c.json(members);
+    }
+
+    // Default: List global users (limit 50)
+    // const results = await db.select().from(users).limit(50).all(); 
+    // Wait, 'users' variable is shadowed by the update in previous step? 
+    // No, 'users' was imported at top level. 
+    // But inside middleware I declared 'let user'. 
+    // And here I am inside a handler. Usage of 'users' schema object should be fine if imported correctly.
+    // However, I should probably re-import or clearer naming.
+    const { users: usersSchema } = await import("db/src/schema");
+    const results = await db.select().from(usersSchema).limit(50).all();
+    return c.json(results);
+});
+
 app.post('/impersonate', async (c) => {
     const db = createDb(c.env.DB);
     const { targetUserId } = await c.req.json();
@@ -59,7 +102,7 @@ app.post('/impersonate', async (c) => {
     const payload = {
         sub: targetUser.id,
         impersonatorId: adminId,
-        role: targetUser.role, // Propagate role
+        // role: targetUser.role, // Property does not exist on User, and not needed for simple auth middleware check
         exp: Math.floor(Date.now() / 1000) + 60 * 60, // 1 hour
     };
 

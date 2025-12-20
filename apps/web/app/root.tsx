@@ -63,7 +63,7 @@ export default function App() {
                     <Meta />
                     <Links />
                 </head>
-                <body>
+                <body style={{ margin: 0, padding: 0, fontFamily: "'Inter', sans-serif", background: '#ffffff', color: '#18181b' }}>
                     <Outlet />
                     <ScrollRestoration />
                     <Scripts />

@@ -9,6 +9,14 @@ export async function apiRequest(path: string, token: string | null | undefined,
         headers.set("Authorization", `Bearer ${token}`);
     }
 
+    // Client-side Impersonation Override
+    if (typeof window !== "undefined") {
+        const impersonationToken = localStorage.getItem("impersonation_token");
+        if (impersonationToken) {
+            headers.set("Authorization", `Bearer ${impersonationToken}`);
+        }
+    }
+
     // Default to JSON
     if (!headers.has("Content-Type")) {
         headers.set("Content-Type", "application/json");

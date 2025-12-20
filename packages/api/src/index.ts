@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { tenantMiddleware } from './middleware/tenant';
-import { tenants } from 'db/src/schema'; // Ensure this import path is valid given tsconfig paths or package exports
+import { tenants, tenantMembers } from 'db/src/schema'; // Ensure this import path is valid given tsconfig paths or package exports
 
 type Bindings = {
   DB: D1Database;
@@ -18,6 +18,8 @@ type Bindings = {
 
 type Variables = {
   tenant: typeof tenants.$inferSelect;
+  member?: typeof tenantMembers.$inferSelect;
+  roles?: string[];
   auth: {
     userId: string | null;
     claims: any;
@@ -75,8 +77,21 @@ tenantApp.get('/info', (c) => {
     id: tenant.id,
     name: tenant.name,
     slug: tenant.slug,
-    customDomain: tenant.customDomain
+    customDomain: tenant.customDomain,
+    settings: tenant.settings
   })
+})
+
+tenantApp.get('/me', (c) => {
+  const member = c.get('member');
+  const roles = c.get('roles');
+  if (!member) {
+    return c.json({ error: "Not a member" }, 401);
+  }
+  return c.json({
+    member,
+    roles
+  });
 })
 
 import webhookRoutes from './routes/webhooks';
