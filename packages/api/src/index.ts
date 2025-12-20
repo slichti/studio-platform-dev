@@ -59,6 +59,9 @@ app.use('/locations/*', authMiddleware);
 // Apply Tenant Middleware to these routes as well to enforce RBAC/Membership
 app.use('/classes/*', tenantMiddleware);
 app.use('/locations/*', tenantMiddleware);
+app.use('/users/*', authMiddleware);
+app.use('/admin/*', authMiddleware);
+app.use('/uploads/*', authMiddleware); // Usually uploads need auth too
 // Note: '/studios/*' is creating tenants, so it might not be inside a tenant yet?
 // Actually 'POST /studios' creates one. 'GET /studios/:id' views one.
 // If we enforce tenantMiddleware on ALL /studios/*, we break creation.
