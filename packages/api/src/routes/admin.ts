@@ -46,6 +46,87 @@ app.get('/tenants', async (c) => {
     return c.json(results);
 });
 
+app.post('/tenants', async (c) => {
+    const db = createDb(c.env.DB);
+    const { name, slug, ownerEmail } = await c.req.json();
+    const adminId = c.get('auth').userId;
+
+    if (!name || !slug || !ownerEmail) {
+        return c.json({ error: 'Missing required fields' }, 400);
+    }
+
+    // Check slug uniqueness
+    const existing = await db.select().from(tenants).where(eq(tenants.slug, slug)).get();
+    if (existing) {
+        return c.json({ error: 'Slug already taken' }, 409);
+    }
+
+    // Find or create Owner User
+    // Note: In real app, we might invite them. Here we link or create a placeholder.
+    let owner = await db.select().from(users).where(eq(users.email, ownerEmail)).get();
+    if (!owner) {
+        // Create placeholder user (they will claim via Clerk later)
+        // OR better: In a Clerk app, you can't easily create a user without them signing up. 
+        // We will assume for this mock that we are "inviting" them. 
+        // We'll create a local record so we can link them.
+        const PLACEHOLDER_ID = `usr_placeholder_${crypto.randomUUID()}`;
+
+        await db.insert(users).values({
+            id: PLACEHOLDER_ID,
+            email: ownerEmail,
+            profile: { firstName: 'Pending', lastName: 'Owner' }
+        }).run();
+
+        owner = await db.select().from(users).where(eq(users.id, PLACEHOLDER_ID)).get();
+    }
+
+    if (!owner) return c.json({ error: 'Failed to resolve owner' }, 500);
+
+    // Create Tenant
+    const tenantId = `tnt_${crypto.randomUUID()}`;
+    await db.insert(tenants).values({
+        id: tenantId,
+        name,
+        slug,
+        branding: { primaryColor: '#4f46e5' } // Default branding
+    }).run();
+
+    // Add Owner as Member
+    const { tenantMembers, tenantRoles, auditLogs } = await import('db/src/schema');
+    const memberId = `mem_${crypto.randomUUID()}`;
+
+    await db.insert(tenantMembers).values({
+        id: memberId,
+        tenantId: tenantId,
+        userId: owner.id,
+        profile: { bio: 'Studio Owner' }
+    }).run();
+
+    await db.insert(tenantRoles).values({
+        memberId: memberId,
+        role: 'owner'
+    }).run();
+
+    // Log Action
+    await db.insert(auditLogs).values({
+        id: crypto.randomUUID(),
+        actorId: adminId,
+        action: 'create_tenant',
+        targetId: tenantId,
+        details: JSON.stringify({ name, slug, ownerEmail }),
+        ipAddress: c.req.header('cf-connecting-ip')
+    }).run();
+
+    // Fetch created tenant to return
+    const newTenant = await db.select().from(tenants).where(eq(tenants.id, tenantId)).get();
+
+    return c.json({
+        tenant: newTenant,
+        status: 'provisioned',
+        mockSteps: ['Database initialized', 'Owner linked', 'Cloudflare CNAME (Mock)', 'Stripe Customer (Mock)']
+    });
+});
+
 app.get('/logs', async (c) => {
     const db = createDb(c.env.DB);
     // Need to import auditLogs
