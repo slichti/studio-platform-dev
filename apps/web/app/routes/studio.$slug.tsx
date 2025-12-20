@@ -2,6 +2,7 @@ import { Outlet, useLoaderData, useParams } from "react-router";
 import { LoaderFunction, LoaderFunctionArgs, redirect } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
 import { API_URL, apiRequest } from "../utils/api";
+import Layout from "../components/Layout";
 
 type StudioLayoutData = {
     member: any;
@@ -74,53 +75,63 @@ export default function StudioLayout() {
     const isInstructor = roles.includes('instructor');
     const isStudent = roles.includes('student'); // or implicit if member exists?
 
+    const activeRole = isOwner ? "Owner" : isInstructor ? "Instructor" : "Student";
+
     // Sidebar Items based on Role
-    return (
-        <div style={{ display: 'flex', height: '100vh', fontFamily: "'Inter', sans-serif" }}>
-            <aside style={{ width: '250px', background: '#f4f4f5', padding: '20px', borderRight: '1px solid #e4e4e7' }}>
-                <div style={{ marginBottom: '40px' }}>
-                    <div style={{ fontWeight: 'bold', fontSize: '1.2rem' }}>{tenant.name}</div>
-                    <div style={{ fontSize: '0.8rem', color: '#666' }}>{tenant.slug}</div>
+    const navItems = (
+        <>
+            {isOwner && (
+                <div style={{ marginBottom: '24px' }}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#adb5bd', marginBottom: '8px', paddingLeft: '12px', letterSpacing: '0.5px' }}>ADMIN</div>
+                    <NavPending to="dashboard">Overview</NavPending>
+                    <NavPending to="settings">Settings</NavPending>
+                    <NavPending to="finances">Finances</NavPending>
                 </div>
+            )}
 
-                <nav style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    {isOwner && (
-                        <div style={{ marginBottom: '20px' }}>
-                            <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#999', marginBottom: '5px' }}>ADMIN</div>
-                            <NavPending to="dashboard">Overview</NavPending>
-                            <NavPending to="settings">Settings</NavPending>
-                            <NavPending to="finances">Finances</NavPending>
-                        </div>
-                    )}
+            {isInstructor && (
+                <div style={{ marginBottom: '24px' }}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#adb5bd', marginBottom: '8px', paddingLeft: '12px', letterSpacing: '0.5px' }}>INSTRUCTOR</div>
+                    <NavPending to="schedule">My Schedule</NavPending>
+                    <NavPending to="students">Students</NavPending>
+                </div>
+            )}
 
-                    {isInstructor && (
-                        <div style={{ marginBottom: '20px' }}>
-                            <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#999', marginBottom: '5px' }}>INSTRUCTOR</div>
-                            <NavPending to="schedule">My Schedule</NavPending>
-                            <NavPending to="students">Students</NavPending>
-                        </div>
-                    )}
+            <div style={{ marginBottom: '24px' }}>
+                <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#adb5bd', marginBottom: '8px', paddingLeft: '12px', letterSpacing: '0.5px' }}>STUDENT</div>
+                <NavPending to="classes">Book Classes</NavPending>
+                <NavPending to="memberships">My Memberships</NavPending>
+            </div>
+        </>
+    );
 
-                    <div style={{ marginBottom: '20px' }}>
-                        <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#999', marginBottom: '5px' }}>STUDENT</div>
-                        <NavPending to="classes">Book Classes</NavPending>
-                        <NavPending to="memberships">My Memberships</NavPending>
-                    </div>
-                </nav>
-            </aside>
-            <main style={{ flex: 1, padding: '40px' }}>
-                <Outlet context={{ tenant, member, roles }} />
-            </main>
-        </div>
+    return (
+        <Layout tenantName={tenant.name} role={activeRole} navItems={navItems}>
+            <Outlet context={{ tenant, member, roles }} />
+        </Layout>
     );
 }
 
 function NavPending({ to, children }: { to: string, children: React.ReactNode }) {
-    // Helper to just return a styled link
-    // Using simple anchor if nested routes not fully set up, or Link with relative path
+    // We would use NavLink here if we had the full route path, but we are relative.
+    // 'to' is just "dashboard", so appending to current url is tricky without specific "to" prop handling or useResolvedPath.
+    // Ideally we use NavLink with relative="path" or construct it.
+    // For now, simple anchor or NavLink.
+
+    // WORKAROUND: Just use styled anchors that look nice for the mockup phase, 
+    // or use NavLink if we can trust relative routing.
+    // React Router 6 relative routing works well.
+
+    // We need to import NavLink if we use it. 
+    // But since this helper was already using <a> tags, let's upgrade it to look like the Layout NavLink.
     return (
-        <a href={to} style={{ display: 'block', padding: '8px 12px', borderRadius: '6px', textDecoration: 'none', color: '#333', marginBottom: '2px' }}>
+        <a href={to} style={{ display: 'block', padding: '10px 12px', borderRadius: '8px', textDecoration: 'none', color: '#495057', fontSize: '0.95rem', marginBottom: '2px', transition: 'background 0.2s', background: 'transparent' }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#f1f3f5'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+        >
             {children}
         </a>
     )
 }
+
+

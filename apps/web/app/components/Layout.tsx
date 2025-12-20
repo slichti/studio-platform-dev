@@ -1,42 +1,68 @@
+import { UserButton, useUser } from "@clerk/react-router";
+import { NavLink } from "react-router";
 import { LogoutButton } from "./LogoutButton";
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+type LayoutProps = {
+    children: React.ReactNode;
+    tenantName?: string;
+    role?: string;
+    navItems?: React.ReactNode;
+};
+
+export default function Layout({ children, tenantName = "Studio Platform", role, navItems }: LayoutProps) {
     const { user, isLoaded } = useUser();
 
-    // Simplistic role check (in reality, check publicMetadata or DB)
-    const isInstructor = true; // Hardcoded for now until we sync User roles
-
     return (
-        <div style={{ display: 'flex', height: '100vh', fontFamily: "'Inter', sans-serif" }}>
+        <div style={{ display: 'flex', height: '100vh', fontFamily: "'Inter', sans-serif", background: '#f8f9fa' }}>
             {/* Sidebar */}
-            <aside style={{ width: '250px', background: '#f4f4f5', padding: '20px', borderRight: '1px solid #e4e4e7', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ marginBottom: '40px' }}>
-                    <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>Studio Platform</h1>
+            <aside style={{ width: '260px', background: '#ffffff', borderRight: '1px solid #e9ecef', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ padding: '24px', borderBottom: '1px solid #f1f3f5' }}>
+                    <h1 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#343a40', letterSpacing: '-0.5px' }}>
+                        {tenantName}
+                    </h1>
+                    {tenantName !== "Studio Platform" && (
+                        <div style={{ fontSize: '0.75rem', color: '#868e96', marginTop: '4px' }}>
+                            Studio Management
+                        </div>
+                    )}
                 </div>
 
-                <nav style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
-                    <NavLink to="/dashboard" style={({ isActive }) => ({ padding: '10px', borderRadius: '6px', background: isActive ? '#e4e4e7' : 'transparent', textDecoration: 'none', color: '#18181b' })}>
-                        Overview
-                    </NavLink>
-
-                    <NavLink to="/dashboard/classes" style={({ isActive }) => ({ padding: '10px', borderRadius: '6px', background: isActive ? '#e4e4e7' : 'transparent', textDecoration: 'none', color: '#18181b' })}>
-                        Classes
-                    </NavLink>
+                <nav style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflowY: 'auto' }}>
+                    {navItems || (
+                        <>
+                            <NavLink to="/dashboard" style={({ isActive }) => ({ display: 'block', padding: '10px 12px', borderRadius: '8px', background: isActive ? '#f1f3f5' : 'transparent', textDecoration: 'none', color: isActive ? '#212529' : '#495057', fontSize: '0.95rem', fontWeight: isActive ? 600 : 400 })}>
+                                Overview
+                            </NavLink>
+                            <NavLink to="/dashboard/classes" style={({ isActive }) => ({ display: 'block', padding: '10px 12px', borderRadius: '8px', background: isActive ? '#f1f3f5' : 'transparent', textDecoration: 'none', color: isActive ? '#212529' : '#495057', fontSize: '0.95rem', fontWeight: isActive ? 600 : 400 })}>
+                                Classes
+                            </NavLink>
+                        </>
+                    )}
                 </nav>
-
-                <div style={{ marginTop: 'auto', borderTop: '1px solid #e4e4e7', paddingTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div className="flex items-center gap-2">
-                        <UserButton />
-                        {isLoaded && user && <div style={{ fontSize: '0.875rem', color: '#71717a' }}>{user.fullName}</div>}
-                    </div>
-                    <LogoutButton className="w-full text-sm" />
-                </div>
             </aside>
 
-            {/* Main Content */}
-            <main style={{ flex: 1, padding: '40px', overflowY: 'auto' }}>
-                {children}
-            </main>
+            {/* Main Content Area */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                {/* Header */}
+                <header style={{ height: '70px', background: '#ffffff', borderBottom: '1px solid #e9ecef', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '0 32px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                        {isLoaded && user && (
+                            <div style={{ textAlign: 'right' }}>
+                                <div style={{ fontWeight: '600', fontSize: '0.9rem', color: '#343a40' }}>{user.fullName}</div>
+                                <div style={{ fontSize: '0.75rem', color: '#adb5bd', fontWeight: '500', textTransform: 'uppercase' }}>{role || "Member"}</div>
+                            </div>
+                        )}
+                        <UserButton afterSignOutUrl="/" />
+                        <div style={{ width: '1px', height: '24px', background: '#e9ecef' }}></div>
+                        <LogoutButton className="text-sm px-3 py-1.5" />
+                    </div>
+                </header>
+
+                {/* Page Content */}
+                <main style={{ flex: 1, padding: '40px', overflowY: 'auto' }}>
+                    {children}
+                </main>
+            </div>
         </div>
     );
 }
