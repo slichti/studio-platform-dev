@@ -47,6 +47,16 @@ app.use('*', cors({
   credentials: true,
 }));
 
+app.onError((err: any, c) => {
+  console.error('Global App Error:', err);
+  return c.json({
+    error: "Internal Application Error",
+    message: err.message,
+    stack: err.stack,
+    cause: err.cause
+  }, 500);
+});
+
 // Public routes
 app.get('/', (c) => {
   return c.text('Health Check: OK')

@@ -130,12 +130,26 @@ app.post('/tenants', async (c) => {
 app.get('/logs', async (c) => {
     try {
         const db = createDb(c.env.DB);
-        // Use top-level imported auditLogs
+
+        // DEBUG: Verify DB connection with a known table
+        try {
+            const userCount = await db.select().from(users).limit(1).all();
+            console.log("DEBUG: Users query success", userCount);
+        } catch (dbErr: any) {
+            console.error("DEBUG: Users query failed", dbErr);
+            throw new Error(`DB Connection Check Failed: ${dbErr.message}`);
+        }
+
         const results = await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(50);
         return c.json(results);
     } catch (error: any) {
         console.error("Failed to fetch audit logs:", error);
-        return c.json({ error: error.message, details: error }, 500);
+        return c.json({
+            error: "Database Error",
+            message: error.message,
+            stack: error.stack,
+            cause: error.cause
+        }, 500);
     }
 });
 
