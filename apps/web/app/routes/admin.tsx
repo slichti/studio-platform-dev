@@ -83,6 +83,7 @@ export default function AdminDashboard() {
 
 // Separate component to use hooks cleanly
 import { useAuth } from "@clerk/react-router";
+import { LogoutButton } from "../components/LogoutButton";
 
 function AdminDashboardContent({ tenants, logs }: { tenants: any[], logs: any[] }) {
     const { getToken } = useAuth();
@@ -132,7 +133,10 @@ function AdminDashboardContent({ tenants, logs }: { tenants: any[], logs: any[] 
 
     return (
         <div className="p-10 font-sans max-w-7xl mx-auto">
-            <h1 className="text-3xl font-bold mb-8">System Admin</h1>
+            <div className="flex justify-between items-center mb-8">
+                <h1 className="text-3xl font-bold">System Admin</h1>
+                <LogoutButton />
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Tenants Column */}
