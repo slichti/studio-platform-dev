@@ -128,11 +128,15 @@ app.post('/tenants', async (c) => {
 });
 
 app.get('/logs', async (c) => {
-    const db = createDb(c.env.DB);
-    // Need to import auditLogs
-    const { auditLogs } = await import('db/src/schema');
-    const results = await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(50);
-    return c.json(results);
+    try {
+        const db = createDb(c.env.DB);
+        // Use top-level imported auditLogs
+        const results = await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(50);
+        return c.json(results);
+    } catch (error: any) {
+        console.error("Failed to fetch audit logs:", error);
+        return c.json({ error: error.message, details: error }, 500);
+    }
 });
 
 app.get('/users', async (c) => {
