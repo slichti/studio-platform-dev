@@ -18,12 +18,32 @@ export const links: LinksFunction = () => [
 
 export async function loader(args: LoaderFunctionArgs) {
     const { context } = args;
-    console.log("Root Loader Context Keys:", Object.keys(context));
-    // Check for Env in context
-    if (context && typeof context === 'object' && 'env' in context) {
-        console.log("Env keys available:", Object.keys((context as any).env));
-    } else {
-        console.log("No 'env' found in context");
+    // Environment variable check
+    const env = (context as any).env || {};
+    const pubKey = env.CLERK_PUBLISHABLE_KEY;
+    const secretKey = env.CLERK_SECRET_KEY;
+
+    if (!pubKey || !secretKey || pubKey === 'pk_test_...' || secretKey === 'sk_test_...') {
+        console.error("Missing or invalid Clerk Keys in environment");
+        const availableKeys = Object.keys(env);
+        console.error("Available keys:", availableKeys);
+
+        const debugContextKeys = (context as any).debugContextKeys || [];
+        const debugEnvKeys = (context as any).debugEnvKeys || [];
+        const debugCloudflareKeys = (context as any).debugCloudflareKeys || [];
+
+        // Return a response that triggers the ErrorBoundary or handled in component
+        // throwing specific response allows us to catch it easily
+        throw new Response(
+            JSON.stringify({
+                error: "Clerk Keys Missing or Invalid",
+                availableEnvKeys: availableKeys,
+                debugContextKeys,
+                debugEnvKeys,
+                debugCloudflareKeys
+            }),
+            { status: 503, statusText: "Service Configuration Error" }
+        );
     }
 
     return rootAuthLoader(args, ({ request }) => {

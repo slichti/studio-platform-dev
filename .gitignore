@@ -1,1 +1,11 @@
 node_modules
+build/
+dist/
+.wrangler/
+.env
+.DS_Store
+.idea/
+.vscode/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
