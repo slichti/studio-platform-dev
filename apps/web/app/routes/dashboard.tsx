@@ -1,9 +1,9 @@
-
-import { Outlet, Link, useLoaderData, Form, redirect } from "react-router";
+import { Outlet, Link, useLoaderData, Form, redirect, NavLink } from "react-router";
 import { LoaderFunction } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
 import { UserButton } from "@clerk/react-router";
 import Layout from "../components/Layout";
+import { apiRequest } from "../utils/api";
 
 export const loader: LoaderFunction = async (args) => {
     const { userId, getToken } = await getAuth(args);
@@ -12,30 +12,57 @@ export const loader: LoaderFunction = async (args) => {
     }
 
     const token = await getToken();
-    // Assuming API is accessible via VITE_API_URL and we are on the same domain or handling CORS correctly. 
-    // In dev, we might need a specific URL. 
-    // Also, we need to pass the tenant context. 
-    // For now, let's assume the API URL is set up to point to the current tenant or generic, 
-    // BUT we need to pass a header X-Tenant-Id or similar IF we are not on the subdomain.
-    // However, the dashboard seems to be generic "/dashboard". 
-    // This implies a platform-level dashboard or we need to know WHICH studio we are viewing.
-    // If the user is logged in, they might belong to multiple studios.
+    let isSystemAdmin = false;
 
-    // For the purpose of "internal studio pieces", maybe we serve the studio dashboard at "/studio/:slug/dashboard".
-    // The current route is "/dashboard". If this is the generic platform dashboard, it should list studios.
+    try {
+        const user = await apiRequest("/users/me", token);
+        if (user && user.isSystemAdmin) {
+            isSystemAdmin = true;
+        }
+    } catch (e) {
+        // Fail gracefully if we can't fetch profile
+        console.error("Failed to fetch user profile", e);
+    }
 
-    // Let's assume for this task we are building the "Studio Internal Pieces", so we should probably redirect to a studio specific route or we are IN a studio context.
-    // If we assume single-tenant deployment per domain, then we are fine.
-
-    // Let's just try to fetch /tenant/me. If 404 (no tenant inferred), we might be on platform root?
-    // We'll handle that.
-
-    return {};
+    return { isSystemAdmin };
 };
 
 export default function DashboardRoute() {
+    const { isSystemAdmin } = useLoaderData<{ isSystemAdmin: boolean }>();
+
+    let navItems = [
+        <NavLink
+            key="overview"
+            to="/dashboard"
+            end
+            className={({ isActive }) =>
+                `block px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive
+                    ? "bg-zinc-800 text-white"
+                    : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white"
+                }`
+            }
+        >
+            Overview
+        </NavLink>
+    ];
+
+    if (isSystemAdmin) {
+        navItems.push(
+            <div key="separator" className="my-2 border-t border-zinc-200 dark:border-zinc-800" />
+        );
+        navItems.push(
+            <NavLink
+                key="admin"
+                to="/admin"
+                className="block px-3 py-2 rounded-md text-sm font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
+            >
+                🛡️ System Admin
+            </NavLink>
+        );
+    }
+
     return (
-        <Layout>
+        <Layout navItems={navItems}>
             <Outlet />
         </Layout>
     );
