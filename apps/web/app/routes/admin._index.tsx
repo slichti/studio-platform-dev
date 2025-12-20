@@ -11,8 +11,10 @@ export const loader: LoaderFunction = async (args) => {
         const logs = await apiRequest("/admin/logs", token);
         // We could fetch stats here too
         return { logs };
-    } catch (e) {
-        throw new Response("Unauthorized", { status: 403 });
+    } catch (e: any) {
+        console.error("Admin dashboard loader error:", e);
+        // Throw the actual error so ErrorBoundary shows it
+        throw new Response(e.message || "Failed to load dashboard", { status: 500 });
     }
 };
 
@@ -47,7 +49,7 @@ export default function AdminIndex() {
                     {logs.map((log: any) => (
                         <div key={log.id} className="mb-2 border-l-2 border-zinc-800 pl-2">
                             <div className="flex gap-2 text-zinc-500">
-                                <span>{new Date(log.createdAt).toLocaleString()}</span>
+                                <span>{new Date(log.createdAt).toISOString().replace('T', ' ').substring(0, 19)}</span>
                                 <span>{log.ipAddress}</span>
                             </div>
                             <div>
