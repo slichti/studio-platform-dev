@@ -5,6 +5,7 @@ import { tenants, tenantMembers } from 'db/src/schema'; // Ensure this import pa
 type Bindings = {
   DB: D1Database;
   CLERK_SECRET_KEY: string;
+  CLERK_PEM_PUBLIC_KEY: string; // PEM format public key for RS256 verification
   ZOOM_ACCOUNT_ID: string;
   ZOOM_CLIENT_ID: string;
   ZOOM_CLIENT_SECRET: string;

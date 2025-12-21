@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from "react-router";
-import { LogoutButton } from "../components/LogoutButton";
+// import { LogoutButton } from "../components/LogoutButton";
 
 export default function AdminLayout() {
     const navItems = [
@@ -40,7 +40,8 @@ export default function AdminLayout() {
                 </nav>
 
                 <div className="p-4 border-t border-zinc-800">
-                    <LogoutButton />
+                    {/* <LogoutButton /> */}
+                    <button className="text-red-500">Sign Out (Stub)</button>
                 </div>
             </aside>
 

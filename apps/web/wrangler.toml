@@ -1,6 +1,8 @@
 name = "studio-platform-web"
 compatibility_date = "2024-02-08"
+compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "./build/client"
 
 [vars]
 ENVIRONMENT = "dev"
+VITE_API_URL = "https://studio-platform-api.slichti.workers.dev"

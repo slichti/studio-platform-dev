@@ -3,6 +3,12 @@ import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
+    ssr: {
+        resolve: {
+            conditions: ["workerd", "worker", "browser"],
+            externalConditions: ["workerd", "worker"],
+        },
+    },
     plugins: [
         reactRouter(),
         tsconfigPaths(),

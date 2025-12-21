@@ -1,20 +1,12 @@
 import { useLoaderData } from "react-router";
-import { getAuth } from "@clerk/react-router/ssr.server";
+// import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
 import { useState } from "react";
-import { useAuth } from "@clerk/react-router";
+// import { useAuth } from "@clerk/react-router";
 
 export const loader = async (args: any) => {
-    const { getToken } = await getAuth(args);
-    const token = await getToken();
-    try {
-        // Fetch global users - needs a new endpoint or update existing users endpoint to support global list
-        // Implementing basic listing for now assuming endpoint exists or will exist
-        const users = await apiRequest("/admin/users", token);
-        return { users };
-    } catch (e) {
-        throw new Response("Unauthorized", { status: 403 });
-    }
+    // Stubbed loader
+    return { users: [] };
 };
 
 export default function AdminUsers() {

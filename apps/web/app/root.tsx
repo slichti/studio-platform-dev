@@ -17,59 +17,29 @@ export const links: LinksFunction = () => [
 ];
 
 export async function loader(args: LoaderFunctionArgs) {
-    const { context } = args;
-    // Environment variable check
-    const env = (context as any).env || {};
-    const pubKey = env.CLERK_PUBLISHABLE_KEY;
-    const secretKey = env.CLERK_SECRET_KEY;
-
-    if (!pubKey || !secretKey || pubKey === 'pk_test_...' || secretKey === 'sk_test_...') {
-        console.error("Missing or invalid Clerk Keys in environment");
-        const availableKeys = Object.keys(env);
-        console.error("Available keys:", availableKeys);
-
-        const debugContextKeys = (context as any).debugContextKeys || [];
-        const debugEnvKeys = (context as any).debugEnvKeys || [];
-        const debugCloudflareKeys = (context as any).debugCloudflareKeys || [];
-
-        // Return a response that triggers the ErrorBoundary or handled in component
-        // throwing specific response allows us to catch it easily
-        throw new Response(
-            JSON.stringify({
-                error: "Clerk Keys Missing or Invalid",
-                availableEnvKeys: availableKeys,
-                debugContextKeys,
-                debugEnvKeys,
-                debugCloudflareKeys
-            }),
-            { status: 503, statusText: "Service Configuration Error" }
-        );
-    }
-
-    return rootAuthLoader(args, ({ request }) => {
-        return { message: "Auth Loaded" };
-    });
+    console.log("DEBUG: Root Loader Stub");
+    return { message: "Root Stub" };
 }
 
 export default function App() {
     const loaderData = useLoaderData<typeof loader>();
 
     return (
-        <ClerkProvider loaderData={loaderData} signUpFallbackRedirectUrl="/" signInFallbackRedirectUrl="/dashboard">
-            <html lang="en">
-                <head>
-                    <meta charSet="utf-8" />
-                    <meta name="viewport" content="width=device-width, initial-scale=1" />
-                    <Meta />
-                    <Links />
-                </head>
-                <body style={{ margin: 0, padding: 0, fontFamily: "'Inter', sans-serif", background: '#ffffff', color: '#18181b' }}>
-                    <Outlet />
-                    <ScrollRestoration />
-                    <Scripts />
-                </body>
-            </html>
-        </ClerkProvider>
+        // <ClerkProvider loaderData={loaderData} signUpFallbackRedirectUrl="/" signInFallbackRedirectUrl="/dashboard"> 
+        <html lang="en">
+            <head>
+                <meta charSet="utf-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1" />
+                <Meta />
+                <Links />
+            </head>
+            <body style={{ margin: 0, padding: 0, fontFamily: "'Inter', sans-serif", background: '#ffffff', color: '#18181b' }}>
+                <Outlet />
+                <ScrollRestoration />
+                <Scripts />
+            </body>
+        </html>
+        // </ClerkProvider>
     );
 }
 

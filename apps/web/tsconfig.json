@@ -5,7 +5,8 @@
         "**/.server/**/*.ts",
         "**/.server/**/*.tsx",
         "**/.client/**/*.ts",
-        "**/.client/**/*.tsx"
+        "**/.client/**/*.tsx",
+        "env.d.ts"
     ],
     "compilerOptions": {
         "lib": [

@@ -1,8 +1,9 @@
-import { useAuth } from "@clerk/react-router";
+// import { useAuth } from "@clerk/react-router";
 
-export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8787";
+const DEFAULT_API_URL = "http://localhost:8787";
 
-export async function apiRequest(path: string, token: string | null | undefined, options: RequestInit = {}) {
+export async function apiRequest(path: string, token: string | null | undefined, options: RequestInit = {}, baseUrl?: string) {
+    const url = baseUrl || import.meta.env.VITE_API_URL || DEFAULT_API_URL;
     const headers = new Headers(options.headers);
 
     if (token) {
@@ -22,7 +23,7 @@ export async function apiRequest(path: string, token: string | null | undefined,
         headers.set("Content-Type", "application/json");
     }
 
-    const res = await fetch(`${API_URL}${path}`, {
+    const res = await fetch(`${url}${path}`, {
         ...options,
         headers
     });

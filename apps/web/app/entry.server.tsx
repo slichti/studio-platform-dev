@@ -10,56 +10,39 @@ export default async function handleRequest(
     routerContext: EntryContext,
     loadContext: AppLoadContext
 ) {
-    let body = await renderToReadableStream(
-        <ServerRouter context={routerContext} url={request.url} />,
-        {
-            signal: request.signal,
-            onError(error: unknown) {
-                // Log streaming rendering errors from inside the shell
-                console.error("SSR Error:", error);
-                responseStatusCode = 500;
-            },
-        }
-    );
-
-    if (responseStatusCode === 500) {
-        // logic to handle early errors?
-    }
-
-
-    if (isbot(request.headers.get("user-agent") || "")) {
-        await body.allReady;
-    }
-
-    // DEBUG: Wrap stream to inject errors if any occur during start
-    const transformStream = new TransformStream({
-        start(controller) {
-            controller.enqueue(new TextEncoder().encode("<!DOCTYPE html>\n"));
-        },
-        flush(controller) {
-            // If we could detect error here we would, but usually it's too late.
-        }
-    });
-
-    // Attempting to catch synchronous errors before streaming starts
     try {
-        // This is just the shell, typically generic errors happen here.
+        let body = await renderToReadableStream(
+            <ServerRouter context={routerContext} url={request.url} />,
+            {
+                signal: request.signal,
+                onError(error: unknown) {
+                    // Log streaming rendering errors from inside the shell
+                    console.error("SSR Error:", error);
+                    responseStatusCode = 500;
+                },
+            }
+        );
+
+        if (isbot(request.headers.get("user-agent") || "")) {
+            await body.allReady;
+        }
+
+        responseHeaders.set("Content-Type", "text/html");
+        return new Response(body, {
+            headers: responseHeaders,
+            status: responseStatusCode,
+        });
     } catch (e: any) {
-        console.error("Server Start Error Details:", e);
+        console.error("CRITICAL WORKER CRASH:", e);
         return new Response(`
-            <h1>Server Start Error</h1>
-            <p>The server crashed before it could start streaming.</p>
-            <pre>${e instanceof Error ? e.stack : JSON.stringify(e)}</pre>
+            <h1>🔥 Critical Worker Crash 🔥</h1>
+            <p>${e.message}</p>
+            <pre>${e.stack}</pre>
             <hr>
-            <p>Ensure CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY are set.</p>
+            <p>Environment: ${JSON.stringify(Object.keys(loadContext.context?.env || {}))}</p>
         `, {
-            status: 500,
-            headers: { 'Content-Type': 'text/html' }
+            status: 200, // Return 200 to show the error page
+            headers: { "Content-Type": "text/html" }
         });
     }
-
-    return new Response(body.pipeThrough(transformStream), {
-        headers: responseHeaders,
-        status: responseStatusCode,
-    });
 }

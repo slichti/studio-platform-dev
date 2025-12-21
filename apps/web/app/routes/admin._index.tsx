@@ -3,18 +3,39 @@ import { useLoaderData } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
 
+// export const loader: LoaderFunction = async (args) => {
+//    console.log("DEBUG: Admin Loader Stub");
+//    return { logs: [] };
+// };
+
 export const loader: LoaderFunction = async (args) => {
-    const { getToken } = await getAuth(args);
-    const token = await getToken();
+    let token = "DUMMY_TOKEN";
+    // try {
+    //     const { getToken } = await getAuth(args);
+    //     token = await getToken();
+    // } catch (authErr: any) {
+    //     console.error("DEBUG: getAuth CRASHED", authErr);
+    //     throw new Response(`Auth System Error: ${authErr.message}`, { status: 500 });
+    // }
 
     try {
-        const logs = await apiRequest("/admin/logs", token);
-        // We could fetch stats here too
+        console.log("DEBUG: Calling API /admin/logs");
+        // Pass runtime env API URL to ensure we hit the real backend, not localhost
+        const apiUrl = (args.context.env as any).VITE_API_URL;
+
+        // Debugging: Throw if API URL is missing so we see it
+        if (!apiUrl) {
+            throw new Error("VITE_API_URL is undefined in context");
+        }
+
+        const logs = await apiRequest("/admin/logs", token, {}, apiUrl);
+        console.log("DEBUG: API Success");
         return { logs };
     } catch (e: any) {
-        console.error("Admin dashboard loader error:", e);
-        // Throw the actual error so ErrorBoundary shows it
-        throw new Response(e.message || "Failed to load dashboard", { status: 500 });
+        console.error("DEBUG: API Call Failed", e);
+        // Provide FULL context in the error message for the user to see
+        const apiUrl = (args.context.env as any)?.VITE_API_URL || "UNKNOWN";
+        throw new Response(`API Fetch Failed. Target: ${apiUrl}/admin/logs. Error: ${e.message}`, { status: 500 });
     }
 };
 
