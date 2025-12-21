@@ -12,34 +12,50 @@ import {
 import { ClerkProvider } from "@clerk/react-router";
 import { rootAuthLoader } from "@clerk/react-router/ssr.server";
 
+import styles from "./index.css?url";
+
 export const links: LinksFunction = () => [
     { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" },
+    { rel: "stylesheet", href: styles },
 ];
 
+// Restore Loader
 export async function loader(args: LoaderFunctionArgs) {
-    console.log("DEBUG: Root Loader Stub");
-    return { message: "Root Stub" };
+    try {
+        console.log("DEBUG: Executing rootAuthLoader");
+        return await rootAuthLoader(args, ({ request }) => {
+            console.log("DEBUG: rootAuthLoader callback executing");
+            return { message: "Auth Loaded" };
+        });
+    } catch (e: any) {
+        // If the error is a Response (like a redirect), re-throw it!
+        if (e instanceof Response) {
+            throw e;
+        }
+        console.error("DEBUG: rootAuthLoader CRASHED", e);
+        throw new Response(`Root Auth Crash: ${e.message}`, { status: 500 });
+    }
 }
 
 export default function App() {
     const loaderData = useLoaderData<typeof loader>();
 
     return (
-        // <ClerkProvider loaderData={loaderData} signUpFallbackRedirectUrl="/" signInFallbackRedirectUrl="/dashboard"> 
-        <html lang="en">
-            <head>
-                <meta charSet="utf-8" />
-                <meta name="viewport" content="width=device-width, initial-scale=1" />
-                <Meta />
-                <Links />
-            </head>
-            <body style={{ margin: 0, padding: 0, fontFamily: "'Inter', sans-serif", background: '#ffffff', color: '#18181b' }}>
-                <Outlet />
-                <ScrollRestoration />
-                <Scripts />
-            </body>
-        </html>
-        // </ClerkProvider>
+        <ClerkProvider loaderData={loaderData} signUpFallbackRedirectUrl="/" signInFallbackRedirectUrl="/dashboard">
+            <html lang="en">
+                <head>
+                    <meta charSet="utf-8" />
+                    <meta name="viewport" content="width=device-width, initial-scale=1" />
+                    <Meta />
+                    <Links />
+                </head>
+                <body style={{ margin: 0, padding: 0, fontFamily: "'Inter', sans-serif", background: '#ffffff', color: '#18181b' }}>
+                    <Outlet />
+                    <ScrollRestoration />
+                    <Scripts />
+                </body>
+            </html>
+        </ClerkProvider>
     );
 }
 

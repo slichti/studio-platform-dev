@@ -20,7 +20,11 @@ export default function AdminStatus() {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                         <div className="p-3 bg-zinc-50 rounded border border-zinc-100">
                             <span className="text-zinc-500 block text-xs uppercase tracking-wide">Environment</span>
-                            <span className="font-mono text-zinc-900">Production</span>
+                            <span className="font-mono text-zinc-900">
+                                {typeof window !== 'undefined' && (window.location.hostname.includes('dev') || window.location.hostname.includes('localhost'))
+                                    ? "Development"
+                                    : "Production"}
+                            </span>
                         </div>
                         <div className="p-3 bg-zinc-50 rounded border border-zinc-100">
                             <span className="text-zinc-500 block text-xs uppercase tracking-wide">Region</span>

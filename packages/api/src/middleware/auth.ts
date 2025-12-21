@@ -33,19 +33,37 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables }>(asy
             // Not a custom token, proceed to Clerk
         }
 
-        // 2. Clerk Verification (RS256) using Web Crypto (hono/jwt)
+        // 3. Clerk Verification (RS256) using Web Crypto (hono/jwt)
         // Note: verifyToken from @clerk/backend is incompatible with Workers.
         // We use the PEM Public Key provided in environment variables.
-        const publicKey = (c.env as any).CLERK_PEM_PUBLIC_KEY;
+        let publicKey = (c.env as any).CLERK_PEM_PUBLIC_KEY;
         if (!publicKey) {
             console.error("Server Configuration Error: Missing Public Key");
             return c.json({ error: "Server Configuration Error" }, 500);
         }
 
+        // SANITIZATION: Aggressive PEM cleanup
+        // 1. Remove headers, footers, and ALL whitespace (newlines, spaces, tabs)
+        const dirtyKey = publicKey
+            .replace(/-----BEGIN PUBLIC KEY-----/g, '')
+            .replace(/-----END PUBLIC KEY-----/g, '')
+            .replace(/\s+/g, '');
+
+        // 2. Split into 64-character chunks (Standard PEM format)
+        const chunks = dirtyKey.match(/.{1,64}/g);
+
+        if (!chunks) {
+            console.error("Server Configuration Error: Invalid Public Key Format (Empty)");
+            return c.json({ error: "Server Configuration Error: Invalid Key" }, 500);
+        }
+
+        // 3. Reconstruct pristine PEM
+        const cleanPublicKey = `-----BEGIN PUBLIC KEY-----\n${chunks.join('\n')}\n-----END PUBLIC KEY-----`;
+
         try {
             // verify() from hono/jwt uses standard Web Crypto API
             // Algorithm is RS256 for Clerk
-            const payload = await verify(token, publicKey, 'RS256');
+            const payload = await verify(token, cleanPublicKey, 'RS256');
 
             c.set('auth', {
                 userId: payload.sub as string,

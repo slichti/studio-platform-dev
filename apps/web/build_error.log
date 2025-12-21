@@ -1,0 +1,76 @@
+
+> build
+> react-router build
+
+vite v5.4.21 building for production...
+transforming...
+✓ 36 modules transformed.
+x Build failed in 403ms
+[vite:css] [postcss] It looks like you're trying to use `tailwindcss` directly as a PostCSS plugin. The PostCSS plugin has moved to a separate package, so to continue using Tailwind CSS with PostCSS you'll need to install `@tailwindcss/postcss` and update your PostCSS configuration.
+file: /Users/slichti/GitHub/studio-platform-dev/apps/web/app/index.css?transform-only:undefined:NaN
+    at lt (/Users/slichti/GitHub/studio-platform-dev/node_modules/tailwindcss/dist/lib.js:38:1643)
+    at LazyResult.runOnRoot (/Users/slichti/GitHub/studio-platform-dev/node_modules/postcss/lib/lazy-result.js:361:16)
+    at LazyResult.runAsync (/Users/slichti/GitHub/studio-platform-dev/node_modules/postcss/lib/lazy-result.js:290:26)
+    at LazyResult.async (/Users/slichti/GitHub/studio-platform-dev/node_modules/postcss/lib/lazy-result.js:192:30)
+    at LazyResult.then (/Users/slichti/GitHub/studio-platform-dev/node_modules/postcss/lib/lazy-result.js:436:17)
+    at compileCSS (file:///Users/slichti/GitHub/studio-platform-dev/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:36898:21)
+    at Object.transform (file:///Users/slichti/GitHub/studio-platform-dev/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:36171:11)
+    at transform (file:///Users/slichti/GitHub/studio-platform-dev/node_modules/rollup/dist/es/shared/node-entry.js:21206:16)
+    at ModuleLoader.addModuleSource (file:///Users/slichti/GitHub/studio-platform-dev/node_modules/rollup/dist/es/shared/node-entry.js:21420:36) {
+  code: 'PLUGIN_ERROR',
+  loc: { file: undefined, line: undefined, column: NaN },
+  pluginCode: '@tailwind base;\n' +
+    '@tailwind components;\n' +
+    '@tailwind utilities;\n' +
+    '\n' +
+    '@layer base {\n' +
+    '  :root {\n' +
+    '    --background: 0 0% 100%;\n' +
+    '    --foreground: 240 10% 3.9%;\n' +
+    '  }\n' +
+    ' \n' +
+    '  body {\n' +
+    '    @apply bg-background text-foreground;\n' +
+    '  }\n' +
+    '}\n',
+  plugin: 'vite:css',
+  hook: 'transform',
+  id: '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/index.css?transform-only',
+  watchFiles: [
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/root.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/dashboard.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/dashboard.classes.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/dashboard.classes.$id.roster.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/dashboard.profile.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/dashboard.classes.$id.watch.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/dashboard._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/sign-in.$.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/sign-up.$.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/_index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.tenants.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.status.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.users.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/entry.client.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/package.json',
+    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react/jsx-runtime.js',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/Layout.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/ImageUploader.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/LogoutButton.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react/index.js',
+    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react-dom/client.js',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/utils/api.ts',
+    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react-router/dist/development/dom-export.mjs',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/index.css'
+  ]
+}
+npm error Lifecycle script `build` failed with error:
+npm error code 1
+npm error path /Users/slichti/GitHub/studio-platform-dev/apps/web
+npm error workspace web
+npm error location /Users/slichti/GitHub/studio-platform-dev/apps/web
+npm error command failed
+npm error command sh -c react-router build

@@ -9,9 +9,14 @@ export const loader = async (args: any) => {
     const token = await getToken();
     try {
         const tenants = await apiRequest("/admin/tenants", token);
-        return { tenants };
-    } catch (e) {
-        throw new Response("Unauthorized", { status: 403 });
+        return { tenants, error: null };
+    } catch (e: any) {
+        console.error("Loader failed", e);
+        return {
+            tenants: [],
+            error: e.message || "Unauthorized",
+            debug: e.data?.debug
+        };
     }
 };
 
@@ -75,6 +80,19 @@ export default function AdminTenants() {
             </div>
 
             <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm">
+                {/* Error Display */}
+                {(tenants as any)?.error && (
+                    <div className="p-4 bg-red-50 text-red-700 border-b border-red-100 mb-4">
+                        <div className="font-bold">Access Denied: {(tenants as any).error}</div>
+                        {(tenants as any).debug && (
+                            <pre className="mt-2 text-xs bg-red-100 p-2 rounded overflow-auto">
+                                {JSON.stringify((tenants as any).debug, null, 2)}
+                            </pre>
+                        )}
+                        <p className="text-xs mt-2">Try refreshing to re-trigger admin bootstrapping.</p>
+                    </div>
+                )}
+
                 <table className="w-full text-left">
                     <thead className="bg-zinc-50 border-b border-zinc-200">
                         <tr>
@@ -86,7 +104,7 @@ export default function AdminTenants() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-100">
-                        {tenants.map((t: any) => (
+                        {Array.isArray(tenants) && tenants.map((t: any) => (
                             <tr key={t.id} className="hover:bg-zinc-50 transition-colors">
                                 <td className="px-6 py-4 font-medium text-zinc-900">{t.name}</td>
                                 <td className="px-6 py-4 text-zinc-600 font-mono text-xs bg-zinc-100 rounded self-start inline-block px-1 mt-1">{t.slug}</td>
@@ -103,7 +121,7 @@ export default function AdminTenants() {
                         ))}
                     </tbody>
                 </table>
-                {tenants.length === 0 && (
+                {(!Array.isArray(tenants) || tenants.length === 0) && (
                     <div className="p-8 text-center text-zinc-500">
                         No tenants found. Create one to get started.
                     </div>

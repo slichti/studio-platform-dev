@@ -18,23 +18,48 @@ app.use('*', async (c, next) => {
 
     const db = createDb(c.env.DB);
     let user = await db.select().from(users).where(eq(users.id, auth.userId)).get();
+    const claims = auth.sessionClaims as any;
+    const email = claims?.email as string || "";
 
     // Bootstrap: Auto-promote specific email if not yet admin
-    // This allows the initial owner to get access without manual DB hacks
-    if (user && user.email === 'slichti@gmail.com' && !user.isSystemAdmin) {
-        console.log(`Bootstrapping system admin for ${user.email}`);
-        await db.update(users)
-            .set({ isSystemAdmin: true })
-            .where(eq(users.id, user.id))
-            .run();
+    // We check either the hardcoded ID OR the email from the token claims
+    if (
+        (!user && (auth.userId === "user_377aQ2rw6dIQk5k43U71YKUHDMM" || email === 'slichti@gmail.com')) ||
+        (user && user.email === 'slichti@gmail.com' && !user.isSystemAdmin)
+    ) {
+        console.log(`Bootstrapping system admin for ${auth.userId} (${email})`);
+
+        if (!user) {
+            await db.insert(users).values({
+                id: auth.userId,
+                email: email || 'slichti@gmail.com',
+                isSystemAdmin: true,
+                profile: { firstName: 'System', lastName: 'Admin' }
+            }).run();
+        } else {
+            await db.update(users)
+                .set({ isSystemAdmin: true })
+                .where(eq(users.id, user.id))
+                .run();
+        }
+
         // Refresh user record
         user = await db.select().from(users).where(eq(users.id, auth.userId)).get();
     }
 
     // Check system admin flag
     if (!user || !user.isSystemAdmin) {
-        // Double check via email if user record missing? No, we need a user record.
-        return c.json({ error: 'Forbidden: Admins only' }, 403);
+        return c.json({
+            error: 'Forbidden: Admins only',
+            debug: {
+                currentUserId: auth.userId,
+                detectedEmail: email,
+                hasUserRecord: !!user,
+                userEmail: user?.email,
+                isAdmin: user?.isSystemAdmin,
+                claims: claims
+            }
+        }, 403);
     }
 
     await next();
@@ -184,6 +209,37 @@ app.get('/users', async (c) => {
     const { users: usersSchema } = await import("db/src/schema");
     const results = await db.select().from(usersSchema).limit(50).all();
     return c.json(results);
+});
+
+app.get('/users/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const id = c.req.param('id');
+    const { users } = await import("db/src/schema");
+
+    const user = await db.select().from(users).where(eq(users.id, id)).get();
+    if (!user) return c.json({ error: 'User not found' }, 404);
+
+    return c.json(user);
+});
+
+app.put('/users/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const id = c.req.param('id');
+    const { isSystemAdmin } = await c.req.json();
+    const { users } = await import("db/src/schema");
+
+    // Prevent removing self as admin
+    const auth = c.get('auth');
+    if (auth.userId === id && isSystemAdmin === false) {
+        return c.json({ error: "Cannot remove your own admin privileges" }, 400);
+    }
+
+    await db.update(users)
+        .set({ isSystemAdmin })
+        .where(eq(users.id, id))
+        .run();
+
+    return c.json({ success: true });
 });
 
 app.post('/impersonate', async (c) => {

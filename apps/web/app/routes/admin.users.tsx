@@ -1,12 +1,21 @@
-import { useLoaderData } from "react-router";
-// import { getAuth } from "@clerk/react-router/ssr.server";
+import { useLoaderData, Link } from "react-router";
+import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
 import { useState } from "react";
-// import { useAuth } from "@clerk/react-router";
+import { useAuth } from "@clerk/react-router";
 
 export const loader = async (args: any) => {
-    // Stubbed loader
-    return { users: [] };
+    const { getToken } = await getAuth(args);
+    const token = await getToken();
+    try {
+        // Fetch global users - needs a new endpoint or update existing users endpoint to support global list
+        // Implementing basic listing for now assuming endpoint exists or will exist
+        const apiUrl = (args.context.env as any).VITE_API_URL;
+        const users = await apiRequest("/admin/users", token, {}, apiUrl);
+        return { users };
+    } catch (e) {
+        throw new Response("Unauthorized", { status: 403 });
+    }
 };
 
 export default function AdminUsers() {
@@ -45,7 +54,7 @@ export default function AdminUsers() {
                                 </td>
                                 <td className="px-6 py-4 text-zinc-400 text-xs">{new Date(u.createdAt).toLocaleDateString()}</td>
                                 <td className="px-6 py-4">
-                                    <button className="text-zinc-500 hover:text-zinc-900 text-sm">Edit</button>
+                                    <Link to={`/admin/users/${u.id}`} className="text-zinc-500 hover:text-zinc-900 text-sm font-medium">Edit</Link>
                                 </td>
                             </tr>
                         ))}
