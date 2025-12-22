@@ -74,6 +74,37 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables }>(asy
             return c.json({ error: "Invalid Token Signature", details: jwtErr.message }, 401);
         }
 
+        // 4. Update Audit / Activity Stats (Throttled)
+        const userId = c.get('auth').userId;
+        if (userId) {
+            // Using waitUntil to not block response
+            c.executionCtx.waitUntil((async () => {
+                try {
+                    const { createDb } = await import('../db');
+                    const { users } = await import('db/src/schema');
+                    const { eq, sql } = await import('drizzle-orm');
+
+                    const db = createDb(c.env.DB);
+
+                    // Throttle: Only update if older than 5 minutes or null
+                    // Optimization: We can just blind update if we don't care about read cost vs write cost.
+                    // But checking first is better for write-heavy D1 pricing? 
+                    // Actually D1 reads are cheap/free, writes are paid.
+                    // Let's just update. It's simpler for now. Or better: use WHERE clause to limit writes?
+                    // "UPDATE users SET last_active = NOW WHERE id = X AND (last_active IS NULL OR last_active < NOW - 5min)"
+
+                    await db.update(users)
+                        .set({ lastActiveAt: new Date() })
+                        .where(
+                            eq(users.id, userId)
+                        )
+                        .run();
+                } catch (e) {
+                    console.error("Failed to update stats", e);
+                }
+            })());
+        }
+
         await next();
     } catch (error: any) {
         console.error("Auth Middleware logic error:", error);

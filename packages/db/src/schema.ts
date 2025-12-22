@@ -20,6 +20,7 @@ export const users = sqliteTable('users', {
     email: text('email').notNull(),
     profile: text('profile', { mode: 'json' }), // Global profile: { firstName, lastName, portraitUrl }
     isSystemAdmin: integer('is_system_admin', { mode: 'boolean' }).default(false), // Platform-level admin
+    lastActiveAt: integer('last_active_at', { mode: 'timestamp' }), // Timestamp of last API request
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     emailIdx: index('email_idx').on(table.email),
@@ -87,7 +88,7 @@ export const classes = sqliteTable('classes', {
     thumbnailUrl: text('thumbnail_url'),
     cloudflareStreamId: text('cloudflare_stream_id'),
     recordingStatus: text('recording_status', { enum: ['processing', 'ready', 'error'] }),
-    
+
     // Cancellation Logic
     minStudents: integer('min_students').default(1),
     autoCancelThreshold: integer('auto_cancel_threshold'), // Hours before start
@@ -106,7 +107,7 @@ export const subscriptions = sqliteTable('subscriptions', {
     // Usually subscriptions are "User X pays Tenant Y". 
     // If we link to User, we need TenantID too. 
     tenantId: text('tenant_id').notNull().references(() => tenants.id),
-    
+
     status: text('status', { enum: ['active', 'past_due', 'canceled', 'incomplete'] }).notNull(),
     tier: text('tier', { enum: ['basic', 'premium'] }).default('basic'),
     currentPeriodEnd: integer('current_period_end', { mode: 'timestamp' }),

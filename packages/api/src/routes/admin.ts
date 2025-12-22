@@ -178,15 +178,109 @@ app.get('/logs', async (c) => {
     }
 });
 
+app.post('/users', async (c) => {
+    const db = createDb(c.env.DB);
+    const { email, firstName, lastName, isSystemAdmin, initialTenantId, initialRole } = await c.req.json();
+    const adminId = c.get('auth').userId;
+    const { users, tenantMembers, tenantRoles, auditLogs } = await import('db/src/schema');
+
+    if (!email || !firstName || !lastName) {
+        return c.json({ error: "Missing required fields (email, firstName, lastName)" }, 400);
+    }
+
+    // Check if user exists
+    let user = await db.select().from(users).where(eq(users.email, email)).get();
+    if (user) {
+        return c.json({ error: "User with this email already exists" }, 409);
+    }
+
+    // Create User (Invited/Placeholder)
+    const userId = `inv_${crypto.randomUUID()}`; // "inv" prefix for invited users not yet claimed via Clerk
+    await db.insert(users).values({
+        id: userId,
+        email,
+        isSystemAdmin: !!isSystemAdmin,
+        profile: { firstName, lastName }
+    }).run();
+
+    // Assign to Tenant if requested
+    if (initialTenantId) {
+        const memberId = `mem_${crypto.randomUUID()}`;
+        await db.insert(tenantMembers).values({
+            id: memberId,
+            tenantId: initialTenantId,
+            userId: userId,
+            profile: {}
+        }).run();
+
+        await db.insert(tenantRoles).values({
+            memberId: memberId,
+            role: initialRole || 'student'
+        }).run();
+    }
+
+    // Log
+    await db.insert(auditLogs).values({
+        id: crypto.randomUUID(),
+        actorId: adminId,
+        action: 'create_user',
+        targetId: userId,
+        details: JSON.stringify({ email, isSystemAdmin, initialTenantId }),
+        ipAddress: c.req.header('cf-connecting-ip')
+    }).run();
+
+    return c.json({ success: true, userId });
+});
+
 app.get('/users', async (c) => {
     const db = createDb(c.env.DB);
+    const { users, tenantMembers, tenants, tenantRoles } = await import('db/src/schema');
+    const { like, or, sql, eq } = await import('drizzle-orm');
+
+    const search = c.req.query('search');
     const tenantId = c.req.query('tenantId');
+    const sort = c.req.query('sort') || 'joined_desc';
+
+    // Approach: Fetch Users matching filters, then optionally fetch their membership details.
+
+    // Sort Mapping
+    let orderBy: any = desc(users.createdAt);
+    if (sort === 'joined_asc') orderBy = users.createdAt;
+    else if (sort === 'joined_desc') orderBy = desc(users.createdAt);
+    else if (sort === 'name_asc') orderBy = sql`UPPER(json_extract(${users.profile}, '$.firstName'))`;
+    else if (sort === 'name_desc') orderBy = desc(sql`UPPER(json_extract(${users.profile}, '$.firstName'))`);
+
+    // Approach: Build filters array and apply once
+    const filters = [];
+
+    if (search) {
+        const searchLike = `%${search}%`;
+        filters.push(
+            or(
+                like(users.email, searchLike),
+                sql`json_extract(${users.profile}, '$.firstName') LIKE ${searchLike}`,
+                sql`json_extract(${users.profile}, '$.lastName') LIKE ${searchLike}`
+            )
+        );
+    }
+
+    // Construct query
+    let matchedUsers;
+    if (filters.length > 0) {
+        matchedUsers = await db.select().from(users).where(filters[0]).orderBy(orderBy).limit(100).all();
+    } else {
+        matchedUsers = await db.select().from(users).orderBy(orderBy).limit(100).all();
+    }
+
+    // If tenantId filter is provided, we must strictly filter.
+    // The above query didn't filter by tenant. 
+    // If tenantId is present, the query should have been a join.
+    let finalUsers = matchedUsers;
 
     if (tenantId) {
-        // Get members of this tenant
-        // We need to join with Users to get email/name
-        // But schema.ts imports might need adjustment if we use join
-        const { tenantMembers, users } = await import('db/src/schema');
+        // Filter in memory for now OR refactor to join if list is huge. 
+        // Better: Join.
+        // Let's re-write the query strategy to be generic. 
         const members = await db.select({
             user: users,
             member: tenantMembers
@@ -196,30 +290,226 @@ app.get('/users', async (c) => {
             .where(eq(tenantMembers.tenantId, tenantId))
             .all();
 
-        return c.json(members);
+        // If search was also present, filter the results
+        if (search) {
+            const lowerSearch = search.toLowerCase();
+            finalUsers = members
+                .map(m => m.user)
+                .filter(u =>
+                    u.email.toLowerCase().includes(lowerSearch) ||
+                    JSON.stringify(u.profile).toLowerCase().includes(lowerSearch)
+                );
+        } else {
+            finalUsers = members.map(m => m.user);
+        }
+
+        // Manual Sort for Tenant filtered list (since we lost DB sort)
+        finalUsers.sort((a, b) => {
+            if (sort.includes('joined')) {
+                const dA = new Date(a.createdAt).getTime();
+                const dB = new Date(b.createdAt).getTime();
+                return sort.includes('asc') ? dA - dB : dB - dA;
+            } else if (sort.includes('name')) {
+                const nA = (a.profile as any)?.firstName || '';
+                const nB = (b.profile as any)?.firstName || '';
+                return sort.includes('asc') ? nA.localeCompare(nB) : nB.localeCompare(nA);
+            }
+            return 0;
+        });
     }
 
-    // Default: List global users (limit 50)
-    // const results = await db.select().from(users).limit(50).all(); 
-    // Wait, 'users' variable is shadowed by the update in previous step? 
-    // No, 'users' was imported at top level. 
-    // But inside middleware I declared 'let user'. 
-    // And here I am inside a handler. Usage of 'users' schema object should be fine if imported correctly.
-    // However, I should probably re-import or clearer naming.
-    const { users: usersSchema } = await import("db/src/schema");
-    const results = await db.select().from(usersSchema).limit(50).all();
-    return c.json(results);
+    // Now, for the "Group By Tenant" view, the frontend needs to know WHICH tenants a user belongs to.
+    // We should attach `memberships` to each user.
+    // 1. Get all user IDs
+    const userIds = finalUsers.map(u => u.id);
+
+    if (userIds.length > 0) {
+        const allMemberships = await db.select({
+            userId: tenantMembers.userId,
+            tenant: tenants,
+            role: tenantRoles.role
+        })
+            .from(tenantMembers)
+            .innerJoin(tenants, eq(tenantMembers.tenantId, tenants.id))
+            .leftJoin(tenantRoles, eq(tenantRoles.memberId, tenantMembers.id))
+            .where(sql`${tenantMembers.userId} IN ${userIds}`)
+            .all();
+
+        // Attach to users
+        const usersWithMemberships = finalUsers.map(u => {
+            const memberships = allMemberships.filter(m => m.userId === u.id);
+            return {
+                ...u,
+                memberships: memberships.map(m => ({
+                    tenant: m.tenant,
+                    role: m.role
+                }))
+            };
+        });
+
+        return c.json(usersWithMemberships);
+    }
+
+    return c.json(finalUsers);
+});
+
+app.patch('/users/bulk', async (c) => {
+    const db = createDb(c.env.DB);
+    const { userIds, action, value } = await c.req.json();
+    const { users } = await import('db/src/schema');
+    const { inArray } = await import('drizzle-orm');
+
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+        return c.json({ error: "No users specified" }, 400);
+    }
+
+    const adminId = c.get('auth').userId;
+
+    if (action === 'set_system_admin') {
+        // Security check: cannot unset self
+        if (value === false && userIds.includes(adminId)) {
+            return c.json({ error: "Cannot remove your own admin privileges" }, 400);
+        }
+
+        await db.update(users)
+            .set({ isSystemAdmin: value })
+            .where(inArray(users.id, userIds))
+            .run();
+    } else {
+        return c.json({ error: "Invalid action" }, 400);
+    }
+
+    return c.json({ success: true, count: userIds.length });
 });
 
 app.get('/users/:id', async (c) => {
     const db = createDb(c.env.DB);
     const id = c.req.param('id');
-    const { users } = await import("db/src/schema");
+    const { users, tenantMembers, tenants, tenantRoles } = await import("db/src/schema");
+    const { eq } = await import('drizzle-orm');
 
     const user = await db.select().from(users).where(eq(users.id, id)).get();
     if (!user) return c.json({ error: 'User not found' }, 404);
 
-    return c.json(user);
+    // Fetch memberships
+    const memberships = await db.select({
+        memberId: tenantMembers.id,
+        tenant: tenants,
+        role: tenantRoles.role
+    })
+        .from(tenantMembers)
+        .innerJoin(tenants, eq(tenantMembers.tenantId, tenants.id))
+        .leftJoin(tenantRoles, eq(tenantRoles.memberId, tenantMembers.id))
+        .where(eq(tenantMembers.userId, id))
+        .all();
+
+    return c.json({
+        ...user,
+        memberships: memberships.map(m => ({
+            id: m.memberId,
+            tenant: m.tenant,
+            role: m.role || 'member' // Default fallback
+        }))
+    });
+});
+
+app.post('/users/:id/memberships', async (c) => {
+    const db = createDb(c.env.DB);
+    const userId = c.req.param('id');
+    const { tenantId, role } = await c.req.json();
+    const { tenantMembers, tenantRoles } = await import("db/src/schema");
+    const adminId = c.get('auth').userId;
+
+    if (!tenantId || !role) return c.json({ error: "Missing tenantId or role" }, 400);
+
+    // Check if member exists
+    let member = await db.select().from(tenantMembers)
+        .where(eq(tenantMembers.tenantId, tenantId))
+        .where(eq(tenantMembers.userId, userId)) // Drizzle eq doesn't support multiple where in one call for AND usually without 'and()' helper
+        // Actually .where().where() is AND in Drizzle query builder
+        .get();
+
+    // Correction: .where needs to be chained property or utilize 'and'
+    // Let's use 'and' to be safe standard
+    const { and } = await import('drizzle-orm');
+    member = await db.select().from(tenantMembers)
+        .where(and(
+            eq(tenantMembers.tenantId, tenantId),
+            eq(tenantMembers.userId, userId)
+        ))
+        .get();
+
+    let memberId = member?.id;
+
+    if (!member) {
+        memberId = `mem_${crypto.randomUUID()}`;
+        await db.insert(tenantMembers).values({
+            id: memberId,
+            tenantId,
+            userId,
+            profile: {}
+        }).run();
+    }
+
+    // Upsert Role (Delete existing, insert new for simplicity, since we only support 1 role per user per tenant for now in this UI)
+    // Schema allows multiple roles (PK is memberId + role), but UI likely enforces single primary role.
+    // Let's wipe existing roles for this member and add the new one.
+
+    await db.delete(tenantRoles).where(eq(tenantRoles.memberId, memberId!)).run();
+    await db.insert(tenantRoles).values({
+        memberId: memberId!,
+        role: role
+    }).run();
+
+    // Log
+    const { auditLogs } = await import('db/src/schema');
+    await db.insert(auditLogs).values({
+        id: crypto.randomUUID(),
+        actorId: adminId,
+        action: 'assign_role',
+        targetId: userId,
+        details: JSON.stringify({ tenantId, role }),
+        ipAddress: c.req.header('cf-connecting-ip')
+    }).run();
+
+    return c.json({ success: true });
+});
+
+app.delete('/users/:id/memberships', async (c) => {
+    const db = createDb(c.env.DB);
+    const userId = c.req.param('id');
+    const { tenantId } = await c.req.json();
+    const { tenantMembers, tenantRoles } = await import("db/src/schema");
+    const { and } = await import('drizzle-orm');
+    const adminId = c.get('auth').userId;
+
+    // Find member
+    const member = await db.select().from(tenantMembers)
+        .where(and(
+            eq(tenantMembers.tenantId, tenantId),
+            eq(tenantMembers.userId, userId)
+        ))
+        .get();
+
+    if (member) {
+        // Delete roles first (FK constraint)
+        await db.delete(tenantRoles).where(eq(tenantRoles.memberId, member.id)).run();
+        // Delete member
+        await db.delete(tenantMembers).where(eq(tenantMembers.id, member.id)).run();
+
+        // Log
+        const { auditLogs } = await import('db/src/schema');
+        await db.insert(auditLogs).values({
+            id: crypto.randomUUID(),
+            actorId: adminId,
+            action: 'remove_access',
+            targetId: userId,
+            details: JSON.stringify({ tenantId }),
+            ipAddress: c.req.header('cf-connecting-ip')
+        }).run();
+    }
+
+    return c.json({ success: true });
 });
 
 app.put('/users/:id', async (c) => {
@@ -227,6 +517,7 @@ app.put('/users/:id', async (c) => {
     const id = c.req.param('id');
     const { isSystemAdmin } = await c.req.json();
     const { users } = await import("db/src/schema");
+    const { eq } = await import('drizzle-orm');
 
     // Prevent removing self as admin
     const auth = c.get('auth');

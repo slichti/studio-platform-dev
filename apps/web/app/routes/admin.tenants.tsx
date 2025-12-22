@@ -3,6 +3,8 @@ import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
 import { useState } from "react";
 import { useAuth } from "@clerk/react-router";
+import { Modal } from "../components/Modal";
+import { ErrorDialog, ConfirmationDialog } from "../components/Dialogs";
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -25,6 +27,11 @@ export default function AdminTenants() {
     const [tenants, setTenants] = useState(initialTenants);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+
+    // Dialog State
+    const [errorDialog, setErrorDialog] = useState<{ isOpen: boolean, message: string }>({ isOpen: false, message: "" });
+    const [successDialog, setSuccessDialog] = useState<{ isOpen: boolean, message: string }>({ isOpen: false, message: "" });
+
     const { getToken } = useAuth();
     const navigate = useNavigate();
 
@@ -52,16 +59,16 @@ export default function AdminTenants() {
             });
 
             if (res.error) {
-                alert(res.error);
+                setErrorDialog({ isOpen: true, message: res.error });
             } else {
                 setTenants([...tenants, res.tenant]);
                 setIsCreateOpen(false);
                 setFormData({ name: "", slug: "", ownerEmail: "", plan: "basic" });
-                alert(`Tenant ${res.tenant.name} provisioned successfully!`);
+                setSuccessDialog({ isOpen: true, message: `Tenant ${res.tenant.name} (${res.tenant.slug}) has been provisioned successfully.` });
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
-            alert("Failed to create tenant");
+            setErrorDialog({ isOpen: true, message: e.message || "Failed to create tenant. Please try again." });
         } finally {
             setLoading(false);
         }
@@ -69,6 +76,23 @@ export default function AdminTenants() {
 
     return (
         <div>
+            {/* Dialogs */}
+            <ErrorDialog
+                isOpen={errorDialog.isOpen}
+                onClose={() => setErrorDialog({ ...errorDialog, isOpen: false })}
+                title="Error"
+                message={errorDialog.message}
+            />
+            <ConfirmationDialog
+                isOpen={successDialog.isOpen}
+                onClose={() => setSuccessDialog({ ...successDialog, isOpen: false })}
+                onConfirm={() => setSuccessDialog({ ...successDialog, isOpen: false })}
+                title="Tenant Provisioned"
+                message={successDialog.message}
+                confirmText="Done"
+                cancelText="Close"
+            />
+
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Tenant Management</h2>
                 <button
@@ -129,86 +153,87 @@ export default function AdminTenants() {
             </div>
 
             {/* Create Tenant Modal */}
-            {isCreateOpen && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200">
-                        <h3 className="text-xl font-bold mb-4">Spin Up New Tenant</h3>
-                        <p className="text-zinc-500 text-sm mb-6">
-                            Automated provisioning: This will create a database record, set up initial owner permissions, and allocate resources.
-                        </p>
-
-                        <form onSubmit={handleCreate} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-zinc-700 mb-1">Studio Name</label>
-                                <input
-                                    type="text"
-                                    required
-                                    className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-                                    placeholder="e.g. Zen Garden Yoga"
-                                    value={formData.name}
-                                    onChange={(e) => {
-                                        setFormData({ ...formData, name: e.target.value });
-                                        // Auto-generate slug
-                                        if (!formData.slug) {
-                                            setFormData(prev => ({
-                                                ...prev,
-                                                slug: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '-')
-                                            }));
-                                        }
-                                    }}
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-zinc-700 mb-1">URL Slug</label>
-                                <div className="flex">
-                                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-zinc-300 bg-zinc-50 text-zinc-500 text-sm">
-                                        /studio/
-                                    </span>
-                                    <input
-                                        type="text"
-                                        required
-                                        className="flex-1 px-3 py-2 border border-zinc-300 rounded-r-md focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
-                                        placeholder="zen-garden"
-                                        value={formData.slug}
-                                        onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-zinc-700 mb-1">Owner Email</label>
-                                <input
-                                    type="email"
-                                    required
-                                    className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-                                    placeholder="owner@example.com"
-                                    value={formData.ownerEmail}
-                                    onChange={(e) => setFormData({ ...formData, ownerEmail: e.target.value })}
-                                />
-                                <p className="text-xs text-zinc-500 mt-1">We'll link to an existing user or create a placeholder.</p>
-                            </div>
-
-                            <div className="pt-4 flex gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsCreateOpen(false)}
-                                    className="flex-1 px-4 py-2 border border-zinc-300 text-zinc-700 rounded-md hover:bg-zinc-50 font-medium"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium disabled:opacity-50"
-                                >
-                                    {loading ? "Provisioning..." : "Launch Studio"}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+            <Modal
+                isOpen={isCreateOpen}
+                onClose={() => setIsCreateOpen(false)}
+                title="Spin Up New Tenant"
+            >
+                <div className="mb-6">
+                    <p className="text-zinc-500 text-sm">
+                        Automated provisioning: This will create a database record, set up initial owner permissions, and allocate resources.
+                    </p>
                 </div>
-            )}
+
+                <form onSubmit={handleCreate} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 mb-1">Studio Name</label>
+                        <input
+                            type="text"
+                            required
+                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
+                            placeholder="e.g. Zen Garden Yoga"
+                            value={formData.name}
+                            onChange={(e) => {
+                                setFormData({ ...formData, name: e.target.value });
+                                // Auto-generate slug
+                                if (!formData.slug) {
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        slug: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '-')
+                                    }));
+                                }
+                            }}
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 mb-1">URL Slug</label>
+                        <div className="flex">
+                            <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-zinc-300 bg-zinc-50 text-zinc-500 text-sm">
+                                /studio/
+                            </span>
+                            <input
+                                type="text"
+                                required
+                                className="flex-1 px-3 py-2 border border-zinc-300 rounded-r-md focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
+                                placeholder="zen-garden"
+                                value={formData.slug}
+                                onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 mb-1">Owner Email</label>
+                        <input
+                            type="email"
+                            required
+                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
+                            placeholder="owner@example.com"
+                            value={formData.ownerEmail}
+                            onChange={(e) => setFormData({ ...formData, ownerEmail: e.target.value })}
+                        />
+                        <p className="text-xs text-zinc-500 mt-1">We'll link to an existing user or create a placeholder.</p>
+                    </div>
+
+                    <div className="pt-4 flex gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setIsCreateOpen(false)}
+                            className="flex-1 px-4 py-2 border border-zinc-300 text-zinc-700 rounded-md hover:bg-zinc-50 font-medium"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium disabled:opacity-50"
+                        >
+                            {loading ? "Provisioning..." : "Launch Studio"}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
 }

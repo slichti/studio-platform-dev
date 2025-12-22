@@ -1,66 +1,481 @@
-import { useLoaderData, Link } from "react-router";
+import { useLoaderData, Link, useSearchParams, Form, useSubmit, useNavigate } from "react-router";
+import type { LoaderFunctionArgs } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@clerk/react-router";
+import { Modal } from "../components/Modal";
+import { ErrorDialog, ConfirmationDialog } from "../components/Dialogs";
 
-export const loader = async (args: any) => {
+export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken } = await getAuth(args);
     const token = await getToken();
+    const url = new URL(args.request.url);
+    const search = url.searchParams.get("search") || "";
+    const tenantId = url.searchParams.get("tenantId") || "";
+    const apiUrl = (args.context.env as any).VITE_API_URL;
+
     try {
-        // Fetch global users - needs a new endpoint or update existing users endpoint to support global list
-        // Implementing basic listing for now assuming endpoint exists or will exist
-        const apiUrl = (args.context.env as any).VITE_API_URL;
-        const users = await apiRequest("/admin/users", token, {}, apiUrl);
-        return { users };
-    } catch (e) {
-        throw new Response("Unauthorized", { status: 403 });
+        // Construct query params
+        const params = new URLSearchParams();
+        if (search) params.append("search", search);
+        if (tenantId) params.append("tenantId", tenantId);
+        const sort = url.searchParams.get("sort");
+        if (sort) params.append("sort", sort);
+
+        const [users, tenants] = await Promise.all([
+            apiRequest(`/admin/users?${params.toString()}`, token, {}, apiUrl),
+            apiRequest(`/admin/tenants`, token, {}, apiUrl)
+        ]);
+
+        return { users, tenants: tenants || [], error: null };
+    } catch (e: any) {
+        return { users: [], tenants: [], error: e.message || "Unauthorized" };
     }
 };
 
 export default function AdminUsers() {
-    const { users } = useLoaderData<any>();
+    const { users, tenants, error } = useLoaderData<any>();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const submit = useSubmit();
+    const navigate = useNavigate();
+
+    // UI State
+    const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+    const [groupByTenant, setGroupByTenant] = useState(false);
+    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+    const [statusDialog, setStatusDialog] = useState<{ isOpen: boolean, type: 'error' | 'success', message: string }>({ isOpen: false, type: 'success', message: '' });
+
+    // Add User Modal State
+    const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+    const [newUser, setNewUser] = useState({
+        firstName: "",
+        lastName: "",
+        email: "",
+        isSystemAdmin: false,
+        initialTenantId: "",
+        initialRole: "student"
+    });
+
+    // Computed Data
+    const usersList = Array.isArray(users) ? users : [];
+
+    // Group users by tenant if enabled
+    const groupedData = useMemo(() => {
+        if (!groupByTenant) return null;
+
+        const groups: Record<string, { tenant: any, users: any[] }> = {};
+
+        usersList.forEach((u: any) => {
+            if (u.memberships && u.memberships.length > 0) {
+                u.memberships.forEach((m: any) => {
+                    const tId = m.tenant.id;
+                    if (!groups[tId]) {
+                        groups[tId] = { tenant: m.tenant, users: [] };
+                    }
+                    groups[tId].users.push({ ...u, contextRole: m.role });
+                });
+            } else {
+                if (!groups['unassigned']) {
+                    groups['unassigned'] = { tenant: { id: 'unassigned', name: 'Unassigned / Global' }, users: [] };
+                }
+                groups['unassigned'].users.push(u);
+            }
+        });
+
+        return groups;
+    }, [usersList, groupByTenant]);
+
+    // Handlers
+    const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
+        const q = formData.get("search") as string;
+        setSearchParams((prev: URLSearchParams) => {
+            if (q) prev.set("search", q);
+            else prev.delete("search");
+            return prev;
+        });
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedUsers.size === usersList.length) {
+            setSelectedUsers(new Set());
+        } else {
+            setSelectedUsers(new Set(usersList.map((u: any) => u.id)));
+        }
+    };
+
+    const toggleUser = (id: string) => {
+        const newSet = new Set(selectedUsers);
+        if (newSet.has(id)) newSet.delete(id);
+        else newSet.add(id);
+        setSelectedUsers(newSet);
+    };
+
+    const toggleGroup = (tenantId: string) => {
+        const newSet = new Set(expandedGroups);
+        if (newSet.has(tenantId)) newSet.delete(tenantId);
+        else newSet.add(tenantId);
+        setExpandedGroups(newSet);
+    };
+
+
+    // Auth hook for client-side API calls
+    const { getToken } = useAuth();
+
+    const executeBulk = async (action: string, value: any) => {
+        if (selectedUsers.size === 0) return;
+        try {
+            const token = await getToken();
+            const res = await apiRequest("/admin/users/bulk", token, {
+                method: "PATCH",
+                body: JSON.stringify({
+                    userIds: Array.from(selectedUsers),
+                    action,
+                    value
+                })
+            });
+
+            if (res.error) throw new Error(res.error);
+
+            setStatusDialog({ isOpen: true, type: 'success', message: `Successfully updated ${selectedUsers.size} users.` });
+            setSelectedUsers(new Set());
+            // Refresh data
+            submit(searchParams);
+        } catch (e: any) {
+            setStatusDialog({ isOpen: true, type: 'error', message: e.message });
+        }
+    };
+
+    const handleCreateUser = async () => {
+        if (!newUser.email || !newUser.firstName || !newUser.lastName) return;
+        try {
+            const token = await getToken();
+            const res = await apiRequest("/admin/users", token, {
+                method: "POST",
+                body: JSON.stringify(newUser)
+            });
+
+            if (res.error) throw new Error(res.error);
+
+            setStatusDialog({ isOpen: true, type: 'success', message: "User created successfully." });
+            setIsAddUserOpen(false);
+            setNewUser({ firstName: "", lastName: "", email: "", isSystemAdmin: false, initialTenantId: "", initialRole: "student" });
+            submit(searchParams); // Refresh list
+        } catch (e: any) {
+            setStatusDialog({ isOpen: true, type: 'error', message: e.message });
+        }
+    };
 
     return (
-        <div>
-            <h2 className="text-2xl font-bold mb-6">Global User Directory</h2>
-            <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm">
-                <table className="w-full text-left">
-                    <thead className="bg-zinc-50 border-b border-zinc-200">
-                        <tr>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">User</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Email</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Role</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Joined</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-100">
-                        {users.map((u: any) => (
-                            <tr key={u.id} className="hover:bg-zinc-50 transition-colors">
-                                <td className="px-6 py-4 font-medium text-zinc-900 flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-zinc-200 flex items-center justify-center text-xs font-bold text-zinc-600">
-                                        {u.profile?.firstName?.[0] || 'U'}
-                                    </div>
-                                    {u.profile?.firstName} {u.profile?.lastName}
-                                </td>
-                                <td className="px-6 py-4 text-zinc-600 text-sm">{u.email}</td>
-                                <td className="px-6 py-4 text-zinc-600 text-sm">
-                                    {u.isSystemAdmin ? (
-                                        <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded text-xs font-bold">Admin</span>
-                                    ) : (
-                                        <span className="text-zinc-400">User</span>
-                                    )}
-                                </td>
-                                <td className="px-6 py-4 text-zinc-400 text-xs">{new Date(u.createdAt).toLocaleDateString()}</td>
-                                <td className="px-6 py-4">
-                                    <Link to={`/admin/users/${u.id}`} className="text-zinc-500 hover:text-zinc-900 text-sm font-medium">Edit</Link>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-zinc-900">Global User Directory</h1>
+                    <p className="text-zinc-500">Manage all users across the platform.</p>
+                </div>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setIsAddUserOpen(true)}
+                        className="bg-zinc-900 text-white px-4 py-2 rounded-lg hover:bg-zinc-800 font-medium text-sm flex items-center gap-2"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                        Add User
+                    </button>
+                </div>
             </div>
+
+            {/* Actions Bar */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-between bg-white p-4 rounded-lg border border-zinc-200 shadow-sm">
+                <Form onSubmit={handleSearch} className="relative w-full sm:w-96">
+                    <input
+                        type="search"
+                        name="search"
+                        defaultValue={searchParams.get("search") || ""}
+                        placeholder="Search users..."
+                        className="w-full pl-10 pr-4 py-2 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
+                    />
+                    <svg className="absolute left-3 top-2.5 h-5 w-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </Form>
+
+                <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-sm text-zinc-600 font-medium">
+                        <input
+                            type="checkbox"
+                            checked={groupByTenant}
+                            onChange={(e) => setGroupByTenant(e.target.checked)}
+                            className="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
+                        />
+                        Group by Tenant
+                    </label>
+                </div>
+            </div>
+
+            {/* Bulk Actions Toolbar */}
+            {selectedUsers.size > 0 && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-zinc-900 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-6 z-50">
+                    <span className="font-medium">{selectedUsers.size} users selected</span>
+                    <div className="h-4 w-px bg-zinc-700"></div>
+                    <div className="flex gap-2">
+                        <button onClick={() => executeBulk('set_system_admin', true)} className="hover:text-zinc-300 text-sm font-medium">Promote to Admin</button>
+                        <button onClick={() => executeBulk('set_system_admin', false)} className="hover:text-zinc-300 text-sm font-medium">Demote</button>
+                    </div>
+                </div>
+            )}
+
+            {/* User List */}
+            <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden shadow-sm">
+                <div className="grid grid-cols-12 gap-4 p-4 border-b border-zinc-100 bg-zinc-50 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                    <div className="col-span-1 flex items-center justify-center">
+                        <input type="checkbox" onChange={toggleSelectAll} checked={selectedUsers.size === usersList.length && usersList.length > 0} className="rounded border-zinc-300" />
+                    </div>
+                    <div className="col-span-4 flex items-center gap-1 cursor-pointer hover:text-zinc-700" onClick={() => {
+                        const current = searchParams.get('sort');
+                        const newSort = current === 'name_asc' ? 'name_desc' : 'name_asc';
+                        setSearchParams(prev => { prev.set('sort', newSort); return prev; });
+                    }}>
+                        User {searchParams.get('sort')?.includes('name') && (searchParams.get('sort')?.includes('desc') ? '↓' : '↑')}
+                    </div>
+                    <div className="col-span-3">Details</div>
+                    <div className="col-span-2 flex items-center gap-1 cursor-pointer hover:text-zinc-700" onClick={() => {
+                        const current = searchParams.get('sort');
+                        const newSort = current === 'joined_asc' ? 'joined_desc' : 'joined_asc';
+                        setSearchParams(prev => { prev.set('sort', newSort); return prev; });
+                    }}>
+                        Joined {searchParams.get('sort')?.includes('joined') && (searchParams.get('sort')?.includes('desc') ? '↓' : '↑')}
+                    </div>
+                    <div className="col-span-2 text-right">Actions</div>
+                </div>
+
+                {groupByTenant && groupedData ? (
+                    Object.entries(groupedData).map(([tId, group]: [string, any]) => (
+                        <div key={tId} className="border-b border-zinc-100 last:border-0">
+                            <div
+                                className="p-3 bg-zinc-50/50 flex items-center gap-2 cursor-pointer hover:bg-zinc-100 transition-colors"
+                                onClick={() => toggleGroup(tId)}
+                            >
+                                <div className="w-4 h-4 flex items-center justify-center text-zinc-400">
+                                    {expandedGroups.has(tId) ? '▼' : '▶'}
+                                </div>
+                                <span className="font-semibold text-zinc-700 text-sm">{group.tenant.name}</span>
+                                <span className="text-xs text-zinc-400 bg-white border border-zinc-200 px-1.5 py-0.5 rounded-full">{group.users.length}</span>
+                            </div>
+
+                            {expandedGroups.has(tId) && (
+                                <div>
+                                    {group.users.map((u: any) => (
+                                        <UserRow
+                                            key={`${u.id}-${tId}`}
+                                            user={u}
+                                            selected={selectedUsers.has(u.id)}
+                                            toggle={() => toggleUser(u.id)}
+                                            contextRole={u.contextRole}
+                                            showCheckbox={false}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ))
+                ) : (
+                    usersList.map((user: any) => (
+                        <UserRow
+                            key={user.id}
+                            user={user}
+                            selected={selectedUsers.has(user.id)}
+                            toggle={() => toggleUser(user.id)}
+                            showCheckbox={true}
+                        />
+                    ))
+                )}
+
+                {usersList.length === 0 && (
+                    <div className="p-8 text-center text-zinc-500">No users found matching your search.</div>
+                )}
+            </div>
+
+            {/* Add User Modal */}
+            <Modal isOpen={isAddUserOpen} onClose={() => setIsAddUserOpen(false)} title="Add New User">
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-700 mb-1">First Name</label>
+                            <input
+                                className="w-full border border-zinc-300 rounded-md p-2 text-sm"
+                                value={newUser.firstName}
+                                onChange={(e) => setNewUser({ ...newUser, firstName: e.target.value })}
+                                placeholder="Jane"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-700 mb-1">Last Name</label>
+                            <input
+                                className="w-full border border-zinc-300 rounded-md p-2 text-sm"
+                                value={newUser.lastName}
+                                onChange={(e) => setNewUser({ ...newUser, lastName: e.target.value })}
+                                placeholder="Doe"
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 mb-1">Email Address</label>
+                        <input
+                            className="w-full border border-zinc-300 rounded-md p-2 text-sm"
+                            type="email"
+                            value={newUser.email}
+                            onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                            placeholder="jane@example.com"
+                        />
+                    </div>
+
+                    <div className="pt-2">
+                        <label className="flex items-center gap-2 text-sm text-zinc-700">
+                            <input
+                                type="checkbox"
+                                checked={newUser.isSystemAdmin}
+                                onChange={(e) => setNewUser({ ...newUser, isSystemAdmin: e.target.checked })}
+                                className="rounded border-zinc-300"
+                            />
+                            System Administrator (Main Platform Access)
+                        </label>
+                    </div>
+
+                    <div className="relative pt-4 before:content-['OR'] before:absolute before:top-2 before:left-1/2 before:-translate-x-1/2 before:bg-white before:px-2 before:text-xs before:text-zinc-400 border-t border-zinc-200">
+                        <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3 mt-2">Assign to Studio (Optional)</h4>
+                        <div className="grid grid-cols-3 gap-2">
+                            <div className="col-span-2">
+                                <label className="block text-xs font-medium text-zinc-500 mb-1">Studio</label>
+                                <select
+                                    className="w-full border border-zinc-300 rounded-md p-2 text-sm"
+                                    value={newUser.initialTenantId}
+                                    onChange={(e) => setNewUser({ ...newUser, initialTenantId: e.target.value })}
+                                >
+                                    <option value="">-- None --</option>
+                                    {tenants?.map((t: any) => (
+                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-zinc-500 mb-1">Role</label>
+                                <select
+                                    className="w-full border border-zinc-300 rounded-md p-2 text-sm bg-zinc-50"
+                                    value={newUser.initialRole}
+                                    onChange={(e) => setNewUser({ ...newUser, initialRole: e.target.value })}
+                                    disabled={!newUser.initialTenantId}
+                                >
+                                    <option value="student">Student</option>
+                                    <option value="instructor">Instructor</option>
+                                    <option value="owner">Owner</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="pt-4 flex justify-end gap-2">
+                        <button onClick={() => setIsAddUserOpen(false)} className="px-3 py-2 text-zinc-600 hover:bg-zinc-100 rounded text-sm">Cancel</button>
+                        <button
+                            onClick={handleCreateUser}
+                            disabled={!newUser.email || !newUser.firstName}
+                            className="px-3 py-2 bg-zinc-900 text-white hover:bg-zinc-800 rounded text-sm disabled:opacity-50"
+                        >
+                            Create User
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            <ConfirmationDialog
+                isOpen={statusDialog.isOpen && statusDialog.type === 'success'}
+                onClose={() => setStatusDialog({ ...statusDialog, isOpen: false })}
+                onConfirm={() => setStatusDialog({ ...statusDialog, isOpen: false })}
+                title="Success"
+                message={statusDialog.message}
+                confirmText="OK"
+                cancelText="Close"
+            />
+            <ErrorDialog
+                isOpen={statusDialog.isOpen && statusDialog.type === 'error'}
+                onClose={() => setStatusDialog({ ...statusDialog, isOpen: false })}
+                title="Error"
+                message={statusDialog.message}
+            />
         </div>
+    );
+}
+
+function ClientDate({ date }: { date: string | Date | null }) {
+    const [formatted, setFormatted] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!date) {
+            setFormatted('Never');
+            return;
+        }
+        setFormatted(new Date(date).toLocaleString());
+    }, [date]);
+
+    // Initial render / server render: show generic fallback or nothing to avoid mismatch
+    if (!formatted) return <span className="text-zinc-300 animate-pulse">...</span>;
+
+    return <span>{formatted}</span>;
+}
+
+function ClientDateOnly({ date }: { date: string | Date }) {
+    const [formatted, setFormatted] = useState<string | null>(null);
+
+    useEffect(() => {
+        setFormatted(new Date(date).toLocaleDateString());
+    }, [date]);
+
+    if (!formatted) return <span className="text-zinc-300">...</span>;
+    return <span>{formatted}</span>;
+}
+
+function UserRow({ user, selected, toggle, showCheckbox, contextRole }: { user: any, selected: boolean, toggle: () => void, showCheckbox: boolean, contextRole?: string }) {
+    return (
+        <tr className={`hover:bg-zinc-50 transition-colors ${selected ? 'bg-blue-50/50' : ''}`}>
+            <td className="px-6 py-4">
+                {showCheckbox ? (
+                    <input
+                        type="checkbox"
+                        className="rounded border-zinc-300"
+                        checked={selected}
+                        onChange={toggle}
+                    />
+                ) : null}
+            </td>
+            <td className="px-6 py-4 font-medium text-zinc-900 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-zinc-200 flex items-center justify-center text-xs font-bold text-zinc-600 overflow-hidden">
+                    {user.profile?.portraitUrl ? <img src={user.profile.portraitUrl} alt="" className="w-full h-full object-cover" /> : (user.profile?.firstName?.[0] || 'U')}
+                </div>
+                <div>
+                    <div>{user.profile?.firstName} {user.profile?.lastName}</div>
+                    {contextRole && <div className="text-xs text-zinc-400 capitalize">{contextRole}</div>}
+                </div>
+            </td>
+            <td className="px-6 py-4 text-zinc-600 text-sm">{user.email}</td>
+            <td className="px-6 py-4 text-zinc-600 text-sm">
+                {user.isSystemAdmin ? (
+                    <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded text-xs font-bold">Admin</span>
+                ) : (
+                    <span className="text-zinc-400 text-xs">User</span>
+                )}
+            </td>
+            <td className="px-6 py-4 text-zinc-400 text-xs flex flex-col gap-0.5">
+                <span>
+                    {user.lastActiveAt ? <ClientDate date={user.lastActiveAt} /> : 'Never'}
+                </span>
+                <span className="text-zinc-300 flex gap-1">
+                    Joined <ClientDateOnly date={user.createdAt} />
+                </span>
+            </td>
+            <td className="px-6 py-4">
+                <Link to={`/admin/users/${user.id}`} className="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit</Link>
+            </td>
+        </tr>
     );
 }
