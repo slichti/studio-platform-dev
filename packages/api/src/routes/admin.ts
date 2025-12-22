@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { eq, desc } from 'drizzle-orm';
-import { users, tenants, auditLogs } from 'db/src/schema'; // users might need explicit import if not exported? it was.
+import { eq, desc, and, or, like, sql, inArray } from 'drizzle-orm';
+import { users, tenants, auditLogs, tenantMembers, tenantRoles } from 'db/src/schema'; // users might need explicit import if not exported? it was.
 import { sign } from 'hono/jwt';
 
 type Bindings = {
@@ -13,56 +13,66 @@ const app = new Hono<{ Bindings: Bindings, Variables: any }>();
 
 // Middleware to ensure Super Admin
 app.use('*', async (c, next) => {
-    const auth = c.get('auth');
-    if (!auth) return c.json({ error: 'Unauthorized' }, 401);
+    try {
+        const auth = c.get('auth');
+        if (!auth) return c.json({ error: 'Unauthorized' }, 401);
 
-    const db = createDb(c.env.DB);
-    let user = await db.select().from(users).where(eq(users.id, auth.userId)).get();
-    const claims = auth.sessionClaims as any;
-    const email = claims?.email as string || "";
+        const db = createDb(c.env.DB);
+        let user = await db.select().from(users).where(eq(users.id, auth.userId)).get();
+        const claims = auth.sessionClaims as any;
+        const email = claims?.email as string || "";
 
-    // Bootstrap: Auto-promote specific email if not yet admin
-    // We check either the hardcoded ID OR the email from the token claims
-    if (
-        (!user && (auth.userId === "user_377aQ2rw6dIQk5k43U71YKUHDMM" || email === 'slichti@gmail.com')) ||
-        (user && user.email === 'slichti@gmail.com' && !user.isSystemAdmin)
-    ) {
-        console.log(`Bootstrapping system admin for ${auth.userId} (${email})`);
+        // Bootstrap: Auto-promote specific email if not yet admin
+        // We check either the hardcoded ID OR the email from the token claims
+        if (
+            (!user && (auth.userId === "user_377aQ2rw6dIQk5k43U71YKUHDMM" || email === 'slichti@gmail.com')) ||
+            (user && user.email === 'slichti@gmail.com' && !user.isSystemAdmin)
+        ) {
+            console.log(`Bootstrapping system admin for ${auth.userId} (${email})`);
 
-        if (!user) {
-            await db.insert(users).values({
-                id: auth.userId,
-                email: email || 'slichti@gmail.com',
-                isSystemAdmin: true,
-                profile: { firstName: 'System', lastName: 'Admin' }
-            }).run();
-        } else {
-            await db.update(users)
-                .set({ isSystemAdmin: true })
-                .where(eq(users.id, user.id))
-                .run();
+            if (!user) {
+                await db.insert(users).values({
+                    id: auth.userId,
+                    email: email || 'slichti@gmail.com',
+                    isSystemAdmin: true,
+                    profile: { firstName: 'System', lastName: 'Admin' }
+                }).run();
+            } else {
+                await db.update(users)
+                    .set({ isSystemAdmin: true })
+                    .where(eq(users.id, user.id))
+                    .run();
+            }
+
+            // Refresh user record
+            user = await db.select().from(users).where(eq(users.id, auth.userId)).get();
         }
 
-        // Refresh user record
-        user = await db.select().from(users).where(eq(users.id, auth.userId)).get();
-    }
+        // Check system admin flag
+        if (!user || !user.isSystemAdmin) {
+            return c.json({
+                error: 'Forbidden: Admins only',
+                debug: {
+                    currentUserId: auth.userId,
+                    detectedEmail: email,
+                    hasUserRecord: !!user,
+                    userEmail: user?.email,
+                    isAdmin: user?.isSystemAdmin,
+                    claims: claims
+                }
+            }, 403);
+        }
 
-    // Check system admin flag
-    if (!user || !user.isSystemAdmin) {
+        await next();
+    } catch (e: any) {
+        console.error("Admin Middleware Error:", e);
         return c.json({
-            error: 'Forbidden: Admins only',
-            debug: {
-                currentUserId: auth.userId,
-                detectedEmail: email,
-                hasUserRecord: !!user,
-                userEmail: user?.email,
-                isAdmin: user?.isSystemAdmin,
-                claims: claims
-            }
-        }, 403);
+            error: "Admin Middleware Error",
+            message: e.message,
+            stack: e.stack,
+            cause: e.cause
+        }, 500);
     }
-
-    await next();
 });
 
 app.get('/tenants', async (c) => {
@@ -72,84 +82,92 @@ app.get('/tenants', async (c) => {
 });
 
 app.post('/tenants', async (c) => {
-    const db = createDb(c.env.DB);
-    const { name, slug, ownerEmail } = await c.req.json();
-    const adminId = c.get('auth').userId;
+    try {
+        const db = createDb(c.env.DB);
+        const { name, slug, ownerEmail } = await c.req.json();
+        const auth = c.get('auth');
+        const adminId = auth.userId;
 
-    if (!name || !slug || !ownerEmail) {
-        return c.json({ error: 'Missing required fields' }, 400);
-    }
+        console.log(`[POST /tenants] Request: ${JSON.stringify({ name, slug, ownerEmail, adminId })}`);
 
-    // Check slug uniqueness
-    const existing = await db.select().from(tenants).where(eq(tenants.slug, slug)).get();
-    if (existing) {
-        return c.json({ error: 'Slug already taken' }, 409);
-    }
+        if (!name || !slug || !ownerEmail) {
+            return c.json({ error: 'Missing required fields' }, 400);
+        }
 
-    // Find or create Owner User
-    // Note: In real app, we might invite them. Here we link or create a placeholder.
-    let owner = await db.select().from(users).where(eq(users.email, ownerEmail)).get();
-    if (!owner) {
-        // Create placeholder user (they will claim via Clerk later)
-        // OR better: In a Clerk app, you can't easily create a user without them signing up. 
-        // We will assume for this mock that we are "inviting" them. 
-        // We'll create a local record so we can link them.
-        const PLACEHOLDER_ID = `usr_placeholder_${crypto.randomUUID()}`;
+        // Check slug uniqueness
+        const existing = await db.select().from(tenants).where(eq(tenants.slug, slug)).get();
+        if (existing) {
+            return c.json({ error: 'Slug already taken' }, 409);
+        }
 
-        await db.insert(users).values({
-            id: PLACEHOLDER_ID,
-            email: ownerEmail,
-            profile: { firstName: 'Pending', lastName: 'Owner' }
+        // Find or create Owner User
+        let owner = await db.select().from(users).where(eq(users.email, ownerEmail)).get();
+        if (!owner) {
+            console.log(`[POST /tenants] Creating placeholder user for ${ownerEmail}`);
+            const PLACEHOLDER_ID = `usr_placeholder_${crypto.randomUUID()}`;
+
+            await db.insert(users).values({
+                id: PLACEHOLDER_ID,
+                email: ownerEmail,
+                profile: { firstName: 'Pending', lastName: 'Owner' }
+            }).run();
+
+            owner = await db.select().from(users).where(eq(users.id, PLACEHOLDER_ID)).get();
+        }
+
+        if (!owner) return c.json({ error: 'Failed to resolve owner' }, 500);
+
+        // Create Tenant
+        console.log(`[POST /tenants] Creating tenant ${name}`);
+        const tenantId = `tnt_${crypto.randomUUID()}`;
+        await db.insert(tenants).values({
+            id: tenantId,
+            name,
+            slug,
+            branding: { primaryColor: '#4f46e5' } // Default branding
         }).run();
 
-        owner = await db.select().from(users).where(eq(users.id, PLACEHOLDER_ID)).get();
+        // Add Owner as Member
+        const memberId = `mem_${crypto.randomUUID()}`;
+        await db.insert(tenantMembers).values({
+            id: memberId,
+            tenantId: tenantId,
+            userId: owner.id,
+            profile: { bio: 'Studio Owner' }
+        }).run();
+
+        await db.insert(tenantRoles).values({
+            memberId: memberId,
+            role: 'owner'
+        }).run();
+
+        // Log Action
+        await db.insert(auditLogs).values({
+            id: crypto.randomUUID(),
+            actorId: adminId,
+            action: 'create_tenant',
+            targetId: tenantId,
+            details: JSON.stringify({ name, slug, ownerEmail }),
+            ipAddress: c.req.header('cf-connecting-ip')
+        }).run();
+
+        // Fetch created tenant to return
+        const newTenant = await db.select().from(tenants).where(eq(tenants.id, tenantId)).get();
+
+        return c.json({
+            tenant: newTenant,
+            status: 'provisioned',
+            mockSteps: ['Database initialized', 'Owner linked', 'Cloudflare CNAME (Mock)', 'Stripe Customer (Mock)']
+        });
+    } catch (e: any) {
+        console.error("[POST /tenants] Error:", e);
+        return c.json({
+            error: "Internal Server Error",
+            message: e.message,
+            stack: e.stack,
+            cause: e.cause
+        }, 500);
     }
-
-    if (!owner) return c.json({ error: 'Failed to resolve owner' }, 500);
-
-    // Create Tenant
-    const tenantId = `tnt_${crypto.randomUUID()}`;
-    await db.insert(tenants).values({
-        id: tenantId,
-        name,
-        slug,
-        branding: { primaryColor: '#4f46e5' } // Default branding
-    }).run();
-
-    // Add Owner as Member
-    const { tenantMembers, tenantRoles, auditLogs } = await import('db/src/schema');
-    const memberId = `mem_${crypto.randomUUID()}`;
-
-    await db.insert(tenantMembers).values({
-        id: memberId,
-        tenantId: tenantId,
-        userId: owner.id,
-        profile: { bio: 'Studio Owner' }
-    }).run();
-
-    await db.insert(tenantRoles).values({
-        memberId: memberId,
-        role: 'owner'
-    }).run();
-
-    // Log Action
-    await db.insert(auditLogs).values({
-        id: crypto.randomUUID(),
-        actorId: adminId,
-        action: 'create_tenant',
-        targetId: tenantId,
-        details: JSON.stringify({ name, slug, ownerEmail }),
-        ipAddress: c.req.header('cf-connecting-ip')
-    }).run();
-
-    // Fetch created tenant to return
-    const newTenant = await db.select().from(tenants).where(eq(tenants.id, tenantId)).get();
-
-    return c.json({
-        tenant: newTenant,
-        status: 'provisioned',
-        mockSteps: ['Database initialized', 'Owner linked', 'Cloudflare CNAME (Mock)', 'Stripe Customer (Mock)']
-    });
 });
 
 app.get('/logs', async (c) => {
@@ -182,7 +200,7 @@ app.post('/users', async (c) => {
     const db = createDb(c.env.DB);
     const { email, firstName, lastName, isSystemAdmin, initialTenantId, initialRole } = await c.req.json();
     const adminId = c.get('auth').userId;
-    const { users, tenantMembers, tenantRoles, auditLogs } = await import('db/src/schema');
+    // Schema imported at top level
 
     if (!email || !firstName || !lastName) {
         return c.json({ error: "Missing required fields (email, firstName, lastName)" }, 400);
@@ -234,8 +252,7 @@ app.post('/users', async (c) => {
 
 app.get('/users', async (c) => {
     const db = createDb(c.env.DB);
-    const { users, tenantMembers, tenants, tenantRoles } = await import('db/src/schema');
-    const { like, or, sql, eq } = await import('drizzle-orm');
+    // Schema and operators imported at top level
 
     const search = c.req.query('search');
     const tenantId = c.req.query('tenantId');
@@ -306,8 +323,8 @@ app.get('/users', async (c) => {
         // Manual Sort for Tenant filtered list (since we lost DB sort)
         finalUsers.sort((a, b) => {
             if (sort.includes('joined')) {
-                const dA = new Date(a.createdAt).getTime();
-                const dB = new Date(b.createdAt).getTime();
+                const dA = new Date(a.createdAt || 0).getTime();
+                const dB = new Date(b.createdAt || 0).getTime();
                 return sort.includes('asc') ? dA - dB : dB - dA;
             } else if (sort.includes('name')) {
                 const nA = (a.profile as any)?.firstName || '';
@@ -356,8 +373,7 @@ app.get('/users', async (c) => {
 app.patch('/users/bulk', async (c) => {
     const db = createDb(c.env.DB);
     const { userIds, action, value } = await c.req.json();
-    const { users } = await import('db/src/schema');
-    const { inArray } = await import('drizzle-orm');
+    // Schema imported at top level
 
     if (!Array.isArray(userIds) || userIds.length === 0) {
         return c.json({ error: "No users specified" }, 400);
@@ -385,8 +401,7 @@ app.patch('/users/bulk', async (c) => {
 app.get('/users/:id', async (c) => {
     const db = createDb(c.env.DB);
     const id = c.req.param('id');
-    const { users, tenantMembers, tenants, tenantRoles } = await import("db/src/schema");
-    const { eq } = await import('drizzle-orm');
+    // Schema imported at top level
 
     const user = await db.select().from(users).where(eq(users.id, id)).get();
     if (!user) return c.json({ error: 'User not found' }, 404);
@@ -417,22 +432,12 @@ app.post('/users/:id/memberships', async (c) => {
     const db = createDb(c.env.DB);
     const userId = c.req.param('id');
     const { tenantId, role } = await c.req.json();
-    const { tenantMembers, tenantRoles } = await import("db/src/schema");
     const adminId = c.get('auth').userId;
 
     if (!tenantId || !role) return c.json({ error: "Missing tenantId or role" }, 400);
 
     // Check if member exists
     let member = await db.select().from(tenantMembers)
-        .where(eq(tenantMembers.tenantId, tenantId))
-        .where(eq(tenantMembers.userId, userId)) // Drizzle eq doesn't support multiple where in one call for AND usually without 'and()' helper
-        // Actually .where().where() is AND in Drizzle query builder
-        .get();
-
-    // Correction: .where needs to be chained property or utilize 'and'
-    // Let's use 'and' to be safe standard
-    const { and } = await import('drizzle-orm');
-    member = await db.select().from(tenantMembers)
         .where(and(
             eq(tenantMembers.tenantId, tenantId),
             eq(tenantMembers.userId, userId)
@@ -462,7 +467,7 @@ app.post('/users/:id/memberships', async (c) => {
     }).run();
 
     // Log
-    const { auditLogs } = await import('db/src/schema');
+    // Schema imported at top level
     await db.insert(auditLogs).values({
         id: crypto.randomUUID(),
         actorId: adminId,
@@ -479,8 +484,7 @@ app.delete('/users/:id/memberships', async (c) => {
     const db = createDb(c.env.DB);
     const userId = c.req.param('id');
     const { tenantId } = await c.req.json();
-    const { tenantMembers, tenantRoles } = await import("db/src/schema");
-    const { and } = await import('drizzle-orm');
+    // Schema imported at top level
     const adminId = c.get('auth').userId;
 
     // Find member
@@ -516,8 +520,7 @@ app.put('/users/:id', async (c) => {
     const db = createDb(c.env.DB);
     const id = c.req.param('id');
     const { isSystemAdmin } = await c.req.json();
-    const { users } = await import("db/src/schema");
-    const { eq } = await import('drizzle-orm');
+    // Schema imported at top level
 
     // Prevent removing self as admin
     const auth = c.get('auth');
@@ -555,7 +558,7 @@ app.post('/impersonate', async (c) => {
     const token = await sign(payload, c.env.CLERK_SECRET_KEY); // Reusing key
 
     // Log it
-    const { auditLogs } = await import('db/src/schema');
+    // Schema imported at top level
     await db.insert(auditLogs).values({
         id: crypto.randomUUID(),
         actorId: adminId,

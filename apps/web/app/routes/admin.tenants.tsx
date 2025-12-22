@@ -174,14 +174,18 @@ export default function AdminTenants() {
                             placeholder="e.g. Zen Garden Yoga"
                             value={formData.name}
                             onChange={(e) => {
-                                setFormData({ ...formData, name: e.target.value });
-                                // Auto-generate slug
-                                if (!formData.slug) {
-                                    setFormData(prev => ({
+                                const newName = e.target.value;
+                                setFormData(prev => {
+                                    const slugify = (text: string) => text.toLowerCase().replace(/[^a-z0-9]/g, '-');
+                                    const expectedSlug = slugify(prev.name);
+                                    const isAuto = !prev.slug || prev.slug === expectedSlug;
+
+                                    return {
                                         ...prev,
-                                        slug: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '-')
-                                    }));
-                                }
+                                        name: newName,
+                                        slug: isAuto ? slugify(newName) : prev.slug
+                                    };
+                                });
                             }}
                         />
                     </div>
