@@ -1,4 +1,4 @@
-import { Outlet, useLoaderData, useParams } from "react-router";
+import { Outlet, useLoaderData, useParams, NavLink } from "react-router";
 import { LoaderFunction, LoaderFunctionArgs, redirect } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
 import { API_URL, apiRequest } from "../utils/api";
@@ -83,7 +83,7 @@ export default function StudioLayout() {
             {isOwner && (
                 <div style={{ marginBottom: '24px' }}>
                     <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#adb5bd', marginBottom: '8px', paddingLeft: '12px', letterSpacing: '0.5px' }}>ADMIN</div>
-                    <NavPending to="dashboard">Overview</NavPending>
+                    <NavPending to="." end>Overview</NavPending>
                     <NavPending to="settings">Settings</NavPending>
                     <NavPending to="finances">Finances</NavPending>
                 </div>
@@ -101,6 +101,7 @@ export default function StudioLayout() {
                 <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#adb5bd', marginBottom: '8px', paddingLeft: '12px', letterSpacing: '0.5px' }}>STUDENT</div>
                 <NavPending to="classes">Book Classes</NavPending>
                 <NavPending to="memberships">My Memberships</NavPending>
+                <NavPending to="waivers">Waivers</NavPending>
             </div>
         </>
     );
@@ -112,25 +113,20 @@ export default function StudioLayout() {
     );
 }
 
-function NavPending({ to, children }: { to: string, children: React.ReactNode }) {
-    // We would use NavLink here if we had the full route path, but we are relative.
-    // 'to' is just "dashboard", so appending to current url is tricky without specific "to" prop handling or useResolvedPath.
-    // Ideally we use NavLink with relative="path" or construct it.
-    // For now, simple anchor or NavLink.
-
-    // WORKAROUND: Just use styled anchors that look nice for the mockup phase, 
-    // or use NavLink if we can trust relative routing.
-    // React Router 6 relative routing works well.
-
-    // We need to import NavLink if we use it. 
-    // But since this helper was already using <a> tags, let's upgrade it to look like the Layout NavLink.
+function NavPending({ to, children, end }: { to: string, children: React.ReactNode, end?: boolean }) {
     return (
-        <a href={to} style={{ display: 'block', padding: '10px 12px', borderRadius: '8px', textDecoration: 'none', color: '#495057', fontSize: '0.95rem', marginBottom: '2px', transition: 'background 0.2s', background: 'transparent' }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#f1f3f5'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+        <NavLink
+            to={to}
+            end={end}
+            className={({ isActive }) =>
+                `block px-3 py-2 rounded-lg text-sm transition-colors mb-0.5 ${isActive
+                    ? 'bg-zinc-100 text-zinc-900 font-medium'
+                    : 'text-zinc-600 hover:bg-zinc-50'
+                }`
+            }
         >
             {children}
-        </a>
+        </NavLink>
     )
 }
 

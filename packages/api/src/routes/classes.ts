@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { classes, tenants, bookings } from 'db/src/schema';
+import { classes, tenants, bookings, tenantMembers, users, tenantRoles } from 'db/src/schema';
 import { createDb } from '../db';
 import { eq, and } from 'drizzle-orm';
 import { ZoomService } from '../services/zoom';
@@ -17,6 +17,8 @@ type Variables = {
         userId: string;
     };
     tenant?: typeof tenants.$inferSelect;
+    member?: any;
+    roles?: string[];
 }
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
@@ -42,14 +44,15 @@ app.post('/', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+    const member = c.get('member');
+    if (!member) return c.json({ error: 'Member context required' }, 403);
     const userId = c.get('auth').userId;
 
     // RBAC: Only Instructors or Owners can create classes
-    const { assertRole } = await import('../utils/rbac');
-    try {
-        assertRole(c, ['instructor', 'owner']);
-    } catch (e: any) {
-        return c.json({ error: e.message }, 403);
+    // We can check roles in c.get('roles')
+    const roles = c.get('roles') || [];
+    if (!roles.includes('instructor') && !roles.includes('owner')) {
+        return c.json({ error: 'Only instructors or owners can create classes' }, 403);
     }
 
     const body = await c.req.json();
@@ -93,7 +96,7 @@ app.post('/', async (c) => {
         await db.insert(classes).values({
             id,
             tenantId: tenant.id,
-            instructorId: userId, // Assuming Creator is Instructor for now
+            instructorId: member.id, // Fixed: Use Tenant Member ID
             title,
             description,
             startTime: new Date(startTime),
@@ -113,7 +116,11 @@ app.post('/', async (c) => {
 app.post('/:id/book', async (c) => {
     const db = createDb(c.env.DB);
     const classId = c.req.param('id');
-    const userId = c.get('auth').userId;
+    const auth = c.get('auth');
+    if (!auth || !auth.userId) {
+        return c.json({ error: 'Authentication required' }, 401);
+    }
+    const userId = auth.userId;
 
     // Optional: Check class existence and capacity
     const classInfo = await db.select().from(classes).where(eq(classes.id, classId)).get();
@@ -126,13 +133,34 @@ app.post('/:id/book', async (c) => {
     const id = crypto.randomUUID();
 
     try {
-        // Need to import bookings table
-        const { bookings } = await import('db/src/schema');
+        const tenant = c.get('tenant');
+        if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+        // Find or Auto-Join Member
+        let member = await db.query.tenantMembers.findFirst({
+            where: and(eq(tenantMembers.userId, userId), eq(tenantMembers.tenantId, tenant.id))
+        });
+
+        if (!member) {
+            // Auto-join as Student?
+            const memberId = crypto.randomUUID();
+            await db.insert(tenantMembers).values({
+                id: memberId,
+                tenantId: tenant.id,
+                userId: userId
+            });
+            // Add student role
+            await db.insert(tenantRoles).values({
+                memberId: memberId,
+                role: 'student'
+            });
+            member = { id: memberId } as any;
+        }
 
         await db.insert(bookings).values({
             id,
             classId,
-            userId,
+            memberId: member!.id,
             status: 'confirmed'
         });
 
@@ -145,7 +173,12 @@ app.post('/:id/book', async (c) => {
 app.get('/:id/bookings', async (c) => {
     const db = createDb(c.env.DB);
     const classId = c.req.param('id');
-    const { users } = await import('db/src/schema');
+
+    // RBAC: Instructor or Owner only
+    const roles = c.get('roles') || [];
+    if (!roles.includes('instructor') && !roles.includes('owner')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
 
     try {
         const results = await db.select({
@@ -159,7 +192,8 @@ app.get('/:id/bookings', async (c) => {
             createdAt: bookings.createdAt
         })
             .from(bookings)
-            .innerJoin(users, eq(bookings.userId, users.id))
+            .innerJoin(tenantMembers, eq(bookings.memberId, tenantMembers.id))
+            .innerJoin(users, eq(tenantMembers.userId, users.id))
             .where(eq(bookings.classId, classId));
 
         return c.json(results);

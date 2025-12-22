@@ -125,3 +125,37 @@ export const bookings = sqliteTable('bookings', {
 }, (table) => ({
     memberClassIdx: index('member_class_idx').on(table.memberId, table.classId),
 }));
+
+// --- Membership Plans (Tiers) ---
+export const membershipPlans = sqliteTable('membership_plans', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    name: text('name').notNull(), // e.g. "Unlimited", "10 Class Pack"
+    description: text('description'),
+    price: integer('price').default(0), // in cents
+    currency: text('currency').default('usd'),
+    interval: text('interval', { enum: ['month', 'year', 'week', 'one_time'] }).default('month'),
+    active: integer('active', { mode: 'boolean' }).default(true),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+});
+
+// --- Waivers ---
+export const waiverTemplates = sqliteTable('waiver_templates', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    title: text('title').notNull(),
+    content: text('content').notNull(), // HTML or Rich Text
+    active: integer('active', { mode: 'boolean' }).default(true),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+});
+
+export const waiverSignatures = sqliteTable('waiver_signatures', {
+    id: text('id').primaryKey(),
+    templateId: text('template_id').notNull().references(() => waiverTemplates.id),
+    memberId: text('member_id').notNull().references(() => tenantMembers.id),
+    signedAt: integer('signed_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    ipAddress: text('ip_address'),
+    signatureData: text('signature_data'), // Optional: Base64 signature image or initial
+}, (table) => ({
+    memberTemplateIdx: index('member_template_idx').on(table.memberId, table.templateId),
+}));

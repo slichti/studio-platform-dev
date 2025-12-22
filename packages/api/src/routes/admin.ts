@@ -151,6 +151,36 @@ app.post('/tenants', async (c) => {
             ipAddress: c.req.header('cf-connecting-ip')
         }).run();
 
+        // Send Welcome Email
+        try {
+            const { Resend } = await import('resend');
+            const resendApiKey = (c.env as any).RESEND_API_KEY;
+
+            if (resendApiKey) {
+                const resend = new Resend(resendApiKey);
+
+                await resend.emails.send({
+                    from: 'Studio Platform <onboarding@resend.dev>', // Use verified domain in prod
+                    to: ownerEmail,
+                    subject: `Welcome to your new studio: ${name}`,
+                    html: `
+                        <h1>Welcome to ${name}!</h1>
+                        <p>Your new studio space has been provisioned successfully.</p>
+                        <p><strong>Studio URL:</strong> <a href="https://studio-platform-dev.slichti.org/studio/${slug}">https://studio-platform-dev.slichti.org/studio/${slug}</a></p>
+                        <p>You can now log in to manage your classes, students, and memberships.</p>
+                        <br/>
+                        <p>Best,<br/>The Studio Platform Team</p>
+                    `
+                });
+                console.log(`[Email] Welcome email sent to ${ownerEmail}`);
+            } else {
+                console.log(`[Email] MOCK SEND to ${ownerEmail}: Welcome to ${name}. URL: /studio/${slug}`);
+            }
+        } catch (emailErr) {
+            console.error("Failed to send welcome email:", emailErr);
+            // Non-blocking error
+        }
+
         // Fetch created tenant to return
         const newTenant = await db.select().from(tenants).where(eq(tenants.id, tenantId)).get();
 

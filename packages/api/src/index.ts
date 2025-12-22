@@ -36,6 +36,8 @@ import { authMiddleware } from './middleware/auth';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 
+import members from './routes/members';
+
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>()
 
 app.use('*', logger());
@@ -64,15 +66,33 @@ app.get('/', (c) => {
 })
 
 // Protected Routes Middleware
-app.use('/studios/*', authMiddleware);
-app.use('/classes/*', authMiddleware);
-app.use('/locations/*', authMiddleware);
-// Apply Tenant Middleware to these routes as well to enforce RBAC/Membership
-app.use('/classes/*', tenantMiddleware);
-app.use('/locations/*', tenantMiddleware);
+// Middleware Configuration
+// 1. Global Auth (Strict) for Admin/Users/Uploads
 app.use('/users/*', authMiddleware);
 app.use('/admin/*', authMiddleware);
-app.use('/uploads/*', authMiddleware); // Usually uploads need auth too
+app.use('/uploads/*', authMiddleware);
+
+// 2. Tenant Context (Required for all studio routes)
+app.use('/studios/*', authMiddleware); // Studio Management requires auth
+app.use('/locations/*', authMiddleware);
+app.use('/locations/*', tenantMiddleware);
+
+// 3. Optional Auth for Classes (Public Access)
+// We use optionalAuthMiddleware so we can know IF a user is logged in, but not block if not.
+import { optionalAuthMiddleware } from './middleware/optionalAuth';
+app.use('/classes/*', optionalAuthMiddleware);
+app.use('/classes/*', tenantMiddleware);
+
+// 4. Strict Auth + Tenant for Members/Memberships
+app.use('/members*', authMiddleware);
+app.use('/members*', tenantMiddleware);
+app.use('/memberships*', authMiddleware);
+import waivers from './routes/waivers';
+app.use('/waivers*', authMiddleware); // Or optional if we want public viewing of agreement? Usually signing requires auth for signature binding.
+// For now, let's say specific methods in waivers route handle auth, but tenant middleware is needed.
+app.use('/waivers*', tenantMiddleware);
+app.route('/waivers', waivers);
+
 // Note: '/studios/*' is creating tenants, so it might not be inside a tenant yet?
 // Actually 'POST /studios' creates one. 'GET /studios/:id' views one.
 // If we enforce tenantMiddleware on ALL /studios/*, we break creation.
@@ -123,5 +143,9 @@ app.route('/webhooks', webhookRoutes);
 app.route('/uploads', uploadRoutes);
 app.route('/admin', adminRoutes);
 app.route('/users', userRoutes);
+import memberships from './routes/memberships';
+
+app.route('/members', members);
+app.route('/memberships', memberships);
 
 export default app

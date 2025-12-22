@@ -139,7 +139,12 @@ export default function AdminTenants() {
                                     </span>
                                 </td>
                                 <td className="px-6 py-4">
-                                    <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">Manage</button>
+                                    <Link
+                                        to={`/studio/${t.slug}`}
+                                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                    >
+                                        Manage
+                                    </Link>
                                 </td>
                             </tr>
                         ))}

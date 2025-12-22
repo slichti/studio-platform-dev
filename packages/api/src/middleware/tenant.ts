@@ -1,7 +1,7 @@
 import { Context, Next } from 'hono';
 import { createDb } from '../db';
-import { eq } from 'drizzle-orm';
-import { tenants } from 'db/src/schema';
+import { eq, and } from 'drizzle-orm';
+import { tenants, tenantMembers, tenantRoles } from 'db/src/schema';
 
 // Extend Hono Context to include tenant
 type Bindings = {
@@ -27,7 +27,6 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
 
     const db = createDb(c.env.DB);
 
-    // 0. Check Header (Strongly preferred for API calls)
     // 0. Check Header (Strongly preferred for API calls)
     const headerTenantId = c.req.header('X-Tenant-Id');
     const headerTenantSlug = c.req.header('X-Tenant-Slug');
@@ -72,35 +71,29 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
     // 3. Security Check: If User is Authenticated, Verify Membership
     const auth = c.get('auth');
     if (auth && auth.userId) {
-        // Import schema
-        const { tenantMembers, tenantRoles } = await import('db/src/schema');
-
         // Find Member record
         const member = await db.query.tenantMembers.findFirst({
-            where: (members, { and, eq }) => and(
-                eq(members.userId, auth.userId),
-                eq(members.tenantId, tenant.id)
-            ),
-            with: {
-                // Determine roles? No "with" relation query in definition yet, or need to verify relations export
-                // Let's do a separate query or join if needed. For now simple query.
-            }
+            where: and(
+                eq(tenantMembers.userId, auth.userId),
+                eq(tenantMembers.tenantId, tenant.id)
+            )
         });
 
         if (!member) {
             // User exists in Clerk (Auth) but NOT in this Tenant's members table.
-            return c.json({ error: 'Access Denied: You are not a member of this studio.' }, 403);
+            // Phase 3: Allow "Guest" formatted access (e.g. for creating a booking or viewing public calendar)
+            // Do NOT return 403. Downstream handlers must check c.get('member') or roles.
+        } else {
+            // Fetch Roles
+            const rolesResult = await db.query.tenantRoles.findMany({
+                where: eq(tenantRoles.memberId, member.id)
+            });
+            const roles = rolesResult.map(r => r.role);
+
+            // Expose Member and Roles to downstream handlers
+            c.set('member', member);
+            c.set('roles', roles);
         }
-
-        // Fetch Roles
-        const rolesResult = await db.query.tenantRoles.findMany({
-            where: eq(tenantRoles.memberId, member.id)
-        });
-        const roles = rolesResult.map(r => r.role);
-
-        // Expose Member and Roles to downstream handlers
-        c.set('member', member);
-        c.set('roles', roles);
     }
 
     await next();
