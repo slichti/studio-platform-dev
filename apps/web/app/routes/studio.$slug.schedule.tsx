@@ -1,5 +1,5 @@
 import { ActionFunction, LoaderFunction } from "react-router";
-import { useLoaderData, Form, useActionData, useNavigation, useOutletContext } from "react-router";
+import { useLoaderData, Form, useActionData, useNavigation, useOutletContext, Link } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
 import { useState } from "react";
@@ -55,8 +55,11 @@ export const action: ActionFunction = async (args) => {
     }
 };
 
+import { useParams } from "react-router";
+
 export default function StudioSchedule() {
     const { classes, error } = useLoaderData<any>();
+    const params = useParams();
     const actionData = useActionData();
     const navigation = useNavigation();
     const isSubmitting = navigation.state === "submitting";
@@ -128,6 +131,12 @@ export default function StudioSchedule() {
                                                 Zoom
                                             </a>
                                         )}
+                                        <Link
+                                            to={`/studio/${params.slug}/classes/${cls.id}/roster`}
+                                            className="text-zinc-600 hover:text-zinc-900 text-sm font-medium hover:underline"
+                                        >
+                                            View Roster
+                                        </Link>
                                         <button className="text-zinc-400 hover:text-zinc-600 text-sm">Edit</button>
                                     </div>
                                 </div>
