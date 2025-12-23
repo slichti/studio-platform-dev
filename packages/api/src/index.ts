@@ -87,6 +87,7 @@ app.use('/classes/*', tenantMiddleware);
 app.use('/members*', authMiddleware);
 app.use('/members*', tenantMiddleware);
 app.use('/memberships*', authMiddleware);
+app.use('/memberships*', tenantMiddleware);
 import waivers from './routes/waivers';
 app.use('/waivers*', authMiddleware); // Or optional if we want public viewing of agreement? Usually signing requires auth for signature binding.
 // For now, let's say specific methods in waivers route handle auth, but tenant middleware is needed.

@@ -2,7 +2,7 @@ import { ActionFunction, LoaderFunction } from "react-router";
 import { useLoaderData, Form, useActionData, useNavigation, useOutletContext } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Modal } from "../components/Modal";
 
 // Loader: Fetch plans
@@ -58,9 +58,11 @@ export default function StudioMemberships() {
     const isSubmitting = navigation.state === "submitting";
     const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-    if (actionData?.success && isCreateOpen && !isSubmitting) {
-        setIsCreateOpen(false);
-    }
+    useEffect(() => {
+        if (actionData?.success && !isSubmitting) {
+            setIsCreateOpen(false);
+        }
+    }, [actionData, isSubmitting]);
 
     return (
         <div>
@@ -125,7 +127,7 @@ export default function StudioMemberships() {
                             name="name"
                             required
                             placeholder="e.g. Gold Unlimited"
-                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white text-zinc-900"
                         />
                     </div>
 
@@ -137,12 +139,12 @@ export default function StudioMemberships() {
                                 name="price"
                                 step="0.01"
                                 required
-                                className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white text-zinc-900"
                             />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-zinc-700 mb-1">Interval</label>
-                            <select name="interval" className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                            <select name="interval" className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white text-zinc-900">
                                 <option value="month">Monthly</option>
                                 <option value="week">Weekly</option>
                                 <option value="year">Yearly</option>
@@ -156,7 +158,7 @@ export default function StudioMemberships() {
                         <textarea
                             name="description"
                             rows={3}
-                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white text-zinc-900"
                         />
                     </div>
 

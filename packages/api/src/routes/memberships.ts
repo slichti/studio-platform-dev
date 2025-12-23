@@ -15,7 +15,15 @@ type Variables = {
     roles?: string[];
 }
 
+import { tenantMiddleware } from '../middleware/tenant';
+import { authMiddleware } from '../middleware/auth';
+
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
+
+// Enforce Auth and Tenant for all membership routes internally to be safe
+// app.use('*', authMiddleware); // Already applied in index.ts but can double up if needed. index.ts order should prevail.
+// Let's rely on index.ts for auth, but apply tenant here since index.ts seems flaky for it.
+app.use('*', tenantMiddleware);
 
 // GET /plans: List all membership plans for tenant
 app.get('/plans', async (c) => {
