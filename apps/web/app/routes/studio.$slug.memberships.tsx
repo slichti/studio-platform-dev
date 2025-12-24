@@ -70,12 +70,13 @@ export default function StudioMemberships() {
     }, [actionData, isSubmitting]);
 
     return (
-        <div>
+        <div style={{ color: 'var(--text)' }}>
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Memberships</h2>
                 <button
                     onClick={() => setIsCreateOpen(true)}
-                    className="bg-zinc-900 text-white px-4 py-2 rounded-md hover:bg-zinc-800 text-sm font-medium"
+                    style={{ background: 'var(--accent)', color: 'white' }}
+                    className="px-4 py-2 rounded-md hover:opacity-90 text-sm font-medium"
                 >
                     + New Plan
                 </button>
@@ -89,21 +90,21 @@ export default function StudioMemberships() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
                 {plans.length === 0 ? (
-                    <div className="col-span-full text-center p-12 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700">
-                        <h3 className="text-zinc-900 dark:text-zinc-100 font-medium mb-1">No Membership Plans</h3>
-                        <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-4">Create tiers like "Unlimited" or "10-Pack" for your students.</p>
-                        <button onClick={() => setIsCreateOpen(true)} className="text-blue-600 dark:text-blue-400 hover:underline">Create first plan</button>
+                    <div style={{ background: 'var(--bg-subtle)', border: '1px dashed var(--border)' }} className="col-span-full text-center p-12 rounded-lg">
+                        <h3 className="font-medium mb-1" style={{ color: 'var(--text)' }}>No Membership Plans</h3>
+                        <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>Create tiers like "Unlimited" or "10-Pack" for your students.</p>
+                        <button onClick={() => setIsCreateOpen(true)} className="text-blue-600 hover:underline">Create first plan</button>
                     </div>
                 ) : (
                     plans.map((plan: any) => (
-                        <div key={plan.id} className="bg-white border border-zinc-200 rounded-lg p-6 shadow-sm hover:border-zinc-300 transition-colors">
-                            <h3 className="font-bold text-lg text-zinc-900 mb-2">{plan.name}</h3>
-                            <div className="text-2xl font-bold mb-4">
+                        <div key={plan.id} style={{ background: 'var(--card-bg)', border: '1px solid var(--border)' }} className="rounded-lg p-6 shadow-sm transition-colors">
+                            <h3 className="font-bold text-lg mb-2" style={{ color: 'var(--text)' }}>{plan.name}</h3>
+                            <div className="text-2xl font-bold mb-4" style={{ color: 'var(--text)' }}>
                                 ${(plan.price / 100).toFixed(2)}
-                                <span className="text-sm font-normal text-zinc-500">/{plan.interval}</span>
+                                <span className="text-sm font-normal" style={{ color: 'var(--text-muted)' }}>/{plan.interval}</span>
                             </div>
-                            <p className="text-zinc-600 text-sm mb-6 min-h-[40px]">{plan.description || "No description provided."}</p>
-                            <button className="w-full py-2 border border-zinc-300 rounded hover:bg-zinc-50 font-medium text-sm text-zinc-700">
+                            <p className="text-sm mb-6 min-h-[40px]" style={{ color: 'var(--text-muted)' }}>{plan.description || "No description provided."}</p>
+                            <button style={{ border: '1px solid var(--border)', color: 'var(--text)' }} className="w-full py-2 rounded hover:opacity-80 font-medium text-sm">
                                 Edit Plan
                             </button>
                         </div>
@@ -127,29 +128,31 @@ export default function StudioMemberships() {
             >
                 <Form method="post" className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-zinc-700 mb-1">Plan Name</label>
+                        <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Plan Name</label>
                         <input
                             name="name"
                             required
                             placeholder="e.g. Gold Unlimited"
-                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white text-zinc-900"
+                            style={{ background: 'var(--bg-subtle)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                            className="w-full px-3 py-2 rounded-md focus:ring-blue-500 focus:border-blue-500"
                         />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-zinc-700 mb-1">Price ($)</label>
+                            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Price ($)</label>
                             <input
                                 type="number"
                                 name="price"
                                 step="0.01"
                                 required
-                                className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white text-zinc-900"
+                                style={{ background: 'var(--bg-subtle)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                                className="w-full px-3 py-2 rounded-md focus:ring-blue-500 focus:border-blue-500"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-zinc-700 mb-1">Interval</label>
-                            <select name="interval" className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white text-zinc-900">
+                            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Interval</label>
+                            <select name="interval" style={{ background: 'var(--bg-subtle)', color: 'var(--text)', border: '1px solid var(--border)' }} className="w-full px-3 py-2 rounded-md focus:ring-blue-500 focus:border-blue-500">
                                 <option value="month">Monthly</option>
                                 <option value="week">Weekly</option>
                                 <option value="year">Yearly</option>
@@ -159,11 +162,12 @@ export default function StudioMemberships() {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-zinc-700 mb-1">Description</label>
+                        <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Description</label>
                         <textarea
                             name="description"
                             rows={3}
-                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white text-zinc-900"
+                            style={{ background: 'var(--bg-subtle)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                            className="w-full px-3 py-2 rounded-md focus:ring-blue-500 focus:border-blue-500"
                         />
                     </div>
 
@@ -171,14 +175,16 @@ export default function StudioMemberships() {
                         <button
                             type="button"
                             onClick={() => setIsCreateOpen(false)}
-                            className="flex-1 px-4 py-2 border border-zinc-300 text-zinc-700 rounded-md hover:bg-zinc-50 font-medium"
+                            style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
+                            className="flex-1 px-4 py-2 rounded-md hover:opacity-80 font-medium"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="flex-1 px-4 py-2 bg-zinc-900 text-white rounded-md hover:bg-zinc-800 font-medium disabled:opacity-50"
+                            style={{ background: 'var(--accent)', color: 'white' }}
+                            className="flex-1 px-4 py-2 rounded-md hover:opacity-90 font-medium disabled:opacity-50"
                         >
                             {isSubmitting ? "Create Plan" : "Create Plan"}
                         </button>

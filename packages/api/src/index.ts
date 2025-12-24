@@ -115,7 +115,9 @@ tenantApp.get('/info', (c) => {
     name: tenant.name,
     slug: tenant.slug,
     customDomain: tenant.customDomain,
-    settings: tenant.settings
+    settings: tenant.settings,
+    stripeAccountId: tenant.stripeAccountId,
+    branding: tenant.branding
   })
 })
 

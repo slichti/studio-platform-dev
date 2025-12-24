@@ -76,12 +76,13 @@ export default function StudioSchedule() {
         : [];
 
     return (
-        <div>
+        <div style={{ color: 'var(--text)' }}>
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Schedule</h2>
                 <button
                     onClick={() => setIsCreateOpen(true)}
-                    className="bg-zinc-900 text-white px-4 py-2 rounded-md hover:bg-zinc-800 text-sm font-medium"
+                    style={{ background: 'var(--accent)', color: 'white' }}
+                    className="px-4 py-2 rounded-md hover:opacity-90 text-sm font-medium"
                 >
                     + New Class
                 </button>
@@ -94,13 +95,13 @@ export default function StudioSchedule() {
             )}
 
             {sortedClasses.length === 0 ? (
-                <div className="bg-white border border-zinc-200 rounded-lg shadow-sm min-h-[400px] flex items-center justify-center">
+                <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)' }} className="rounded-lg shadow-sm min-h-[400px] flex items-center justify-center">
                     <div className="text-center p-8">
-                        <div className="mx-auto h-12 w-12 text-zinc-300 mb-4">
+                        <div className="mx-auto h-12 w-12 mb-4" style={{ color: 'var(--text-muted)' }}>
                             📅
                         </div>
-                        <h3 className="text-lg font-medium text-zinc-900 mb-1">Weekly Schedule</h3>
-                        <p className="text-zinc-500 max-w-sm mx-auto mb-6">
+                        <h3 className="text-lg font-medium mb-1" style={{ color: 'var(--text)' }}>Weekly Schedule</h3>
+                        <p className="max-w-sm mx-auto mb-6" style={{ color: 'var(--text-muted)' }}>
                             No classes scheduled yet. Create your first class to open bookings for your students.
                         </p>
                         <button
@@ -113,18 +114,18 @@ export default function StudioSchedule() {
                 </div>
             ) : (
                 <div className="space-y-4">
-                    <h3 className="text-lg font-bold">Upcoming Classes</h3>
+                    <h3 className="text-lg font-bold" style={{ color: 'var(--text)' }}>Upcoming Classes</h3>
                     <div className="space-y-3">
                         {sortedClasses.map((cls: any) => (
-                            <div key={cls.id} className="bg-white p-4 rounded-lg border border-zinc-200 flex justify-between items-center hover:border-zinc-300 transition-colors">
+                            <div key={cls.id} style={{ background: 'var(--card-bg)', border: '1px solid var(--border)' }} className="p-4 rounded-lg flex justify-between items-center transition-colors">
                                 <div>
-                                    <div className="font-medium text-zinc-900">{cls.title}</div>
-                                    <div className="text-sm text-zinc-500">
+                                    <div className="font-medium" style={{ color: 'var(--text)' }}>{cls.title}</div>
+                                    <div className="text-sm" style={{ color: 'var(--text-muted)' }}>
                                         {new Date(cls.startTime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} • {new Date(cls.startTime).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })} ({cls.durationMinutes} min)
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-4">
-                                    <span className="text-sm text-zinc-500">0/{cls.capacity || 20} Booked</span>
+                                    <span className="text-sm" style={{ color: 'var(--text-muted)' }}>0/{cls.capacity || 20} Booked</span>
                                     <div className="flex gap-2">
                                         {cls.zoomMeetingUrl && (
                                             <a href={cls.zoomMeetingUrl} target="_blank" rel="noreferrer" className="text-blue-600 text-xs font-medium border border-blue-200 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100">
@@ -133,11 +134,12 @@ export default function StudioSchedule() {
                                         )}
                                         <Link
                                             to={`/studio/${params.slug}/classes/${cls.id}/roster`}
-                                            className="text-zinc-600 hover:text-zinc-900 text-sm font-medium hover:underline"
+                                            className="text-sm font-medium hover:underline"
+                                            style={{ color: 'var(--text-muted)' }}
                                         >
                                             View Roster
                                         </Link>
-                                        <button className="text-zinc-400 hover:text-zinc-600 text-sm">Edit</button>
+                                        <button className="text-sm" style={{ color: 'var(--text-muted)' }}>Edit</button>
                                     </div>
                                 </div>
                             </div>

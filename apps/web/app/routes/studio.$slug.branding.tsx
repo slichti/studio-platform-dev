@@ -1,12 +1,11 @@
+
 import { useState } from "react";
-import { useOutletContext } from "react-router";
+import { useOutletContext, Form } from "react-router";
 import { apiRequest } from "../utils/api";
-import { getAuth } from "@clerk/react-router/ssr.server";
 
-export default function StudioSettings() {
+export default function StudioBranding() {
     const { tenant } = useOutletContext<any>();
-
-    const [name, setName] = useState(tenant.name || '');
+    const [primaryColor, setPrimaryColor] = useState(tenant.branding?.primaryColor || '#4f46e5');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
@@ -18,17 +17,16 @@ export default function StudioSettings() {
         setSuccess(null);
 
         try {
-            // Client side fetch
             const token = await (window as any).Clerk?.session?.getToken();
 
             await apiRequest(`/tenant/settings`, token, {
                 method: "PATCH",
                 headers: { 'X-Tenant-Slug': tenant.slug },
-                body: JSON.stringify({ name })
+                body: JSON.stringify({ branding: { primaryColor } })
             });
-            setSuccess("Settings saved successfully.");
+            setSuccess("Branding saved successfully.");
         } catch (e: any) {
-            setError(e.message || "Failed to save settings.");
+            setError(e.message || "Failed to save branding.");
         } finally {
             setLoading(false);
         }
@@ -37,7 +35,8 @@ export default function StudioSettings() {
     return (
         <div>
             <div style={{ marginBottom: '24px' }}>
-                <h1 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px' }}>Studio Settings</h1>
+                <h1 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px' }}>Customize Branding</h1>
+                <p style={{ color: 'var(--text-muted)' }}>Manage your studio's look and feel.</p>
             </div>
 
             <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '24px', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}>
@@ -56,15 +55,23 @@ export default function StudioSettings() {
                 <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     <div>
                         <label style={{ display: 'block', textTransform: 'uppercase', color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '600', letterSpacing: '0.05em', marginBottom: '8px' }}>
-                            Studio Name
+                            Primary Brand Color
                         </label>
-                        <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            style={{ width: '100%', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px', fontSize: '1rem', outline: 'none', transition: 'border-color 0.2s' }}
-                            placeholder="Enter studio name"
-                        />
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                            <input
+                                type="color"
+                                value={primaryColor}
+                                onChange={(e) => setPrimaryColor(e.target.value)}
+                                style={{ width: '40px', height: '40px', padding: 0, border: 'none', borderRadius: '6px', cursor: 'pointer', background: 'none' }}
+                            />
+                            <input
+                                type="text"
+                                value={primaryColor}
+                                onChange={(e) => setPrimaryColor(e.target.value)}
+                                style={{ flex: 1, background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px', fontSize: '0.95rem', fontFamily: 'monospace', outline: 'none' }}
+                                placeholder="#000000"
+                            />
+                        </div>
                     </div>
 
                     <div style={{ paddingTop: '10px' }}>

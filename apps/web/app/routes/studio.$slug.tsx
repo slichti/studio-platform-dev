@@ -85,6 +85,7 @@ export default function StudioLayout() {
                     <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#adb5bd', marginBottom: '8px', paddingLeft: '12px', letterSpacing: '0.5px' }}>ADMIN</div>
                     <NavPending to="." end>Overview</NavPending>
                     <NavPending to="settings">Settings</NavPending>
+                    <NavPending to="branding">Branding</NavPending>
                     <NavPending to="finances">Finances</NavPending>
                 </div>
             )}

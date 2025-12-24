@@ -74,6 +74,7 @@ export default function StudioWaivers() {
     const actionData = useActionData<{ success?: boolean; error?: string }>();
     const { getToken } = useAuth();
     const [uploading, setUploading] = useState(false);
+    const [signature, setSignature] = useState<string | null>(null);
 
     useEffect(() => {
         if (actionData?.success && !isSubmitting) {
@@ -94,7 +95,8 @@ export default function StudioWaivers() {
                     <h2 className="text-2xl font-bold">Waivers & Forms</h2>
                     <button
                         onClick={() => setIsCreateOpen(true)}
-                        className="bg-zinc-900 text-white px-4 py-2 rounded-md hover:bg-zinc-800 text-sm font-medium"
+                        style={{ background: 'var(--accent)', color: 'white' }}
+                        className="px-4 py-2 rounded-md hover:opacity-90 text-sm font-medium"
                     >
                         + Create Waiver
                     </button>
@@ -107,11 +109,11 @@ export default function StudioWaivers() {
                         </div>
                     ) : (
                         templates.map((t: any) => (
-                            <div key={t.id} className="bg-white p-6 rounded-lg border border-zinc-200 shadow-sm">
-                                <h3 className="font-bold text-lg mb-2">{t.title}</h3>
-                                <div className="text-sm text-zinc-600 line-clamp-3 mb-4 whitespace-pre-wrap bg-zinc-50 p-3 rounded">{t.content}</div>
+                            <div key={t.id} style={{ background: 'var(--card-bg)', border: '1px solid var(--border)' }} className="p-6 rounded-lg shadow-sm">
+                                <h3 className="font-bold text-lg mb-2" style={{ color: 'var(--text)' }}>{t.title}</h3>
+                                <div className="text-sm line-clamp-3 mb-4 whitespace-pre-wrap p-3 rounded" style={{ background: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>{t.content}</div>
                                 <div className="flex gap-2">
-                                    <span className={`text-xs px-2 py-1 rounded ${t.active ? 'bg-green-100 text-green-800' : 'bg-zinc-100 text-zinc-800'}`}>
+                                    <span className={`text-xs px-2 py-1 rounded ${t.active ? 'bg-green-100 text-green-800' : 'text-zinc-800'}`} style={!t.active ? { background: 'var(--bg-subtle)', color: 'var(--text-muted)' } : {}}>
                                         {t.active ? 'Active' : 'Inactive'}
                                     </span>
                                 </div>
@@ -125,26 +127,28 @@ export default function StudioWaivers() {
                         <input type="hidden" name="intent" value="create" />
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium mb-1 text-zinc-700 dark:text-zinc-300">Title</label>
+                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Title</label>
                                 <input
                                     name="title"
                                     required
                                     placeholder="Liability Release"
-                                    className="w-full border border-zinc-300 dark:border-zinc-700 rounded px-3 py-2 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                    style={{ background: 'var(--bg-subtle)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                                    className="w-full rounded px-3 py-2 focus:ring-2 focus:ring-blue-500"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-1 text-zinc-700 dark:text-zinc-300">Content</label>
+                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Content</label>
                                 <textarea
                                     name="content"
                                     required
                                     rows={10}
-                                    className="w-full border border-zinc-300 dark:border-zinc-700 rounded px-3 py-2 font-mono text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                    style={{ background: 'var(--bg-subtle)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                                    className="w-full rounded px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-blue-500"
                                     placeholder="Legal text here..."
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-1 text-zinc-700 dark:text-zinc-300">Create from PDF (Optional)</label>
+                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Create from PDF (Optional)</label>
                                 <input
                                     type="file"
                                     accept=".pdf"
@@ -191,7 +195,8 @@ export default function StudioWaivers() {
                             )}
                             <button
                                 disabled={isSubmitting || uploading}
-                                className="w-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 py-2 rounded font-medium disabled:opacity-50"
+                                style={{ background: 'var(--accent)', color: 'white' }}
+                                className="w-full py-2 rounded font-medium disabled:opacity-50"
                             >
                                 {isSubmitting ? 'Saving...' : 'Save Waiver'}
                             </button>
