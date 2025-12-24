@@ -288,6 +288,7 @@ export default function AdminUsers() {
                             selected={selectedUsers.has(user.id)}
                             toggle={() => toggleUser(user.id)}
                             showCheckbox={true}
+                            onImpersonate={() => handleImpersonate(user.id)}
                         />
                     ))
                 )}
@@ -435,7 +436,7 @@ function ClientDateOnly({ date }: { date: string | Date }) {
     return <span>{formatted}</span>;
 }
 
-function UserRow({ user, selected, toggle, showCheckbox, contextRole }: { user: any, selected: boolean, toggle: () => void, showCheckbox: boolean, contextRole?: string }) {
+function UserRow({ user, selected, toggle, showCheckbox, contextRole, onImpersonate }: { user: any, selected: boolean, toggle: () => void, showCheckbox: boolean, contextRole?: string, onImpersonate?: () => void }) {
     return (
         <tr className={`hover:bg-zinc-50 transition-colors ${selected ? 'bg-blue-50/50' : ''}`}>
             <td className="px-6 py-4">
@@ -474,7 +475,15 @@ function UserRow({ user, selected, toggle, showCheckbox, contextRole }: { user: 
                 </span>
             </td>
             <td className="px-6 py-4">
-                <Link to={`/admin/users/${user.id}`} className="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit</Link>
+                <div className="flex gap-3 justify-end items-center">
+                    {onImpersonate && !user.isSystemAdmin && (
+                        <button onClick={onImpersonate} className="text-zinc-500 hover:text-zinc-900 text-sm font-medium flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                            Login As
+                        </button>
+                    )}
+                    <Link to={`/admin/users/${user.id}`} className="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit</Link>
+                </div>
             </td>
         </tr>
     );

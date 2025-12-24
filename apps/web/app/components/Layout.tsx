@@ -115,6 +115,23 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
 
             {/* Main Content Area */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                {/* Impersonation Banner */}
+                {typeof window !== "undefined" && localStorage.getItem("impersonation_token") && (
+                    <div style={{ background: '#ef4444', color: 'white', padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', fontSize: '0.9rem', fontWeight: '500' }}>
+                        <span>⚠️ You are currently impersonating a user ({localStorage.getItem("impersonation_target_email") || "Unknown"}). Financial actions are restricted.</span>
+                        <button
+                            onClick={() => {
+                                localStorage.removeItem("impersonation_token");
+                                localStorage.removeItem("impersonation_target_email");
+                                window.location.href = "/";
+                            }}
+                            style={{ background: 'white', color: '#ef4444', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer' }}
+                        >
+                            Exit Impersonation
+                        </button>
+                    </div>
+                )}
+
                 {/* Header */}
                 <header style={{ height: '70px', background: 'var(--header-bg)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px', transition: 'background 0.3s, border-color 0.3s' }}>
                     {/* Left: Page Title */}
@@ -173,6 +190,24 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                                                 My Profile
                                             </NavLink>
+
+                                            {typeof window !== "undefined" && localStorage.getItem("impersonation_token") && (
+                                                <button
+                                                    onClick={() => {
+                                                        setIsDropdownOpen(false);
+                                                        localStorage.removeItem("impersonation_token");
+                                                        localStorage.removeItem("impersonation_target_email");
+                                                        window.location.href = "/admin"; // Explicit redirect to admin
+                                                    }}
+                                                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', borderRadius: '6px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: '0.9rem', textAlign: 'left', transition: 'background 0.2s' }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--hover-bg)'}
+                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 0 0-10 10v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6a10 10 0 0 0-10-10Z" /><path d="M12 12v6" /><circle cx="12" cy="7" r="1" /></svg>
+                                                    Return to Admin Console
+                                                </button>
+                                            )}
+
                                             <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}></div>
                                             <button onClick={() => { setIsDropdownOpen(false); handleLogout(); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', borderRadius: '6px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '0.9rem', textAlign: 'left', transition: 'background 0.2s' }}
                                                 onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}

@@ -13,6 +13,7 @@ type Variables = {
     };
     tenant?: any;
     roles?: string[];
+    isImpersonating?: boolean;
 }
 
 import { tenantMiddleware } from '../middleware/tenant';
@@ -45,6 +46,10 @@ app.post('/plans', async (c) => {
     const roles = c.get('roles') || [];
     if (!roles.includes('owner')) {
         return c.json({ error: 'Access Denied: Only Owners can create plans' }, 403);
+    }
+
+    if (c.get('isImpersonating')) {
+        return c.json({ error: 'Action Restricted: Cannot create financial plans while impersonating.' }, 403);
     }
 
     const { name, description, price, interval, currency } = await c.req.json();

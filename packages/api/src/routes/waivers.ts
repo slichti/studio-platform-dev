@@ -18,6 +18,10 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 
+// Force Tenant Middleware for this route to ensure context is available
+import { tenantMiddleware } from '../middleware/tenant';
+app.use('*', tenantMiddleware);
+
 // GET /waivers: List templates (Owner) or get active waiver to sign (Student)
 app.get('/', async (c) => {
     const db = createDb(c.env.DB);
@@ -72,21 +76,17 @@ app.post('/', async (c) => {
         return c.json({ error: 'Access Denied' }, 403);
     }
 
-    const { title, content } = await c.req.json();
+    const { title, content, pdfUrl } = await c.req.json();
     if (!title || !content) return c.json({ error: 'Title and Content required' }, 400);
 
     const id = crypto.randomUUID();
-
-    // Deactivate old ones? Use "active" flag.
-    // For now, let's assume one active waiver per studio simplistically, or just add new one.
-    // Let's set all others to inactive first if we want strict single waiver.
-    // await db.update(waiverTemplates).set({ active: false }).where(eq(waiverTemplates.tenantId, tenant.id)).run();
 
     await db.insert(waiverTemplates).values({
         id,
         tenantId: tenant.id,
         title,
         content,
+        pdfUrl: pdfUrl || null,
         active: true
     });
 

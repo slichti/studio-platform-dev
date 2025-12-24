@@ -29,13 +29,15 @@ export const action: ActionFunction = async (args) => {
     const token = await getToken();
     const formData = await request.formData();
 
+    console.log("Submitting Membership Plan:", { slug: params.slug });
+
     const name = formData.get("name");
     const price = Number(formData.get("price") || 0) * 100; // Convert to cents
     const interval = formData.get("interval");
     const description = formData.get("description");
 
     try {
-        await apiRequest("/memberships/plans", token, {
+        const result = await apiRequest("/memberships/plans", token, {
             method: "POST",
             headers: { 'X-Tenant-Slug': params.slug! },
             body: JSON.stringify({
@@ -45,8 +47,11 @@ export const action: ActionFunction = async (args) => {
                 description
             })
         });
+        console.log("Membership Plan Created:", result);
         return { success: true };
     } catch (e: any) {
+        console.error("Failed to create membership plan:", e);
+        // If it's a 403, it might mean the roles aren't propagating.
         return { error: e.message };
     }
 };
@@ -84,10 +89,10 @@ export default function StudioMemberships() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
                 {plans.length === 0 ? (
-                    <div className="col-span-full text-center p-12 bg-zinc-50 rounded-lg border border-dashed border-zinc-300">
-                        <h3 className="text-zinc-900 font-medium mb-1">No Membership Plans</h3>
-                        <p className="text-zinc-500 text-sm mb-4">Create tiers like "Unlimited" or "10-Pack" for your students.</p>
-                        <button onClick={() => setIsCreateOpen(true)} className="text-blue-600 hover:underline">Create first plan</button>
+                    <div className="col-span-full text-center p-12 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700">
+                        <h3 className="text-zinc-900 dark:text-zinc-100 font-medium mb-1">No Membership Plans</h3>
+                        <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-4">Create tiers like "Unlimited" or "10-Pack" for your students.</p>
+                        <button onClick={() => setIsCreateOpen(true)} className="text-blue-600 dark:text-blue-400 hover:underline">Create first plan</button>
                     </div>
                 ) : (
                     plans.map((plan: any) => (
@@ -108,8 +113,8 @@ export default function StudioMemberships() {
 
             {/* List Active Subscriptions (Placeholder for now) */}
             <h3 className="text-lg font-bold mb-4">Active Subscriptions</h3>
-            <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm">
-                <div className="p-8 text-center text-zinc-500">
+            <div className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden shadow-sm">
+                <div className="p-8 text-center text-zinc-500 dark:text-zinc-400">
                     No active subscriptions yet. Assign a plan to a student to see it here.
                 </div>
             </div>

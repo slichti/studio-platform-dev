@@ -145,6 +145,7 @@ export const waiverTemplates = sqliteTable('waiver_templates', {
     tenantId: text('tenant_id').notNull().references(() => tenants.id),
     title: text('title').notNull(),
     content: text('content').notNull(), // HTML or Rich Text
+    pdfUrl: text('pdf_url'), // Link to R2 PDF
     active: integer('active', { mode: 'boolean' }).default(true),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });

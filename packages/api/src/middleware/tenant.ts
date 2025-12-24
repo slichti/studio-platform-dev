@@ -1,7 +1,7 @@
 import { Context, Next } from 'hono';
 import { createDb } from '../db';
 import { eq, and } from 'drizzle-orm';
-import { tenants, tenantMembers, tenantRoles } from 'db/src/schema';
+import { tenants, tenantMembers, tenantRoles, users } from 'db/src/schema';
 
 // Extend Hono Context to include tenant
 type Bindings = {
@@ -71,6 +71,19 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
     // 3. Security Check: If User is Authenticated, Verify Membership
     const auth = c.get('auth');
     if (auth && auth.userId) {
+        // Global Admin Check
+        const dbUser = await db.query.users.findFirst({
+            where: eq(users.id, auth.userId)
+        });
+
+        const isSystemAdmin = dbUser?.isSystemAdmin === true;
+
+        if (isSystemAdmin) {
+            roles.push('owner');
+            // Also ensure member object is at least partially mocked if missing?
+            // Or better, just rely on roles.
+        }
+
         // Find Member record
         const member = await db.query.tenantMembers.findFirst({
             where: and(
@@ -79,21 +92,17 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
             )
         });
 
-        if (!member) {
-            // User exists in Clerk (Auth) but NOT in this Tenant's members table.
-            // Phase 3: Allow "Guest" formatted access (e.g. for creating a booking or viewing public calendar)
-            // Do NOT return 403. Downstream handlers must check c.get('member') or roles.
-        } else {
+        if (member) {
+            c.set('member', member);
             // Fetch Roles
             const rolesResult = await db.query.tenantRoles.findMany({
                 where: eq(tenantRoles.memberId, member.id)
             });
-            const roles = rolesResult.map(r => r.role);
-
-            // Expose Member and Roles to downstream handlers
-            c.set('member', member);
-            c.set('roles', roles);
+            const dbRoles = rolesResult.map(r => r.role);
+            roles = [...new Set([...roles, ...dbRoles])]; // Merge
         }
+
+        c.set('roles', roles);
     }
 
     await next();

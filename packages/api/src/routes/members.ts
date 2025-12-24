@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { tenantMembers, users, tenantRoles } from 'db/src/schema';
+import { tenantMembers, tenantRoles } from 'db/src/schema';
 import { createDb } from '../db';
 import { eq, and } from 'drizzle-orm';
 
@@ -13,46 +13,77 @@ type Variables = {
     };
     tenant?: any;
     roles?: string[];
+    isImpersonating?: boolean;
 }
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 
-// GET /: List members for the current tenant
+// GET /members: List all members (Owner only)
 app.get('/', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
-    // RBAC: Only Instructors or Owners can list students
-    const roles = c.get('roles') || [];
-    if (!roles.includes('instructor') && !roles.includes('owner')) {
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
         return c.json({ error: 'Access Denied' }, 403);
     }
 
-    try {
-        // Query members + join with users to get names/emails
-        const results = await db.select({
-            id: tenantMembers.id,
-            joinedAt: tenantMembers.joinedAt,
-            user: {
-                id: users.id,
-                email: users.email,
-                profile: users.profile
-            }
-        })
-            .from(tenantMembers)
-            .innerJoin(users, eq(tenantMembers.userId, users.id))
-            .where(eq(tenantMembers.tenantId, tenant.id));
+    // Fetch members with roles
+    const members = await db.query.tenantMembers.findMany({
+        where: eq(tenantMembers.tenantId, tenant.id),
+        with: {
+            roles: true,
+            user: true // assuming relation exists
+        }
+    });
 
-        // Fetch roles for each member? Or usually "Students" implies role filtered?
-        // For now, list ALL members in the tenant.
+    return c.json({ members });
+});
 
-        // Optimization: We could join tenantRoles too, but let's keep it simple.
+// PATCH /members/:id/role: Update member role (Owner only)
+app.patch('/:id/role', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    const memberId = c.req.param('id');
+    const { role } = await c.req.json(); // 'instructor' or 'student'
 
-        return c.json(results);
-    } catch (e: any) {
-        return c.json({ error: e.message }, 500);
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    if (!roles.includes('owner')) {
+        return c.json({ error: 'Access Denied: Only Owners can manage roles' }, 403);
     }
+
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.id, memberId), eq(tenantMembers.tenantId, tenant.id))
+    });
+
+    if (!member) return c.json({ error: 'Member not found' }, 404);
+
+    if (member.userId === c.get('auth').userId) {
+        return c.json({ error: 'Cannot change your own role' }, 400);
+    }
+
+    // Replace roles logic: simple swap for now. 
+    // Remove existing roles
+    await db.delete(tenantRoles).where(eq(tenantRoles.memberId, memberId)).run();
+
+    // Add new role
+    if (role === 'instructor') {
+        await db.insert(tenantRoles).values({
+            id: crypto.randomUUID(),
+            memberId,
+            role: 'instructor'
+        }).run();
+    }
+    // If student, we just leave them with no specific extra role (or add 'student' if we treat it as explicit role)
+    // Assuming 'student' is default/implicit if no other role.
+    // Or if we need explicit 'student' role:
+    // await db.insert(tenantRoles).values({ id: crypto.randomUUID(), memberId, role: 'student' }).run();
+
+    return c.json({ success: true });
 });
 
 export default app;

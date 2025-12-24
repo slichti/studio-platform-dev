@@ -1,9 +1,11 @@
 import { ActionFunction, LoaderFunction } from "react-router";
 import { useLoaderData, Form, useActionData, useNavigation, useOutletContext } from "react-router";
+import { useAuth } from "@clerk/react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Modal } from "../components/Modal";
+import { SignaturePad } from "../components/SignaturePad";
 import ReactMarkdown from 'react-markdown'; // Ensure this package is installed or use simple whitespace-pre-wrap
 
 // Loader: Fetch waivers
@@ -34,11 +36,12 @@ export const action: ActionFunction = async (args) => {
     if (intent === "create") {
         const title = formData.get("title");
         const content = formData.get("content");
+        const pdfUrl = formData.get("pdfUrl");
         try {
             await apiRequest("/waivers", token, {
                 method: "POST",
                 headers: { 'X-Tenant-Slug': params.slug! },
-                body: JSON.stringify({ title, content })
+                body: JSON.stringify({ title, content, pdfUrl })
             });
             return { success: true };
         } catch (e: any) {
@@ -68,6 +71,15 @@ export default function StudioWaivers() {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const navigation = useNavigation();
     const isSubmitting = navigation.state === "submitting";
+    const actionData = useActionData<{ success?: boolean; error?: string }>();
+    const { getToken } = useAuth();
+    const [uploading, setUploading] = useState(false);
+
+    useEffect(() => {
+        if (actionData?.success && !isSubmitting) {
+            setIsCreateOpen(false);
+        }
+    }, [actionData, isSubmitting]);
 
     if (error) {
         return <div className="text-red-600">Error: {error}</div>;
@@ -109,18 +121,78 @@ export default function StudioWaivers() {
                 </div>
 
                 <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Create Waiver">
-                    <Form method="post" onSubmit={() => setIsCreateOpen(false)}>
+                    <Form method="post">
                         <input type="hidden" name="intent" value="create" />
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium mb-1">Title</label>
-                                <input name="title" required placeholder="Liability Release" className="w-full border rounded px-3 py-2" />
+                                <label className="block text-sm font-medium mb-1 text-zinc-700 dark:text-zinc-300">Title</label>
+                                <input
+                                    name="title"
+                                    required
+                                    placeholder="Liability Release"
+                                    className="w-full border border-zinc-300 dark:border-zinc-700 rounded px-3 py-2 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-1">Content</label>
-                                <textarea name="content" required rows={10} className="w-full border rounded px-3 py-2 font-mono text-sm" placeholder="Legal text here..." />
+                                <label className="block text-sm font-medium mb-1 text-zinc-700 dark:text-zinc-300">Content</label>
+                                <textarea
+                                    name="content"
+                                    required
+                                    rows={10}
+                                    className="w-full border border-zinc-300 dark:border-zinc-700 rounded px-3 py-2 font-mono text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                    placeholder="Legal text here..."
+                                />
                             </div>
-                            <button disabled={isSubmitting} className="w-full bg-zinc-900 text-white py-2 rounded">
+                            <div>
+                                <label className="block text-sm font-medium mb-1 text-zinc-700 dark:text-zinc-300">Create from PDF (Optional)</label>
+                                <input
+                                    type="file"
+                                    accept=".pdf"
+                                    onChange={async (e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                            setUploading(true);
+                                            try {
+                                                const token = await getToken();
+                                                const slug = window.location.pathname.split('/')[2];
+                                                const formData = new FormData();
+                                                formData.append('file', file);
+
+                                                const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://studio-platform-api.slichti.workers.dev'}/uploads/pdf`, {
+                                                    method: 'POST',
+                                                    headers: {
+                                                        'Authorization': `Bearer ${token}`,
+                                                        'X-Tenant-Slug': slug
+                                                    },
+                                                    body: formData
+                                                });
+
+                                                if (!res.ok) throw new Error(await res.text());
+                                                const data = await res.json();
+
+                                                const input = document.getElementById('pdf-url-input') as HTMLInputElement;
+                                                if (input) input.value = data.url;
+                                                alert("PDF Uploaded successfully!");
+                                            } catch (err: any) {
+                                                alert("Upload failed: " + err.message);
+                                            } finally {
+                                                setUploading(false);
+                                            }
+                                        }
+                                    }}
+                                    className="block w-full text-sm text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                />
+                                <input type="hidden" name="pdfUrl" id="pdf-url-input" />
+                            </div>
+                            {actionData?.error && (
+                                <div className="text-red-600 text-sm bg-red-50 p-2 rounded border border-red-200">
+                                    Error saving: {actionData.error}
+                                </div>
+                            )}
+                            <button
+                                disabled={isSubmitting || uploading}
+                                className="w-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 py-2 rounded font-medium disabled:opacity-50"
+                            >
                                 {isSubmitting ? 'Saving...' : 'Save Waiver'}
                             </button>
                         </div>
@@ -157,24 +229,42 @@ export default function StudioWaivers() {
                     ✅ Signed on {new Date(signatureDate).toLocaleDateString()}
                 </div>
             ) : (
-                <div className="bg-zinc-50 p-6 rounded-lg border border-zinc-200">
-                    <h3 className="font-bold mb-4">Acceptance</h3>
+                <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-6">
+                    <h3 className="font-bold mb-4 dark:text-white">Sign Waiver</h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+                        Please draw your signature below to accept this agreement.
+                    </p>
+
+                    <div className="mb-6">
+                        <SignaturePad
+                            onChange={(data) => setSignature(data)}
+                            width={600}
+                            height={200}
+                        />
+                        {signature && (
+                            <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                Signature captured
+                            </p>
+                        )}
+                    </div>
+
                     <Form method="post">
                         <input type="hidden" name="intent" value="sign" />
                         <input type="hidden" name="templateId" value={waiver.id} />
-                        <input type="hidden" name="signatureData" value="Agreed explicitly via UI" />
+                        <input type="hidden" name="signatureData" value={signature || ''} />
 
                         <div className="flex items-start gap-3 mb-6">
                             <input type="checkbox" required id="agree" className="mt-1" />
-                            <label htmlFor="agree" className="text-sm text-zinc-700">
+                            <label htmlFor="agree" className="text-sm text-zinc-700 dark:text-zinc-300">
                                 I have read and agree to the terms of this waiver.
-                                by checking this box, I electronically sign this document.
+                                By drawing my signature above and checking this box, I electronically sign this document.
                             </label>
                         </div>
 
                         <button
-                            disabled={isSubmitting}
-                            className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-sm transition-colors"
+                            disabled={!signature || isSubmitting}
+                            className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isSubmitting ? 'Signing...' : 'Sign Waiver'}
                         </button>

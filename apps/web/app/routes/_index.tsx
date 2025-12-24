@@ -1,14 +1,11 @@
 import type { MetaFunction } from "react-router";
 import { Link } from "react-router";
-import { SignInButton, SignUpButton, SignedIn, SignedOut } from "@clerk/react-router";
-export const meta: MetaFunction = () => {
-    return [
-        { title: "Studio Management Platform" },
-        { name: "description", content: "Welcome to the Studio Management Platform" },
-    ];
-};
+import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/react-router";
+// ... imports ...
 
 export default function Index() {
+    const { user } = useUser();
+
     return (
         <div style={{ fontFamily: "Inter, sans-serif", color: "#333", margin: 0, padding: 0 }}>
             {/* Navigation */}
@@ -27,9 +24,11 @@ export default function Index() {
                     <Link to="/admin" style={{ textDecoration: "none", color: "#666", fontSize: "0.9rem" }}>Admin</Link>
                     <SignedIn>
                         <Link to="/dashboard" style={{ textDecoration: "none", color: "#666", fontSize: "0.9rem" }}>Dashboard</Link>
-                        {/* UserButton would be ideal here if imported, defaulting to simple text if not available yet */}
-                        <div style={{ padding: "8px 16px", background: "#f3f4f6", borderRadius: "6px", fontSize: "0.9rem" }}>
-                            Signed In
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            <span style={{ fontSize: "0.9rem", color: "#333" }}>
+                                {user?.firstName ? `Hi, ${user.firstName}` : ''}
+                            </span>
+                            <UserButton afterSignOutUrl="/" />
                         </div>
                     </SignedIn>
                     <SignedOut>

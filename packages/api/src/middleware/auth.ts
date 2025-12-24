@@ -6,6 +6,7 @@ type AuthVariables = {
         userId: string | null;
         claims: any;
     };
+    isImpersonating?: boolean;
 };
 
 export const authMiddleware = createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
@@ -27,6 +28,8 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables }>(asy
                     userId: payload.sub as string,
                     claims: payload as any,
                 });
+                // Flag as impersonated session
+                c.set('isImpersonating', true);
                 return await next();
             }
         } catch (ignore) {
