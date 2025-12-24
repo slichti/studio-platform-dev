@@ -160,3 +160,77 @@ export const waiverSignatures = sqliteTable('waiver_signatures', {
 }, (table) => ({
     memberTemplateIdx: index('member_template_idx').on(table.memberId, table.templateId),
 }));
+
+// --- Relations ---
+import { relations } from 'drizzle-orm';
+
+export const usersRelations = relations(users, ({ many }) => ({
+    memberships: many(tenantMembers),
+    subscriptions: many(subscriptions),
+}));
+
+export const tenantsRelations = relations(tenants, ({ many }) => ({
+    members: many(tenantMembers),
+    classes: many(classes),
+    locations: many(locations),
+    membershipPlans: many(membershipPlans),
+    waiverTemplates: many(waiverTemplates),
+}));
+
+export const tenantMembersRelations = relations(tenantMembers, ({ one, many }) => ({
+    user: one(users, {
+        fields: [tenantMembers.userId],
+        references: [users.id],
+    }),
+    tenant: one(tenants, {
+        fields: [tenantMembers.tenantId],
+        references: [tenants.id],
+    }),
+    roles: many(tenantRoles),
+    bookings: many(bookings),
+}));
+
+export const tenantRolesRelations = relations(tenantRoles, ({ one }) => ({
+    member: one(tenantMembers, {
+        fields: [tenantRoles.memberId],
+        references: [tenantMembers.id],
+    }),
+}));
+
+export const classesRelations = relations(classes, ({ one, many }) => ({
+    tenant: one(tenants, {
+        fields: [classes.tenantId],
+        references: [tenants.id],
+    }),
+    location: one(locations, {
+        fields: [classes.locationId],
+        references: [locations.id],
+    }),
+    instructor: one(tenantMembers, {
+        fields: [classes.instructorId],
+        references: [tenantMembers.id],
+    }),
+    bookings: many(bookings),
+}));
+
+export const bookingsRelations = relations(bookings, ({ one }) => ({
+    class: one(classes, {
+        fields: [bookings.classId],
+        references: [classes.id],
+    }),
+    member: one(tenantMembers, {
+        fields: [bookings.memberId],
+        references: [tenantMembers.id],
+    }),
+}));
+
+export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
+    user: one(users, {
+        fields: [subscriptions.userId],
+        references: [users.id],
+    }),
+    tenant: one(tenants, {
+        fields: [subscriptions.tenantId],
+        references: [tenants.id],
+    }),
+}));

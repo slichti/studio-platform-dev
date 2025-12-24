@@ -70,6 +70,8 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
 
     // 3. Security Check: If User is Authenticated, Verify Membership
     const auth = c.get('auth');
+    let roles: string[] = [];
+
     if (auth && auth.userId) {
         // Global Admin Check
         const dbUser = await db.query.users.findFirst({
