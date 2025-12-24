@@ -54,6 +54,32 @@ function StatCard({ title, value, status, trend }: { title: string, value: strin
     );
 }
 
+function AuditDetails({ details }: { details: any }) {
+    if (!details) return <span className="text-zinc-400">-</span>;
+
+    try {
+        const parsed = typeof details === 'string' ? JSON.parse(details) : details;
+        const keys = Object.keys(parsed);
+
+        if (keys.length === 0) return <span className="text-zinc-400">-</span>;
+
+        return (
+            <div className="flex flex-wrap gap-1">
+                {keys.map((key) => (
+                    <div key={key} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-zinc-100 text-zinc-600 border border-zinc-200">
+                        <span className="font-medium mr-1">{key}:</span>
+                        <span className="text-zinc-500 truncate max-w-[100px]" title={String(parsed[key])}>
+                            {String(parsed[key])}
+                        </span>
+                    </div>
+                ))}
+            </div>
+        );
+    } catch (e) {
+        return <span className="text-zinc-500 truncate">{String(details)}</span>;
+    }
+}
+
 export default function AdminIndex() {
     const { logs } = useLoaderData<any>();
 
@@ -109,8 +135,8 @@ export default function AdminIndex() {
                                     <TableCell className="font-mono text-xs">
                                         {log.targetId || "-"}
                                     </TableCell>
-                                    <TableCell className="max-w-md truncate text-zinc-500 text-xs">
-                                        {JSON.stringify(log.details)}
+                                    <TableCell className="max-w-md text-xs">
+                                        <AuditDetails details={log.details} />
                                     </TableCell>
                                     <TableCell className="font-mono text-xs text-zinc-400">
                                         {log.ipAddress}

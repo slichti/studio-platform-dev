@@ -140,12 +140,27 @@ export default function AdminTenants() {
                                     </span>
                                 </td>
                                 <td className="px-6 py-4">
-                                    <Link
-                                        to={`/studio/${t.slug}`}
-                                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                                    >
-                                        Manage
-                                    </Link>
+                                    <div className="flex items-center gap-3">
+                                        <Link
+                                            to={`/studio/${t.slug}`}
+                                            className="text-blue-600 hover:text-blue-800 text-xs font-semibold uppercase tracking-wide border border-blue-200 bg-blue-50 px-3 py-1 rounded-full hover:bg-blue-100 transition-colors"
+                                        >
+                                            Enter
+                                        </Link>
+                                        <div className="h-4 w-px bg-zinc-200"></div>
+                                        <button
+                                            className="text-zinc-500 hover:text-amber-600 text-xs font-medium transition-colors"
+                                            onClick={() => alert(`Pause action for ${t.name} (Not Implemented)`)}
+                                        >
+                                            Pause
+                                        </button>
+                                        <button
+                                            className="text-zinc-500 hover:text-red-600 text-xs font-medium transition-colors"
+                                            onClick={() => alert(`Suspend action for ${t.name} (Not Implemented)`)}
+                                        >
+                                            Suspend
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
