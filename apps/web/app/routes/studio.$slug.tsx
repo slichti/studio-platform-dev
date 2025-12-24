@@ -14,7 +14,8 @@ import {
     Dumbbell,
     DollarSign,
     FileSignature,
-    AlertTriangle
+    AlertTriangle,
+    Package
 } from "lucide-react";
 
 export const loader = async (args: LoaderFunctionArgs) => {
@@ -87,6 +88,7 @@ export default function StudioLayout() {
                     <NavItem to={`/studio/${slug}`} end icon={<LayoutGrid size={18} />}>Dashboard</NavItem>
                     <NavItem to="schedule" icon={<Calendar size={18} />}>Schedule</NavItem>
                     <NavItem to="memberships" icon={<CreditCard size={18} />}>Memberships</NavItem>
+                    <NavItem to="commerce/packs" icon={<Package size={18} />}>Class Packs</NavItem>
                     <NavItem to="students" icon={<Users size={18} />}>Students</NavItem>
                     <NavItem to="classes" icon={<Dumbbell size={18} />}>Classes</NavItem>
                     <NavItem to="finances" icon={<DollarSign size={18} />}>Finances</NavItem>

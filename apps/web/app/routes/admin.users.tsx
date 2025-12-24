@@ -170,6 +170,32 @@ export default function AdminUsers() {
         }
     };
 
+    const handleImpersonate = async (userId: string) => {
+        if (!confirm("Are you sure you want to sign in as this user?")) return;
+        try {
+            const token = await getToken();
+            const res = await apiRequest("/admin/impersonate", token, {
+                method: "POST",
+                body: JSON.stringify({ targetUserId: userId })
+            });
+
+            if (res.error) throw new Error(res.error);
+
+            if (res.token) {
+                localStorage.setItem("impersonation_token", res.token);
+                // Redirect to first available studio or dashboard
+                const user = usersList.find((u: any) => u.id === userId);
+                if (user && user.memberships && user.memberships.length > 0) {
+                    window.location.href = `/studio/${user.memberships[0].tenant.slug}`;
+                } else {
+                    window.location.href = "/dashboard";
+                }
+            }
+        } catch (e: any) {
+            setStatusDialog({ isOpen: true, type: 'error', message: e.message });
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -230,18 +256,19 @@ export default function AdminUsers() {
 
             {/* User List */}
             <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden shadow-sm">
-                <div className="grid grid-cols-12 gap-4 p-4 border-b border-zinc-100 bg-zinc-50 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                <div className="grid grid-cols-12 gap-4 p-4 border-b border-zinc-100 bg-zinc-50 text-xs font-medium text-zinc-500 uppercase tracking-wider items-center">
                     <div className="col-span-1 flex items-center justify-center">
                         <input type="checkbox" onChange={toggleSelectAll} checked={selectedUsers.size === usersList.length && usersList.length > 0} className="rounded border-zinc-300" />
                     </div>
-                    <div className="col-span-4 flex items-center gap-1 cursor-pointer hover:text-zinc-700" onClick={() => {
+                    <div className="col-span-3 flex items-center gap-1 cursor-pointer hover:text-zinc-700" onClick={() => {
                         const current = searchParams.get('sort');
                         const newSort = current === 'name_asc' ? 'name_desc' : 'name_asc';
                         setSearchParams(prev => { prev.set('sort', newSort); return prev; });
                     }}>
                         User {searchParams.get('sort')?.includes('name') && (searchParams.get('sort')?.includes('desc') ? '↓' : '↑')}
                     </div>
-                    <div className="col-span-3">Details</div>
+                    <div className="col-span-3">Email</div>
+                    <div className="col-span-2">Role</div>
                     <div className="col-span-2 flex items-center gap-1 cursor-pointer hover:text-zinc-700" onClick={() => {
                         const current = searchParams.get('sort');
                         const newSort = current === 'joined_asc' ? 'joined_desc' : 'joined_asc';
@@ -249,7 +276,7 @@ export default function AdminUsers() {
                     }}>
                         Joined {searchParams.get('sort')?.includes('joined') && (searchParams.get('sort')?.includes('desc') ? '↓' : '↑')}
                     </div>
-                    <div className="col-span-2 text-right">Actions</div>
+                    <div className="col-span-1 text-right">Actions</div>
                 </div>
 
                 {groupByTenant && groupedData ? (
@@ -439,9 +466,16 @@ function ClientDateOnly({ date }: { date: string | Date }) {
 }
 
 function UserRow({ user, selected, toggle, showCheckbox, contextRole, onImpersonate }: { user: any, selected: boolean, toggle: () => void, showCheckbox: boolean, contextRole?: string, onImpersonate?: () => void }) {
+    // Correct display name for specific user as requested
+    let displayName = `${user.profile?.firstName || ''} ${user.profile?.lastName || ''}`.trim();
+    if (user.email === 'slichti@gmail.com' && displayName === 'System Admin') {
+        displayName = 'Steven Lichti';
+    }
+    if (!displayName) displayName = user.email;
+
     return (
-        <tr className={`hover:bg-zinc-50 transition-colors ${selected ? 'bg-blue-50/50' : ''}`}>
-            <td className="px-6 py-4">
+        <div className={`grid grid-cols-12 gap-4 p-4 border-b border-zinc-100 items-center hover:bg-zinc-50 transition-colors ${selected ? 'bg-blue-50/50' : ''}`}>
+            <div className="col-span-1 flex justify-center">
                 {showCheckbox ? (
                     <input
                         type="checkbox"
@@ -450,43 +484,42 @@ function UserRow({ user, selected, toggle, showCheckbox, contextRole, onImperson
                         onChange={toggle}
                     />
                 ) : null}
-            </td>
-            <td className="px-6 py-4 font-medium text-zinc-900 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-zinc-200 flex items-center justify-center text-xs font-bold text-zinc-600 overflow-hidden">
-                    {user.profile?.portraitUrl ? <img src={user.profile.portraitUrl} alt="" className="w-full h-full object-cover" /> : (user.profile?.firstName?.[0] || 'U')}
+            </div>
+            <div className="col-span-3 font-medium text-zinc-900 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-zinc-200 flex items-center justify-center text-xs font-bold text-zinc-600 overflow-hidden shrink-0">
+                    {user.profile?.portraitUrl ? <img src={user.profile.portraitUrl} alt="" className="w-full h-full object-cover" /> : (displayName[0] || 'U')}
                 </div>
-                <div>
-                    <div>{user.profile?.firstName} {user.profile?.lastName}</div>
+                <div className="truncate min-w-0">
+                    <div className="truncate">{displayName}</div>
                     {contextRole && <div className="text-xs text-zinc-400 capitalize">{contextRole}</div>}
                 </div>
-            </td>
-            <td className="px-6 py-4 text-zinc-600 text-sm">{user.email}</td>
-            <td className="px-6 py-4 text-zinc-600 text-sm">
+            </div>
+            <div className="col-span-3 text-zinc-600 text-sm truncate" title={user.email}>{user.email}</div>
+            <div className="col-span-2">
                 {user.isSystemAdmin ? (
                     <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded text-xs font-bold">Admin</span>
                 ) : (
                     <span className="text-zinc-400 text-xs">User</span>
                 )}
-            </td>
-            <td className="px-6 py-4 text-zinc-400 text-xs flex flex-col gap-0.5">
+            </div>
+            <div className="col-span-2 text-zinc-400 text-xs flex flex-col gap-0.5">
                 <span>
                     {user.lastActiveAt ? <ClientDate date={user.lastActiveAt} /> : 'Never'}
                 </span>
                 <span className="text-zinc-300 flex gap-1">
                     Joined <ClientDateOnly date={user.createdAt} />
                 </span>
-            </td>
-            <td className="px-6 py-4">
+            </div>
+            <div className="col-span-1">
                 <div className="flex gap-3 justify-end items-center">
                     {onImpersonate && !user.isSystemAdmin && (
-                        <button onClick={onImpersonate} className="text-zinc-500 hover:text-zinc-900 text-sm font-medium flex items-center gap-1">
+                        <button onClick={onImpersonate} className="text-zinc-500 hover:text-zinc-900 text-sm font-medium flex items-center gap-1" title="Login As">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                            Login As
                         </button>
                     )}
                     <Link to={`/admin/users/${user.id}`} className="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit</Link>
                 </div>
-            </td>
-        </tr>
+            </div>
+        </div>
     );
 }

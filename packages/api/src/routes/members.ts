@@ -108,6 +108,12 @@ app.get('/:id', async (c) => {
                     plan: true
                 }
             },
+            purchasedPacks: {
+                with: {
+                    definition: true
+                },
+                orderBy: (purchasedPacks, { desc }) => [desc(purchasedPacks.createdAt)]
+            },
             bookings: {
                 with: {
                     class: true

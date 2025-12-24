@@ -195,6 +195,31 @@ export const waiverSignatures = sqliteTable('waiver_signatures', {
     memberTemplateIdx: index('member_template_idx').on(table.memberId, table.templateId),
 }));
 
+// --- Commerce: Class Packs ---
+export const classPackDefinitions = sqliteTable('class_pack_definitions', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    name: text('name').notNull(), // e.g. "10 Class Pass"
+    price: integer('price').default(0), // in cents
+    credits: integer('credits').notNull(), // Number of classes
+    expirationDays: integer('expiration_days'), // Validity in days
+    active: integer('active', { mode: 'boolean' }).default(true),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+});
+
+export const purchasedPacks = sqliteTable('purchased_packs', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    memberId: text('member_id').notNull().references(() => tenantMembers.id),
+    packDefinitionId: text('pack_definition_id').notNull().references(() => classPackDefinitions.id),
+    initialCredits: integer('initial_credits').notNull(),
+    remainingCredits: integer('remaining_credits').notNull(),
+    expiresAt: integer('expires_at', { mode: 'timestamp' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    memberPackIdx: index('member_pack_idx').on(table.memberId),
+}));
+
 // --- Relations ---
 import { relations } from 'drizzle-orm';
 
@@ -209,6 +234,7 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
     locations: many(locations),
     membershipPlans: many(membershipPlans),
     waiverTemplates: many(waiverTemplates),
+    classPackDefinitions: many(classPackDefinitions),
 }));
 
 export const tenantMembersRelations = relations(tenantMembers, ({ one, many }) => ({
@@ -223,6 +249,7 @@ export const tenantMembersRelations = relations(tenantMembers, ({ one, many }) =
     roles: many(tenantRoles),
     bookings: many(bookings),
     memberships: many(subscriptions), // Alias subscriptions as memberships
+    purchasedPacks: many(purchasedPacks),
 }));
 
 export const tenantRolesRelations = relations(tenantRoles, ({ one }) => ({
@@ -275,5 +302,28 @@ export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
     plan: one(membershipPlans, {
         fields: [subscriptions.planId],
         references: [membershipPlans.id],
+    }),
+}));
+
+export const classPackDefinitionsRelations = relations(classPackDefinitions, ({ one, many }) => ({
+    tenant: one(tenants, {
+        fields: [classPackDefinitions.tenantId],
+        references: [tenants.id],
+    }),
+    purchasedPacks: many(purchasedPacks),
+}));
+
+export const purchasedPacksRelations = relations(purchasedPacks, ({ one }) => ({
+    tenant: one(tenants, {
+        fields: [purchasedPacks.tenantId],
+        references: [tenants.id],
+    }),
+    member: one(tenantMembers, {
+        fields: [purchasedPacks.memberId],
+        references: [tenantMembers.id],
+    }),
+    definition: one(classPackDefinitions, {
+        fields: [purchasedPacks.packDefinitionId],
+        references: [classPackDefinitions.id],
     }),
 }));

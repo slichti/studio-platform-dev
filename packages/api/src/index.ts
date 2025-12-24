@@ -149,6 +149,11 @@ app.route('/uploads', uploadRoutes);
 app.route('/admin', adminRoutes);
 app.route('/users', userRoutes);
 import memberships from './routes/memberships';
+app.use('/commerce*', authMiddleware);
+app.use('/commerce*', tenantMiddleware);
+
+import commerce from './routes/commerce';
+app.route('/commerce', commerce);
 
 app.route('/members', members);
 app.route('/memberships', memberships);

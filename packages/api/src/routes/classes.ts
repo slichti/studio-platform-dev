@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import { classes, tenants, bookings, tenantMembers, users, tenantRoles, classSeries } from 'db/src/schema';
+import { classes, tenants, bookings, tenantMembers, users, tenantRoles, classSeries, subscriptions, purchasedPacks } from 'db/src/schema'; // Added subscriptions, purchasedPacks
 import { createDb } from '../db';
-import { eq, and, gte, lte } from 'drizzle-orm';
+import { eq, and, gte, lte, gt } from 'drizzle-orm'; // Added gt
 import { ZoomService } from '../services/zoom';
 
 type Bindings = {
@@ -238,7 +238,19 @@ app.post('/:id/book', async (c) => {
 
         // Find or Auto-Join Member
         let member = await db.query.tenantMembers.findFirst({
-            where: and(eq(tenantMembers.userId, userId), eq(tenantMembers.tenantId, tenant.id))
+            where: and(eq(tenantMembers.userId, userId), eq(tenantMembers.tenantId, tenant.id)),
+            with: {
+                memberships: {
+                    where: eq(subscriptions.status, 'active')
+                },
+                purchasedPacks: {
+                    where: and(
+                        gt(purchasedPacks.remainingCredits, 0),
+                        // or(isNull(purchasedPacks.expiresAt), gt(purchasedPacks.expiresAt, new Date())) // Simple check
+                    ),
+                    orderBy: (purchasedPacks, { asc }) => [asc(purchasedPacks.expiresAt)]
+                }
+            }
         });
 
         if (!member) {
@@ -254,7 +266,30 @@ app.post('/:id/book', async (c) => {
                 memberId: memberId,
                 role: 'student'
             });
-            member = { id: memberId } as any;
+            member = { id: memberId, memberships: [], purchasedPacks: [] } as any;
+        }
+
+        // Check Payment Requirement
+        if (classInfo.price && classInfo.price > 0) {
+            const hasActiveMembership = member!.memberships && member!.memberships.length > 0;
+
+            if (!hasActiveMembership) {
+                // Try to use credits
+                // Filter out expired packs explicitly in JS if Drizzle 'gt' on date is tricky or needed safety
+                const validPacks = (member!.purchasedPacks || []).filter(p => !p.expiresAt || new Date(p.expiresAt) > new Date());
+
+                if (validPacks.length > 0) {
+                    const packToUse = validPacks[0]; // First one (sorted by expiry asc)
+
+                    // Deduct Credit
+                    await db.update(purchasedPacks)
+                        .set({ remainingCredits: packToUse.remainingCredits - 1 })
+                        .where(eq(purchasedPacks.id, packToUse.id))
+                        .run();
+                } else {
+                    return c.json({ error: 'Payment required: No active membership or class credits' }, 402);
+                }
+            }
         }
 
         await db.insert(bookings).values({
