@@ -46,6 +46,7 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
     const { signOut } = useClerk();
     const [theme, setTheme] = useState<Theme>('dark'); // Default to dark as requested initally
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [impersonationToken, setImpersonationToken] = useState<string | null>(null);
 
     useEffect(() => {
         // Load from local storage or prefer-color-scheme
@@ -55,6 +56,9 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
         } else if (window.matchMedia('(prefers-color-scheme: light)').matches) {
             setTheme('light');
         }
+
+        // Check for impersonation token on mount to avoid hydration mismatch
+        setImpersonationToken(localStorage.getItem("impersonation_token"));
     }, []);
 
     const toggleTheme = () => {
@@ -83,6 +87,7 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
     const handleLogout = () => {
         if (typeof window !== "undefined") {
             localStorage.removeItem("impersonation_token");
+            setImpersonationToken(null);
         }
         signOut({ redirectUrl: "/" });
     };
@@ -116,13 +121,14 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
             {/* Main Content Area */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 {/* Impersonation Banner */}
-                {typeof window !== "undefined" && localStorage.getItem("impersonation_token") && (
+                {impersonationToken && (
                     <div style={{ background: '#ef4444', color: 'white', padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', fontSize: '0.9rem', fontWeight: '500' }}>
-                        <span>⚠️ You are currently impersonating a user ({localStorage.getItem("impersonation_target_email") || "Unknown"}). Financial actions are restricted.</span>
+                        <span>⚠️ You are currently impersonating a user ({typeof window !== 'undefined' ? localStorage.getItem("impersonation_target_email") : "User"}). Financial actions are restricted.</span>
                         <button
                             onClick={() => {
                                 localStorage.removeItem("impersonation_token");
                                 localStorage.removeItem("impersonation_target_email");
+                                setImpersonationToken(null);
                                 window.location.href = "/";
                             }}
                             style={{ background: 'white', color: '#ef4444', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer' }}
@@ -191,12 +197,13 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
                                                 My Profile
                                             </NavLink>
 
-                                            {typeof window !== "undefined" && localStorage.getItem("impersonation_token") && (
+                                            {impersonationToken && (
                                                 <button
                                                     onClick={() => {
                                                         setIsDropdownOpen(false);
                                                         localStorage.removeItem("impersonation_token");
                                                         localStorage.removeItem("impersonation_target_email");
+                                                        setImpersonationToken(null);
                                                         window.location.href = "/admin"; // Explicit redirect to admin
                                                     }}
                                                     style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', borderRadius: '6px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: '0.9rem', textAlign: 'left', transition: 'background 0.2s' }}
