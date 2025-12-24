@@ -75,6 +75,26 @@ export default function AdminTenants() {
         }
     };
 
+
+    const handleStatusChange = async (tenantId: string, newStatus: string) => {
+        try {
+            const token = await getToken();
+            const res = await apiRequest(`/admin/tenants/${tenantId}/status`, token, {
+                method: "PATCH",
+                body: JSON.stringify({ status: newStatus })
+            });
+
+            if (res.error) {
+                setErrorDialog({ isOpen: true, message: res.error });
+            } else {
+                setTenants(tenants.map((t: any) => t.id === tenantId ? { ...t, status: newStatus } : t));
+                setSuccessDialog({ isOpen: true, message: `Tenant status updated to ${newStatus}.` });
+            }
+        } catch (e: any) {
+            setErrorDialog({ isOpen: true, message: e.message || "Failed to update status." });
+        }
+    };
+
     return (
         <div>
             {/* Dialogs */}
@@ -88,7 +108,7 @@ export default function AdminTenants() {
                 isOpen={successDialog.isOpen}
                 onClose={() => setSuccessDialog({ ...successDialog, isOpen: false })}
                 onConfirm={() => setSuccessDialog({ ...successDialog, isOpen: false })}
-                title="Tenant Provisioned"
+                title="Success"
                 message={successDialog.message}
                 confirmText="Done"
                 cancelText="Close"
@@ -135,8 +155,11 @@ export default function AdminTenants() {
                                 <td className="px-6 py-4 text-zinc-600 font-mono text-xs bg-zinc-100 rounded self-start inline-block px-1 mt-1">{t.slug}</td>
                                 <td className="px-6 py-4 text-zinc-400 text-xs font-mono">{t.id}</td>
                                 <td className="px-6 py-4">
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                        Active
+                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${t.status === 'suspended' ? 'bg-red-100 text-red-800' :
+                                            t.status === 'paused' ? 'bg-amber-100 text-amber-800' :
+                                                'bg-green-100 text-green-800'
+                                        }`}>
+                                        {t.status || 'Active'}
                                     </span>
                                 </td>
                                 <td className="px-6 py-4">
@@ -148,18 +171,38 @@ export default function AdminTenants() {
                                             Enter
                                         </Link>
                                         <div className="h-4 w-px bg-zinc-200"></div>
-                                        <button
-                                            className="text-zinc-500 hover:text-amber-600 text-xs font-medium transition-colors"
-                                            onClick={() => alert(`Pause action for ${t.name} (Not Implemented)`)}
-                                        >
-                                            Pause
-                                        </button>
-                                        <button
-                                            className="text-zinc-500 hover:text-red-600 text-xs font-medium transition-colors"
-                                            onClick={() => alert(`Suspend action for ${t.name} (Not Implemented)`)}
-                                        >
-                                            Suspend
-                                        </button>
+
+                                        {t.status === 'paused' ? (
+                                            <button
+                                                className="text-emerald-600 hover:text-emerald-700 text-xs font-medium transition-colors"
+                                                onClick={() => handleStatusChange(t.id, 'active')}
+                                            >
+                                                Resume
+                                            </button>
+                                        ) : (
+                                            <button
+                                                className="text-zinc-500 hover:text-amber-600 text-xs font-medium transition-colors"
+                                                onClick={() => handleStatusChange(t.id, 'paused')}
+                                            >
+                                                Pause
+                                            </button>
+                                        )}
+
+                                        {t.status === 'suspended' ? (
+                                            <button
+                                                className="text-emerald-600 hover:text-emerald-700 text-xs font-medium transition-colors"
+                                                onClick={() => handleStatusChange(t.id, 'active')}
+                                            >
+                                                Activate
+                                            </button>
+                                        ) : (
+                                            <button
+                                                className="text-zinc-500 hover:text-red-600 text-xs font-medium transition-colors"
+                                                onClick={() => handleStatusChange(t.id, 'suspended')}
+                                            >
+                                                Suspend
+                                            </button>
+                                        )}
                                     </div>
                                 </td>
                             </tr>

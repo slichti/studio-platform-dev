@@ -11,6 +11,7 @@ export const tenants = sqliteTable('tenants', {
     settings: text('settings', { mode: 'json' }), // JSON: Studio-wide settings (e.g. cancellation policies)
     stripeAccountId: text('stripe_account_id'), // Connect Account ID
     zoomCredentials: text('zoom_credentials', { mode: 'json' }), // Encrypted
+    status: text('status', { enum: ['active', 'paused', 'suspended'] }).default('active').notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 

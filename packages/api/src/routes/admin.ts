@@ -166,4 +166,49 @@ app.get('/logs', async (c) => {
     return c.json(logs);
 });
 
+// PATCH /tenants/:id/status: Update tenant status (active/paused/suspended)
+app.patch('/tenants/:id/status', async (c) => {
+    const auth = c.get('auth');
+    const tenantId = c.req.param('id');
+    const { status } = await c.req.json();
+
+    // 1. Check System Admin
+    const db = createDb(c.env.DB);
+    const adminUser = await db.query.users.findFirst({
+        where: eq(users.id, auth.userId)
+    });
+
+    if (!adminUser || !adminUser.isSystemAdmin) {
+        return c.json({ error: "Access Denied" }, 403);
+    }
+
+    // 2. Validate Status
+    if (!['active', 'paused', 'suspended'].includes(status)) {
+        return c.json({ error: "Invalid status. Must be one of: active, paused, suspended" }, 400);
+    }
+
+    // 3. Update Tenant
+    const updatedTenant = await db.update(tenants)
+        .set({ status })
+        .where(eq(tenants.id, tenantId))
+        .returning()
+        .get();
+
+    if (!updatedTenant) {
+        return c.json({ error: "Tenant not found" }, 404);
+    }
+
+    // 4. Audit Log
+    await db.insert(auditLogs).values({
+        id: crypto.randomUUID(),
+        action: "update_tenant_status",
+        targetId: tenantId,
+        actorId: auth.userId,
+        details: JSON.stringify({ oldStatus: "unknown", newStatus: status }), // Simplified for now
+        ipAddress: c.req.header('CF-Connecting-IP') || "unknown"
+    });
+
+    return c.json({ success: true, tenant: updatedTenant });
+});
+
 export default app;
