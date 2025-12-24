@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import { tenantMembers, tenantRoles } from 'db/src/schema';
 import { createDb } from '../db';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
+import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings } from 'db/src/schema';
 
 type Bindings = {
     DB: D1Database;
@@ -73,7 +73,6 @@ app.patch('/:id/role', async (c) => {
     // Add new role
     if (role === 'instructor') {
         await db.insert(tenantRoles).values({
-            id: crypto.randomUUID(),
             memberId,
             role: 'instructor'
         }).run();
@@ -84,6 +83,164 @@ app.patch('/:id/role', async (c) => {
     // await db.insert(tenantRoles).values({ id: crypto.randomUUID(), memberId, role: 'student' }).run();
 
     return c.json({ success: true });
+});
+
+// GET /members/:id: Get single member details
+app.get('/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    const memberId = c.req.param('id');
+
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.id, memberId), eq(tenantMembers.tenantId, tenant.id)),
+        with: {
+            user: true,
+            roles: true,
+            memberships: {
+                with: {
+                    plan: true
+                }
+            },
+            bookings: {
+                with: {
+                    class: true
+                },
+                orderBy: (bookings, { desc }) => [desc(bookings.createdAt)],
+                limit: 20
+            }
+        }
+    });
+
+    if (!member) return c.json({ error: 'Member not found' }, 404);
+
+    return c.json({ member });
+});
+
+// GET /members/:id/notes: Get notes for a student
+app.get('/:id/notes', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    const memberId = c.req.param('id');
+
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+
+    // Ensure member belongs to tenant
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.id, memberId), eq(tenantMembers.tenantId, tenant.id))
+    });
+    if (!member) return c.json({ error: 'Member not found' }, 404);
+
+    const notes = await db.query.studentNotes.findMany({
+        where: eq(studentNotes.studentId, memberId),
+        orderBy: (notes, { desc }) => [desc(notes.createdAt)],
+        with: {
+            author: {
+                with: {
+                    user: true // To get author name
+                }
+            }
+        }
+    });
+
+    return c.json({ notes });
+});
+
+// POST /members/:id/notes: Create a note
+app.post('/:id/notes', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    const memberId = c.req.param('id');
+    const { note } = await c.req.json();
+    const authorUserId = c.get('auth').userId;
+
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+
+    // Find author member ID within this tenant
+    const authorMember = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.userId, authorUserId), eq(tenantMembers.tenantId, tenant.id))
+    });
+
+    if (!authorMember) return c.json({ error: 'Author not found in tenant' }, 400);
+
+    const newNote = {
+        id: crypto.randomUUID(),
+        studentId: memberId,
+        authorId: authorMember.id,
+        note,
+        tenantId: tenant.id,
+        createdAt: new Date()
+    };
+
+    await db.insert(studentNotes).values(newNote).run();
+
+    return c.json({ note: newNote });
+});
+
+// DELETE /members/:id/notes/:noteId: Delete a note
+app.delete('/:id/notes/:noteId', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    const noteId = c.req.param('noteId');
+
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+
+    // Verify note belongs to tenant (security check)
+    const note = await db.query.studentNotes.findFirst({
+        where: and(eq(studentNotes.id, noteId), eq(studentNotes.tenantId, tenant.id))
+    });
+
+    if (!note) return c.json({ error: 'Note not found' }, 404);
+
+    await db.delete(studentNotes).where(eq(studentNotes.id, noteId)).run();
+
+    return c.json({ success: true });
+});
+
+// PUT /members/:id/notes/:noteId: Update a note
+app.put('/:id/notes/:noteId', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    const noteId = c.req.param('noteId');
+    const { note: content } = await c.req.json();
+
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+
+    // Verify note belongs to tenant
+    const existingNote = await db.query.studentNotes.findFirst({
+        where: and(eq(studentNotes.id, noteId), eq(studentNotes.tenantId, tenant.id))
+    });
+
+    if (!existingNote) return c.json({ error: 'Note not found' }, 404);
+
+    await db.update(studentNotes)
+        .set({ note: content })
+        .where(eq(studentNotes.id, noteId))
+        .run();
+
+    return c.json({ success: true, note: { ...existingNote, note: content } });
 });
 
 export default app;

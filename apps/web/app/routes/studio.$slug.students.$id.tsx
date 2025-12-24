@@ -1,0 +1,448 @@
+// @ts-ignore
+import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
+// @ts-ignore
+import { useLoaderData, useOutletContext, Form, useNavigation, Link } from "react-router";
+import { getAuth } from "@clerk/react-router/ssr.server";
+import { apiRequest } from "../utils/api";
+import { useState } from "react";
+import { useAuth } from "@clerk/react-router";
+import { format } from "date-fns";
+import {
+    User, Mail, Calendar, CreditCard, FileText,
+    MoreHorizontal, Check, X, Plus, Pencil, Trash2
+} from "lucide-react";
+
+type Member = {
+    id: string;
+    joinedAt: string;
+    user: {
+        id: string;
+        email: string;
+        profile?: {
+            firstName?: string;
+            lastName?: string;
+            phone?: string;
+        };
+    };
+    roles: { role: string }[];
+    bookings: {
+        id: string;
+        status: string;
+        createdAt: string;
+        class?: {
+            title: string;
+            startTime: string;
+        }
+    }[];
+    memberships: {
+        id: string;
+        status: string;
+        startDate: string;
+        plan: {
+            name: string;
+        };
+    }[];
+};
+
+type Note = {
+    id: string;
+    note: string;
+    createdAt: string;
+    author: {
+        user: {
+            email: string;
+            profile?: { firstName?: string; lastName?: string; };
+        } | null;
+    } | null;
+};
+
+export const loader = async (args: LoaderFunctionArgs) => {
+    const { params } = args;
+    const { getToken } = await getAuth(args);
+    const token = await getToken();
+    const memberId = params.id;
+
+    if (!memberId) throw new Error("Member ID is required");
+
+    try {
+        const [memberRes, notesRes] = await Promise.all([
+            apiRequest(`/members/${memberId}`, token, {
+                headers: { 'X-Tenant-Slug': params.slug! }
+            }),
+            apiRequest(`/members/${memberId}/notes`, token, {
+                headers: { 'X-Tenant-Slug': params.slug! }
+            })
+        ]);
+
+        if (memberRes.error) throw new Error(memberRes.error);
+
+        return {
+            member: memberRes.member as Member,
+            notes: (notesRes.notes || []) as Note[]
+        };
+    } catch (e: any) {
+        console.error("Failed to load student", e);
+        throw e;
+    }
+};
+
+export const action = async (args: ActionFunctionArgs) => {
+    const { params, request } = args;
+    const { getToken } = await getAuth(args);
+    const token = await getToken();
+    const memberId = params.id;
+
+    if (!memberId) return null;
+
+    const formData = await request.formData();
+    const intent = formData.get("intent");
+
+    if (intent === "add_note") {
+        const note = formData.get("note") as string;
+        if (!note) return { error: "Note cannot be empty" };
+
+        try {
+            const res = await apiRequest(`/members/${memberId}/notes`, token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': params.slug! },
+                body: JSON.stringify({ note })
+            });
+            if (res.error) return { error: res.error };
+            return { success: true };
+        } catch (e: any) {
+            return { error: e.message };
+        }
+    }
+
+    if (intent === "delete_note") {
+        const noteId = formData.get("noteId") as string;
+        if (!noteId) return { error: "Note ID required" };
+
+        try {
+            const res = await apiRequest(`/members/${memberId}/notes/${noteId}`, token, {
+                method: "DELETE",
+                headers: { 'X-Tenant-Slug': params.slug! }
+            });
+            if (res.error) return { error: res.error };
+            return { success: true };
+        } catch (e: any) {
+            return { error: e.message };
+        }
+    }
+
+    if (intent === "edit_note") {
+        const noteId = formData.get("noteId") as string;
+        const note = formData.get("note") as string;
+        if (!noteId || !note) return { error: "Note ID and content required" };
+
+        try {
+            const res = await apiRequest(`/members/${memberId}/notes/${noteId}`, token, {
+                method: "PUT",
+                headers: { 'X-Tenant-Slug': params.slug! },
+                body: JSON.stringify({ note })
+            });
+            if (res.error) return { error: res.error };
+            return { success: true };
+        } catch (e: any) {
+            return { error: e.message };
+        }
+    }
+
+    return null;
+};
+
+export default function StudentProfile() {
+    const { member, notes } = useLoaderData<{ member: Member, notes: Note[] }>();
+    const navigation = useNavigation();
+    const userProfile = member.user.profile || {};
+    const [activeTab, setActiveTab] = useState("overview");
+    const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+
+    const fullName = [userProfile.firstName, userProfile.lastName].filter(Boolean).join(" ") || member.user.email;
+    const isAddingNote = navigation.userData && (navigation.userData as any).intent === "add_note";
+
+    // Derive roles string
+    const rolesStr = member.roles.map(r => r.role).join(", ") || "Student";
+
+    return (
+        <div className="max-w-5xl mx-auto pb-10">
+            {/* Header */}
+            <div className="flex items-start justify-between mb-8">
+                <div className="flex items-center gap-4">
+                    <div className="h-20 w-20 bg-zinc-100 rounded-full flex items-center justify-center border border-zinc-200">
+                        <User className="h-8 w-8 text-zinc-400" />
+                    </div>
+                    <div>
+                        <h1 className="text-3xl font-bold text-zinc-900">{fullName}</h1>
+                        <div className="flex items-center gap-2 mt-1 text-zinc-500 text-sm">
+                            <Mail className="h-4 w-4" />
+                            <span>{member.user.email}</span>
+                            <span className="mx-1">•</span>
+                            <span className="capitalize px-2 py-0.5 bg-zinc-100 rounded-full text-xs font-medium border border-zinc-200">
+                                {rolesStr}
+                            </span>
+                        </div>
+                        <div className="text-xs text-zinc-400 mt-1">
+                            Joined {format(new Date(member.joinedAt), "MMM d, yyyy")}
+                        </div>
+                    </div>
+                </div>
+                <div className="flex gap-2">
+                    <button className="px-3 py-2 border border-zinc-300 rounded-md text-sm font-medium hover:bg-zinc-50">
+                        Edit Profile
+                    </button>
+                    <button className="px-3 py-2 bg-zinc-900 text-white rounded-md text-sm font-medium hover:bg-zinc-800">
+                        Actions
+                    </button>
+                </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-zinc-200 mb-6">
+                {[
+                    { id: "overview", label: "Overview" },
+                    { id: "memberships", label: "Memberships" },
+                    { id: "attendance", label: "Attendance" },
+                    { id: "notes", label: "Staff Notes" },
+                ].map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`px-4 py-2 text-sm font-medium border-b-2 text-zinc-600 hover:text-zinc-900 ${activeTab === tab.id
+                            ? "border-blue-600 text-blue-600"
+                            : "border-transparent"
+                            }`}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* Content */}
+            <div className="min-h-[400px]">
+                {activeTab === "overview" && (
+                    <div className="grid grid-cols-3 gap-6">
+                        <div className="col-span-2 space-y-6">
+                            <div className="bg-white border border-zinc-200 rounded-lg p-6 shadow-sm">
+                                <h3 className="font-semibold text-lg mb-4">Quick Stats</h3>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="p-4 bg-zinc-50 rounded border border-zinc-100">
+                                        <div className="text-2xl font-bold text-zinc-900">{member.bookings.length}</div>
+                                        <div className="text-xs text-zinc-500 uppercase tracking-wide mt-1">Classes Taken</div>
+                                    </div>
+                                    <div className="p-4 bg-zinc-50 rounded border border-zinc-100">
+                                        <div className="text-2xl font-bold text-zinc-900">0</div>
+                                        <div className="text-xs text-zinc-500 uppercase tracking-wide mt-1">No Shows</div>
+                                    </div>
+                                    <div className="p-4 bg-zinc-50 rounded border border-zinc-100">
+                                        <div className="text-2xl font-bold text-green-600">Active</div>
+                                        <div className="text-xs text-zinc-500 uppercase tracking-wide mt-1">Membership Status</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <div className="bg-white border border-zinc-200 rounded-lg p-6 shadow-sm">
+                                <h3 className="font-semibold text-sm mb-4 uppercase text-zinc-500 tracking-wider">Contact Info</h3>
+                                <div className="space-y-3 text-sm">
+                                    <div>
+                                        <label className="block text-xs text-zinc-400">Email</label>
+                                        <div className="text-zinc-800">{member.user.email}</div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-zinc-400">Phone</label>
+                                        <div className="text-zinc-800">{userProfile.phone || "Not provided"}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === "memberships" && (
+                    <div className="space-y-4">
+                        {member.memberships && member.memberships.length > 0 ? (
+                            member.memberships.map((membership: any) => (
+                                <div key={membership.id} className="bg-white border border-zinc-200 rounded-lg p-6 shadow-sm flex items-center justify-between">
+                                    <div>
+                                        <h3 className="font-semibold text-lg text-zinc-900">{membership.plan?.name || "Unknown Plan"}</h3>
+                                        <div className="text-sm text-zinc-500 mt-1">
+                                            Status: <span className="capitalize font-medium text-zinc-700">{membership.status}</span>
+                                            <span className="mx-2">•</span>
+                                            Started {format(new Date(membership.startDate), "MMM d, yyyy")}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${membership.status === 'active'
+                                            ? 'bg-green-50 text-green-700 border-green-200'
+                                            : 'bg-zinc-100 text-zinc-600 border-zinc-200'
+                                            }`}>
+                                            {membership.status.toUpperCase()}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="bg-white border border-zinc-200 rounded-lg p-8 text-center text-zinc-500 shadow-sm">
+                                <CreditCard className="h-10 w-10 mx-auto mb-3 text-zinc-300" />
+                                <p>No active memberships found.</p>
+                                <button className="mt-4 px-4 py-2 border border-blue-600 text-blue-600 rounded text-sm hover:bg-blue-50 font-medium">
+                                    Add Membership
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === "attendance" && (
+                    <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-zinc-50 border-b border-zinc-200">
+                                <tr>
+                                    <th className="px-4 py-3 font-medium text-zinc-500">Date</th>
+                                    <th className="px-4 py-3 font-medium text-zinc-500">Class</th>
+                                    <th className="px-4 py-3 font-medium text-zinc-500">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-100">
+                                {member.bookings.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={3} className="px-4 py-8 text-center text-zinc-400">No attendance history</td>
+                                    </tr>
+                                ) : (
+                                    member.bookings.map(booking => (
+                                        <tr key={booking.id} className="hover:bg-zinc-50">
+                                            <td className="px-4 py-3 text-zinc-600">
+                                                {format(new Date(booking.createdAt), "MMM d, yyyy h:mm a")}
+                                            </td>
+                                            <td className="px-4 py-3 text-zinc-900 font-medium">
+                                                {booking.class?.title || "Unknown Class"}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize
+                                                    ${booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                                                        booking.status === 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                    {booking.status}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                {activeTab === "notes" && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Note Input */}
+                        <div>
+                            <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-4 mb-6">
+                                <h3 className="font-semibold text-sm mb-3">Add Note</h3>
+                                <Form method="post">
+                                    <input type="hidden" name="intent" value="add_note" />
+                                    <textarea
+                                        name="note"
+                                        rows={4}
+                                        className="w-full border border-zinc-300 rounded p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none mb-3 bg-white"
+                                        placeholder="Enter confidential notes about this student..."
+                                        required
+                                    />
+                                    <div className="flex justify-end">
+                                        <button
+                                            type="submit"
+                                            disabled={navigation.state === "submitting"}
+                                            className="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                                        >
+                                            {navigation.state === "submitting" ? "Saving..." : "Save Note"}
+                                        </button>
+                                    </div>
+                                </Form>
+                            </div>
+                        </div>
+
+                        {/* Note List */}
+                        <div className="space-y-4">
+                            {notes.length === 0 ? (
+                                <div className="text-center text-zinc-400 py-10 italic">No notes added yet.</div>
+                            ) : (
+                                notes.map(note => (
+                                    <div key={note.id} className="bg-white border border-zinc-200 rounded-lg p-4 shadow-sm relative group">
+                                        {editingNoteId === note.id ? (
+                                            <Form method="post" onSubmit={() => setEditingNoteId(null)}>
+                                                <input type="hidden" name="intent" value="edit_note" />
+                                                <input type="hidden" name="noteId" value={note.id} />
+                                                <textarea
+                                                    name="note"
+                                                    defaultValue={note.note}
+                                                    rows={3}
+                                                    className="w-full border border-zinc-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none mb-2"
+                                                    required
+                                                    autoFocus
+                                                />
+                                                <div className="flex justify-end gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEditingNoteId(null)}
+                                                        className="px-3 py-1 text-xs border border-zinc-300 rounded hover:bg-zinc-50"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                    <button
+                                                        type="submit"
+                                                        className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                                                    >
+                                                        Save
+                                                    </button>
+                                                </div>
+                                            </Form>
+                                        ) : (
+                                            <>
+                                                <div className="text-sm text-zinc-800 whitespace-pre-wrap pr-8">{note.note}</div>
+
+                                                {/* Actions */}
+                                                <div className="absolute top-2 right-2 flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={() => setEditingNoteId(note.id)}
+                                                        className="p-1.5 text-zinc-400 hover:text-blue-600 hover:bg-zinc-50 rounded"
+                                                        title="Edit"
+                                                    >
+                                                        <Pencil className="h-3.5 w-3.5" />
+                                                    </button>
+                                                    <Form method="post" onSubmit={(e) => {
+                                                        if (!confirm("Are you sure you want to delete this note?")) {
+                                                            e.preventDefault();
+                                                        }
+                                                    }}>
+                                                        <input type="hidden" name="intent" value="delete_note" />
+                                                        <input type="hidden" name="noteId" value={note.id} />
+                                                        <button
+                                                            type="submit"
+                                                            className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-zinc-50 rounded"
+                                                            title="Delete"
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </button>
+                                                    </Form>
+                                                </div>
+
+                                                <div className="mt-3 flex items-center justify-between text-xs text-zinc-400 border-t border-zinc-50 pt-2">
+                                                    <span>
+                                                        Added by {note.author?.user?.profile?.firstName || note.author?.user?.email || "Unknown Staff"}
+                                                    </span>
+                                                    <span>
+                                                        {format(new Date(note.createdAt), "MMM d, yyyy")}
+                                                    </span>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}

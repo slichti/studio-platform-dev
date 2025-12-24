@@ -35,6 +35,24 @@ export function CreateClassModal({ isOpen, onClose, onSuccess }: CreateClassModa
 
         try {
             const token = await getToken();
+
+            let recurrenceRule = undefined;
+            if (formData.isRecurring) {
+                const { RRule } = await import("rrule");
+                const rule = new RRule({
+                    freq: formData.recurrencePattern === "weekly" ? RRule.WEEKLY : RRule.DAILY,
+                    interval: 1, // Defaulting to 1 for now
+                    // End date handling is often done via 'until', but API separates it. 
+                    // Let's generate the basic rule string like "FREQ=WEEKLY"
+                });
+                // RRule toString() often includes newline. We just want the options string.
+                // Or simpler: strictly constructing string
+                recurrenceRule = formData.recurrencePattern === "weekly" ? "FREQ=WEEKLY" : "FREQ=DAILY";
+                // If we want exact days (e.g. MO,TU), we need RRule object. 
+                // For this simple UI "Weekly" implies "Weekly on this day".
+                // RRule defaults to the start date's day if BYDAY is not specified? Yes.
+            }
+
             const res = await apiRequest("/classes", token, {
                 method: "POST",
                 body: JSON.stringify({
@@ -44,10 +62,9 @@ export function CreateClassModal({ isOpen, onClose, onSuccess }: CreateClassModa
                     durationMinutes: Number(formData.durationMinutes),
                     capacity: Number(formData.capacity),
                     price: Number(formData.price),
-                    // Backend needs to handle these if we send them
-                    // Currently schema might not support recurring directly in one go? 
-                    // Or we just create one for now.
-                    // The plan said "Update POST /classes".
+                    isRecurring: formData.isRecurring,
+                    recurrenceRule: recurrenceRule,
+                    recurrenceEnd: formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate).toISOString() : undefined
                 })
             });
 
@@ -158,8 +175,29 @@ export function CreateClassModal({ isOpen, onClose, onSuccess }: CreateClassModa
 
                     {formData.isRecurring && (
                         <div className="mt-3 p-3 bg-zinc-50 rounded border border-zinc-200 space-y-3">
-                            <div className="text-xs text-amber-600 mb-2">
-                                ⚠️ Recurring classes logic pending backend update. Only single class will be created for now.
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-medium text-zinc-600 mb-1">Frequency</label>
+                                    <select
+                                        className="w-full px-2 py-1.5 text-sm border border-zinc-300 rounded focus:ring-blue-500 outline-none"
+                                        value={formData.recurrencePattern}
+                                        onChange={(e) => setFormData({ ...formData, recurrencePattern: e.target.value })}
+                                    >
+                                        <option value="weekly">Weekly</option>
+                                        <option value="daily">Daily</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-zinc-600 mb-1">End Date</label>
+                                    <input
+                                        type="date"
+                                        required={formData.isRecurring}
+                                        className="w-full px-2 py-1.5 text-sm border border-zinc-300 rounded focus:ring-blue-500 outline-none"
+                                        value={formData.recurrenceEndDate}
+                                        onChange={(e) => setFormData({ ...formData, recurrenceEndDate: e.target.value })}
+                                        min={formData.startTime ? new Date(formData.startTime).toISOString().split('T')[0] : undefined}
+                                    />
+                                </div>
                             </div>
                         </div>
                     )}

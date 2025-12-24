@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import { classes, tenants, bookings, tenantMembers, users, tenantRoles } from 'db/src/schema';
+import { classes, tenants, bookings, tenantMembers, users, tenantRoles, classSeries } from 'db/src/schema';
 import { createDb } from '../db';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, gte, lte } from 'drizzle-orm';
 import { ZoomService } from '../services/zoom';
 
 type Bindings = {
@@ -36,7 +36,21 @@ app.get('/', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
-    const results = await db.select().from(classes).where(eq(classes.tenantId, tenant.id));
+    const query = c.req.query();
+    const startDate = query.startDate ? new Date(query.startDate) : undefined;
+    const endDate = query.endDate ? new Date(query.endDate) : undefined;
+
+    let conditions = eq(classes.tenantId, tenant.id);
+
+    if (startDate && endDate) {
+        conditions = and(
+            eq(classes.tenantId, tenant.id),
+            gte(classes.startTime, startDate),
+            lte(classes.startTime, endDate)
+        ) as any;
+    }
+
+    const results = await db.select().from(classes).where(conditions);
     return c.json(results);
 });
 
@@ -49,7 +63,6 @@ app.post('/', async (c) => {
     const userId = c.get('auth').userId;
 
     // RBAC: Only Instructors or Owners can create classes
-    // We can check roles in c.get('roles')
     const roles = c.get('roles') || [];
     if (!roles.includes('instructor') && !roles.includes('owner')) {
         return c.json({ error: 'Only instructors or owners can create classes' }, 403);
@@ -68,7 +81,10 @@ app.post('/', async (c) => {
         locationId: z.string().optional(),
         createZoomMeeting: z.boolean().optional(),
         price: z.number().int().nonnegative().optional().default(0),
-        currency: z.string().default('usd')
+        currency: z.string().default('usd'),
+        recurrenceRule: z.string().optional(), // RRule string
+        recurrenceEnd: z.string().or(z.date()).pipe(z.coerce.date()).optional(),
+        isRecurring: z.boolean().optional()
     });
 
     const parseResult = createClassSchema.safeParse(body);
@@ -76,8 +92,94 @@ app.post('/', async (c) => {
         return c.json({ error: 'Invalid input', details: parseResult.error.format() }, 400);
     }
 
-    const { title, description, startTime, durationMinutes, capacity, locationId, createZoomMeeting, price, currency } = parseResult.data;
+    const { title, description, startTime, durationMinutes, capacity, locationId, createZoomMeeting, price, currency, recurrenceRule, recurrenceEnd, isRecurring } = parseResult.data;
 
+    // Logic:
+    // If isRecurring && recurrenceRule:
+    // 1. Create ClassSeries
+    // 2. Generate instances via RRule
+    // 3. Create Classes linked to Series
+
+    if (isRecurring && recurrenceRule) {
+        const { RRule } = await import('rrule');
+        const seriesId = crypto.randomUUID();
+
+        // 1. Create Series
+        await db.insert(classSeries).values({
+            id: seriesId,
+            tenantId: tenant.id,
+            instructorId: member.id,
+            locationId,
+            title,
+            description,
+            durationMinutes,
+            price: price,
+            currency: currency,
+            recurrenceRule,
+            validFrom: new Date(startTime),
+            validUntil: recurrenceEnd ? new Date(recurrenceEnd) : undefined
+        });
+
+        // 2. Generate Instances
+        // Parse RRule. Ensure dtstart is set correctly.
+        // We need to construct the rule object.
+        let ruleOptions;
+        try {
+            ruleOptions = RRule.parseString(recurrenceRule);
+            ruleOptions.dtstart = new Date(startTime);
+        } catch (e) {
+            return c.json({ error: 'Invalid recurrence rule' }, 400);
+        }
+
+        const rule = new RRule(ruleOptions);
+
+        // Limit generation: Either until recurrenceEnd OR 3 months max to prevent infinite
+        const limitDate = recurrenceEnd ? new Date(recurrenceEnd) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 days default
+        const dates = rule.between(new Date(startTime), limitDate, true); // true = include start if matches
+
+        const newClasses = [];
+
+        for (const date of dates) {
+            const classId = crypto.randomUUID();
+            let zoomUrl = undefined;
+
+            if (createZoomMeeting && c.env.ZOOM_ACCOUNT_ID) {
+                // Warning: Creating 50 zoom meetings sequentially will be slow and might rate limit.
+                // Ideally this is a background job. For now, let's only create Zoom for the FIRST occurrence 
+                // and warn user, OR skip zoom for recurring in this MVP Sync flow?
+                // Or just create for first one. 
+                // Let's create for the first one only for speed/safety in MVP.
+                if (date.getTime() === dates[0].getTime()) {
+                    try {
+                        const zoom = new ZoomService(c.env.ZOOM_ACCOUNT_ID, c.env.ZOOM_CLIENT_ID, c.env.ZOOM_CLIENT_SECRET);
+                        zoomUrl = await zoom.createMeeting(userId, title, date, durationMinutes);
+                    } catch (e) { console.error("Zoom failed", e); }
+                }
+            }
+
+            // Insert Class
+            await db.insert(classes).values({
+                id: classId,
+                tenantId: tenant.id,
+                instructorId: member.id,
+                seriesId,
+                title,
+                description,
+                startTime: date,
+                durationMinutes,
+                capacity,
+                locationId,
+                zoomMeetingUrl: zoomUrl,
+                price: price || 0,
+                currency: currency || 'usd'
+            });
+            newClasses.push({ id: classId, startTime: date });
+        }
+
+        return c.json({ message: 'Series created', seriesId, count: newClasses.length }, 201);
+    }
+
+    // Single Class Flow
     const id = crypto.randomUUID();
     let zoomMeetingUrl: string | undefined = undefined;
 
@@ -87,8 +189,6 @@ app.post('/', async (c) => {
             zoomMeetingUrl = await zoom.createMeeting(userId, title, new Date(startTime), durationMinutes);
         } catch (e) {
             console.error("Zoom creation failed:", e);
-            // Don't fail the whole request, just proceed without Zoom? Or return error?
-            // Let's log and proceed for now, but in production we might want to alert.
         }
     }
 

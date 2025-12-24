@@ -109,7 +109,12 @@ export default function StudioStudents() {
                                             <div className="h-8 w-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold uppercase">
                                                 {member.user.email.substring(0, 2)}
                                             </div>
-                                            {member.user.profile?.firstName ? `${member.user.profile.firstName} ${member.user.profile.lastName}` : 'Unknown Name'}
+                                            <Link
+                                                to={`${member.id}`}
+                                                className="hover:text-blue-600 hover:underline"
+                                            >
+                                                {member.user.profile?.firstName ? `${member.user.profile.firstName} ${member.user.profile.lastName}` : 'Unknown Name'}
+                                            </Link>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-zinc-600 text-sm">{member.user.email}</td>

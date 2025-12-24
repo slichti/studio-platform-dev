@@ -72,12 +72,30 @@ export const locations = sqliteTable('locations', {
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
-// --- Classes ---
+// --- Class Series (Recurring Logic) ---
+export const classSeries = sqliteTable('class_series', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    instructorId: text('instructor_id').notNull().references(() => tenantMembers.id),
+    locationId: text('location_id').references(() => locations.id),
+    title: text('title').notNull(),
+    description: text('description'),
+    durationMinutes: integer('duration_minutes').notNull(),
+    price: integer('price').default(0),
+    currency: text('currency').default('usd'),
+    recurrenceRule: text('recurrence_rule').notNull(), // RRule string e.g. "FREQ=WEEKLY;BYDAY=MO,WE"
+    validFrom: integer('valid_from', { mode: 'timestamp' }).notNull(),
+    validUntil: integer('valid_until', { mode: 'timestamp' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+});
+
+// --- Classes (Sessions) ---
 export const classes = sqliteTable('classes', {
     id: text('id').primaryKey(),
     tenantId: text('tenant_id').notNull().references(() => tenants.id),
     instructorId: text('instructor_id').notNull().references(() => tenantMembers.id), // Reference Member, not User
     locationId: text('location_id').references(() => locations.id),
+    seriesId: text('series_id').references(() => classSeries.id), // Link to parent series
     title: text('title').notNull(),
     description: text('description'),
     startTime: integer('start_time', { mode: 'timestamp' }).notNull(),
@@ -98,19 +116,31 @@ export const classes = sqliteTable('classes', {
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     tenantTimeIdx: index('tenant_time_idx').on(table.tenantId, table.startTime),
+    seriesIdx: index('series_idx').on(table.seriesId),
+}));
+
+// --- Student Notes (CRM) ---
+export const studentNotes = sqliteTable('student_notes', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    studentId: text('student_id').notNull().references(() => tenantMembers.id), // The subject
+    authorId: text('author_id').notNull().references(() => tenantMembers.id), // The writer (staff)
+    note: text('note').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    studentIdx: index('student_idx').on(table.studentId),
 }));
 
 // --- Subscriptions ---
 export const subscriptions = sqliteTable('subscriptions', {
     id: text('id').primaryKey(),
-    userId: text('user_id').notNull().references(() => users.id), // Subscriptions are likely tied to user+tenant, but for now user is global. 
-    // Wait, subscriptions should probably belong to a tenantMember? 
-    // Usually subscriptions are "User X pays Tenant Y". 
-    // If we link to User, we need TenantID too. 
+    userId: text('user_id').notNull().references(() => users.id),
     tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    memberId: text('member_id').references(() => tenantMembers.id), // Link to Member
+    planId: text('plan_id').references(() => membershipPlans.id), // Link to Plan
 
     status: text('status', { enum: ['active', 'past_due', 'canceled', 'incomplete'] }).notNull(),
-    tier: text('tier', { enum: ['basic', 'premium'] }).default('basic'),
+    tier: text('tier', { enum: ['basic', 'premium'] }).default('basic'), // Deprecated in favor of planId
     currentPeriodEnd: integer('current_period_end', { mode: 'timestamp' }),
     stripeSubscriptionId: text('stripe_subscription_id'),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
@@ -192,6 +222,7 @@ export const tenantMembersRelations = relations(tenantMembers, ({ one, many }) =
     }),
     roles: many(tenantRoles),
     bookings: many(bookings),
+    memberships: many(subscriptions), // Alias subscriptions as memberships
 }));
 
 export const tenantRolesRelations = relations(tenantRoles, ({ one }) => ({
@@ -236,5 +267,13 @@ export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
     tenant: one(tenants, {
         fields: [subscriptions.tenantId],
         references: [tenants.id],
+    }),
+    member: one(tenantMembers, {
+        fields: [subscriptions.memberId],
+        references: [tenantMembers.id],
+    }),
+    plan: one(membershipPlans, {
+        fields: [subscriptions.planId],
+        references: [membershipPlans.id],
     }),
 }));
