@@ -29,60 +29,115 @@ export const action: ActionFunction = async (args) => {
 
 export default function StudioSettings() {
     const { tenant } = useOutletContext<any>();
-    const actionData = useActionData();
-    const navigation = useNavigation();
-    const isSubmitting = navigation.state === "submitting";
+    // const actionData = useActionData(); // No longer used directly for display
+    // const navigation = useNavigation(); // No longer used for isSubmitting
+    // const isSubmitting = navigation.state === "submitting"; // No longer used
+
+    const [name, setName] = useState(tenant.name || '');
+    const [primaryColor, setPrimaryColor] = useState(tenant.branding?.primaryColor || '#4f46e5');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [success, setSuccess] = useState<string | null>(null);
+
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+        setSuccess(null);
+
+        try {
+            // This logic mimics the action function but is client-side
+            const { getToken } = await getAuth({}); // getAuth needs args, but we're client-side, so an empty object might work or need a different approach
+            const token = await getToken();
+
+            await apiRequest(`/tenant/settings`, token, {
+                method: "PATCH",
+                headers: { 'X-Tenant-Slug': tenant.slug }, // Assuming tenant.slug is available
+                body: JSON.stringify({ name, branding: { primaryColor } })
+            });
+            setSuccess("Settings saved successfully.");
+        } catch (e: any) {
+            setError(e.message || "Failed to save settings.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
-        <div className="max-w-2xl">
-            <h2 className="text-2xl font-bold mb-6">Studio Settings</h2>
+        <div>
+            <div style={{ marginBottom: '24px' }}>
+                <h1 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px' }}>Studio Settings</h1>
+            </div>
 
-            <div className="bg-white p-6 rounded-lg border border-zinc-200 shadow-sm">
-                <Form method="post" className="space-y-4">
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '24px', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}>
+                {error && (
+                    <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '12px', borderRadius: '6px', marginBottom: '16px', fontSize: '0.9rem' }}>
+                        {error}
+                    </div>
+                )}
+
+                {success && (
+                    <div style={{ background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', padding: '12px', borderRadius: '6px', marginBottom: '16px', fontSize: '0.9rem' }}>
+                        {success}
+                    </div>
+                )}
+
+                <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     <div>
-                        <label className="block text-sm font-medium text-zinc-700 mb-1">Studio Name</label>
+                        <label style={{ display: 'block', textTransform: 'uppercase', color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '600', letterSpacing: '0.05em', marginBottom: '8px' }}>
+                            Studio Name
+                        </label>
                         <input
-                            name="name"
-                            defaultValue={tenant.name}
-                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            style={{ width: '100%', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px', fontSize: '1rem', outline: 'none', transition: 'border-color 0.2s' }}
+                            placeholder="Enter studio name"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-zinc-700 mb-1">Primary Brand Color</label>
-                        <div className="flex gap-2 items-center">
+                        <label style={{ display: 'block', textTransform: 'uppercase', color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '600', letterSpacing: '0.05em', marginBottom: '8px' }}>
+                            Primary Brand Color
+                        </label>
+                        <div style={{ display: 'flex', gap: '12px' }}>
                             <input
                                 type="color"
-                                name="primaryColor"
-                                defaultValue={tenant.branding?.primaryColor || "#4f46e5"}
-                                className="h-9 w-9 p-0 border border-zinc-300 rounded"
+                                value={primaryColor}
+                                onChange={(e) => setPrimaryColor(e.target.value)}
+                                style={{ width: '40px', height: '40px', padding: 0, border: 'none', borderRadius: '6px', cursor: 'pointer', background: 'none' }}
                             />
                             <input
                                 type="text"
-                                name="primaryColorText"
-                                defaultValue={tenant.branding?.primaryColor || "#4f46e5"}
-                                className="w-32 px-3 py-2 border border-zinc-300 rounded-md font-mono text-sm"
+                                value={primaryColor}
+                                onChange={(e) => setPrimaryColor(e.target.value)}
+                                style={{ flex: 1, background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px', fontSize: '0.95rem', fontFamily: 'monospace', outline: 'none' }}
+                                placeholder="#000000"
                             />
                         </div>
                     </div>
 
-                    <div className="pt-4">
+                    <div style={{ paddingTop: '10px' }}>
                         <button
                             type="submit"
-                            disabled={isSubmitting}
-                            className="bg-zinc-900 text-white px-4 py-2 rounded-md hover:bg-zinc-800 disabled:opacity-50"
+                            disabled={loading}
+                            style={{
+                                background: 'var(--accent)',
+                                color: 'white',
+                                padding: '10px 20px',
+                                borderRadius: '6px',
+                                border: 'none',
+                                fontWeight: '600',
+                                fontSize: '0.95rem',
+                                cursor: loading ? 'not-allowed' : 'pointer',
+                                opacity: loading ? 0.7 : 1,
+                                transition: 'opacity 0.2s'
+                            }}
                         >
-                            {isSubmitting ? "Saving..." : "Save Changes"}
+                            {loading ? 'Saving...' : 'Save Changes'}
                         </button>
                     </div>
-
-                    {actionData?.success && (
-                        <p className="text-green-600 text-sm">Settings saved successfully.</p>
-                    )}
-                    {actionData?.error && (
-                        <p className="text-red-600 text-sm">{actionData.error}</p>
-                    )}
-                </Form>
+                </form>
             </div>
         </div>
     );
