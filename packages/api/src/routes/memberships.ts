@@ -52,7 +52,7 @@ app.post('/plans', async (c) => {
         return c.json({ error: 'Action Restricted: Cannot create financial plans while impersonating.' }, 403);
     }
 
-    const { name, description, price, interval, currency } = await c.req.json();
+    const { name, description, price, interval, currency, imageUrl, overlayTitle, overlaySubtitle } = await c.req.json();
 
     if (!name || !price) {
         return c.json({ error: 'Name and Price required' }, 400);
@@ -68,6 +68,9 @@ app.post('/plans', async (c) => {
             price,
             interval: interval || 'month',
             currency: currency || 'usd',
+            imageUrl,
+            overlayTitle,
+            overlaySubtitle,
             active: true
         });
 

@@ -135,6 +135,9 @@ export const membershipPlans = sqliteTable('membership_plans', {
     price: integer('price').default(0), // in cents
     currency: text('currency').default('usd'),
     interval: text('interval', { enum: ['month', 'year', 'week', 'one_time'] }).default('month'),
+    imageUrl: text('image_url'),
+    overlayTitle: text('overlay_title'),
+    overlaySubtitle: text('overlay_subtitle'),
     active: integer('active', { mode: 'boolean' }).default(true),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });

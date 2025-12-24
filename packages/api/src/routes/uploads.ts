@@ -125,18 +125,35 @@ app.post('/pdf', async (c) => {
 });
 
 app.get('/:key{.+}', async (c) => {
-    const key = c.req.param('key');
-    const object = await c.env.R2.get(key);
-
-    if (!object) return c.json({ error: "Not found" }, 404);
-
-    const headers = new Headers();
-    object.writeHttpMetadata(headers);
-    headers.set('etag', object.httpEtag);
-
     return new Response(object.body, {
         headers,
     });
+});
+
+// Generic Image Upload to R2 (e.g. for membership cards)
+app.post('/r2-image', async (c) => {
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const body = await c.req.parseBody();
+    const file = body['file'] as File;
+
+    if (!file) return c.json({ error: 'File required' }, 400);
+
+    if (!file.type.startsWith('image/')) {
+        return c.json({ error: 'Only images allowed' }, 400);
+    }
+
+    const extension = file.type.split('/')[1];
+    const objectKey = `tenants/${tenant.slug}/images/${crypto.randomUUID()}.${extension}`;
+
+    await c.env.R2.put(objectKey, await file.arrayBuffer(), {
+        httpMetadata: {
+            contentType: file.type,
+        }
+    });
+
+    return c.json({ key: objectKey, url: `/uploads/${objectKey}` });
 });
 
 export default app;
