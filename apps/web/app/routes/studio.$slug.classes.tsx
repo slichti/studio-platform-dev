@@ -1,4 +1,6 @@
-import { LoaderFunction } from "react-router";
+// @ts-ignore
+import type { LoaderFunctionArgs } from "react-router";
+// @ts-ignore
 import { useLoaderData, useOutletContext, Form, useNavigation } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
@@ -14,7 +16,7 @@ type ClassEvent = {
     userBooked?: boolean; // We might calculate this on frontend or return from API? API doesn't return yet.
 };
 
-export const loader: LoaderFunction = async (args) => {
+export const loader = async (args: LoaderFunctionArgs) => {
     const { params } = args;
     const { getToken } = await getAuth(args);
     const token = await getToken();

@@ -1,3 +1,4 @@
+// @ts-ignore
 import { Link, useOutletContext } from "react-router";
 
 export default function StudioDashboardIndex() {

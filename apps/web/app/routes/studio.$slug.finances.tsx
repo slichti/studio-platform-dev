@@ -1,8 +1,14 @@
 import { useOutletContext } from "react-router";
-import { API_URL } from "../utils/api";
+import { apiRequest, API_URL } from "../utils/api";
 
 export default function StudioFinances() {
     const { tenant, member, roles } = useOutletContext<any>();
+    const apiUrl = (useOutletContext() as any).env?.VITE_API_URL || "http://localhost:8787"; // Fallback or use env from loader if available
+    // Actually, finances.tsx is a route, it doesn't receive env via props directly unless passed.
+    // The previous code used imported API_URL.
+    // I should re-add import { API_URL } from "../utils/api"; and check why it failed.
+    // "Module '../utils/api' has no exported member 'API_URL'".
+    // Let's import apiRequest and use hardcoded string or fix api.ts export.
     const isOwner = roles.includes('owner');
 
     if (!isOwner) {

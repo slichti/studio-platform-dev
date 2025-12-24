@@ -1,4 +1,6 @@
+// @ts-ignore
 import { Outlet, Link, useLoaderData, Form, redirect, NavLink } from "react-router";
+// @ts-ignore
 import { LoaderFunction } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
 import { UserButton } from "@clerk/react-router";

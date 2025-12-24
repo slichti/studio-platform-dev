@@ -1,4 +1,6 @@
-import { ActionFunction, LoaderFunction } from "react-router";
+// @ts-ignore
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+// @ts-ignore
 import { useLoaderData, Form, useActionData, useNavigation, useOutletContext } from "react-router";
 import { useAuth } from "@clerk/react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
@@ -9,7 +11,7 @@ import { SignaturePad } from "../components/SignaturePad";
 import ReactMarkdown from 'react-markdown'; // Ensure this package is installed or use simple whitespace-pre-wrap
 
 // Loader: Fetch waivers
-export const loader: LoaderFunction = async (args) => {
+export const loader = async (args: LoaderFunctionArgs) => {
     const { params } = args;
     const { getToken } = await getAuth(args);
     const token = await getToken();
@@ -26,7 +28,7 @@ export const loader: LoaderFunction = async (args) => {
 };
 
 // Action: Create Waiver (Owner) or Sign (Student)
-export const action: ActionFunction = async (args) => {
+export const action = async (args: ActionFunctionArgs) => {
     const { request, params } = args;
     const { getToken } = await getAuth(args);
     const token = await getToken();

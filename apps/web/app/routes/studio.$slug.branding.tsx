@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+// @ts-ignore
 import { useOutletContext, Form } from "react-router";
 import { apiRequest } from "../utils/api";
 

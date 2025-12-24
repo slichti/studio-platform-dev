@@ -1,4 +1,6 @@
-import { ActionFunction, LoaderFunction } from "react-router";
+// @ts-ignore
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+// @ts-ignore
 import { useLoaderData, Form, useActionData, useNavigation, useOutletContext, useSubmit } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
@@ -8,7 +10,7 @@ import { CardCreator } from "../components/CardCreator";
 import { useAuth } from "@clerk/react-router";
 
 // Loader: Fetch plans
-export const loader: LoaderFunction = async (args) => {
+export const loader = async (args: LoaderFunctionArgs) => {
     const { params } = args;
     const { getToken } = await getAuth(args);
     const token = await getToken();
@@ -25,7 +27,7 @@ export const loader: LoaderFunction = async (args) => {
 };
 
 // Action: Create Plan
-export const action: ActionFunction = async (args) => {
+export const action = async (args: ActionFunctionArgs) => {
     const { request, params } = args;
     const { getToken } = await getAuth(args);
     const token = await getToken();

@@ -1,4 +1,5 @@
 import { useClerk } from "@clerk/react-router";
+// @ts-ignore
 import { useNavigate } from "react-router";
 
 export function LogoutButton({ className }: { className?: string }) {

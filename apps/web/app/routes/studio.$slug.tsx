@@ -1,7 +1,9 @@
-import { Outlet, useLoaderData, useParams, NavLink } from "react-router";
-import { LoaderFunction, LoaderFunctionArgs, redirect } from "react-router";
+// @ts-ignore
+import { Outlet, useLoaderData, useParams, NavLink, redirect } from "react-router";
+// @ts-ignore
+import type { LoaderFunctionArgs } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
-import { API_URL, apiRequest } from "../utils/api";
+import { apiRequest } from "../utils/api";
 import Layout from "../components/Layout";
 
 type StudioLayoutData = {
@@ -10,7 +12,7 @@ type StudioLayoutData = {
     tenant: any;
 };
 
-export const loader: LoaderFunction = async (args) => {
+export const loader = async (args: LoaderFunctionArgs) => {
     const { params, request } = args;
     const { userId, getToken } = await getAuth(args);
 

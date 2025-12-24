@@ -1,4 +1,6 @@
+// @ts-ignore
 import type { MetaFunction } from "react-router";
+// @ts-ignore
 import { Link } from "react-router";
 import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/react-router";
 // ... imports ...

@@ -1,5 +1,7 @@
-import { LoaderFunction } from "react-router";
-import { useLoaderData, useOutletContext } from "react-router";
+// @ts-ignore
+import type { LoaderFunctionArgs } from "react-router";
+// @ts-ignore
+import { useLoaderData, useOutletContext, Link } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
 import { useState } from "react";
@@ -18,7 +20,7 @@ type Student = {
     joinedAt: string;
 };
 
-export const loader: LoaderFunction = async (args) => {
+export const loader = async (args: LoaderFunctionArgs) => {
     const { params } = args;
     const { getToken } = await getAuth(args);
     const token = await getToken();

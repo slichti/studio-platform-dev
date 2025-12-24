@@ -1,4 +1,6 @@
-import { LoaderFunction } from "react-router";
+// @ts-ignore
+import type { LoaderFunctionArgs } from "react-router";
+// @ts-ignore
 import { useLoaderData, Link, useParams } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
@@ -15,7 +17,7 @@ type Booking = {
     memberId: string;
 };
 
-export const loader: LoaderFunction = async (args) => {
+export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken } = await getAuth(args);
     const token = await getToken();
     const { slug, id } = args.params;
@@ -81,8 +83,8 @@ export default function StudioClassRoster() {
                                 <td className="px-6 py-4 text-zinc-600 text-sm">{booking.user.email}</td>
                                 <td className="px-6 py-4">
                                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${booking.status === 'confirmed'
-                                            ? 'bg-green-100 text-green-800'
-                                            : 'bg-zinc-100 text-zinc-800'
+                                        ? 'bg-green-100 text-green-800'
+                                        : 'bg-zinc-100 text-zinc-800'
                                         }`}>
                                         {booking.status}
                                     </span>

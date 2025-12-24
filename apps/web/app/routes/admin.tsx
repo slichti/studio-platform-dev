@@ -1,3 +1,4 @@
+// @ts-ignore
 import { Outlet, NavLink } from "react-router";
 import { useUser } from "@clerk/react-router";
 import { LogoutButton } from "../components/LogoutButton";

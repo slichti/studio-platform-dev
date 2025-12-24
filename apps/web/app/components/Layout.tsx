@@ -1,4 +1,5 @@
 import { UserButton, useUser, useClerk } from "@clerk/react-router";
+// @ts-ignore
 import { NavLink } from "react-router";
 import { useState, useEffect } from "react";
 

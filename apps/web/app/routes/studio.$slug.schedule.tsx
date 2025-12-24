@@ -1,12 +1,14 @@
-import { ActionFunction, LoaderFunction } from "react-router";
-import { useLoaderData, Form, useActionData, useNavigation, useOutletContext, Link } from "react-router";
+// @ts-ignore
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+// @ts-ignore
+import { useLoaderData, Form, useActionData, useNavigation, useOutletContext, Link, useParams } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
 import { useState } from "react";
 import { Modal } from "../components/Modal";
 
 // Loader: Fetch classes for this studio
-export const loader: LoaderFunction = async (args) => {
+export const loader = async (args: LoaderFunctionArgs) => {
     const { params } = args;
     const { getToken } = await getAuth(args);
     const token = await getToken();
@@ -23,7 +25,7 @@ export const loader: LoaderFunction = async (args) => {
 };
 
 // Action: Create new class
-export const action: ActionFunction = async (args) => {
+export const action = async (args: ActionFunctionArgs) => {
     const { request, params } = args;
     const { getToken } = await getAuth(args);
     const token = await getToken();
@@ -55,7 +57,7 @@ export const action: ActionFunction = async (args) => {
     }
 };
 
-import { useParams } from "react-router";
+
 
 export default function StudioSchedule() {
     const { classes, error } = useLoaderData<any>();
