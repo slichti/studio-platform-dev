@@ -81,3 +81,102 @@ app.post('/plans', async (c) => {
 });
 
 export default app;
+
+// PATCH /plans/:id: Update a plan
+app.patch('/plans/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const { id } = c.req.param();
+
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+
+    if (c.get('isImpersonating')) return c.json({ error: 'Restricted' }, 403);
+
+    try {
+        const body = await c.req.json();
+        // Filter mutable fields
+        const { name, description, price, interval, imageUrl, overlayTitle, overlaySubtitle, active } = body;
+
+        await db.update(membershipPlans)
+            .set({ name, description, price, interval, imageUrl, overlayTitle, overlaySubtitle, active })
+            .where(and(eq(membershipPlans.id, id), eq(membershipPlans.tenantId, tenant.id)))
+            .run();
+
+        return c.json({ success: true });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
+// DELETE /plans/:id: Delete a plan
+app.delete('/plans/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const { id } = c.req.param();
+
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+
+    if (c.get('isImpersonating')) return c.json({ error: 'Restricted' }, 403);
+
+    try {
+        // Soft delete ideally, or hard delete if no deps?
+        // Let's hard delete for now but check foreign keys might fail if used.
+        // Or just delete.
+        await db.delete(membershipPlans)
+            .where(and(eq(membershipPlans.id, id), eq(membershipPlans.tenantId, tenant.id)))
+            .run();
+
+        return c.json({ success: true });
+    } catch (e: any) {
+        // Likely foreign key constraint if used by students
+        return c.json({ error: "Cannot delete plan that is in use or DB error: " + e.message }, 400);
+    }
+});
+
+// GET /subscriptions: List active subscriptions
+app.get('/subscriptions', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+
+    try {
+        // Need to import tenantMembers, users to join
+        const { tenantMembers, users } = await import('db/src/schema');
+
+        const results = await db.select({
+            id: subscriptions.id,
+            status: subscriptions.status,
+            currentPeriodEnd: subscriptions.currentPeriodEnd,
+            planName: membershipPlans.name,
+            user: {
+                id: users.id,
+                email: users.email,
+                profile: users.profile
+            }
+        })
+            .from(subscriptions)
+            .innerJoin(membershipPlans, eq(subscriptions.planId, membershipPlans.id))
+            .innerJoin(tenantMembers, eq(subscriptions.memberId, tenantMembers.id))
+            .innerJoin(users, eq(tenantMembers.userId, users.id))
+            .where(eq(membershipPlans.tenantId, tenant.id));
+
+        return c.json(results);
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});

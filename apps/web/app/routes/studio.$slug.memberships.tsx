@@ -10,33 +10,54 @@ import { CardCreator } from "../components/CardCreator";
 import { useAuth } from "@clerk/react-router";
 
 // Loader: Fetch plans
+// Loader: Fetch plans and subscriptions
 export const loader = async (args: LoaderFunctionArgs) => {
     const { params } = args;
     const { getToken } = await getAuth(args);
     const token = await getToken();
 
     try {
-        const plans = await apiRequest("/memberships/plans", token, {
-            headers: { 'X-Tenant-Slug': params.slug! }
-        });
-        return { plans };
+        const [plans, subscriptions] = await Promise.all([
+            apiRequest("/memberships/plans", token, { headers: { 'X-Tenant-Slug': params.slug! } }),
+            apiRequest("/memberships/subscriptions", token, { headers: { 'X-Tenant-Slug': params.slug! } })
+        ]);
+
+        return { plans: plans || [], subscriptions: subscriptions || [] };
     } catch (e: any) {
-        console.error("Failed to load plans", e);
-        return { plans: [], error: e.message };
+        console.error("Failed to load membership data", e);
+        return { plans: [], subscriptions: [], error: e.message };
     }
 };
 
 // Action: Create Plan
+// Action: Create, Update, Delete Plan
 export const action = async (args: ActionFunctionArgs) => {
     const { request, params } = args;
     const { getToken } = await getAuth(args);
     const token = await getToken();
     const formData = await request.formData();
+    const intent = formData.get("intent");
 
-    console.log("Submitting Membership Plan:", { slug: params.slug });
+    if (intent === "delete_plan") {
+        const planId = formData.get("planId");
+        try {
+            await apiRequest(`/memberships/plans/${planId}`, token, {
+                method: "DELETE",
+                headers: { 'X-Tenant-Slug': params.slug! }
+            });
+            return { success: true, intent: "delete_plan" };
+        } catch (e: any) {
+            return { error: e.message };
+        }
+    }
 
+    // Default: Create/Update (Merged for now or separate? Let's assume Create for now based on existing flow)
+    // To support Update we need planId
+    const planId = formData.get("planId");
+
+    // ... (Existing fields extraction)
     const name = formData.get("name");
-    const price = Number(formData.get("price") || 0) * 100; // Convert to cents
+    const price = Number(formData.get("price") || 0) * 100;
     const interval = formData.get("interval");
     const description = formData.get("description");
     const imageUrl = formData.get("imageUrl");
@@ -44,8 +65,11 @@ export const action = async (args: ActionFunctionArgs) => {
     const overlaySubtitle = formData.get("overlaySubtitle");
 
     try {
-        const result = await apiRequest("/memberships/plans", token, {
-            method: "POST",
+        const url = planId ? `/memberships/plans/${planId}` : "/memberships/plans";
+        const method = planId ? "PATCH" : "POST";
+
+        const result = await apiRequest(url, token, {
+            method,
             headers: { 'X-Tenant-Slug': params.slug! },
             body: JSON.stringify({
                 name,
@@ -57,16 +81,15 @@ export const action = async (args: ActionFunctionArgs) => {
                 overlaySubtitle
             })
         });
-        console.log("Membership Plan Created:", result);
-        return { success: true };
+        return { success: true, intent: planId ? "update_plan" : "create_plan" };
     } catch (e: any) {
-        console.error("Failed to create membership plan:", e);
+        console.error("Failed to save membership plan:", e);
         return { error: e.message };
     }
 };
 
 export default function StudioMemberships() {
-    const { plans, error } = useLoaderData<any>();
+    const { plans, subscriptions, error } = useLoaderData<any>();
     const actionData = useActionData();
     const navigation = useNavigation();
     const isSubmitting = navigation.state === "submitting";
@@ -115,7 +138,7 @@ export default function StudioMemberships() {
                 });
 
                 if (!res.ok) throw new Error("Image upload failed");
-                const data = await res.json();
+                const data = await res.json() as { url: string };
                 formData.append('imageUrl', data.url);
             }
 
@@ -192,6 +215,15 @@ export default function StudioMemberships() {
                                 <button style={{ border: '1px solid var(--border)', color: 'var(--text)' }} className="w-full py-2 rounded hover:opacity-80 font-medium text-sm">
                                     Edit Plan
                                 </button>
+                                <Form method="post" onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
+                                    if (!confirm("Are you sure? This cannot be undone.")) e.preventDefault();
+                                }}>
+                                    <input type="hidden" name="intent" value="delete_plan" />
+                                    <input type="hidden" name="planId" value={plan.id} />
+                                    <button type="submit" className="w-full mt-2 text-red-600 hover:text-red-800 text-xs font-medium">
+                                        Delete Plan
+                                    </button>
+                                </Form>
                             </div>
                         </div>
                     ))
@@ -200,10 +232,45 @@ export default function StudioMemberships() {
 
             {/* List Active Subscriptions (Placeholder for now) */}
             <h3 className="text-lg font-bold mb-4">Active Subscriptions</h3>
+            {/* Active Subscriptions */}
+            <h3 className="text-lg font-bold mb-4">Active Subscriptions</h3>
             <div className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden shadow-sm">
-                <div className="p-8 text-center text-zinc-500 dark:text-zinc-400">
-                    No active subscriptions yet. Assign a plan to a student to see it here.
-                </div>
+                {subscriptions && subscriptions.length > 0 ? (
+                    <table className="w-full text-left">
+                        <thead className="bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">
+                            <tr>
+                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Student</th>
+                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Plan</th>
+                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Renewal</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-700">
+                            {subscriptions.map((sub: any) => (
+                                <tr key={sub.id}>
+                                    <td className="px-6 py-4">
+                                        <div className="font-medium text-zinc-900 dark:text-zinc-100">{sub.user.profile?.fullName || sub.user.email}</div>
+                                        <div className="text-xs text-zinc-500">{sub.user.email}</div>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-zinc-600 dark:text-zinc-300">{sub.planName}</td>
+                                    <td className="px-6 py-4">
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${sub.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-zinc-100 text-zinc-800'
+                                            }`}>
+                                            {sub.status}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-zinc-500">
+                                        {sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd).toLocaleDateString() : 'N/A'}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                ) : (
+                    <div className="p-8 text-center text-zinc-500 dark:text-zinc-400">
+                        No active subscriptions yet.
+                    </div>
+                )}
             </div>
 
             {/* Create Plan Modal */}
