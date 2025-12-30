@@ -1,7 +1,7 @@
 // @ts-ignore
-import type { LoaderFunctionArgs } from "react-router";
+import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 // @ts-ignore
-import { useLoaderData, useOutletContext, Form, useNavigation } from "react-router";
+import { useLoaderData, useOutletContext, Form, useNavigation, useFetcher, useActionData } from "react-router"; // Added useFetcher, useActionData
 import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
 
@@ -35,10 +35,38 @@ export const loader = async (args: LoaderFunctionArgs) => {
     }
 };
 
+export const action = async (args: ActionFunctionArgs) => {
+    const { request, params } = args;
+    const { getToken } = await getAuth(args);
+    const token = await getToken();
+    const formData = await request.formData();
+    const intent = formData.get("intent");
+    const classId = formData.get("classId");
+
+    if (intent === "book") {
+        try {
+            const res = await apiRequest(`/classes/${classId}/book`, token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': params.slug! }
+            }) as any;
+
+            if (res.error) {
+                return { error: res.error, classId };
+            }
+            return { success: true, classId };
+        } catch (e: any) {
+            return { error: e.message || "Booking failed", classId };
+        }
+    }
+    return null;
+};
+
 export default function StudioPublicClasses() {
     const { classes, error } = useLoaderData<{ classes: ClassEvent[], error?: string }>();
     const { member } = useOutletContext<any>() || {}; // Member might be null if guest
     const navigation = useNavigation();
+    const fetcher = useFetcher();
+    const actionData = useActionData<{ error?: string, success?: boolean, classId?: string }>();
 
     // Helper to group classes by date
     const grouped = classes.reduce((acc: Record<string, ClassEvent[]>, cls: ClassEvent) => {
@@ -92,12 +120,24 @@ export default function StudioPublicClasses() {
                                         </div>
                                         <div>
                                             {member ? (
-                                                <button
-                                                    className="px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded hover:bg-zinc-800 disabled:opacity-50"
-                                                    onClick={() => {/* Implement booking action */ }}
-                                                >
-                                                    Book
-                                                </button>
+                                                <fetcher.Form method="post">
+                                                    <input type="hidden" name="intent" value="book" />
+                                                    <input type="hidden" name="classId" value={cls.id} />
+
+                                                    {actionData?.error && actionData.classId === cls.id && (
+                                                        <div className="text-xs text-red-600 mb-1 absolute -mt-6 right-0 bg-white p-1 border border-red-200 rounded shadow-sm z-10">
+                                                            {actionData.error}
+                                                        </div>
+                                                    )}
+
+                                                    <button
+                                                        type="submit"
+                                                        disabled={fetcher.state !== "idle" && fetcher.formData?.get("classId") === cls.id}
+                                                        className="px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded hover:bg-zinc-800 disabled:opacity-50"
+                                                    >
+                                                        {(fetcher.state !== "idle" && fetcher.formData?.get("classId") === cls.id) ? "Booking..." : (actionData?.success && actionData.classId === cls.id ? "Booked!" : "Book")}
+                                                    </button>
+                                                </fetcher.Form>
                                             ) : (
                                                 <a href="/sign-in" className="px-4 py-2 border border-zinc-300 text-zinc-700 text-sm font-medium rounded hover:bg-zinc-50">
                                                     Login to Book
