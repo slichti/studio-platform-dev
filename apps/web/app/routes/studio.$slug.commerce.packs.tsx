@@ -204,6 +204,4 @@ export default function ClassPacksPage() {
                 )}
             </div>
         </div>
-    );
-}
-```
+

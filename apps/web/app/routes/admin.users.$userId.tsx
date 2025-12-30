@@ -218,7 +218,9 @@ export default function EditUser() {
                                     <div key={m.tenant.id} className="p-3 border border-zinc-200 rounded-lg bg-zinc-50/50 flex justify-between items-center group">
                                         <div>
                                             <div className="font-medium text-sm text-zinc-900">{m.tenant.name}</div>
-                                            <div className="text-xs text-zinc-500 capitalize">{m.role}</div>
+                                            <div className="text-xs text-zinc-500 capitalize">
+                                                {m.role || m.roles?.map((r: any) => r.role).join(', ') || 'No Role'}
+                                            </div>
                                         </div>
                                         <button
                                             onClick={() => removeMembership(m.tenant.id)}
