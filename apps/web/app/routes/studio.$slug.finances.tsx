@@ -2,6 +2,7 @@
 import { useOutletContext } from "react-router";
 import { apiRequest, API_URL } from "../utils/api";
 import { useState, useEffect } from "react";
+import { useAuth } from "@clerk/react-router";
 
 export default function StudioFinances() {
     const { tenant, member, roles } = useOutletContext<any>();
@@ -26,22 +27,28 @@ export default function StudioFinances() {
         window.location.href = `${API_URL}/studios/stripe/connect?tenantId=${tenant.id}`;
     };
 
+    const { getToken } = useAuth();
     const [stats, setStats] = useState<any>(null);
     const [transactions, setTransactions] = useState<any[]>([]);
 
     useEffect(() => {
         if (!tenant.stripeAccountId || !isOwner) return;
 
-        // Fetch Stats
-        (apiRequest(`${API_URL}/commerce/stats`) as Promise<any>).then(res => {
-            if (res) setStats(res);
-        });
+        const fetchData = async () => {
+            const token = await getToken();
 
-        // Fetch Transactions
-        (apiRequest(`${API_URL}/commerce/transactions`) as Promise<any>).then(res => {
-            if (res && res.transactions) setTransactions(res.transactions);
-        });
-    }, [tenant.id, isOwner]);
+            // Fetch Stats
+            (apiRequest(`${API_URL}/commerce/stats`, token) as Promise<any>).then(res => {
+                if (res) setStats(res);
+            });
+
+            // Fetch Transactions
+            (apiRequest(`${API_URL}/commerce/transactions`, token) as Promise<any>).then(res => {
+                if (res && res.transactions) setTransactions(res.transactions);
+            });
+        };
+        fetchData();
+    }, [tenant.id, isOwner, getToken]);
 
     return (
         <div className="max-w-4xl" style={{ color: 'var(--text)' }}>
