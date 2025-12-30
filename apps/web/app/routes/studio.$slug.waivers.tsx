@@ -49,16 +49,16 @@ export const action = async (args: ActionFunctionArgs) => {
         } catch (e: any) {
             return { error: e.message };
         }
-    } else if (intent === "sign") {
+    } else if (intent === "toggle_active") {
         const templateId = formData.get("templateId");
-        const signatureData = formData.get("signatureData"); // e.g. checked box or name
+        const active = formData.get("active") === "true";
         try {
-            await apiRequest(`/waivers/${templateId}/sign`, token, {
-                method: "POST",
+            await apiRequest(`/waivers/${templateId}`, token, {
+                method: "PATCH",
                 headers: { 'X-Tenant-Slug': params.slug! },
-                body: JSON.stringify({ signatureData, ipAddress: "browser" })
+                body: JSON.stringify({ active })
             });
-            return { success: true, signed: true };
+            return { success: true };
         } catch (e: any) {
             return { error: e.message };
         }
@@ -112,13 +112,21 @@ export default function StudioWaivers() {
                     ) : (
                         templates.map((t: any) => (
                             <div key={t.id} style={{ background: 'var(--card-bg)', border: '1px solid var(--border)' }} className="p-6 rounded-lg shadow-sm">
-                                <h3 className="font-bold text-lg mb-2" style={{ color: 'var(--text)' }}>{t.title}</h3>
-                                <div className="text-sm line-clamp-3 mb-4 whitespace-pre-wrap p-3 rounded" style={{ background: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>{t.content}</div>
-                                <div className="flex gap-2">
-                                    <span className={`text-xs px-2 py-1 rounded ${t.active ? 'bg-green-100 text-green-800' : 'text-zinc-800'}`} style={!t.active ? { background: 'var(--bg-subtle)', color: 'var(--text-muted)' } : {}}>
-                                        {t.active ? 'Active' : 'Inactive'}
-                                    </span>
+                                <div className="flex justify-between items-start mb-2">
+                                    <h3 className="font-bold text-lg" style={{ color: 'var(--text)' }}>{t.title}</h3>
+                                    <Form method="post">
+                                        <input type="hidden" name="intent" value="toggle_active" />
+                                        <input type="hidden" name="templateId" value={t.id} />
+                                        <input type="hidden" name="active" value={(!t.active).toString()} />
+                                        <button
+                                            type="submit"
+                                            className={`text-xs px-2 py-1 rounded border ${t.active ? 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200' : 'bg-zinc-100 text-zinc-800 border-zinc-200 hover:bg-zinc-200'}`}
+                                        >
+                                            {t.active ? 'Active' : 'Inactive'}
+                                        </button>
+                                    </Form>
                                 </div>
+                                <div className="text-sm line-clamp-3 mb-4 whitespace-pre-wrap p-3 rounded" style={{ background: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>{t.content}</div>
                             </div>
                         ))
                     )}

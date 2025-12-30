@@ -133,4 +133,33 @@ app.post('/:id/sign', async (c) => {
     return c.json({ success: true, signedAt: new Date() });
 });
 
+// PATCH /waivers/:id: Update Waiver (Owner Only) - e.g. toggle active
+app.patch('/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    const id = c.req.param('id');
+
+    if (!roles.includes('owner')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+
+    const { active, title, content } = await c.req.json();
+
+    // Build update object dynamically
+    const updateData: any = {};
+    if (typeof active !== 'undefined') updateData.active = active;
+    if (title) updateData.title = title;
+    if (content) updateData.content = content;
+
+    if (Object.keys(updateData).length === 0) return c.json({ error: 'No fields to update' }, 400);
+
+    await db.update(waiverTemplates)
+        .set(updateData)
+        .where(and(eq(waiverTemplates.id, id), eq(waiverTemplates.tenantId, tenant.id)))
+        .run();
+
+    return c.json({ success: true });
+});
+
 export default app;
