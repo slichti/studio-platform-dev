@@ -70,4 +70,13 @@ export class StripeService {
             stripeAccount: connectedAccountId, // DIRECT CHARGE on behalf of Connected Account
         });
     }
+
+    /**
+     * Get Balance for Connected Account
+     */
+    async getBalance(connectedAccountId: string) {
+        return this.stripe.balance.retrieve({
+            stripeAccount: connectedAccountId
+        });
+    }
 }

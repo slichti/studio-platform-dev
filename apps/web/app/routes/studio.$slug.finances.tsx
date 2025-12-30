@@ -30,6 +30,7 @@ export default function StudioFinances() {
     const { getToken } = useAuth();
     const [stats, setStats] = useState<any>(null);
     const [transactions, setTransactions] = useState<any[]>([]);
+    const [balance, setBalance] = useState<any>(null);
 
     useEffect(() => {
         if (!tenant.stripeAccountId || !isOwner) return;
@@ -45,6 +46,11 @@ export default function StudioFinances() {
             // Fetch Transactions
             (apiRequest(`${API_URL}/commerce/transactions`, token) as Promise<any>).then(res => {
                 if (res && res.transactions) setTransactions(res.transactions);
+            });
+
+            // Fetch Balance
+            (apiRequest(`${API_URL}/commerce/balance`, token) as Promise<any>).then(res => {
+                if (res && !res.error) setBalance(res);
             });
         };
         fetchData();
@@ -102,9 +108,13 @@ export default function StudioFinances() {
                             <div className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>Active Subs: {stats?.activeSubscriptions || 0}</div>
                         </div>
                         <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)' }} className="p-6 rounded-lg shadow-sm">
-                            <div className="text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Upcoming Payout</div>
-                            <div className="text-3xl font-bold">$0.00</div>
-                            {/* Needs Stripe Balance Integration */}
+                            <div className="text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Stripe Balance</div>
+                            <div className="text-3xl font-bold">
+                                ${balance ? (balance.available / 100).toFixed(2) : '0.00'}
+                            </div>
+                            <div className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+                                Pending: ${balance ? (balance.pending / 100).toFixed(2) : '0.00'}
+                            </div>
                         </div>
                     </div>
 

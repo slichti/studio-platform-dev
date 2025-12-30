@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { createDb } from '../db';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { classPackDefinitions, purchasedPacks, tenantMembers, users, subscriptions } from 'db/src/schema';
+import { StripeService } from '../services/stripe';
 
 type Bindings = {
     DB: D1Database;
@@ -190,6 +191,38 @@ app.get('/transactions', async (c) => {
     }));
 
     return c.json({ transactions: formatted });
+});
+
+// GET /commerce/balance: Stripe Balance
+app.get('/balance', async (c) => {
+    const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+    if (!roles.includes('owner')) return c.json({ error: 'Access Denied' }, 403);
+    if (!tenant.stripeAccountId) return c.json({ error: 'Stripe not connected' }, 400);
+
+    const stripeKey = (c.env as any).STRIPE_SECRET_KEY;
+    if (!stripeKey) return c.json({ error: 'Server Config Error' }, 500);
+
+    const stripeService = new StripeService(stripeKey);
+
+    try {
+        const balance = await stripeService.getBalance(tenant.stripeAccountId);
+
+        // Sum up available and pending logic
+        // Balance object has { available: [{ amount, currency }], pending: [...] }
+        const available = balance.available.reduce((sum: number, b: any) => sum + b.amount, 0);
+        const pending = balance.pending.reduce((sum: number, b: any) => sum + b.amount, 0);
+
+        return c.json({
+            available,
+            pending,
+            currency: balance.available[0]?.currency || 'usd'
+        });
+    } catch (e: any) {
+        return c.json({ error: e.message || "Failed to fetch balance" }, 500);
+    }
 });
 
 export default app;
