@@ -16,8 +16,8 @@
         "turbo": "latest",
         "wrangler": "^4.56.0"
     },
-    "packageManager": "npm@10.0.0",
+    "packageManager": "npm@11.7.0",
     "dependencies": {
-        "@clerk/nextjs": "^6.36.4"
+        "@clerk/nextjs": "^6.36.5"
     }
 }
