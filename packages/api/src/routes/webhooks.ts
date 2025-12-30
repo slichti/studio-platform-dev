@@ -219,8 +219,9 @@ app.post('/clerk', async (c) => {
                 .run();
             console.log(`User updated: ${email}`);
         }
-        return c.json({ received: true });
-    });
+    }
+    return c.json({ received: true });
+});
 
 // POST /webhooks/stripe: Handle Payment Success
 app.post('/stripe', async (c) => {
