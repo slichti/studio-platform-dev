@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { eq, and, desc, sql } from 'drizzle-orm';
-import { classPackDefinitions, purchasedPacks, tenantMembers, users } from 'db/src/schema';
+import { classPackDefinitions, purchasedPacks, tenantMembers, users, subscriptions } from 'db/src/schema';
 
 type Bindings = {
     DB: D1Database;
@@ -108,6 +108,88 @@ app.post('/purchase', async (c) => {
     await db.insert(purchasedPacks).values(newPurchase).run();
 
     return c.json({ purchase: newPurchase });
+});
+
+// GET /commerce/stats: Finance Overview
+app.get('/stats', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+    if (!roles.includes('owner')) return c.json({ error: 'Access Denied' }, 403);
+
+    // Calculate TOTAL Revenue (Packs + Subscriptions)
+    // Note: This is an Estimate. Real reconciliation should come from Stripe.
+
+    // 1. Pack Revenue
+    const packs = await db.select({
+        price: classPackDefinitions.price,
+        purchasedAt: purchasedPacks.createdAt
+    })
+        .from(purchasedPacks)
+        .innerJoin(classPackDefinitions, eq(purchasedPacks.packDefinitionId, classPackDefinitions.id))
+        .where(eq(purchasedPacks.tenantId, tenant.id))
+        .all();
+
+    const packRevenue = packs.reduce((sum, p) => sum + (p.price || 0), 0);
+
+    // 2. Subscription Revenue (Naive: Monthly * Active Months? Or just list active MRC)
+    // For now, let's just return Active MRC (Monthly Recurring Revenue)
+    const activeSubs = await db.query.subscriptions.findMany({
+        where: and(eq(subscriptions.tenantId, tenant.id), eq(subscriptions.status, 'active')),
+        with: {
+            plan: true
+        }
+    });
+
+    const mrr = activeSubs.reduce((sum, s) => sum + (s.plan?.price || 0), 0);
+
+    // Total Revenue (Past 30 days specific logic omitted for MVP speed, returning All Time Pack + Current MRR)
+    // Let's call "Total Revenue" the pack revenue for now, and distinct MRR.
+
+    return c.json({
+        totalRevenue: packRevenue,
+        mrr,
+        activeSubscriptions: activeSubs.length
+    });
+});
+
+// GET /commerce/transactions: Recent Purchases
+app.get('/transactions', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+    if (!roles.includes('owner')) return c.json({ error: 'Access Denied' }, 403);
+
+    // Recent Pack Purchases
+    const transactions = await db.select({
+        id: purchasedPacks.id,
+        date: purchasedPacks.createdAt,
+        memberName: users.profile, // Need logic to get user name
+        description: classPackDefinitions.name,
+        amount: classPackDefinitions.price
+    })
+        .from(purchasedPacks)
+        .innerJoin(classPackDefinitions, eq(purchasedPacks.packDefinitionId, classPackDefinitions.id))
+        .innerJoin(tenantMembers, eq(purchasedPacks.memberId, tenantMembers.id))
+        .innerJoin(users, eq(tenantMembers.userId, users.id))
+        .where(eq(purchasedPacks.tenantId, tenant.id))
+        .orderBy(desc(purchasedPacks.createdAt))
+        .limit(20)
+        .all();
+
+    const formatted = transactions.map(t => ({
+        id: t.id,
+        date: t.date,
+        description: `Purchased ${t.description}`,
+        amount: t.amount,
+        customer: (t.memberName as any)?.firstName ? `${(t.memberName as any).firstName} ${(t.memberName as any).lastName}` : 'Unknown'
+    }));
+
+    return c.json({ transactions: formatted });
 });
 
 export default app;

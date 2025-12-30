@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { createDb } from '../db';
 import { ZoomService } from '../services/zoom';
 import { StreamService } from '../services/stream';
-import { classes } from 'db/src/schema'; // We need 'classes' to update record
+import { classes, users } from 'db/src/schema'; // We need 'classes' to update record
 import { eq } from 'drizzle-orm';
 // import { verifyWebhookSignature } from '../services/zoom'; // To be implemented if we want robust security
 
@@ -14,6 +14,8 @@ type Bindings = {
     ZOOM_WEBHOOK_SECRET_TOKEN: string;
     CLOUDFLARE_ACCOUNT_ID: string;
     CLOUDFLARE_API_TOKEN: string;
+    CLERK_WEBHOOK_SECRET: string;
+    RESEND_API_KEY: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -123,6 +125,102 @@ app.post('/zoom', async (c) => {
                 }
             }
         }
+    }
+
+    return c.json({ received: true });
+});
+
+
+
+app.post('/clerk', async (c) => {
+    const WEBHOOK_SECRET = c.env.CLERK_WEBHOOK_SECRET;
+
+    if (!WEBHOOK_SECRET) {
+        return c.json({ error: 'Missing Clerk Webhook Secret' }, 500);
+    }
+
+    // Get Headers
+    const svix_id = c.req.header('svix-id');
+    const svix_timestamp = c.req.header('svix-timestamp');
+    const svix_signature = c.req.header('svix-signature');
+
+    if (!svix_id || !svix_timestamp || !svix_signature) {
+        return c.json({ error: 'Missing Svix Headers' }, 400);
+    }
+
+    // Get Body
+    const body = await c.req.text();
+
+    // Verify
+    const { Webhook } = await import('svix');
+    let evt: any;
+
+    try {
+        const wh = new Webhook(WEBHOOK_SECRET);
+        evt = wh.verify(body, {
+            'svix-id': svix_id,
+            'svix-timestamp': svix_timestamp,
+            'svix-signature': svix_signature,
+        });
+    } catch (err: any) {
+        console.error('Webhook Verification Failed:', err);
+        return c.json({ error: 'Verification Failed' }, 400);
+    }
+
+    const eventType = evt.type;
+    const { id, email_addresses, first_name, last_name, image_url, phone_numbers } = evt.data;
+
+    const db = createDb(c.env.DB);
+
+    if (eventType === 'user.created' || eventType === 'user.updated') {
+        const email = email_addresses?.[0]?.email_address;
+        if (!email) {
+            console.error("No email found for user", id);
+            return c.json({ received: true }); // Acknowledge anyway
+        }
+
+        const profile: any = {
+            firstName: first_name,
+            lastName: last_name,
+            portraitUrl: image_url,
+            phoneNumber: phone_numbers?.[0]?.phone_number
+        };
+
+        // Upsert User
+        if (eventType === 'user.created') {
+            // Check existence first to avoid unique constraint if retried
+            const existing = await db.select().from(users).where(eq(users.id, id)).get();
+            if (!existing) {
+                await db.insert(users).values({
+                    id,
+                    email,
+                    profile,
+                    createdAt: new Date()
+                }).run();
+                console.log(`User created: ${email}`);
+
+                // Send Welcome Email
+                if (c.env.RESEND_API_KEY) {
+                    const { EmailService } = await import('../services/email');
+                    const emailService = new EmailService(c.env.RESEND_API_KEY);
+                    c.executionCtx.waitUntil(emailService.sendWelcome(email, first_name));
+                }
+            } else {
+                // Fallback to update if exists
+                await db.update(users).set({ email, profile }).where(eq(users.id, id)).run();
+            }
+        } else {
+            // Update
+            await db.update(users)
+                .set({ email, profile })
+                .where(eq(users.id, id))
+                .run();
+            console.log(`User updated: ${email}`);
+        }
+    } else if (eventType === 'user.deleted') {
+        // Handle deletion? Typically soft delete or ignore.
+        // db.delete(users).where(eq(users.id, id)).run();
+        console.log(`User deleted: ${id}`);
     }
 
     return c.json({ received: true });

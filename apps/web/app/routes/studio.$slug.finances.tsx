@@ -1,5 +1,7 @@
+// @ts-ignore
 import { useOutletContext } from "react-router";
 import { apiRequest, API_URL } from "../utils/api";
+import { useState, useEffect } from "react";
 
 export default function StudioFinances() {
     const { tenant, member, roles } = useOutletContext<any>();
@@ -23,6 +25,23 @@ export default function StudioFinances() {
         // Redirect to API endpoint that handles Stripe OAuth
         window.location.href = `${API_URL}/studios/stripe/connect?tenantId=${tenant.id}`;
     };
+
+    const [stats, setStats] = useState<any>(null);
+    const [transactions, setTransactions] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (!tenant.stripeAccountId || !isOwner) return;
+
+        // Fetch Stats
+        (apiRequest(`${API_URL}/commerce/stats`) as Promise<any>).then(res => {
+            if (res) setStats(res);
+        });
+
+        // Fetch Transactions
+        (apiRequest(`${API_URL}/commerce/transactions`) as Promise<any>).then(res => {
+            if (res && res.transactions) setTransactions(res.transactions);
+        });
+    }, [tenant.id, isOwner]);
 
     return (
         <div className="max-w-4xl" style={{ color: 'var(--text)' }}>
@@ -67,22 +86,47 @@ export default function StudioFinances() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)' }} className="p-6 rounded-lg shadow-sm">
                             <div className="text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Total Revenue</div>
-                            <div className="text-3xl font-bold">$0.00</div>
-                            <div className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>Last 30 days</div>
+                            <div className="text-3xl font-bold">${stats ? (stats.totalRevenue / 100).toFixed(2) : '0.00'}</div>
+                            <div className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>Est. All Time</div>
                         </div>
                         <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)' }} className="p-6 rounded-lg shadow-sm">
-                            <div className="text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Active Subscriptions</div>
-                            <div className="text-3xl font-bold">0</div>
+                            <div className="text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Monthly Recurring</div>
+                            <div className="text-3xl font-bold">${stats ? (stats.mrr / 100).toFixed(2) : '0.00'}</div>
+                            <div className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>Active Subs: {stats?.activeSubscriptions || 0}</div>
                         </div>
                         <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)' }} className="p-6 rounded-lg shadow-sm">
                             <div className="text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Upcoming Payout</div>
                             <div className="text-3xl font-bold">$0.00</div>
+                            {/* Needs Stripe Balance Integration */}
                         </div>
                     </div>
 
                     <div className="p-4 rounded-lg" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}>
-                        <h3 className="font-semibold mb-2">Transaction History</h3>
-                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No transactions yet.</p>
+                        <h3 className="font-semibold mb-4">Transaction History</h3>
+                        {transactions.length === 0 ? (
+                            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No recent transactions.</p>
+                        ) : (
+                            <table className="min-w-full text-sm">
+                                <thead>
+                                    <tr className="border-b" style={{ borderColor: 'var(--border)' }}>
+                                        <th className="text-left py-2 font-medium">Date</th>
+                                        <th className="text-left py-2 font-medium">Description</th>
+                                        <th className="text-left py-2 font-medium">Customer</th>
+                                        <th className="text-right py-2 font-medium">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {transactions.map((t: any) => (
+                                        <tr key={t.id} className="border-b last:border-0" style={{ borderColor: 'var(--border)' }}>
+                                            <td className="py-2">{new Date(t.date).toLocaleDateString()}</td>
+                                            <td className="py-2">{t.description}</td>
+                                            <td className="py-2">{t.customer}</td>
+                                            <td className="py-2 text-right">${(t.amount / 100).toFixed(2)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
                     </div>
                 </div>
             )}

@@ -65,4 +65,22 @@ export class EmailService {
             console.error("Failed to send waiver email", e);
         }
     }
+
+    async sendWelcome(to: string, name: string) {
+        try {
+            await this.resend.emails.send({
+                from: this.fromEmail,
+                to,
+                subject: `Welcome to Studio Platform!`,
+                html: `
+                    <h1>Welcome, ${name}!</h1>
+                    <p>We are thrilled to have you join us.</p>
+                    <p>Explore classes, book your spot, and start your journey today.</p>
+                `
+            });
+            console.log(`Welcome email sent to ${to}`);
+        } catch (e) {
+            console.error("Failed to send welcome email", e);
+        }
+    }
 }

@@ -16,6 +16,7 @@ type Bindings = {
   STRIPE_PUBLISHABLE_KEY: string;
   STRIPE_CLIENT_ID: string;
   RESEND_API_KEY: string;
+  CLERK_WEBHOOK_SECRET: string;
   R2: R2Bucket;
 };
 
