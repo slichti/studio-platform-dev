@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index, primaryKey } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, index, primaryKey, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 // --- Multi-Tenancy Root ---
@@ -24,7 +24,7 @@ export const tenantFeatures = sqliteTable('tenant_features', {
     source: text('source', { enum: ['manual', 'subscription', 'trial'] }).default('manual'), // 'manual', 'subscription', 'trial'
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
-    uniqueFeature: index('unique_feature_idx').on(table.tenantId, table.featureKey),
+    uniqueFeature: uniqueIndex('unique_feature_idx').on(table.tenantId, table.featureKey),
 }));
 
 
