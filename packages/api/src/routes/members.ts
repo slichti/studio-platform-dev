@@ -5,6 +5,7 @@ import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings } fr
 
 type Bindings = {
     DB: D1Database;
+    RESEND_API_KEY: string;
 };
 
 type Variables = {
@@ -247,6 +248,81 @@ app.put('/:id/notes/:noteId', async (c) => {
         .run();
 
     return c.json({ success: true, note: { ...existingNote, note: content } });
+});
+
+// PATCH /members/:id/status: Update member status (Owner only)
+app.patch('/:id/status', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    const memberId = c.req.param('id');
+    const { status } = await c.req.json(); // 'active', 'inactive', 'archived'
+
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    if (!roles.includes('owner')) {
+        return c.json({ error: 'Access Denied: Only Owners can manage status' }, 403);
+    }
+
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.id, memberId), eq(tenantMembers.tenantId, tenant.id))
+    });
+
+    if (!member) return c.json({ error: 'Member not found' }, 404);
+
+    if (member.userId === c.get('auth').userId) {
+        return c.json({ error: 'Cannot change your own status' }, 400);
+    }
+
+    await db.update(tenantMembers)
+        .set({ status })
+        .where(eq(tenantMembers.id, memberId))
+        .run();
+
+    return c.json({ success: true, status });
+});
+
+// POST /members/:id/email: Send Generic Email (Owner/Instructor)
+app.post('/:id/email', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    const memberId = c.req.param('id');
+    const { subject, body } = await c.req.json();
+    const { EmailService } = await import('../services/email');
+
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+
+    if (!body || !subject) return c.json({ error: 'Subject and Body required' }, 400);
+
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.id, memberId), eq(tenantMembers.tenantId, tenant.id)),
+        with: { user: true }
+    });
+
+    if (!member || !member.user) return c.json({ error: 'Member or User not found' }, 404);
+
+    const emailService = new EmailService(c.env.RESEND_API_KEY);
+
+    // Wrap body in simple template
+    const html = `
+        <div style="font-family: sans-serif; padding: 20px;">
+            <p>${body.replace(/\n/g, '<br/>')}</p>
+            <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;" />
+            <p style="color: #888; font-size: 12px;">Sent from ${tenant.name}</p>
+        </div>
+    `;
+
+    try {
+        await emailService.sendGenericEmail(member.user.email, subject, html);
+    } catch (e: any) {
+        return c.json({ error: 'Failed to send email: ' + e.message }, 500);
+    }
+
+    return c.json({ success: true });
 });
 
 export default app;

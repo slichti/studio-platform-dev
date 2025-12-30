@@ -5,7 +5,7 @@ export class StripeService {
 
     constructor(apiKey: string) {
         this.stripe = new Stripe(apiKey, {
-            apiVersion: '2023-10-16', // Use latest stable
+            apiVersion: '2025-12-15.clover' as any, // Silence TS error for beta version
         });
     }
 

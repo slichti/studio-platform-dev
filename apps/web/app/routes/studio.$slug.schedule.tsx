@@ -165,7 +165,7 @@ export default function StudioSchedule() {
                 isOpen={isDetailOpen}
                 onClose={() => setIsDetailOpen(false)}
                 classEvent={selectedClass}
-                classEvent={selectedClass}
+
                 onRecordingAdded={handleRecordingAdded}
                 canAttachRecording={features?.has('vod')}
             />

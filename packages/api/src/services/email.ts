@@ -83,4 +83,20 @@ export class EmailService {
             console.error("Failed to send welcome email", e);
         }
     }
+
+
+    async sendGenericEmail(to: string, subject: string, html: string) {
+        try {
+            await this.resend.emails.send({
+                from: this.fromEmail,
+                to,
+                subject,
+                html
+            });
+            console.log(`Generic email sent to ${to}`);
+        } catch (e) {
+            console.error("Failed to send generic email", e);
+            throw e; // Rethrow to let caller know
+        }
+    }
 }

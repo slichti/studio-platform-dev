@@ -12,6 +12,7 @@
     },
     "dependencies": {
         "@clerk/react-router": "^2.3.6",
+        "@headlessui/react": "^2.2.9",
         "@react-router/cloudflare": "^7.11.0",
         "@react-router/dev": "^7.11.0",
         "@types/react-big-calendar": "^1.16.3",

@@ -28,6 +28,7 @@ type Variables = {
     userId: string | null;
     claims: any;
   };
+  features: Set<string>;
 };
 
 import studioRoutes from './routes/studios';

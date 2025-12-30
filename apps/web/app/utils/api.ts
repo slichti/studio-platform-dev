@@ -34,7 +34,7 @@ export async function apiRequest(path: string, token: string | null | undefined,
         try {
             // Clone the response to avoid consuming the body if JSON parsing fails
             errorData = await res.clone().json();
-            const error = new Error(errorData.error || res.statusText);
+            const error = new Error((errorData as any).error || res.statusText);
             (error as any).data = errorData;
             (error as any).status = res.status;
             throw error;

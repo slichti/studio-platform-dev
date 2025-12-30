@@ -9,7 +9,13 @@ type AuthVariables = {
     isImpersonating?: boolean;
 };
 
-export const authMiddleware = createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
+type Bindings = {
+    DB: D1Database;
+    CLERK_SECRET_KEY: string;
+    CLERK_PEM_PUBLIC_KEY: string;
+};
+
+export const authMiddleware = createMiddleware<{ Variables: AuthVariables, Bindings: Bindings }>(async (c, next) => {
     const authHeader = c.req.header('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
         return c.json({ error: 'Unauthorized' }, 401);

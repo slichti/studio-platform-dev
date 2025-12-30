@@ -49,6 +49,7 @@ export const tenantMembers = sqliteTable('tenant_members', {
     userId: text('user_id').notNull().references(() => users.id),
     profile: text('profile', { mode: 'json' }), // Studio-specific profile overrides (e.g. bio for instructors)
     settings: text('settings', { mode: 'json' }), // User's preferences for this studio (notifications etc)
+    status: text('status', { enum: ['active', 'inactive', 'archived'] }).default('active').notNull(),
     joinedAt: integer('joined_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     tenantUserIdx: index('tenant_user_idx').on(table.tenantId, table.userId),
