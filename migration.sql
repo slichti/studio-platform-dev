@@ -13,6 +13,18 @@ CREATE TABLE IF NOT EXISTS tenants (
     created_at TIMESTAMP DEFAULT (strftime('%s', 'now'))
 );
 
+-- Tenant Features (Entitlements)
+CREATE TABLE IF NOT EXISTS tenant_features (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    feature_key TEXT NOT NULL, -- e.g. 'financials', 'vod', 'zoom'
+    enabled BOOLEAN NOT NULL DEFAULT 0,
+    source TEXT DEFAULT 'manual', -- 'manual', 'subscription', 'trial'
+    updated_at TIMESTAMP DEFAULT (strftime('%s', 'now')),
+    UNIQUE(tenant_id, feature_key)
+);
+CREATE INDEX IF NOT EXISTS tenant_features_idx ON tenant_features(tenant_id);
+
 -- Users
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,

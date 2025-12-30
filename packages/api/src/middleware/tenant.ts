@@ -1,7 +1,7 @@
 import { Context, Next } from 'hono';
 import { createDb } from '../db';
 import { eq, and } from 'drizzle-orm';
-import { tenants, tenantMembers, tenantRoles, users } from 'db/src/schema';
+import { tenants, tenantMembers, tenantRoles, users, tenantFeatures } from 'db/src/schema';
 
 // Extend Hono Context to include tenant
 type Bindings = {
@@ -13,6 +13,7 @@ type Variables = {
     auth?: { userId: string; claims: any };
     member?: any; // tenantMembers.$inferSelect
     roles?: string[];
+    features: Set<string>;
 };
 
 export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variables: Variables }>, next: Next) => {
@@ -67,6 +68,13 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
     }
 
     c.set('tenant', tenant);
+
+    // Fetch Features
+    const features = await db.query.tenantFeatures.findMany({
+        where: and(eq(tenantFeatures.tenantId, tenant.id), eq(tenantFeatures.enabled, true))
+    });
+    const featureSet = new Set(features.map(f => f.featureKey || ''));
+    c.set('features', featureSet);
 
     // 3. Security Check: If User is Authenticated, Verify Membership
     const auth = c.get('auth');

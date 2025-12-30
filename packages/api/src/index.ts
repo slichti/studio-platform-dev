@@ -119,7 +119,8 @@ tenantApp.get('/info', (c) => {
     customDomain: tenant.customDomain,
     settings: tenant.settings,
     stripeAccountId: tenant.stripeAccountId,
-    branding: tenant.branding
+    branding: tenant.branding,
+    features: Array.from(c.get('features') || [])
   })
 })
 
@@ -139,6 +140,7 @@ import webhookRoutes from './routes/webhooks';
 import uploadRoutes from './routes/uploads';
 import adminRoutes from './routes/admin';
 import userRoutes from './routes/users';
+import adminFeatureRoutes from './routes/admin.features'; // Import new route
 
 // ... (existing routes)
 
@@ -149,6 +151,7 @@ app.route('/locations', locationRoutes);
 app.route('/webhooks', webhookRoutes);
 app.route('/uploads', uploadRoutes);
 app.route('/admin', adminRoutes);
+app.route('/admin', adminFeatureRoutes); // Mount at /admin (routes are /tenants/:id/features)
 app.route('/users', userRoutes);
 import memberships from './routes/memberships';
 app.use('/commerce*', authMiddleware);

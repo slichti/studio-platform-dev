@@ -13,6 +13,7 @@ import { getDay } from "date-fns/getDay";
 import { enUS } from "date-fns/locale/en-US";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { CreateClassModal } from "../components/CreateClassModal";
+import { ClassDetailModal } from "../components/ClassDetailModal";
 import { Plus } from "lucide-react";
 
 // Setup Localizer
@@ -58,9 +59,11 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
 export default function StudioSchedule() {
     const { classes: initialClasses, locations, instructors, error } = useLoaderData<any>();
-    const { tenant } = useOutletContext<any>() || {};
+    const { tenant, features } = useOutletContext<any>() || {};
     const [classes, setClasses] = useState(initialClasses || []);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [isDetailOpen, setIsDetailOpen] = useState(false);
+    const [selectedClass, setSelectedClass] = useState<any>(null);
 
     // Map API classes to Calendar events
     const events = classes.map((c: any) => ({
@@ -83,6 +86,25 @@ export default function StudioSchedule() {
         },
         []
     );
+
+    const handleSelectEvent = useCallback((event: any) => {
+        setSelectedClass(event.resource);
+        setIsDetailOpen(true);
+    }, []);
+
+    const handleRecordingAdded = (classId: string, videoId: string) => {
+        // Update local state to reflect change
+        setClasses(classes.map((c: any) => {
+            if (c.id === classId) {
+                return {
+                    ...c,
+                    cloudflareStreamId: videoId,
+                    recordingStatus: 'processing'
+                };
+            }
+            return c;
+        }));
+    };
 
     return (
         <div className="p-6 h-screen flex flex-col">
@@ -117,6 +139,7 @@ export default function StudioSchedule() {
                     defaultView={Views.WEEK}
                     selectable
                     onSelectSlot={handleSelectSlot}
+                    onSelectEvent={handleSelectEvent}
                     eventPropGetter={(event) => ({
                         style: {
                             backgroundColor: '#eff6ff', // blue-50
@@ -136,6 +159,15 @@ export default function StudioSchedule() {
                 tenantId={tenant?.id}
                 locations={locations}
                 instructors={instructors}
+            />
+
+            <ClassDetailModal
+                isOpen={isDetailOpen}
+                onClose={() => setIsDetailOpen(false)}
+                classEvent={selectedClass}
+                classEvent={selectedClass}
+                onRecordingAdded={handleRecordingAdded}
+                canAttachRecording={features?.has('vod')}
             />
         </div>
     );

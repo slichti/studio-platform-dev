@@ -55,7 +55,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
             slug: params.slug,
             tenant: tenantInfo,
             me,
-            isPaused: tenantInfo.status === 'paused'
+            isPaused: tenantInfo.status === 'paused',
+            features: tenantInfo.features || []
         };
     } catch (e: any) {
         if (e instanceof Response) throw e;
@@ -66,7 +67,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
 };
 
 export default function StudioLayout() {
-    const { slug, tenant, me, isPaused } = useLoaderData<typeof loader>();
+    const { slug, tenant, me, isPaused, features } = useLoaderData<typeof loader>();
+    const featureSet = new Set(features);
 
     return (
         <div className="flex h-screen bg-zinc-50 font-sans text-zinc-900">
@@ -91,7 +93,9 @@ export default function StudioLayout() {
                     <NavItem to="commerce/packs" icon={<Package size={18} />}>Class Packs</NavItem>
                     <NavItem to="students" icon={<Users size={18} />}>Students</NavItem>
                     <NavItem to="classes" icon={<Dumbbell size={18} />}>Classes</NavItem>
-                    <NavItem to="finances" icon={<DollarSign size={18} />}>Finances</NavItem>
+                    {featureSet.has('financials') && (
+                        <NavItem to="finances" icon={<DollarSign size={18} />}>Finances</NavItem>
+                    )}
                     <NavItem to="waivers" icon={<FileSignature size={18} />}>Waivers</NavItem>
                     <NavItem to="settings" icon={<Settings size={18} />}>Settings</NavItem>
                 </nav>
@@ -118,7 +122,7 @@ export default function StudioLayout() {
                     </div>
                 )}
                 <div className="flex-1 overflow-auto">
-                    <Outlet context={{ tenant, me }} />
+                    <Outlet context={{ tenant, me, features: featureSet }} />
                 </div>
             </main>
         </div>

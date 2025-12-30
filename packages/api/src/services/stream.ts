@@ -60,4 +60,35 @@ export class StreamService {
         const data = await response.json() as any;
         return data.result;
     }
+
+    /**
+     * Generate a signed token for playback (optional security)
+     * For now, we return the public ID, but this scaffolds valid signed URL generation.
+     */
+    async getSignedToken(videoId: string) {
+        // Implementation for signed tokens would go here.
+        // For MVP/Simplicity, we might just rely on the videoId.
+        // But if requiredSignedURLs is true, we need to POST to /token
+        // https://developers.cloudflare.com/stream/viewing-videos/using-signed-urls/
+
+        const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${this.accountId}/stream/${videoId}/token`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${this.apiToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                exp: Math.floor(Date.now() / 1000) + (60 * 60 * 6) // 6 hours
+            })
+        });
+
+        if (!response.ok) {
+            // Fallback to public ID if signing fails or not configured
+            console.warn("Failed to sign token, using public ID");
+            return videoId;
+        }
+
+        const data = await response.json() as any;
+        return data.result.token;
+    }
 }

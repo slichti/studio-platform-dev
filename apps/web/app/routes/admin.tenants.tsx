@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useAuth } from "@clerk/react-router";
 import { Modal } from "../components/Modal";
 import { ErrorDialog, ConfirmationDialog } from "../components/Dialogs";
+import { ChevronDown, ChevronRight, Activity, CreditCard, Video, Monitor } from "lucide-react";
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -28,6 +29,17 @@ export default function AdminTenants() {
     const [tenants, setTenants] = useState(initialTenants);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+
+    // Feature Toggles State
+    const [expandedTenant, setExpandedTenant] = useState<string | null>(null);
+    const [tenantFeatures, setTenantFeatures] = useState<Record<string, any>>({});
+    const [featuresLoading, setFeaturesLoading] = useState(false);
+
+    const FEATURES = [
+        { key: 'financials', label: 'Financials & Payouts', icon: CreditCard },
+        { key: 'vod', label: 'Video on Demand', icon: Video },
+        { key: 'zoom', label: 'Zoom Integration', icon: Monitor }, // Placeholder for now
+    ];
 
     // Dialog State
     const [errorDialog, setErrorDialog] = useState<{ isOpen: boolean, message: string }>({ isOpen: false, message: "" });
@@ -95,6 +107,48 @@ export default function AdminTenants() {
         }
     };
 
+    const toggleTenantExpand = async (tenantId: string) => {
+        if (expandedTenant === tenantId) {
+            setExpandedTenant(null);
+            return;
+        }
+
+        setExpandedTenant(tenantId);
+        setFeaturesLoading(true);
+        try {
+            const token = await getToken();
+            const res = await apiRequest(`/admin/tenants/${tenantId}/features`, token);
+            setTenantFeatures(res.features || {});
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setFeaturesLoading(false);
+        }
+    };
+
+    const handleFeatureToggle = async (tenantId: string, featureKey: string, currentValue: boolean) => {
+        // Optimistic Update
+        setTenantFeatures(prev => ({
+            ...prev,
+            [featureKey]: { ...prev[featureKey], enabled: !currentValue, source: 'manual' }
+        }));
+
+        try {
+            const token = await getToken();
+            await apiRequest(`/admin/tenants/${tenantId}/features`, token, {
+                method: 'POST',
+                body: JSON.stringify({ featureKey, enabled: !currentValue, source: 'manual' })
+            });
+        } catch (e) {
+            console.error(e);
+            // Revert on error
+            setTenantFeatures(prev => ({
+                ...prev,
+                [featureKey]: { ...prev[featureKey], enabled: currentValue }
+            }));
+        }
+    };
+
     return (
         <div>
             {/* Dialogs */}
@@ -141,6 +195,7 @@ export default function AdminTenants() {
                 <table className="w-full text-left">
                     <thead className="bg-zinc-50 border-b border-zinc-200">
                         <tr>
+                            <th className="w-8"></th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Tenant</th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Slug</th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">ID</th>
@@ -150,62 +205,113 @@ export default function AdminTenants() {
                     </thead>
                     <tbody className="divide-y divide-zinc-100">
                         {Array.isArray(tenants) && tenants.map((t: any) => (
-                            <tr key={t.id} className="hover:bg-zinc-50 transition-colors">
-                                <td className="px-6 py-4 font-medium text-zinc-900">{t.name}</td>
-                                <td className="px-6 py-4 text-zinc-600 font-mono text-xs bg-zinc-100 rounded self-start inline-block px-1 mt-1">{t.slug}</td>
-                                <td className="px-6 py-4 text-zinc-400 text-xs font-mono">{t.id}</td>
-                                <td className="px-6 py-4">
-                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${t.status === 'suspended' ? 'bg-red-100 text-red-800' :
+                            <>
+                                <tr key={t.id} className="hover:bg-zinc-50 transition-colors cursor-pointer" onClick={() => toggleTenantExpand(t.id)}>
+                                    <td className="pl-4">
+                                        {expandedTenant === t.id ? <ChevronDown size={16} className="text-zinc-400" /> : <ChevronRight size={16} className="text-zinc-400" />}
+                                    </td>
+                                    <td className="px-6 py-4 font-medium text-zinc-900">{t.name}</td>
+                                    <td className="px-6 py-4 text-zinc-600 font-mono text-xs bg-zinc-100 rounded self-start inline-block px-1 mt-1">{t.slug}</td>
+                                    <td className="px-6 py-4 text-zinc-400 text-xs font-mono">{t.id}</td>
+                                    <td className="px-6 py-4">
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${t.status === 'suspended' ? 'bg-red-100 text-red-800' :
                                             t.status === 'paused' ? 'bg-amber-100 text-amber-800' :
                                                 'bg-green-100 text-green-800'
-                                        }`}>
-                                        {t.status || 'Active'}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-3">
-                                        <Link
-                                            to={`/studio/${t.slug}`}
-                                            className="text-blue-600 hover:text-blue-800 text-xs font-semibold uppercase tracking-wide border border-blue-200 bg-blue-50 px-3 py-1 rounded-full hover:bg-blue-100 transition-colors"
-                                        >
-                                            Enter
-                                        </Link>
-                                        <div className="h-4 w-px bg-zinc-200"></div>
+                                            }`}>
+                                            {t.status || 'Active'}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <Link
+                                                to={`/studio/${t.slug}`}
+                                                className="text-blue-600 hover:text-blue-800 text-xs font-semibold uppercase tracking-wide border border-blue-200 bg-blue-50 px-3 py-1 rounded-full hover:bg-blue-100 transition-colors"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                Enter
+                                            </Link>
+                                            <div className="h-4 w-px bg-zinc-200"></div>
 
-                                        {t.status === 'paused' ? (
-                                            <button
-                                                className="text-emerald-600 hover:text-emerald-700 text-xs font-medium transition-colors"
-                                                onClick={() => handleStatusChange(t.id, 'active')}
-                                            >
-                                                Resume
-                                            </button>
-                                        ) : (
-                                            <button
-                                                className="text-zinc-500 hover:text-amber-600 text-xs font-medium transition-colors"
-                                                onClick={() => handleStatusChange(t.id, 'paused')}
-                                            >
-                                                Pause
-                                            </button>
-                                        )}
+                                            {t.status === 'paused' ? (
+                                                <button
+                                                    className="text-emerald-600 hover:text-emerald-700 text-xs font-medium transition-colors"
+                                                    onClick={(e) => { e.stopPropagation(); handleStatusChange(t.id, 'active'); }}
+                                                >
+                                                    Resume
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    className="text-zinc-500 hover:text-amber-600 text-xs font-medium transition-colors"
+                                                    onClick={(e) => { e.stopPropagation(); handleStatusChange(t.id, 'paused'); }}
+                                                >
+                                                    Pause
+                                                </button>
+                                            )}
 
-                                        {t.status === 'suspended' ? (
-                                            <button
-                                                className="text-emerald-600 hover:text-emerald-700 text-xs font-medium transition-colors"
-                                                onClick={() => handleStatusChange(t.id, 'active')}
-                                            >
-                                                Activate
-                                            </button>
-                                        ) : (
-                                            <button
-                                                className="text-zinc-500 hover:text-red-600 text-xs font-medium transition-colors"
-                                                onClick={() => handleStatusChange(t.id, 'suspended')}
-                                            >
-                                                Suspend
-                                            </button>
-                                        )}
-                                    </div>
-                                </td>
-                            </tr>
+                                            {t.status === 'suspended' ? (
+                                                <button
+                                                    className="text-emerald-600 hover:text-emerald-700 text-xs font-medium transition-colors"
+                                                    onClick={(e) => { e.stopPropagation(); handleStatusChange(t.id, 'active'); }}
+                                                >
+                                                    Activate
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    className="text-zinc-500 hover:text-red-600 text-xs font-medium transition-colors"
+                                                    onClick={(e) => { e.stopPropagation(); handleStatusChange(t.id, 'suspended'); }}
+                                                >
+                                                    Suspend
+                                                </button>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {expandedTenant === t.id && (
+                                    <tr className="bg-zinc-50/50">
+                                        <td colSpan={6} className="px-6 pb-6 pt-2">
+                                            <div className="bg-white border border-zinc-200 rounded-lg p-4 shadow-inner">
+                                                <h4 className="text-sm font-semibold text-zinc-900 mb-3 flex items-center gap-2">
+                                                    <Activity size={16} /> Entitlements & Features
+                                                </h4>
+
+                                                {featuresLoading ? (
+                                                    <div className="text-sm text-zinc-500 py-2">Loading capabilities...</div>
+                                                ) : (
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                        {FEATURES.map(f => {
+                                                            const state = tenantFeatures[f.key] || { enabled: false, source: 'manual' };
+                                                            return (
+                                                                <div key={f.key} className="flex items-center justify-between p-3 border rounded-md bg-zinc-50">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <f.icon size={18} className="text-zinc-500" />
+                                                                        <div>
+                                                                            <div className="text-sm font-medium text-zinc-900">{f.label}</div>
+                                                                            <div className="text-xs text-zinc-500">Source: {state.source}</div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            handleFeatureToggle(t.id, f.key, state.enabled);
+                                                                        }}
+                                                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${state.enabled ? 'bg-blue-600' : 'bg-gray-200'
+                                                                            }`}
+                                                                    >
+                                                                        <span
+                                                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${state.enabled ? 'translate-x-6' : 'translate-x-1'
+                                                                                }`}
+                                                                        />
+                                                                    </button>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </>
                         ))}
                     </tbody>
                 </table>

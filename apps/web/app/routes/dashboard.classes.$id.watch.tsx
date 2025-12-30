@@ -5,18 +5,54 @@ import { useLoaderData, Link } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
 // import { apiRequest } from "../utils/api"; 
 
-// Mock Data for now since we haven't wired up the "Get Class with Video" endpoint fully
+// Real Data Loader
 export const loader: LoaderFunction = async (args) => {
-    // const { getToken } = await getAuth(args);
-    // const token = await getToken();
+    const { request, params } = args;
+    const { getToken, userId } = await getAuth(args);
+    const token = await getToken();
 
-    // Returning mock data for UI dev
-    return {
-        id: args.params.id,
-        title: "Morning Vinyasa Flow",
-        cloudflareStreamId: "5d5bc37ffcf54c9b82e996823fca8f4e", // Example ID
-        recordingStatus: "ready"
-    };
+    // We need the API URL. Since this is a loader (server-side in Remix/RR, but Edge in CF), 
+    // we need context. But `args` has context if we use the right type or handling.
+    // However, `getAuth` is Clerk.
+    // Let's assume process.env or context.cloudflare.env is available or we use a hardcoded/env var.
+    // In CF Pages Functions, context is passed. Remix loaders receive it.
+    // let apiUrl = process.env.VITE_API_URL || "http://localhost:8787";
+    // Better: use context context
+    const context = (args as any).context;
+    const apiUrl = context?.cloudflare?.env?.VITE_API_URL || "http://localhost:8787";
+
+    if (!userId) {
+        // Redirect to login if not handled by root
+    }
+
+    try {
+        const [recordingRes, classRes] = await Promise.all([
+            fetch(`${apiUrl}/classes/${params.id}/recording`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            }),
+            fetch(`${apiUrl}/classes/${params.id}`, { // Assuming this endpoint exists or we use a different one
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+        ]);
+
+        if (!recordingRes.ok) {
+            if (recordingRes.status === 403) throw new Response("Access Denied", { status: 403 });
+            if (recordingRes.status === 404) throw new Response("Recording Not Found", { status: 404 });
+            throw new Error("Failed to fetch recording");
+        }
+
+        const recordingData = await recordingRes.json() as any;
+        const classData = classRes.ok ? await classRes.json() as any : { title: "Class Recording" };
+
+        return {
+            id: params.id,
+            title: classData.title || "Class Recording",
+            ...recordingData // videoId, status
+        };
+    } catch (e) {
+        // console.error(e);
+        throw new Response("Error loading recording", { status: 500 });
+    }
 };
 
 export default function WatchRecording() {

@@ -3,6 +3,7 @@ import { classes, tenants, bookings, tenantMembers, users, tenantRoles, classSer
 import { createDb } from '../db';
 import { eq, and, gte, lte, gt } from 'drizzle-orm'; // Added gt
 import { ZoomService } from '../services/zoom';
+import { StreamService } from '../services/stream';
 
 type Bindings = {
     DB: D1Database;
@@ -11,6 +12,8 @@ type Bindings = {
     ZOOM_CLIENT_SECRET: string;
     STRIPE_SECRET_KEY: string;
     RESEND_API_KEY: string;
+    CLOUDFLARE_STREAM_ACCOUNT_ID: string;
+    CLOUDFLARE_STREAM_API_TOKEN: string;
 };
 
 type Variables = {
@@ -464,4 +467,95 @@ app.post('/:id/bookings/:bookingId/cancel', async (c) => {
     } catch (e: any) {
         return c.json({ error: e.message }, 500);
     }
+});
+
+// POST /classes/:id/recording
+// Attach a video from a URL (e.g. Zoom Cloud Recording)
+app.post('/:id/recording', async (c) => {
+    const db = createDb(c.env.DB);
+    const classId = c.req.param('id');
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    // RBAC: Instructor or Owner
+    const roles = c.get('roles') || [];
+    if (!roles.includes('instructor') && !roles.includes('owner')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+
+    const { url, name } = await c.req.json();
+    if (!url) return c.json({ error: 'URL required' }, 400);
+
+    // Init Stream Service
+    if (!c.env.CLOUDFLARE_STREAM_ACCOUNT_ID || !c.env.CLOUDFLARE_STREAM_API_TOKEN) {
+        return c.json({ error: 'Video service not configured' }, 500);
+    }
+    const stream = new StreamService(c.env.CLOUDFLARE_STREAM_ACCOUNT_ID, c.env.CLOUDFLARE_STREAM_API_TOKEN);
+
+    try {
+        // Upload via Link
+        const videoId = await stream.uploadViaLink(url, { name: name || `Class ${classId}` });
+
+        // Update Class Record
+        await db.update(classes)
+            .set({
+                cloudflareStreamId: videoId,
+                recordingStatus: 'processing'
+            })
+            .where(eq(classes.id, classId))
+            .run();
+
+        return c.json({ success: true, videoId, status: 'processing' });
+    } catch (e: any) {
+        console.error("Stream Upload Info Error:", e);
+        // Important: Don't start an upload if we can't save it, but here it's async copy.
+        return c.json({ error: e.message || 'Failed to start video upload' }, 500);
+    }
+});
+
+// GET /classes/:id/recording
+// Get video details for playback
+app.get('/:id/recording', async (c) => {
+    const db = createDb(c.env.DB);
+    const classId = c.req.param('id');
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+    const auth = c.get('auth');
+
+    // Access Control:
+    // 1. Owner/Instructor: Always allow
+    // 2. Student: Must have a "confirmed" booking AND (if configured) be paid/valid.
+    // For now, simple booking check.
+
+    const classInfo = await db.select().from(classes).where(eq(classes.id, classId)).get();
+    if (!classInfo || !classInfo.cloudflareStreamId) {
+        return c.json({ error: 'No recording available' }, 404);
+    }
+
+    const roles = c.get('roles') || [];
+    let canWatch = false;
+
+    if (roles.includes('owner') || roles.includes('instructor')) {
+        canWatch = true;
+    } else if (auth && auth.userId) {
+        // Check booking
+        const member = c.get('member'); // Set by middleware
+        if (member) {
+            const booking = await db.select().from(bookings).where(and(
+                eq(bookings.classId, classId),
+                eq(bookings.memberId, member.id),
+                eq(bookings.status, 'confirmed')
+            )).get();
+            if (booking) canWatch = true;
+        }
+    }
+
+    if (!canWatch) return c.json({ error: 'Access Denied: You must book this class to watch the recording.' }, 403);
+
+    // Fetch Token (Mock or Real)
+    // For MVP, we pass the videoId directly.
+    return c.json({
+        videoId: classInfo.cloudflareStreamId,
+        status: classInfo.recordingStatus // could be 'processing'
+    });
 });

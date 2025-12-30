@@ -15,6 +15,20 @@ export const tenants = sqliteTable('tenants', {
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
+// --- Tenant Features (Entitlements) ---
+export const tenantFeatures = sqliteTable('tenant_features', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+    featureKey: text('feature_key').notNull(), // e.g. 'financials', 'vod', 'zoom'
+    enabled: integer('enabled', { mode: 'boolean' }).default(false).notNull(),
+    source: text('source', { enum: ['manual', 'subscription', 'trial'] }).default('manual'), // 'manual', 'subscription', 'trial'
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    uniqueFeature: index('unique_feature_idx').on(table.tenantId, table.featureKey),
+}));
+
+
+
 // --- Global Users (Clerk-linked) ---
 export const users = sqliteTable('users', {
     id: text('id').primaryKey(), // Clerk ID
