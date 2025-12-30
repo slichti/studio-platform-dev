@@ -68,7 +68,41 @@ app.get('/', async (c) => {
         },
         orderBy: (classes, { asc }) => [asc(classes.startTime)]
     });
-    return c.json(results);
+
+    // Check for user bookings if logged in
+    const userId = c.get('auth').userId;
+    let userBookings: Set<string> = new Set();
+
+    if (userId) {
+        // Find member ID first
+        const member = await db.query.tenantMembers.findFirst({
+            where: and(eq(tenantMembers.userId, userId), eq(tenantMembers.tenantId, tenant.id))
+        });
+
+        if (member) {
+            const classIds = results.map(r => r.id);
+            if (classIds.length > 0) {
+                const myBookings = await db.select({ classId: bookings.classId })
+                    .from(bookings)
+                    .where(
+                        and(
+                            eq(bookings.memberId, member.id),
+                            // inArray(bookings.classId, classIds), // Not necessary if strict on tenant, but helpful. Drizzle 'inArray' needs import.
+                            // Simply fetching all active bookings for this user for simplicity in this MVP
+                            eq(bookings.status, 'confirmed')
+                        )
+                    );
+                myBookings.forEach(b => userBookings.add(b.classId));
+            }
+        }
+    }
+
+    const finalResults = results.map(cls => ({
+        ...cls,
+        userBooked: userBookings.has(cls.id)
+    }));
+
+    return c.json(finalResults);
 });
 
 app.post('/', async (c) => {
@@ -287,10 +321,15 @@ app.post('/:id/book', async (c) => {
         }
 
         // Check Payment Requirement
+        let paymentMethod = 'free';
+        let usedPackId = undefined;
+
         if (classInfo.price && classInfo.price > 0) {
             const hasActiveMembership = member!.memberships && member!.memberships.length > 0;
 
-            if (!hasActiveMembership) {
+            if (hasActiveMembership) {
+                paymentMethod = 'subscription';
+            } else {
                 // Try to use credits
                 // Filter out expired packs explicitly in JS if Drizzle 'gt' on date is tricky or needed safety
                 const validPacks = (member!.purchasedPacks || []).filter(p => !p.expiresAt || new Date(p.expiresAt) > new Date());
@@ -303,6 +342,9 @@ app.post('/:id/book', async (c) => {
                         .set({ remainingCredits: packToUse.remainingCredits - 1 })
                         .where(eq(purchasedPacks.id, packToUse.id))
                         .run();
+
+                    paymentMethod = 'credit';
+                    usedPackId = packToUse.id;
                 } else {
                     return c.json({ error: 'Payment required: No active membership or class credits' }, 402);
                 }
@@ -313,7 +355,9 @@ app.post('/:id/book', async (c) => {
             id,
             classId,
             memberId: member!.id,
-            status: 'confirmed'
+            status: 'confirmed',
+            paymentMethod: paymentMethod as any,
+            usedPackId
         });
 
         return c.json({ id, status: 'confirmed' }, 201);
@@ -393,9 +437,22 @@ app.post('/:id/bookings/:bookingId/cancel', async (c) => {
     }
 
     try {
-        // Find booking to restore credits?
-        // TODO: Restore credit logic if it was paid with a pack. 
-        // For MVP just mark cancelled.
+        // Find booking to restore credits
+        const booking = await db.select().from(bookings).where(eq(bookings.id, bookingId)).get();
+
+        if (!booking) return c.json({ error: 'Booking not found' }, 404);
+        if (booking.status === 'cancelled') return c.json({ error: 'Already cancelled' }, 400);
+
+        // Restore credit logic
+        if (booking.paymentMethod === 'credit' && booking.usedPackId) {
+            const pack = await db.select().from(purchasedPacks).where(eq(purchasedPacks.id, booking.usedPackId)).get();
+            if (pack) {
+                await db.update(purchasedPacks)
+                    .set({ remainingCredits: pack.remainingCredits + 1 })
+                    .where(eq(purchasedPacks.id, booking.usedPackId))
+                    .run();
+            }
+        }
 
         await db.update(bookings)
             .set({ status: 'cancelled' })

@@ -13,7 +13,7 @@ type ClassEvent = {
     durationMinutes: number;
     instructorId: string;
     price: number;
-    userBooked?: boolean; // We might calculate this on frontend or return from API? API doesn't return yet.
+    userBooked?: boolean;
 };
 
 export const loader = async (args: LoaderFunctionArgs) => {
@@ -99,7 +99,7 @@ export default function StudioPublicClasses() {
                         No upcoming classes scheduled.
                     </div>
                 ) : (
-                    Object.entries(grouped).map(([date, events]) => (
+                    (Object.entries(grouped) as [string, ClassEvent[]][]).map(([date, events]) => (
                         <div key={date}>
                             <h3 className="text-lg font-bold text-zinc-900 mb-3 sticky top-0 bg-zinc-50/95 py-2 backdrop-blur">{date}</h3>
                             <div className="space-y-3">
@@ -132,10 +132,18 @@ export default function StudioPublicClasses() {
 
                                                     <button
                                                         type="submit"
-                                                        disabled={fetcher.state !== "idle" && fetcher.formData?.get("classId") === cls.id}
-                                                        className="px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded hover:bg-zinc-800 disabled:opacity-50"
+                                                        disabled={(fetcher.state !== "idle" && fetcher.formData?.get("classId") === cls.id) || (cls as any).userBooked}
+                                                        className={`px-4 py-2 text-sm font-medium rounded transition-colors disabled:opacity-50 ${(cls as any).userBooked
+                                                            ? 'bg-green-100 text-green-800 cursor-default'
+                                                            : 'bg-zinc-900 text-white hover:bg-zinc-800'
+                                                            }`}
                                                     >
-                                                        {(fetcher.state !== "idle" && fetcher.formData?.get("classId") === cls.id) ? "Booking..." : (actionData?.success && actionData.classId === cls.id ? "Booked!" : "Book")}
+                                                        {(fetcher.state !== "idle" && fetcher.formData?.get("classId") === cls.id)
+                                                            ? "Booking..."
+                                                            : ((cls as any).userBooked || (actionData?.success && actionData.classId === cls.id))
+                                                                ? "Booked"
+                                                                : "Book"
+                                                        }
                                                     </button>
                                                 </fetcher.Form>
                                             ) : (

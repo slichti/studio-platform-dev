@@ -162,4 +162,65 @@ app.patch('/:id', async (c) => {
     return c.json({ success: true });
 });
 
+// GET /waivers/:id/pdf: Generate PDF for signed waiver
+app.get('/:id/pdf', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const member = c.get('member');
+    const id = c.req.param('id'); // This effectively acts as the template ID for now, or signature ID? 
+    // Logic: If member requests it, they get their signature on it. If owner, they can request for any member?
+    // Let's stick to: Authenticated member gets THEIR signed waiver for a template ID.
+
+    if (!member) return c.json({ error: 'Login required' }, 401);
+
+    const template = await db.query.waiverTemplates.findFirst({
+        where: and(eq(waiverTemplates.id, id), eq(waiverTemplates.tenantId, tenant.id))
+    });
+
+    if (!template) return c.json({ error: 'Waiver template not found' }, 404);
+
+    const signature = await db.query.waiverSignatures.findFirst({
+        where: and(eq(waiverSignatures.templateId, id), eq(waiverSignatures.memberId, member.id))
+    });
+
+    if (!signature) return c.json({ error: 'Waiver not signed yet' }, 404);
+
+    // Generate PDF
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF();
+
+    // Header
+    doc.setFontSize(22);
+    doc.text(template.title, 20, 20);
+
+    // Content (Split text to fit)
+    doc.setFontSize(12);
+    const splitText = doc.splitTextToSize(template.content, 170);
+    doc.text(splitText, 20, 40);
+
+    // Signature Area
+    const finalY = (doc as any).lastAutoTable?.finalY || 40 + (splitText.length * 5) + 20; // fallback if no table
+
+    doc.text(`Signed by Member ID: ${member.id}`, 20, finalY);
+    doc.text(`Date: ${new Date(signature.signedAt!).toLocaleString()}`, 20, finalY + 10);
+    doc.text(`IP Address: ${signature.ipAddress || 'N/A'}`, 20, finalY + 20);
+
+    if (signature.signatureData && signature.signatureData.startsWith('data:image')) {
+        try {
+            doc.addImage(signature.signatureData, 'PNG', 20, finalY + 30, 100, 40);
+        } catch (e) {
+            doc.text("[Signature Image Error]", 20, finalY + 30);
+        }
+    } else {
+        doc.text("[Electronically Signed]", 20, finalY + 30);
+    }
+
+    const pdfBuffer = doc.output('arraybuffer');
+
+    return c.body(pdfBuffer as any, 200, {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="waiver-${id}.pdf"`
+    });
+});
+
 export default app;
