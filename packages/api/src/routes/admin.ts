@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { users, auditLogs, tenants } from 'db/src/schema'; // Ensure exported
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import { sign } from 'hono/jwt';
 
 type Bindings = {
@@ -121,6 +121,136 @@ app.get('/users', async (c) => {
     }
 
     return c.json(filtered);
+});
+
+// GET /users/:id: Get user details for editing
+app.get('/users/:id', async (c) => {
+    const auth = c.get('auth');
+    const { id: userId } = c.req.param();
+    const db = createDb(c.env.DB);
+
+    // 1. Check System Admin
+    const adminUser = await db.query.users.findFirst({
+        where: eq(users.id, auth.userId)
+    });
+
+    if (!adminUser || !adminUser.isSystemAdmin) {
+        return c.json({ error: "Access Denied" }, 403);
+    }
+
+    // 2. Fetch User with Memberships
+    const user = await db.query.users.findFirst({
+        where: eq(users.id, userId),
+        with: {
+            memberships: {
+                with: {
+                    tenant: true,
+                    roles: true
+                }
+            }
+        }
+    });
+
+    if (!user) {
+        return c.json({ error: "User Not Found" }, 404);
+    }
+
+    return c.json(user);
+});
+
+// PUT /users/:id: Update User (e.g. System Admin status)
+app.put('/users/:id', async (c) => {
+    const auth = c.get('auth');
+    const { id: userId } = c.req.param();
+    const body = await c.req.json();
+    const db = createDb(c.env.DB);
+
+    // 1. Check System Admin
+    const adminUser = await db.query.users.findFirst({
+        where: eq(users.id, auth.userId)
+    });
+
+    if (!adminUser || !adminUser.isSystemAdmin) {
+        return c.json({ error: "Access Denied" }, 403);
+    }
+
+    // 2. Update User
+    await db.update(users)
+        .set({ isSystemAdmin: body.isSystemAdmin })
+        .where(eq(users.id, userId))
+        .run();
+
+    return c.json({ success: true });
+});
+
+// POST /users/:id/memberships: Add user to a tenant
+app.post('/users/:id/memberships', async (c) => {
+    const auth = c.get('auth');
+    const { id: userId } = c.req.param();
+    const { tenantId, role } = await c.req.json();
+    const db = createDb(c.env.DB);
+
+    // 1. Check System Admin
+    const adminUser = await db.query.users.findFirst({
+        where: eq(users.id, auth.userId)
+    });
+    if (!adminUser || !adminUser.isSystemAdmin) return c.json({ error: "Access Denied" }, 403);
+
+    const { tenantMembers, tenantRoles } = await import('db/src/schema');
+
+    // 2. Check if member exists
+    let member = await db.query.tenantMembers.findFirst({
+        where: (members, { and, eq }) => and(eq(members.userId, userId), eq(members.tenantId, tenantId))
+    });
+
+    if (!member) {
+        // Create Member
+        const memberId = crypto.randomUUID();
+        await db.insert(tenantMembers).values({
+            id: memberId,
+            tenantId,
+            userId
+        }).run();
+        member = { id: memberId } as any;
+    }
+
+    // 3. Add Role
+    // Check if role exists
+    const existingRole = await db.query.tenantRoles.findFirst({
+        where: (roles, { and, eq }) => and(eq(roles.memberId, member!.id), eq(roles.role, role))
+    });
+
+    if (!existingRole) {
+        await db.insert(tenantRoles).values({
+            memberId: member!.id,
+            role
+        }).run();
+    }
+
+    return c.json({ success: true });
+});
+
+// DELETE /users/:id/memberships: Remove user from tenant
+app.delete('/users/:id/memberships', async (c) => {
+    const auth = c.get('auth');
+    const { id: userId } = c.req.param();
+    const { tenantId } = await c.req.json();
+    const db = createDb(c.env.DB);
+
+    // 1. Check System Admin
+    const adminUser = await db.query.users.findFirst({
+        where: eq(users.id, auth.userId)
+    });
+    if (!adminUser || !adminUser.isSystemAdmin) return c.json({ error: "Access Denied" }, 403);
+
+    const { tenantMembers } = await import('db/src/schema');
+    // 2. Delete Tenant Member (Cascade should handle roles if configured, otherwise delete roles first)
+    // Assuming Cascade or just deleting member row
+    await db.delete(tenantMembers)
+        .where(and(eq(tenantMembers.userId, userId), eq(tenantMembers.tenantId, tenantId)))
+        .run();
+
+    return c.json({ success: true });
 });
 
 // GET /tenants: List all tenants (System Admin only)

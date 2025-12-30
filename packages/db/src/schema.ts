@@ -235,6 +235,8 @@ export const purchasedPacks = sqliteTable('purchased_packs', {
     packDefinitionId: text('pack_definition_id').notNull().references(() => classPackDefinitions.id),
     initialCredits: integer('initial_credits').notNull(),
     remainingCredits: integer('remaining_credits').notNull(),
+    price: integer('purchased_price_cents').default(0), // Actual price paid
+    stripePaymentId: text('stripe_payment_id'),
     expiresAt: integer('expires_at', { mode: 'timestamp' }),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({

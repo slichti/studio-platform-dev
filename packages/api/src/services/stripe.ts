@@ -79,4 +79,39 @@ export class StripeService {
             stripeAccount: connectedAccountId
         });
     }
+
+    /**
+     * Create Embedded Checkout Session
+     */
+    async createEmbeddedCheckoutSession(
+        connectedAccountId: string,
+        params: {
+            title: string;
+            amount: number;
+            currency: string;
+            returnUrl: string;
+            metadata: Record<string, string>;
+            customerEmail?: string;
+        }
+    ) {
+        return this.stripe.checkout.sessions.create({
+            ui_mode: 'embedded',
+            line_items: [{
+                price_data: {
+                    currency: params.currency,
+                    product_data: {
+                        name: params.title,
+                    },
+                    unit_amount: params.amount,
+                },
+                quantity: 1,
+            }],
+            mode: 'payment',
+            return_url: params.returnUrl,
+            metadata: params.metadata,
+            customer_email: params.customerEmail,
+        }, {
+            stripeAccount: connectedAccountId,
+        });
+    }
 }

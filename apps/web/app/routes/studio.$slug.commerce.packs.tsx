@@ -59,7 +59,7 @@ export const action = async (args: ActionFunctionArgs) => {
 };
 
 export default function ClassPacksPage() {
-    const { packs } = useLoaderData<{ packs: ClassPackDefinition[] }>();
+    const { packs, params } = useLoaderData<{ packs: ClassPackDefinition[]; params: { slug: string } }>();
     const navigation = useNavigation();
     const [isCreating, setIsCreating] = useState(false);
 
@@ -179,6 +179,15 @@ export default function ClassPacksPage() {
                                 </div>
                             )}
                         </div>
+                        <div className="mt-4 pt-4 border-t border-zinc-100">
+                            {/* TODO: Check if user is student */}
+                            <a
+                                href={`/studio/${params.slug}/checkout?packId=${pack.id}`} // Using simple link first, or navigate
+                                className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+                            >
+                                Buy Now
+                            </a>
+                        </div>
                     </div>
                 ))}
                 {packs.length === 0 && !isCreating && (
@@ -197,3 +206,4 @@ export default function ClassPacksPage() {
         </div>
     );
 }
+```

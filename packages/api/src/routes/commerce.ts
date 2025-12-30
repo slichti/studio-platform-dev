@@ -13,6 +13,7 @@ type Variables = {
         userId: string;
     };
     tenant?: any;
+    member?: any;
     roles?: string[];
 }
 
@@ -222,6 +223,69 @@ app.get('/balance', async (c) => {
         });
     } catch (e: any) {
         return c.json({ error: e.message || "Failed to fetch balance" }, 500);
+    }
+});
+
+// POST /commerce/checkout/session: Create Embedded Checkout Session
+app.post('/checkout/session', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const auth = c.get('auth');
+    const member = c.get('member');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+    if (!auth.userId) return c.json({ error: 'Authentication required' }, 401);
+    if (!tenant.stripeAccountId) return c.json({ error: 'Stripe not connected for this studio' }, 400);
+
+    const { packId } = await c.req.json();
+    if (!packId) return c.json({ error: 'Pack ID required' }, 400);
+
+    // 1. Fetch Pack to Validate Price
+    const packDef = await db.query.classPackDefinitions.findFirst({
+        where: and(eq(classPackDefinitions.id, packId), eq(classPackDefinitions.tenantId, tenant.id))
+    });
+
+    if (!packDef || !packDef.active) return c.json({ error: 'Class Pack not available' }, 404);
+
+    // 2. Create Stripe Session
+    const stripeKey = (c.env as any).STRIPE_SECRET_KEY;
+    if (!stripeKey) return c.json({ error: 'Server Config Error' }, 500);
+
+    const stripeService = new StripeService(stripeKey);
+
+    try {
+        // Need user email for receipt
+        const user = await db.query.users.findFirst({ where: eq(users.id, auth.userId) });
+
+        // IMPORTANT: Embedded Checkout requires specific mode and ui_mode
+        // StripeService needs updating or we use raw stripe call here if it is simpler, 
+        // but let's try to update StripeService method if needed or use it if flexible.
+        // The existing createCheckoutSession method is designed for hosted page (success_url).
+        // Embedded requires 'ui_mode: embedded' and 'return_url'.
+
+        // We will call raw Stripe instance creation here or add a new method to service?
+        // Let's add specific logic here invoking the service wrapper cleanly.
+        // Actually, let's extend the service in next step or use what we have if compatible.
+        // For embedded, we need a clientSecret.
+
+        const session = await stripeService.createEmbeddedCheckoutSession(tenant.stripeAccountId, {
+            title: packDef.name,
+            amount: packDef.price || 0,
+            currency: 'usd', // stored packs usually don't have currency column yet or default USD
+            returnUrl: `${c.req.header('origin')}/studio/${tenant.slug}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
+            metadata: {
+                tenantId: tenant.id,
+                userId: auth.userId,
+                memberId: member?.id || 'new_member', // Handle non-members if we want to auto-join? For now assume member exists or we fix in webhook.
+                packId: packId,
+                type: 'pack'
+            },
+            customerEmail: user?.email
+        });
+
+        return c.json({ clientSecret: session.client_secret });
+    } catch (e: any) {
+        console.error("Checkout Error:", e);
+        return c.json({ error: e.message }, 500);
     }
 });
 
