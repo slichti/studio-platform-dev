@@ -50,7 +50,24 @@ app.get('/', async (c) => {
         ) as any;
     }
 
-    const results = await db.select().from(classes).where(conditions);
+    const results = await db.query.classes.findMany({
+        where: conditions,
+        with: {
+            location: true,
+            instructor: {
+                with: {
+                    user: {
+                        columns: {
+                            id: true,
+                            email: true,
+                            profile: true
+                        }
+                    }
+                }
+            }
+        },
+        orderBy: (classes, { asc }) => [asc(classes.startTime)]
+    });
     return c.json(results);
 });
 
@@ -338,3 +355,55 @@ app.get('/:id/bookings', async (c) => {
 });
 
 export default app;
+
+app.patch('/:id/bookings/:bookingId/check-in', async (c) => {
+    const db = createDb(c.env.DB);
+    const { id: classId, bookingId } = c.req.param();
+
+    // RBAC
+    const roles = c.get('roles') || [];
+    if (!roles.includes('instructor') && !roles.includes('owner')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+
+    try {
+        const body = await c.req.json();
+        const checkedIn = body.checkedIn; // true or false
+
+        await db.update(bookings)
+            .set({ checkedInAt: checkedIn ? new Date() : null })
+            .where(eq(bookings.id, bookingId))
+            .run();
+
+        return c.json({ success: true, checkedIn });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
+app.post('/:id/bookings/:bookingId/cancel', async (c) => {
+    const db = createDb(c.env.DB);
+    const { id: classId, bookingId } = c.req.param();
+
+    // RBAC - Owner/Instructor can cancel any; Student can cancel their own? 
+    // For this route let's assume Instructor context management.
+    const roles = c.get('roles') || [];
+    if (!roles.includes('instructor') && !roles.includes('owner')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+
+    try {
+        // Find booking to restore credits?
+        // TODO: Restore credit logic if it was paid with a pack. 
+        // For MVP just mark cancelled.
+
+        await db.update(bookings)
+            .set({ status: 'cancelled' })
+            .where(eq(bookings.id, bookingId))
+            .run();
+
+        return c.json({ success: true, status: 'cancelled' });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});

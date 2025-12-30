@@ -1,13 +1,61 @@
 import { Hono } from 'hono';
+import { createDb } from '../db';
+import { locations } from 'db/src/schema'; // adjustments might be needed based on exports
+import { eq, and } from 'drizzle-orm';
+// @ts-ignore
+import { tenantMiddleware } from '../middleware/tenant';
 
-const app = new Hono();
+type Bindings = {
+    DB: D1Database;
+};
 
-app.post('/', (c) => {
-    return c.text('Create Location');
+type Variables = {
+    tenant: any;
+}
+
+const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
+
+app.use('*', tenantMiddleware);
+
+// GET /: List locations
+app.get('/', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+
+    const allLocations = await db.select().from(locations).where(eq(locations.tenantId, tenant.id));
+    return c.json({ locations: allLocations });
 });
 
-app.get('/', (c) => {
-    return c.text('List Locations');
+// POST /: Create location
+app.post('/', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const { name, address, timezone } = await c.req.json();
+
+    if (!name) return c.json({ error: "Name is required" }, 400);
+
+    const id = crypto.randomUUID();
+    await db.insert(locations).values({
+        id,
+        tenantId: tenant.id,
+        name,
+        address,
+        timezone: timezone || 'UTC'
+    });
+
+    return c.json({ success: true, id });
+});
+
+// DELETE /:id : Delete location
+app.delete('/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const id = c.req.param('id');
+
+    // TODO: Check if classes exist for this location before deleting
+    await db.delete(locations).where(and(eq(locations.id, id), eq(locations.tenantId, tenant.id)));
+
+    return c.json({ success: true });
 });
 
 export default app;

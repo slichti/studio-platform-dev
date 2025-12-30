@@ -6,11 +6,11 @@ import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
 import { useState, useCallback } from "react";
 import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
-import format from "date-fns/format";
-import parse from "date-fns/parse";
-import startOfWeek from "date-fns/startOfWeek";
-import getDay from "date-fns/getDay";
-import enUS from "date-fns/locale/en-US";
+import { format } from "date-fns/format";
+import { parse } from "date-fns/parse";
+import { startOfWeek } from "date-fns/startOfWeek";
+import { getDay } from "date-fns/getDay";
+import { enUS } from "date-fns/locale/en-US";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { CreateClassModal } from "../components/CreateClassModal";
 import { Plus } from "lucide-react";
@@ -29,24 +29,35 @@ const localizer = dateFnsLocalizer({
 });
 
 export const loader = async (args: LoaderFunctionArgs) => {
+    const { params } = args;
     const { getToken, userId } = await getAuth(args);
     if (!userId) {
-        return { classes: [], error: "Unauthorized" };
+        return { classes: [], locations: [], instructors: [], error: "Unauthorized" };
     }
     const token = await getToken();
 
-    // Fetch classes
+    // Fetch classes, locations, and instructors parallel
     try {
-        const classes = await apiRequest("/classes", token);
-        return { classes: classes || [], error: null };
+        const [classes, locationsRes, instructorsRes] = await Promise.all([
+            apiRequest("/classes", token),
+            apiRequest("/locations", token, { headers: { 'X-Tenant-Slug': params.slug! } }),
+            apiRequest("/members?role=instructor", token, { headers: { 'X-Tenant-Slug': params.slug! } })
+        ]);
+
+        return {
+            classes: classes || [],
+            locations: (locationsRes as any).locations || [],
+            instructors: (instructorsRes as any).members || [],
+            error: null
+        };
     } catch (e: any) {
-        console.error("Failed to fetch classes", e);
-        return { classes: [], error: "Failed to load schedule" };
+        console.error("Failed to fetch schedule data", e);
+        return { classes: [], locations: [], instructors: [], error: "Failed to load schedule" };
     }
 };
 
 export default function StudioSchedule() {
-    const { classes: initialClasses, error } = useLoaderData<any>();
+    const { classes: initialClasses, locations, instructors, error } = useLoaderData<any>();
     const { tenant } = useOutletContext<any>() || {};
     const [classes, setClasses] = useState(initialClasses || []);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -123,6 +134,8 @@ export default function StudioSchedule() {
                 onClose={() => setIsCreateOpen(false)}
                 onSuccess={handleCreateSuccess}
                 tenantId={tenant?.id}
+                locations={locations}
+                instructors={instructors}
             />
         </div>
     );

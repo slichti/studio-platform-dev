@@ -41,7 +41,7 @@ export default function StudioPublicClasses() {
     const navigation = useNavigation();
 
     // Helper to group classes by date
-    const grouped = classes.reduce((acc, cls) => {
+    const grouped = classes.reduce((acc: Record<string, ClassEvent[]>, cls: ClassEvent) => {
         const date = new Date(cls.startTime).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
         if (!acc[date]) acc[date] = [];
         acc[date].push(cls);
@@ -75,13 +75,19 @@ export default function StudioPublicClasses() {
                         <div key={date}>
                             <h3 className="text-lg font-bold text-zinc-900 mb-3 sticky top-0 bg-zinc-50/95 py-2 backdrop-blur">{date}</h3>
                             <div className="space-y-3">
-                                {events.map(cls => (
+                                {events.map((cls: ClassEvent) => (
                                     <div key={cls.id} className="bg-white p-4 rounded-lg border border-zinc-200 shadow-sm hover:border-zinc-300 transition-colors flex justify-between items-center">
                                         <div>
                                             <div className="font-bold text-zinc-900">{cls.title}</div>
-                                            <div className="text-sm text-zinc-500">
-                                                {new Date(cls.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {cls.durationMinutes} min
-                                                {cls.price > 0 && ` • $${(cls.price / 100).toFixed(2)}`}
+                                            <div className="text-sm text-zinc-500 flex flex-wrap gap-x-3">
+                                                <span>{new Date(cls.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {cls.durationMinutes} min</span>
+                                                {(cls as any).instructor?.user?.profile && (
+                                                    <span>with {(cls as any).instructor.user.profile.firstName}</span>
+                                                )}
+                                                {(cls as any).location && (
+                                                    <span className="text-zinc-400">@ {(cls as any).location.name}</span>
+                                                )}
+                                                {cls.price > 0 && <span>• ${(cls.price / 100).toFixed(2)}</span>}
                                             </div>
                                         </div>
                                         <div>

@@ -1,9 +1,10 @@
 // @ts-ignore
-import type { LoaderFunctionArgs } from "react-router";
+import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 // @ts-ignore
-import { useLoaderData, Link, useParams } from "react-router";
+import { useLoaderData, Link, useParams, useFetcher } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
+import { Check, X } from "lucide-react";
 
 type Booking = {
     id: string;
@@ -15,6 +16,37 @@ type Booking = {
     };
     createdAt: string;
     memberId: string;
+    checkedInAt: string | null;
+};
+
+export const action = async (args: ActionFunctionArgs) => {
+    const { request, params } = args;
+    const { getToken } = await getAuth(args);
+    const token = await getToken();
+    const formData = await request.formData();
+    const intent = formData.get("intent");
+    const bookingId = formData.get("bookingId");
+    const classId = params.id;
+
+    if (intent === "check_in") {
+        const checkedIn = formData.get("checkedIn") === "true";
+        await apiRequest(`/classes/${classId}/bookings/${bookingId}/check-in`, token, {
+            method: "PATCH",
+            headers: { 'X-Tenant-Slug': params.slug! },
+            body: JSON.stringify({ checkedIn })
+        });
+        return { success: true };
+    }
+
+    if (intent === "cancel_booking") {
+        await apiRequest(`/classes/${classId}/bookings/${bookingId}/cancel`, token, {
+            method: "POST",
+            headers: { 'X-Tenant-Slug': params.slug! }
+        });
+        return { success: true };
+    }
+
+    return null;
 };
 
 export const loader = async (args: LoaderFunctionArgs) => {
@@ -28,10 +60,6 @@ export const loader = async (args: LoaderFunctionArgs) => {
             headers: { 'X-Tenant-Slug': slug! }
         });
 
-        // Fetch Class Details (for title/context) - Optional but good for UI
-        // We can reuse the list endpoint filtering or add a GET /classes/:id endpoint.
-        // For now, let's just show bookings.
-
         return { bookings };
     } catch (e: any) {
         console.error("Failed to load roster", e);
@@ -42,6 +70,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 export default function StudioClassRoster() {
     const { bookings } = useLoaderData<{ bookings: Booking[] }>();
     const { slug } = useParams();
+    const fetcher = useFetcher();
 
     return (
         <div>
@@ -64,6 +93,7 @@ export default function StudioClassRoster() {
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Email</th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Booked At</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Attendance</th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
@@ -93,15 +123,54 @@ export default function StudioClassRoster() {
                                     {new Date(booking.createdAt).toLocaleDateString()}
                                 </td>
                                 <td className="px-6 py-4">
-                                    <button className="text-red-600 hover:text-red-800 text-xs font-medium">
-                                        Cancel
-                                    </button>
+                                    <fetcher.Form method="post">
+                                        <input type="hidden" name="bookingId" value={booking.id} />
+                                        <input type="hidden" name="intent" value="check_in" />
+                                        {booking.checkedInAt ? (
+                                            <button
+                                                name="checkedIn"
+                                                value="false"
+                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 hover:bg-green-200"
+                                            >
+                                                <Check size={12} />
+                                                Checked In
+                                            </button>
+                                        ) : (
+                                            <button
+                                                name="checkedIn"
+                                                value="true"
+                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-zinc-100 text-zinc-500 hover:bg-zinc-200"
+                                                disabled={booking.status === 'cancelled'}
+                                            >
+                                                Mark Present
+                                            </button>
+                                        )}
+                                    </fetcher.Form>
+                                </td>
+                                <td className="px-6 py-4">
+                                    {booking.status !== 'cancelled' ? (
+                                        <fetcher.Form
+                                            method="post"
+                                            onSubmit={(e) => {
+                                                if (!confirm("Are you sure you want to cancel this booking?")) e.preventDefault();
+                                            }}
+                                        >
+                                            <input type="hidden" name="intent" value="cancel_booking" />
+                                            <input type="hidden" name="bookingId" value={booking.id} />
+                                            <button className="text-red-600 hover:text-red-800 text-xs font-medium flex items-center gap-1">
+                                                <X size={12} />
+                                                Cancel
+                                            </button>
+                                        </fetcher.Form>
+                                    ) : (
+                                        <span className="text-zinc-400 text-xs italic">Cancelled</span>
+                                    )}
                                 </td>
                             </tr>
                         ))}
                         {bookings.length === 0 && (
                             <tr>
-                                <td colSpan={5} className="px-6 py-12 text-center text-zinc-500">
+                                <td colSpan={6} className="px-6 py-12 text-center text-zinc-500">
                                     No bookings yet.
                                 </td>
                             </tr>

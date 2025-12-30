@@ -1,18 +1,70 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 // @ts-ignore
-import { useOutletContext } from "react-router";
+import { useOutletContext, useLoaderData, Form, useNavigation, useSubmit } from "react-router";
+// @ts-ignore
+import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router"; // Add types
 import { apiRequest } from "../utils/api";
 import { getAuth } from "@clerk/react-router/ssr.server";
+import { Plus, Trash2, MapPin } from "lucide-react";
+
+export const loader = async (args: LoaderFunctionArgs) => {
+    const { params } = args;
+    const { getToken } = await getAuth(args);
+    const token = await getToken();
+
+    const res: any = await apiRequest(`/locations`, token, {
+        headers: { 'X-Tenant-Slug': params.slug! }
+    });
+
+    return { locations: res.locations || [] };
+};
+
+export const action = async (args: ActionFunctionArgs) => {
+    const { request, params } = args;
+    const { getToken } = await getAuth(args);
+    const token = await getToken();
+    const formData = await request.formData();
+    const intent = formData.get("intent");
+
+    if (intent === "create_location") {
+        const name = formData.get("name");
+        const address = formData.get("address");
+
+        await apiRequest(`/locations`, token, {
+            method: "POST",
+            headers: { 'X-Tenant-Slug': params.slug! },
+            body: JSON.stringify({ name, address })
+        });
+        return { success: true };
+    }
+
+    if (intent === "delete_location") {
+        const id = formData.get("id");
+        await apiRequest(`/locations/${id}`, token, {
+            method: "DELETE",
+            headers: { 'X-Tenant-Slug': params.slug! }
+        });
+        return { success: true };
+    }
+
+    return null;
+}
 
 export default function StudioSettings() {
     const { tenant } = useOutletContext<any>();
+    const { locations } = useLoaderData<{ locations: any[] }>();
+    const navigation = useNavigation();
 
+    // Studio Name State
     const [name, setName] = useState(tenant.name || '');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
 
-    const handleSave = async (e: React.FormEvent) => {
+    // Location State
+    const [isAddingLocation, setIsAddingLocation] = useState(false);
+
+    const handleSaveName = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
@@ -36,59 +88,130 @@ export default function StudioSettings() {
     };
 
     return (
-        <div>
-            <div style={{ marginBottom: '24px' }}>
-                <h1 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px' }}>Studio Settings</h1>
+        <div className="max-w-4xl pb-10">
+            <div className="mb-8">
+                <h1 className="text-2xl font-bold text-zinc-900">Studio Settings</h1>
             </div>
 
-            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '24px', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}>
+            {/* General Settings */}
+            <div className="bg-white border border-zinc-200 rounded-lg p-6 shadow-sm mb-8">
+                <h2 className="text-lg font-semibold mb-4">General Information</h2>
+
                 {error && (
-                    <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '12px', borderRadius: '6px', marginBottom: '16px', fontSize: '0.9rem' }}>
+                    <div className="bg-red-50 text-red-600 p-3 rounded mb-4 text-sm">
                         {error}
                     </div>
                 )}
 
                 {success && (
-                    <div style={{ background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', padding: '12px', borderRadius: '6px', marginBottom: '16px', fontSize: '0.9rem' }}>
+                    <div className="bg-green-50 text-green-600 p-3 rounded mb-4 text-sm">
                         {success}
                     </div>
                 )}
 
-                <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <form onSubmit={handleSaveName} className="space-y-4">
                     <div>
-                        <label style={{ display: 'block', textTransform: 'uppercase', color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '600', letterSpacing: '0.05em', marginBottom: '8px' }}>
+                        <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">
                             Studio Name
                         </label>
                         <input
                             type="text"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            style={{ width: '100%', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px', fontSize: '1rem', outline: 'none', transition: 'border-color 0.2s' }}
+                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
                             placeholder="Enter studio name"
                         />
                     </div>
 
-                    <div style={{ paddingTop: '10px' }}>
+                    <div className="pt-2">
                         <button
                             type="submit"
                             disabled={loading}
-                            style={{
-                                background: 'var(--accent)',
-                                color: 'white',
-                                padding: '10px 20px',
-                                borderRadius: '6px',
-                                border: 'none',
-                                fontWeight: '600',
-                                fontSize: '0.95rem',
-                                cursor: loading ? 'not-allowed' : 'pointer',
-                                opacity: loading ? 0.7 : 1,
-                                transition: 'opacity 0.2s'
-                            }}
+                            className="bg-zinc-900 text-white px-4 py-2 rounded-md font-medium text-sm hover:bg-zinc-800 disabled:opacity-70"
                         >
                             {loading ? 'Saving...' : 'Save Changes'}
                         </button>
                     </div>
                 </form>
+            </div>
+
+            {/* Locations */}
+            <div className="bg-white border border-zinc-200 rounded-lg p-6 shadow-sm">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-lg font-semibold">Locations</h2>
+                    <button
+                        onClick={() => setIsAddingLocation(true)}
+                        className="flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-800"
+                    >
+                        <Plus className="h-4 w-4" />
+                        Add Location
+                    </button>
+                </div>
+
+                {isAddingLocation && (
+                    <div className="bg-zinc-50 border border-zinc-200 rounded p-4 mb-6">
+                        <h3 className="text-sm font-semibold mb-3">New Location</h3>
+                        <Form method="post" onSubmit={() => setIsAddingLocation(false)}>
+                            <input type="hidden" name="intent" value="create_location" />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label className="block text-xs text-zinc-500 mb-1">Name</label>
+                                    <input name="name" required placeholder="e.g. Main Studio" className="w-full text-sm border-zinc-300 rounded px-3 py-2" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-zinc-500 mb-1">Address (Optional)</label>
+                                    <input name="address" placeholder="123 Yoga St" className="w-full text-sm border-zinc-300 rounded px-3 py-2" />
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAddingLocation(false)}
+                                    className="px-3 py-1.5 text-xs border border-zinc-300 rounded hover:bg-zinc-100"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                                >
+                                    Save Location
+                                </button>
+                            </div>
+                        </Form>
+                    </div>
+                )}
+
+                <div className="space-y-3">
+                    {locations.length === 0 ? (
+                        <div className="text-center py-8 text-zinc-500 text-sm italic">
+                            No locations added yet.
+                        </div>
+                    ) : (
+                        locations.map((loc: any) => (
+                            <div key={loc.id} className="flex items-center justify-between p-4 border border-zinc-100 rounded hover:bg-zinc-50 transition-colors">
+                                <div className="flex items-start gap-3">
+                                    <div className="mt-1 p-2 bg-blue-50 text-blue-600 rounded">
+                                        <MapPin className="h-4 w-4" />
+                                    </div>
+                                    <div>
+                                        <div className="font-medium text-zinc-900">{loc.name}</div>
+                                        {loc.address && <div className="text-sm text-zinc-500">{loc.address}</div>}
+                                    </div>
+                                </div>
+                                <Form method="post" onSubmit={(e: React.FormEvent) => {
+                                    if (!confirm("Delete this location?")) e.preventDefault();
+                                }}>
+                                    <input type="hidden" name="intent" value="delete_location" />
+                                    <input type="hidden" name="id" value={loc.id} />
+                                    <button className="text-zinc-400 hover:text-red-600 p-2 rounded hover:bg-zinc-100">
+                                        <Trash2 className="h-4 w-4" />
+                                    </button>
+                                </Form>
+                            </div>
+                        ))
+                    )}
+                </div>
             </div>
         </div>
     );

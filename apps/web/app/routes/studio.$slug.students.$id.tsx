@@ -29,6 +29,7 @@ type Member = {
         id: string;
         status: string;
         createdAt: string;
+        checkedInAt: string | null;
         class?: {
             title: string;
             startTime: string;
@@ -122,7 +123,7 @@ export const action = async (args: ActionFunctionArgs) => {
         if (!note) return { error: "Note cannot be empty" };
 
         try {
-            const res = await apiRequest(`/members/${memberId}/notes`, token, {
+            const res: any = await apiRequest(`/members/${memberId}/notes`, token, {
                 method: "POST",
                 headers: { 'X-Tenant-Slug': params.slug! },
                 body: JSON.stringify({ note })
@@ -137,7 +138,7 @@ export const action = async (args: ActionFunctionArgs) => {
     if (intent === "delete_note") {
         const noteId = formData.get("noteId") as string;
         try {
-            const res = await apiRequest(`/members/${memberId}/notes/${noteId}`, token, {
+            const res: any = await apiRequest(`/members/${memberId}/notes/${noteId}`, token, {
                 method: "DELETE",
                 headers: { 'X-Tenant-Slug': params.slug! }
             });
@@ -152,7 +153,7 @@ export const action = async (args: ActionFunctionArgs) => {
         const noteId = formData.get("noteId") as string;
         const note = formData.get("note") as string;
         try {
-            const res = await apiRequest(`/members/${memberId}/notes/${noteId}`, token, {
+            const res: any = await apiRequest(`/members/${memberId}/notes/${noteId}`, token, {
                 method: "PUT",
                 headers: { 'X-Tenant-Slug': params.slug! },
                 body: JSON.stringify({ note })
@@ -167,10 +168,30 @@ export const action = async (args: ActionFunctionArgs) => {
     if (intent === "assign_pack") {
         const packId = formData.get("packId") as string;
         try {
-            const res = await apiRequest(`/commerce/purchase`, token, {
+            const res: any = await apiRequest(`/commerce/purchase`, token, {
                 method: "POST",
                 headers: { 'X-Tenant-Slug': params.slug! },
                 body: JSON.stringify({ memberId, packId })
+            });
+            if (res.error) return { error: res.error };
+            return { success: true };
+        } catch (e: any) {
+            return { error: e.message };
+        }
+    }
+
+    if (intent === "update_profile") {
+        const firstName = formData.get("firstName") as string;
+        const lastName = formData.get("lastName") as string;
+        const phone = formData.get("phone") as string;
+
+        try {
+            // Update Member Profile (Studio Specific, if we had that, but here we likely update Global User or Member specific overrides)
+            // For now assuming we update the member endpoint which handles profile updates
+            const res: any = await apiRequest(`/members/${memberId}`, token, {
+                method: "PUT",
+                headers: { 'X-Tenant-Slug': params.slug! },
+                body: JSON.stringify({ firstName, lastName, phone })
             });
             if (res.error) return { error: res.error };
             return { success: true };
@@ -189,6 +210,8 @@ export default function StudentProfile() {
     const [activeTab, setActiveTab] = useState("overview");
     const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
     const [isAssigningPack, setIsAssigningPack] = useState(false);
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [showActions, setShowActions] = useState(false);
 
     const fullName = [userProfile.firstName, userProfile.lastName].filter(Boolean).join(" ") || member.user.email;
     const rolesStr = member.roles.map(r => r.role).join(", ") || "Student";
@@ -196,16 +219,39 @@ export default function StudentProfile() {
     // Calculate Credits
     const totalCredits = (member.purchasedPacks || []).reduce((acc: number, p: any) => acc + p.remainingCredits, 0);
 
+    // Calculate No Shows
+    const noShows = member.bookings.filter((b: any) => {
+        if (b.status !== 'confirmed') return false;
+        // Past class
+        const isPast = new Date(b.class?.startTime || b.createdAt) < new Date();
+        // Not checked in
+        const notCheckedIn = !b.checkedInAt;
+        return isPast && notCheckedIn;
+    }).length;
+
+    // Membership Status
+    const hasActiveMembership = member.memberships.some((m: any) => m.status === 'active');
+    const membershipStatus = hasActiveMembership ? 'Active' : 'Inactive';
+
     return (
         <div className="max-w-5xl mx-auto pb-10">
             {/* Header */}
             <div className="flex items-start justify-between mb-8">
                 <div className="flex items-center gap-4">
-                    <div className="h-20 w-20 bg-zinc-100 rounded-full flex items-center justify-center border border-zinc-200">
-                        <User className="h-8 w-8 text-zinc-400" />
+                    <div className="h-20 w-20 bg-zinc-100 rounded-full flex items-center justify-center border border-zinc-200 overflow-hidden relative">
+                        {userProfile.portraitUrl ? (
+                            <img src={userProfile.portraitUrl} alt={fullName} className="h-full w-full object-cover" />
+                        ) : (
+                            <User className="h-8 w-8 text-zinc-400" />
+                        )}
                     </div>
                     <div>
-                        <h1 className="text-3xl font-bold text-zinc-900">{fullName}</h1>
+                        <div className="flex items-center gap-3">
+                            <h1 className="text-3xl font-bold text-zinc-900">{fullName}</h1>
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${hasActiveMembership ? 'bg-green-100 text-green-800 border-green-200' : 'bg-zinc-100 text-zinc-600 border-zinc-200'}`}>
+                                {membershipStatus}
+                            </span>
+                        </div>
                         <div className="flex items-center gap-2 mt-1 text-zinc-500 text-sm">
                             <Mail className="h-4 w-4" />
                             <span>{member.user.email}</span>
@@ -219,15 +265,90 @@ export default function StudentProfile() {
                         </div>
                     </div>
                 </div>
-                <div className="flex gap-2">
-                    <button className="px-3 py-2 border border-zinc-300 rounded-md text-sm font-medium hover:bg-zinc-50">
+                <div className="flex gap-2 relative">
+                    <button
+                        onClick={() => setIsEditingProfile(true)}
+                        className="px-3 py-2 border border-zinc-300 rounded-md text-sm font-medium hover:bg-zinc-50"
+                    >
                         Edit Profile
                     </button>
-                    <button className="px-3 py-2 bg-zinc-900 text-white rounded-md text-sm font-medium hover:bg-zinc-800">
-                        Actions
-                    </button>
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowActions(!showActions)}
+                            className="px-3 py-2 bg-zinc-900 text-white rounded-md text-sm font-medium hover:bg-zinc-800 flex items-center gap-2"
+                        >
+                            Actions
+                            <MoreHorizontal className="h-4 w-4" />
+                        </button>
+                        {showActions && (
+                            <div className="absolute right-0 mt-2 w-48 bg-white border border-zinc-200 rounded-md shadow-lg z-10 py-1">
+                                <button className="block w-full text-left px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50">Reset Password</button>
+                                <button className="block w-full text-left px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50">Send Email</button>
+                                <div className="border-t border-zinc-100 my-1"></div>
+                                <button className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">Deactivate Member</button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
+
+            {/* Edit Profile Modal */}
+            {isEditingProfile && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+                        <h2 className="text-lg font-bold mb-4">Edit Profile</h2>
+                        <Form method="post" onSubmit={() => setIsEditingProfile(false)}>
+                            <input type="hidden" name="intent" value="update_profile" />
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-zinc-700 mb-1">First Name</label>
+                                        <input
+                                            type="text"
+                                            name="firstName"
+                                            defaultValue={userProfile.firstName}
+                                            className="w-full px-3 py-2 border border-zinc-300 rounded-md text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-zinc-700 mb-1">Last Name</label>
+                                        <input
+                                            type="text"
+                                            name="lastName"
+                                            defaultValue={userProfile.lastName}
+                                            className="w-full px-3 py-2 border border-zinc-300 rounded-md text-sm"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 mb-1">Phone</label>
+                                    <input
+                                        type="tel"
+                                        name="phone"
+                                        defaultValue={userProfile.phone}
+                                        className="w-full px-3 py-2 border border-zinc-300 rounded-md text-sm"
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-3 mt-6">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsEditingProfile(false)}
+                                    className="px-4 py-2 text-sm border border-zinc-300 rounded-md hover:bg-zinc-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-4 py-2 text-sm bg-zinc-900 text-white rounded-md hover:bg-zinc-800"
+                                >
+                                    Save Changes
+                                </button>
+                            </div>
+                        </Form>
+                    </div>
+                </div>
+            )}
 
             {/* Tabs */}
             <div className="flex border-b border-zinc-200 mb-6">
@@ -267,7 +388,13 @@ export default function StudentProfile() {
                                         <div className="text-xs text-zinc-500 uppercase tracking-wide mt-1">Available Credits</div>
                                     </div>
                                     <div className="p-4 bg-zinc-50 rounded border border-zinc-100">
-                                        <div className="text-2xl font-bold text-green-600">Active</div>
+                                        <div className="text-2xl font-bold text-red-600">{noShows}</div>
+                                        <div className="text-xs text-zinc-500 uppercase tracking-wide mt-1">No Shows</div>
+                                    </div>
+                                    <div className="p-4 bg-zinc-50 rounded border border-zinc-100">
+                                        <div className={`text-2xl font-bold ${hasActiveMembership ? 'text-green-600' : 'text-zinc-400'}`}>
+                                            {membershipStatus}
+                                        </div>
                                         <div className="text-xs text-zinc-500 uppercase tracking-wide mt-1">Membership Status</div>
                                     </div>
                                 </div>
@@ -543,159 +670,4 @@ export default function StudentProfile() {
     );
 }
 
-{
-    activeTab === "attendance" && (
-        <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm">
-            <table className="w-full text-left text-sm">
-                <thead className="bg-zinc-50 border-b border-zinc-200">
-                    <tr>
-                        <th className="px-4 py-3 font-medium text-zinc-500">Date</th>
-                        <th className="px-4 py-3 font-medium text-zinc-500">Class</th>
-                        <th className="px-4 py-3 font-medium text-zinc-500">Status</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100">
-                    {member.bookings.length === 0 ? (
-                        <tr>
-                            <td colSpan={3} className="px-4 py-8 text-center text-zinc-400">No attendance history</td>
-                        </tr>
-                    ) : (
-                        member.bookings.map(booking => (
-                            <tr key={booking.id} className="hover:bg-zinc-50">
-                                <td className="px-4 py-3 text-zinc-600">
-                                    {format(new Date(booking.createdAt), "MMM d, yyyy h:mm a")}
-                                </td>
-                                <td className="px-4 py-3 text-zinc-900 font-medium">
-                                    {booking.class?.title || "Unknown Class"}
-                                </td>
-                                <td className="px-4 py-3">
-                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize
-                                                    ${booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                                            booking.status === 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                        {booking.status}
-                                    </span>
-                                </td>
-                            </tr>
-                        ))
-                    )}
-                </tbody>
-            </table>
-        </div>
-    )
-}
 
-{
-    activeTab === "notes" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Note Input */}
-            <div>
-                <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-4 mb-6">
-                    <h3 className="font-semibold text-sm mb-3">Add Note</h3>
-                    <Form method="post">
-                        <input type="hidden" name="intent" value="add_note" />
-                        <textarea
-                            name="note"
-                            rows={4}
-                            className="w-full border border-zinc-300 rounded p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none mb-3 bg-white"
-                            placeholder="Enter confidential notes about this student..."
-                            required
-                        />
-                        <div className="flex justify-end">
-                            <button
-                                type="submit"
-                                disabled={navigation.state === "submitting"}
-                                className="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
-                            >
-                                {navigation.state === "submitting" ? "Saving..." : "Save Note"}
-                            </button>
-                        </div>
-                    </Form>
-                </div>
-            </div>
-
-            {/* Note List */}
-            <div className="space-y-4">
-                {notes.length === 0 ? (
-                    <div className="text-center text-zinc-400 py-10 italic">No notes added yet.</div>
-                ) : (
-                    notes.map(note => (
-                        <div key={note.id} className="bg-white border border-zinc-200 rounded-lg p-4 shadow-sm relative group">
-                            {editingNoteId === note.id ? (
-                                <Form method="post" onSubmit={() => setEditingNoteId(null)}>
-                                    <input type="hidden" name="intent" value="edit_note" />
-                                    <input type="hidden" name="noteId" value={note.id} />
-                                    <textarea
-                                        name="note"
-                                        defaultValue={note.note}
-                                        rows={3}
-                                        className="w-full border border-zinc-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none mb-2"
-                                        required
-                                        autoFocus
-                                    />
-                                    <div className="flex justify-end gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => setEditingNoteId(null)}
-                                            className="px-3 py-1 text-xs border border-zinc-300 rounded hover:bg-zinc-50"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                                        >
-                                            Save
-                                        </button>
-                                    </div>
-                                </Form>
-                            ) : (
-                                <>
-                                    <div className="text-sm text-zinc-800 whitespace-pre-wrap pr-8">{note.note}</div>
-
-                                    {/* Actions */}
-                                    <div className="absolute top-2 right-2 flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button
-                                            onClick={() => setEditingNoteId(note.id)}
-                                            className="p-1.5 text-zinc-400 hover:text-blue-600 hover:bg-zinc-50 rounded"
-                                            title="Edit"
-                                        >
-                                            <Pencil className="h-3.5 w-3.5" />
-                                        </button>
-                                        <Form method="post" onSubmit={(e) => {
-                                            if (!confirm("Are you sure you want to delete this note?")) {
-                                                e.preventDefault();
-                                            }
-                                        }}>
-                                            <input type="hidden" name="intent" value="delete_note" />
-                                            <input type="hidden" name="noteId" value={note.id} />
-                                            <button
-                                                type="submit"
-                                                className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-zinc-50 rounded"
-                                                title="Delete"
-                                            >
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                            </button>
-                                        </Form>
-                                    </div>
-
-                                    <div className="mt-3 flex items-center justify-between text-xs text-zinc-400 border-t border-zinc-50 pt-2">
-                                        <span>
-                                            Added by {note.author?.user?.profile?.firstName || note.author?.user?.email || "Unknown Staff"}
-                                        </span>
-                                        <span>
-                                            {format(new Date(note.createdAt), "MMM d, yyyy")}
-                                        </span>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    ))
-                )}
-            </div>
-        </div>
-    )
-}
-            </div >
-        </div >
-    );
-}

@@ -7,10 +7,12 @@ interface CreateClassModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: (newClass: any) => void;
-    tenantId?: string; // If needed for creating
+    tenantId?: string;
+    locations?: any[];
+    instructors?: any[];
 }
 
-export function CreateClassModal({ isOpen, onClose, onSuccess }: CreateClassModalProps) {
+export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], instructors = [] }: CreateClassModalProps) {
     const { getToken } = useAuth();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
@@ -18,7 +20,8 @@ export function CreateClassModal({ isOpen, onClose, onSuccess }: CreateClassModa
     const [formData, setFormData] = useState({
         name: "",
         description: "",
-        instructorId: "", // TODO: Fetch instructors to populate dropdown
+        instructorId: "",
+        locationId: "",
         startTime: "",
         durationMinutes: 60,
         capacity: 20,
@@ -39,25 +42,17 @@ export function CreateClassModal({ isOpen, onClose, onSuccess }: CreateClassModa
             let recurrenceRule = undefined;
             if (formData.isRecurring) {
                 const { RRule } = await import("rrule");
-                const rule = new RRule({
-                    freq: formData.recurrencePattern === "weekly" ? RRule.WEEKLY : RRule.DAILY,
-                    interval: 1, // Defaulting to 1 for now
-                    // End date handling is often done via 'until', but API separates it. 
-                    // Let's generate the basic rule string like "FREQ=WEEKLY"
-                });
-                // RRule toString() often includes newline. We just want the options string.
-                // Or simpler: strictly constructing string
+                // const rule = new RRule({ ... }); // unused
                 recurrenceRule = formData.recurrencePattern === "weekly" ? "FREQ=WEEKLY" : "FREQ=DAILY";
-                // If we want exact days (e.g. MO,TU), we need RRule object. 
-                // For this simple UI "Weekly" implies "Weekly on this day".
-                // RRule defaults to the start date's day if BYDAY is not specified? Yes.
             }
 
-            const res = await apiRequest("/classes", token, {
+            const res: any = await apiRequest("/classes", token, {
                 method: "POST",
                 body: JSON.stringify({
                     title: formData.name,
                     description: formData.description,
+                    instructorId: formData.instructorId,
+                    locationId: formData.locationId || undefined,
                     startTime: new Date(formData.startTime).toISOString(),
                     durationMinutes: Number(formData.durationMinutes),
                     capacity: Number(formData.capacity),
@@ -71,13 +66,14 @@ export function CreateClassModal({ isOpen, onClose, onSuccess }: CreateClassModa
             if (res.error) {
                 setError(res.error);
             } else {
-                onSuccess(res.class);
+                onSuccess(res.class || res);
                 onClose();
                 // Reset form
                 setFormData({
                     name: "",
                     description: "",
                     instructorId: "",
+                    locationId: "",
                     startTime: "",
                     durationMinutes: 60,
                     capacity: 20,
@@ -99,16 +95,48 @@ export function CreateClassModal({ isOpen, onClose, onSuccess }: CreateClassModa
             <form onSubmit={handleSubmit} className="space-y-4">
                 {error && <div className="p-3 bg-red-50 text-red-600 rounded text-sm">{error}</div>}
 
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 mb-1">Class Name</label>
+                        <input
+                            type="text"
+                            required
+                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            placeholder="e.g. Morning Vinyasa"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 mb-1">Instructor</label>
+                        <select
+                            required
+                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                            value={formData.instructorId}
+                            onChange={(e) => setFormData({ ...formData, instructorId: e.target.value })}
+                        >
+                            <option value="">Select Instructor</option>
+                            {instructors.map((inst: any) => (
+                                <option key={inst.id} value={inst.id}>
+                                    {inst.user?.profile?.firstName} {inst.user?.profile?.lastName}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
                 <div>
-                    <label className="block text-sm font-medium text-zinc-700 mb-1">Class Name</label>
-                    <input
-                        type="text"
-                        required
-                        className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        placeholder="e.g. Morning Vinyasa"
-                    />
+                    <label className="block text-sm font-medium text-zinc-700 mb-1">Location</label>
+                    <select
+                        className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                        value={formData.locationId}
+                        onChange={(e) => setFormData({ ...formData, locationId: e.target.value })}
+                    >
+                        <option value="">Select Location (Optional)</option>
+                        {locations.map((loc: any) => (
+                            <option key={loc.id} value={loc.id}>{loc.name}</option>
+                        ))}
+                    </select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -161,7 +189,6 @@ export function CreateClassModal({ isOpen, onClose, onSuccess }: CreateClassModa
                     </div>
                 </div>
 
-                {/* Recurrence Placeholder - Logic needs to be built in API first */}
                 <div className="border-t border-zinc-200 pt-4 mt-2">
                     <label className="flex items-center gap-2 text-sm text-zinc-700 cursor-pointer">
                         <input

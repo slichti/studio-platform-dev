@@ -152,6 +152,7 @@ export const bookings = sqliteTable('bookings', {
     classId: text('class_id').notNull().references(() => classes.id),
     memberId: text('member_id').notNull().references(() => tenantMembers.id), // Bookings are by Members
     status: text('status', { enum: ['confirmed', 'cancelled', 'waitlisted'] }).default('confirmed'),
+    checkedInAt: integer('checked_in_at', { mode: 'timestamp' }), // Attendance tracking
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     memberClassIdx: index('member_class_idx').on(table.memberId, table.classId),
