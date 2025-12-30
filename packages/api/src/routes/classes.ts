@@ -10,6 +10,7 @@ type Bindings = {
     ZOOM_CLIENT_ID: string;
     ZOOM_CLIENT_SECRET: string;
     STRIPE_SECRET_KEY: string;
+    RESEND_API_KEY: string;
 };
 
 type Variables = {

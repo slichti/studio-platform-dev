@@ -1,10 +1,11 @@
 import { Hono } from 'hono';
-import { waiverTemplates, waiverSignatures, tenants, tenantMembers } from 'db/src/schema';
+import { waiverTemplates, waiverSignatures, tenants, tenantMembers, users } from 'db/src/schema'; // Added users
 import { createDb } from '../db';
 import { eq, and } from 'drizzle-orm';
 
 type Bindings = {
     DB: D1Database;
+    RESEND_API_KEY: string;
 };
 
 type Variables = {
@@ -129,6 +130,44 @@ app.post('/:id/sign', async (c) => {
         signatureData,
         signedAt: new Date()
     });
+
+    // Send copy via email
+    if (c.env.RESEND_API_KEY) {
+        const { EmailService } = await import('../services/email');
+        const emailService = new EmailService(c.env.RESEND_API_KEY);
+
+        // Get User Email
+        const user = await db.select({ email: users.email }).from(users).where(eq(users.id, member.userId)).get();
+
+        if (user) {
+            // Generate PDF Buffer locally again? Or abstract PDF gen?
+            // Ideally we shouldn't duplicate PDF generation logic. A helper function would be best.
+            // For now, let's duplicate the jspdf logic briefly or refactor.
+            // Refactoring is cleaner. But executionCtx.waitUntil needs promises.
+
+            // Quick Inline PDF Gen (Duplicated for speed but risky for maintainability. Let's do it for MVP)
+            // Ideally, move PDF gen to a service later.
+            c.executionCtx.waitUntil((async () => {
+                const { jsPDF } = await import('jspdf');
+                const doc = new jsPDF();
+                doc.setFontSize(22);
+                doc.text(template.title, 20, 20);
+                doc.setFontSize(12);
+                const splitText = doc.splitTextToSize(template.content, 170);
+                doc.text(splitText, 20, 40);
+                const finalY = 40 + (splitText.length * 5) + 20;
+                doc.text(`Signed by Member ID: ${member.id}`, 20, finalY);
+                doc.text(`Date: ${new Date().toLocaleString()}`, 20, finalY + 10);
+                doc.text(`IP Address: ${ipAddress || 'unknown'}`, 20, finalY + 20);
+                if (signatureData && signatureData.startsWith('data:image')) {
+                    try { doc.addImage(signatureData, 'PNG', 20, finalY + 30, 100, 40); } catch (e) { }
+                } else { doc.text("[Electronically Signed]", 20, finalY + 30); }
+                const buffer = doc.output('arraybuffer');
+
+                await emailService.sendWaiverCopy(user.email, template.title, buffer);
+            })());
+        }
+    }
 
     return c.json({ success: true, signedAt: new Date() });
 });

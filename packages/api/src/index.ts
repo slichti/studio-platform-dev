@@ -15,6 +15,7 @@ type Bindings = {
   STRIPE_SECRET_KEY: string;
   STRIPE_PUBLISHABLE_KEY: string;
   STRIPE_CLIENT_ID: string;
+  RESEND_API_KEY: string;
   R2: R2Bucket;
 };
 
