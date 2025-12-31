@@ -1,9 +1,10 @@
 // @ts-ignore
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 // @ts-ignore
-import { useLoaderData, useOutletContext, Form, useNavigation, useFetcher, useActionData } from "react-router"; // Added useFetcher, useActionData
+import { useLoaderData, useOutletContext, Form, useNavigation, useFetcher, useActionData } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
+import { useState } from "react";
 
 type ClassEvent = {
     id: string;
@@ -13,7 +14,16 @@ type ClassEvent = {
     durationMinutes: number;
     instructorId: string;
     price: number;
-    userBooked?: boolean;
+    capacity?: number;
+    confirmedCount?: number;
+    userBookingStatus?: string;
+};
+
+type FamilyMember = {
+    userId: string;
+    memberId: string | null;
+    firstName: string;
+    lastName: string;
 };
 
 export const loader = async (args: LoaderFunctionArgs) => {
@@ -22,16 +32,19 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const token = await getToken();
 
     try {
-        // Public Access: Token might be null, apiRequest handles that?
-        // apiRequest helper might need update if it enforces auth?
-        // Let's check api.ts.
-        const classes = await apiRequest("/classes", token, {
-            headers: { 'X-Tenant-Slug': params.slug! }
-        });
-        return { classes };
+        const [classes, familyRes] = await Promise.all([
+            apiRequest("/classes", token, {
+                headers: { 'X-Tenant-Slug': params.slug! }
+            }),
+            apiRequest("/users/me/family", token, {
+                headers: { 'X-Tenant-Slug': params.slug! }
+            }).catch(() => ({ family: [] })) as Promise<{ family: FamilyMember[] }>
+        ]);
+
+        return { classes, family: familyRes.family || [] };
     } catch (e: any) {
         console.error("Failed to load classes", e);
-        return { classes: [], error: e.message };
+        return { classes: [], family: [], error: e.message };
     }
 };
 
@@ -42,12 +55,15 @@ export const action = async (args: ActionFunctionArgs) => {
     const formData = await request.formData();
     const intent = formData.get("intent");
     const classId = formData.get("classId");
+    const memberId = formData.get("memberId"); // Optional child ID
 
-    if (intent === "book") {
+    if (intent === "book" || intent === "waitlist") {
         try {
+            const body = { intent, memberId: memberId || undefined };
             const res = await apiRequest(`/classes/${classId}/book`, token, {
                 method: "POST",
-                headers: { 'X-Tenant-Slug': params.slug! }
+                headers: { 'X-Tenant-Slug': params.slug! },
+                body: JSON.stringify(body)
             }) as any;
 
             if (res.error) {
@@ -62,13 +78,27 @@ export const action = async (args: ActionFunctionArgs) => {
 };
 
 export default function StudioPublicClasses() {
-    const { classes, error } = useLoaderData<{ classes: ClassEvent[], error?: string }>();
-    const { member } = useOutletContext<any>() || {}; // Member might be null if guest
-    const navigation = useNavigation();
+    const { classes, family, error } = useLoaderData<{ classes: ClassEvent[], family: FamilyMember[], error?: string }>();
+    const { member } = useOutletContext<any>() || {};
     const fetcher = useFetcher();
     const actionData = useActionData<{ error?: string, success?: boolean, classId?: string }>();
 
-    // Helper to group classes by date
+    // Booking Modal State
+    const [selectedClass, setSelectedClass] = useState<ClassEvent | null>(null);
+
+    // Helpers
+    const handleBookClick = (cls: ClassEvent) => {
+        if (family.length > 0) {
+            setSelectedClass(cls);
+        } else {
+            // Direct submit if no family options
+            // We can't easily trigger the fetcher from here without a form ref or similar, 
+            // but the button itself is usually type=submit inside a form.
+            // If family exists, we intercept.
+            // Actually, simplest is two different buttons/UI paths.
+        }
+    };
+
     const grouped = classes.reduce((acc: Record<string, ClassEvent[]>, cls: ClassEvent) => {
         const date = new Date(cls.startTime).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
         if (!acc[date]) acc[date] = [];
@@ -93,6 +123,50 @@ export default function StudioPublicClasses() {
                 </div>
             )}
 
+            {/* Booking Modal for Family */}
+            {selectedClass && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white dark:bg-zinc-900 rounded-lg max-w-sm w-full p-6 shadow-xl border border-zinc-200 dark:border-zinc-800">
+                        <h3 className="text-lg font-bold mb-4">Book {selectedClass.title}</h3>
+                        <p className="text-sm text-zinc-500 mb-4">Who would you like to book for?</p>
+
+                        <div className="space-y-2">
+                            {/* Self */}
+                            <fetcher.Form method="post" onSubmit={() => setSelectedClass(null)}>
+                                <input type="hidden" name="classId" value={selectedClass.id} />
+                                <input type="hidden" name="intent" value={((selectedClass.confirmedCount || 0) >= (selectedClass.capacity || Infinity)) ? "waitlist" : "book"} />
+                                <button type="submit" className="w-full text-left px-4 py-3 rounded border hover:bg-zinc-50 flex justify-between items-center group">
+                                    <span className="font-medium">Myself</span>
+                                    <span className="text-zinc-400 group-hover:text-zinc-900">&rarr;</span>
+                                </button>
+                            </fetcher.Form>
+
+                            {/* Family Members */}
+                            {family.map((f: FamilyMember) => (
+                                <fetcher.Form key={f.userId} method="post" onSubmit={() => setSelectedClass(null)}>
+                                    <input type="hidden" name="classId" value={selectedClass.id} />
+                                    <input type="hidden" name="intent" value={((selectedClass.confirmedCount || 0) >= (selectedClass.capacity || Infinity)) ? "waitlist" : "book"} />
+                                    <input type="hidden" name="memberId" value={f.memberId || ''} />
+                                    {/* Note: If memberId is null (not joined tenant), backend might fail or auto-join logic needed. Backend handles auto-join if standard user, but might need logic for child. Currently backend checks tenantMembers table. Our /me/family endpoint auto-joins them on creation, so f.memberId should be present. */}
+
+                                    <button type="submit" className="w-full text-left px-4 py-3 rounded border hover:bg-zinc-50 flex justify-between items-center group">
+                                        <span className="font-medium">{f.firstName} {f.lastName}</span>
+                                        <span className="text-zinc-400 group-hover:text-zinc-900">&rarr;</span>
+                                    </button>
+                                </fetcher.Form>
+                            ))}
+                        </div>
+
+                        <button
+                            onClick={() => setSelectedClass(null)}
+                            className="mt-4 w-full py-2 text-zinc-500 hover:text-zinc-800 text-sm"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="space-y-8">
                 {Object.keys(grouped).length === 0 ? (
                     <div className="p-8 text-center text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg">
@@ -112,42 +186,55 @@ export default function StudioPublicClasses() {
                                                 {(cls as any).instructor?.user?.profile && (
                                                     <span>with {(cls as any).instructor.user.profile.firstName}</span>
                                                 )}
-                                                {(cls as any).location && (
-                                                    <span className="text-zinc-400 dark:text-zinc-500">@ {(cls as any).location.name}</span>
+                                                {cls.capacity && (
+                                                    <span className={`text-xs px-1.5 py-0.5 rounded ${((cls.confirmedCount || 0) >= cls.capacity) ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'}`}>
+                                                        {(cls.confirmedCount || 0)} / {cls.capacity} filled
+                                                    </span>
                                                 )}
-                                                {cls.price > 0 && <span>• ${(cls.price / 100).toFixed(2)}</span>}
                                             </div>
                                         </div>
                                         <div>
                                             {member ? (
-                                                <fetcher.Form method="post">
-                                                    <input type="hidden" name="intent" value="book" />
-                                                    <input type="hidden" name="classId" value={cls.id} />
-
-                                                    {actionData?.error && actionData.classId === cls.id && (
-                                                        <div className="text-xs text-red-600 mb-1 absolute -mt-6 right-0 bg-white p-1 border border-red-200 rounded shadow-sm z-10">
-                                                            {actionData.error}
-                                                        </div>
+                                                <>
+                                                    {family.length > 0 ? (
+                                                        <button
+                                                            onClick={() => handleBookClick(cls)}
+                                                            disabled={(cls as any).userBookingStatus === 'confirmed'}
+                                                            className={`px-4 py-2 text-sm font-medium rounded transition-colors disabled:opacity-50 ${((cls as any).userBookingStatus === 'confirmed')
+                                                                ? 'bg-zinc-100 text-zinc-500 cursor-default'
+                                                                : 'bg-zinc-900 text-white hover:bg-zinc-800'
+                                                                }`}
+                                                        >
+                                                            {(cls as any).userBookingStatus === 'confirmed' ? "Booked" :
+                                                                ((cls.confirmedCount || 0) >= (cls.capacity || Infinity) ? "Join Waitlist" : "Book")
+                                                            }
+                                                        </button>
+                                                    ) : (
+                                                        <fetcher.Form method="post">
+                                                            <input type="hidden" name="intent" value={((cls.confirmedCount || 0) >= (cls.capacity || Infinity)) ? "waitlist" : "book"} />
+                                                            <input type="hidden" name="classId" value={cls.id} />
+                                                            <button
+                                                                type="submit"
+                                                                disabled={(fetcher.state !== "idle" && fetcher.formData?.get("classId") === cls.id) || (cls as any).userBookingStatus === 'confirmed' || (cls as any).userBookingStatus === 'waitlisted'}
+                                                                className={`px-4 py-2 text-sm font-medium rounded transition-colors disabled:opacity-50 ${((cls as any).userBookingStatus === 'confirmed' || (cls as any).userBookingStatus === 'waitlisted')
+                                                                    ? 'bg-zinc-100 text-zinc-500 cursor-default'
+                                                                    : 'bg-zinc-900 text-white hover:bg-zinc-800'
+                                                                    }`}
+                                                            >
+                                                                {(fetcher.state !== "idle" && fetcher.formData?.get("classId") === cls.id)
+                                                                    ? "Processing..."
+                                                                    : (cls as any).userBookingStatus === 'confirmed'
+                                                                        ? "Booked"
+                                                                        : (cls as any).userBookingStatus === 'waitlisted'
+                                                                            ? "On Waitlist"
+                                                                            : ((cls.confirmedCount || 0) >= (cls.capacity || Infinity) ? "Join Waitlist" : "Book")
+                                                                }
+                                                            </button>
+                                                        </fetcher.Form>
                                                     )}
-
-                                                    <button
-                                                        type="submit"
-                                                        disabled={(fetcher.state !== "idle" && fetcher.formData?.get("classId") === cls.id) || (cls as any).userBooked}
-                                                        className={`px-4 py-2 text-sm font-medium rounded transition-colors disabled:opacity-50 ${(cls as any).userBooked
-                                                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 cursor-default'
-                                                            : 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200'
-                                                            }`}
-                                                    >
-                                                        {(fetcher.state !== "idle" && fetcher.formData?.get("classId") === cls.id)
-                                                            ? "Booking..."
-                                                            : ((cls as any).userBooked || (actionData?.success && actionData.classId === cls.id))
-                                                                ? "Booked"
-                                                                : "Book"
-                                                        }
-                                                    </button>
-                                                </fetcher.Form>
+                                                </>
                                             ) : (
-                                                <a href="/sign-in" className="px-4 py-2 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-sm font-medium rounded hover:bg-zinc-50 dark:hover:bg-zinc-800">
+                                                <a href="/sign-in" className="px-4 py-2 border border-zinc-300 text-zinc-700 text-sm font-medium rounded hover:bg-zinc-50">
                                                     Login to Book
                                                 </a>
                                             )}

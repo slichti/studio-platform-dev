@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import { classes, tenants, bookings, tenantMembers, users, tenantRoles, classSeries, subscriptions, purchasedPacks } from 'db/src/schema'; // Added subscriptions, purchasedPacks
+import { classes, tenants, bookings, tenantMembers, users, tenantRoles, classSeries, subscriptions, purchasedPacks, userRelationships } from 'db/src/schema'; // Added subscriptions, purchasedPacks, userRelationships
 import { createDb } from '../db';
-import { eq, and, gte, lte, gt } from 'drizzle-orm'; // Added gt
+import { eq, and, gte, lte, gt, sql, inArray } from 'drizzle-orm';
 import { ZoomService } from '../services/zoom';
 import { StreamService } from '../services/stream';
 
@@ -75,7 +75,7 @@ app.get('/', async (c) => {
 
     // Check for user bookings if logged in
     const userId = c.get('auth').userId;
-    let userBookings: Set<string> = new Set();
+    let userBookings: Map<string, string> = new Map();
 
     if (userId) {
         // Find member ID first
@@ -86,24 +86,45 @@ app.get('/', async (c) => {
         if (member) {
             const classIds = results.map(r => r.id);
             if (classIds.length > 0) {
-                const myBookings = await db.select({ classId: bookings.classId })
+                const myBookings = await db.select({ classId: bookings.classId, status: bookings.status })
                     .from(bookings)
                     .where(
                         and(
                             eq(bookings.memberId, member.id),
-                            // inArray(bookings.classId, classIds), // Not necessary if strict on tenant, but helpful. Drizzle 'inArray' needs import.
-                            // Simply fetching all active bookings for this user for simplicity in this MVP
-                            eq(bookings.status, 'confirmed')
+                            // inArray(bookings.classId, classIds), 
+                            // eq(bookings.status, 'confirmed') // Remove this to get active waitlists too
                         )
                     );
-                myBookings.forEach(b => userBookings.add(b.classId));
+                myBookings.forEach(b => {
+                    // Only care about active statuses
+                    if (['confirmed', 'waitlisted'].includes(b.status || '')) {
+                        userBookings.set(b.classId, b.status!);
+                    }
+                });
             }
         }
     }
 
+    // Fetch aggregate booking counts
+    // Fetch aggregate booking counts
+    const counts = await db.select({
+        classId: bookings.classId,
+        confirmedCount: sql<number>`sum(case when ${bookings.status} = 'confirmed' then 1 else 0 end)`,
+        waitlistCount: sql<number>`sum(case when ${bookings.status} = 'waitlisted' then 1 else 0 end)`
+    })
+        .from(bookings)
+        .where(inArray(bookings.status, ['confirmed', 'waitlisted']))
+        .groupBy(bookings.classId)
+        .all();
+
+    const countsMap = new Map(counts.map(c => [c.classId, { confirmed: c.confirmedCount, waitlisted: c.waitlistCount }]));
+
     const finalResults = results.map(cls => ({
         ...cls,
-        userBooked: userBookings.has(cls.id)
+        ...cls,
+        confirmedCount: countsMap.get(cls.id)?.confirmed || 0,
+        waitlistCount: countsMap.get(cls.id)?.waitlisted || 0,
+        userBookingStatus: userBookings.get(cls.id) || null // 'confirmed', 'waitlisted', etc.
     }));
 
     return c.json(finalResults);
@@ -198,17 +219,21 @@ app.post('/', async (c) => {
             const classId = crypto.randomUUID();
             let zoomUrl = undefined;
 
-            if (createZoomMeeting && c.env.ZOOM_ACCOUNT_ID) {
-                // Warning: Creating 50 zoom meetings sequentially will be slow and might rate limit.
-                // Ideally this is a background job. For now, let's only create Zoom for the FIRST occurrence 
-                // and warn user, OR skip zoom for recurring in this MVP Sync flow?
-                // Or just create for first one. 
-                // Let's create for the first one only for speed/safety in MVP.
-                if (date.getTime() === dates[0].getTime()) {
-                    try {
-                        const zoom = new ZoomService(c.env.ZOOM_ACCOUNT_ID, c.env.ZOOM_CLIENT_ID, c.env.ZOOM_CLIENT_SECRET);
-                        zoomUrl = await zoom.createMeeting(userId, title, date, durationMinutes);
-                    } catch (e) { console.error("Zoom failed", e); }
+            if (createZoomMeeting) {
+                const credentials = (tenant.zoomCredentials as any) || {
+                    accountId: c.env.ZOOM_ACCOUNT_ID,
+                    clientId: c.env.ZOOM_CLIENT_ID,
+                    clientSecret: c.env.ZOOM_CLIENT_SECRET
+                };
+
+                if (credentials.accountId && credentials.clientId && credentials.clientSecret) {
+                    // Create for first instance only
+                    if (date.getTime() === dates[0].getTime()) {
+                        try {
+                            const zoom = new ZoomService(credentials.accountId, credentials.clientId, credentials.clientSecret);
+                            zoomUrl = await zoom.createMeeting(userId, title, date, durationMinutes);
+                        } catch (e) { console.error("Zoom failed", e); }
+                    }
                 }
             }
 
@@ -238,12 +263,31 @@ app.post('/', async (c) => {
     const id = crypto.randomUUID();
     let zoomMeetingUrl: string | undefined = undefined;
 
-    if (createZoomMeeting && c.env.ZOOM_ACCOUNT_ID) {
-        try {
-            const zoom = new ZoomService(c.env.ZOOM_ACCOUNT_ID, c.env.ZOOM_CLIENT_ID, c.env.ZOOM_CLIENT_SECRET);
-            zoomMeetingUrl = await zoom.createMeeting(userId, title, new Date(startTime), durationMinutes);
-        } catch (e) {
-            console.error("Zoom creation failed:", e);
+    // Determine Zoom Credentials (Tenant > Env)
+    // We assume 'zoomCredentials' is loaded with tenant. 
+    // Note: 'tenant' object from middleware might imply simple select. 
+    // We might need to ensure 'zoomCredentials' is fetched if it is a JSON field.
+    // Drizzle select() without columns usually fetches all. 
+
+    // Check if we should create a zoom meeting
+    // Logic: Explicit flag OR Location name "Zoom" (if we had location lookup, but let's stick to flag for now)
+
+    if (createZoomMeeting) {
+        const credentials = (tenant.zoomCredentials as any) || {
+            accountId: c.env.ZOOM_ACCOUNT_ID,
+            clientId: c.env.ZOOM_CLIENT_ID,
+            clientSecret: c.env.ZOOM_CLIENT_SECRET
+        };
+
+        if (credentials.accountId && credentials.clientId && credentials.clientSecret) {
+            try {
+                const zoom = new ZoomService(credentials.accountId, credentials.clientId, credentials.clientSecret);
+                zoomMeetingUrl = await zoom.createMeeting(userId, title, new Date(startTime), durationMinutes);
+            } catch (e) {
+                console.error("Zoom creation failed:", e);
+                // We don't block class creation if zoom fails, but maybe we should warn?
+                // For now, proceed without URL.
+            }
         }
     }
 
@@ -277,23 +321,90 @@ app.post('/:id/book', async (c) => {
     }
     const userId = auth.userId;
 
-    // Optional: Check class existence and capacity
+    // Check Capacity & Waitlist
+    const requestBody = await c.req.json().catch(() => ({})); // Safe parse body in case it's empty
+    const intent = requestBody.intent; // 'waitlist' or undefined
+    const targetMemberId = requestBody.memberId; // Optional: book for a family member
+
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    // Determine acting member ID
+    let member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.userId, userId), eq(tenantMembers.tenantId, tenant.id))
+    });
+
+    if (!member && !targetMemberId) {
+        // Auto-join for self if not exists
+        const memberId = crypto.randomUUID();
+        await db.insert(tenantMembers).values({ id: memberId, tenantId: tenant.id, userId: userId });
+        await db.insert(tenantRoles).values({ memberId: memberId, role: 'student' });
+        member = { id: memberId } as any;
+    }
+
+    let bookingMemberId = member?.id;
+
+    // Handle Family Booking Logic
+    if (targetMemberId) {
+        // Verify targetMemberId exists in this tenant
+        const targetMember = await db.query.tenantMembers.findFirst({
+            where: and(eq(tenantMembers.id, targetMemberId), eq(tenantMembers.tenantId, tenant.id))
+        });
+
+        if (!targetMember) return c.json({ error: 'Target member not found in this studio' }, 404);
+
+        // Verify Relationship: Current User must be Parent of Target User
+        const relationship = await db.query.userRelationships.findFirst({
+            where: and(
+                eq(userRelationships.parentUserId, userId),
+                eq(userRelationships.childUserId, targetMember.userId)
+            )
+        });
+
+        if (!relationship) {
+            return c.json({ error: 'You do not have permission to book for this member' }, 403);
+        }
+
+        bookingMemberId = targetMemberId;
+    }
+
+    if (!bookingMemberId) return c.json({ error: 'Could not determine member' }, 400);
     const classInfo = await db.select().from(classes).where(eq(classes.id, classId)).get();
     if (!classInfo) return c.json({ error: 'Class not found' }, 404);
 
-    // Check if already booked
-    // const existing = await db.select().from(bookings).where(and(eq(bookings.classId, classId), eq(bookings.userId, userId))).get();
-    // if (existing) return c.json({ error: 'Already booked' }, 400);
+    if (classInfo.capacity) {
+        // Count confirmed bookings
+        const result = await db.select({ count: sql<number>`count(*)` })
+            .from(bookings)
+            .where(and(eq(bookings.classId, classId), eq(bookings.status, 'confirmed')))
+            .get();
+
+        const currentCount = result?.count || 0;
+
+        if (currentCount >= classInfo.capacity) {
+            if (intent !== 'waitlist') {
+                return c.json({ error: 'Class is full', code: 'CLASS_FULL' }, 409);
+            }
+            // Create Waitlist Booking
+            const id = crypto.randomUUID();
+            await db.insert(bookings).values({
+                id,
+                classId,
+                memberId: bookingMemberId!,
+                status: 'waitlisted',
+                // No payment method yet
+            });
+
+            return c.json({ id, status: 'waitlisted' }, 201);
+        }
+    }
 
     const id = crypto.randomUUID();
 
     try {
-        const tenant = c.get('tenant');
-        if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
-
-        // Find or Auto-Join Member
-        let member = await db.query.tenantMembers.findFirst({
-            where: and(eq(tenantMembers.userId, userId), eq(tenantMembers.tenantId, tenant.id)),
+        // Fetch full member details for payment logic with the correct member ID
+        let memberWithPlans = await db.query.tenantMembers.findFirst({
+            where: eq(tenantMembers.id, bookingMemberId!),
             with: {
                 memberships: {
                     where: eq(subscriptions.status, 'active')
@@ -301,66 +412,39 @@ app.post('/:id/book', async (c) => {
                 purchasedPacks: {
                     where: and(
                         gt(purchasedPacks.remainingCredits, 0),
-                        // or(isNull(purchasedPacks.expiresAt), gt(purchasedPacks.expiresAt, new Date())) // Simple check
                     ),
                     orderBy: (purchasedPacks, { asc }) => [asc(purchasedPacks.expiresAt)]
                 }
             }
         });
 
-        if (!member) {
-            // Auto-join as Student?
-            const memberId = crypto.randomUUID();
-            await db.insert(tenantMembers).values({
-                id: memberId,
-                tenantId: tenant.id,
-                userId: userId
-            });
-            // Add student role
-            await db.insert(tenantRoles).values({
-                memberId: memberId,
-                role: 'student'
-            });
-            member = { id: memberId, memberships: [], purchasedPacks: [] } as any;
-        }
+        if (!memberWithPlans) return c.json({ error: 'Member not found' }, 400);
 
-        // Check Payment Requirement
-        let paymentMethod = 'free';
+        let paymentMethod: 'subscription' | 'credit' | 'drop_in' = 'drop_in';
         let usedPackId = undefined;
 
-        if (classInfo.price && classInfo.price > 0) {
-            const hasActiveMembership = member!.memberships && member!.memberships.length > 0;
+        if (memberWithPlans.memberships.length > 0) {
+            paymentMethod = 'subscription';
+        } else if (memberWithPlans.purchasedPacks.length > 0) {
+            paymentMethod = 'credit';
+            const packToUse = memberWithPlans.purchasedPacks[0];
+            usedPackId = packToUse.id;
 
-            if (hasActiveMembership) {
-                paymentMethod = 'subscription';
-            } else {
-                // Try to use credits
-                // Filter out expired packs explicitly in JS if Drizzle 'gt' on date is tricky or needed safety
-                const validPacks = (member!.purchasedPacks || []).filter(p => !p.expiresAt || new Date(p.expiresAt) > new Date());
-
-                if (validPacks.length > 0) {
-                    const packToUse = validPacks[0]; // First one (sorted by expiry asc)
-
-                    // Deduct Credit
-                    await db.update(purchasedPacks)
-                        .set({ remainingCredits: packToUse.remainingCredits - 1 })
-                        .where(eq(purchasedPacks.id, packToUse.id))
-                        .run();
-
-                    paymentMethod = 'credit';
-                    usedPackId = packToUse.id;
-                } else {
-                    return c.json({ error: 'Payment required: No active membership or class credits' }, 402);
-                }
-            }
+            // Deduct Credit
+            await db.update(purchasedPacks)
+                .set({ remainingCredits: sql`${purchasedPacks.remainingCredits} - 1` })
+                .where(eq(purchasedPacks.id, usedPackId));
         }
+
+        // Logic for paid classes if no membership/credits would go here
+        // For now assuming drop-in is allowed or handled later
 
         await db.insert(bookings).values({
             id,
             classId,
-            memberId: member!.id,
+            memberId: memberWithPlans.id,
             status: 'confirmed',
-            paymentMethod: paymentMethod as any,
+            paymentMethod,
             usedPackId
         });
 
@@ -394,9 +478,68 @@ app.get('/:id/bookings', async (c) => {
             .from(bookings)
             .innerJoin(tenantMembers, eq(bookings.memberId, tenantMembers.id))
             .innerJoin(users, eq(tenantMembers.userId, users.id))
-            .where(eq(bookings.classId, classId));
+            .where(eq(bookings.classId, classId))
+            .orderBy(bookings.createdAt); // Ensure order for waitlist priority
 
         return c.json(results);
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
+// POST /classes/:id/bookings/:bookingId/promote
+app.post('/:id/bookings/:bookingId/promote', async (c) => {
+    const db = createDb(c.env.DB);
+    const { id: classId, bookingId } = c.req.param();
+
+    // RBAC: Instructor/Owner
+    const roles = c.get('roles') || [];
+    if (!roles.includes('instructor') && !roles.includes('owner')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+
+    try {
+        const booking = await db.select().from(bookings).where(eq(bookings.id, bookingId)).get();
+        if (!booking) return c.json({ error: 'Booking not found' }, 404);
+        if (booking.status !== 'waitlisted') return c.json({ error: 'Booking is not waitlisted' }, 400);
+
+        // Promote
+        // TODO: Handle Payment Capture here? For now assuming Drop-in/Pay Later
+        await db.update(bookings)
+            .set({
+                status: 'confirmed',
+                paymentMethod: 'drop_in' // Default to pay later/at door for promoted users if not charged
+            })
+            .where(eq(bookings.id, bookingId))
+            .run();
+
+        // Optional: Email Notification
+        const tenant = c.get('tenant');
+        if (c.env.RESEND_API_KEY && tenant) {
+            const user = await db.select({ email: users.email })
+                .from(tenantMembers)
+                .innerJoin(users, eq(tenantMembers.userId, users.id))
+                .where(eq(tenantMembers.id, booking.memberId))
+                .get();
+
+            if (user) {
+                const { EmailService } = await import('../services/email');
+                // Pass tenant config for branding
+                const emailService = new EmailService(c.env.RESEND_API_KEY, {
+                    branding: tenant.branding as any,
+                    settings: tenant.settings as any
+                });
+                const classInfo = await db.select({ title: classes.title }).from(classes).where(eq(classes.id, classId)).get();
+
+                c.executionCtx.waitUntil(emailService.sendGenericEmail(
+                    user.email,
+                    `You're off the waitlist!`,
+                    `<p>Good news! You've been promoted to the active roster for <strong>${classInfo?.title || 'Class'}</strong>.</p><p>Please note that payment may be due upon arrival if you do not have an active membership.</p><p>See you there!</p>`
+                ));
+            }
+        }
+
+        return c.json({ success: true, status: 'confirmed' });
     } catch (e: any) {
         return c.json({ error: e.message }, 500);
     }

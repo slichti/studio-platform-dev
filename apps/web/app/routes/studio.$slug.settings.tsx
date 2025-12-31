@@ -366,6 +366,75 @@ export default function StudioSettings() {
                 </div>
             </div>
 
+            {/* Zoom Integration */}
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm mb-8">
+                <div className="mb-4">
+                    <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Zoom Integration</h2>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Configure Server-to-Server OAuth to auto-create meetings.</p>
+                </div>
+
+                <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.currentTarget);
+                    const accountId = formData.get("accountId");
+                    const clientId = formData.get("clientId");
+                    const clientSecret = formData.get("clientSecret");
+
+                    if (!accountId || !clientId || !clientSecret) return alert("All fields are required");
+
+                    try {
+                        const token = await (window as any).Clerk?.session?.getToken();
+                        await apiRequest(`/tenant/credentials/zoom`, token, {
+                            method: "PUT",
+                            headers: { 'X-Tenant-Slug': tenant.slug },
+                            body: JSON.stringify({ accountId, clientId, clientSecret })
+                        });
+                        alert("Zoom credentials saved!");
+                    } catch (err: any) {
+                        alert("Failed to save credentials: " + err.message);
+                    }
+                }} className="space-y-4">
+                    <div>
+                        <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Account ID</label>
+                        <input
+                            name="accountId"
+                            type="text"
+                            defaultValue={(tenant.zoomCredentials as any)?.accountId || ''}
+                            className="w-full border-zinc-300 dark:border-zinc-700 rounded text-sm px-3 py-2 bg-white dark:bg-zinc-800"
+                            placeholder="Zoom Account ID"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Client ID</label>
+                        <input
+                            name="clientId"
+                            type="text"
+                            defaultValue={(tenant.zoomCredentials as any)?.clientId || ''}
+                            className="w-full border-zinc-300 dark:border-zinc-700 rounded text-sm px-3 py-2 bg-white dark:bg-zinc-800"
+                            placeholder="Zoom Client ID"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Client Secret</label>
+                        <input
+                            name="clientSecret"
+                            type="password"
+                            defaultValue={(tenant.zoomCredentials as any)?.clientSecret || ''}
+                            className="w-full border-zinc-300 dark:border-zinc-700 rounded text-sm px-3 py-2 bg-white dark:bg-zinc-800"
+                            placeholder="Zoom Client Secret"
+                        />
+                    </div>
+                    <div className="pt-2">
+                        <button
+                            type="submit"
+                            className="bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-2 rounded-md font-medium text-sm hover:bg-zinc-800 dark:hover:bg-zinc-200"
+                        >
+                            Save Credentials
+                        </button>
+                    </div>
+                </form>
+            </div>
+
             {/* Billing & Subscription */}
             <Link to={`/studio/${tenant.slug}/settings/billing`} className="block bg-white border border-zinc-200 rounded-lg p-6 shadow-sm mb-8 hover:border-blue-300 transition-colors group">
                 <div className="flex justify-between items-center">

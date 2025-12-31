@@ -196,6 +196,55 @@ export const bookings = sqliteTable('bookings', {
     memberClassIdx: index('member_class_idx').on(table.memberId, table.classId),
 }));
 
+// --- Appointments (Private Sessions) ---
+
+export const appointmentServices = sqliteTable('appointment_services', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    title: text('title').notNull(), // e.g. "Private Yoga", "Consultation"
+    description: text('description'),
+    durationMinutes: integer('duration_minutes').notNull(),
+    price: integer('price').default(0),
+    currency: text('currency').default('usd'),
+    isActive: integer('is_active', { mode: 'boolean' }).default(true),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+});
+
+export const availabilities = sqliteTable('availabilities', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    instructorId: text('instructor_id').notNull().references(() => tenantMembers.id),
+    dayOfWeek: integer('day_of_week').notNull(), // 0 = Sunday, 1 = Monday, etc.
+    startTime: text('start_time').notNull(), // HH:MM (24h)
+    endTime: text('end_time').notNull(), // HH:MM (24h)
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    instructorIdx: index('avail_instructor_idx').on(table.instructorId),
+}));
+
+export const appointments = sqliteTable('appointments', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    serviceId: text('service_id').notNull().references(() => appointmentServices.id),
+    instructorId: text('instructor_id').notNull().references(() => tenantMembers.id), // The provider
+    memberId: text('member_id').notNull().references(() => tenantMembers.id), // The customer
+
+    startTime: integer('start_time', { mode: 'timestamp' }).notNull(),
+    endTime: integer('end_time', { mode: 'timestamp' }).notNull(),
+
+    status: text('status', { enum: ['pending', 'confirmed', 'cancelled', 'completed'] }).default('confirmed'),
+    notes: text('notes'),
+
+    // Zoom/Virtual support
+    zoomMeetingUrl: text('zoom_meeting_url'),
+
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantTimeIdx: index('apt_tenant_time_idx').on(table.tenantId, table.startTime),
+    instructorTimeIdx: index('apt_instructor_time_idx').on(table.instructorId, table.startTime),
+    memberIdx: index('apt_member_idx').on(table.memberId),
+}));
+
 // --- Membership Plans (Tiers) ---
 export const membershipPlans = sqliteTable('membership_plans', {
     id: text('id').primaryKey(),

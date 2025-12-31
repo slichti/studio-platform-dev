@@ -28,7 +28,8 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
         price: 0,
         isRecurring: false,
         recurrencePattern: "weekly", // daily, weekly
-        recurrenceEndDate: ""
+        recurrenceEndDate: "",
+        createZoom: false
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -57,6 +58,7 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                     durationMinutes: Number(formData.durationMinutes),
                     capacity: Number(formData.capacity),
                     price: Number(formData.price),
+                    createZoomMeeting: (formData as any).createZoom,
                     isRecurring: formData.isRecurring,
                     recurrenceRule: recurrenceRule,
                     recurrenceEnd: formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate).toISOString() : undefined
@@ -80,7 +82,8 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                     price: 0,
                     isRecurring: false,
                     recurrencePattern: "weekly",
-                    recurrenceEndDate: ""
+                    recurrenceEndDate: "",
+                    createZoom: false
                 });
             }
         } catch (e: any) {
@@ -129,10 +132,18 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                     <label className="block text-sm font-medium text-zinc-700 mb-1">Location</label>
                     <select
                         className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                        value={formData.locationId}
-                        onChange={(e) => setFormData({ ...formData, locationId: e.target.value })}
+                        value={(formData as any).createZoom ? "virtual_zoom" : formData.locationId}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === "virtual_zoom") {
+                                setFormData({ ...formData, locationId: "", createZoom: true } as any);
+                            } else {
+                                setFormData({ ...formData, locationId: val, createZoom: false } as any);
+                            }
+                        }}
                     >
                         <option value="">Select Location (Optional)</option>
+                        <option value="virtual_zoom">Virtual (Zoom)</option>
                         {locations.map((loc: any) => (
                             <option key={loc.id} value={loc.id}>{loc.name}</option>
                         ))}

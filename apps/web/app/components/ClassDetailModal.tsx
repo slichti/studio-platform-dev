@@ -55,10 +55,10 @@ export function ClassDetailModal({ isOpen, onClose, classEvent, onRecordingAdded
     };
 
     return (
-        <Transition appear show={isOpen} as={Fragment}>
+        <Transition appear show={isOpen} as={Fragment as any}>
             <Dialog as="div" className="relative z-50" onClose={onClose}>
                 <Transition.Child
-                    as={Fragment}
+                    as={Fragment as any}
                     enter="ease-out duration-300"
                     enterFrom="opacity-0"
                     enterTo="opacity-100"
@@ -72,7 +72,7 @@ export function ClassDetailModal({ isOpen, onClose, classEvent, onRecordingAdded
                 <div className="fixed inset-0 overflow-y-auto">
                     <div className="flex min-h-full items-center justify-center p-4 text-center">
                         <Transition.Child
-                            as={Fragment}
+                            as={Fragment as any}
                             enter="ease-out duration-300"
                             enterFrom="opacity-0 scale-95"
                             enterTo="opacity-100 scale-100"
@@ -97,10 +97,41 @@ export function ClassDetailModal({ isOpen, onClose, classEvent, onRecordingAdded
 
                                 <div className="space-y-6">
                                     {/* Info Section */}
-                                    <div className="bg-gray-50 p-3 rounded-md text-sm text-gray-700">
-                                        <p><strong>Instructor:</strong> {classEvent.resource?.instructor?.user?.profile?.firstName || 'Unknown'}</p>
-                                        <p><strong>Duration:</strong> {classEvent.resource?.durationMinutes} min</p>
+                                    <div className="bg-gray-50 p-3 rounded-md text-sm text-gray-700 space-y-2">
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <p><strong>Instructor:</strong> {classEvent.resource?.instructor?.user?.profile?.firstName || 'Unknown'}</p>
+                                            <p><strong>Duration:</strong> {classEvent.resource?.durationMinutes} min</p>
+                                        </div>
                                         {classEvent.resource?.location && <p><strong>Location:</strong> {classEvent.resource.location.name}</p>}
+
+                                        <div className="mt-2 pt-2 border-t border-gray-200">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="font-semibold text-gray-900">Bookings</span>
+                                                <a
+                                                    href={`/studio/${window.location.pathname.split('/')[2]}/classes/${classEvent.id}/roster`}
+                                                    className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                                                >
+                                                    View Roster &rarr;
+                                                </a>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4 text-xs">
+                                                <div className="bg-white p-2 rounded border border-gray-200">
+                                                    <span className="block text-gray-500">Confirmed</span>
+                                                    <span className="block text-lg font-bold text-gray-900">
+                                                        {classEvent.resource?.confirmedCount || 0}
+                                                        <span className="text-gray-400 font-normal text-xs ml-1">
+                                                            / {classEvent.resource?.capacity || '∞'}
+                                                        </span>
+                                                    </span>
+                                                </div>
+                                                <div className="bg-white p-2 rounded border border-gray-200">
+                                                    <span className="block text-gray-500">Waitlist</span>
+                                                    <span className={`block text-lg font-bold ${classEvent.resource?.waitlistCount > 0 ? 'text-amber-600' : 'text-gray-900'}`}>
+                                                        {classEvent.resource?.waitlistCount || 0}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     {/* Recording Section */}

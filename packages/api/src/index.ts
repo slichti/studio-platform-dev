@@ -164,6 +164,27 @@ tenantApp.patch('/settings', async (c) => {
   return c.json({ success: true });
 });
 
+tenantApp.put('/credentials/zoom', async (c) => {
+  const tenant = c.get('tenant');
+  const db = createDb(c.env.DB);
+  const body = await c.req.json();
+  const { accountId, clientId, clientSecret } = body;
+
+  if (!accountId || !clientId || !clientSecret) {
+    return c.json({ error: 'Missing credentials' }, 400);
+  }
+
+  // TODO: Encrypt these before saving in production
+  const credentials = { accountId, clientId, clientSecret };
+
+  await db.update(tenants)
+    .set({ zoomCredentials: credentials })
+    .where(eq(tenants.id, tenant.id))
+    .run();
+
+  return c.json({ success: true });
+});
+
 tenantApp.get('/me', (c) => {
   const member = c.get('member');
   const roles = c.get('roles');
@@ -213,6 +234,9 @@ app.route('/commerce', commerce);
 
 app.route('/members', members);
 app.route('/memberships', memberships);
+
+import appointments from './routes/appointments';
+app.route('/appointments', appointments);
 
 import onboarding from './routes/onboarding';
 app.route('/onboarding', onboarding);

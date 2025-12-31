@@ -17,6 +17,7 @@ type Booking = {
     createdAt: string;
     memberId: string;
     checkedInAt: string | null;
+    paymentMethod?: string;
 };
 
 export const action = async (args: ActionFunctionArgs) => {
@@ -40,6 +41,14 @@ export const action = async (args: ActionFunctionArgs) => {
 
     if (intent === "cancel_booking") {
         await apiRequest(`/classes/${classId}/bookings/${bookingId}/cancel`, token, {
+            method: "POST",
+            headers: { 'X-Tenant-Slug': params.slug! }
+        });
+        return { success: true };
+    }
+
+    if (intent === "promote") {
+        await apiRequest(`/classes/${classId}/bookings/${bookingId}/promote`, token, {
             method: "POST",
             headers: { 'X-Tenant-Slug': params.slug! }
         });
@@ -72,6 +81,9 @@ export default function StudioClassRoster() {
     const { slug } = useParams();
     const fetcher = useFetcher();
 
+    const confirmedBookings = bookings.filter((b: Booking) => b.status === "confirmed");
+    const waitlistBookings = bookings.filter((b: Booking) => b.status === "waitlisted");
+
     return (
         <div>
             <div className="flex items-center gap-4 mb-6">
@@ -85,7 +97,11 @@ export default function StudioClassRoster() {
                 <h2 className="text-2xl font-bold">Class Roster</h2>
             </div>
 
-            <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm">
+            {/* Confirmed Bookings */}
+            <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm mb-8">
+                <div className="px-6 py-4 border-b border-zinc-200 bg-zinc-50 flex justify-between items-center">
+                    <h3 className="font-semibold text-zinc-900">Attending ({confirmedBookings.length})</h3>
+                </div>
                 <table className="w-full text-left">
                     <thead className="bg-zinc-50 border-b border-zinc-200">
                         <tr>
@@ -98,7 +114,7 @@ export default function StudioClassRoster() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-100">
-                        {bookings.map((booking) => (
+                        {confirmedBookings.map((booking: Booking) => (
                             <tr key={booking.id} className="hover:bg-zinc-50 transition-colors">
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
@@ -112,11 +128,8 @@ export default function StudioClassRoster() {
                                 </td>
                                 <td className="px-6 py-4 text-zinc-600 text-sm">{booking.user.email}</td>
                                 <td className="px-6 py-4">
-                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${booking.status === 'confirmed'
-                                        ? 'bg-green-100 text-green-800'
-                                        : 'bg-zinc-100 text-zinc-800'
-                                        }`}>
-                                        {booking.status}
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                        Confirmed
                                     </span>
                                 </td>
                                 <td className="px-6 py-4 text-zinc-400 text-sm">
@@ -140,7 +153,6 @@ export default function StudioClassRoster() {
                                                 name="checkedIn"
                                                 value="true"
                                                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-zinc-100 text-zinc-500 hover:bg-zinc-200"
-                                                disabled={booking.status === 'cancelled'}
                                             >
                                                 Mark Present
                                             </button>
@@ -148,36 +160,97 @@ export default function StudioClassRoster() {
                                     </fetcher.Form>
                                 </td>
                                 <td className="px-6 py-4">
-                                    {booking.status !== 'cancelled' ? (
-                                        <fetcher.Form
-                                            method="post"
-                                            onSubmit={(e) => {
-                                                if (!confirm("Are you sure you want to cancel this booking?")) e.preventDefault();
-                                            }}
-                                        >
-                                            <input type="hidden" name="intent" value="cancel_booking" />
-                                            <input type="hidden" name="bookingId" value={booking.id} />
-                                            <button className="text-red-600 hover:text-red-800 text-xs font-medium flex items-center gap-1">
-                                                <X size={12} />
-                                                Cancel
-                                            </button>
-                                        </fetcher.Form>
-                                    ) : (
-                                        <span className="text-zinc-400 text-xs italic">Cancelled</span>
-                                    )}
+                                    <fetcher.Form
+                                        method="post"
+                                        onSubmit={(e: React.FormEvent) => {
+                                            if (!confirm("Are you sure you want to cancel this booking?")) e.preventDefault();
+                                        }}
+                                    >
+                                        <input type="hidden" name="intent" value="cancel_booking" />
+                                        <input type="hidden" name="bookingId" value={booking.id} />
+                                        <button className="text-red-600 hover:text-red-800 text-xs font-medium flex items-center gap-1">
+                                            <X size={12} />
+                                            Cancel
+                                        </button>
+                                    </fetcher.Form>
                                 </td>
                             </tr>
                         ))}
-                        {bookings.length === 0 && (
+                        {confirmedBookings.length === 0 && (
                             <tr>
                                 <td colSpan={6} className="px-6 py-12 text-center text-zinc-500">
-                                    No bookings yet.
+                                    No attending students.
                                 </td>
                             </tr>
                         )}
                     </tbody>
                 </table>
             </div>
+
+            {/* Waitlist */}
+            {waitlistBookings.length > 0 && (
+                <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm">
+                    <div className="px-6 py-4 border-b border-zinc-200 bg-amber-50 flex justify-between items-center">
+                        <h3 className="font-semibold text-amber-900">Waitlist ({waitlistBookings.length})</h3>
+                        <span className="text-xs text-amber-700 bg-amber-100 px-2 py-1 rounded-full">Sorted by join order</span>
+                    </div>
+                    <table className="w-full text-left">
+                        <thead className="bg-zinc-50 border-b border-zinc-200">
+                            <tr>
+                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Student</th>
+                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Email</th>
+                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Joined At</th>
+                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100">
+                            {waitlistBookings.map((booking: Booking, index: number) => (
+                                <tr key={booking.id} className="hover:bg-zinc-50 transition-colors">
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-6 w-6 rounded-full bg-zinc-200 flex items-center justify-center text-xs font-bold text-zinc-500">
+                                                {index + 1}
+                                            </div>
+                                            <span className="font-medium text-zinc-900">
+                                                {booking.user.profile?.fullName || 'Unknown'}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-zinc-600 text-sm">{booking.user.email}</td>
+                                    <td className="px-6 py-4 text-zinc-400 text-sm">
+                                        {new Date(booking.createdAt).toLocaleString()}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <fetcher.Form method="post">
+                                                <input type="hidden" name="bookingId" value={booking.id} />
+                                                <input type="hidden" name="intent" value="promote" />
+                                                <button
+                                                    className="inline-flex items-center gap-1 px-3 py-1 rounded bg-green-600 text-white text-xs font-medium hover:bg-green-700"
+                                                >
+                                                    Promote
+                                                </button>
+                                            </fetcher.Form>
+                                            <fetcher.Form
+                                                method="post"
+                                                onSubmit={(e: React.FormEvent) => {
+                                                    if (!confirm("Remove from waitlist?")) e.preventDefault();
+                                                }}
+                                            >
+                                                <input type="hidden" name="intent" value="cancel_booking" />
+                                                <input type="hidden" name="bookingId" value={booking.id} />
+                                                <button className="text-red-600 hover:text-red-800 text-xs font-medium">
+                                                    Remove
+                                                </button>
+                                            </fetcher.Form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
 
             <div className="mt-4 flex justify-end">
                 <button
