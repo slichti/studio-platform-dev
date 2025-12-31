@@ -31,7 +31,7 @@
     },
     "devDependencies": {
         "@alloc/quick-lru": "^5.2.0",
-        "@cloudflare/workers-types": "^4.20251230.0",
+        "@cloudflare/workers-types": "^4.20251231.0",
         "@react-router/fs-routes": "^7.11.0",
         "@types/react": "^19.2.7",
         "@types/react-dom": "^19.2.3",
@@ -44,7 +44,7 @@
         "typescript": "^5.9.3",
         "vite": "^7.3.0",
         "vite-tsconfig-paths": "^6.0.3",
-        "wrangler": "^4.56.0"
+        "wrangler": "^4.54.0"
     },
     "engines": {
         "node": ">=18.0.0"
