@@ -7,11 +7,32 @@ type Bindings = {
     DB: D1Database;
 };
 
-const app = new Hono<{ Bindings: Bindings }>();
+import { authMiddleware } from '../middleware/auth';
 
-// Middleware to check super admin?
-// For now assuming the routes are protected by the admin route wrapper 
-// or simpler: just implementation.
+type Variables = {
+    auth: { userId: string; claims: any };
+};
+
+const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
+
+// Protect all admin routes
+app.use('*', authMiddleware);
+app.use('*', async (c, next) => {
+    const auth = c.get('auth');
+    const { createDb } = await import('../db');
+    const { users } = await import('db/src/schema');
+    const { eq } = await import('drizzle-orm');
+    const db = createDb(c.env.DB);
+
+    const user = await db.query.users.findFirst({
+        where: eq(users.id, auth.userId)
+    });
+
+    if (!user?.isSystemAdmin) {
+        return c.json({ error: 'Forbidden' }, 403);
+    }
+    await next();
+});
 
 // GET /stats/email - Global Email Stats
 app.get('/stats/email', async (c) => {

@@ -132,6 +132,18 @@ app.get('/:key{.+}', async (c) => {
         return c.json({ error: 'File not found' }, 404);
     }
 
+    // Security Check: Ensure tenant isolation for files in tenant-specific paths
+    const tenant = c.get('tenant');
+    const isSystemAdmin = c.get('roles')?.includes('owner'); // Placeholder for system admin check if available via roles
+
+    // Better: We should check if the user is a system admin via isSystemAdmin flag in context if we set it in auth.
+    // For now, let's at least enforce that if it starts with 'tenants/', it must match current tenant.
+    if (key.startsWith('tenants/') && !key.startsWith(`tenants/${tenant.slug}/`)) {
+        // Allow if user is a system admin (we can check c.get('auth').claims.isSystemAdmin or similar)
+        // Since we don't have a clean 'isSystemAdmin' variable here yet, let's be strict.
+        return c.json({ error: 'Access Denied: Tenant Isolation Violation' }, 403);
+    }
+
     const headers = new Headers();
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
