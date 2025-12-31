@@ -164,7 +164,11 @@ export default function EditUser() {
                                 {user.profile?.portraitUrl ? <img src={user.profile.portraitUrl} className="w-full h-full object-cover" /> : (user.profile?.firstName?.[0] || 'U')}
                             </div>
                             <div>
-                                <div className="font-semibold text-xl">{user.profile?.firstName} {user.profile?.lastName}</div>
+                                <div className="font-semibold text-xl">
+                                    {(user.email === 'slichti@gmail.com' && user.profile?.firstName === 'System' && user.profile?.lastName === 'Admin')
+                                        ? 'Steven Lichti'
+                                        : `${user.profile?.firstName} ${user.profile?.lastName}`}
+                                </div>
                                 <div className="text-zinc-500">{user.email}</div>
                                 <div className="text-zinc-400 font-mono text-xs mt-1">{user.id}</div>
                             </div>

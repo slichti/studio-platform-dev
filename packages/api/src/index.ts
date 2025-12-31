@@ -46,7 +46,13 @@ const app = new Hono<{ Bindings: Bindings, Variables: Variables }>()
 
 app.use('*', logger());
 app.use('*', cors({
-  origin: ['https://studio-platform-web.pages.dev', 'https://studio-platform-dev.slichti.org', 'http://localhost:5173'],
+  origin: (origin) => {
+    if (!origin) return 'https://studio-platform-web.pages.dev'; // Fallback
+    if (origin.endsWith('.pages.dev') || origin.endsWith('.slichti.org') || origin.includes('localhost')) {
+      return origin;
+    }
+    return 'https://studio-platform-web.pages.dev';
+  },
   allowHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Slug', 'X-Tenant-Id'],
   allowMethods: ['POST', 'GET', 'OPTIONS', 'DELETE', 'PUT', 'PATCH'],
   exposeHeaders: ['Content-Length'],
