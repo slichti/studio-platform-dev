@@ -271,6 +271,11 @@ export default function EditUser() {
                             <option value="instructor">Instructor</option>
                             <option value="owner">Owner</option>
                         </select>
+                        <div className="mt-2 text-xs text-zinc-500 bg-zinc-50 p-2 rounded border border-zinc-200 leading-relaxed">
+                            <strong>Note:</strong> Owners generally function as Instructors and Students as well. Instructors often participate as Students.
+                            <br /><br />
+                            This system treats roles independently, so you may assign multiple roles to a user for a single studio if needed.
+                        </div>
                     </div>
                     <div className="pt-4 flex justify-end gap-2">
                         <button onClick={() => setIsAddModalOpen(false)} className="px-3 py-2 text-zinc-600 hover:bg-zinc-100 rounded text-sm">Cancel</button>
