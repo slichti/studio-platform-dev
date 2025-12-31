@@ -41,6 +41,66 @@ app.get('/', async (c) => {
     });
 
     return c.json({ members });
+    return c.json({ members });
+});
+
+// GET /me: Current Member Details
+app.get('/me', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const auth = c.get('auth'); // userId guaranteed by authMiddleware
+
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id)),
+        with: {
+            roles: true
+        }
+    });
+
+    if (!member) return c.json({ error: 'Not a member of this studio' }, 404);
+
+    return c.json({ member });
+});
+
+// PATCH /me/settings: Update Preferences
+app.patch('/me/settings', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const auth = c.get('auth');
+    const body = await c.req.json(); // { notifications: { sms: true } }
+
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id))
+    });
+
+    if (!member) return c.json({ error: 'Not a member' }, 404);
+
+    // Merge settings
+    const currentSettings = (member.settings as any) || {};
+    const newSettings = {
+        ...currentSettings,
+        ...body, // Shallow merge top level? Or deep? 
+        // If body is { notifications: { sms: true } }, we might overwrite other notifications.
+        // Ideally assume body is partial update. 
+        // Let's do simple top-level merge for now, but handle notifications specifically if needed.
+        // Better: Deep merge if possible, or just expect full object for nested?
+        // Let's rely on client sending full 'notifications' object if they update it.
+        notifications: {
+            ...(currentSettings.notifications || {}),
+            ...(body.notifications || {})
+        }
+    };
+
+    await db.update(tenantMembers)
+        .set({ settings: newSettings })
+        .where(eq(tenantMembers.id, member.id))
+        .run();
+
+    return c.json({ success: true, settings: newSettings });
 });
 
 // PATCH /members/:id/role: Update member role (Owner only)

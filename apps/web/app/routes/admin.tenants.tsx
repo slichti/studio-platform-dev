@@ -33,6 +33,7 @@ export default function AdminTenants() {
     // Feature Toggles State
     const [expandedTenant, setExpandedTenant] = useState<string | null>(null);
     const [tenantFeatures, setTenantFeatures] = useState<Record<string, any>>({});
+    const [tenantStats, setTenantStats] = useState<any>({});
     const [featuresLoading, setFeaturesLoading] = useState(false);
 
     const FEATURES = [
@@ -108,6 +109,7 @@ export default function AdminTenants() {
         }
     };
 
+
     const toggleTenantExpand = async (tenantId: string) => {
         if (expandedTenant === tenantId) {
             setExpandedTenant(null);
@@ -118,14 +120,20 @@ export default function AdminTenants() {
         setFeaturesLoading(true);
         try {
             const token = await getToken();
-            const res = await apiRequest(`/admin/tenants/${tenantId}/features`, token);
-            setTenantFeatures(res.features || {});
+            const [featuresRes, statsRes] = await Promise.all([
+                apiRequest(`/admin/tenants/${tenantId}/features`, token),
+                apiRequest(`/admin/tenants/${tenantId}/stats`, token) // New endpoint I added in admin.ts
+            ]);
+            setTenantFeatures(featuresRes.features || {});
+            setTenantStats(statsRes || {});
         } catch (e) {
             console.error(e);
         } finally {
             setFeaturesLoading(false);
         }
     };
+
+    // ... handleFeatureToggle ...
 
     const handleFeatureToggle = async (tenantId: string, featureKey: string, currentValue: boolean) => {
         // Optimistic Update
@@ -285,34 +293,47 @@ export default function AdminTenants() {
                                                 {featuresLoading ? (
                                                     <div className="text-sm text-zinc-500 py-2">Loading capabilities...</div>
                                                 ) : (
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                        {FEATURES.map(f => {
-                                                            const state = tenantFeatures[f.key] || { enabled: false, source: 'manual' };
-                                                            return (
-                                                                <div key={f.key} className="flex items-center justify-between p-3 border rounded-md bg-zinc-50">
-                                                                    <div className="flex items-center gap-3">
-                                                                        <f.icon size={18} className="text-zinc-500" />
-                                                                        <div>
-                                                                            <div className="text-sm font-medium text-zinc-900">{f.label}</div>
-                                                                            <div className="text-xs text-zinc-500">Source: {state.source}</div>
+                                                    <div className="space-y-6">
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                            {FEATURES.map(f => {
+                                                                const state = tenantFeatures[f.key] || { enabled: false, source: 'manual' };
+                                                                return (
+                                                                    <div key={f.key} className="flex items-center justify-between p-3 border rounded-md bg-zinc-50">
+                                                                        <div className="flex items-center gap-3">
+                                                                            <f.icon size={18} className="text-zinc-500" />
+                                                                            <div>
+                                                                                <div className="text-sm font-medium text-zinc-900">{f.label}</div>
+                                                                                <div className="text-xs text-zinc-500">Source: {state.source}</div>
+                                                                            </div>
                                                                         </div>
-                                                                    </div>
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            handleFeatureToggle(t.id, f.key, state.enabled);
-                                                                        }}
-                                                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${state.enabled ? 'bg-blue-600' : 'bg-gray-200'
-                                                                            }`}
-                                                                    >
-                                                                        <span
-                                                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${state.enabled ? 'translate-x-6' : 'translate-x-1'
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                handleFeatureToggle(t.id, f.key, state.enabled);
+                                                                            }}
+                                                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${state.enabled ? 'bg-blue-600' : 'bg-gray-200'
                                                                                 }`}
-                                                                        />
-                                                                    </button>
+                                                                        >
+                                                                            <span
+                                                                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${state.enabled ? 'translate-x-6' : 'translate-x-1'
+                                                                                    }`}
+                                                                            />
+                                                                        </button>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+
+                                                        {/* Usage Stats (New Section) */}
+                                                        <div>
+                                                            <h5 className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">Usage Metrics</h5>
+                                                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                                                <div className="bg-zinc-50 p-3 rounded-md border border-zinc-200">
+                                                                    <p className="text-xs text-zinc-500 mb-1">Emails Sent</p>
+                                                                    <p className="text-xl font-bold text-zinc-900">{tenantStats.emailCount || 0}</p>
                                                                 </div>
-                                                            );
-                                                        })}
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>

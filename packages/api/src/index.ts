@@ -222,6 +222,8 @@ app.route('/classes', classRoutes);
 app.route('/locations', locationRoutes);
 app.route('/webhooks', webhookRoutes);
 app.route('/uploads', uploadRoutes);
+import commerce from './routes/commerce';
+app.route('/commerce', commerce);
 app.route('/admin', adminRoutes);
 app.route('/admin', adminFeatureRoutes); // Mount at /admin (routes are /tenants/:id/features)
 app.route('/users', userRoutes);
@@ -229,7 +231,6 @@ import memberships from './routes/memberships';
 app.use('/commerce*', authMiddleware);
 app.use('/commerce*', tenantMiddleware);
 
-import commerce from './routes/commerce';
 app.route('/commerce', commerce);
 
 app.route('/members', members);
@@ -237,6 +238,17 @@ app.route('/memberships', memberships);
 
 import appointments from './routes/appointments';
 app.route('/appointments', appointments);
+
+import payroll from './routes/payroll';
+app.route('/payroll', payroll);
+
+import marketing from './routes/marketing';
+app.route('/marketing', marketing);
+
+// Main Admin Router (Super Admin)
+// Assuming there is an existing one or we create new prefix
+import admin from './routes/admin';
+app.route('/admin-api', admin); // Avoid conflict with existing /admin if any, or strictly partition
 
 import onboarding from './routes/onboarding';
 app.route('/onboarding', onboarding);

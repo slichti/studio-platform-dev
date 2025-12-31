@@ -94,9 +94,7 @@ export default function StudioLayout() {
                     <NavItem to="commerce/packs" icon={<Package size={18} />}>Class Packs</NavItem>
                     <NavItem to="students" icon={<Users size={18} />}>Students</NavItem>
                     <NavItem to="classes" icon={<Dumbbell size={18} />}>Classes</NavItem>
-                    {featureSet.has('financials') && (
-                        <NavItem to="finances" icon={<DollarSign size={18} />}>Finances</NavItem>
-                    )}
+                    <NavItem to="finances" icon={<DollarSign size={18} />}>Finances</NavItem>
                     <NavItem to="waivers" icon={<FileSignature size={18} />}>Waivers</NavItem>
                     <NavItem to="settings" icon={<Settings size={18} />}>Settings</NavItem>
                 </nav>

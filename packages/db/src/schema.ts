@@ -1,4 +1,5 @@
-import { sqliteTable, text, integer, index, primaryKey, uniqueIndex } from 'drizzle-orm/sqlite-core';
+
+import { sqliteTable, text, integer, uniqueIndex, index, primaryKey } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 // --- Multi-Tenancy Root ---
@@ -245,6 +246,95 @@ export const appointments = sqliteTable('appointments', {
     memberIdx: index('apt_member_idx').on(table.memberId),
 }));
 
+// --- Payroll & Payouts ---
+
+export const payrollConfig = sqliteTable('payroll_config', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    userId: text('user_id').notNull().references(() => users.id), // Link to Global User or Member? Let's link to User for portability, but Member is better for tenant-scoping. Let's use Member ID.
+    memberId: text('member_id').references(() => tenantMembers.id), // Better to use Member ID
+
+    payModel: text('pay_model', { enum: ['flat', 'percentage', 'hourly'] }).notNull(), // 'flat' (per class/session), 'percentage' (of revenue), 'hourly' (based on duration)
+    rate: integer('rate').notNull(), // If flat/hourly: in cents. If percentage: in basis points (e.g. 5000 = 50%)
+
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    memberIdx: index('payroll_config_member_idx').on(table.memberId),
+}));
+
+export const payouts = sqliteTable('payouts', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    instructorId: text('instructor_id').notNull().references(() => tenantMembers.id),
+
+    amount: integer('amount').notNull(), // Total paid in cents
+    currency: text('currency').default('usd'),
+
+    periodStart: integer('period_start', { mode: 'timestamp' }).notNull(),
+    periodEnd: integer('period_end', { mode: 'timestamp' }).notNull(),
+
+    status: text('status', { enum: ['processing', 'paid', 'failed'] }).default('processing'),
+    paidAt: integer('paid_at', { mode: 'timestamp' }),
+
+    notes: text('notes'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+});
+
+export const payrollItems = sqliteTable('payroll_items', {
+    id: text('id').primaryKey(),
+    payoutId: text('payout_id').notNull().references(() => payouts.id),
+
+    type: text('type', { enum: ['class', 'appointment'] }).notNull(),
+    referenceId: text('reference_id').notNull(), // ID of the class or appointment
+
+    amount: integer('amount').notNull(), // Calculated earning for this item
+
+    details: text('details', { mode: 'json' }), // Snapshot of calculation logic (e.g. "50% of $100")
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    payoutIdx: index('payroll_item_payout_idx').on(table.payoutId),
+    refIdx: index('payroll_item_ref_idx').on(table.referenceId),
+}));
+
+
+// --- Marketing & Email Logs ---
+
+export const marketingCampaigns = sqliteTable('marketing_campaigns', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+
+    subject: text('subject').notNull(),
+    content: text('content').notNull(), // HTML or Text content
+
+    status: text('status', { enum: ['draft', 'sending', 'sent', 'failed'] }).default('draft'),
+    sentAt: integer('sent_at', { mode: 'timestamp' }),
+
+    stats: text('stats', { mode: 'json' }), // { sent: 100, failed: 0 }
+
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+});
+
+export const emailLogs = sqliteTable('email_logs', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+
+    campaignId: text('campaign_id'), // Optional, null if transactional
+    recipientEmail: text('recipient_email').notNull(),
+    subject: text('subject').notNull(),
+
+    status: text('status', { enum: ['sent', 'failed', 'bounced'] }).default('sent'), // Simulated status
+    sentAt: integer('sent_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+
+    metadata: text('metadata', { mode: 'json' }), // Extra debug info
+}, (table) => ({
+    tenantIdx: index('email_log_tenant_idx').on(table.tenantId),
+    campaignIdx: index('email_log_campaign_idx').on(table.campaignId),
+    emailIdx: index('email_log_email_idx').on(table.recipientEmail),
+    sentAtIdx: index('email_log_sent_at_idx').on(table.sentAt),
+}));
+
+
 // --- Membership Plans (Tiers) ---
 export const membershipPlans = sqliteTable('membership_plans', {
     id: text('id').primaryKey(),
@@ -309,6 +399,50 @@ export const purchasedPacks = sqliteTable('purchased_packs', {
 }, (table) => ({
     memberPackIdx: index('member_pack_idx').on(table.memberId),
 }));
+
+// --- Phase 4: Discounts ---
+export const coupons = sqliteTable('coupons', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    code: text('code').notNull(),
+    type: text('type', { enum: ['percent', 'amount'] }).notNull(), // percent or flat amount
+    value: integer('value').notNull(), // 10 = 10% or 1000 = $10.00
+    active: integer('active', { mode: 'boolean' }).default(true),
+    usageLimit: integer('usage_limit'), // null = unlimited
+    expiresAt: integer('expires_at', { mode: 'timestamp' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantCodeIdx: uniqueIndex('tenant_code_idx').on(table.tenantId, table.code),
+}));
+
+export const couponRedemptions = sqliteTable('coupon_redemptions', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    couponId: text('coupon_id').notNull().references(() => coupons.id),
+    userId: text('user_id').notNull().references(() => users.id),
+    orderId: text('order_id'), // Optional link to purchase
+    redeemedAt: integer('redeemed_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+});
+
+// --- Phase 4: SMS ---
+export const smsConfig = sqliteTable('sms_config', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    provider: text('provider', { enum: ['twilio', 'mock'] }).default('mock'),
+    senderId: text('sender_id'), // Alphanumeric or Phone Number
+    enabledEvents: text('enabled_events', { mode: 'json' }), // { class_reminder: true }
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+});
+
+export const smsLogs = sqliteTable('sms_logs', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    recipientPhone: text('recipient_phone').notNull(),
+    body: text('body').notNull(),
+    status: text('status', { enum: ['queued', 'sent', 'delivered', 'failed'] }).default('queued'),
+    sentAt: integer('sent_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    metadata: text('metadata', { mode: 'json' }),
+});
 
 // --- Relations ---
 import { relations } from 'drizzle-orm';

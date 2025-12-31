@@ -9,7 +9,9 @@ import {
     useRouteError,
     type LinksFunction,
     type LoaderFunctionArgs,
+    type MetaFunction,
 } from "react-router";
+import { useEffect } from "react";
 import { ClerkProvider } from "@clerk/react-router";
 import { rootAuthLoader } from "@clerk/react-router/ssr.server";
 import { ThemeProvider } from "./components/ThemeProvider";
@@ -19,18 +21,23 @@ import styles from "./index.css?url";
 export const links: LinksFunction = () => [
     { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" },
     { rel: "stylesheet", href: styles },
+    { rel: "manifest", href: "/manifest.json" },
 ];
 
-// Restore Loader
+export const meta: MetaFunction = () => [
+    { title: "Studio Platform" },
+    { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" },
+    { name: "theme-color", content: "#18181B" },
+    { name: "apple-mobile-web-app-capable", content: "yes" },
+    { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+];
+
 export async function loader(args: LoaderFunctionArgs) {
     try {
-        console.log("DEBUG: Executing rootAuthLoader");
         return await rootAuthLoader(args, ({ request }) => {
-            console.log("DEBUG: rootAuthLoader callback executing");
             return { message: "Auth Loaded" };
         });
     } catch (e: any) {
-        // If the error is a Response (like a redirect), re-throw it!
         if (e instanceof Response) {
             throw e;
         }
@@ -42,13 +49,24 @@ export async function loader(args: LoaderFunctionArgs) {
 export default function App() {
     const loaderData = useLoaderData<typeof loader>();
 
+    useEffect(() => {
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then(registration => {
+                    console.log('SW registered: ', registration);
+                }).catch(registrationError => {
+                    console.log('SW registration failed: ', registrationError);
+                });
+            });
+        }
+    }, []);
+
     return (
         <ClerkProvider loaderData={loaderData} signUpFallbackRedirectUrl="/" signInFallbackRedirectUrl="/dashboard">
             <ThemeProvider defaultTheme="system" storageKey="studio-theme">
                 <html lang="en">
                     <head>
                         <meta charSet="utf-8" />
-                        <meta name="viewport" content="width=device-width, initial-scale=1" />
                         <Meta />
                         <Links />
                     </head>

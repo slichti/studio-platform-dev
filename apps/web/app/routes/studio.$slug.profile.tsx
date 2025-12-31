@@ -4,6 +4,7 @@ import { ActionFunction, LoaderFunction } from "react-router";
 import { useLoaderData, useFetcher } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "~/utils/api";
+import { useState, useEffect } from "react";
 import { FamilyManager } from "~/components/FamilyManager";
 import { AvailabilityManager } from "~/components/AvailabilityManager";
 
@@ -20,7 +21,7 @@ export const loader: LoaderFunction = async (args: any) => {
 
     // Let's just return the user profile for now.
     const user = await apiRequest("/users/me", token);
-    return { user, token };
+    return { user, token, slug };
 };
 
 export const action: ActionFunction = async (args: any) => {
@@ -62,8 +63,74 @@ export const action: ActionFunction = async (args: any) => {
     return null;
 }
 
+function NotificationSettings({ token, slug }: { token: string, slug: string }) {
+    const [settings, setSettings] = useState<any>(null);
+    const [loading, setLoading] = useState(false);
+
+    // Fetch on mount
+    useEffect(() => {
+        apiRequest('/members/me', token, { headers: { 'X-Tenant-Slug': slug } })
+            .then(res => {
+                if (res.member) {
+                    setSettings(res.member.settings || {});
+                }
+            })
+            .catch(console.error); // Silently fail if not member
+    }, [token, slug]);
+
+    async function toggleSMS() {
+        if (!settings) return;
+        setLoading(true);
+
+        const currentParams = settings.notifications || {};
+        const newState = !currentParams.sms;
+
+        try {
+            const res = await apiRequest('/members/me/settings', token, {
+                method: 'PATCH',
+                headers: { 'X-Tenant-Slug': slug },
+                body: JSON.stringify({
+                    notifications: {
+                        sms: newState
+                    }
+                })
+            });
+            if (res.settings) {
+                setSettings(res.settings);
+            }
+        } catch (e) {
+            alert("Failed to update settings");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    if (!settings) return null; // Don't show if not loaded
+
+    const smsActive = settings.notifications?.sms === true;
+
+    return (
+        <div className="bg-white rounded-lg border border-zinc-200 p-6 mb-6">
+            <h3 className="text-lg font-semibold mb-4">Notifications</h3>
+            <div className="flex items-center justify-between">
+                <div>
+                    <p className="text-sm font-medium text-zinc-900">SMS Notifications</p>
+                    <p className="text-sm text-zinc-500">Receive class reminders and updates via text.</p>
+                </div>
+                <button
+                    onClick={toggleSMS}
+                    disabled={loading}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${smsActive ? 'bg-zinc-900' : 'bg-zinc-200'}`}
+                >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${smsActive ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+            </div>
+        </div>
+    );
+}
+
 export default function StudioProfilePage() {
-    const { user, token } = useLoaderData<{ user: any, token: string }>();
+    const { user, token, slug } = useLoaderData<{ user: any, token: string, slug: string }>();
 
     return (
         <div className="max-w-2xl mx-auto py-8 px-4">
@@ -88,9 +155,11 @@ export default function StudioProfilePage() {
                 </div>
             </div>
 
-            <AvailabilityManager token={token} tenantSlug={user.slug || (user as any).tenantSlug || 'demo'} />
+            <NotificationSettings token={token} slug={slug} />
+
+            <AvailabilityManager token={token} tenantSlug={slug} />
 
             <FamilyManager token={token} />
-        </div>
+        </div >
     );
 }
