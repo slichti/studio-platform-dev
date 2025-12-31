@@ -227,15 +227,15 @@ app.post('/clerk', async (c) => {
             // Find Tenant Owner
             const { tenantRoles, tenantMembers, tenants } = await import('db/src/schema');
 
-            // Get Owner Email
-            // We need to find the user who has role 'owner' for this tenant
-            // And get their email.
-            const ownerMember = await db.select({
-                email: users.email
+            // Get Owner Email and Tenant Settings
+            const ownerData = await db.select({
+                email: users.email,
+                tenant: tenants
             })
                 .from(tenantMembers)
                 .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
                 .innerJoin(users, eq(tenantMembers.userId, users.id))
+                .innerJoin(tenants, eq(tenantMembers.tenantId, tenants.id))
                 .where(and(
                     eq(tenantMembers.tenantId, meta.tenantId),
                     eq(tenantRoles.role, 'owner')
@@ -243,10 +243,14 @@ app.post('/clerk', async (c) => {
                 .limit(1)
                 .get();
 
-            if (ownerMember && c.env.RESEND_API_KEY) {
+            if (ownerData && c.env.RESEND_API_KEY) {
                 const { EmailService } = await import('../services/email');
-                const emailService = new EmailService(c.env.RESEND_API_KEY);
-                c.executionCtx.waitUntil(emailService.notifyOwnerNewStudent(ownerMember.email, `${first_name} ${last_name}`));
+                const emailConfig = {
+                    branding: ownerData.tenant.branding as any,
+                    settings: ownerData.tenant.settings as any
+                };
+                const emailService = new EmailService(c.env.RESEND_API_KEY, emailConfig);
+                c.executionCtx.waitUntil(emailService.notifyOwnerNewStudent(ownerData.email, `${first_name} ${last_name}`));
             }
         }
     }

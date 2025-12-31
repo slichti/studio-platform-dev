@@ -81,7 +81,7 @@ export default function StudioPublicClasses() {
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Class Schedule</h2>
                 {!member && (
-                    <div className="text-sm text-zinc-500">
+                    <div className="text-sm text-zinc-500 dark:text-zinc-400">
                         Sign in to book classes.
                     </div>
                 )}
@@ -95,25 +95,25 @@ export default function StudioPublicClasses() {
 
             <div className="space-y-8">
                 {Object.keys(grouped).length === 0 ? (
-                    <div className="p-8 text-center text-zinc-500 bg-zinc-50 rounded-lg border border-dashed border-zinc-300">
+                    <div className="p-8 text-center text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg">
                         No upcoming classes scheduled.
                     </div>
                 ) : (
                     (Object.entries(grouped) as [string, ClassEvent[]][]).map(([date, events]) => (
                         <div key={date}>
-                            <h3 className="text-lg font-bold text-zinc-900 mb-3 sticky top-0 bg-zinc-50/95 py-2 backdrop-blur">{date}</h3>
+                            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-3 sticky top-0 bg-zinc-50/95 dark:bg-zinc-950/95 py-2 backdrop-blur">{date}</h3>
                             <div className="space-y-3">
                                 {events.map((cls: ClassEvent) => (
-                                    <div key={cls.id} className="bg-white p-4 rounded-lg border border-zinc-200 shadow-sm hover:border-zinc-300 transition-colors flex justify-between items-center">
+                                    <div key={cls.id} className="bg-white dark:bg-zinc-900 p-4 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors flex justify-between items-center">
                                         <div>
-                                            <div className="font-bold text-zinc-900">{cls.title}</div>
-                                            <div className="text-sm text-zinc-500 flex flex-wrap gap-x-3">
+                                            <div className="font-bold text-zinc-900 dark:text-zinc-100">{cls.title}</div>
+                                            <div className="text-sm text-zinc-500 dark:text-zinc-400 flex flex-wrap gap-x-3">
                                                 <span>{new Date(cls.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {cls.durationMinutes} min</span>
                                                 {(cls as any).instructor?.user?.profile && (
                                                     <span>with {(cls as any).instructor.user.profile.firstName}</span>
                                                 )}
                                                 {(cls as any).location && (
-                                                    <span className="text-zinc-400">@ {(cls as any).location.name}</span>
+                                                    <span className="text-zinc-400 dark:text-zinc-500">@ {(cls as any).location.name}</span>
                                                 )}
                                                 {cls.price > 0 && <span>• ${(cls.price / 100).toFixed(2)}</span>}
                                             </div>
@@ -134,8 +134,8 @@ export default function StudioPublicClasses() {
                                                         type="submit"
                                                         disabled={(fetcher.state !== "idle" && fetcher.formData?.get("classId") === cls.id) || (cls as any).userBooked}
                                                         className={`px-4 py-2 text-sm font-medium rounded transition-colors disabled:opacity-50 ${(cls as any).userBooked
-                                                            ? 'bg-green-100 text-green-800 cursor-default'
-                                                            : 'bg-zinc-900 text-white hover:bg-zinc-800'
+                                                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 cursor-default'
+                                                            : 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200'
                                                             }`}
                                                     >
                                                         {(fetcher.state !== "idle" && fetcher.formData?.get("classId") === cls.id)
@@ -147,7 +147,7 @@ export default function StudioPublicClasses() {
                                                     </button>
                                                 </fetcher.Form>
                                             ) : (
-                                                <a href="/sign-in" className="px-4 py-2 border border-zinc-300 text-zinc-700 text-sm font-medium rounded hover:bg-zinc-50">
+                                                <a href="/sign-in" className="px-4 py-2 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-sm font-medium rounded hover:bg-zinc-50 dark:hover:bg-zinc-800">
                                                     Login to Book
                                                 </a>
                                             )}

@@ -1,11 +1,81 @@
 import { Resend } from 'resend';
 
+export interface TenantEmailConfig {
+    branding?: {
+        emailReplyTo?: string;
+        emailFooterText?: string;
+        primaryColor?: string; // Could be used for styling
+        logoUrl?: string; // Future use
+    };
+    settings?: {
+        notifications?: {
+            adminEmail?: string;
+            enableBcc?: boolean;
+            newStudentAlert?: boolean;
+        };
+    };
+}
+
 export class EmailService {
     private resend: Resend;
-    private fromEmail = 'noreply@studio-platform.com'; // Dynamic based on tenant later?
+    private fromEmail = 'noreply@studio-platform.com';
+    private config?: TenantEmailConfig;
 
-    constructor(apiKey: string) {
+    constructor(apiKey: string, config?: TenantEmailConfig) {
         this.resend = new Resend(apiKey);
+        this.config = config;
+    }
+
+    private getEmailOptions() {
+        const headers: any = {};
+        const options: any = {
+            from: this.fromEmail,
+        };
+
+        if (this.config?.branding?.emailReplyTo) {
+            options.reply_to = this.config.branding.emailReplyTo;
+        }
+
+        return options;
+    }
+
+    private wrapHtml(content: string, title?: string): string {
+        const footerText = this.config?.branding?.emailFooterText;
+        const footerHtml = footerText
+            ? `<div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eaeaea; font-size: 12px; color: #666; white-space: pre-wrap;">${footerText}</div>`
+            : '';
+
+        return `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eaeaea; font-size: 12px; color: #666; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    ${content}
+                    ${footerHtml}
+                </div>
+            </body>
+            </html>
+        `;
+    }
+
+    private getRecipients(to: string, type: 'transactional' | 'notification'): { to: string; bcc?: string } {
+        const result: { to: string; bcc?: string } = { to };
+
+        // Apply BCC logic for transactional emails (bookings, etc)
+        if (type === 'transactional' &&
+            this.config?.settings?.notifications?.enableBcc &&
+            this.config?.settings?.notifications?.adminEmail) {
+            result.bcc = this.config.settings.notifications.adminEmail;
+        }
+
+        return result;
     }
 
     async sendBookingConfirmation(to: string, classDetails: {
@@ -17,8 +87,7 @@ export class EmailService {
     }) {
         const date = new Date(classDetails.startTime).toLocaleString();
 
-        // Simple Text/HTML for now
-        const html = `
+        const htmlContent = `
             <h1>Booking Confirmed!</h1>
             <p>You are booked for <strong>${classDetails.title}</strong>.</p>
             <p><strong>Time:</strong> ${date}</p>
@@ -28,12 +97,16 @@ export class EmailService {
             <p>Can't wait to see you there!</p>
         `;
 
+        const { bcc } = this.getRecipients(to, 'transactional');
+        const options = this.getEmailOptions();
+
         try {
             await this.resend.emails.send({
-                from: this.fromEmail,
+                ...options,
                 to,
+                bcc,
                 subject: `Booking Confirmed: ${classDetails.title}`,
-                html
+                html: this.wrapHtml(htmlContent, "Booking Confirmed")
             });
             console.log(`Booking email sent to ${to}`);
         } catch (e) {
@@ -43,16 +116,18 @@ export class EmailService {
 
     async sendWaiverCopy(to: string, waiverTitle: string, pdfBuffer: ArrayBuffer) {
         try {
-            // Convert ArrayBuffer to Buffer for Resend (if node) or use array of bytes? 
-            // Resend attachments usually take content as Buffer or base64 string.
-            // In Cloudflare Workers, we might need to convert ArrayBuffer to Buffer.
             const buffer = Buffer.from(pdfBuffer);
+            // Waivers are transactional, but maybe don't BCC the PDF to admin? 
+            // Often admins want a copy. Let's respect the BCC setting.
+            const { bcc } = this.getRecipients(to, 'transactional');
+            const options = this.getEmailOptions();
 
             await this.resend.emails.send({
-                from: this.fromEmail,
+                ...options,
                 to,
+                bcc,
                 subject: `Signed Copy: ${waiverTitle}`,
-                html: `<p>Attached is your signed copy of <strong>${waiverTitle}</strong>.</p>`,
+                html: this.wrapHtml(`<p>Attached is your signed copy of <strong>${waiverTitle}</strong>.</p>`),
                 attachments: [
                     {
                         filename: `${waiverTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`,
@@ -67,16 +142,22 @@ export class EmailService {
     }
 
     async sendWelcome(to: string, name: string) {
+        const htmlContent = `
+            <h1>Welcome, ${name}!</h1>
+            <p>We are thrilled to have you join us.</p>
+            <p>Explore classes, book your spot, and start your journey today.</p>
+        `;
+
+        const { bcc } = this.getRecipients(to, 'transactional');
+        const options = this.getEmailOptions();
+
         try {
             await this.resend.emails.send({
-                from: this.fromEmail,
+                ...options,
                 to,
+                bcc,
                 subject: `Welcome to Studio Platform!`,
-                html: `
-                    <h1>Welcome, ${name}!</h1>
-                    <p>We are thrilled to have you join us.</p>
-                    <p>Explore classes, book your spot, and start your journey today.</p>
-                `
+                html: this.wrapHtml(htmlContent)
             });
             console.log(`Welcome email sent to ${to}`);
         } catch (e) {
@@ -85,32 +166,48 @@ export class EmailService {
     }
 
 
-    async sendGenericEmail(to: string, subject: string, html: string) {
+    async sendGenericEmail(to: string, subject: string, html: string, isNotification = false) {
+        const { bcc } = this.getRecipients(to, isNotification ? 'notification' : 'transactional');
+        const options = this.getEmailOptions();
+
         try {
             await this.resend.emails.send({
-                from: this.fromEmail,
+                ...options,
                 to,
+                bcc, // Admin notifications usually don't need BCC, but if 'transactional', apply it.
                 subject,
-                html
+                html: this.wrapHtml(html)
             });
             console.log(`Generic email sent to ${to}`);
         } catch (e) {
             console.error("Failed to send generic email", e);
-            throw e; // Rethrow to let caller know
+            throw e;
         }
     }
 
     async notifyOwnerNewStudent(ownerEmail: string, studentName: string) {
-        // Notification to Studio Owner
+        // Notification to Studio Owner. 
+        // We override 'to' with the configured adminEmail if present, defaulting to the ownerEmail passed in.
+        const targetEmail = this.config?.settings?.notifications?.adminEmail || ownerEmail;
+
+        if (!this.config?.settings?.notifications?.newStudentAlert) {
+            // Check if alerts explicitly disabled?
+            // The caller might not have checked the setting before calling.
+            // If settings are present and false, skip?
+            // Existing logic didn't have this check.
+            // If config is provided, we should probably respect it.
+            if (this.config?.settings?.notifications?.newStudentAlert === false) return;
+        }
+
         await this.sendGenericEmail(
-            ownerEmail,
+            targetEmail,
             `New Student Registration: ${studentName}`,
-            `<p>Good news! <strong>${studentName}</strong> has just registered for your studio.</p>`
+            `<p>Good news! <strong>${studentName}</strong> has just registered for your studio.</p>`,
+            true // isNotification
         );
     }
 
     async notifyStudentSignUpConfirmation(studentEmail: string, studioName: string) {
-        // Welcome/Confirmation to Student
         await this.sendGenericEmail(
             studentEmail,
             `Welcome to ${studioName}`,
@@ -119,7 +216,6 @@ export class EmailService {
     }
 
     async notifyNoShow(studentEmail: string, feeAmount: number, className: string) {
-        // No Show Fee Notification
         await this.sendGenericEmail(
             studentEmail,
             `Missed Class Policy: ${className}`,

@@ -7,43 +7,43 @@ export default function StudioDashboardIndex() {
     const isOwner = roles.includes('owner');
 
     return (
-        <div style={{ color: 'var(--text)' }}>
-            <h2 className="text-2xl font-bold mb-6" style={{ color: 'var(--text)' }}>Welcome back, {names}!</h2>
+        <div className="max-w-6xl pb-10">
+            <h2 className="text-2xl font-bold mb-6 text-zinc-900 dark:text-zinc-100">Welcome back, {names}!</h2>
 
             {isOwner && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     {/* Quick Stats Placeholders */}
-                    <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)' }} className="p-6 rounded-lg shadow-sm">
-                        <div className="text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Active Students</div>
-                        <div className="text-3xl font-bold" style={{ color: 'var(--text)' }}>--</div>
+                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-lg shadow-sm">
+                        <div className="text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Active Students</div>
+                        <div className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">--</div>
                     </div>
-                    <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)' }} className="p-6 rounded-lg shadow-sm">
-                        <div className="text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Upcoming Classes</div>
-                        <div className="text-3xl font-bold" style={{ color: 'var(--text)' }}>--</div>
+                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-lg shadow-sm">
+                        <div className="text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Upcoming Classes</div>
+                        <div className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">--</div>
                     </div>
-                    <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)' }} className="p-6 rounded-lg shadow-sm">
-                        <div className="text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Monthly Revenue</div>
-                        <div className="text-3xl font-bold" style={{ color: 'var(--text)' }}>--</div>
+                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-lg shadow-sm">
+                        <div className="text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Monthly Revenue</div>
+                        <div className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">--</div>
                     </div>
                 </div>
             )}
 
-            <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)' }} className="rounded-lg p-6">
-                <h3 className="font-bold mb-2" style={{ color: 'var(--text)' }}>Getting Started</h3>
-                <p className="mb-4 text-sm" style={{ color: 'var(--text-muted)' }}>Your studio is ready. Quick actions:</p>
+            <div className="bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
+                <h3 className="font-bold mb-2 text-zinc-900 dark:text-zinc-100">Getting Started</h3>
+                <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">Your studio is ready. Quick actions:</p>
                 <div className="flex flex-wrap gap-4">
                     {isOwner && (
-                        <Link to="branding" style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', color: 'var(--text)' }} className="px-4 py-2 rounded-md text-sm font-medium shadow-sm transition-colors hover:opacity-80">
+                        <Link to="branding" className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 px-4 py-2 rounded-md text-sm font-medium shadow-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-700">
                             Customize Branding
                         </Link>
                     )}
                     {(isOwner || roles.includes('instructor')) && (
-                        <Link to="schedule" style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', color: 'var(--text)' }} className="px-4 py-2 rounded-md text-sm font-medium shadow-sm transition-colors hover:opacity-80">
+                        <Link to="schedule" className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 px-4 py-2 rounded-md text-sm font-medium shadow-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-700">
                             Manage Schedule
                         </Link>
                     )}
                     {isOwner && (
-                        <Link to="memberships" style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', color: 'var(--text)' }} className="px-4 py-2 rounded-md text-sm font-medium shadow-sm transition-colors hover:opacity-80">
+                        <Link to="memberships" className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 px-4 py-2 rounded-md text-sm font-medium shadow-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-700">
                             Setup Memberships
                         </Link>
                     )}

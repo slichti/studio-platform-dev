@@ -7,6 +7,8 @@ import { apiRequest } from "../utils/api";
 export default function StudioBranding() {
     const { tenant } = useOutletContext<any>();
     const [primaryColor, setPrimaryColor] = useState(tenant.branding?.primaryColor || '#4f46e5');
+    const [replyTo, setReplyTo] = useState(tenant.branding?.emailReplyTo || '');
+    const [footerText, setFooterText] = useState(tenant.branding?.emailFooterText || '');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
@@ -23,7 +25,13 @@ export default function StudioBranding() {
             await apiRequest(`/tenant/settings`, token, {
                 method: "PATCH",
                 headers: { 'X-Tenant-Slug': tenant.slug },
-                body: JSON.stringify({ branding: { primaryColor } })
+                body: JSON.stringify({
+                    branding: {
+                        primaryColor,
+                        emailReplyTo: replyTo,
+                        emailFooterText: footerText
+                    }
+                })
             });
             setSuccess("Branding saved successfully.");
         } catch (e: any) {
@@ -34,63 +42,87 @@ export default function StudioBranding() {
     };
 
     return (
-        <div>
-            <div style={{ marginBottom: '24px' }}>
-                <h1 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px' }}>Customize Branding</h1>
-                <p style={{ color: 'var(--text-muted)' }}>Manage your studio's look and feel.</p>
+        <div className="max-w-4xl pb-10">
+            <div className="mb-8">
+                <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Customize Branding</h1>
+                <p className="text-zinc-500 dark:text-zinc-400">Manage your studio's look and feel.</p>
             </div>
 
-            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '24px', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}>
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm">
                 {error && (
-                    <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '12px', borderRadius: '6px', marginBottom: '16px', fontSize: '0.9rem' }}>
+                    <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded mb-4 text-sm">
                         {error}
                     </div>
                 )}
 
                 {success && (
-                    <div style={{ background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', padding: '12px', borderRadius: '6px', marginBottom: '16px', fontSize: '0.9rem' }}>
+                    <div className="bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 p-3 rounded mb-4 text-sm">
                         {success}
                     </div>
                 )}
 
-                <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <form onSubmit={handleSave} className="flex flex-col gap-6">
                     <div>
-                        <label style={{ display: 'block', textTransform: 'uppercase', color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '600', letterSpacing: '0.05em', marginBottom: '8px' }}>
+                        <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">
                             Primary Brand Color
                         </label>
-                        <div style={{ display: 'flex', gap: '12px' }}>
+                        <div className="flex gap-3">
                             <input
                                 type="color"
                                 value={primaryColor}
                                 onChange={(e) => setPrimaryColor(e.target.value)}
-                                style={{ width: '40px', height: '40px', padding: 0, border: 'none', borderRadius: '6px', cursor: 'pointer', background: 'none' }}
+                                className="w-10 h-10 p-0 border-none rounded cursor-pointer bg-transparent"
                             />
                             <input
                                 type="text"
                                 value={primaryColor}
                                 onChange={(e) => setPrimaryColor(e.target.value)}
-                                style={{ flex: 1, background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px', fontSize: '0.95rem', fontFamily: 'monospace', outline: 'none' }}
+                                className="flex-1 bg-transparent text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-md px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none"
                                 placeholder="#000000"
                             />
                         </div>
                     </div>
 
-                    <div style={{ paddingTop: '10px' }}>
+                    <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
+                        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Email Settings</h2>
+
+                        <div className="mb-4">
+                            <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">
+                                Reply-To Address
+                            </label>
+                            <input
+                                type="email"
+                                value={replyTo}
+                                onChange={(e) => setReplyTo(e.target.value)}
+                                className="w-full bg-transparent text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                placeholder="hello@yourstudio.com"
+                            />
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                                This is the email address students will reply to.
+                            </p>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">
+                                Email Footer Text
+                            </label>
+                            <textarea
+                                value={footerText}
+                                onChange={(e) => setFooterText(e.target.value)}
+                                className="w-full min-h-[80px] bg-transparent text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-y"
+                                placeholder="e.g. 123 Yoga St, City, ST"
+                            />
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                                Address or legal text to include at the bottom of every email.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="pt-2">
                         <button
                             type="submit"
                             disabled={loading}
-                            style={{
-                                background: 'var(--accent)',
-                                color: 'white',
-                                padding: '10px 20px',
-                                borderRadius: '6px',
-                                border: 'none',
-                                fontWeight: '600',
-                                fontSize: '0.95rem',
-                                cursor: loading ? 'not-allowed' : 'pointer',
-                                opacity: loading ? 0.7 : 1,
-                                transition: 'opacity 0.2s'
-                            }}
+                            className={`bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-5 py-2.5 rounded-md font-medium text-sm hover:opacity-90 transition-opacity ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
                         >
                             {loading ? 'Saving...' : 'Save Changes'}
                         </button>

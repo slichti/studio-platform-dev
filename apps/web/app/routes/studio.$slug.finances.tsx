@@ -6,17 +6,11 @@ import { useAuth } from "@clerk/react-router";
 
 export default function StudioFinances() {
     const { tenant, member, roles } = useOutletContext<any>();
-    const apiUrl = (useOutletContext() as any).env?.VITE_API_URL || "http://localhost:8787"; // Fallback or use env from loader if available
-    // Actually, finances.tsx is a route, it doesn't receive env via props directly unless passed.
-    // The previous code used imported API_URL.
-    // I should re-add import { API_URL } from "../utils/api"; and check why it failed.
-    // "Module '../utils/api' has no exported member 'API_URL'".
-    // Let's import apiRequest and use hardcoded string or fix api.ts export.
     const isOwner = roles.includes('owner');
 
     if (!isOwner) {
         return (
-            <div className="p-8 text-center text-zinc-500">
+            <div className="p-8 text-center text-zinc-500 dark:text-zinc-400">
                 You do not have permission to view this page.
             </div>
         )
@@ -24,7 +18,8 @@ export default function StudioFinances() {
 
     const handleConnectStripe = () => {
         // Redirect to API endpoint that handles Stripe OAuth
-        window.location.href = `${API_URL}/studios/stripe/connect?tenantId=${tenant.id}`;
+        const url = import.meta.env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev";
+        window.location.href = `${url}/studios/stripe/connect?tenantId=${tenant.id}`;
     };
 
     const { getToken } = useAuth();
@@ -37,19 +32,20 @@ export default function StudioFinances() {
 
         const fetchData = async () => {
             const token = await getToken();
+            const url = import.meta.env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev";
 
             // Fetch Stats
-            (apiRequest(`${API_URL}/commerce/stats`, token) as Promise<any>).then(res => {
+            (apiRequest(`${url}/commerce/stats`, token) as Promise<any>).then(res => {
                 if (res) setStats(res);
             });
 
             // Fetch Transactions
-            (apiRequest(`${API_URL}/commerce/transactions`, token) as Promise<any>).then(res => {
+            (apiRequest(`${url}/commerce/transactions`, token) as Promise<any>).then(res => {
                 if (res && res.transactions) setTransactions(res.transactions);
             });
 
             // Fetch Balance
-            (apiRequest(`${API_URL}/commerce/balance`, token) as Promise<any>).then(res => {
+            (apiRequest(`${url}/commerce/balance`, token) as Promise<any>).then(res => {
                 if (res && !res.error) setBalance(res);
             });
         };
@@ -57,14 +53,14 @@ export default function StudioFinances() {
     }, [tenant.id, isOwner, getToken]);
 
     return (
-        <div className="max-w-4xl" style={{ color: 'var(--text)' }}>
+        <div className="max-w-4xl text-zinc-900 dark:text-zinc-100">
             <h1 className="text-2xl font-bold mb-6">Finances</h1>
 
             {!tenant.stripeAccountId ? (
-                <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)' }} className="p-8 rounded-lg shadow-sm text-center">
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-lg shadow-sm text-center">
                     <div className="mb-4 text-4xl">💳</div>
                     <h2 className="text-xl font-bold mb-2">Setup Payouts</h2>
-                    <p className="mb-6 max-w-md mx-auto" style={{ color: 'var(--text-muted)' }}>
+                    <p className="mb-6 max-w-md mx-auto text-zinc-500 dark:text-zinc-400">
                         Connect with Stripe to start accepting payments for classes and memberships.
                         Funds will be deposited directly to your bank account.
                     </p>
@@ -75,70 +71,70 @@ export default function StudioFinances() {
                         <span>Connect with Stripe</span>
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M10 6v-2h14v16h-14v-2h-2v4h18v-20h-18v4h2zm-8 4h10v-3l6 5-6 5v-3h-10v-4z" /></svg>
                     </button>
-                    <p className="mt-4 text-xs text-zinc-400">
+                    <p className="mt-4 text-xs text-zinc-400 dark:text-zinc-500">
                         You will be redirected to Stripe to verify your business information.
                     </p>
                 </div>
             ) : (
                 <div className="space-y-6">
-                    <div className="bg-green-50 p-4 rounded-lg border border-green-200 flex items-center justify-between">
+                    <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                            <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center text-green-600 dark:text-green-300">
                                 ✓
                             </div>
                             <div>
-                                <h3 className="font-semibold text-green-800">Stripe Connected</h3>
-                                <p className="text-sm text-green-600">Your account is ready to process payments.</p>
+                                <h3 className="font-semibold text-green-800 dark:text-green-300">Stripe Connected</h3>
+                                <p className="text-sm text-green-600 dark:text-green-400">Your account is ready to process payments.</p>
                             </div>
                         </div>
-                        <div className="text-sm font-mono" style={{ color: 'var(--text-muted)' }}>
+                        <div className="text-sm font-mono text-zinc-500 dark:text-zinc-400">
                             {tenant.stripeAccountId}
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)' }} className="p-6 rounded-lg shadow-sm">
-                            <div className="text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Total Revenue</div>
+                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-lg shadow-sm">
+                            <div className="text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Total Revenue</div>
                             <div className="text-3xl font-bold">${stats ? (stats.totalRevenue / 100).toFixed(2) : '0.00'}</div>
-                            <div className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>Est. All Time</div>
+                            <div className="text-xs mt-2 text-zinc-500 dark:text-zinc-400">Est. All Time</div>
                         </div>
-                        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)' }} className="p-6 rounded-lg shadow-sm">
-                            <div className="text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Monthly Recurring</div>
+                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-lg shadow-sm">
+                            <div className="text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Monthly Recurring</div>
                             <div className="text-3xl font-bold">${stats ? (stats.mrr / 100).toFixed(2) : '0.00'}</div>
-                            <div className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>Active Subs: {stats?.activeSubscriptions || 0}</div>
+                            <div className="text-xs mt-2 text-zinc-500 dark:text-zinc-400">Active Subs: {stats?.activeSubscriptions || 0}</div>
                         </div>
-                        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)' }} className="p-6 rounded-lg shadow-sm">
-                            <div className="text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Stripe Balance</div>
+                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-lg shadow-sm">
+                            <div className="text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Stripe Balance</div>
                             <div className="text-3xl font-bold">
                                 ${balance ? (balance.available / 100).toFixed(2) : '0.00'}
                             </div>
-                            <div className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+                            <div className="text-xs mt-2 text-zinc-500 dark:text-zinc-400">
                                 Pending: ${balance ? (balance.pending / 100).toFixed(2) : '0.00'}
                             </div>
                         </div>
                     </div>
 
-                    <div className="p-4 rounded-lg" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}>
-                        <h3 className="font-semibold mb-4">Transaction History</h3>
+                    <div className="p-4 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                        <h3 className="font-semibold mb-4 text-zinc-900 dark:text-zinc-100">Transaction History</h3>
                         {transactions.length === 0 ? (
-                            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No recent transactions.</p>
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400">No recent transactions.</p>
                         ) : (
                             <table className="min-w-full text-sm">
                                 <thead>
-                                    <tr className="border-b" style={{ borderColor: 'var(--border)' }}>
-                                        <th className="text-left py-2 font-medium">Date</th>
-                                        <th className="text-left py-2 font-medium">Description</th>
-                                        <th className="text-left py-2 font-medium">Customer</th>
-                                        <th className="text-right py-2 font-medium">Amount</th>
+                                    <tr className="border-b border-zinc-200 dark:border-zinc-700">
+                                        <th className="text-left py-2 font-medium text-zinc-700 dark:text-zinc-300">Date</th>
+                                        <th className="text-left py-2 font-medium text-zinc-700 dark:text-zinc-300">Description</th>
+                                        <th className="text-left py-2 font-medium text-zinc-700 dark:text-zinc-300">Customer</th>
+                                        <th className="text-right py-2 font-medium text-zinc-700 dark:text-zinc-300">Amount</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {transactions.map((t: any) => (
-                                        <tr key={t.id} className="border-b last:border-0" style={{ borderColor: 'var(--border)' }}>
-                                            <td className="py-2">{new Date(t.date).toLocaleDateString()}</td>
-                                            <td className="py-2">{t.description}</td>
-                                            <td className="py-2">{t.customer}</td>
-                                            <td className="py-2 text-right">${(t.amount / 100).toFixed(2)}</td>
+                                        <tr key={t.id} className="border-b last:border-0 border-zinc-200 dark:border-zinc-700">
+                                            <td className="py-2 text-zinc-600 dark:text-zinc-400">{new Date(t.date).toLocaleDateString()}</td>
+                                            <td className="py-2 text-zinc-600 dark:text-zinc-400">{t.description}</td>
+                                            <td className="py-2 text-zinc-600 dark:text-zinc-400">{t.customer}</td>
+                                            <td className="py-2 text-right text-zinc-900 dark:text-zinc-100">${(t.amount / 100).toFixed(2)}</td>
                                         </tr>
                                     ))}
                                 </tbody>

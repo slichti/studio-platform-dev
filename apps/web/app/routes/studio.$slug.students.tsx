@@ -65,13 +65,13 @@ export default function StudioStudents() {
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">People</h2>
+                <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">People</h2>
                 <div className="flex gap-2">
                     <input
                         placeholder="Search members..."
-                        className="px-3 py-2 border border-zinc-200 rounded-md text-sm min-w-[250px]"
+                        className="px-3 py-2 border border-zinc-200 dark:border-zinc-800 rounded-md text-sm min-w-[250px] bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
                     />
-                    <button className="bg-zinc-900 text-white px-4 py-2 rounded-md hover:bg-zinc-800 text-sm font-medium">
+                    <button className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 text-sm font-medium">
                         Add Member
                     </button>
                 </div>
@@ -83,46 +83,46 @@ export default function StudioStudents() {
                 </div>
             )}
 
-            <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden shadow-sm">
                 <table className="w-full text-left">
-                    <thead className="bg-zinc-50 border-b border-zinc-200">
+                    <thead className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
                         <tr>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Name</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Email</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Role</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Joined</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Actions</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Name</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Email</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Role</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Joined</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-100">
+                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                         {members.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="px-6 py-8 text-center text-zinc-500">
+                                <td colSpan={5} className="px-6 py-8 text-center text-zinc-500 dark:text-zinc-400">
                                     No members found yet.
                                 </td>
                             </tr>
                         ) : (
                             members.map((member: any) => (
-                                <tr key={member.id} className="hover:bg-zinc-50 transition-colors">
-                                    <td className="px-6 py-4 font-medium text-zinc-900">
+                                <tr key={member.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                                    <td className="px-6 py-4 font-medium text-zinc-900 dark:text-zinc-100">
                                         <div className="flex items-center gap-3">
-                                            <div className="h-8 w-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold uppercase">
+                                            <div className="h-8 w-8 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center text-xs font-bold uppercase">
                                                 {member.user.email.substring(0, 2)}
                                             </div>
                                             <Link
                                                 to={`${member.id}`}
-                                                className="hover:text-blue-600 hover:underline"
+                                                className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
                                             >
                                                 {member.user.profile?.firstName ? `${member.user.profile.firstName} ${member.user.profile.lastName}` : 'Unknown Name'}
                                             </Link>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-zinc-600 text-sm">{member.user.email}</td>
+                                    <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400 text-sm">{member.user.email}</td>
                                     <td className="px-6 py-4">
                                         {isOwner ? (
                                             <select
                                                 disabled={updating === member.id}
-                                                className="text-sm border-zinc-200 rounded p-1 bg-zinc-50"
+                                                className="text-sm border-zinc-200 dark:border-zinc-700 rounded p-1 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                                                 value={member.roles.find((r: any) => r.role === 'owner' || r.role === 'instructor')?.role || 'student'}
                                                 onChange={(e) => handleRoleChange(member.id, e.target.value)}
                                             >
@@ -131,16 +131,16 @@ export default function StudioStudents() {
                                                 <option value="owner">Owner</option>
                                             </select>
                                         ) : (
-                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-100 text-zinc-800 capitalize">
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 capitalize">
                                                 {member.roles.map((r: any) => r.role).join(', ') || 'Student'}
                                             </span>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4 text-zinc-500 text-sm">
+                                    <td className="px-6 py-4 text-zinc-500 dark:text-zinc-400 text-sm">
                                         {new Date(member.joinedAt).toLocaleDateString()}
                                     </td>
                                     <td className="px-6 py-4">
-                                        <button className="text-zinc-400 hover:text-zinc-600 text-sm">Edit</button>
+                                        <button className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 text-sm">Edit</button>
                                     </td>
                                 </tr>
                             ))
@@ -148,7 +148,7 @@ export default function StudioStudents() {
                     </tbody>
                 </table>
 
-                <div className="p-4 border-t border-zinc-100 bg-zinc-50 text-center text-xs text-zinc-500">
+                <div className="p-4 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 text-center text-xs text-zinc-500 dark:text-zinc-400">
                     Showing {members.length} member{members.length === 1 ? '' : 's'}
                 </div>
             </div>

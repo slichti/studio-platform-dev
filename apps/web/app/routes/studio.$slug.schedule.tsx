@@ -110,8 +110,8 @@ export default function StudioSchedule() {
         <div className="p-6 h-screen flex flex-col">
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-zinc-900">Schedule</h1>
-                    <p className="text-zinc-500 text-sm mt-1">Manage your class calendar and bookings.</p>
+                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Schedule</h1>
+                    <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">Manage your class calendar and bookings.</p>
                 </div>
                 <button
                     onClick={() => setIsCreateOpen(true)}
@@ -128,7 +128,7 @@ export default function StudioSchedule() {
                 </div>
             )}
 
-            <div className="flex-1 bg-white rounded-lg shadow border border-zinc-200 p-4">
+            <div className="flex-1 bg-white dark:bg-zinc-900 rounded-lg shadow border border-zinc-200 dark:border-zinc-800 p-4">
                 <Calendar
                     localizer={localizer}
                     events={events}
@@ -142,12 +142,13 @@ export default function StudioSchedule() {
                     onSelectEvent={handleSelectEvent}
                     eventPropGetter={(event) => ({
                         style: {
-                            backgroundColor: '#eff6ff', // blue-50
-                            border: '1px solid #bfdbfe', // blue-200
-                            color: '#1e40af', // blue-800
+                            backgroundColor: 'var(--calendar-event-bg, #eff6ff)', // Use var or specific color
+                            border: '1px solid var(--calendar-event-border, #bfdbfe)',
+                            color: 'var(--calendar-event-text, #1e40af)',
                             fontSize: '0.85rem',
                             borderRadius: '4px'
-                        }
+                        },
+                        className: "dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-200"
                     })}
                 />
             </div>

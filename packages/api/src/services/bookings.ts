@@ -36,11 +36,14 @@ export class BookingService {
 
             // Trigger Notification
             if (this.env.RESEND_API_KEY && member.user) {
-                const emailService = new EmailService(this.env.RESEND_API_KEY);
+                // Pass branding/settings if available on tenant
+                const emailConfig = {
+                    branding: member.tenant?.branding as any,
+                    settings: member.tenant?.settings as any
+                };
+                const emailService = new EmailService(this.env.RESEND_API_KEY, emailConfig);
                 const classInfo = await this.db.select({ title: classes.title }).from(classes).where(eq(classes.id, booking.classId)).get();
 
-                // Using waitUntil if available, otherwise await (Cron context might wait)
-                // specific context handling might be needed if passed in, but for service just await or let caller handle
                 await emailService.notifyNoShow(
                     member.user.email,
                     settings.noShowFeeAmount,

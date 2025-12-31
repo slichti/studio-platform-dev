@@ -9,7 +9,6 @@ import { Modal } from "../components/Modal";
 import { CardCreator } from "../components/CardCreator";
 import { useAuth } from "@clerk/react-router";
 
-// Loader: Fetch plans
 // Loader: Fetch plans and subscriptions
 export const loader = async (args: LoaderFunctionArgs) => {
     const { params } = args;
@@ -29,7 +28,6 @@ export const loader = async (args: LoaderFunctionArgs) => {
     }
 };
 
-// Action: Create Plan
 // Action: Create, Update, Delete Plan
 export const action = async (args: ActionFunctionArgs) => {
     const { request, params } = args;
@@ -51,11 +49,9 @@ export const action = async (args: ActionFunctionArgs) => {
         }
     }
 
-    // Default: Create/Update (Merged for now or separate? Let's assume Create for now based on existing flow)
-    // To support Update we need planId
+    // Default: Create/Update
     const planId = formData.get("planId");
 
-    // ... (Existing fields extraction)
     const name = formData.get("name");
     const price = Number(formData.get("price") || 0) * 100;
     const interval = formData.get("interval");
@@ -95,7 +91,7 @@ export default function StudioMemberships() {
     const isSubmitting = navigation.state === "submitting";
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const submit = useSubmit();
-    const { getToken } = useAuth();
+    const { getToken } = useAuth(); // Clerk hook for client-side token
 
     // Card Creator State
     const [cardData, setCardData] = useState<{ image: Blob | null, title: string, subtitle: string, previewUrl: string }>({
@@ -156,34 +152,33 @@ export default function StudioMemberships() {
     };
 
     return (
-        <div style={{ color: 'var(--text)' }}>
+        <div className="text-zinc-900 dark:text-zinc-100">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Memberships</h2>
                 <button
                     onClick={() => setIsCreateOpen(true)}
-                    style={{ background: 'var(--accent)', color: 'white' }}
-                    className="px-4 py-2 rounded-md hover:opacity-90 text-sm font-medium"
+                    className="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors text-sm font-medium"
                 >
                     + New Plan
                 </button>
             </div>
 
             {error && (
-                <div className="bg-red-50 text-red-700 p-4 rounded mb-4 text-sm">
+                <div className="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 p-4 rounded mb-4 text-sm">
                     Failed to load plans: {error}
                 </div>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
                 {plans.length === 0 ? (
-                    <div style={{ background: 'var(--bg-subtle)', border: '1px dashed var(--border)' }} className="col-span-full text-center p-12 rounded-lg">
-                        <h3 className="font-medium mb-1" style={{ color: 'var(--text)' }}>No Membership Plans</h3>
-                        <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>Create tiers like "Unlimited" or "10-Pack" for your students.</p>
+                    <div className="col-span-full text-center p-12 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-dashed border-zinc-300 dark:border-zinc-700">
+                        <h3 className="font-medium mb-1 text-zinc-900 dark:text-zinc-100">No Membership Plans</h3>
+                        <p className="text-sm mb-4 text-zinc-500 dark:text-zinc-400">Create tiers like "Unlimited" or "10-Pack" for your students.</p>
                         <button onClick={() => setIsCreateOpen(true)} className="text-blue-600 hover:underline">Create first plan</button>
                     </div>
                 ) : (
                     plans.map((plan: any) => (
-                        <div key={plan.id} style={{ background: 'var(--card-bg)', border: '1px solid var(--border)' }} className="rounded-lg shadow-sm transition-colors overflow-hidden group">
+                        <div key={plan.id} className="rounded-lg shadow-sm transition-colors overflow-hidden group bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
                             {/* Card Header Image */}
                             <div className="relative h-48 w-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
                                 {plan.imageUrl ? (
@@ -206,13 +201,13 @@ export default function StudioMemberships() {
                             </div>
 
                             <div className="p-6">
-                                <h3 className="font-bold text-lg mb-2" style={{ color: 'var(--text)' }}>{plan.name}</h3>
-                                <div className="text-2xl font-bold mb-4" style={{ color: 'var(--text)' }}>
+                                <h3 className="font-bold text-lg mb-2 text-zinc-900 dark:text-zinc-100">{plan.name}</h3>
+                                <div className="text-2xl font-bold mb-4 text-zinc-900 dark:text-zinc-100">
                                     ${(plan.price / 100).toFixed(2)}
-                                    <span className="text-sm font-normal" style={{ color: 'var(--text-muted)' }}>/{plan.interval}</span>
+                                    <span className="text-sm font-normal text-zinc-500 dark:text-zinc-400">/{plan.interval}</span>
                                 </div>
-                                <p className="text-sm mb-6 min-h-[40px]" style={{ color: 'var(--text-muted)' }}>{plan.description || "No description provided."}</p>
-                                <button style={{ border: '1px solid var(--border)', color: 'var(--text)' }} className="w-full py-2 rounded hover:opacity-80 font-medium text-sm">
+                                <p className="text-sm mb-6 min-h-[40px] text-zinc-500 dark:text-zinc-400">{plan.description || "No description provided."}</p>
+                                <button className="w-full py-2 rounded hover:bg-zinc-50 dark:hover:bg-zinc-800 font-medium text-sm border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 transition-colors">
                                     Edit Plan
                                 </button>
                                 <Form method="post" onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
@@ -220,7 +215,7 @@ export default function StudioMemberships() {
                                 }}>
                                     <input type="hidden" name="intent" value="delete_plan" />
                                     <input type="hidden" name="planId" value={plan.id} />
-                                    <button type="submit" className="w-full mt-2 text-red-600 hover:text-red-800 text-xs font-medium">
+                                    <button type="submit" className="w-full mt-2 text-red-600 hover:text-red-800 dark:hover:text-red-400 text-xs font-medium">
                                         Delete Plan
                                     </button>
                                 </Form>
@@ -230,36 +225,34 @@ export default function StudioMemberships() {
                 )}
             </div>
 
-            {/* List Active Subscriptions (Placeholder for now) */}
-            <h3 className="text-lg font-bold mb-4">Active Subscriptions</h3>
-            {/* Active Subscriptions */}
-            <h3 className="text-lg font-bold mb-4">Active Subscriptions</h3>
-            <div className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden shadow-sm">
+            {/* List Active Subscriptions */}
+            <h3 className="text-lg font-bold mb-4 text-zinc-900 dark:text-zinc-100">Active Subscriptions</h3>
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden shadow-sm">
                 {subscriptions && subscriptions.length > 0 ? (
                     <table className="w-full text-left">
-                        <thead className="bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">
+                        <thead className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
                             <tr>
-                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Student</th>
-                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Plan</th>
-                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Renewal</th>
+                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Student</th>
+                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Plan</th>
+                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Renewal</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-700">
+                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                             {subscriptions.map((sub: any) => (
-                                <tr key={sub.id}>
+                                <tr key={sub.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/20">
                                     <td className="px-6 py-4">
                                         <div className="font-medium text-zinc-900 dark:text-zinc-100">{sub.user.profile?.fullName || sub.user.email}</div>
-                                        <div className="text-xs text-zinc-500">{sub.user.email}</div>
+                                        <div className="text-xs text-zinc-500 dark:text-zinc-400">{sub.user.email}</div>
                                     </td>
                                     <td className="px-6 py-4 text-sm text-zinc-600 dark:text-zinc-300">{sub.planName}</td>
                                     <td className="px-6 py-4">
-                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${sub.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-zinc-100 text-zinc-800'
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${sub.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300'
                                             }`}>
                                             {sub.status}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-zinc-500">
+                                    <td className="px-6 py-4 text-sm text-zinc-500 dark:text-zinc-400">
                                         {sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd).toLocaleDateString() : 'N/A'}
                                     </td>
                                 </tr>
@@ -278,12 +271,12 @@ export default function StudioMemberships() {
                 isOpen={isCreateOpen}
                 onClose={() => setIsCreateOpen(false)}
                 title="Create Membership Plan"
-                maxWidth="max-w-4xl" // Wider for card creator
+                maxWidth="max-w-4xl"
             >
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {/* Left: Card Visuals */}
                     <div>
-                        <h4 className="font-semibold mb-4" style={{ color: 'var(--text)' }}>Card Appearance</h4>
+                        <h4 className="font-semibold mb-4 text-zinc-900 dark:text-zinc-100">Card Appearance</h4>
                         <CardCreator
                             onChange={setCardData}
                         />
@@ -292,32 +285,30 @@ export default function StudioMemberships() {
                     {/* Right: Plan Details */}
                     <Form method="post" onSubmit={handleCreateWrapper} className="space-y-4">
                         <div>
-                            <h4 className="font-semibold mb-4" style={{ color: 'var(--text)' }}>Plan Details</h4>
-                            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Plan Name (Internal)</label>
+                            <h4 className="font-semibold mb-4 text-zinc-900 dark:text-zinc-100">Plan Details</h4>
+                            <label className="block text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Plan Name (Internal)</label>
                             <input
                                 name="name"
                                 required
                                 placeholder="e.g. Gold Unlimited"
-                                style={{ background: 'var(--bg-subtle)', color: 'var(--text)', border: '1px solid var(--border)' }}
-                                className="w-full px-3 py-2 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md focus:ring-blue-500 focus:border-blue-500 text-zinc-900 dark:text-zinc-100"
                             />
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Price ($)</label>
+                                <label className="block text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Price ($)</label>
                                 <input
                                     type="number"
                                     name="price"
                                     step="0.01"
                                     required
-                                    style={{ background: 'var(--bg-subtle)', color: 'var(--text)', border: '1px solid var(--border)' }}
-                                    className="w-full px-3 py-2 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                    className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md focus:ring-blue-500 focus:border-blue-500 text-zinc-900 dark:text-zinc-100"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Interval</label>
-                                <select name="interval" style={{ background: 'var(--bg-subtle)', color: 'var(--text)', border: '1px solid var(--border)' }} className="w-full px-3 py-2 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                                <label className="block text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Interval</label>
+                                <select name="interval" className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md focus:ring-blue-500 focus:border-blue-500 text-zinc-900 dark:text-zinc-100">
                                     <option value="month">Monthly</option>
                                     <option value="week">Weekly</option>
                                     <option value="year">Yearly</option>
@@ -327,12 +318,11 @@ export default function StudioMemberships() {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Description</label>
+                            <label className="block text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Description</label>
                             <textarea
                                 name="description"
                                 rows={3}
-                                style={{ background: 'var(--bg-subtle)', color: 'var(--text)', border: '1px solid var(--border)' }}
-                                className="w-full px-3 py-2 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md focus:ring-blue-500 focus:border-blue-500 text-zinc-900 dark:text-zinc-100"
                             />
                         </div>
 
@@ -340,16 +330,14 @@ export default function StudioMemberships() {
                             <button
                                 type="button"
                                 onClick={() => setIsCreateOpen(false)}
-                                style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
-                                className="flex-1 px-4 py-2 rounded-md hover:opacity-80 font-medium"
+                                className="flex-1 px-4 py-2 border border-zinc-200 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100 transition-colors"
                             >
                                 Cancel
                             </button>
                             <button
                                 type="submit"
                                 disabled={isSubmitting || uploading}
-                                style={{ background: 'var(--accent)', color: 'white' }}
-                                className="flex-1 px-4 py-2 rounded-md hover:opacity-90 font-medium disabled:opacity-50"
+                                className="flex-1 px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-md hover:opacity-90 font-medium disabled:opacity-50 transition-colors"
                             >
                                 {uploading ? "Uploading..." : (isSubmitting ? "Creating..." : "Create Plan")}
                             </button>

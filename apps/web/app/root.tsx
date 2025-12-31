@@ -12,6 +12,7 @@ import {
 } from "react-router";
 import { ClerkProvider } from "@clerk/react-router";
 import { rootAuthLoader } from "@clerk/react-router/ssr.server";
+import { ThemeProvider } from "./components/ThemeProvider";
 
 import styles from "./index.css?url";
 
@@ -43,19 +44,21 @@ export default function App() {
 
     return (
         <ClerkProvider loaderData={loaderData} signUpFallbackRedirectUrl="/" signInFallbackRedirectUrl="/dashboard">
-            <html lang="en">
-                <head>
-                    <meta charSet="utf-8" />
-                    <meta name="viewport" content="width=device-width, initial-scale=1" />
-                    <Meta />
-                    <Links />
-                </head>
-                <body style={{ margin: 0, padding: 0, fontFamily: "'Inter', sans-serif", background: '#ffffff', color: '#18181b' }}>
-                    <Outlet />
-                    <ScrollRestoration />
-                    <Scripts />
-                </body>
-            </html>
+            <ThemeProvider defaultTheme="system" storageKey="studio-theme">
+                <html lang="en">
+                    <head>
+                        <meta charSet="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1" />
+                        <Meta />
+                        <Links />
+                    </head>
+                    <body className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 font-sans antialiased selection:bg-blue-100 dark:selection:bg-blue-900">
+                        <Outlet />
+                        <ScrollRestoration />
+                        <Scripts />
+                    </body>
+                </html>
+            </ThemeProvider>
         </ClerkProvider>
     );
 }

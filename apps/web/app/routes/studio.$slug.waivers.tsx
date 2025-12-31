@@ -94,7 +94,7 @@ export default function StudioWaivers() {
         return (
             <div>
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold">Waivers & Forms</h2>
+                    <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Waivers & Forms</h2>
                     <button
                         onClick={() => setIsCreateOpen(true)}
                         style={{ background: 'var(--accent)', color: 'white' }}
@@ -106,14 +106,14 @@ export default function StudioWaivers() {
 
                 <div className="space-y-4">
                     {templates.length === 0 ? (
-                        <div className="p-8 text-center text-zinc-500 bg-zinc-50 rounded-lg border border-dashed border-zinc-300">
+                        <div className="p-8 text-center text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700">
                             No waiver templates created yet.
                         </div>
                     ) : (
                         templates.map((t: any) => (
-                            <div key={t.id} style={{ background: 'var(--card-bg)', border: '1px solid var(--border)' }} className="p-6 rounded-lg shadow-sm">
+                            <div key={t.id} className="p-6 rounded-lg shadow-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
                                 <div className="flex justify-between items-start mb-2">
-                                    <h3 className="font-bold text-lg" style={{ color: 'var(--text)' }}>{t.title}</h3>
+                                    <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100">{t.title}</h3>
                                     <Form method="post">
                                         <input type="hidden" name="intent" value="toggle_active" />
                                         <input type="hidden" name="templateId" value={t.id} />
@@ -126,7 +126,7 @@ export default function StudioWaivers() {
                                         </button>
                                     </Form>
                                 </div>
-                                <div className="text-sm line-clamp-3 mb-4 whitespace-pre-wrap p-3 rounded" style={{ background: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>{t.content}</div>
+                                <div className="text-sm line-clamp-3 mb-4 whitespace-pre-wrap p-3 rounded bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-400">{t.content}</div>
                             </div>
                         ))
                     )}
@@ -137,28 +137,26 @@ export default function StudioWaivers() {
                         <input type="hidden" name="intent" value="create" />
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Title</label>
+                                <label className="block text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Title</label>
                                 <input
                                     name="title"
                                     required
                                     placeholder="Liability Release"
-                                    style={{ background: 'var(--bg-subtle)', color: 'var(--text)', border: '1px solid var(--border)' }}
-                                    className="w-full rounded px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                                    className="w-full rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Content</label>
+                                <label className="block text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Content</label>
                                 <textarea
                                     name="content"
                                     required
                                     rows={10}
-                                    style={{ background: 'var(--bg-subtle)', color: 'var(--text)', border: '1px solid var(--border)' }}
-                                    className="w-full rounded px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-blue-500"
+                                    className="w-full rounded px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-blue-500 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
                                     placeholder="Legal text here..."
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Create from PDF (Optional)</label>
+                                <label className="block text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Create from PDF (Optional)</label>
                                 <input
                                     type="file"
                                     accept=".pdf"
@@ -223,18 +221,18 @@ export default function StudioWaivers() {
     if (!required || !waiver) {
         return (
             <div className="text-center py-12">
-                <h2 className="text-xl font-medium text-zinc-900">Good to go!</h2>
-                <p className="text-zinc-500">No pending waivers to sign.</p>
+                <h2 className="text-xl font-medium text-zinc-900 dark:text-zinc-100">Good to go!</h2>
+                <p className="text-zinc-500 dark:text-zinc-400">No pending waivers to sign.</p>
             </div>
         );
     }
 
     return (
         <div className="max-w-2xl mx-auto py-8">
-            <h2 className="text-2xl font-bold mb-6">{waiver.title}</h2>
+            <h2 className="text-2xl font-bold mb-6 text-zinc-900 dark:text-zinc-100">{waiver.title}</h2>
 
-            <div className="bg-white border border-zinc-200 rounded-lg p-8 shadow-sm mb-6 max-h-[500px] overflow-y-auto">
-                <div className="prose text-zinc-700 whitespace-pre-wrap">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-8 shadow-sm mb-6 max-h-[500px] overflow-y-auto">
+                <div className="prose dark:prose-invert text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
                     {waiver.content}
                 </div>
             </div>

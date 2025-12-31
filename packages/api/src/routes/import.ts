@@ -23,13 +23,12 @@ app.post('/csv', async (c) => {
     if (!tenant) return c.json({ error: "Tenant context required" }, 400);
 
     const formData = await c.req.formData();
-    const file = formData.get('file');
+    const fileEntry = formData.get('file');
 
-    if (!file || !(file instanceof File)) {
+    if (!fileEntry || typeof fileEntry === 'string') {
         return c.json({ error: "CSV file required" }, 400);
     }
-
-    const text = await file.text();
+    const text = await (fileEntry as unknown as File).text();
     const db = createDb(c.env.DB);
 
     const parseResult = Papa.parse(text, {
