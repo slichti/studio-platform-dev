@@ -99,8 +99,6 @@ app.post('/validate', async (c) => {
     });
 });
 
-    });
-});
 
 // POST /checkout/session - Create Stripe Session (with optional coupon)
 app.post('/checkout/session', async (c) => {
