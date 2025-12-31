@@ -116,19 +116,18 @@ export default function CheckoutPage() {
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 Back
             </button>
-                Back
-            </button>
-            
+
+
             <div className="mb-6 bg-white p-4 rounded-lg border border-zinc-200 shadow-sm flex items-center justify-between">
                 <div className="flex-1 max-w-sm flex gap-2">
-                    <input 
-                        type="text" 
-                        placeholder="Promo Code" 
+                    <input
+                        type="text"
+                        placeholder="Promo Code"
                         className="flex-1 border border-zinc-300 rounded px-3 py-2 text-sm uppercase font-mono"
                         value={couponCode}
                         onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                     />
-                    <button 
+                    <button
                         onClick={applyCoupon}
                         disabled={loadingSession || !couponCode}
                         className="bg-zinc-900 text-white px-4 py-2 rounded text-sm font-medium hover:bg-zinc-800 disabled:opacity-50"
