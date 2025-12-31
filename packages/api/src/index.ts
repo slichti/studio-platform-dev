@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { createDb } from './db';
 import { tenantMiddleware } from './middleware/tenant';
 import { tenants, tenantMembers } from 'db/src/schema'; // Ensure this import path is valid given tsconfig paths or package exports
 
@@ -142,6 +143,17 @@ tenantApp.get('/me', (c) => {
     roles
   });
 })
+
+tenantApp.get('/usage', async (c) => {
+  const tenant = c.get('tenant');
+  const db = createDb(c.env.DB);
+  const { UsageService } = await import('./services/pricing');
+
+  const usageService = new UsageService(db, tenant.id);
+  const usage = await usageService.getUsage();
+
+  return c.json(usage);
+});
 
 import webhookRoutes from './routes/webhooks';
 import uploadRoutes from './routes/uploads';

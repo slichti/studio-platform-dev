@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 // @ts-ignore
-import { useOutletContext, useLoaderData, Form, useNavigation, useSubmit } from "react-router";
+import { useOutletContext, useLoaderData, Form, useNavigation, useSubmit, Link } from "react-router";
 // @ts-ignore
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router"; // Add types
 import { apiRequest } from "../utils/api";
 import { getAuth } from "@clerk/react-router/ssr.server";
-import { Plus, Trash2, MapPin } from "lucide-react";
+import { Plus, Trash2, MapPin, CreditCard } from "lucide-react";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { params } = args;
@@ -134,6 +134,19 @@ export default function StudioSettings() {
                     </div>
                 </form>
             </div>
+
+            {/* Billing & Subscription */}
+            <Link to={`/studio/${tenant.slug}/settings/billing`} className="block bg-white border border-zinc-200 rounded-lg p-6 shadow-sm mb-8 hover:border-blue-300 transition-colors group">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h2 className="text-lg font-semibold group-hover:text-blue-600 transition-colors">Billing & Subscription</h2>
+                        <p className="text-sm text-zinc-500">Manage your plan, payment methods, and view usage.</p>
+                    </div>
+                    <div className="bg-zinc-100 p-2 rounded-full group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                        <CreditCard className="h-5 w-5" />
+                    </div>
+                </div>
+            </Link>
 
             {/* Locations */}
             <div className="bg-white border border-zinc-200 rounded-lg p-6 shadow-sm">

@@ -2,7 +2,7 @@
 import { Link, useLoaderData, useNavigate } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { useAuth } from "@clerk/react-router";
 import { Modal } from "../components/Modal";
 import { ErrorDialog, ConfirmationDialog } from "../components/Dialogs";
@@ -67,7 +67,8 @@ export default function AdminTenants() {
                 body: JSON.stringify({
                     name: formData.name,
                     slug: formData.slug,
-                    ownerEmail: formData.ownerEmail
+                    ownerEmail: formData.ownerEmail,
+                    tier: formData.plan
                 })
             });
 
@@ -198,21 +199,28 @@ export default function AdminTenants() {
                             <th className="w-8"></th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Tenant</th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Slug</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">ID</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Tier</th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-100">
                         {Array.isArray(tenants) && tenants.map((t: any) => (
-                            <>
+                            <Fragment key={t.id}>
                                 <tr key={t.id} className="hover:bg-zinc-50 transition-colors cursor-pointer" onClick={() => toggleTenantExpand(t.id)}>
                                     <td className="pl-4">
                                         {expandedTenant === t.id ? <ChevronDown size={16} className="text-zinc-400" /> : <ChevronRight size={16} className="text-zinc-400" />}
                                     </td>
                                     <td className="px-6 py-4 font-medium text-zinc-900">{t.name}</td>
                                     <td className="px-6 py-4 text-zinc-600 font-mono text-xs bg-zinc-100 rounded self-start inline-block px-1 mt-1">{t.slug}</td>
-                                    <td className="px-6 py-4 text-zinc-400 text-xs font-mono">{t.id}</td>
+                                    <td className="px-6 py-4">
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium uppercase tracking-wide border ${t.tier === 'scale' ? 'bg-purple-100 text-purple-800 border-purple-200' :
+                                            t.tier === 'growth' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                                                'bg-zinc-100 text-zinc-600 border-zinc-200'
+                                            }`}>
+                                            {t.tier || 'basic'}
+                                        </span>
+                                    </td>
                                     <td className="px-6 py-4">
                                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${t.status === 'suspended' ? 'bg-red-100 text-red-800' :
                                             t.status === 'paused' ? 'bg-amber-100 text-amber-800' :
@@ -311,7 +319,7 @@ export default function AdminTenants() {
                                         </td>
                                     </tr>
                                 )}
-                            </>
+                            </Fragment>
                         ))}
                     </tbody>
                 </table>

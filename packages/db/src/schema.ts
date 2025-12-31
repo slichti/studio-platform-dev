@@ -12,6 +12,8 @@ export const tenants = sqliteTable('tenants', {
     stripeAccountId: text('stripe_account_id'), // Connect Account ID
     zoomCredentials: text('zoom_credentials', { mode: 'json' }), // Encrypted
     status: text('status', { enum: ['active', 'paused', 'suspended'] }).default('active').notNull(),
+    tier: text('tier', { enum: ['basic', 'growth', 'scale'] }).default('basic').notNull(),
+    subscriptionStatus: text('subscription_status', { enum: ['active', 'past_due', 'canceled', 'trialing'] }).default('active').notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 

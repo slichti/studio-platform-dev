@@ -273,6 +273,75 @@ app.get('/tenants', async (c) => {
     return c.json(allTenants);
 });
 
+// POST /tenants: Create a new tenant (System Admin)
+app.post('/tenants', async (c) => {
+    const auth = c.get('auth');
+    const db = createDb(c.env.DB);
+    const body = await c.req.json();
+
+    // 1. Check System Admin
+    const adminUser = await db.query.users.findFirst({
+        where: eq(users.id, auth.userId)
+    });
+
+    if (!adminUser || !adminUser.isSystemAdmin) {
+        return c.json({ error: "Access Denied" }, 403);
+    }
+
+    // 2. Validate Input
+    if (!body.name || !body.slug) {
+        return c.json({ error: "Name and Slug are required" }, 400);
+    }
+
+    // 3. Create Tenant
+    const tenantId = crypto.randomUUID();
+    const newTenant = {
+        id: tenantId,
+        name: body.name,
+        slug: body.slug,
+        tier: body.tier || 'basic',
+        status: 'active' as const,
+        createdAt: new Date()
+    };
+
+    try {
+        await db.insert(tenants).values(newTenant).run();
+
+        // 4. Handle Owner (if email provided)
+        if (body.ownerEmail) {
+            // Find or Invite User (For now, just find)
+            const ownerUser = await db.query.users.findFirst({
+                where: eq(users.email, body.ownerEmail)
+            });
+
+            if (ownerUser) {
+                // Add to tenant as owner
+                const memberId = crypto.randomUUID();
+                const { tenantMembers, tenantRoles } = await import('db/src/schema');
+
+                await db.insert(tenantMembers).values({
+                    id: memberId,
+                    tenantId: tenantId,
+                    userId: ownerUser.id,
+                    status: 'active'
+                }).run();
+
+                await db.insert(tenantRoles).values({
+                    memberId: memberId,
+                    role: 'owner'
+                }).run();
+            }
+        }
+
+        return c.json({ tenant: newTenant }, 201);
+    } catch (e: any) {
+        if (e.message?.includes('UNIQUE constraint failed')) {
+            return c.json({ error: "Slug already taken" }, 409);
+        }
+        return c.json({ error: e.message }, 500);
+    }
+});
+
 // GET /logs: Fetch recent audit logs
 app.get('/logs', async (c) => {
     const auth = c.get('auth');
