@@ -204,12 +204,24 @@ app.post('/users/:id/memberships', async (c) => {
     });
 
     if (!member) {
+        // VERIFY LIMITS (Students)
+        const { UsageService } = await import('../services/pricing');
+        const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
+        if (tenant) {
+            const usageService = new UsageService(db, tenantId);
+            const canAdd = await usageService.checkLimit('students', tenant.tier || 'basic');
+            if (!canAdd) {
+                return c.json({ error: "Student limit reached for this plan", code: "LIMIT_REACHED" }, 403);
+            }
+        }
+
         // Create Member
         const memberId = crypto.randomUUID();
         await db.insert(tenantMembers).values({
             id: memberId,
             tenantId,
-            userId
+            userId,
+            status: 'active'
         }).run();
         member = { id: memberId } as any;
     }
@@ -221,6 +233,18 @@ app.post('/users/:id/memberships', async (c) => {
     });
 
     if (!existingRole) {
+        if (role === 'instructor') {
+            const { UsageService } = await import('../services/pricing');
+            const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
+            if (tenant) {
+                const usageService = new UsageService(db, tenantId);
+                const canAdd = await usageService.checkLimit('instructors', tenant.tier || 'basic');
+                if (!canAdd) {
+                    return c.json({ error: "Instructor limit reached for this plan", code: "LIMIT_REACHED" }, 403);
+                }
+            }
+        }
+
         await db.insert(tenantRoles).values({
             memberId: member!.id,
             role

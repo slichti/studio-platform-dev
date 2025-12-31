@@ -81,10 +81,24 @@ export class UsageService {
             .get();
 
         // 2. Count Locations
-        const { locations } = await import('db/src/schema');
+        const { locations, tenantRoles } = await import('db/src/schema');
         const locationCount = await this.db.select({ count: count() })
             .from(locations)
             .where(eq(locations.tenantId, this.tenantId))
+            .get();
+
+        // Count Instructors
+        // We need to join tenantMembers -> tenantRoles
+        // But simpler: just count tenantRoles where role='instructor' AND member belongs to tenant
+        // Since tenantRoles doesn't have tenantId, we join tenantMembers.
+        const instructorCount = await this.db.select({ count: count() })
+            .from(tenantRoles)
+            .innerJoin(tenantMembers, eq(tenantRoles.memberId, tenantMembers.id))
+            .where(and(
+                eq(tenantMembers.tenantId, this.tenantId),
+                eq(tenantRoles.role, 'instructor'),
+                eq(tenantMembers.status, 'active')
+            ))
             .get();
 
         // 3. Storage (Mocked for now)
@@ -92,7 +106,7 @@ export class UsageService {
 
         return {
             students: memberCount?.count || 0,
-            instructors: 1, // Still mocked (needs role query)
+            instructors: instructorCount?.count || 0,
             locations: locationCount?.count || 0,
             storageGB
         };
