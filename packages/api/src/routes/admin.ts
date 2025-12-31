@@ -34,6 +34,21 @@ app.use('*', async (c, next) => {
     await next();
 });
 
+// GET /logs - Recent Audit Logs
+app.get('/logs', async (c) => {
+    const db = createDb(c.env.DB);
+    const { auditLogs } = await import('db/src/schema');
+    const { desc } = await import('drizzle-orm');
+
+    const logs = await db.select()
+        .from(auditLogs)
+        .orderBy(desc(auditLogs.createdAt))
+        .limit(100)
+        .all();
+
+    return c.json(logs);
+});
+
 // GET /stats/email - Global Email Stats
 app.get('/stats/email', async (c) => {
     const db = createDb(c.env.DB);
