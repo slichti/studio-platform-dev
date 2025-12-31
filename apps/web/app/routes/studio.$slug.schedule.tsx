@@ -59,7 +59,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
 export default function StudioSchedule() {
     const { classes: initialClasses, locations, instructors, error } = useLoaderData<any>();
-    const { tenant, features } = useOutletContext<any>() || {};
+    const { tenant, me, features } = useOutletContext<any>() || {};
     const [classes, setClasses] = useState(initialClasses || []);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -100,6 +100,19 @@ export default function StudioSchedule() {
                     ...c,
                     cloudflareStreamId: videoId,
                     recordingStatus: 'processing'
+                };
+            }
+            return c;
+        }));
+    };
+
+    const handleSubRequested = (classId: string) => {
+        // Since the current instructor requested a sub, we mark local state
+        setClasses(classes.map((c: any) => {
+            if (c.id === classId) {
+                return {
+                    ...c,
+                    substitutions: [{ status: 'pending', id: 'temp-' + Date.now() }] // optimistic update
                 };
             }
             return c;
@@ -169,6 +182,11 @@ export default function StudioSchedule() {
 
                 onRecordingAdded={handleRecordingAdded}
                 canAttachRecording={features?.has('vod')}
+
+                currentUserMemberId={me?.member?.id}
+                userRoles={me?.roles}
+                tenantSlug={tenant?.slug}
+                onSubRequested={handleSubRequested}
             />
         </div>
     );

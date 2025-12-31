@@ -446,6 +446,25 @@ export const smsLogs = sqliteTable('sms_logs', {
     metadata: text('metadata', { mode: 'json' }),
 });
 
+// --- Phase 6: Substitute Management ---
+export const substitutions = sqliteTable('substitutions', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    classId: text('class_id').notNull().references(() => classes.id),
+    requestingInstructorId: text('requesting_instructor_id').notNull().references(() => tenantMembers.id),
+    coveringInstructorId: text('covering_instructor_id').references(() => tenantMembers.id), // Nullable until claimed
+
+    status: text('status', { enum: ['pending', 'claimed', 'approved', 'declined'] }).default('pending').notNull(),
+    notes: text('notes'),
+
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('sub_tenant_idx').on(table.tenantId),
+    classIdx: index('sub_class_idx').on(table.classId),
+    statusIdx: index('sub_status_idx').on(table.status),
+}));
+
 // --- Relations ---
 import { relations } from 'drizzle-orm';
 
@@ -499,6 +518,7 @@ export const classesRelations = relations(classes, ({ one, many }) => ({
         references: [tenantMembers.id],
     }),
     bookings: many(bookings),
+    substitutions: many(substitutions),
 }));
 
 export const bookingsRelations = relations(bookings, ({ one }) => ({
@@ -551,5 +571,24 @@ export const purchasedPacksRelations = relations(purchasedPacks, ({ one }) => ({
     definition: one(classPackDefinitions, {
         fields: [purchasedPacks.packDefinitionId],
         references: [classPackDefinitions.id],
+    }),
+}));
+
+export const substitutionsRelations = relations(substitutions, ({ one }) => ({
+    tenant: one(tenants, {
+        fields: [substitutions.tenantId],
+        references: [tenants.id],
+    }),
+    class: one(classes, {
+        fields: [substitutions.classId],
+        references: [classes.id],
+    }),
+    requestingInstructor: one(tenantMembers, {
+        fields: [substitutions.requestingInstructorId],
+        references: [tenantMembers.id],
+    }),
+    coveringInstructor: one(tenantMembers, {
+        fields: [substitutions.coveringInstructorId],
+        references: [tenantMembers.id],
     }),
 }));

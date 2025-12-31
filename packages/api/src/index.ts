@@ -245,6 +245,9 @@ app.route('/payroll', payroll);
 import marketing from './routes/marketing';
 app.route('/marketing', marketing);
 
+import substitutions from './routes/substitutions';
+app.route('/substitutions', substitutions);
+
 // Main Admin Router (Super Admin)
 // Assuming there is an existing one or we create new prefix
 import admin from './routes/admin';

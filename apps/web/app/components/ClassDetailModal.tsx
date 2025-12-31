@@ -10,9 +10,23 @@ interface ClassDetailModalProps {
     classEvent: any | null; // The class object from calendar
     onRecordingAdded: (classId: string, videoId: string) => void;
     canAttachRecording?: boolean;
+    currentUserMemberId?: string;
+    userRoles?: string[];
+    tenantSlug?: string;
+    onSubRequested?: (classId: string) => void;
 }
 
-export function ClassDetailModal({ isOpen, onClose, classEvent, onRecordingAdded, canAttachRecording = false }: ClassDetailModalProps) {
+export function ClassDetailModal({
+    isOpen,
+    onClose,
+    classEvent,
+    onRecordingAdded,
+    canAttachRecording = false,
+    currentUserMemberId,
+    userRoles = [],
+    tenantSlug,
+    onSubRequested
+}: ClassDetailModalProps) {
     const [recordingUrl, setRecordingUrl] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -49,6 +63,46 @@ export function ClassDetailModal({ isOpen, onClose, classEvent, onRecordingAdded
             onClose();
         } catch (err: any) {
             setError(err.message || "Failed to add recording");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleRequestSub = async () => {
+        if (!confirm("Request a substitute for this class?")) return;
+        setIsSubmitting(true);
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/substitutions/request`, token, {
+                method: 'POST',
+                headers: { 'X-Tenant-Slug': tenantSlug! },
+                body: JSON.stringify({ classId: classEvent.id })
+            });
+            if (res.error) throw new Error(res.error);
+            alert("Substitute check requested! Staff will be notified.");
+            onSubRequested?.(classEvent.id);
+            onClose();
+        } catch (err: any) {
+            alert(err.message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleClaimSub = async (subId: string) => {
+        if (!confirm("Claim this shift?")) return;
+        setIsSubmitting(true);
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/substitutions/${subId}/claim`, token, {
+                method: 'POST',
+                headers: { 'X-Tenant-Slug': tenantSlug! }
+            });
+            if (res.error) throw new Error(res.error);
+            alert("Shift claimed! Pending approval.");
+            onClose();
+        } catch (err: any) {
+            alert(err.message);
         } finally {
             setIsSubmitting(false);
         }
@@ -132,6 +186,51 @@ export function ClassDetailModal({ isOpen, onClose, classEvent, onRecordingAdded
                                                 </div>
                                             </div>
                                         </div>
+                                    </div>
+
+                                    {/* Substitution Section */}
+                                    <div className="border-t pt-4">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <h4 className="text-sm font-semibold text-gray-900">Shift Coverage</h4>
+                                            {classEvent.resource?.substitutions?.length > 0 && (
+                                                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${classEvent.resource.substitutions[0].status === 'approved' ? 'bg-green-100 text-green-700' :
+                                                        classEvent.resource.substitutions[0].status === 'claimed' ? 'bg-blue-100 text-blue-700' :
+                                                            'bg-amber-100 text-amber-700'
+                                                    }`}>
+                                                    Sub: {classEvent.resource.substitutions[0].status}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {classEvent.resource?.substitutions?.length > 0 ? (
+                                            <div className="bg-zinc-50 p-4 rounded-lg text-sm border border-zinc-200">
+                                                <p className="text-zinc-600">
+                                                    {classEvent.resource.substitutions[0].status === 'pending' ? 'Seeking coverage...' :
+                                                        classEvent.resource.substitutions[0].status === 'claimed' ? 'Claimed - Awaiting approval' :
+                                                            'Substitution approved'}
+                                                </p>
+                                                {classEvent.resource.substitutions[0].status === 'pending' && currentUserMemberId !== classEvent.resource?.instructorId && (
+                                                    <button
+                                                        onClick={() => handleClaimSub(classEvent.resource.substitutions[0].id)}
+                                                        className="mt-3 w-full bg-blue-600 text-white py-2 rounded-md font-medium text-xs hover:bg-blue-700"
+                                                    >
+                                                        Claim this shift
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <>
+                                                {currentUserMemberId === classEvent.resource?.instructorId && (
+                                                    <button
+                                                        onClick={handleRequestSub}
+                                                        disabled={isSubmitting}
+                                                        className="w-full border border-zinc-300 py-2 rounded-md text-xs font-medium text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
+                                                    >
+                                                        Request Substitute
+                                                    </button>
+                                                )}
+                                            </>
+                                        )}
                                     </div>
 
                                     {/* Recording Section */}
