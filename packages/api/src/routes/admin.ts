@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { users, auditLogs, tenants } from 'db/src/schema'; // Ensure exported
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import { sign } from 'hono/jwt';
 
 type Bindings = {
@@ -123,6 +123,160 @@ app.get('/users', async (c) => {
     return c.json(filtered);
 });
 
+// GET /users/:id: Get user details for editing
+app.get('/users/:id', async (c) => {
+    const auth = c.get('auth');
+    const { id: userId } = c.req.param();
+    const db = createDb(c.env.DB);
+
+    // 1. Check System Admin
+    const adminUser = await db.query.users.findFirst({
+        where: eq(users.id, auth.userId)
+    });
+
+    if (!adminUser || !adminUser.isSystemAdmin) {
+        return c.json({ error: "Access Denied" }, 403);
+    }
+
+    // 2. Fetch User with Memberships
+    const user = await db.query.users.findFirst({
+        where: eq(users.id, userId),
+        with: {
+            memberships: {
+                with: {
+                    tenant: true,
+                    roles: true
+                }
+            }
+        }
+    });
+
+    if (!user) {
+        return c.json({ error: "User Not Found" }, 404);
+    }
+
+    return c.json(user);
+});
+
+// PUT /users/:id: Update User (e.g. System Admin status)
+app.put('/users/:id', async (c) => {
+    const auth = c.get('auth');
+    const { id: userId } = c.req.param();
+    const body = await c.req.json();
+    const db = createDb(c.env.DB);
+
+    // 1. Check System Admin
+    const adminUser = await db.query.users.findFirst({
+        where: eq(users.id, auth.userId)
+    });
+
+    if (!adminUser || !adminUser.isSystemAdmin) {
+        return c.json({ error: "Access Denied" }, 403);
+    }
+
+    // 2. Update User
+    await db.update(users)
+        .set({ isSystemAdmin: body.isSystemAdmin })
+        .where(eq(users.id, userId))
+        .run();
+
+    return c.json({ success: true });
+});
+
+// POST /users/:id/memberships: Add user to a tenant
+app.post('/users/:id/memberships', async (c) => {
+    const auth = c.get('auth');
+    const { id: userId } = c.req.param();
+    const { tenantId, role } = await c.req.json();
+    const db = createDb(c.env.DB);
+
+    // 1. Check System Admin
+    const adminUser = await db.query.users.findFirst({
+        where: eq(users.id, auth.userId)
+    });
+    if (!adminUser || !adminUser.isSystemAdmin) return c.json({ error: "Access Denied" }, 403);
+
+    const { tenantMembers, tenantRoles } = await import('db/src/schema');
+
+    // 2. Check if member exists
+    let member = await db.query.tenantMembers.findFirst({
+        where: (members, { and, eq }) => and(eq(members.userId, userId), eq(members.tenantId, tenantId))
+    });
+
+    if (!member) {
+        // VERIFY LIMITS (Students)
+        const { UsageService } = await import('../services/pricing');
+        const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
+        if (tenant) {
+            const usageService = new UsageService(db, tenantId);
+            const canAdd = await usageService.checkLimit('students', tenant.tier || 'basic');
+            if (!canAdd) {
+                return c.json({ error: "Student limit reached for this plan", code: "LIMIT_REACHED" }, 403);
+            }
+        }
+
+        // Create Member
+        const memberId = crypto.randomUUID();
+        await db.insert(tenantMembers).values({
+            id: memberId,
+            tenantId,
+            userId,
+            status: 'active'
+        }).run();
+        member = { id: memberId } as any;
+    }
+
+    // 3. Add Role
+    // Check if role exists
+    const existingRole = await db.query.tenantRoles.findFirst({
+        where: (roles, { and, eq }) => and(eq(roles.memberId, member!.id), eq(roles.role, role))
+    });
+
+    if (!existingRole) {
+        if (role === 'instructor') {
+            const { UsageService } = await import('../services/pricing');
+            const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
+            if (tenant) {
+                const usageService = new UsageService(db, tenantId);
+                const canAdd = await usageService.checkLimit('instructors', tenant.tier || 'basic');
+                if (!canAdd) {
+                    return c.json({ error: "Instructor limit reached for this plan", code: "LIMIT_REACHED" }, 403);
+                }
+            }
+        }
+
+        await db.insert(tenantRoles).values({
+            memberId: member!.id,
+            role
+        }).run();
+    }
+
+    return c.json({ success: true });
+});
+
+// DELETE /users/:id/memberships: Remove user from tenant
+app.delete('/users/:id/memberships', async (c) => {
+    const auth = c.get('auth');
+    const { id: userId } = c.req.param();
+    const { tenantId } = await c.req.json();
+    const db = createDb(c.env.DB);
+
+    // 1. Check System Admin
+    const adminUser = await db.query.users.findFirst({
+        where: eq(users.id, auth.userId)
+    });
+    if (!adminUser || !adminUser.isSystemAdmin) return c.json({ error: "Access Denied" }, 403);
+
+    const { tenantMembers } = await import('db/src/schema');
+    // 2. Delete Tenant Member (Cascade should handle roles if configured, otherwise delete roles first)
+    // Assuming Cascade or just deleting member row
+    await db.delete(tenantMembers)
+        .where(and(eq(tenantMembers.userId, userId), eq(tenantMembers.tenantId, tenantId)))
+        .run();
+
+    return c.json({ success: true });
+});
+
 // GET /tenants: List all tenants (System Admin only)
 app.get('/tenants', async (c) => {
     const auth = c.get('auth');
@@ -141,6 +295,75 @@ app.get('/tenants', async (c) => {
     });
 
     return c.json(allTenants);
+});
+
+// POST /tenants: Create a new tenant (System Admin)
+app.post('/tenants', async (c) => {
+    const auth = c.get('auth');
+    const db = createDb(c.env.DB);
+    const body = await c.req.json();
+
+    // 1. Check System Admin
+    const adminUser = await db.query.users.findFirst({
+        where: eq(users.id, auth.userId)
+    });
+
+    if (!adminUser || !adminUser.isSystemAdmin) {
+        return c.json({ error: "Access Denied" }, 403);
+    }
+
+    // 2. Validate Input
+    if (!body.name || !body.slug) {
+        return c.json({ error: "Name and Slug are required" }, 400);
+    }
+
+    // 3. Create Tenant
+    const tenantId = crypto.randomUUID();
+    const newTenant = {
+        id: tenantId,
+        name: body.name,
+        slug: body.slug,
+        tier: body.tier || 'basic',
+        status: 'active' as const,
+        createdAt: new Date()
+    };
+
+    try {
+        await db.insert(tenants).values(newTenant).run();
+
+        // 4. Handle Owner (if email provided)
+        if (body.ownerEmail) {
+            // Find or Invite User (For now, just find)
+            const ownerUser = await db.query.users.findFirst({
+                where: eq(users.email, body.ownerEmail)
+            });
+
+            if (ownerUser) {
+                // Add to tenant as owner
+                const memberId = crypto.randomUUID();
+                const { tenantMembers, tenantRoles } = await import('db/src/schema');
+
+                await db.insert(tenantMembers).values({
+                    id: memberId,
+                    tenantId: tenantId,
+                    userId: ownerUser.id,
+                    status: 'active'
+                }).run();
+
+                await db.insert(tenantRoles).values({
+                    memberId: memberId,
+                    role: 'owner'
+                }).run();
+            }
+        }
+
+        return c.json({ tenant: newTenant }, 201);
+    } catch (e: any) {
+        if (e.message?.includes('UNIQUE constraint failed')) {
+            return c.json({ error: "Slug already taken" }, 409);
+        }
+        return c.json({ error: e.message }, 500);
+    }
 });
 
 // GET /logs: Fetch recent audit logs

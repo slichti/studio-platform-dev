@@ -469,6 +469,68 @@ app.post('/:id/bookings/:bookingId/cancel', async (c) => {
     }
 });
 
+// PATCH /classes/:id/bookings/:bookingId/status
+app.patch('/:id/bookings/:bookingId/status', async (c) => {
+    const db = createDb(c.env.DB);
+    const { id: classId, bookingId } = c.req.param();
+
+    // RBAC: Instructor/Owner only
+    const roles = c.get('roles') || [];
+    if (!roles.includes('instructor') && !roles.includes('owner')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+
+    const body = await c.req.json();
+    const { status } = body; // 'confirmed', 'cancelled', 'no_show', 'checked_in'
+
+    if (!['confirmed', 'cancelled', 'no_show', 'checked_in'].includes(status)) {
+        return c.json({ error: "Invalid status" }, 400);
+    }
+
+    try {
+        const booking = await db.select().from(bookings).where(eq(bookings.id, bookingId)).get();
+        if (!booking) return c.json({ error: "Booking not found" }, 404);
+
+        // Update Status
+        await db.update(bookings).set({ status }).where(eq(bookings.id, bookingId)).run();
+
+        if (status === 'no_show') {
+            const tenant = c.get('tenant');
+            const settings = (tenant?.settings || {}) as any;
+
+            if (settings.noShowFeeEnabled && settings.noShowFeeAmount > 0) {
+                // Get Member Email
+                const memberUser = await db.select({ email: users.email })
+                    .from(tenantMembers)
+                    .innerJoin(users, eq(tenantMembers.userId, users.id))
+                    .where(eq(tenantMembers.id, booking.memberId))
+                    .get();
+
+                // Trigger Notification
+                if (c.env.RESEND_API_KEY && memberUser) {
+                    const { EmailService } = await import('../services/email');
+                    const emailService = new EmailService(c.env.RESEND_API_KEY);
+                    const classInfo = await db.select({ title: classes.title }).from(classes).where(eq(classes.id, classId)).get();
+
+                    c.executionCtx.waitUntil(emailService.notifyNoShow(
+                        memberUser.email,
+                        settings.noShowFeeAmount,
+                        classInfo?.title || "Class"
+                    ));
+                }
+
+                // Attempt Charge (Placeholder / TODO: Stripe Integration)
+                // We need customer ID. Assuming we don't have it yet, we just log.
+                console.log(`[Mock Charge] Charging ${settings.noShowFeeAmount} to member ${booking.memberId} for No-Show`);
+            }
+        }
+
+        return c.json({ success: true, status });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
 // POST /classes/:id/recording
 // Attach a video from a URL (e.g. Zoom Cloud Recording)
 app.post('/:id/recording', async (c) => {

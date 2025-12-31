@@ -34,6 +34,18 @@ app.post('/', async (c) => {
 
     if (!name) return c.json({ error: "Name is required" }, 400);
 
+    // Limit Check
+    const { UsageService } = await import('../services/pricing');
+    const usageService = new UsageService(db, tenant.id);
+    const canAdd = await usageService.checkLimit('locations', tenant.tier || 'basic');
+
+    if (!canAdd) {
+        return c.json({
+            error: "Location limit reached for your plan",
+            code: "LIMIT_REACHED"
+        }, 403);
+    }
+
     const id = crypto.randomUUID();
     await db.insert(locations).values({
         id,

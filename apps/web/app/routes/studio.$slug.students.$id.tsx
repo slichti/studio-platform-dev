@@ -200,6 +200,39 @@ export const action = async (args: ActionFunctionArgs) => {
         }
     }
 
+    if (intent === "send_email") {
+        const subject = formData.get("subject") as string;
+        const body = formData.get("body") as string;
+
+        try {
+            const res: any = await apiRequest(`/members/${memberId}/email`, token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': params.slug! },
+                body: JSON.stringify({ subject, body })
+            });
+            if (res.error) return { error: res.error };
+            return { success: true };
+        } catch (e: any) {
+            return { error: e.message };
+        }
+    }
+
+    if (intent === "update_status") {
+        const status = formData.get("status") as string;
+
+        try {
+            const res: any = await apiRequest(`/members/${memberId}/status`, token, {
+                method: "PATCH",
+                headers: { 'X-Tenant-Slug': params.slug! },
+                body: JSON.stringify({ status })
+            });
+            if (res.error) return { error: res.error };
+            return { success: true };
+        } catch (e: any) {
+            return { error: e.message };
+        }
+    }
+
     return null;
 };
 
@@ -212,6 +245,8 @@ export default function StudentProfile() {
     const [isAssigningPack, setIsAssigningPack] = useState(false);
     const [isEditingProfile, setIsEditingProfile] = useState(false);
     const [showActions, setShowActions] = useState(false);
+    const [isSendingEmail, setIsSendingEmail] = useState(false);
+    const [isDeactivating, setIsDeactivating] = useState(false);
 
     const fullName = [userProfile.firstName, userProfile.lastName].filter(Boolean).join(" ") || member.user.email;
     const rolesStr = member.roles.map(r => r.role).join(", ") || "Student";
@@ -282,15 +317,106 @@ export default function StudentProfile() {
                         </button>
                         {showActions && (
                             <div className="absolute right-0 mt-2 w-48 bg-white border border-zinc-200 rounded-md shadow-lg z-10 py-1">
-                                <button className="block w-full text-left px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50">Reset Password</button>
-                                <button className="block w-full text-left px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50">Send Email</button>
+                                <button
+                                    onClick={() => { setShowActions(false); setIsSendingEmail(true); }}
+                                    className="block w-full text-left px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50"
+                                >
+                                    Send Email
+                                </button>
                                 <div className="border-t border-zinc-100 my-1"></div>
-                                <button className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">Deactivate Member</button>
+                                <button
+                                    onClick={() => { setShowActions(false); setIsDeactivating(true); }}
+                                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                >
+                                    Deactivate Member
+                                </button>
                             </div>
                         )}
                     </div>
                 </div>
             </div>
+
+            {/* Email Modal */}
+            {isSendingEmail && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-lg shadow-xl">
+                        <h2 className="text-lg font-bold mb-4">Send Email to {fullName}</h2>
+                        <Form method="post" onSubmit={() => setIsSendingEmail(false)}>
+                            <input type="hidden" name="intent" value="send_email" />
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 mb-1">Subject</label>
+                                    <input
+                                        type="text"
+                                        name="subject"
+                                        required
+                                        className="w-full px-3 py-2 border border-zinc-300 rounded-md text-sm"
+                                        placeholder="e.g. Important Update regarding your membership"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 mb-1">Message</label>
+                                    <textarea
+                                        name="body"
+                                        rows={6}
+                                        required
+                                        className="w-full px-3 py-2 border border-zinc-300 rounded-md text-sm"
+                                        placeholder="Write your message here..."
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-3 mt-6">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsSendingEmail(false)}
+                                    className="px-4 py-2 text-sm border border-zinc-300 rounded-md hover:bg-zinc-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
+                                >
+                                    <Mail className="h-4 w-4" />
+                                    Send
+                                </button>
+                            </div>
+                        </Form>
+                    </div>
+                </div>
+            )}
+
+            {/* Deactivation Confirm Modal */}
+            {isDeactivating && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+                        <h2 className="text-lg font-bold text-red-600 mb-2">Deactivate Member?</h2>
+                        <p className="text-sm text-zinc-600 mb-6">
+                            This will prevent the member from booking classes or accessing studio content.
+                            Their history will be preserved. You can reactivate them later.
+                        </p>
+                        <Form method="post" onSubmit={() => setIsDeactivating(false)}>
+                            <input type="hidden" name="intent" value="update_status" />
+                            <input type="hidden" name="status" value="inactive" />
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsDeactivating(false)}
+                                    className="px-4 py-2 text-sm border border-zinc-300 rounded-md hover:bg-zinc-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-4 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
+                                >
+                                    Deactivate
+                                </button>
+                            </div>
+                        </Form>
+                    </div>
+                </div>
+            )}
 
             {/* Edit Profile Modal */}
             {isEditingProfile && (

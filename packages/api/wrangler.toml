@@ -14,3 +14,6 @@ database_id = "41de24ac-e5d7-4a7a-b49b-f55f46dc81b8"
 binding = "R2"
 bucket_name = "studio-platform-assets"
 
+
+[triggers]
+crons = ["*/15 * * * *"]

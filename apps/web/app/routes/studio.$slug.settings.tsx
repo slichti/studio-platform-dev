@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 // @ts-ignore
-import { useOutletContext, useLoaderData, Form, useNavigation, useSubmit } from "react-router";
+import { useOutletContext, useLoaderData, Form, useNavigation, useSubmit, Link } from "react-router";
 // @ts-ignore
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router"; // Add types
 import { apiRequest } from "../utils/api";
 import { getAuth } from "@clerk/react-router/ssr.server";
-import { Plus, Trash2, MapPin } from "lucide-react";
+import { Plus, Trash2, MapPin, CreditCard, FileText } from "lucide-react";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { params } = args;
@@ -134,6 +134,187 @@ export default function StudioSettings() {
                     </div>
                 </form>
             </div>
+            {/* Registration Controls */}
+            <div className="bg-white border border-zinc-200 rounded-lg p-6 shadow-sm mb-8">
+                <div className="flex justify-between items-start mb-4">
+                    <div>
+                        <h2 className="text-lg font-semibold text-zinc-900">Registration</h2>
+                        <p className="text-sm text-zinc-500 mt-1">Control how new students sign up for your studio.</p>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-zinc-50 rounded-lg border border-zinc-200">
+                    <div>
+                        <div className="font-medium text-zinc-900">Public Student Registration</div>
+                        <div className="text-xs text-zinc-500 mt-1">
+                            {tenant.settings?.enableStudentRegistration
+                                ? "Students can create accounts on your public site."
+                                : "Only you can add students manually."}
+                        </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={tenant.settings?.enableStudentRegistration || false}
+                            onChange={async (e) => {
+                                const checked = e.target.checked;
+                                // Optimistic or reloading? For settings, reloading via router is safer to sync everything
+                                // But let's do a quick fetch
+                                try {
+                                    const token = await (window as any).Clerk?.session?.getToken();
+                                    await apiRequest(`/tenant/settings`, token, {
+                                        method: "PATCH",
+                                        headers: { 'X-Tenant-Slug': tenant.slug },
+                                        body: JSON.stringify({ settings: { enableStudentRegistration: checked } })
+                                    });
+                                    // Refresh page to update context
+                                    window.location.reload();
+                                } catch (err) {
+                                    alert("Failed to update setting");
+                                }
+                            }}
+                        />
+                        <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+            </div>
+
+            {/* Notification Preferences */}
+            <div className="bg-white border border-zinc-200 rounded-lg p-6 shadow-sm mb-8">
+                <div className="mb-4">
+                    <h2 className="text-lg font-semibold text-zinc-900">Notifications</h2>
+                    <p className="text-sm text-zinc-500 mt-1">Manage email alerts.</p>
+                </div>
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 bg-zinc-50 rounded border border-zinc-200">
+                        <span className="text-sm font-medium text-zinc-900">New Student Alerts</span>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" className="sr-only peer" checked={true} disabled />
+                            <div className="w-9 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            {/* No-Show Policy */}
+            <div className="bg-white border border-zinc-200 rounded-lg p-6 shadow-sm mb-8">
+                <div className="mb-4">
+                    <h2 className="text-lg font-semibold text-zinc-900">No-Show Policy</h2>
+                    <p className="text-sm text-zinc-500 mt-1">Automate fees for missed classes.</p>
+                </div>
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-zinc-900">Enable Fee Automation</span>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                className="sr-only peer"
+                                checked={tenant.settings?.noShowFeeEnabled || false}
+                                onChange={async (e) => {
+                                    const checked = e.target.checked;
+                                    try {
+                                        const token = await (window as any).Clerk?.session?.getToken();
+                                        await apiRequest(`/tenant/settings`, token, {
+                                            method: "PATCH",
+                                            headers: { 'X-Tenant-Slug': tenant.slug },
+                                            body: JSON.stringify({ settings: { noShowFeeEnabled: checked } })
+                                        });
+                                        window.location.reload();
+                                    } catch (err) { alert("Failed to save"); }
+                                }}
+                            />
+                            <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                    {tenant.settings?.noShowFeeEnabled && (
+                        <div>
+                            <label className="block text-xs font-medium text-zinc-700 mb-1">Fee Amount (cents)</label>
+                            <input
+                                type="number"
+                                className="w-full border-zinc-300 rounded text-sm px-3 py-2"
+                                placeholder="1000 ($10.00)"
+                                defaultValue={tenant.settings?.noShowFeeAmount || 1000}
+                                onBlur={async (e) => {
+                                    const val = parseInt(e.target.value);
+                                    if (val > 0) {
+                                        const token = await (window as any).Clerk?.session?.getToken();
+                                        await apiRequest(`/tenant/settings`, token, {
+                                            method: "PATCH",
+                                            headers: { 'X-Tenant-Slug': tenant.slug },
+                                            body: JSON.stringify({ settings: { noShowFeeAmount: val } })
+                                        });
+                                    }
+                                }}
+                            />
+                            <p className="text-xs text-zinc-500 mt-1">Fee will be charged automatically when marking "No Show". ($10.00 = 1000)</p>
+                        </div>
+                    )}
+
+                    <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
+                        <div>
+                            <span className="text-sm font-medium text-zinc-900">Auto-Mark No Shows</span>
+                            <p className="text-xs text-zinc-500">Automatically mark expected students as No Show.</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                className="sr-only peer"
+                                checked={tenant.settings?.noShowAutoMarkEnabled || false}
+                                onChange={async (e) => {
+                                    const checked = e.target.checked;
+                                    try {
+                                        const token = await (window as any).Clerk?.session?.getToken();
+                                        await apiRequest(`/tenant/settings`, token, {
+                                            method: "PATCH",
+                                            headers: { 'X-Tenant-Slug': tenant.slug },
+                                            body: JSON.stringify({ settings: { noShowAutoMarkEnabled: checked } })
+                                        });
+                                        window.location.reload();
+                                    } catch (err) { alert("Failed to save"); }
+                                }}
+                            />
+                            <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+
+                    {tenant.settings?.noShowAutoMarkEnabled && (
+                        <div>
+                            <label className="block text-xs font-medium text-zinc-700 mb-1">When to Mark?</label>
+                            <select
+                                className="w-full border-zinc-300 rounded text-sm px-3 py-2 bg-white"
+                                defaultValue={tenant.settings?.noShowAutoMarkTime || 'end_of_class'}
+                                onChange={async (e) => {
+                                    const val = e.target.value;
+                                    const token = await (window as any).Clerk?.session?.getToken();
+                                    await apiRequest(`/tenant/settings`, token, {
+                                        method: "PATCH",
+                                        headers: { 'X-Tenant-Slug': tenant.slug },
+                                        body: JSON.stringify({ settings: { noShowAutoMarkTime: val } })
+                                    });
+                                }}
+                            >
+                                <option value="start_of_class">Start of Class</option>
+                                <option value="15_mins_after_start">15 Minutes After Start</option>
+                                <option value="end_of_class">End of Class</option>
+                            </select>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Billing & Subscription */}
+            <Link to={`/studio/${tenant.slug}/settings/billing`} className="block bg-white border border-zinc-200 rounded-lg p-6 shadow-sm mb-8 hover:border-blue-300 transition-colors group">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h2 className="text-lg font-semibold group-hover:text-blue-600 transition-colors">Billing & Subscription</h2>
+                        <p className="text-sm text-zinc-500">Manage your plan, payment methods, and view usage.</p>
+                    </div>
+                    <div className="bg-zinc-100 p-2 rounded-full group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                        <CreditCard className="h-5 w-5" />
+                    </div>
+                </div>
+            </Link>
 
             {/* Locations */}
             <div className="bg-white border border-zinc-200 rounded-lg p-6 shadow-sm">
@@ -213,6 +394,20 @@ export default function StudioSettings() {
                     )}
                 </div>
             </div>
-        </div>
+
+            {/* Data Import */}
+            <Link to={`/studio/${tenant.slug}/settings/import`} className="block bg-white border border-zinc-200 rounded-lg p-6 shadow-sm mb-8 hover:border-blue-300 transition-colors group">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h2 className="text-lg font-semibold group-hover:text-blue-600 transition-colors">Data Import</h2>
+                        <p className="text-sm text-zinc-500">Migrate users and memberships from CSV.</p>
+                    </div>
+                    <div className="bg-zinc-100 p-2 rounded-full group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                        <FileText className="h-5 w-5" />
+                    </div>
+                </div>
+            </Link>
+
+        </div >
     );
 }

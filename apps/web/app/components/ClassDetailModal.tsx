@@ -112,11 +112,24 @@ export function ClassDetailModal({ isOpen, onClose, classEvent, onRecordingAdded
                                             </h4>
 
                                             {hasRecording ? (
-                                                <div className="bg-green-50 text-green-800 p-3 rounded-md text-sm flex items-center gap-2">
-                                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                                                    <span>
-                                                        Recording attached ({streamStatus || 'processed'})
-                                                    </span>
+                                                <div className="space-y-3">
+                                                    <div className="bg-green-50 text-green-800 p-3 rounded-md text-sm flex items-center gap-2">
+                                                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                                        <span>
+                                                            Recording attached ({streamStatus || 'processed'})
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Player */}
+                                                    <div className="aspect-video bg-black rounded-lg overflow-hidden relative">
+                                                        <iframe
+                                                            src={`https://iframe.videodelivery.net/${classEvent.resource.cloudflareStreamId}`}
+                                                            className="border-none absolute top-0 left-0 w-full h-full"
+                                                            allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                                                            allowFullScreen={true}
+                                                            title="Class Recording"
+                                                        />
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <form onSubmit={handleAddRecording}>

@@ -1,6 +1,8 @@
 import { Hono } from 'hono'
+import { createDb } from './db';
 import { tenantMiddleware } from './middleware/tenant';
-import { tenants, tenantMembers } from 'db/src/schema'; // Ensure this import path is valid given tsconfig paths or package exports
+import { tenants, tenantMembers } from 'db/src/schema';
+import { eq } from 'drizzle-orm';
 
 type Bindings = {
   DB: D1Database;
@@ -28,6 +30,7 @@ type Variables = {
     userId: string | null;
     claims: any;
   };
+  features: Set<string>;
 };
 
 import studioRoutes from './routes/studios';
@@ -45,7 +48,13 @@ const app = new Hono<{ Bindings: Bindings, Variables: Variables }>()
 
 app.use('*', logger());
 app.use('*', cors({
-  origin: ['https://studio-platform-web.pages.dev', 'https://studio-platform-dev.slichti.org', 'http://localhost:5173'],
+  origin: (origin) => {
+    if (!origin) return 'https://studio-platform-web.pages.dev'; // Fallback
+    if (origin.endsWith('.pages.dev') || origin.endsWith('.slichti.org') || origin.includes('localhost')) {
+      return origin;
+    }
+    return 'https://studio-platform-web.pages.dev';
+  },
   allowHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Slug', 'X-Tenant-Id'],
   allowMethods: ['POST', 'GET', 'OPTIONS', 'DELETE', 'PUT', 'PATCH'],
   exposeHeaders: ['Content-Length'],
@@ -121,8 +130,39 @@ tenantApp.get('/info', (c) => {
     stripeAccountId: tenant.stripeAccountId,
     branding: tenant.branding,
     features: Array.from(c.get('features') || [])
-  })
+  });
 })
+
+tenantApp.patch('/settings', async (c) => {
+  const tenant = c.get('tenant');
+  const db = createDb(c.env.DB);
+  const body = await c.req.json();
+
+  // Validate Allowed Settings
+  const allowedKeys = ['name', 'settings', 'branding'];
+  // We allow patching top-level 'name', and the 'settings' JSON object.
+  // The frontend sends { name } or { settings: { ... } } or both.
+
+  const updateData: any = {};
+  if (body.name) updateData.name = body.name;
+
+  if (body.settings) {
+    // Merge with existing settings
+    const currentSettings = tenant.settings || {};
+    updateData.settings = { ...currentSettings, ...body.settings };
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return c.json({ received: true });
+  }
+
+  await db.update(tenants)
+    .set(updateData)
+    .where(eq(tenants.id, tenant.id))
+    .run();
+
+  return c.json({ success: true });
+});
 
 tenantApp.get('/me', (c) => {
   const member = c.get('member');
@@ -135,6 +175,17 @@ tenantApp.get('/me', (c) => {
     roles
   });
 })
+
+tenantApp.get('/usage', async (c) => {
+  const tenant = c.get('tenant');
+  const db = createDb(c.env.DB);
+  const { UsageService } = await import('./services/pricing');
+
+  const usageService = new UsageService(db, tenant.id);
+  const usage = await usageService.getUsage();
+
+  return c.json(usage);
+});
 
 import webhookRoutes from './routes/webhooks';
 import uploadRoutes from './routes/uploads';
@@ -163,4 +214,16 @@ app.route('/commerce', commerce);
 app.route('/members', members);
 app.route('/memberships', memberships);
 
-export default app
+import onboarding from './routes/onboarding';
+app.route('/onboarding', onboarding);
+
+import dataImport from './routes/import';
+app.route('/import', dataImport);
+
+import { scheduled } from './cron';
+
+export default {
+  fetch: app.fetch,
+  scheduled
+}
+

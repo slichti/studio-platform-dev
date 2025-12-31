@@ -83,4 +83,51 @@ export class EmailService {
             console.error("Failed to send welcome email", e);
         }
     }
+
+
+    async sendGenericEmail(to: string, subject: string, html: string) {
+        try {
+            await this.resend.emails.send({
+                from: this.fromEmail,
+                to,
+                subject,
+                html
+            });
+            console.log(`Generic email sent to ${to}`);
+        } catch (e) {
+            console.error("Failed to send generic email", e);
+            throw e; // Rethrow to let caller know
+        }
+    }
+
+    async notifyOwnerNewStudent(ownerEmail: string, studentName: string) {
+        // Notification to Studio Owner
+        await this.sendGenericEmail(
+            ownerEmail,
+            `New Student Registration: ${studentName}`,
+            `<p>Good news! <strong>${studentName}</strong> has just registered for your studio.</p>`
+        );
+    }
+
+    async notifyStudentSignUpConfirmation(studentEmail: string, studioName: string) {
+        // Welcome/Confirmation to Student
+        await this.sendGenericEmail(
+            studentEmail,
+            `Welcome to ${studioName}`,
+            `<h1>Welcome to ${studioName}!</h1><p>Your account has been successfully created. We look forward to seeing you in class.</p>`
+        );
+    }
+
+    async notifyNoShow(studentEmail: string, feeAmount: number, className: string) {
+        // No Show Fee Notification
+        await this.sendGenericEmail(
+            studentEmail,
+            `Missed Class Policy: ${className}`,
+            `
+            <p>We missed you at <strong>${className}</strong> today.</p>
+            <p>Per our cancellation policy, a no-show fee of <strong>$${(feeAmount / 100).toFixed(2)}</strong> has been processed.</p>
+            <p>We hope to see you next time!</p>
+            `
+        );
+    }
 }

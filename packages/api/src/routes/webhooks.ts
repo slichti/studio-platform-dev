@@ -2,8 +2,8 @@ import { Hono } from 'hono';
 import { createDb } from '../db';
 import { ZoomService } from '../services/zoom';
 import { StreamService } from '../services/stream';
-import { classes, users } from 'db/src/schema'; // We need 'classes' to update record
-import { eq } from 'drizzle-orm';
+import { classes, users, classPackDefinitions, purchasedPacks } from 'db/src/schema'; // We need 'classes' to update record
+import { eq, and } from 'drizzle-orm';
 // import { verifyWebhookSignature } from '../services/zoom'; // To be implemented if we want robust security
 
 type Bindings = {
@@ -16,6 +16,8 @@ type Bindings = {
     CLOUDFLARE_API_TOKEN: string;
     CLERK_WEBHOOK_SECRET: string;
     RESEND_API_KEY: string;
+    STRIPE_SECRET_KEY: string;
+    STRIPE_WEBHOOK_SECRET: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -217,10 +219,102 @@ app.post('/clerk', async (c) => {
                 .run();
             console.log(`User updated: ${email}`);
         }
-    } else if (eventType === 'user.deleted') {
-        // Handle deletion? Typically soft delete or ignore.
-        // db.delete(users).where(eq(users.id, id)).run();
-        console.log(`User deleted: ${id}`);
+
+        // Notify Studio Owner if tenantId is in metadata (New Student flow)
+        // Checks 'unsafe_metadata' or 'public_metadata'
+        const meta = evt.data.unsafe_metadata || evt.data.public_metadata;
+        if (meta && meta.tenantId) {
+            // Find Tenant Owner
+            const { tenantRoles, tenantMembers, tenants } = await import('db/src/schema');
+
+            // Get Owner Email
+            // We need to find the user who has role 'owner' for this tenant
+            // And get their email.
+            const ownerMember = await db.select({
+                email: users.email
+            })
+                .from(tenantMembers)
+                .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
+                .innerJoin(users, eq(tenantMembers.userId, users.id))
+                .where(and(
+                    eq(tenantMembers.tenantId, meta.tenantId),
+                    eq(tenantRoles.role, 'owner')
+                ))
+                .limit(1)
+                .get();
+
+            if (ownerMember && c.env.RESEND_API_KEY) {
+                const { EmailService } = await import('../services/email');
+                const emailService = new EmailService(c.env.RESEND_API_KEY);
+                c.executionCtx.waitUntil(emailService.notifyOwnerNewStudent(ownerMember.email, `${first_name} ${last_name}`));
+            }
+        }
+    }
+    return c.json({ received: true });
+});
+
+// POST /webhooks/stripe: Handle Payment Success
+app.post('/stripe', async (c) => {
+    // 1. Get Signature
+    const signature = c.req.header('stripe-signature');
+    const secret = (c.env as any).STRIPE_WEBHOOK_SECRET;
+
+    if (!signature || !secret || !c.env.STRIPE_SECRET_KEY) {
+        return c.json({ error: 'Configuration Error' }, 500);
+    }
+
+    // 2. Verify Event via Stripe Library
+    const body = await c.req.text();
+    const { Stripe } = await import('stripe');
+    const stripe = new Stripe(c.env.STRIPE_SECRET_KEY, { apiVersion: '2025-12-15.clover' as any });
+
+    let event;
+    try {
+        event = stripe.webhooks.constructEvent(body, signature, secret);
+    } catch (err: any) {
+        console.error(`Webhook signature verification failed: ${err.message}`);
+        return c.json({ error: `Webhook Error: ${err.message}` }, 400);
+    }
+
+    // 3. Handle 'checkout.session.completed'
+    if (event.type === 'checkout.session.completed') {
+        const session = event.data.object as any;
+        const { metadata, amount_total } = session;
+
+        // Ensure it's our metadata format
+        if (metadata && metadata.packId && metadata.tenantId && metadata.memberId) {
+            const db = createDb(c.env.DB);
+
+            // a. Fetch Pack Definition for credit rules
+            const packDef = await db.select().from(classPackDefinitions)
+                .where(and(eq(classPackDefinitions.id, metadata.packId), eq(classPackDefinitions.tenantId, metadata.tenantId)))
+                .get();
+
+            if (packDef) {
+                // b. Calculate Expiry
+                let expiresAt: Date | null = null;
+                if (packDef.expirationDays) {
+                    expiresAt = new Date();
+                    expiresAt.setDate(expiresAt.getDate() + packDef.expirationDays);
+                }
+
+                // c. Provision Credits (Insert PurchasedPack)
+                await db.insert(purchasedPacks).values({
+                    id: crypto.randomUUID(),
+                    tenantId: metadata.tenantId,
+                    memberId: metadata.memberId, // Should match a tenantMembers.id
+                    packDefinitionId: metadata.packId,
+                    initialCredits: packDef.credits,
+                    remainingCredits: packDef.credits,
+                    price: amount_total, // Store actual paid amount
+                    expiresAt,
+                    createdAt: new Date(),
+                    stripePaymentId: session.payment_intent as string
+                }).run();
+
+                console.log(`Provisioned Pack ${packDef.name} for Member ${metadata.memberId}`);
+            }
+        }
     }
 
     return c.json({ received: true });
