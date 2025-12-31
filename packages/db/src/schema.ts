@@ -8,7 +8,7 @@ export const tenants = sqliteTable('tenants', {
     name: text('name').notNull(),
     customDomain: text('custom_domain').unique(),
     branding: text('branding', { mode: 'json' }), // JSON: { primaryColor, logoUrl, font }
-    settings: text('settings', { mode: 'json' }), // JSON: Studio-wide settings (e.g. cancellation policies)
+    settings: text('settings', { mode: 'json' }), // JSON: { enableStudentRegistration, noShowFeeEnabled, noShowFeeAmount, notifications }
     stripeAccountId: text('stripe_account_id'), // Connect Account ID
     zoomCredentials: text('zoom_credentials', { mode: 'json' }), // Encrypted
     status: text('status', { enum: ['active', 'paused', 'suspended'] }).default('active').notNull(),
@@ -37,10 +37,26 @@ export const users = sqliteTable('users', {
     email: text('email').notNull(),
     profile: text('profile', { mode: 'json' }), // Global profile: { firstName, lastName, portraitUrl }
     isSystemAdmin: integer('is_system_admin', { mode: 'boolean' }).default(false), // Platform-level admin
+    phone: text('phone'),
+    dob: integer('dob', { mode: 'timestamp' }),
+    address: text('address'), // Full address string or JSON
+    isMinor: integer('is_minor', { mode: 'boolean' }).default(false),
     lastActiveAt: integer('last_active_at', { mode: 'timestamp' }), // Timestamp of last API request
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     emailIdx: index('email_idx').on(table.email),
+}));
+
+// --- User Relationships (Family) ---
+export const userRelationships = sqliteTable('user_relationships', {
+    id: text('id').primaryKey(),
+    parentUserId: text('parent_user_id').notNull().references(() => users.id),
+    childUserId: text('child_user_id').notNull().references(() => users.id),
+    type: text('type', { enum: ['parent_child', 'spouse', 'guardian'] }).default('parent_child').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    parentIdx: index('parent_idx').on(table.parentUserId),
+    childIdx: index('child_idx').on(table.childUserId),
 }));
 
 // --- Tenant Members ---

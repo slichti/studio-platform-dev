@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
 import { createDb } from './db';
 import { tenantMiddleware } from './middleware/tenant';
-import { tenants, tenantMembers } from 'db/src/schema'; // Ensure this import path is valid given tsconfig paths or package exports
+import { tenants, tenantMembers } from 'db/src/schema';
+import { eq } from 'drizzle-orm';
 
 type Bindings = {
   DB: D1Database;
@@ -129,8 +130,39 @@ tenantApp.get('/info', (c) => {
     stripeAccountId: tenant.stripeAccountId,
     branding: tenant.branding,
     features: Array.from(c.get('features') || [])
-  })
+  });
 })
+
+tenantApp.patch('/settings', async (c) => {
+  const tenant = c.get('tenant');
+  const db = createDb(c.env.DB);
+  const body = await c.req.json();
+
+  // Validate Allowed Settings
+  const allowedKeys = ['name', 'settings', 'branding'];
+  // We allow patching top-level 'name', and the 'settings' JSON object.
+  // The frontend sends { name } or { settings: { ... } } or both.
+
+  const updateData: any = {};
+  if (body.name) updateData.name = body.name;
+
+  if (body.settings) {
+    // Merge with existing settings
+    const currentSettings = tenant.settings || {};
+    updateData.settings = { ...currentSettings, ...body.settings };
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return c.json({ received: true });
+  }
+
+  await db.update(tenants)
+    .set(updateData)
+    .where(eq(tenants.id, tenant.id))
+    .run();
+
+  return c.json({ success: true });
+});
 
 tenantApp.get('/me', (c) => {
   const member = c.get('member');
@@ -181,5 +213,11 @@ app.route('/commerce', commerce);
 
 app.route('/members', members);
 app.route('/memberships', memberships);
+
+import onboarding from './routes/onboarding';
+app.route('/onboarding', onboarding);
+
+import dataImport from './routes/import';
+app.route('/import', dataImport);
 
 export default app

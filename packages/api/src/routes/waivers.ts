@@ -105,7 +105,33 @@ app.post('/:id/sign', async (c) => {
         return c.json({ error: 'Must be logged in to sign waiver' }, 401);
     }
 
-    const { signatureData, ipAddress } = await c.req.json();
+    const body = await c.req.json();
+    const { signatureData, ipAddress, onBehalfOfMemberId } = body;
+    let targetMemberId = member.id;
+
+    // 1. Check if signing for child
+    if (onBehalfOfMemberId && onBehalfOfMemberId !== member.id) {
+        const { userRelationships } = await import('db/src/schema');
+
+        // Find target member to get their userId
+        const targetMember = await db.query.tenantMembers.findFirst({
+            where: eq(tenantMembers.id, onBehalfOfMemberId)
+        });
+
+        if (!targetMember) return c.json({ error: "Target member not found" }, 404);
+
+        // Verify Relationship: Auth User (member.userId) MUST be Parent of Target User (targetMember.userId)
+        const relationship = await db.query.userRelationships.findFirst({
+            where: and(
+                eq(userRelationships.parentUserId, member.userId),
+                eq(userRelationships.childUserId, targetMember.userId)
+            )
+        });
+
+        if (!relationship) return c.json({ error: "You are not authorized to sign for this member" }, 403);
+
+        targetMemberId = onBehalfOfMemberId;
+    }
 
     // Check if template exists and is active
     const template = await db.query.waiverTemplates.findFirst({
@@ -116,7 +142,7 @@ app.post('/:id/sign', async (c) => {
 
     // Check if already signed
     const existing = await db.query.waiverSignatures.findFirst({
-        where: and(eq(waiverSignatures.memberId, member.id), eq(waiverSignatures.templateId, templateId))
+        where: and(eq(waiverSignatures.memberId, targetMemberId), eq(waiverSignatures.templateId, templateId))
     });
 
     if (existing) return c.json({ error: 'Already signed' }, 400);
@@ -125,7 +151,7 @@ app.post('/:id/sign', async (c) => {
     await db.insert(waiverSignatures).values({
         id,
         templateId,
-        memberId: member.id,
+        memberId: targetMemberId,
         ipAddress: ipAddress || 'unknown', // Should extract from request headers in real app
         signatureData,
         signedAt: new Date()
@@ -156,7 +182,8 @@ app.post('/:id/sign', async (c) => {
                 const splitText = doc.splitTextToSize(template.content, 170);
                 doc.text(splitText, 20, 40);
                 const finalY = 40 + (splitText.length * 5) + 20;
-                doc.text(`Signed by Member ID: ${member.id}`, 20, finalY);
+                doc.text(`Signed by Member ID: ${member.id} (as likely Parent/Self)`, 20, finalY);
+                doc.text(`For Member ID: ${targetMemberId}`, 20, finalY + 10);
                 doc.text(`Date: ${new Date().toLocaleString()}`, 20, finalY + 10);
                 doc.text(`IP Address: ${ipAddress || 'unknown'}`, 20, finalY + 20);
                 if (signatureData && signatureData.startsWith('data:image')) {

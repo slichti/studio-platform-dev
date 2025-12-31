@@ -219,6 +219,36 @@ app.post('/clerk', async (c) => {
                 .run();
             console.log(`User updated: ${email}`);
         }
+
+        // Notify Studio Owner if tenantId is in metadata (New Student flow)
+        // Checks 'unsafe_metadata' or 'public_metadata'
+        const meta = evt.data.unsafe_metadata || evt.data.public_metadata;
+        if (meta && meta.tenantId) {
+            // Find Tenant Owner
+            const { tenantRoles, tenantMembers, tenants } = await import('db/src/schema');
+
+            // Get Owner Email
+            // We need to find the user who has role 'owner' for this tenant
+            // And get their email.
+            const ownerMember = await db.select({
+                email: users.email
+            })
+                .from(tenantMembers)
+                .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
+                .innerJoin(users, eq(tenantMembers.userId, users.id))
+                .where(and(
+                    eq(tenantMembers.tenantId, meta.tenantId),
+                    eq(tenantRoles.role, 'owner')
+                ))
+                .limit(1)
+                .get();
+
+            if (ownerMember && c.env.RESEND_API_KEY) {
+                const { EmailService } = await import('../services/email');
+                const emailService = new EmailService(c.env.RESEND_API_KEY);
+                c.executionCtx.waitUntil(emailService.notifyOwnerNewStudent(ownerMember.email, `${first_name} ${last_name}`));
+            }
+        }
     }
     return c.json({ received: true });
 });
