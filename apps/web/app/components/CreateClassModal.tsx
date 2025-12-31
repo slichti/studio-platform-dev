@@ -29,7 +29,10 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
         isRecurring: false,
         recurrencePattern: "weekly", // daily, weekly
         recurrenceEndDate: "",
-        createZoom: false
+        createZoom: false,
+        minEnrollment: 1,
+        autoCancelThreshold: 2,
+        autoCancelEnabled: false
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -61,7 +64,10 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                     createZoomMeeting: (formData as any).createZoom,
                     isRecurring: formData.isRecurring,
                     recurrenceRule: recurrenceRule,
-                    recurrenceEnd: formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate).toISOString() : undefined
+                    recurrenceEnd: formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate).toISOString() : undefined,
+                    minStudents: Number(formData.minEnrollment),
+                    autoCancelThreshold: Number(formData.autoCancelThreshold),
+                    autoCancelEnabled: formData.autoCancelEnabled
                 })
             });
 
@@ -83,7 +89,10 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                     isRecurring: false,
                     recurrencePattern: "weekly",
                     recurrenceEndDate: "",
-                    createZoom: false
+                    createZoom: false,
+                    minEnrollment: 1,
+                    autoCancelThreshold: 2,
+                    autoCancelEnabled: false
                 });
             }
         } catch (e: any) {
@@ -198,6 +207,42 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                             onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
                         />
                     </div>
+                </div>
+
+                <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-lg space-y-4">
+                    <h3 className="text-sm font-semibold text-zinc-900 border-b border-zinc-200 pb-2">Enrollment Policies</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-medium text-zinc-700 mb-1">Min. Enrollment to Run</label>
+                            <input
+                                type="number"
+                                min="1"
+                                className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                                value={formData.minEnrollment}
+                                onChange={(e) => setFormData({ ...formData, minEnrollment: Number(e.target.value) })}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-zinc-700 mb-1">Auto-Cancel Cutoff (hrs)</label>
+                            <input
+                                type="number"
+                                min="1"
+                                className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                                value={formData.autoCancelThreshold}
+                                onChange={(e) => setFormData({ ...formData, autoCancelThreshold: Number(e.target.value) })}
+                                placeholder="Hours before start"
+                            />
+                        </div>
+                    </div>
+                    <label className="flex items-center gap-2 text-sm text-zinc-700 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={formData.autoCancelEnabled}
+                            onChange={(e) => setFormData({ ...formData, autoCancelEnabled: e.target.checked })}
+                            className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span>Enable automatic cancellation if minimum is not met</span>
+                    </label>
                 </div>
 
                 <div className="border-t border-zinc-200 pt-4 mt-2">

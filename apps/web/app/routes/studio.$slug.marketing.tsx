@@ -29,15 +29,24 @@ export default function MarketingPage() {
     const [subject, setSubject] = useState("");
     const [content, setContent] = useState("");
     const [sending, setSending] = useState(false);
+    const [filters, setFilters] = useState({
+        ageMin: 0,
+        ageMax: 100,
+        preset: "all"
+    });
 
     async function handleSend(e: React.FormEvent) {
         e.preventDefault();
         setSending(true);
         try {
-            const res = await apiRequest("/marketing", token, {
+            const res: any = await apiRequest("/marketing", token, {
                 method: "POST",
                 headers: { 'X-Tenant-Slug': slug },
-                body: JSON.stringify({ subject, content })
+                body: JSON.stringify({
+                    subject,
+                    content,
+                    filters: filters.preset === "all" ? {} : { ageMin: filters.ageMin, ageMax: filters.ageMax }
+                })
             });
 
             if (res.error) {
@@ -47,7 +56,7 @@ export default function MarketingPage() {
                 setSubject("");
                 setContent("");
                 // Refresh list
-                const refreshed = await apiRequest("/marketing", token, { headers: { 'X-Tenant-Slug': slug } });
+                const refreshed: any = await apiRequest("/marketing", token, { headers: { 'X-Tenant-Slug': slug } });
                 setCampaigns(refreshed.campaigns || []);
             }
         } catch (e: any) {
@@ -95,6 +104,54 @@ export default function MarketingPage() {
                             <p className="text-xs text-zinc-400 mt-1">Plain text only for MVP.</p>
                         </div>
 
+                        <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-lg">
+                            <label className="block text-sm font-semibold text-zinc-800 mb-3">Target Audience</label>
+                            <div className="flex flex-wrap gap-2 mb-4">
+                                {[
+                                    { label: "All Students", value: "all", min: 0, max: 100 },
+                                    { label: "Youth (<18)", value: "youth", min: 0, max: 17 },
+                                    { label: "Adults (18-64)", value: "adults", min: 18, max: 64 },
+                                    { label: "Seniors (65+)", value: "seniors", min: 65, max: 100 },
+                                    { label: "Custom", value: "custom", min: filters.ageMin, max: filters.ageMax },
+                                ].map(p => (
+                                    <button
+                                        key={p.value}
+                                        type="button"
+                                        onClick={() => setFilters({ ...filters, preset: p.value, ageMin: p.min, ageMax: p.max })}
+                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${filters.preset === p.value
+                                            ? "bg-blue-600 text-white"
+                                            : "bg-white border border-zinc-300 text-zinc-600 hover:bg-zinc-50"
+                                            }`}
+                                    >
+                                        {p.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {filters.preset === "custom" && (
+                                <div className="flex items-center gap-4 animate-in fade-in slide-in-from-top-1">
+                                    <div className="flex-1">
+                                        <label className="block text-[10px] uppercase font-bold text-zinc-500 mb-1">Min Age</label>
+                                        <input
+                                            type="number"
+                                            value={filters.ageMin}
+                                            onChange={e => setFilters({ ...filters, ageMin: Number(e.target.value) })}
+                                            className="w-full border border-zinc-300 rounded px-2 py-1 text-sm outline-none"
+                                        />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="block text-[10px] uppercase font-bold text-zinc-500 mb-1">Max Age</label>
+                                        <input
+                                            type="number"
+                                            value={filters.ageMax}
+                                            onChange={e => setFilters({ ...filters, ageMax: Number(e.target.value) })}
+                                            className="w-full border border-zinc-300 rounded px-2 py-1 text-sm outline-none"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         <div className="flex justify-end">
                             <button
                                 type="submit"
@@ -136,6 +193,11 @@ export default function MarketingPage() {
                                     <Send className="h-3 w-3" />
                                     {c.stats?.sent || 0} Sent
                                 </span>
+                                {c.filters && (
+                                    <span className="flex items-center gap-1 bg-zinc-100 px-1.5 rounded">
+                                        {c.filters.ageMin}-{c.filters.ageMax} yrs
+                                    </span>
+                                )}
                             </div>
                         </div>
                     ))}

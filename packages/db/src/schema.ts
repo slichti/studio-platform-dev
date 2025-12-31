@@ -141,6 +141,7 @@ export const classes = sqliteTable('classes', {
     thumbnailUrl: text('thumbnail_url'),
     cloudflareStreamId: text('cloudflare_stream_id'),
     recordingStatus: text('recording_status', { enum: ['processing', 'ready', 'error'] }),
+    status: text('status', { enum: ['active', 'cancelled'] }).default('active').notNull(),
 
     // Cancellation Logic
     minStudents: integer('min_students').default(1),
@@ -311,6 +312,7 @@ export const marketingCampaigns = sqliteTable('marketing_campaigns', {
     sentAt: integer('sent_at', { mode: 'timestamp' }),
 
     stats: text('stats', { mode: 'json' }), // { sent: 100, failed: 0 }
+    filters: text('filters', { mode: 'json' }), // { ageMin: 18, ageMax: 30, tags: ['yoga'] }
 
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });

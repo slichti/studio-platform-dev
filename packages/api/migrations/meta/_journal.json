@@ -8,6 +8,20 @@
       "when": 1767222341459,
       "tag": "0000_goofy_peter_parker",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1767224784947,
+      "tag": "0001_loving_shooting_star",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1767224821504,
+      "tag": "0002_sweet_gorilla_man",
+      "breakpoints": true
     }
   ]
 }

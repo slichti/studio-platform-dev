@@ -1,6 +1,6 @@
 import { createDb } from './db';
-import { tenants, classes, bookings } from 'db/src/schema'; // Ensure imports
-import { and, eq, lte, gt, gte, inArray, isNotNull } from 'drizzle-orm';
+import { tenants, classes, bookings, tenantMembers } from 'db/src/schema'; // Ensure imports
+import { and, eq, lte, gt, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 import { BookingService } from './services/bookings';
 
 export const scheduled = async (event: any, env: any, ctx: any) => {
@@ -92,6 +92,95 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
                     await bookingService.markNoShow(booking.id);
                 } catch (e) {
                     console.error(`Failed to auto-mark booking ${booking.id}`, e);
+                }
+            }
+        }
+    }
+
+    // 2. Automated Class Cancellations for Low Enrollment
+    // Find classes starting soon that have auto-cancel enabled and haven't matched min students
+    const upcomingClasses = await db.query.classes.findMany({
+        where: and(
+            eq(classes.status, 'active'),
+            eq(classes.autoCancelEnabled, true),
+            gte(classes.startTime, now)
+        ),
+        with: {
+            tenant: true,
+            bookings: {
+                where: eq(bookings.status, 'confirmed')
+            },
+            instructor: {
+                with: {
+                    user: true
+                }
+            }
+        }
+    });
+
+    for (const cls of upcomingClasses) {
+        const thresholdHours = cls.autoCancelThreshold || 2; // Default 2 hours if not set
+        const thresholdTime = new Date(cls.startTime.getTime() - thresholdHours * 60 * 60 * 1000);
+
+        // If now is past the threshold time
+        if (now >= thresholdTime) {
+            const currentEnrollment = cls.bookings.length;
+            const minEnrollment = cls.minStudents || 1;
+
+            if (currentEnrollment < minEnrollment) {
+                console.log(`[Auto-Cancel] Class "${cls.title}" (ID: ${cls.id}) cancelled due to low enrollment (${currentEnrollment}/${minEnrollment}).`);
+
+                // 1. Mark class as cancelled
+                await db.update(classes)
+                    .set({ status: 'cancelled' })
+                    .where(eq(classes.id, cls.id))
+                    .run();
+
+                // 2. Notify students
+                const { NotificationService } = await import('./services/notifications');
+                const notifService = new NotificationService(db, cls.tenantId, env);
+
+                for (const booking of cls.bookings) {
+                    // We need student email. We have memberId in booking.
+                    // But 'cls.bookings' with 'with' only gives booking records.
+                    // Let's fetch members with users.
+                    const member = await db.query.tenantMembers.findFirst({
+                        where: eq(tenantMembers.id, booking.memberId),
+                        with: { user: true }
+                    });
+
+                    if (member?.user?.email) {
+                        await notifService.sendEmail(
+                            member.user.email,
+                            `Class Cancelled: ${cls.title}`,
+                            `<p>Sorry! The class <strong>${cls.title}</strong> on ${cls.startTime.toLocaleString()} has been cancelled due to low enrollment. Any credits used have been returned to your account.</p>`
+                        );
+
+                        // Return credits if applicable
+                        if (booking.paymentMethod === 'credit' && booking.usedPackId) {
+                            const { purchasedPacks } = await import('db/src/schema');
+                            await db.update(purchasedPacks)
+                                .set({ remainingCredits: sql`${purchasedPacks.remainingCredits} + 1` })
+                                .where(eq(purchasedPacks.id, booking.usedPackId))
+                                .run();
+                        }
+                    }
+
+                    // Update booking status
+                    await db.update(bookings)
+                        .set({ status: 'cancelled' })
+                        .where(eq(bookings.id, booking.id))
+                        .run();
+                }
+
+                // 3. Notify Instructor
+                if (cls.instructor?.user?.email) {
+                    const profile = (cls.instructor.user.profile || {}) as any;
+                    await notifService.sendEmail(
+                        cls.instructor.user.email,
+                        `Class Cancelled: ${cls.title}`,
+                        `<p>Hi ${profile.firstName || 'Instructor'}, your class <strong>${cls.title}</strong> on ${cls.startTime.toLocaleString()} has been automatically cancelled as it did not reach the minimum of ${minEnrollment} students by the cutoff time.</p>`
+                    );
                 }
             }
         }
