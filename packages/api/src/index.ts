@@ -220,4 +220,10 @@ app.route('/onboarding', onboarding);
 import dataImport from './routes/import';
 app.route('/import', dataImport);
 
-export default app
+import { scheduled } from './cron';
+
+export default {
+  fetch: app.fetch,
+  scheduled
+}
+

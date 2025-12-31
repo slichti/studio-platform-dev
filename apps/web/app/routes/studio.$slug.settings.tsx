@@ -250,6 +250,56 @@ export default function StudioSettings() {
                             <p className="text-xs text-zinc-500 mt-1">Fee will be charged automatically when marking "No Show". ($10.00 = 1000)</p>
                         </div>
                     )}
+
+                    <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
+                        <div>
+                            <span className="text-sm font-medium text-zinc-900">Auto-Mark No Shows</span>
+                            <p className="text-xs text-zinc-500">Automatically mark expected students as No Show.</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                className="sr-only peer"
+                                checked={tenant.settings?.noShowAutoMarkEnabled || false}
+                                onChange={async (e) => {
+                                    const checked = e.target.checked;
+                                    try {
+                                        const token = await (window as any).Clerk?.session?.getToken();
+                                        await apiRequest(`/tenant/settings`, token, {
+                                            method: "PATCH",
+                                            headers: { 'X-Tenant-Slug': tenant.slug },
+                                            body: JSON.stringify({ settings: { noShowAutoMarkEnabled: checked } })
+                                        });
+                                        window.location.reload();
+                                    } catch (err) { alert("Failed to save"); }
+                                }}
+                            />
+                            <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+
+                    {tenant.settings?.noShowAutoMarkEnabled && (
+                        <div>
+                            <label className="block text-xs font-medium text-zinc-700 mb-1">When to Mark?</label>
+                            <select
+                                className="w-full border-zinc-300 rounded text-sm px-3 py-2 bg-white"
+                                defaultValue={tenant.settings?.noShowAutoMarkTime || 'end_of_class'}
+                                onChange={async (e) => {
+                                    const val = e.target.value;
+                                    const token = await (window as any).Clerk?.session?.getToken();
+                                    await apiRequest(`/tenant/settings`, token, {
+                                        method: "PATCH",
+                                        headers: { 'X-Tenant-Slug': tenant.slug },
+                                        body: JSON.stringify({ settings: { noShowAutoMarkTime: val } })
+                                    });
+                                }}
+                            >
+                                <option value="start_of_class">Start of Class</option>
+                                <option value="15_mins_after_start">15 Minutes After Start</option>
+                                <option value="end_of_class">End of Class</option>
+                            </select>
+                        </div>
+                    )}
                 </div>
             </div>
 
