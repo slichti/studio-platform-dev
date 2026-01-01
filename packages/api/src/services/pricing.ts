@@ -7,6 +7,7 @@ export type Tier = 'basic' | 'growth' | 'scale';
 export const TIERS: Record<Tier, {
     name: string;
     price: number; // Monthly in cents
+    applicationFeePercent: number; // Percentage taken from transactions (e.g. 0.05 for 5%)
     limits: {
         students: number; // -1 for unlimited
         instructors: number;
@@ -15,38 +16,41 @@ export const TIERS: Record<Tier, {
     };
     features: string[]; // Enabled feature flags
 }> = {
-    basic: {
-        name: 'Basic',
+    basic: { // "Launch"
+        name: 'Launch',
         price: 0,
+        applicationFeePercent: 0.05, // 5% Application Fee
         limits: {
-            students: 50,
-            instructors: 1,
+            students: -1, // Unlimited students to reduce friction
+            instructors: 5,
             locations: 1,
-            storageGB: 1
+            storageGB: 5
         },
-        features: []
+        features: ['financials', 'notifications']
     },
     growth: {
         name: 'Growth',
-        price: 4900,
+        price: 4900, // $49/mo
+        applicationFeePercent: 0.015, // 1.5% Application Fee
         limits: {
-            students: 500,
-            instructors: 5,
+            students: -1,
+            instructors: 15,
             locations: 3,
             storageGB: 50
         },
-        features: ['zoom', 'vod']
+        features: ['financials', 'notifications', 'zoom', 'vod', 'automations', 'sms']
     },
     scale: {
         name: 'Scale',
-        price: 19900,
+        price: 12900, // $129/mo
+        applicationFeePercent: 0.0, // 0% Application Fee
         limits: {
             students: -1,
             instructors: -1,
             locations: -1,
             storageGB: 1000
         },
-        features: ['zoom', 'vod', 'white_label']
+        features: ['financials', 'notifications', 'zoom', 'vod', 'automations', 'sms', 'white_label', 'api_access']
     }
 };
 
