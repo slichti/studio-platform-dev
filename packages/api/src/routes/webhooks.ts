@@ -317,6 +317,24 @@ app.post('/stripe', async (c) => {
                 }).run();
 
                 console.log(`Provisioned Pack ${packDef.name} for Member ${metadata.memberId}`);
+
+                // d. Record Coupon Redemption
+                if (metadata.couponId) {
+                    const { couponRedemptions } = await import('db/src/schema');
+                    // We need userId for couponRedemptions (it links to Global User, not Member).
+                    // metadata.userId should be available from checkout session creation.
+                    if (metadata.userId && metadata.userId !== 'guest') {
+                        await db.insert(couponRedemptions).values({
+                            id: crypto.randomUUID(),
+                            tenantId: metadata.tenantId,
+                            couponId: metadata.couponId,
+                            userId: metadata.userId,
+                            orderId: session.payment_intent as string,
+                            redeemedAt: new Date()
+                        }).run();
+                        console.log(`Recorded Coupon Redemption ${metadata.couponId} for User ${metadata.userId}`);
+                    }
+                }
             }
         }
     }
