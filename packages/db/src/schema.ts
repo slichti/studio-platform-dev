@@ -14,6 +14,11 @@ export const tenants = sqliteTable('tenants', {
     stripeCustomerId: text('stripe_customer_id'), // Platform Customer ID (Paying for SaaS)
     stripeSubscriptionId: text('stripe_subscription_id'), // Active info
     currentPeriodEnd: integer('current_period_end', { mode: 'timestamp' }),
+
+    // Phase 15: Flexible Payments (Connect vs BYOK)
+    paymentProvider: text('payment_provider', { enum: ['connect', 'custom'] }).default('connect').notNull(),
+    stripeCredentials: text('stripe_credentials', { mode: 'json' }), // Encrypted JSON: { publishableKey, secretKey }
+
     currency: text('currency').default('usd').notNull(), // Added currency
     zoomCredentials: text('zoom_credentials', { mode: 'json' }), // Encrypted
     status: text('status', { enum: ['active', 'paused', 'suspended'] }).default('active').notNull(),

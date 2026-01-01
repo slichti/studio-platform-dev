@@ -81,6 +81,8 @@ CREATE INDEX `product_tenant_idx` ON `products` (`tenant_id`);--> statement-brea
 ALTER TABLE `tenants` ADD `stripe_customer_id` text;--> statement-breakpoint
 ALTER TABLE `tenants` ADD `stripe_subscription_id` text;--> statement-breakpoint
 ALTER TABLE `tenants` ADD `current_period_end` integer;--> statement-breakpoint
+ALTER TABLE `tenants` ADD `payment_provider` text DEFAULT 'connect' NOT NULL;--> statement-breakpoint
+ALTER TABLE `tenants` ADD `stripe_credentials` text;--> statement-breakpoint
 ALTER TABLE `tenants` ADD `currency` text DEFAULT 'usd' NOT NULL;--> statement-breakpoint
 ALTER TABLE `users` ADD `stripe_customer_id` text;--> statement-breakpoint
 ALTER TABLE `waiver_signatures` ADD `signed_by_member_id` text REFERENCES tenant_members(id);

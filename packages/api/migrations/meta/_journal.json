@@ -36,6 +36,13 @@
       "when": 1767304133411,
       "tag": "0004_green_sauron",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1767304280938,
+      "tag": "0005_yummy_magdalene",
+      "breakpoints": true
     }
   ]
 }

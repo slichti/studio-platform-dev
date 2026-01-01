@@ -434,6 +434,112 @@ export default function StudioSettings() {
                 </form>
             </div>
 
+            {/* Payment Configuration (Flexible Payments) */}
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm mb-8">
+                <div className="mb-4">
+                    <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Payment Processing</h2>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Choose how you want to process payments.</p>
+                </div>
+
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div
+                            onClick={async () => {
+                                if (confirm("Switch to Platform Managed? This will use the platform's Stripe account.")) {
+                                    const token = await (window as any).Clerk?.session?.getToken();
+                                    await apiRequest(`/studios/${tenant.id}/payment-settings`, token, {
+                                        method: 'PUT',
+                                        body: JSON.stringify({ paymentProvider: 'connect' })
+                                    });
+                                    window.location.reload();
+                                }
+                            }}
+                            className={`cursor-pointer border rounded-lg p-4 transition-all ${tenant.paymentProvider === 'connect' ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-zinc-200 dark:border-zinc-700 hover:border-blue-300'}`}
+                        >
+                            <div className="font-medium text-zinc-900 dark:text-zinc-100">Platform Managed (Connect)</div>
+                            <div className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Easiest. We handle the Stripe account complexity. Standard fees apply.</div>
+                            {tenant.paymentProvider === 'connect' && (
+                                <div className="mt-3">
+                                    {tenant.stripeAccountId ? (
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                                            Connected ({tenant.stripeAccountId})
+                                        </span>
+                                    ) : (
+                                        <a href={`https://studio-platform-api.studio-platform.workers.dev/studios/stripe/connect?tenantId=${tenant.id}`} className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700">
+                                            Connect Stripe
+                                        </a>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <div
+                            onClick={async () => {
+                                if (tenant.paymentProvider !== 'custom') {
+                                    const token = await (window as any).Clerk?.session?.getToken();
+                                    await apiRequest(`/studios/${tenant.id}/payment-settings`, token, {
+                                        method: 'PUT',
+                                        body: JSON.stringify({ paymentProvider: 'custom' })
+                                    });
+                                    window.location.reload();
+                                }
+                            }}
+                            className={`cursor-pointer border rounded-lg p-4 transition-all ${tenant.paymentProvider === 'custom' ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-zinc-200 dark:border-zinc-700 hover:border-blue-300'}`}
+                        >
+                            <div className="font-medium text-zinc-900 dark:text-zinc-100">Self Managed (BYOK)</div>
+                            <div className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Bring your own Stripe keys. No platform transaction fees. You manage Stripe directly.</div>
+                        </div>
+                    </div>
+
+                    {tenant.paymentProvider === 'custom' && (
+                        <div className="mt-4 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                            <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-3">Stripe API Keys</h3>
+                            <form onSubmit={async (e) => {
+                                e.preventDefault();
+                                const formData = new FormData(e.currentTarget);
+                                const publishableKey = formData.get("publishableKey");
+                                const secretKey = formData.get("secretKey");
+
+                                try {
+                                    const token = await (window as any).Clerk?.session?.getToken();
+                                    await apiRequest(`/studios/${tenant.id}/payment-settings`, token, {
+                                        method: 'PUT',
+                                        body: JSON.stringify({ paymentProvider: 'custom', publishableKey, secretKey })
+                                    });
+                                    alert("Keys saved successfully!");
+                                } catch (err: any) {
+                                    alert(err.message);
+                                }
+                            }} className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Publishable Key</label>
+                                    <input
+                                        name="publishableKey"
+                                        type="text"
+                                        placeholder="pk_live_..."
+                                        className="w-full border-zinc-300 dark:border-zinc-700 rounded text-sm px-3 py-2 bg-white dark:bg-zinc-800"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Secret Key</label>
+                                    <input
+                                        name="secretKey"
+                                        type="password"
+                                        placeholder="sk_live_..."
+                                        className="w-full border-zinc-300 dark:border-zinc-700 rounded text-sm px-3 py-2 bg-white dark:bg-zinc-800"
+                                    />
+                                </div>
+                                <div className="flex justify-end">
+                                    <button type="submit" className="bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-2 rounded text-sm font-medium">
+                                        Save Keys
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    )}
+                </div>
+            </div>
+
             {/* Billing & Subscription */}
             <Link to={`/studio/${tenant.slug}/settings/billing`} className="block bg-white border border-zinc-200 rounded-lg p-6 shadow-sm mb-8 hover:border-blue-300 transition-colors group">
                 <div className="flex justify-between items-center">

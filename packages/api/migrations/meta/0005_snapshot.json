@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "fb42e478-3b45-4b61-9ffd-174f47725cbd",
+  "id": "895d2551-3913-4346-b153-a629252d6fd0",
   "prevId": "67a25b32-473c-4cd7-b7c0-10fba7b9ba8e",
   "tables": {
     "appointment_services": {
@@ -3450,6 +3450,21 @@
         "current_period_end": {
           "name": "current_period_end",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "payment_provider": {
+          "name": "payment_provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'connect'"
+        },
+        "stripe_credentials": {
+          "name": "stripe_credentials",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

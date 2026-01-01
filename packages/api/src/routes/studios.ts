@@ -84,14 +84,39 @@ app.post('/', async (c) => {
     }
 });
 
-app.get('/:id', async (c) => {
+return c.json(result);
+});
+
+app.put('/:id/payment-settings', async (c) => {
     const db = createDb(c.env.DB);
     const id = c.req.param('id');
+    const body = await c.req.json();
+    const { paymentProvider, publishableKey, secretKey } = body;
 
-    const result = await db.select().from(tenants).where(eq(tenants.id, id)).get();
+    // TODO: Verify ownership/permissions (middleware should handle this if mounted correctly)
 
-    if (!result) return c.json({ error: 'Studio not found' }, 404);
-    return c.json(result);
+    const updateData: any = {
+        paymentProvider
+    };
+
+    if (paymentProvider === 'custom') {
+        if (!publishableKey || !secretKey) {
+            return c.json({ error: 'Missing Stripe Keys' }, 400);
+        }
+        // Ideally encrypt this. For now, JSON stringify.
+        // In a real app, use c.env.ENCRYPTION_SECRET to encrypt.
+        updateData.stripeCredentials = {
+            publishableKey,
+            secretKey
+        };
+    }
+
+    await db.update(tenants)
+        .set(updateData)
+        .where(eq(tenants.id, id))
+        .run();
+
+    return c.json({ success: true });
 });
 
 export default app;

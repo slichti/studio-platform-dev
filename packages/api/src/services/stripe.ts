@@ -34,6 +34,19 @@ export class StripeService {
         return response.stripe_user_id;
     }
 
+    private getClient(accountIdOrKey: string) {
+        if (accountIdOrKey.startsWith('sk_') || accountIdOrKey.startsWith('rk_')) {
+            return {
+                client: new Stripe(accountIdOrKey, { apiVersion: '2025-12-15.clover' as any }),
+                options: {}
+            };
+        }
+        return {
+            client: this.stripe,
+            options: { stripeAccount: accountIdOrKey }
+        };
+    }
+
     /**
      * Create Checkout Session for a Class
      */
@@ -49,7 +62,9 @@ export class StripeService {
             customerEmail?: string;
         }
     ) {
-        return this.stripe.checkout.sessions.create({
+        const { client, options } = this.getClient(connectedAccountId);
+
+        return client.checkout.sessions.create({
             payment_method_types: ['card'],
             line_items: [{
                 price_data: {
@@ -66,18 +81,15 @@ export class StripeService {
             cancel_url: params.cancelUrl,
             metadata: params.metadata,
             customer_email: params.customerEmail,
-        }, {
-            stripeAccount: connectedAccountId, // DIRECT CHARGE on behalf of Connected Account
-        });
+        }, options);
     }
 
     /**
      * Get Balance for Connected Account
      */
     async getBalance(connectedAccountId: string) {
-        return this.stripe.balance.retrieve({
-            stripeAccount: connectedAccountId
-        });
+        const { client, options } = this.getClient(connectedAccountId);
+        return client.balance.retrieve(options);
     }
 
     /**
@@ -94,7 +106,9 @@ export class StripeService {
             customerEmail?: string;
         }
     ) {
-        return this.stripe.checkout.sessions.create({
+        const { client, options } = this.getClient(connectedAccountId);
+
+        return client.checkout.sessions.create({
             ui_mode: 'embedded',
             line_items: [{
                 price_data: {
@@ -110,9 +124,7 @@ export class StripeService {
             return_url: params.returnUrl,
             metadata: params.metadata,
             customer_email: params.customerEmail,
-        }, {
-            stripeAccount: connectedAccountId,
-        });
+        }, options);
     }
 
     /**
@@ -129,9 +141,11 @@ export class StripeService {
             metadata?: Record<string, string>;
         }
     ) {
+        const { client, options } = this.getClient(connectedAccountId);
+
         // Create PaymentIntent with confirm: true and automatic_payment_methods
         // This attempts to charge the customer's default payment method.
-        return this.stripe.paymentIntents.create({
+        return client.paymentIntents.create({
             amount: params.amount,
             currency: params.currency,
             customer: params.customerId,
@@ -140,9 +154,7 @@ export class StripeService {
             off_session: true,
             confirm: true,
             payment_method_types: ['card'],
-        }, {
-            stripeAccount: connectedAccountId,
-        });
+        }, options);
     }
 
     /**
