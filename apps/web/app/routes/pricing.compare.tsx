@@ -132,8 +132,16 @@ export default function ComparePlans() {
                                     </tr>
                                     {category.items.map((item, idx) => (
                                         <tr key={item.name} className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors">
-                                            <td className="p-4 font-medium text-zinc-700 dark:text-zinc-300">
+                                            <td className="p-4 font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
                                                 {item.name}
+                                                {item.name === "Platform Fee" && (
+                                                    <div className="group relative">
+                                                        <HelpCircle className="w-4 h-4 text-zinc-400 cursor-help" />
+                                                        <div className="hidden group-hover:block absolute z-10 w-64 p-2 bottom-full left-1/2 -translate-x-1/2 mb-2 text-xs text-white bg-zinc-900 rounded shadow-lg pointer-events-none">
+                                                            A percentage of transaction volume taken by Studio Platform. Does not include Stripe processing fees.
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="p-4 text-center text-zinc-600 dark:text-zinc-400">
                                                 {renderValue(item.launch)}

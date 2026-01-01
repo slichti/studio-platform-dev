@@ -187,7 +187,16 @@ export default function Pricing() {
                 </div>
 
                 <div className="max-w-3xl mx-auto mt-20 text-center text-sm text-zinc-500 dark:text-zinc-400">
-                    <p>All plans include standard payment processing fees (2.9% + 30¢). <br /> Launch and Growth plans include an additional small platform fee (5% and 1.5% respectively) on transactions.</p>
+                    <div className="max-w-3xl mx-auto mt-20 text-sm text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900/50 p-6 rounded-xl border border-zinc-100 dark:border-zinc-800">
+                        <h4 className="font-semibold text-zinc-900 dark:text-zinc-200 mb-2">Understanding Platform Fees</h4>
+                        <p className="mb-2">
+                            <strong>Credit Card Processing (2.9% + 30¢):</strong> This fee goes directly to Stripe to process payments securely. It applies to all transactions on all plans.
+                        </p>
+                        <p>
+                            <strong>Platform Fee (0% - 5%):</strong> This is a small percentage of transactions that goes to Studio Platform to support development and hosting.
+                            It allows us to offer the <strong>Launch</strong> plan with no monthly subscription cost. As you grow, you can upgrade to reduce or eliminate this fee entirely.
+                        </p>
+                    </div>
                 </div>
             </main>
 
