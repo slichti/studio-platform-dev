@@ -22,13 +22,14 @@ export const links: LinksFunction = () => [
     { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" },
     { rel: "stylesheet", href: styles },
     { rel: "manifest", href: "/manifest.json" },
+    { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
 ];
 
 export const meta: MetaFunction = () => [
     { title: "Studio Platform" },
     { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" },
     { name: "theme-color", content: "#18181B" },
-    { name: "apple-mobile-web-app-capable", content: "yes" },
+    { name: "mobile-web-app-capable", content: "yes" },
     { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
 ];
 

@@ -1,7 +1,7 @@
 const CACHE_NAME = 'studio-v1';
 const OFFLINE_URL = '/offline.html';
 
-self.addEventListener('install', (event: any) => {
+self.addEventListener('install', (event) => {
     event.waitUntil(
         (async () => {
             const cache = await caches.open(CACHE_NAME);
@@ -12,10 +12,10 @@ self.addEventListener('install', (event: any) => {
         })()
     );
     // Force update
-    (self as any).skipWaiting();
+    self.skipWaiting();
 });
 
-self.addEventListener('activate', (event: any) => {
+self.addEventListener('activate', (event) => {
     event.waitUntil(
         (async () => {
             // Enable navigation preload if it's supported.
@@ -32,10 +32,10 @@ self.addEventListener('activate', (event: any) => {
             )
         })()
     );
-    (self as any).clients.claim();
+    self.clients.claim();
 });
 
-self.addEventListener('fetch', (event: any) => {
+self.addEventListener('fetch', (event) => {
     // We only want to call event.respondWith() if this is a navigation request
     // for an HTML page.
     if (event.request.mode === 'navigate') {
