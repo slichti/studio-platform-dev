@@ -699,17 +699,21 @@ app.patch('/:id/bookings/:bookingId/status', async (c) => {
 
             if (settings.noShowFeeEnabled && settings.noShowFeeAmount > 0) {
                 // Get Member Email
-                const memberUser = await db.select({ email: users.email })
+                const memberUser = await db.select({
+                    email: users.email,
+                    stripeCustomerId: users.stripeCustomerId
+                })
                     .from(tenantMembers)
                     .innerJoin(users, eq(tenantMembers.userId, users.id))
                     .where(eq(tenantMembers.id, booking.memberId))
                     .get();
 
+                const classInfo = await db.select({ title: classes.title }).from(classes).where(eq(classes.id, classId)).get();
+
                 // Trigger Notification
                 if (c.env.RESEND_API_KEY && memberUser) {
                     const { EmailService } = await import('../services/email');
                     const emailService = new EmailService(c.env.RESEND_API_KEY);
-                    const classInfo = await db.select({ title: classes.title }).from(classes).where(eq(classes.id, classId)).get();
 
                     c.executionCtx.waitUntil(emailService.notifyNoShow(
                         memberUser.email,
@@ -718,9 +722,32 @@ app.patch('/:id/bookings/:bookingId/status', async (c) => {
                     ));
                 }
 
-                // Attempt Charge (Placeholder / TODO: Stripe Integration)
-                // We need customer ID. Assuming we don't have it yet, we just log.
-                console.log(`[Mock Charge] Charging ${settings.noShowFeeAmount} to member ${booking.memberId} for No-Show`);
+                // Attempt Charge
+                if (tenant && memberUser && memberUser?.stripeCustomerId && tenant.stripeAccountId) {
+                    try {
+                        const { StripeService } = await import('../services/stripe');
+                        const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+
+                        await stripeService.chargeCustomer(tenant.stripeAccountId, {
+                            customerId: memberUser.stripeCustomerId,
+                            amount: settings.noShowFeeAmount,
+                            currency: tenant.currency || 'usd',
+                            description: `No-Show Fee: ${classInfo?.title || 'Class'}`,
+                            metadata: {
+                                tenantId: tenant.id,
+                                memberId: booking.memberId,
+                                classId: classId,
+                                type: 'no_show_fee'
+                            }
+                        });
+                        console.log(`[Charge Success] Charged ${settings.noShowFeeAmount} to member ${booking.memberId}`);
+                    } catch (err: any) {
+                        console.error(`[Charge Failed] Could not charge no-show fee:`, err.message);
+                        // We do not fail the request, just log the error.
+                    }
+                } else {
+                    console.log(`[Charge Skipped] No Stripe Customer ID or Connect Account`);
+                }
             }
         }
 

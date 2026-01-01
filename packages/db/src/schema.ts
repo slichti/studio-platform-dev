@@ -43,6 +43,7 @@ export const users = sqliteTable('users', {
     dob: integer('dob', { mode: 'timestamp' }),
     address: text('address'), // Full address string or JSON
     isMinor: integer('is_minor', { mode: 'boolean' }).default(false),
+    stripeCustomerId: text('stripe_customer_id'), // Platform-level Stripe Customer ID
     lastActiveAt: integer('last_active_at', { mode: 'timestamp' }), // Timestamp of last API request
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({

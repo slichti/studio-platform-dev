@@ -19,8 +19,11 @@ export const loader = async (args: LoaderFunctionArgs) => {
         const apiUrl = (args.context.env as any).VITE_API_URL;
         if (!apiUrl) throw new Error("VITE_API_URL is undefined in context");
 
-        const logs = await apiRequest("/admin/logs", token, {}, apiUrl);
-        return { logs };
+        const [logs, health] = await Promise.all([
+            apiRequest("/admin/logs", token, {}, apiUrl),
+            apiRequest("/stats/health", token, {}, apiUrl).catch(() => ({})) // Fail gracefully
+        ]);
+        return { logs, health };
     } catch (e: any) {
         const apiUrl = (args.context.env as any)?.VITE_API_URL || "UNKNOWN";
         throw new Response(`API Fetch Failed. Target: ${apiUrl}/admin/logs. Error: ${e.message}`, { status: 500 });
@@ -81,7 +84,7 @@ function AuditDetails({ details }: { details: any }) {
 }
 
 export default function AdminIndex() {
-    const { logs } = useLoaderData<any>();
+    const { logs, health } = useLoaderData<any>();
 
     return (
         <div className="space-y-6">
@@ -90,21 +93,28 @@ export default function AdminIndex() {
                 <p className="text-zinc-500">System performance and activity monitoring.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <StatCard
-                    title="System Health"
-                    value="Operational"
-                    status="success"
+                    title="System Status"
+                    value={health?.status === 'healthy' ? 'Operational' : 'Degraded'}
+                    status={health?.status === 'healthy' ? 'success' : 'warning'}
+                    trend={`Latency: ${health?.dbLatencyMs || 0}ms`}
                 />
                 <StatCard
-                    title="Total Tenants"
-                    value="--"
-                    trend="+0% this month"
+                    title="Active Tenants"
+                    value={String(health?.activeTenants || 0)}
+                    status="neutral"
                 />
                 <StatCard
-                    title="Active Users"
-                    value="--"
-                    trend="+0% this week"
+                    title="Total Users"
+                    value={String(health?.totalUsers || 0)}
+                    status="neutral"
+                />
+                <StatCard
+                    title="Recent Errors"
+                    value={String(health?.recentErrors || 0)}
+                    status={health?.recentErrors > 0 ? "error" : "success"}
+                    trend="Last 24h"
                 />
             </div>
 

@@ -398,6 +398,7 @@ app.route('/pos', pos);
 
 import giftCards from './routes/gift-cards';
 tenantApp.route('/gift-cards', giftCards); // Admin-level within tenant
+app.use('/gift-cards*', tenantMiddleware);
 app.route('/gift-cards', giftCards);   // Public-level validation
 
 // Main Admin Router (Super Admin)

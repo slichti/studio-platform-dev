@@ -114,4 +114,34 @@ export class StripeService {
             stripeAccount: connectedAccountId,
         });
     }
+
+    /**
+     * Charge a Customer (Off-Session / Late Fee)
+     * Note: Requires Customer ID and Payment Method attached to that customer in Stripe.
+     */
+    async chargeCustomer(
+        connectedAccountId: string,
+        params: {
+            customerId: string;
+            amount: number;
+            currency: string;
+            description: string;
+            metadata?: Record<string, string>;
+        }
+    ) {
+        // Create PaymentIntent with confirm: true and automatic_payment_methods
+        // This attempts to charge the customer's default payment method.
+        return this.stripe.paymentIntents.create({
+            amount: params.amount,
+            currency: params.currency,
+            customer: params.customerId,
+            description: params.description,
+            metadata: params.metadata,
+            off_session: true,
+            confirm: true,
+            payment_method_types: ['card'],
+        }, {
+            stripeAccount: connectedAccountId,
+        });
+    }
 }
