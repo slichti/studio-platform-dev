@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { CommandBar } from "../components/CommandBar";
+import { SidebarGroup } from "../components/SidebarGroup";
 import { useClerk } from "@clerk/react-router";
 
 export const loader = async (args: LoaderFunctionArgs) => {
@@ -97,24 +98,35 @@ export default function StudioLayout() {
                     </Link>
                 </div>
 
-                <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-                    <NavItem to={`/studio/${slug}`} end icon={<LayoutGrid size={18} />}>Dashboard</NavItem>
-                    <NavItem to="schedule" icon={<Calendar size={18} />}>Schedule</NavItem>
-                    <NavItem to="memberships" icon={<CreditCard size={18} />}>Memberships</NavItem>
-                    <NavItem to="commerce/packs" icon={<Package size={18} />}>Class Packs</NavItem>
-                    <NavItem to="students" icon={<Users size={18} />}>Students</NavItem>
-                    <NavItem to="classes" icon={<Dumbbell size={18} />}>Classes</NavItem>
-                    <NavItem to="appointments" icon={<Clock size={18} />}>Appointments</NavItem>
-                    <NavItem to="substitutions" icon={<RefreshCw size={18} />}>Substitutions</NavItem>
-                    <NavItem to="marketing" icon={<Mail size={18} />}>Marketing</NavItem>
-                    <NavItem to="finances" icon={<DollarSign size={18} />}>Finances</NavItem>
-                    <NavItem to="finances/gift-cards" icon={<Ticket size={18} />}>Gift Cards</NavItem>
-                    <NavItem to="financials/payroll" icon={<CreditCard size={18} />}>Payroll</NavItem>
-                    <NavItem to="checkin" icon={<CheckCircle2 size={18} />}>Staff Check-in</NavItem>
-                    <NavItem to="pos" icon={<ShoppingCart size={18} />}>POS & Retail</NavItem>
-                    <NavItem to="waivers" icon={<FileSignature size={18} />}>Waivers</NavItem>
-                    <NavItem to="settings/discounts" icon={<Tag size={18} />}>Discounts</NavItem>
-                    <NavItem to="settings" icon={<Settings size={18} />}>Settings</NavItem>
+                <nav className="flex-1 overflow-y-auto p-4 space-y-4">
+                    <div className="space-y-1">
+                        <NavItem to={`/studio/${slug}`} end icon={<LayoutGrid size={18} />}>Dashboard</NavItem>
+                    </div>
+
+                    <SidebarGroup title="Operations">
+                        <NavItem to="schedule" icon={<Calendar size={18} />}>Schedule</NavItem>
+                        <NavItem to="classes" icon={<Dumbbell size={18} />}>Classes</NavItem>
+                        <NavItem to="appointments" icon={<Clock size={18} />}>Appointments</NavItem>
+                        <NavItem to="checkin" icon={<CheckCircle2 size={18} />}>Check-in</NavItem>
+                        <NavItem to="substitutions" icon={<RefreshCw size={18} />}>Substitutions</NavItem>
+                        <NavItem to="waivers" icon={<FileSignature size={18} />}>Waivers</NavItem>
+                    </SidebarGroup>
+
+                    <SidebarGroup title="Commerce">
+                        <NavItem to="pos" icon={<ShoppingCart size={18} />}>POS & Retail</NavItem>
+                        <NavItem to="memberships" icon={<CreditCard size={18} />}>Memberships</NavItem>
+                        <NavItem to="commerce/packs" icon={<Package size={18} />}>Class Packs</NavItem>
+                        <NavItem to="finances/gift-cards" icon={<Ticket size={18} />}>Gift Cards</NavItem>
+                        <NavItem to="settings/discounts" icon={<Tag size={18} />}>Discounts</NavItem>
+                    </SidebarGroup>
+
+                    <SidebarGroup title="Management">
+                        <NavItem to="students" icon={<Users size={18} />}>Students</NavItem>
+                        <NavItem to="marketing" icon={<Mail size={18} />}>Marketing</NavItem>
+                        <NavItem to="financials/payroll" icon={<CreditCard size={18} />}>Payroll</NavItem>
+                        <NavItem to="finances" icon={<DollarSign size={18} />}>Finances</NavItem>
+                        <NavItem to="settings" icon={<Settings size={18} />}>Settings</NavItem>
+                    </SidebarGroup>
                 </nav>
 
                 <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-between">
