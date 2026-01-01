@@ -32,6 +32,57 @@ export default function SubstitutionsPage() {
     const [subs, setSubs] = useState(initialSubs);
     const [loading, setLoading] = useState(false);
 
+    // Create Mode
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [myClasses, setMyClasses] = useState<any[]>([]);
+    const [form, setForm] = useState({ classId: '', notes: '' });
+
+    const openCreate = async () => {
+        setIsCreateOpen(true);
+        // Fetch my upcoming classes
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/classes?startDate=${new Date().toISOString()}&instructorId=${me?.member?.id}`, token, {
+                headers: { 'X-Tenant-Slug': tenant.slug }
+            });
+            // Filter out classes that already have a sub request? 
+            // Ideally backend filters, but client side check is ok for now.
+            // Actually, querying /classes returns all. We can filter in UI if needed.
+            setMyClasses(Array.isArray(res) ? res : []);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    const handleCreate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest("/substitutions/request", token, {
+                method: 'POST',
+                headers: { 'X-Tenant-Slug': tenant.slug },
+                body: JSON.stringify(form)
+            });
+
+            if (res.error) throw new Error(res.error);
+
+            // Success
+            setIsCreateOpen(false);
+            setForm({ classId: '', notes: '' });
+
+            // Refresh List
+            const refreshed: any = await apiRequest("/substitutions", token, {
+                headers: { 'X-Tenant-Slug': tenant.slug }
+            });
+            setSubs(refreshed.substitutions || []);
+        } catch (e: any) {
+            alert(e.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const isOwner = me?.roles?.includes('owner');
 
     const handleAction = async (id: string, action: string) => {
@@ -59,7 +110,7 @@ export default function SubstitutionsPage() {
 
     return (
         <div className="p-8 max-w-6xl mx-auto">
-            <div className="mb-8">
+            <div className="mb-8 flex justify-between items-center">
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
                         <RefreshCw className="text-blue-600 dark:text-blue-400" size={24} />
@@ -69,11 +120,73 @@ export default function SubstitutionsPage() {
                         <p className="text-zinc-500 dark:text-zinc-400 text-sm">Manage shift coverage and instructor changes.</p>
                     </div>
                 </div>
+                <button
+                    onClick={openCreate}
+                    className="bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-2 rounded-lg text-sm font-bold hover:bg-zinc-800 transition-colors shadow-lg shadow-zinc-500/10"
+                >
+                    Request Cover
+                </button>
             </div>
 
             {error && (
                 <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg text-sm border border-red-200">
                     {error}
+                </div>
+            )}
+
+            {/* Create Modal */}
+            {isCreateOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl max-w-md w-full p-6 shadow-2xl border border-zinc-200 dark:border-zinc-800">
+                        <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">Request Coverage</h3>
+
+                        <form onSubmit={handleCreate}>
+                            <div className="mb-4">
+                                <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Select Class</label>
+                                <select
+                                    className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-lg px-3 py-2 text-sm"
+                                    value={form.classId}
+                                    onChange={e => setForm({ ...form, classId: e.target.value })}
+                                    required
+                                >
+                                    <option value="">-- Choose a Class --</option>
+                                    {myClasses.map((c: any) => (
+                                        <option key={c.id} value={c.id}>
+                                            {new Date(c.startTime).toLocaleDateString()} {new Date(c.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {c.title}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="mb-6">
+                                <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Notes (Optional)</label>
+                                <textarea
+                                    className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-lg px-3 py-2 text-sm"
+                                    rows={3}
+                                    placeholder="Reason for sub request..."
+                                    value={form.notes}
+                                    onChange={e => setForm({ ...form, notes: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="flex justify-end gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsCreateOpen(false)}
+                                    className="px-4 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={loading || !form.classId}
+                                    className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 rounded-lg text-sm font-bold hover:bg-zinc-800 disabled:opacity-50"
+                                >
+                                    {loading ? 'Submitting...' : 'Submit Request'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             )}
 

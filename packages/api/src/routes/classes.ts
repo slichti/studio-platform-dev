@@ -44,15 +44,21 @@ app.get('/', async (c) => {
     const startDate = query.startDate ? new Date(query.startDate) : undefined;
     const endDate = query.endDate ? new Date(query.endDate) : undefined;
 
+    const instructorId = query.instructorId;
+
     let conditions = eq(classes.tenantId, tenant.id);
+    const filters = [eq(classes.tenantId, tenant.id)];
+
+    if (instructorId) {
+        filters.push(eq(classes.instructorId, instructorId));
+    }
 
     if (startDate && endDate) {
-        conditions = and(
-            eq(classes.tenantId, tenant.id),
-            gte(classes.startTime, startDate),
-            lte(classes.startTime, endDate)
-        ) as any;
+        filters.push(gte(classes.startTime, startDate));
+        filters.push(lte(classes.startTime, endDate));
     }
+
+    conditions = and(...filters) as any;
 
     const results = await db.query.classes.findMany({
         where: conditions,
