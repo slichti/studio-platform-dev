@@ -111,6 +111,31 @@ export default function Index() {
                             </p>
                         </div>
                     </div>
+
+                    <div className="mt-12 text-left">
+                        <div className="p-8 bg-zinc-900 dark:bg-zinc-100 rounded-xl text-white dark:text-zinc-900 shadow-xl">
+                            <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+                                <div className="flex-1">
+                                    <h3 className="text-2xl font-bold mb-3 flex items-center gap-2">
+                                        Powered by Stripe Connect
+                                    </h3>
+                                    <p className="opacity-90 leading-relaxed mb-4">
+                                        We partner with Stripe to handle all payment processing. This means we never see or store your credit card information, ensuring full <strong>PCI Compliance</strong> from day one.
+                                    </p>
+                                    <div className="flex flex-col sm:flex-row gap-4 mt-6">
+                                        <div className="flex-1 bg-white/10 dark:bg-black/5 p-4 rounded-lg backdrop-blur-sm">
+                                            <strong className="block mb-1">Bring Your Own Stripe</strong>
+                                            <span className="text-sm opacity-80">Connect your existing Stripe account to keep your history, or create a new one that you fully own and control.</span>
+                                        </div>
+                                        <div className="flex-1 bg-white/10 dark:bg-black/5 p-4 rounded-lg backdrop-blur-sm">
+                                            <strong className="block mb-1">Direct Payouts</strong>
+                                            <span className="text-sm opacity-80">Funds flow directly to your bank account. We don't hold your money.</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div >
