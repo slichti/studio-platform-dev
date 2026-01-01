@@ -144,4 +144,27 @@ export class StripeService {
             stripeAccount: connectedAccountId,
         });
     }
+
+    /**
+     * Create Platform Customer (for SaaS Billing)
+     */
+    async createCustomer(email: string, name: string) {
+        return this.stripe.customers.create({
+            email,
+            name,
+        });
+    }
+
+    /**
+     * Create Subscription (SaaS)
+     */
+    async createSubscription(customerId: string, priceId: string, trialDays?: number) {
+        return this.stripe.subscriptions.create({
+            customer: customerId,
+            items: [{ price: priceId }],
+            trial_period_days: trialDays,
+            payment_behavior: 'default_incomplete',
+            expand: ['latest_invoice.payment_intent'],
+        });
+    }
 }

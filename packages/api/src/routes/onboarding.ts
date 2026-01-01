@@ -5,6 +5,9 @@ import { eq } from 'drizzle-orm';
 
 type Bindings = {
     DB: D1Database;
+    STRIPE_SECRET_KEY: string;
+    STRIPE_PRICE_GROWTH?: string;
+    STRIPE_PRICE_SCALE?: string;
 };
 
 type Variables = {
@@ -66,15 +69,43 @@ app.post('/studio', async (c) => {
         });
 
         if (!user) {
-            // Should have been created by webhook.
-            // If missing, minimal insert to satisfy FK. Profile will update later.
-            // But we need email... which we don't have in `auth` object unless we fetch from Clerk API.
-            // Or assume webhook is fast enough. 
-            // Or use a "graceful" approach?
-            // For now, fail if not found, or maybe we can fetch from Clerk but that's slow.
-            // Let's assume webhook is reliable or retries.
-            // Alternatively, we can insert with dummy email if needed? No, email is required and unique.
             return c.json({ error: "User profile not yet synced. Please try again in a few seconds." }, 404);
+        }
+
+        // Phase 14: SaaS Billing
+        let stripeCustomerId = null;
+        let stripeSubscriptionId = null;
+        let subscriptionStatus = 'active';
+
+        if (['growth', 'scale'].includes(tier)) {
+            try {
+                const { StripeService } = await import('../services/stripe');
+                const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
+
+                // 1. Create Customer
+                const customer = await stripe.createCustomer(user.email, `${name} (Owner: ${user.profile?.firstName || ''} ${user.profile?.lastName || ''})`);
+                stripeCustomerId = customer.id;
+
+                // 2. Create Subscription (Trial)
+                const priceId = tier === 'growth' ? c.env.STRIPE_PRICE_GROWTH : c.env.STRIPE_PRICE_SCALE;
+
+                if (priceId) {
+                    const sub = await stripe.createSubscription(stripeCustomerId, priceId, 14); // 14 day trial
+                    stripeSubscriptionId = sub.id;
+                    subscriptionStatus = 'trialing';
+                }
+            } catch (err: any) {
+                console.error("Stripe Onboarding Error:", err);
+            }
+        }
+
+        // Update Tenant with Stripe Info
+        if (stripeCustomerId) {
+            await db.update(tenants).set({
+                stripeCustomerId,
+                stripeSubscriptionId,
+                subscriptionStatus: subscriptionStatus as any
+            }).where(eq(tenants.id, tenantId)).run();
         }
 
         const memberId = crypto.randomUUID();

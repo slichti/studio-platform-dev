@@ -10,7 +10,10 @@ export const tenants = sqliteTable('tenants', {
     customDomain: text('custom_domain').unique(),
     branding: text('branding', { mode: 'json' }), // JSON: { primaryColor, logoUrl, font }
     settings: text('settings', { mode: 'json' }), // JSON: { enableStudentRegistration, noShowFeeEnabled, noShowFeeAmount, notifications }
-    stripeAccountId: text('stripe_account_id'), // Connect Account ID
+    stripeAccountId: text('stripe_account_id'), // Connect Account ID (Receiving money)
+    stripeCustomerId: text('stripe_customer_id'), // Platform Customer ID (Paying for SaaS)
+    stripeSubscriptionId: text('stripe_subscription_id'), // Active info
+    currentPeriodEnd: integer('current_period_end', { mode: 'timestamp' }),
     currency: text('currency').default('usd').notNull(), // Added currency
     zoomCredentials: text('zoom_credentials', { mode: 'json' }), // Encrypted
     status: text('status', { enum: ['active', 'paused', 'suspended'] }).default('active').notNull(),
