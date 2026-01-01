@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 // @ts-ignore
-import { Form, useNavigation, useNavigate, Link } from "react-router";
+import { Form, useNavigation, useNavigate, Link, useSearchParams } from "react-router";
 import { apiRequest } from "../utils/api";
 import { useUser, SignedIn, SignedOut, RedirectToSignIn } from "@clerk/react-router";
 
@@ -8,12 +8,21 @@ export default function CreateStudio() {
     const { user, isLoaded } = useUser();
     const navigate = useNavigate();
     const navigation = useNavigation();
+    const [searchParams] = useSearchParams();
 
     const [name, setName] = useState("");
     const [slug, setSlug] = useState("");
     const [tier, setTier] = useState("basic");
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+
+    // Initialize tier from URL
+    useEffect(() => {
+        const tierParam = searchParams.get("tier");
+        if (tierParam && ['basic', 'growth', 'scale'].includes(tierParam)) {
+            setTier(tierParam);
+        }
+    }, [searchParams]);
 
     // Auto-generate slug from name
     useEffect(() => {
@@ -36,6 +45,7 @@ export default function CreateStudio() {
 
             if (res.tenant) {
                 // Success! Redirect to dashboard
+                // For paid tiers (growth/scale), ideally redirect to billing setup, but for now dashboard is fine
                 navigate(`/studio/${res.tenant.slug}/dashboard`);
             } else if (res.error) {
                 setError(res.error);
@@ -52,7 +62,7 @@ export default function CreateStudio() {
     return (
         <div className="min-h-screen bg-zinc-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
             <SignedOut>
-                <RedirectToSignIn afterSignInUrl="/create-studio" />
+                <RedirectToSignIn />
             </SignedOut>
             <SignedIn>
                 <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -119,8 +129,8 @@ export default function CreateStudio() {
                                         className={`cursor-pointer border rounded-lg p-4 flex items-center justify-between transition-all ${tier === 'basic' ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-zinc-200 hover:border-blue-300'}`}
                                     >
                                         <div>
-                                            <div className="font-medium text-zinc-900">Basic (Free)</div>
-                                            <div className="text-sm text-zinc-500">Up to 50 students, 1 location.</div>
+                                            <div className="font-medium text-zinc-900">Launch (Free)</div>
+                                            <div className="text-sm text-zinc-500">Up to 5 Instructors, 1 location.</div>
                                         </div>
                                         <div className="h-4 w-4 rounded-full border border-zinc-300 flex items-center justify-center">
                                             {tier === 'basic' && <div className="h-2 w-2 bg-blue-600 rounded-full" />}
@@ -132,10 +142,22 @@ export default function CreateStudio() {
                                     >
                                         <div>
                                             <div className="font-medium text-zinc-900">Growth ($49/mo)</div>
-                                            <div className="text-sm text-zinc-500">Up to 500 students, 3 locations.</div>
+                                            <div className="text-sm text-zinc-500">14-day free trial. Then $49/mo.</div>
                                         </div>
                                         <div className="h-4 w-4 rounded-full border border-zinc-300 flex items-center justify-center">
                                             {tier === 'growth' && <div className="h-2 w-2 bg-blue-600 rounded-full" />}
+                                        </div>
+                                    </div>
+                                    <div
+                                        onClick={() => setTier('scale')}
+                                        className={`cursor-pointer border rounded-lg p-4 flex items-center justify-between transition-all ${tier === 'scale' ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-zinc-200 hover:border-blue-300'}`}
+                                    >
+                                        <div>
+                                            <div className="font-medium text-zinc-900">Scale ($129/mo)</div>
+                                            <div className="text-sm text-zinc-500">14-day free trial. Then $129/mo.</div>
+                                        </div>
+                                        <div className="h-4 w-4 rounded-full border border-zinc-300 flex items-center justify-center">
+                                            {tier === 'scale' && <div className="h-2 w-2 bg-blue-600 rounded-full" />}
                                         </div>
                                     </div>
                                 </div>

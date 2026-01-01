@@ -31,7 +31,7 @@ const TIERS = [
             'Class Packs & Drop-ins'
         ],
         cta: 'Get Started',
-        ctaLink: '/sign-up',
+        ctaLink: '/create-studio?tier=basic',
         highlight: false
     },
     {
@@ -52,7 +52,7 @@ const TIERS = [
             'Recurring Memberships'
         ],
         cta: 'Start Free Trial',
-        ctaLink: '/sign-up',
+        ctaLink: '/create-studio?tier=growth',
         highlight: true
     },
     {
@@ -72,7 +72,7 @@ const TIERS = [
             '0% Platform Fees'
         ],
         cta: 'Start Free Trial',
-        ctaLink: '/sign-up',
+        ctaLink: '/create-studio?tier=scale',
         highlight: false
     }
 ];
