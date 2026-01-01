@@ -63,7 +63,7 @@ export default function AdminTenants() {
 
         try {
             const token = await getToken();
-            const res = await apiRequest("/admin/tenants", token, {
+            const res: any = await apiRequest("/admin/tenants", token, {
                 method: "POST",
                 body: JSON.stringify({
                     name: formData.name,
@@ -93,7 +93,7 @@ export default function AdminTenants() {
     const handleStatusChange = async (tenantId: string, newStatus: string) => {
         try {
             const token = await getToken();
-            const res = await apiRequest(`/admin/tenants/${tenantId}/status`, token, {
+            const res: any = await apiRequest(`/admin/tenants/${tenantId}/status`, token, {
                 method: "PATCH",
                 body: JSON.stringify({ status: newStatus })
             });
@@ -120,7 +120,7 @@ export default function AdminTenants() {
         setFeaturesLoading(true);
         try {
             const token = await getToken();
-            const [featuresRes, statsRes] = await Promise.all([
+            const [featuresRes, statsRes]: [any, any] = await Promise.all([
                 apiRequest(`/admin/tenants/${tenantId}/features`, token),
                 apiRequest(`/admin/tenants/${tenantId}/stats`, token) // New endpoint I added in admin.ts
             ]);
@@ -208,6 +208,7 @@ export default function AdminTenants() {
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Tenant</th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Slug</th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Tier</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider text-center">Stats</th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Actions</th>
                         </tr>
@@ -230,6 +231,22 @@ export default function AdminTenants() {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
+                                        <div className="flex gap-4 justify-center">
+                                            <div className="flex flex-col items-center">
+                                                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">Own</span>
+                                                <span className="text-sm font-bold text-zinc-700">{t.stats?.owners || 0}</span>
+                                            </div>
+                                            <div className="flex flex-col items-center">
+                                                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">Inst</span>
+                                                <span className="text-sm font-bold text-zinc-700">{t.stats?.instructors || 0}</span>
+                                            </div>
+                                            <div className="flex flex-col items-center">
+                                                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">Subs</span>
+                                                <span className="text-sm font-bold text-blue-600">{t.stats?.subscribers || 0}</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
                                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${t.status === 'suspended' ? 'bg-red-100 text-red-800' :
                                             t.status === 'paused' ? 'bg-amber-100 text-amber-800' :
                                                 'bg-green-100 text-green-800'
@@ -242,7 +259,7 @@ export default function AdminTenants() {
                                             <Link
                                                 to={`/studio/${t.slug}`}
                                                 className="text-blue-600 hover:text-blue-800 text-xs font-semibold uppercase tracking-wide border border-blue-200 bg-blue-50 px-3 py-1 rounded-full hover:bg-blue-100 transition-colors"
-                                                onClick={(e) => e.stopPropagation()}
+                                                onClick={(e: React.MouseEvent) => e.stopPropagation()}
                                             >
                                                 Enter
                                             </Link>
@@ -284,7 +301,7 @@ export default function AdminTenants() {
                                 </tr>
                                 {expandedTenant === t.id && (
                                     <tr className="bg-zinc-50/50">
-                                        <td colSpan={6} className="px-6 pb-6 pt-2">
+                                        <td colSpan={7} className="px-6 pb-6 pt-2">
                                             <div className="bg-white border border-zinc-200 rounded-lg p-4 shadow-inner">
                                                 <h4 className="text-sm font-semibold text-zinc-900 mb-3 flex items-center gap-2">
                                                     <Activity size={16} /> Entitlements & Features

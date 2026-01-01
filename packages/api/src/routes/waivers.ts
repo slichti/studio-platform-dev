@@ -9,19 +9,49 @@ type Bindings = {
 };
 
 type Variables = {
-    auth: {
-        userId: string;
-    };
-    tenant?: any;
-    member?: any;
+    tenant: typeof tenants.$inferSelect;
+    member?: typeof tenantMembers.$inferSelect;
     roles?: string[];
-}
+    auth: {
+        userId: string | null;
+        claims: any;
+    };
+};
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 
 // Force Tenant Middleware for this route to ensure context is available
 import { tenantMiddleware } from '../middleware/tenant';
 app.use('*', tenantMiddleware);
+
+// GET /status: Check if current member needs to sign a waiver
+app.get('/status', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const member = c.get('member');
+
+    const activeTemplate = await db.query.waiverTemplates.findFirst({
+        where: and(eq(waiverTemplates.tenantId, tenant.id), eq(waiverTemplates.active, true))
+    });
+
+    if (!activeTemplate) {
+        return c.json({ needsSignature: false });
+    }
+
+    if (!member) {
+        return c.json({ needsSignature: true, waiver: activeTemplate });
+    }
+
+    const signature = await db.query.waiverSignatures.findFirst({
+        where: and(eq(waiverSignatures.memberId, member.id), eq(waiverSignatures.templateId, activeTemplate.id))
+    });
+
+    return c.json({
+        needsSignature: !signature,
+        waiver: activeTemplate,
+        signedAt: signature?.signedAt
+    });
+});
 
 // GET /waivers: List templates (Owner) or get active waiver to sign (Student)
 app.get('/', async (c) => {
@@ -58,11 +88,56 @@ app.get('/', async (c) => {
             where: and(eq(waiverSignatures.memberId, member.id), eq(waiverSignatures.templateId, activeTemplate.id))
         });
 
+        // 3. Get family members to allow signing for them
+        const { userRelationships } = await import('db/src/schema');
+        const relationships = await db.query.userRelationships.findMany({
+            where: eq(userRelationships.parentUserId, member.userId)
+        });
+
+        const allMemberIdsInFamily = [member.id];
+        let family: any[] = [];
+        if (relationships.length > 0) {
+            const childUserIds = relationships.map(r => r.childUserId);
+            const children = await db.query.users.findMany({
+                where: (users, { inArray }) => inArray(users.id, childUserIds)
+            });
+
+            const studioMembers = await db.query.tenantMembers.findMany({
+                where: (members, { and, eq, inArray }) => and(
+                    eq(members.tenantId, tenant.id),
+                    inArray(members.userId, childUserIds)
+                )
+            });
+
+            family = children.map(child => {
+                const m = studioMembers.find(sm => sm.userId === child.id);
+                if (m) allMemberIdsInFamily.push(m.id);
+                return {
+                    userId: child.id,
+                    memberId: m?.id || null,
+                    firstName: (child.profile as any)?.firstName || 'Unknown',
+                    lastName: (child.profile as any)?.lastName || ''
+                };
+            }).filter(f => f.memberId); // Only show if they are a member of this studio
+        }
+
+        // 4. Find which family members have signed
+        const signedSignatures = await db.query.waiverSignatures.findMany({
+            where: (signatures, { and, eq, inArray }) => and(
+                eq(signatures.templateId, activeTemplate.id),
+                inArray(signatures.memberId, allMemberIdsInFamily)
+            )
+        });
+
+        const signedMemberIds = signedSignatures.map(s => s.memberId);
+
         return c.json({
-            required: !signature,
+            required: !signedMemberIds.includes(member.id),
             waiver: activeTemplate,
-            signed: !!signature,
-            signatureDate: signature?.signedAt
+            signed: signedMemberIds.includes(member.id),
+            signatureDate: signedSignatures.find(s => s.memberId === member.id)?.signedAt,
+            family,
+            signedMemberIds
         });
     }
 });
@@ -152,6 +227,7 @@ app.post('/:id/sign', async (c) => {
         id,
         templateId,
         memberId: targetMemberId,
+        signedByMemberId: (targetMemberId !== member.id) ? member.id : null,
         ipAddress: ipAddress || 'unknown', // Should extract from request headers in real app
         signatureData,
         signedAt: new Date()

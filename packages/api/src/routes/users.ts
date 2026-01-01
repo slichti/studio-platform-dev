@@ -2,7 +2,7 @@
 import { Hono } from 'hono';
 import { users, userRelationships, tenantMembers, tenantRoles } from 'db/src/schema'; // Ensure these are exported from db/src/schema
 import { createDb } from '../db';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 
 type Bindings = {
     DB: D1Database;
@@ -47,7 +47,7 @@ app.get('/me/family', async (c) => {
     }
 
     const children = await db.query.users.findMany({
-        where: (users, { inArray }) => inArray(users.id, childUserIds)
+        where: inArray(users.id, childUserIds)
     });
 
     // 3. If we are in a tenant context, find their memberIds
@@ -56,7 +56,7 @@ app.get('/me/family', async (c) => {
         const members = await db.query.tenantMembers.findMany({
             where: and(
                 eq(tenantMembers.tenantId, tenant.id),
-                (table, { inArray }) => inArray(table.userId, childUserIds)
+                inArray(tenantMembers.userId, childUserIds)
             )
         });
         members.forEach(m => memberMap.set(m.userId, m.id));

@@ -11,6 +11,7 @@ export const tenants = sqliteTable('tenants', {
     branding: text('branding', { mode: 'json' }), // JSON: { primaryColor, logoUrl, font }
     settings: text('settings', { mode: 'json' }), // JSON: { enableStudentRegistration, noShowFeeEnabled, noShowFeeAmount, notifications }
     stripeAccountId: text('stripe_account_id'), // Connect Account ID
+    currency: text('currency').default('usd').notNull(), // Added currency
     zoomCredentials: text('zoom_credentials', { mode: 'json' }), // Encrypted
     status: text('status', { enum: ['active', 'paused', 'suspended'] }).default('active').notNull(),
     tier: text('tier', { enum: ['basic', 'growth', 'scale'] }).default('basic').notNull(),
@@ -368,6 +369,7 @@ export const waiverSignatures = sqliteTable('waiver_signatures', {
     id: text('id').primaryKey(),
     templateId: text('template_id').notNull().references(() => waiverTemplates.id),
     memberId: text('member_id').notNull().references(() => tenantMembers.id),
+    signedByMemberId: text('signed_by_member_id').references(() => tenantMembers.id), // If parent signs for child
     signedAt: integer('signed_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
     ipAddress: text('ip_address'),
     signatureData: text('signature_data'), // Optional: Base64 signature image or initial
@@ -465,6 +467,89 @@ export const substitutions = sqliteTable('substitutions', {
     statusIdx: index('sub_status_idx').on(table.status),
 }));
 
+// --- Phase 5: POS & Retail ---
+
+export const products = sqliteTable('products', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    name: text('name').notNull(),
+    description: text('description'),
+    category: text('category'), // e.g. "Equipement", "Apparel", "Food"
+    sku: text('sku'),
+    price: integer('price').default(0).notNull(), // in cents
+    currency: text('currency').default('usd'),
+    stockQuantity: integer('stock_quantity').default(0).notNull(),
+    imageUrl: text('image_url'),
+    isActive: integer('is_active', { mode: 'boolean' }).default(true).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('product_tenant_idx').on(table.tenantId),
+}));
+
+export const posOrders = sqliteTable('pos_orders', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    memberId: text('member_id').references(() => tenantMembers.id), // Optional: Link to a student member
+    staffId: text('staff_id').references(() => tenantMembers.id), // Staff who processed the sale
+
+    totalAmount: integer('total_amount').notNull(), // Total in cents
+    taxAmount: integer('tax_amount').default(0),
+    status: text('status', { enum: ['pending', 'completed', 'cancelled', 'refunded'] }).default('completed').notNull(),
+    paymentMethod: text('payment_method', { enum: ['card', 'cash', 'account', 'other'] }).default('card'),
+    stripePaymentIntentId: text('stripe_payment_intent_id'),
+
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('pos_order_tenant_idx').on(table.tenantId),
+    memberIdx: index('pos_order_member_idx').on(table.memberId),
+}));
+
+export const posOrderItems = sqliteTable('pos_order_items', {
+    id: text('id').primaryKey(),
+    orderId: text('order_id').notNull().references(() => posOrders.id),
+    productId: text('product_id').notNull().references(() => products.id),
+
+    quantity: integer('quantity').notNull(),
+    unitPrice: integer('unit_price').notNull(), // Snapshot of price at time of sale
+    totalPrice: integer('total_price').notNull(),
+
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    orderIdx: index('pos_item_order_idx').on(table.orderId),
+    productId: index('pos_item_product_idx').on(table.productId),
+}));
+
+// --- Phase 10: Gift Cards ---
+export const giftCards = sqliteTable('gift_cards', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    code: text('code').notNull(), // Unique per tenant
+    initialValue: integer('initial_value').notNull(), // in cents
+    currentBalance: integer('current_balance').notNull(), // in cents
+    status: text('status', { enum: ['active', 'exhausted', 'disabled', 'expired'] }).default('active').notNull(),
+    expiryDate: integer('expiry_date', { mode: 'timestamp' }),
+    buyerMemberId: text('buyer_member_id').references(() => tenantMembers.id),
+    recipientEmail: text('recipient_email'),
+    notes: text('notes'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantCodeIdx: uniqueIndex('gift_card_tenant_code_idx').on(table.tenantId, table.code),
+    tenantIdx: index('gift_card_tenant_idx').on(table.tenantId),
+}));
+
+export const giftCardTransactions = sqliteTable('gift_card_transactions', {
+    id: text('id').primaryKey(),
+    giftCardId: text('gift_card_id').notNull().references(() => giftCards.id),
+    amount: integer('amount').notNull(), // positive for load, negative for spend
+    type: text('type', { enum: ['purchase', 'redemption', 'refund', 'adjustment'] }).notNull(),
+    referenceId: text('reference_id'), // orderId, packId, etc.
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    giftCardIdx: index('gift_card_tx_card_idx').on(table.giftCardId),
+}));
+
 // --- Relations ---
 import { relations } from 'drizzle-orm';
 
@@ -495,6 +580,7 @@ export const tenantMembersRelations = relations(tenantMembers, ({ one, many }) =
     bookings: many(bookings),
     memberships: many(subscriptions), // Alias subscriptions as memberships
     purchasedPacks: many(purchasedPacks),
+    waiverSignatures: many(waiverSignatures),
 }));
 
 export const tenantRolesRelations = relations(tenantRoles, ({ one }) => ({
@@ -589,6 +675,79 @@ export const substitutionsRelations = relations(substitutions, ({ one }) => ({
     }),
     coveringInstructor: one(tenantMembers, {
         fields: [substitutions.coveringInstructorId],
+        references: [tenantMembers.id],
+    }),
+}));
+
+export const productsRelations = relations(products, ({ one, many }) => ({
+    tenant: one(tenants, {
+        fields: [products.tenantId],
+        references: [tenants.id],
+    }),
+    orderItems: many(posOrderItems),
+}));
+
+export const posOrdersRelations = relations(posOrders, ({ one, many }) => ({
+    tenant: one(tenants, {
+        fields: [posOrders.tenantId],
+        references: [tenants.id],
+    }),
+    member: one(tenantMembers, {
+        fields: [posOrders.memberId],
+        references: [tenantMembers.id],
+    }),
+    staff: one(tenantMembers, {
+        fields: [posOrders.staffId],
+        references: [tenantMembers.id],
+    }),
+    items: many(posOrderItems),
+}));
+
+export const posOrderItemsRelations = relations(posOrderItems, ({ one }) => ({
+    order: one(posOrders, {
+        fields: [posOrderItems.orderId],
+        references: [posOrders.id],
+    }),
+    product: one(products, {
+        fields: [posOrderItems.productId],
+        references: [products.id],
+    }),
+}));
+
+export const giftCardsRelations = relations(giftCards, ({ one, many }) => ({
+    tenant: one(tenants, {
+        fields: [giftCards.tenantId],
+        references: [tenants.id],
+    }),
+    buyer: one(tenantMembers, {
+        fields: [giftCards.buyerMemberId],
+        references: [tenantMembers.id],
+    }),
+    transactions: many(giftCardTransactions),
+}));
+
+export const giftCardTransactionsRelations = relations(giftCardTransactions, ({ one }) => ({
+    giftCard: one(giftCards, {
+        fields: [giftCardTransactions.giftCardId],
+        references: [giftCards.id],
+    }),
+}));
+
+export const waiverTemplatesRelations = relations(waiverTemplates, ({ one, many }) => ({
+    tenant: one(tenants, {
+        fields: [waiverTemplates.tenantId],
+        references: [tenants.id],
+    }),
+    signatures: many(waiverSignatures),
+}));
+
+export const waiverSignaturesRelations = relations(waiverSignatures, ({ one }) => ({
+    template: one(waiverTemplates, {
+        fields: [waiverSignatures.templateId],
+        references: [waiverTemplates.id],
+    }),
+    member: one(tenantMembers, {
+        fields: [waiverSignatures.memberId],
         references: [tenantMembers.id],
     }),
 }));

@@ -13,6 +13,7 @@ type Variables = {
     };
     tenant: typeof tenants.$inferSelect;
     member?: typeof tenantMembers.$inferSelect;
+    roles?: string[];
 };
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
@@ -42,7 +43,11 @@ app.get('/services', async (c) => {
 app.post('/services', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    // TODO: Add role check for admin/owner
+    const roles = c.get('roles');
+
+    if (!roles?.includes('owner') && !roles?.includes('admin')) {
+        return c.json({ error: "Unauthorized" }, 403);
+    }
 
     const body = await c.req.json();
     const id = crypto.randomUUID();
@@ -225,15 +230,17 @@ app.post('/book', async (c) => {
 });
 
 // Set Availability (Instructor)
+// Set Availability (Instructor)
 app.post('/availability', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     const member = c.get('member');
+    const roles = c.get('roles');
 
     // Verify is Instructor
-    if (!member) return c.json({ error: "Unauthorized" }, 401);
-    // Need to check roles. For now, assume if they are calling this they might be one?
-    // Better to check tenantRoles table or c.get('roles') if available.
+    if (!member || (!roles?.includes('instructor') && !roles?.includes('owner'))) {
+        return c.json({ error: "Unauthorized" }, 401);
+    }
 
     const body = await c.req.json();
     // Expected: { dayOfWeek: 1, startTime: "09:00", endTime: "17:00" } or Array

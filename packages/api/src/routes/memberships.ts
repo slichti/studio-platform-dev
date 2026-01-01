@@ -67,7 +67,7 @@ app.post('/plans', async (c) => {
             description,
             price,
             interval: interval || 'month',
-            currency: currency || 'usd',
+            currency: currency || tenant.currency || 'usd',
             imageUrl,
             overlayTitle,
             overlaySubtitle,

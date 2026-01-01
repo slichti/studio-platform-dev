@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { classes, tenants, bookings, tenantMembers, users, tenantRoles, classSeries, subscriptions, purchasedPacks, userRelationships } from 'db/src/schema'; // Added subscriptions, purchasedPacks, userRelationships
+import { classes, tenants, bookings, tenantMembers, users, tenantRoles, classSeries, subscriptions, purchasedPacks, userRelationships, waiverTemplates, waiverSignatures } from 'db/src/schema'; // Added subscriptions, purchasedPacks, userRelationships, waiver...
 import { createDb } from '../db';
 import { eq, and, gte, lte, gt, sql, inArray } from 'drizzle-orm';
 import { ZoomService } from '../services/zoom';
@@ -161,7 +161,7 @@ app.post('/', async (c) => {
         locationId: z.string().optional(),
         createZoomMeeting: z.boolean().optional(),
         price: z.number().int().nonnegative().optional().default(0),
-        currency: z.string().default('usd'),
+        currency: z.string().optional(),
         recurrenceRule: z.string().optional(), // RRule string
         recurrenceEnd: z.string().or(z.date()).pipe(z.coerce.date()).optional(),
         isRecurring: z.boolean().optional()
@@ -194,7 +194,7 @@ app.post('/', async (c) => {
             description,
             durationMinutes,
             price: price,
-            currency: currency,
+            currency: currency || tenant.currency || 'usd',
             recurrenceRule,
             validFrom: new Date(startTime),
             validUntil: recurrenceEnd ? new Date(recurrenceEnd) : undefined
@@ -255,7 +255,7 @@ app.post('/', async (c) => {
                 locationId,
                 zoomMeetingUrl: zoomUrl,
                 price: price || 0,
-                currency: currency || 'usd'
+                currency: currency || tenant.currency || 'usd'
             });
             newClasses.push({ id: classId, startTime: date });
         }
@@ -308,7 +308,7 @@ app.post('/', async (c) => {
             locationId,
             zoomMeetingUrl,
             price: price || 0,
-            currency: currency || 'usd'
+            currency: currency || tenant.currency || 'usd'
         });
         return c.json({ id, title, zoomMeetingUrl }, 201);
     } catch (e: any) {
@@ -347,6 +347,31 @@ app.post('/:id/book', async (c) => {
     }
 
     let bookingMemberId = member?.id;
+
+    // 0. Compliance Check: Waiver
+    const activeWaiver = await db.select({ id: waiverTemplates.id })
+        .from(waiverTemplates)
+        .where(and(eq(waiverTemplates.tenantId, tenant.id), eq(waiverTemplates.active, true)))
+        .get();
+
+    if (activeWaiver) {
+        const checkMemberId = targetMemberId || member?.id;
+        if (!checkMemberId) return c.json({ error: 'Acting member required for waiver check' }, 400);
+        const signature = await db.query.waiverSignatures.findFirst({
+            where: and(
+                eq(waiverSignatures.memberId, checkMemberId),
+                eq(waiverSignatures.templateId, activeWaiver.id)
+            )
+        });
+
+        if (!signature) {
+            return c.json({
+                error: 'Liability waiver must be signed before booking.',
+                code: 'WAIVER_REQUIRED',
+                needsWaiver: true
+            }, 403);
+        }
+    }
 
     // Handle Family Booking Logic
     if (targetMemberId) {
@@ -469,6 +494,16 @@ app.get('/:id/bookings', async (c) => {
     }
 
     try {
+        // 1. Get Active Waiver Template
+        const { waiverTemplates, waiverSignatures } = await import('db/src/schema');
+        const tenant = c.get('tenant');
+        if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+
+        const activeWaiver = await db.select({ id: waiverTemplates.id })
+            .from(waiverTemplates)
+            .where(and(eq(waiverTemplates.tenantId, tenant.id), eq(waiverTemplates.active, true)))
+            .get();
+
         const results = await db.select({
             id: bookings.id,
             status: bookings.status,
@@ -477,15 +512,32 @@ app.get('/:id/bookings', async (c) => {
                 email: users.email,
                 profile: users.profile
             },
+            memberId: bookings.memberId,
+            checkedInAt: bookings.checkedInAt,
             createdAt: bookings.createdAt
         })
             .from(bookings)
             .innerJoin(tenantMembers, eq(bookings.memberId, tenantMembers.id))
             .innerJoin(users, eq(tenantMembers.userId, users.id))
             .where(eq(bookings.classId, classId))
-            .orderBy(bookings.createdAt); // Ensure order for waitlist priority
+            .orderBy(bookings.createdAt)
+            .all();
 
-        return c.json(results);
+        // 2. If active waiver exists, check signatures for these members
+        const finalResults = await Promise.all(results.map(async (b: any) => {
+            if (!activeWaiver) return { ...b, waiverSigned: true };
+
+            const signature = await db.select({ id: waiverSignatures.id })
+                .from(waiverSignatures)
+                .where(and(
+                    eq(waiverSignatures.memberId, b.memberId),
+                    eq(waiverSignatures.templateId, activeWaiver.id)
+                )).get();
+
+            return { ...b, waiverSigned: !!signature };
+        }));
+
+        return c.json(finalResults);
     } catch (e: any) {
         return c.json({ error: e.message }, 500);
     }

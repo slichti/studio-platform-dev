@@ -16,9 +16,17 @@ import {
     FileSignature,
     AlertTriangle,
     Package,
-    RefreshCw
+    RefreshCw,
+    Tag,
+    Clock,
+    Mail,
+    ShoppingCart,
+    CheckCircle2,
+    Ticket
 } from "lucide-react";
 import { ThemeToggle } from "../components/ThemeToggle";
+import { CommandBar } from "../components/CommandBar";
+import { useClerk } from "@clerk/react-router";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { params, request } = args;
@@ -34,7 +42,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const token = await getToken();
 
     try {
-        const tenantInfo = await apiRequest(`/tenant/info`, token, {
+        const tenantInfo: any = await apiRequest(`/tenant/info`, token, {
             headers: { 'X-Tenant-Slug': slug }
         });
 
@@ -57,6 +65,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
             slug: params.slug,
             tenant: tenantInfo,
             me,
+            token,
             isPaused: tenantInfo.status === 'paused',
             features: tenantInfo.features || []
         };
@@ -95,9 +104,16 @@ export default function StudioLayout() {
                     <NavItem to="commerce/packs" icon={<Package size={18} />}>Class Packs</NavItem>
                     <NavItem to="students" icon={<Users size={18} />}>Students</NavItem>
                     <NavItem to="classes" icon={<Dumbbell size={18} />}>Classes</NavItem>
+                    <NavItem to="appointments" icon={<Clock size={18} />}>Appointments</NavItem>
                     <NavItem to="substitutions" icon={<RefreshCw size={18} />}>Substitutions</NavItem>
+                    <NavItem to="marketing" icon={<Mail size={18} />}>Marketing</NavItem>
                     <NavItem to="finances" icon={<DollarSign size={18} />}>Finances</NavItem>
+                    <NavItem to="finances/gift-cards" icon={<Ticket size={18} />}>Gift Cards</NavItem>
+                    <NavItem to="financials/payroll" icon={<CreditCard size={18} />}>Payroll</NavItem>
+                    <NavItem to="checkin" icon={<CheckCircle2 size={18} />}>Staff Check-in</NavItem>
+                    <NavItem to="pos" icon={<ShoppingCart size={18} />}>POS & Retail</NavItem>
                     <NavItem to="waivers" icon={<FileSignature size={18} />}>Waivers</NavItem>
+                    <NavItem to="settings/discounts" icon={<Tag size={18} />}>Discounts</NavItem>
                     <NavItem to="settings" icon={<Settings size={18} />}>Settings</NavItem>
                 </nav>
 
@@ -122,11 +138,24 @@ export default function StudioLayout() {
                         <AlertTriangle size={16} />
                         <span>This studio is currently paused. Some features may be restricted.</span>
                     </div>
-                )
-                }
-                <div className="flex-1 overflow-auto">
-                    <Outlet context={{ tenant, me, features: featureSet }} />
+                )}
+
+                {/* Search Bar Hint */}
+                <div className="px-8 pt-4 flex justify-end">
+                    <button
+                        onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs text-zinc-400 hover:border-blue-500 transition-all shadow-sm group"
+                    >
+                        <LayoutGrid size={14} className="group-hover:text-blue-500" />
+                        <span>Search...</span>
+                        <kbd className="ml-2 px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded font-sans opacity-50">⌘K</kbd>
+                    </button>
                 </div>
+
+                <div className="flex-1 overflow-auto">
+                    <Outlet context={{ tenant, me, features: featureSet, roles: me?.roles || [] }} />
+                </div>
+                <CommandBar token={(useLoaderData() as any).token} />
             </main >
         </div >
     );
@@ -137,7 +166,7 @@ function NavItem({ to, children, icon, end }: { to: string, children: React.Reac
         <NavLink
             to={to}
             end={end}
-            className={({ isActive }) =>
+            className={({ isActive }: { isActive: boolean }) =>
                 `block px-3 py-2 rounded-lg text-sm transition-colors mb-0.5 flex items-center gap-3 ${isActive
                     ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium'
                     : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-100'

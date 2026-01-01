@@ -83,6 +83,7 @@ app.put('/config', async (c) => {
         id,
         tenantId: tenant.id,
         memberId,
+        userId: member.userId,
         payModel,
         rate,
         updatedAt: new Date()

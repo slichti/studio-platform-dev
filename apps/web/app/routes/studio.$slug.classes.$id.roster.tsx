@@ -4,7 +4,7 @@ import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { useLoaderData, Link, useParams, useFetcher } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
-import { Check, X } from "lucide-react";
+import { Check, X, FileText, AlertTriangle } from "lucide-react";
 
 type Booking = {
     id: string;
@@ -18,6 +18,7 @@ type Booking = {
     memberId: string;
     checkedInAt: string | null;
     paymentMethod?: string;
+    waiverSigned: boolean;
 };
 
 export const action = async (args: ActionFunctionArgs) => {
@@ -64,7 +65,6 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const { slug, id } = args.params;
 
     try {
-        // Fetch Bookings
         const bookings = await apiRequest(`/classes/${id}/bookings`, token, {
             headers: { 'X-Tenant-Slug': slug! }
         });
@@ -99,18 +99,17 @@ export default function StudioClassRoster() {
 
             {/* Confirmed Bookings */}
             <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm mb-8">
-                <div className="px-6 py-4 border-b border-zinc-200 bg-zinc-50 flex justify-between items-center">
+                <div className="px-6 py-4 border-b border-zinc-200 bg-zinc-50">
                     <h3 className="font-semibold text-zinc-900">Attending ({confirmedBookings.length})</h3>
                 </div>
                 <table className="w-full text-left">
                     <thead className="bg-zinc-50 border-b border-zinc-200">
                         <tr>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Student</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Email</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Waiver</th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Booked At</th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Attendance</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Actions</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-100">
@@ -121,19 +120,31 @@ export default function StudioClassRoster() {
                                         <div className="h-8 w-8 rounded-full bg-zinc-200 flex items-center justify-center text-xs font-bold text-zinc-500">
                                             {booking.user.profile?.firstName?.[0] || booking.user.email[0].toUpperCase()}
                                         </div>
-                                        <span className="font-medium text-zinc-900">
-                                            {booking.user.profile?.fullName || 'Unknown'}
-                                        </span>
+                                        <div>
+                                            <div className="font-medium text-zinc-900">
+                                                {booking.user.profile?.fullName || 'Unknown Student'}
+                                            </div>
+                                            <div className="text-xs text-zinc-500">{booking.user.email}</div>
+                                        </div>
                                     </div>
                                 </td>
-                                <td className="px-6 py-4 text-zinc-600 text-sm">{booking.user.email}</td>
+                                <td className="px-6 py-4">
+                                    {booking.waiverSigned ? (
+                                        <div className="flex items-center gap-1 text-green-600 text-xs font-medium">
+                                            <FileText size={14} />
+                                            Signed
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-1 text-amber-600 text-xs font-bold animate-pulse">
+                                            <AlertTriangle size={14} />
+                                            Needs Signature
+                                        </div>
+                                    )}
+                                </td>
                                 <td className="px-6 py-4">
                                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                                         Confirmed
                                     </span>
-                                </td>
-                                <td className="px-6 py-4 text-zinc-400 text-sm">
-                                    {new Date(booking.createdAt).toLocaleDateString()}
                                 </td>
                                 <td className="px-6 py-4">
                                     <fetcher.Form method="post">
@@ -159,7 +170,7 @@ export default function StudioClassRoster() {
                                         )}
                                     </fetcher.Form>
                                 </td>
-                                <td className="px-6 py-4">
+                                <td className="px-6 py-4 text-right">
                                     <fetcher.Form
                                         method="post"
                                         onSubmit={(e: React.FormEvent) => {
@@ -168,7 +179,7 @@ export default function StudioClassRoster() {
                                     >
                                         <input type="hidden" name="intent" value="cancel_booking" />
                                         <input type="hidden" name="bookingId" value={booking.id} />
-                                        <button className="text-red-600 hover:text-red-800 text-xs font-medium flex items-center gap-1">
+                                        <button className="text-red-600 hover:text-red-800 text-xs font-medium inline-flex items-center gap-1">
                                             <X size={12} />
                                             Cancel
                                         </button>
@@ -178,7 +189,7 @@ export default function StudioClassRoster() {
                         ))}
                         {confirmedBookings.length === 0 && (
                             <tr>
-                                <td colSpan={6} className="px-6 py-12 text-center text-zinc-500">
+                                <td colSpan={5} className="px-6 py-12 text-center text-zinc-500">
                                     No attending students.
                                 </td>
                             </tr>
@@ -198,9 +209,8 @@ export default function StudioClassRoster() {
                         <thead className="bg-zinc-50 border-b border-zinc-200">
                             <tr>
                                 <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Student</th>
-                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Email</th>
                                 <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Joined At</th>
-                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Actions</th>
+                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-100">
@@ -212,16 +222,15 @@ export default function StudioClassRoster() {
                                                 {index + 1}
                                             </div>
                                             <span className="font-medium text-zinc-900">
-                                                {booking.user.profile?.fullName || 'Unknown'}
+                                                {booking.user.profile?.fullName || 'Unknown Student'}
                                             </span>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-zinc-600 text-sm">{booking.user.email}</td>
                                     <td className="px-6 py-4 text-zinc-400 text-sm">
                                         {new Date(booking.createdAt).toLocaleString()}
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex items-center justify-end gap-3">
                                             <fetcher.Form method="post">
                                                 <input type="hidden" name="bookingId" value={booking.id} />
                                                 <input type="hidden" name="intent" value="promote" />

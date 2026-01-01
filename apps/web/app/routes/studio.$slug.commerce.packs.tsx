@@ -1,7 +1,7 @@
 // @ts-ignore
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 // @ts-ignore
-import { useLoaderData, useOutletContext, Form, useNavigation } from "react-router";
+import { useLoaderData, useOutletContext, Form, useNavigation, Link } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
 import { useState } from "react";
@@ -22,7 +22,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken } = await getAuth(args);
     const token = await getToken();
 
-    const res = await apiRequest(`/commerce/packs`, token, {
+    const res: any = await apiRequest(`/commerce/packs`, token, {
         headers: { 'X-Tenant-Slug': params.slug! }
     });
 
@@ -45,7 +45,7 @@ export const action = async (args: ActionFunctionArgs) => {
         const price = parseFloat(formData.get("price") as string) * 100; // Convert to cents
         const expirationDays = formData.get("expirationDays") ? parseInt(formData.get("expirationDays") as string) : null;
 
-        const res = await apiRequest(`/commerce/packs`, token, {
+        const res: any = await apiRequest(`/commerce/packs`, token, {
             method: "POST",
             headers: { 'X-Tenant-Slug': params.slug! },
             body: JSON.stringify({ name, credits, price, expirationDays })
@@ -60,6 +60,7 @@ export const action = async (args: ActionFunctionArgs) => {
 
 export default function ClassPacksPage() {
     const { packs, params } = useLoaderData<{ packs: ClassPackDefinition[]; params: { slug: string } }>();
+    const { me, roles } = useOutletContext<any>() || {}; // Fallback for safety
     const navigation = useNavigation();
     const [isCreating, setIsCreating] = useState(false);
 
@@ -72,13 +73,15 @@ export default function ClassPacksPage() {
                     <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">Class Packs</h1>
                     <p className="text-zinc-500 dark:text-zinc-400 mt-1">Manage punch cards and credit bundles.</p>
                 </div>
-                <button
-                    onClick={() => setIsCreating(!isCreating)}
-                    className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 rounded-md text-sm font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors"
-                >
-                    <Plus className="h-4 w-4" />
-                    Create Pack
-                </button>
+                {(roles?.includes('owner') || roles?.includes('instructor')) && (
+                    <button
+                        onClick={() => setIsCreating(!isCreating)}
+                        className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 rounded-md text-sm font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors"
+                    >
+                        <Plus className="h-4 w-4" />
+                        Create Pack
+                    </button>
+                )}
             </div>
 
             {isCreating && (
@@ -180,13 +183,29 @@ export default function ClassPacksPage() {
                             )}
                         </div>
                         <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                            {/* TODO: Check if user is student */}
-                            <a
-                                href={`/studio/${params.slug}/checkout?packId=${pack.id}`} // Using simple link first, or navigate
-                                className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
-                            >
-                                Buy Now
-                            </a>
+                            {/* Purchase Logic */}
+                            {!me ? (
+                                <Link
+                                    to={`/sign-in?redirect_url=${encodeURIComponent(typeof window !== 'undefined' ? window.location.pathname : '')}`}
+                                    className="block w-full text-center px-4 py-2 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-md text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                                >
+                                    Sign in to Buy
+                                </Link>
+                            ) : !roles?.includes('student') ? (
+                                <button
+                                    disabled
+                                    className="block w-full text-center px-4 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 rounded-md text-sm font-medium cursor-not-allowed"
+                                >
+                                    Students Only
+                                </button>
+                            ) : (
+                                <a
+                                    href={`/studio/${params.slug}/checkout?packId=${pack.id}`}
+                                    className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+                                >
+                                    Buy Now
+                                </a>
+                            )}
                         </div>
                     </div>
                 ))}

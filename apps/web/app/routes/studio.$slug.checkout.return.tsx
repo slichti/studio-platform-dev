@@ -3,6 +3,7 @@ import type { LoaderFunctionArgs } from "react-router";
 // @ts-ignore
 import { useLoaderData, Link } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
+import { apiRequest } from "../utils/api";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken } = await getAuth(args);
@@ -10,11 +11,21 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const url = new URL(args.request.url);
     const sessionId = url.searchParams.get("session_id");
 
-    return { sessionId, slug: args.params.slug };
+    let needsWaiver = false;
+    try {
+        const waiverRes: any = await apiRequest(`/waivers/status`, token, {
+            headers: { 'X-Tenant-Slug': args.params.slug! }
+        });
+        needsWaiver = waiverRes.needsSignature;
+    } catch (e) {
+        console.error("Failed to check waiver status", e);
+    }
+
+    return { sessionId, slug: args.params.slug, needsWaiver };
 };
 
 export default function CheckoutReturn() {
-    const { sessionId, slug } = useLoaderData<any>();
+    const { sessionId, slug, needsWaiver } = useLoaderData<any>();
 
     return (
         <div className="max-w-md mx-auto py-16 px-4 text-center">
@@ -34,6 +45,14 @@ export default function CheckoutReturn() {
             </div>
 
             <div className="flex flex-col gap-3">
+                {needsWaiver && (
+                    <Link
+                        to={`/studio/${slug}/waivers`}
+                        className="w-full py-4 bg-amber-500 text-white rounded-lg font-bold hover:bg-amber-600 transition-all shadow-lg animate-bounce flex items-center justify-center gap-2"
+                    >
+                        <span>✍️</span> Sign Your Waiver
+                    </Link>
+                )}
                 <Link
                     to={`/studio/${slug}`}
                     className="w-full py-3 bg-zinc-900 text-white rounded-lg font-medium hover:bg-zinc-800 transition-colors"

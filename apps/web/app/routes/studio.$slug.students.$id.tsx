@@ -22,6 +22,7 @@ type Member = {
             firstName?: string;
             lastName?: string;
             phone?: string;
+            portraitUrl?: string; // Added portraitUrl
         };
     };
     roles: { role: string }[];
@@ -34,6 +35,13 @@ type Member = {
             title: string;
             startTime: string;
         }
+    }[];
+    waiverSignatures: {
+        id: string;
+        signedAt: string;
+        template: {
+            title: string;
+        };
     }[];
     memberships: {
         id: string;
@@ -92,7 +100,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
             apiRequest(`/commerce/packs`, token, {
                 headers: { 'X-Tenant-Slug': params.slug! }
             })
-        ]);
+        ]) as [any, any, any];
 
         if (memberRes.error) throw new Error(memberRes.error);
 
@@ -237,7 +245,7 @@ export const action = async (args: ActionFunctionArgs) => {
 };
 
 export default function StudentProfile() {
-    const { member, notes, availablePacks } = useLoaderData<{ member: Member, notes: Note[], availablePacks: PackDefinition[] }>();
+    const { member, notes, availablePacks } = useLoaderData() as any as { member: Member, notes: Note[], availablePacks: PackDefinition[] };
     const navigation = useNavigation();
     const userProfile = member.user.profile || {};
     const [activeTab, setActiveTab] = useState("overview");
@@ -252,10 +260,10 @@ export default function StudentProfile() {
     const rolesStr = member.roles.map(r => r.role).join(", ") || "Student";
 
     // Calculate Credits
-    const totalCredits = (member.purchasedPacks || []).reduce((acc: number, p: any) => acc + p.remainingCredits, 0);
+    const totalCredits = (member.purchasedPacks || []).reduce((acc, p) => acc + p.remainingCredits, 0);
 
     // Calculate No Shows
-    const noShows = member.bookings.filter((b: any) => {
+    const noShows = member.bookings.filter(b => {
         if (b.status !== 'confirmed') return false;
         // Past class
         const isPast = new Date(b.class?.startTime || b.createdAt) < new Date();
@@ -265,7 +273,7 @@ export default function StudentProfile() {
     }).length;
 
     // Membership Status
-    const hasActiveMembership = member.memberships.some((m: any) => m.status === 'active');
+    const hasActiveMembership = member.memberships.some(m => m.status === 'active');
     const membershipStatus = hasActiveMembership ? 'Active' : 'Inactive';
 
     return (
@@ -482,6 +490,7 @@ export default function StudentProfile() {
                     { id: "overview", label: "Overview" },
                     { id: "memberships", label: "Memberships & Credits" },
                     { id: "attendance", label: "Attendance" },
+                    { id: "documents", label: "Documents" },
                     { id: "notes", label: "Staff Notes" },
                 ].map(tab => (
                     <button
@@ -569,7 +578,7 @@ export default function StudentProfile() {
                                     <div className="flex-1">
                                         <label className="block text-xs font-medium text-zinc-500 mb-1">Select Pack</label>
                                         <select name="packId" className="w-full text-sm border-zinc-300 rounded-md">
-                                            {availablePacks.map(p => (
+                                            {(availablePacks || []).map((p: any) => (
                                                 <option key={p.id} value={p.id}>{p.name} ({p.credits} credits) - ${(p.price / 100).toFixed(2)}</option>
                                             ))}
                                         </select>
@@ -659,7 +668,7 @@ export default function StudentProfile() {
                                         <td colSpan={3} className="px-4 py-8 text-center text-zinc-400">No attendance history</td>
                                     </tr>
                                 ) : (
-                                    member.bookings.map(booking => (
+                                    member.bookings.map((booking: any) => (
                                         <tr key={booking.id} className="hover:bg-zinc-50">
                                             <td className="px-4 py-3 text-zinc-600">
                                                 {format(new Date(booking.createdAt), "MMM d, yyyy h:mm a")}
@@ -672,6 +681,45 @@ export default function StudentProfile() {
                                                     ${booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
                                                         booking.status === 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
                                                     {booking.status}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                {activeTab === "documents" && (
+                    <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-zinc-50 border-b border-zinc-200">
+                                <tr>
+                                    <th className="px-4 py-3 font-medium text-zinc-500">Document</th>
+                                    <th className="px-4 py-3 font-medium text-zinc-500">Signed Date</th>
+                                    <th className="px-4 py-3 font-medium text-zinc-500">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-100">
+                                {member.waiverSignatures?.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={3} className="px-4 py-8 text-center text-zinc-400">No signed documents</td>
+                                    </tr>
+                                ) : (
+                                    member.waiverSignatures?.map((sig: any) => (
+                                        <tr key={sig.id} className="hover:bg-zinc-50">
+                                            <td className="px-4 py-3 text-zinc-900 font-medium flex items-center gap-2">
+                                                <FileText size={16} className="text-zinc-400" />
+                                                {sig.template?.title || "Waiver"}
+                                            </td>
+                                            <td className="px-4 py-3 text-zinc-600">
+                                                {format(new Date(sig.signedAt), "MMM d, yyyy h:mm a")}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                                    <Check size={12} />
+                                                    Signed
                                                 </span>
                                             </td>
                                         </tr>
@@ -758,7 +806,7 @@ export default function StudentProfile() {
                                                     >
                                                         <Pencil className="h-3.5 w-3.5" />
                                                     </button>
-                                                    <Form method="post" onSubmit={(e) => {
+                                                    <Form method="post" onSubmit={(e: React.FormEvent) => {
                                                         if (!confirm("Are you sure you want to delete this note?")) {
                                                             e.preventDefault();
                                                         }
@@ -777,7 +825,7 @@ export default function StudentProfile() {
 
                                                 <div className="mt-3 flex items-center justify-between text-xs text-zinc-400 border-t border-zinc-50 pt-2">
                                                     <span>
-                                                        Added by {note.author?.user?.profile?.firstName || note.author?.user?.email || "Unknown Staff"}
+                                                        Add by {note.author?.user?.profile?.firstName || note.author?.user?.email || "Unknown Staff"}
                                                     </span>
                                                     <span>
                                                         {format(new Date(note.createdAt), "MMM d, yyyy")}

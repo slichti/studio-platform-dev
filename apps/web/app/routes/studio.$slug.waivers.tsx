@@ -62,13 +62,27 @@ export const action = async (args: ActionFunctionArgs) => {
         } catch (e: any) {
             return { error: e.message };
         }
+    } else if (intent === "sign") {
+        const templateId = formData.get("templateId");
+        const signatureData = formData.get("signatureData");
+        const onBehalfOfMemberId = formData.get("onBehalfOfMemberId");
+        try {
+            await apiRequest(`/waivers/${templateId}/sign`, token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': params.slug! },
+                body: JSON.stringify({ signatureData, onBehalfOfMemberId })
+            });
+            return { success: true };
+        } catch (e: any) {
+            return { error: e.message };
+        }
     }
     return null;
 };
 
 export default function StudioWaivers() {
     const { data, error } = useLoaderData<any>();
-    const { roles } = useOutletContext<any>();
+    const { me, roles } = useOutletContext<any>();
     const isOwner = roles.includes('owner');
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const navigation = useNavigation();
@@ -90,7 +104,7 @@ export default function StudioWaivers() {
 
     // OWNER VIEW
     if (isOwner) {
-        const templates = data?.templates || [];
+        const templates = (data as { templates?: any[] })?.templates || [];
         return (
             <div>
                 <div className="flex justify-between items-center mb-6">
@@ -196,9 +210,9 @@ export default function StudioWaivers() {
                                 />
                                 <input type="hidden" name="pdfUrl" id="pdf-url-input" />
                             </div>
-                            {actionData?.error && (
+                            {actionData && 'error' in actionData && actionData.error && (
                                 <div className="text-red-600 text-sm bg-red-50 p-2 rounded border border-red-200">
-                                    Error saving: {actionData.error}
+                                    Error saving: {(actionData as any).error}
                                 </div>
                             )}
                             <button
@@ -216,7 +230,8 @@ export default function StudioWaivers() {
     }
 
     // STUDENT VIEW
-    const { waiver, required, signed, signatureDate } = data || {};
+    const { waiver, required, signed, signatureDate, family } = data || {};
+    const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 
     if (!required || !waiver) {
         return (
@@ -237,9 +252,27 @@ export default function StudioWaivers() {
                 </div>
             </div>
 
-            {signed ? (
+            {family?.length > 0 && (
+                <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 rounded-lg p-4">
+                    <label className="block text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">Who are you signing for?</label>
+                    <select
+                        className="w-full bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-md text-sm"
+                        value={selectedMemberId || ''}
+                        onChange={(e) => setSelectedMemberId(e.target.value || null)}
+                    >
+                        <option value="">Myself {data.signed ? '✅' : ''}</option>
+                        {family.map((f: any) => (
+                            <option key={f.memberId} value={f.memberId}>
+                                {f.firstName} {f.lastName} {data.signedMemberIds?.includes(f.memberId) ? '✅' : ''}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            )}
+
+            {data.signedMemberIds?.includes(selectedMemberId || me?.id) ? (
                 <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg flex items-center justify-center gap-2">
-                    ✅ Signed on {new Date(signatureDate).toLocaleDateString()}
+                    ✅ This member has signed the waiver.
                 </div>
             ) : (
                 <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-6">
@@ -266,6 +299,7 @@ export default function StudioWaivers() {
                         <input type="hidden" name="intent" value="sign" />
                         <input type="hidden" name="templateId" value={waiver.id} />
                         <input type="hidden" name="signatureData" value={signature || ''} />
+                        <input type="hidden" name="onBehalfOfMemberId" value={selectedMemberId || ''} />
 
                         <div className="flex items-start gap-3 mb-6">
                             <input type="checkbox" required id="agree" className="mt-1" />

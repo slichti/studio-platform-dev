@@ -181,6 +181,12 @@ app.get('/:id', async (c) => {
                 },
                 orderBy: (bookings, { desc }) => [desc(bookings.createdAt)],
                 limit: 20
+            },
+            waiverSignatures: {
+                with: {
+                    template: true
+                },
+                orderBy: (waiverSignatures, { desc }) => [desc(waiverSignatures.signedAt)]
             }
         }
     });

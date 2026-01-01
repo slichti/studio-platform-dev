@@ -115,4 +115,47 @@ app.get('/tenants/:id/stats', async (c) => {
     });
 });
 
+// GET /tenants - Full list for management
+app.get('/tenants', async (c) => {
+    const db = createDb(c.env.DB);
+    const { tenants, tenantMembers, tenantRoles, subscriptions } = await import('db/src/schema');
+    const { eq, count, and } = await import('drizzle-orm');
+
+    const allTenants = await db.select().from(tenants).all();
+
+    const enriched = await Promise.all(allTenants.map(async (t) => {
+        // Stats in parallel for speed
+        const [oCount, iCount, sCount] = await Promise.all([
+            // Owners
+            db.select({ count: count() })
+                .from(tenantMembers)
+                .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
+                .where(and(eq(tenantMembers.tenantId, t.id), eq(tenantRoles.role, 'owner')))
+                .get(),
+            // Instructors
+            db.select({ count: count() })
+                .from(tenantMembers)
+                .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
+                .where(and(eq(tenantMembers.tenantId, t.id), eq(tenantRoles.role, 'instructor')))
+                .get(),
+            // Active Subscribers
+            db.select({ count: count() })
+                .from(subscriptions)
+                .where(and(eq(subscriptions.tenantId, t.id), eq(subscriptions.status, 'active')))
+                .get()
+        ]);
+
+        return {
+            ...t,
+            stats: {
+                owners: oCount?.count || 0,
+                instructors: iCount?.count || 0,
+                subscribers: sCount?.count || 0
+            }
+        };
+    }));
+
+    return c.json(enriched);
+});
+
 export default app;
