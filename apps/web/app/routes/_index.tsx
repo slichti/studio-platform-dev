@@ -87,7 +87,33 @@ export default function Index() {
                     ))}
                 </div>
             </div>
-        </div>
+
+
+            {/* Security Section */}
+            <div className="py-24 px-6 border-t border-zinc-100 dark:border-zinc-800">
+                <div className="max-w-4xl mx-auto text-center">
+                    <h2 className="text-3xl font-bold mb-6 text-zinc-900 dark:text-white">Enterprise-Grade Security</h2>
+                    <p className="text-lg text-zinc-600 dark:text-zinc-400 mb-8 leading-relaxed">
+                        Security is our top priority. We use industry-leading Identity Providers (IDPs) like Google and Apple
+                        to handle your authentication. This means we <strong>never</strong> store your passwords or sensitive login credentials.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                        <div className="p-6 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/30">
+                            <h3 className="font-semibold text-blue-900 dark:text-blue-300 mb-2">No Stored Passwords</h3>
+                            <p className="text-sm text-blue-700 dark:text-blue-400">
+                                By relying on secure IDPs, we eliminate the risk of password leaks from our databases. Your credentials stay with the providers you trust.
+                            </p>
+                        </div>
+                        <div className="p-6 bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-100 dark:border-purple-900/30">
+                            <h3 className="font-semibold text-purple-900 dark:text-purple-300 mb-2">Advanced Protection</h3>
+                            <p className="text-sm text-purple-700 dark:text-purple-400">
+                                Benefit from the multi-factor authentication (MFA) and anomaly detection systems of major identity providers automatically.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div >
     );
 }
 
