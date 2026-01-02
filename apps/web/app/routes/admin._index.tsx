@@ -1,5 +1,5 @@
 // @ts-ignore
-import { type LoaderFunctionArgs, useLoaderData } from "react-router";
+import { type LoaderFunctionArgs, useLoaderData, redirect } from "react-router";
 import { getAuth } from "@clerk/react-router/ssr.server";
 import { apiRequest } from "../utils/api";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/Card";
@@ -12,7 +12,13 @@ export const loader = async (args: LoaderFunctionArgs) => {
         const { getToken } = await getAuth(args);
         token = await getToken();
     } catch (authErr: any) {
-        throw new Response(`Auth System Error: ${authErr.message}`, { status: 500 });
+        // If auth system fails entirely, maybe redirect or log
+        console.error("Auth System Error", authErr);
+        return redirect('/sign-in');
+    }
+
+    if (!token) {
+        return redirect('/sign-in?redirect_url=/admin');
     }
 
     try {
@@ -26,7 +32,22 @@ export const loader = async (args: LoaderFunctionArgs) => {
         return { logs, health };
     } catch (e: any) {
         const apiUrl = (args.context.env as any)?.VITE_API_URL || "UNKNOWN";
-        throw new Response(`API Fetch Failed. Target: ${apiUrl}/admin/logs. Error: ${e.message}`, { status: 500 });
+        const message = e.message || "Unknown Error";
+
+        // Handle 403 Forbidden specifically (Not an Admin)
+        if (e.status === 403 || message.includes("Forbidden")) {
+            throw new Response("Access Denied: You do not have permission to view the Admin Dashboard.", { status: 403 });
+        }
+
+        // Handle 401 Unauthorized (Token expired/invalid during fetch)
+        if (e.status === 401 || message.includes("Unauthorized")) {
+            return redirect('/sign-in?redirect_url=/admin');
+        }
+
+        console.error("Admin Dashboard Loader Error:", e);
+        // Return empty state or rethrow for custom error boundary?
+        // Throwing 500 is fine if it's a real system error, but let's be descriptive.
+        throw new Response(`Admin Dashboard Error: ${message}`, { status: 500 });
     }
 };
 
