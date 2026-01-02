@@ -28,6 +28,13 @@ export const tenants = sqliteTable('tenants', {
     status: text('status', { enum: ['active', 'paused', 'suspended'] }).default('active').notNull(),
     tier: text('tier', { enum: ['basic', 'growth', 'scale'] }).default('basic').notNull(),
     subscriptionStatus: text('subscription_status', { enum: ['active', 'past_due', 'canceled', 'trialing'] }).default('active').notNull(),
+
+    // Quotas (Reset monthly)
+    smsUsage: integer('sms_usage').default(0).notNull(),
+    emailUsage: integer('email_usage').default(0).notNull(),
+    smsLimit: integer('sms_limit'), // null = use tier default
+    emailLimit: integer('email_limit'), // null = use tier default
+
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
@@ -56,6 +63,7 @@ export const users = sqliteTable('users', {
     address: text('address'), // Full address string or JSON
     isMinor: integer('is_minor', { mode: 'boolean' }).default(false),
     stripeCustomerId: text('stripe_customer_id'), // Platform-level Stripe Customer ID
+    stripeAccountId: text('stripe_account_id'), // Instructor's Stripe Connect Account ID
     lastActiveAt: integer('last_active_at', { mode: 'timestamp' }), // Timestamp of last API request
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
@@ -291,6 +299,7 @@ export const payouts = sqliteTable('payouts', {
 
     status: text('status', { enum: ['processing', 'paid', 'failed'] }).default('processing'),
     paidAt: integer('paid_at', { mode: 'timestamp' }),
+    stripeTransferId: text('stripe_transfer_id'),
 
     notes: text('notes'),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
@@ -563,6 +572,24 @@ export const giftCardTransactions = sqliteTable('gift_card_transactions', {
     giftCardIdx: index('gift_card_tx_card_idx').on(table.giftCardId),
 }));
 
+// --- CRM: Leads ---
+export const leads = sqliteTable('leads', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    firstName: text('first_name'),
+    lastName: text('last_name'),
+    phone: text('phone'),
+    status: text('status', { enum: ['new', 'contacted', 'trialing', 'converted', 'lost'] }).default('new').notNull(),
+    source: text('source'), // e.g. "website", "referral"
+    notes: text('notes'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantEmailIdx: uniqueIndex('lead_tenant_email_idx').on(table.tenantId, table.email),
+    statusIdx: index('lead_status_idx').on(table.status),
+}));
+
 // --- Relations ---
 import { relations } from 'drizzle-orm';
 
@@ -578,6 +605,7 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
     membershipPlans: many(membershipPlans),
     waiverTemplates: many(waiverTemplates),
     classPackDefinitions: many(classPackDefinitions),
+    leads: many(leads),
 }));
 
 export const tenantMembersRelations = relations(tenantMembers, ({ one, many }) => ({

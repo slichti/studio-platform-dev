@@ -30,6 +30,10 @@ export default async function handleRequest(
         }
 
         responseHeaders.set("Content-Type", "text/html");
+        // Emergency Cache Kill - only for HTML documents
+        responseHeaders.set("Clear-Site-Data", '"cache", "cookies", "storage"');
+        responseHeaders.set("Cache-Control", "no-cache, no-store, must-revalidate");
+
         return new Response(body, {
             headers: responseHeaders,
             status: responseStatusCode,

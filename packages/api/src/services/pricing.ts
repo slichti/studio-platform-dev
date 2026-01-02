@@ -1,5 +1,5 @@
 import { createDb } from '../db';
-import { eq, count, and } from 'drizzle-orm';
+import { eq, count, and, sql } from 'drizzle-orm';
 import { tenants, tenantMembers, classes, purchasedPacks } from 'db/src/schema';
 
 export type Tier = 'basic' | 'growth' | 'scale';
@@ -13,6 +13,8 @@ export const TIERS: Record<Tier, {
         instructors: number;
         locations: number;
         storageGB: number;
+        sms: number;
+        email: number;
     };
     features: string[]; // Enabled feature flags
 }> = {
@@ -24,7 +26,9 @@ export const TIERS: Record<Tier, {
             students: -1, // Unlimited students to reduce friction
             instructors: 5,
             locations: 1,
-            storageGB: 5
+            storageGB: 5,
+            sms: 0,
+            email: 1000
         },
         features: ['financials', 'notifications']
     },
@@ -36,7 +40,9 @@ export const TIERS: Record<Tier, {
             students: -1,
             instructors: 15,
             locations: 3,
-            storageGB: 50
+            storageGB: 50,
+            sms: 1500,
+            email: 10000
         },
         features: ['financials', 'notifications', 'zoom', 'vod', 'automations', 'sms']
     },
@@ -48,7 +54,9 @@ export const TIERS: Record<Tier, {
             students: -1,
             instructors: -1,
             locations: -1,
-            storageGB: 1000
+            storageGB: 1000,
+            sms: 5000,
+            email: 50000
         },
         features: ['financials', 'notifications', 'zoom', 'vod', 'automations', 'sms', 'white_label', 'api_access']
     }
@@ -105,24 +113,54 @@ export class UsageService {
             ))
             .get();
 
-        // 3. Storage (Mocked for now)
+        // 4. SMS & Email Usage (from tenants table)
+        const tenant = await this.db.select({
+            smsUsage: tenants.smsUsage,
+            emailUsage: tenants.emailUsage,
+            smsLimit: tenants.smsLimit,
+            emailLimit: tenants.emailLimit,
+            tier: tenants.tier
+        }).from(tenants).where(eq(tenants.id, this.tenantId)).get();
+
+        // 5. Storage (Mocked for now)
         const storageGB = 0.5;
 
         return {
             students: memberCount?.count || 0,
             instructors: instructorCount?.count || 0,
             locations: locationCount?.count || 0,
+            smsUsage: tenant?.smsUsage || 0,
+            emailUsage: tenant?.emailUsage || 0,
+            tier: tenant?.tier || 'basic',
+            // Return effective limits (manual override vs tier default)
+            smsLimit: tenant?.smsLimit ?? PricingService.getTierConfig(tenant?.tier).limits.sms,
+            emailLimit: tenant?.emailLimit ?? PricingService.getTierConfig(tenant?.tier).limits.email,
             storageGB
         };
     }
 
-    async checkLimit(limitKey: 'students' | 'instructors' | 'locations', currentTier: string) {
+    async checkLimit(limitKey: 'students' | 'instructors' | 'locations' | 'smsUsage' | 'emailUsage', currentTier: string) {
+        const usage = await this.getUsage();
+
+        // Handle SMS/Email separately because they have manual overrides in tenants table
+        if (limitKey === 'smsUsage' || limitKey === 'emailUsage') {
+            const limit = limitKey === 'smsUsage' ? usage.smsLimit : usage.emailLimit;
+            if (limit === -1) return true;
+            return (usage[limitKey] as number) < limit;
+        }
+
         const config = PricingService.getTierConfig(currentTier);
-        const limit = config.limits[limitKey];
+        const limit = config.limits[limitKey as 'students' | 'instructors' | 'locations'];
 
         if (limit === -1) return true;
+        return (usage[limitKey as 'students' | 'instructors' | 'locations'] as number) < limit;
+    }
 
-        const usage = await this.getUsage();
-        return usage[limitKey] < limit;
+    async incrementUsage(service: 'sms' | 'email', amount = 1) {
+        const column = service === 'sms' ? tenants.smsUsage : tenants.emailUsage;
+        await this.db.update(tenants)
+            .set({ [service === 'sms' ? 'smsUsage' : 'emailUsage']: sql`${column} + ${amount}` })
+            .where(eq(tenants.id, this.tenantId))
+            .run();
     }
 }

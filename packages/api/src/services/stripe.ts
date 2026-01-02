@@ -65,7 +65,14 @@ export class StripeService {
         const { client, options } = this.getClient(connectedAccountId);
 
         return client.checkout.sessions.create({
-            payment_method_types: ['card'],
+            payment_method_types: ['card', 'us_bank_account'],
+            payment_method_options: {
+                us_bank_account: {
+                    financial_connections: {
+                        permissions: ['payment_method'],
+                    },
+                },
+            },
             line_items: [{
                 price_data: {
                     currency: params.currency,
@@ -110,6 +117,14 @@ export class StripeService {
 
         return client.checkout.sessions.create({
             ui_mode: 'embedded',
+            payment_method_types: ['card', 'us_bank_account'],
+            payment_method_options: {
+                us_bank_account: {
+                    financial_connections: {
+                        permissions: ['payment_method'],
+                    },
+                },
+            },
             line_items: [{
                 price_data: {
                     currency: params.currency,
@@ -153,7 +168,7 @@ export class StripeService {
             metadata: params.metadata,
             off_session: true,
             confirm: true,
-            payment_method_types: ['card'],
+            payment_method_types: ['card', 'us_bank_account'],
         }, options);
     }
 
@@ -177,6 +192,35 @@ export class StripeService {
             trial_period_days: trialDays,
             payment_behavior: 'default_incomplete',
             expand: ['latest_invoice.payment_intent'],
+        });
+    }
+
+    /**
+     * Create a Transfer (for Payouts to Instructors)
+     * Moves funds from the Studio's connected account to the Platform, 
+     * then potentially onwards or as a direct transfer from the Studio's balance.
+     * For "Direct" payouts: we use 'transfer_data' in PaymentIntent OR a manual Transfer.
+     */
+    async createTransfer(params: {
+        amount: number;
+        currency: string;
+        destination: string; // The Instructor's Stripe Account ID
+        sourceAccountId: string; // The Studio's Stripe Account ID
+        description?: string;
+    }) {
+        // This moves funds from the Platform's balance to the destination account.
+        // If the Studio's funds are already in the Platform's balance (e.g. from app fee), 
+        // we can just transfer.
+        // If we need to move from Studio -> Platform -> Instructor, we usually use 
+        // Stripe's "Transfers" API on the Platform account.
+        return this.stripe.transfers.create({
+            amount: params.amount,
+            currency: params.currency,
+            destination: params.destination,
+            description: params.description,
+            // source_transaction: ... // If linked to a specific payment
+        }, {
+            // We usually transfer FROM the platform account's balance which was collected via application fees.
         });
     }
 }

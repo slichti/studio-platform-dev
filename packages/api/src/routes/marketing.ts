@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { createDb } from '../db';
 import { marketingCampaigns, emailLogs, tenants, tenantMembers, users } from 'db/src/schema'; // Ensure these are exported from schema
 import { eq, desc, and } from 'drizzle-orm';
+import { UsageService } from '../services/pricing';
 
 type Bindings = {
     DB: D1Database;
@@ -38,6 +39,12 @@ app.post('/', async (c) => {
     const { subject, content, filters } = body;
 
     if (!subject || !content) return c.json({ error: "Subject and Content required" }, 400);
+
+    const usageService = new UsageService(db, tenant.id);
+    const usage = await usageService.getUsage();
+
+    // 1. Check Quota (Estimate if we have enough for all recipients)
+    // We'll perform the detailed check after filtering.
 
     const campaignId = crypto.randomUUID();
 
@@ -100,6 +107,17 @@ app.post('/', async (c) => {
         // For now, let's keep it simple with age filtering of the students themselves.
     }
 
+    // 2.5 Check remaining email quota
+    const remaining = usage.emailLimit - usage.emailUsage;
+    if (recipients.length > remaining) {
+        return c.json({
+            error: "Quota exceeded",
+            message: `Your remaining quota is ${remaining} emails, but you're trying to send to ${recipients.length} recipients.`,
+            recipientsCount: recipients.length,
+            remainingQuota: remaining
+        }, 403);
+    }
+
     // 3. "Send" Emails (Create Logs)
     const logs = recipients.map(r => ({
         id: crypto.randomUUID(),
@@ -121,6 +139,9 @@ app.post('/', async (c) => {
         status: 'sent',
         stats: { sent: logs.length, failed: 0 }
     }).where(eq(marketingCampaigns.id, campaignId)).run();
+
+    // 5. Increment Usage
+    await usageService.incrementUsage('email', logs.length);
 
     return c.json({ success: true, count: logs.length });
 });

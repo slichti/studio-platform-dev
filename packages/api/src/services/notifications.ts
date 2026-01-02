@@ -2,6 +2,8 @@ import { createDb } from '../db';
 import { emailLogs, smsLogs, smsConfig, tenantFeatures, tenantMembers } from 'db/src/schema'; // Ensure sms exported
 import { eq, and } from 'drizzle-orm';
 import { Twilio } from 'twilio';
+import { UsageService } from './pricing';
+import { tenants } from 'db/src/schema';
 
 // Minimal Email Service stub from before, identifying needing update?
 // We will unify notification usage here if possible.
@@ -18,8 +20,21 @@ export class NotificationService {
     }
 
     async sendEmail(to: string, subject: string, html: string) {
-        // ... (Existing logic or placeholder)
-        // Log it
+        const usageService = new UsageService(this.db, this.tenantId);
+
+        // 1. Check Quota
+        const tenant = await this.db.select({ tier: tenants.tier }).from(tenants).where(eq(tenants.id, this.tenantId)).get();
+        const hasQuota = await usageService.checkLimit('emailUsage', tenant?.tier || 'basic');
+
+        if (!hasQuota) {
+            console.log(`[Email Blocked] Tenant ${this.tenantId} has exceeded email quota.`);
+            return { success: false, status: 'quota_exceeded' };
+        }
+
+        // ... (Existing logic or placeholder for actually sending the email)
+        // For now, continuing the mock/log logic from before:
+
+        // 2. Log it
         await this.db.insert(emailLogs).values({
             id: crypto.randomUUID(),
             tenantId: this.tenantId,
@@ -28,13 +43,23 @@ export class NotificationService {
             status: 'sent',
             sentAt: new Date()
         }).run();
+
+        // 3. Increment Usage
+        await usageService.incrementUsage('email');
+
+        return { success: true };
     }
 
     async sendSMS(to: string, body: string, options: { eventType?: string, memberId?: string } = {}) {
         const { eventType = 'general', memberId } = options;
         if (!to) return;
 
+        const usageService = new UsageService(this.db, this.tenantId);
+
         // 1. Check Tenant Feature Entitlement
+        const tenant = await this.db.select({ tier: tenants.tier }).from(tenants).where(eq(tenants.id, this.tenantId)).get();
+        const tier = tenant?.tier || 'basic';
+
         const feature = await this.db.select().from(tenantFeatures)
             .where(and(
                 eq(tenantFeatures.tenantId, this.tenantId),
@@ -47,7 +72,14 @@ export class NotificationService {
             return { success: false, status: 'blocked_feature' };
         }
 
-        // 2. Check User Preference (Opt-in)
+        // 2. Check Quota
+        const hasQuota = await usageService.checkLimit('smsUsage', tier);
+        if (!hasQuota) {
+            console.log(`[SMS Blocked] Tenant ${this.tenantId} has exceeded SMS quota.`);
+            return { success: false, status: 'quota_exceeded' };
+        }
+
+        // 3. Check User Preference (Opt-in)
         if (memberId) {
             const member = await this.db.select().from(tenantMembers)
                 .where(eq(tenantMembers.id, memberId))
@@ -112,6 +144,11 @@ export class NotificationService {
             memberId: memberId || null,
             metadata: { eventType, provider }
         }).run();
+
+        // 6. Increment Usage on Success
+        if (status === 'sent') {
+            await usageService.incrementUsage('sms');
+        }
 
         return { success: status === 'sent', status };
     }

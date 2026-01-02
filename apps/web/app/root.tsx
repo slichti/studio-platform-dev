@@ -69,6 +69,19 @@ export default function App() {
                         <meta charSet="utf-8" />
                         <Meta />
                         <Links />
+                        {/* Emergency SW Kill Script - runs before hydration */}
+                        <script dangerouslySetInnerHTML={{
+                            __html: `
+                            if ('serviceWorker' in navigator && !sessionStorage.getItem('sw_killed_v3')) {
+                                navigator.serviceWorker.getRegistrations().then(registrations => {
+                                    if (registrations.length > 0) {
+                                        for (let r of registrations) r.unregister();
+                                        sessionStorage.setItem('sw_killed_v3', 'true');
+                                        window.location.reload();
+                                    }
+                                });
+                            }
+                        `}} />
                     </head>
                     <body className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 font-sans antialiased selection:bg-blue-100 dark:selection:bg-blue-900">
                         <Outlet />

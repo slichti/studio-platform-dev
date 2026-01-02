@@ -50,6 +50,27 @@
       "when": 1767304596286,
       "tag": "0006_supreme_lethal_legion",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1767318994035,
+      "tag": "0007_chief_quentin_quire",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1767319535266,
+      "tag": "0008_reflective_dagger",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1767319596636,
+      "tag": "0009_curious_peter_quill",
+      "breakpoints": true
     }
   ]
 }

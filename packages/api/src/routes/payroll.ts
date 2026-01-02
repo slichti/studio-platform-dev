@@ -5,6 +5,7 @@ import { eq, and, gte, lte, inArray, sql } from 'drizzle-orm';
 
 type Bindings = {
     DB: D1Database;
+    STRIPE_SECRET_KEY: string;
 };
 
 type Variables = {
@@ -278,6 +279,39 @@ app.post('/payout', async (c) => {
 
     const payoutId = crypto.randomUUID();
 
+    // 1. Fetch Instructor's Stripe Account ID
+    const { users } = await import('db/src/schema');
+    const instructor = await db.select({
+        stripeAccountId: users.stripeAccountId,
+        email: users.email
+    })
+        .from(users)
+        .innerJoin(tenantMembers, eq(users.id, tenantMembers.userId))
+        .where(eq(tenantMembers.id, instructorId))
+        .get();
+
+    let stripeTransferId = null;
+
+    // 2. If both have Stripe, trigger Transfer
+    if (tenant.stripeAccountId && instructor?.stripeAccountId) {
+        try {
+            const { StripeService } = await import('../services/stripe');
+            const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
+
+            const transfer = await stripe.createTransfer({
+                amount,
+                currency: tenant.currency || 'usd',
+                destination: instructor.stripeAccountId,
+                sourceAccountId: tenant.stripeAccountId,
+                description: `Payout for period ${periodStart} to ${periodEnd}`
+            });
+            stripeTransferId = transfer.id;
+        } catch (err: any) {
+            console.error("Stripe Payout Error:", err);
+            // Optionally handle error (e.g. mark status as 'failed')
+        }
+    }
+
     await db.insert(payouts).values({
         id: payoutId,
         tenantId: tenant.id,
@@ -285,9 +319,10 @@ app.post('/payout', async (c) => {
         amount,
         periodStart: new Date(periodStart),
         periodEnd: new Date(periodEnd),
-        status: 'paid', // Instant pay marking
-        paidAt: new Date()
-    });
+        status: stripeTransferId ? 'paid' : 'processing', // Mark as paid if transfer succeeded
+        paidAt: stripeTransferId ? new Date() : null,
+        stripeTransferId: stripeTransferId
+    }).run();
 
     // Insert line items
     if (items && items.length > 0) {

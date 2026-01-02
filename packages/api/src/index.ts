@@ -391,6 +391,11 @@ app.route('/marketing', marketing);
 import substitutions from './routes/substitutions';
 app.route('/substitutions', substitutions);
 
+import leads from './routes/leads';
+app.use('/leads*', authMiddleware);
+app.use('/leads*', tenantMiddleware);
+app.route('/leads', leads);
+
 import pos from './routes/pos';
 app.use('/pos*', authMiddleware);
 app.use('/pos*', tenantMiddleware);
