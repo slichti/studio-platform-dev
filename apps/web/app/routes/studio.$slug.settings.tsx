@@ -4,7 +4,7 @@ import { useOutletContext, useLoaderData, Form, useNavigation, useSubmit, Link }
 // @ts-ignore
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router"; // Add types
 import { apiRequest } from "../utils/api";
-import { getAuth } from "@clerk/react-router/ssr.server";
+import { getAuth } from "@clerk/react-router/server";
 import { Plus, Trash2, MapPin, CreditCard, FileText, Tag, Mail, MessageSquare, Video, Globe } from "lucide-react";
 
 export const loader = async (args: LoaderFunctionArgs) => {

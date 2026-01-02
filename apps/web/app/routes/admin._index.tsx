@@ -1,6 +1,6 @@
 // @ts-ignore
 import { type LoaderFunctionArgs, useLoaderData, redirect } from "react-router";
-import { getAuth } from "@clerk/react-router/ssr.server";
+import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/Card";
 import { Table, TableHeader, TableHead, TableRow, TableCell } from "../components/ui/Table";
@@ -13,7 +13,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
         token = await getToken();
     } catch (authErr: any) {
         // If auth system fails entirely, maybe redirect or log
-        console.error("Auth System Error", authErr);
+        console.error("Auth System Error", JSON.stringify(authErr, Object.getOwnPropertyNames(authErr)));
         return redirect('/sign-in');
     }
 
@@ -27,7 +27,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
         const [logs, health] = await Promise.all([
             apiRequest("/admin/logs", token, {}, apiUrl),
-            apiRequest("/stats/health", token, {}, apiUrl).catch(() => ({})) // Fail gracefully
+            apiRequest("/admin/stats/health", token, {}, apiUrl).catch(() => ({})) // Fail gracefully
         ]);
         return { logs, health };
     } catch (e: any) {

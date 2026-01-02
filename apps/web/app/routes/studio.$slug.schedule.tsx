@@ -2,7 +2,7 @@
 import { useLoaderData, useOutletContext } from "react-router";
 // @ts-ignore
 import type { LoaderFunctionArgs } from "react-router";
-import { getAuth } from "@clerk/react-router/ssr.server";
+import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { useState, useCallback } from "react";
 import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";

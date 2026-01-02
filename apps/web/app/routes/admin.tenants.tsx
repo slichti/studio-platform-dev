@@ -1,6 +1,6 @@
 // @ts-ignore
 import { Link, useLoaderData, useNavigate } from "react-router";
-import { getAuth } from "@clerk/react-router/ssr.server";
+import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { useState, Fragment } from "react";
 import { useAuth } from "@clerk/react-router";

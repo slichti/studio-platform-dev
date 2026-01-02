@@ -1,6 +1,6 @@
 // @ts-ignore
 import { useLoaderData, Link } from "react-router";
-import { getAuth } from "@clerk/react-router/ssr.server";
+import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { CreditCard, Check, BarChart } from "lucide-react";
 

@@ -2,7 +2,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 // @ts-ignore
 import { useLoaderData, Form, useActionData, useNavigation, useOutletContext, useSubmit } from "react-router";
-import { getAuth } from "@clerk/react-router/ssr.server";
+import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { useState, useEffect } from "react";
 import { Modal } from "../components/Modal";

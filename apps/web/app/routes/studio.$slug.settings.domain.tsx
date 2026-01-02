@@ -4,7 +4,7 @@ import { useOutletContext, useLoaderData, Form, useNavigation, Link } from "reac
 // @ts-ignore
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { apiRequest } from "../utils/api";
-import { getAuth } from "@clerk/react-router/ssr.server";
+import { getAuth } from "@clerk/react-router/server";
 import { Globe, ShieldCheck, AlertTriangle, RefreshCw, Trash2, CheckCircle, ExternalLink } from "lucide-react";
 
 export const loader = async (args: LoaderFunctionArgs) => {

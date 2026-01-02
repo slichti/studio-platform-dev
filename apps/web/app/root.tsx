@@ -13,7 +13,7 @@ import {
 } from "react-router";
 import { useEffect } from "react";
 import { ClerkProvider } from "@clerk/react-router";
-import { rootAuthLoader } from "@clerk/react-router/ssr.server";
+import { rootAuthLoader } from "@clerk/react-router/server";
 import { ThemeProvider } from "./components/ThemeProvider";
 
 import styles from "./index.css?url";

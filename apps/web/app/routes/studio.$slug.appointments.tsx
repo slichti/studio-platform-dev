@@ -2,7 +2,7 @@
 import { useLoaderData, useFetcher, useNavigate } from "react-router";
 // @ts-ignore
 import { LoaderFunction } from "react-router";
-import { getAuth } from "@clerk/react-router/ssr.server";
+import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";
 import { ArrowLeft, Calendar, Check, Clock, User } from "lucide-react";

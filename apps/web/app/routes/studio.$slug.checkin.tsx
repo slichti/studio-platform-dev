@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useLoaderData, useOutletContext, useParams, Link } from "react-router";
 // @ts-ignore
 import type { LoaderFunctionArgs } from "react-router";
-import { getAuth } from "@clerk/react-router/ssr.server";
+import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import {
     CheckCircle2,

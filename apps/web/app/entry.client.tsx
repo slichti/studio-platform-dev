@@ -16,11 +16,16 @@ window.addEventListener("error", async (event) => {
     }
 });
 
-startTransition(() => {
-    hydrateRoot(
-        document,
-        <StrictMode>
-            <HydratedRouter />
-        </StrictMode>
-    );
-});
+// Check if the server returned a critical error page
+if (document.body.innerHTML.includes("Critical Worker Crash")) {
+    console.error("Server reported a critical error. Skipping client hydration to show error details.");
+} else {
+    startTransition(() => {
+        hydrateRoot(
+            document,
+            <StrictMode>
+                <HydratedRouter />
+            </StrictMode>
+        );
+    });
+}

@@ -2,7 +2,7 @@
 import { useLoaderData, useFetcher, Link, useOutletContext } from "react-router";
 // @ts-ignore
 import { LoaderFunction } from "react-router";
-import { getAuth } from "@clerk/react-router/ssr.server";
+import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { useState, useEffect } from "react";
 import { DollarSign, Settings, Calendar, CheckCircle, ChevronRight, Download } from "lucide-react";

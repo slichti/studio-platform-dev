@@ -2,7 +2,7 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 // @ts-ignore
 import { useLoaderData, Link, useParams, useFetcher } from "react-router";
-import { getAuth } from "@clerk/react-router/ssr.server";
+import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { Check, X, FileText, AlertTriangle } from "lucide-react";
 

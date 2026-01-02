@@ -2,7 +2,7 @@
 import { useLoaderData, useOutletContext, Link } from "react-router";
 // @ts-ignore
 import type { LoaderFunctionArgs } from "react-router";
-import { getAuth } from "@clerk/react-router/ssr.server";
+import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { Users, Calendar, DollarSign, ArrowRight, Activity, TrendingUp, FileSignature, Ticket } from "lucide-react";
 

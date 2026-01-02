@@ -2,7 +2,7 @@
 import { useLoaderData, useOutletContext } from "react-router";
 // @ts-ignore
 import type { LoaderFunctionArgs } from "react-router";
-import { getAuth } from "@clerk/react-router/ssr.server";
+import { getAuth } from "@clerk/react-router/server";
 import { useAuth } from "@clerk/react-router";
 import { apiRequest } from "../utils/api";
 import { useState } from "react";

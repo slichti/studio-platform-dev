@@ -2,7 +2,7 @@
 import { useLoaderData } from "react-router";
 // @ts-ignore
 import { LoaderFunction } from "react-router";
-import { getAuth } from "@clerk/react-router/ssr.server";
+import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";
 import { ShoppingCart, Plus, Minus, Trash2, Search, Package, Clock, ShoppingBag, CreditCard, Banknote, Ticket } from "lucide-react";
