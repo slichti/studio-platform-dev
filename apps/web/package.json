@@ -4,7 +4,7 @@
     "sideEffects": false,
     "type": "module",
     "scripts": {
-        "build": "react-router build",
+        "build": "react-router build && rm -f build/client/index.html",
         "dev": "react-router dev",
         "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
         "start": "wrangler pages dev ./build/client",

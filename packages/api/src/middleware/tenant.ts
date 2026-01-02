@@ -2,10 +2,13 @@ import { Context, Next } from 'hono';
 import { createDb } from '../db';
 import { eq, and } from 'drizzle-orm';
 import { tenants, tenantMembers, tenantRoles, users, tenantFeatures } from 'db/src/schema';
+import { EncryptionUtils } from '../utils/encryption';
 
 // Extend Hono Context to include tenant
 type Bindings = {
     DB: D1Database;
+    ENCRYPTION_SECRET: string;
+    RESEND_API_KEY: string;
 };
 
 type Variables = {
@@ -14,17 +17,13 @@ type Variables = {
     member?: any; // tenantMembers.$inferSelect
     roles?: string[];
     features: Set<string>;
+    emailApiKey?: string;
+    twilioCredentials?: { accountSid: string; authToken: string; fromNumber: string };
 };
 
 export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variables: Variables }>, next: Next) => {
     const url = new URL(c.req.url);
-    const hostname = url.hostname; // e.g., zenflow.studio-platform.dev or zenflow.com
-
-    // Logic to determine slug or custom domain
-    // For dev, we might use localhost or a fixed suffix
-    // e.g. *.studio-platform-dev (if we had a real domain).
-    // For local Wrangler dev, it's usually localhost:8787.
-    // We can pass tenant slug via header for testing or rely on Host header.
+    const hostname = url.hostname;
 
     const db = createDb(c.env.DB);
 
@@ -69,6 +68,41 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
 
     c.set('tenant', tenant);
 
+    // -------------------------------------------------------------
+    // Credential Decryption (BYOK)
+    // -------------------------------------------------------------
+    const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET || 'default-secret-change-me-in-prod-at-least-32-chars');
+
+    // 1. Email (Resend)
+    if (tenant.resendCredentials) {
+        try {
+            const creds = tenant.resendCredentials as any;
+            if (creds.apiKey) {
+                const decrypted = await encryption.decrypt(creds.apiKey);
+                c.set('emailApiKey', decrypted);
+            }
+        } catch (e) {
+            console.error("Failed to decrypt Email credentials", e);
+        }
+    }
+
+    // 2. SMS (Twilio)
+    if (tenant.twilioCredentials) {
+        try {
+            const creds = tenant.twilioCredentials as any;
+            if (creds.authToken && creds.accountSid) {
+                const decryptedAuth = await encryption.decrypt(creds.authToken);
+                c.set('twilioCredentials', {
+                    accountSid: creds.accountSid,
+                    authToken: decryptedAuth,
+                    fromNumber: creds.fromNumber
+                });
+            }
+        } catch (e) {
+            console.error("Failed to decrypt SMS credentials", e);
+        }
+    }
+
     // Fetch Features
     const features = await db.query.tenantFeatures.findMany({
         where: and(eq(tenantFeatures.tenantId, tenant.id), eq(tenantFeatures.enabled, true))
@@ -90,8 +124,6 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
 
         if (isSystemAdmin) {
             roles.push('owner');
-            // Also ensure member object is at least partially mocked if missing?
-            // Or better, just rely on roles.
         }
 
         // Find Member record

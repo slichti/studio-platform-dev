@@ -371,7 +371,10 @@ app.post('/:id/email', async (c) => {
 
     if (!member || !member.user) return c.json({ error: 'Member or User not found' }, 404);
 
-    const emailService = new EmailService(c.env.RESEND_API_KEY);
+    const emailService = new EmailService(c.get('emailApiKey') || c.env.RESEND_API_KEY, {
+        settings: tenant.settings,
+        branding: tenant.branding
+    });
 
     // Wrap body in simple template
     const html = `

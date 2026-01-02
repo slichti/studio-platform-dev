@@ -9,9 +9,11 @@ type Bindings = {
     DB: D1Database;
     STRIPE_SECRET_KEY: string;
     STRIPE_CLIENT_ID: string;
+    ENCRYPTION_SECRET: string;
 };
 
 import { StripeService } from '../services/stripe';
+import { EncryptionUtils } from '../utils/encryption';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -84,31 +86,83 @@ app.post('/', async (c) => {
     }
 });
 
-return c.json(result);
+app.get('/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const id = c.req.param('id');
+    const result = await db.select().from(tenants).where(eq(tenants.id, id)).get();
+    if (!result) return c.json({ error: 'Studio not found' }, 404);
+    return c.json(result);
 });
 
-app.put('/:id/payment-settings', async (c) => {
+app.put('/:id/integrations', async (c) => {
     const db = createDb(c.env.DB);
     const id = c.req.param('id');
     const body = await c.req.json();
-    const { paymentProvider, publishableKey, secretKey } = body;
+    // Support partial updates
+    const {
+        paymentProvider,
+        stripePublishableKey,
+        stripeSecretKey,
+        resendApiKey,
+        twilioAccountSid,
+        twilioAuthToken,
+        twilioFromNumber,
+        zoomAccountId,
+        zoomClientId,
+        zoomClientSecret
+    } = body;
 
-    // TODO: Verify ownership/permissions (middleware should handle this if mounted correctly)
+    // TODO: Verify ownership/permissions
 
-    const updateData: any = {
-        paymentProvider
-    };
+    const updateData: any = {};
+    const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET || 'default-secret-change-me-in-prod-at-least-32-chars');
 
-    if (paymentProvider === 'custom') {
-        if (!publishableKey || !secretKey) {
-            return c.json({ error: 'Missing Stripe Keys' }, 400);
-        }
-        // Ideally encrypt this. For now, JSON stringify.
-        // In a real app, use c.env.ENCRYPTION_SECRET to encrypt.
+    // 1. Stripe Configuration
+    if (paymentProvider) {
+        updateData.paymentProvider = paymentProvider;
+    }
+
+    if (stripePublishableKey && stripeSecretKey) {
+        // Only update if both provided, or handle partial? 
+        // Let's assume frontend sends both for now on update.
+        // In real app, might want to allow updating just one but that's rare for keys.
+        const encryptedSecret = await encryption.encrypt(stripeSecretKey);
         updateData.stripeCredentials = {
-            publishableKey,
-            secretKey
+            publishableKey: stripePublishableKey,
+            secretKey: encryptedSecret // Encrypt Secret Key!
         };
+    }
+
+    // 2. Resend Configuration (Email)
+    if (resendApiKey) {
+        const encryptedKey = await encryption.encrypt(resendApiKey);
+        updateData.resendCredentials = {
+            apiKey: encryptedKey
+        };
+    }
+
+    // 3. Twilio Configuration (SMS)
+    if (twilioAccountSid && twilioAuthToken && twilioFromNumber) {
+        const encryptedToken = await encryption.encrypt(twilioAuthToken);
+        updateData.twilioCredentials = {
+            accountSid: twilioAccountSid,
+            authToken: encryptedToken,
+            fromNumber: twilioFromNumber
+        };
+    }
+
+    // 4. Zoom Configuration
+    if (zoomAccountId && zoomClientId && zoomClientSecret) {
+        const encryptedSecret = await encryption.encrypt(zoomClientSecret);
+        updateData.zoomCredentials = {
+            accountId: zoomAccountId,
+            clientId: zoomClientId,
+            clientSecret: encryptedSecret
+        };
+    }
+
+    if (Object.keys(updateData).length === 0) {
+        return c.json({ message: "No changes detected" });
     }
 
     await db.update(tenants)

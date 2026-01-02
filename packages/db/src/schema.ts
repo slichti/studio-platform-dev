@@ -19,6 +19,10 @@ export const tenants = sqliteTable('tenants', {
     paymentProvider: text('payment_provider', { enum: ['connect', 'custom'] }).default('connect').notNull(),
     stripeCredentials: text('stripe_credentials', { mode: 'json' }), // Encrypted JSON: { publishableKey, secretKey }
 
+    // Phase 16: Secure BYOK (Email/SMS)
+    resendCredentials: text('resend_credentials', { mode: 'json' }), // Encrypted JSON: { apiKey }
+    twilioCredentials: text('twilio_credentials', { mode: 'json' }), // Encrypted JSON: { accountSid, authToken, fromNumber }
+
     currency: text('currency').default('usd').notNull(), // Added currency
     zoomCredentials: text('zoom_credentials', { mode: 'json' }), // Encrypted
     status: text('status', { enum: ['active', 'paused', 'suspended'] }).default('active').notNull(),

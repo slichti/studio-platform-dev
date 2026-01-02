@@ -587,7 +587,7 @@ app.post('/:id/bookings/:bookingId/promote', async (c) => {
             if (user) {
                 const { EmailService } = await import('../services/email');
                 // Pass tenant config for branding
-                const emailService = new EmailService(c.env.RESEND_API_KEY, {
+                const emailService = new EmailService(c.get('emailApiKey') || c.env.RESEND_API_KEY, {
                     branding: tenant.branding as any,
                     settings: tenant.settings as any
                 });

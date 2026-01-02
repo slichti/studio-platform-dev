@@ -120,7 +120,7 @@ export default function Index() {
                                         Powered by Stripe Connect
                                     </h3>
                                     <p className="opacity-90 leading-relaxed mb-4">
-                                        We partner with Stripe to handle all payment processing. This means we never see or store your credit card information, ensuring full <strong>PCI Compliance</strong> from day one.
+                                        We use Stripe to handle all payment processing. This means we never see or store your credit card information, ensuring full <strong>PCI Compliance</strong> from day one.
                                     </p>
                                     <div className="flex flex-col sm:flex-row gap-4 mt-6">
                                         <div className="flex-1 bg-white/10 dark:bg-black/5 p-4 rounded-lg backdrop-blur-sm">
