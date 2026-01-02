@@ -126,7 +126,7 @@ export default function StudioLayout() {
                     </SidebarGroup>
 
                     <SidebarGroup title="Commerce">
-                        {(features.has('pos') || ['growth', 'scale'].includes(tenant.tier)) && (
+                        {(featureSet.has('pos') || ['growth', 'scale'].includes(tenant.tier)) && (
                             <NavItem to="pos" icon={<ShoppingCart size={18} />}>POS & Retail</NavItem>
                         )}
                         <NavItem to="memberships" icon={<CreditCard size={18} />}>Memberships</NavItem>
@@ -140,7 +140,7 @@ export default function StudioLayout() {
                         {['growth', 'scale'].includes(tenant.tier) && (
                             <NavItem to="marketing" icon={<Mail size={18} />}>Marketing</NavItem>
                         )}
-                        {(['scale'].includes(tenant.tier) || features.has('payroll')) && (
+                        {(['scale'].includes(tenant.tier) || featureSet.has('payroll')) && (
                             <NavItem to="financials/payroll" icon={<CreditCard size={18} />}>Payroll</NavItem>
                         )}
                         <NavItem to="finances" icon={<DollarSign size={18} />}>Finances</NavItem>
