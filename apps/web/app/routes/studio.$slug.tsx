@@ -40,7 +40,18 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const { slug } = params;
     if (!slug) return redirect("/");
 
-    const token = await getToken();
+    let token = await getToken();
+
+    // Check for server-side impersonation (Cookie)
+    const cookieHeader = request.headers.get("Cookie");
+    let isImpersonating = false;
+    if (cookieHeader) {
+        const match = cookieHeader.match(/(?:^|; )__impersonate_token=([^;]*)/);
+        if (match && match[1]) {
+            token = match[1];
+            isImpersonating = true;
+        }
+    }
 
     try {
         const tenantInfo: any = await apiRequest(`/tenant/info`, token, {
@@ -68,6 +79,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
             me,
             token,
             isPaused: tenantInfo.status === 'paused',
+            isImpersonating,
             features: tenantInfo.features || []
         };
     } catch (e: any) {
@@ -129,17 +141,31 @@ export default function StudioLayout() {
                     </SidebarGroup>
                 </nav>
 
-                <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <UserButton />
-                        <div className="flex flex-col overflow-hidden">
-                            <span className="text-sm font-medium truncate text-zinc-900 dark:text-zinc-200">
-                                {me.firstName} {me.lastName}
-                            </span>
-                            <span className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{me.email}</span>
+                <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex flex-col gap-3">
+                    {(useLoaderData() as any).isImpersonating && (
+                        <button
+                            onClick={() => {
+                                localStorage.removeItem("impersonation_token");
+                                document.cookie = "__impersonate_token=; path=/; max-age=0; SameSite=Lax";
+                                window.location.href = "/admin/users";
+                            }}
+                            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold uppercase tracking-wider rounded transition-colors mb-2"
+                        >
+                            <Users size={14} /> Stop Impersonating
+                        </button>
+                    )}
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <UserButton />
+                            <div className="flex flex-col overflow-hidden">
+                                <span className="text-sm font-medium truncate text-zinc-900 dark:text-zinc-200">
+                                    {me.firstName} {me.lastName}
+                                </span>
+                                <span className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{me.email}</span>
+                            </div>
                         </div>
+                        <ThemeToggle />
                     </div>
-                    <ThemeToggle />
                 </div>
             </aside >
 

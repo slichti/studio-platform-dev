@@ -15,6 +15,7 @@ export const TIERS: Record<Tier, {
         storageGB: number;
         sms: number;
         email: number;
+        streamingMinutes: number;
     };
     features: string[]; // Enabled feature flags
 }> = {
@@ -28,7 +29,8 @@ export const TIERS: Record<Tier, {
             locations: 1,
             storageGB: 5,
             sms: 0,
-            email: 1000
+            email: 1000,
+            streamingMinutes: 0 // No VOD
         },
         features: ['financials', 'notifications']
     },
@@ -42,7 +44,8 @@ export const TIERS: Record<Tier, {
             locations: 3,
             storageGB: 50,
             sms: 1500,
-            email: 10000
+            email: 10000,
+            streamingMinutes: 1000 // ~16 hours
         },
         features: ['financials', 'notifications', 'zoom', 'vod', 'automations', 'sms']
     },
@@ -56,7 +59,8 @@ export const TIERS: Record<Tier, {
             locations: -1,
             storageGB: 1000,
             sms: 5000,
-            email: 50000
+            email: 50000,
+            streamingMinutes: -1 // Unlimited
         },
         features: ['financials', 'notifications', 'zoom', 'vod', 'automations', 'sms', 'white_label', 'api_access']
     }
@@ -113,12 +117,16 @@ export class UsageService {
             ))
             .get();
 
-        // 4. SMS & Email Usage (from tenants table)
+        // 4. SMS, Email, Streaming Usage (from tenants table)
         const tenant = await this.db.select({
             smsUsage: tenants.smsUsage,
             emailUsage: tenants.emailUsage,
+            streamingUsage: tenants.streamingUsage,
+
             smsLimit: tenants.smsLimit,
             emailLimit: tenants.emailLimit,
+            streamingLimit: tenants.streamingLimit,
+
             tier: tenants.tier
         }).from(tenants).where(eq(tenants.id, this.tenantId)).get();
 
@@ -130,12 +138,17 @@ export class UsageService {
             students: memberCount?.count || 0,
             instructors: instructorCount?.count || 0,
             locations: locationCount?.count || 0,
+
             smsUsage: tenant?.smsUsage || 0,
             emailUsage: tenant?.emailUsage || 0,
+            streamingUsage: tenant?.streamingUsage || 0,
+
             tier: tenant?.tier || 'basic',
             // Return effective limits (manual override vs tier default)
             smsLimit: tenant?.smsLimit ?? PricingService.getTierConfig(tenant?.tier).limits.sms,
             emailLimit: tenant?.emailLimit ?? PricingService.getTierConfig(tenant?.tier).limits.email,
+            streamingLimit: tenant?.streamingLimit ?? PricingService.getTierConfig(tenant?.tier).limits.streamingMinutes,
+
             storageGB
         };
     }
@@ -160,29 +173,46 @@ export class UsageService {
             .get();
 
         // 3. Storage (Sum uploads table)
-        const storageSum = await this.db.select({ size: sum(uploads.sizeBytes) })
+        const storageSum = await this.db.select({ size: sql`sum(${uploads.sizeBytes})` }) // Drizzle sum() helper sometimes weird, using sql is safer
             .from(uploads)
             .where(eq(uploads.tenantId, this.tenantId))
             .get();
 
         const totalStorage = Number(storageSum?.size || 0);
 
+        // 4. Streaming (Sum duration of 'ready' classes)
+        // Assumption: classes.durationMinutes holds the VOD length
+        const streamingSum = await this.db.select({ duration: sql`sum(${classes.durationMinutes})` })
+            .from(classes)
+            .where(and(
+                eq(classes.tenantId, this.tenantId),
+                eq(classes.recordingStatus, 'ready')
+            ))
+            .get();
+
+        const totalStreamingMins = Number(streamingSum?.duration || 0);
+
         await this.db.update(tenants)
             .set({
                 memberCount: memberCount?.count || 0,
                 instructorCount: instructorCount?.count || 0,
-                storageUsage: totalStorage
+                storageUsage: totalStorage,
+                streamingUsage: totalStreamingMins
             })
             .where(eq(tenants.id, this.tenantId))
             .run();
     }
 
-    async checkLimit(limitKey: 'students' | 'instructors' | 'locations' | 'smsUsage' | 'emailUsage', currentTier: string) {
+    async checkLimit(limitKey: 'students' | 'instructors' | 'locations' | 'smsUsage' | 'emailUsage' | 'streamingUsage', currentTier: string) {
         const usage = await this.getUsage();
 
-        // Handle SMS/Email separately because they have manual overrides in tenants table
-        if (limitKey === 'smsUsage' || limitKey === 'emailUsage') {
-            const limit = limitKey === 'smsUsage' ? usage.smsLimit : usage.emailLimit;
+        // Handle Resource Usage (SMS, Email, Streaming)
+        if (limitKey === 'smsUsage' || limitKey === 'emailUsage' || limitKey === 'streamingUsage') {
+            let limit: number;
+            if (limitKey === 'smsUsage') limit = usage.smsLimit;
+            else if (limitKey === 'emailUsage') limit = usage.emailLimit;
+            else limit = usage.streamingLimit; // streamingUsage
+
             if (limit === -1) return true;
             return (usage[limitKey] as number) < limit;
         }

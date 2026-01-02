@@ -57,6 +57,45 @@ export default function AdminTenants() {
         plan: "basic"
     });
 
+    const [sortField, setSortField] = useState('createdAt');
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [tierFilter, setTierFilter] = useState('all');
+
+    const handleSort = (field: string) => {
+        if (sortField === field) {
+            setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDir('asc');
+        }
+    };
+
+    const sortedTenants = () => {
+        if (!Array.isArray(tenants)) return [];
+
+        let filtered = [...tenants];
+
+        // Apply Filters
+        if (statusFilter !== 'all') {
+            filtered = filtered.filter((t: any) => (t.status || 'active') === statusFilter);
+        }
+        if (tierFilter !== 'all') {
+            filtered = filtered.filter((t: any) => (t.tier || 'basic') === tierFilter);
+        }
+
+        return filtered.sort((a: any, b: any) => {
+            const getVal = (obj: any, path: string) => path.split('.').reduce((acc, part) => acc && acc[part], obj);
+            const valA = getVal(a, sortField);
+            const valB = getVal(b, sortField);
+
+            if (valA === valB) return 0;
+            const res = valA > valB ? 1 : -1;
+            return sortDir === 'asc' ? res : -res;
+        });
+    };
+
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -116,8 +155,26 @@ export default function AdminTenants() {
                 body: JSON.stringify({ trialDays: daysToAdd })
             });
             if (res.error) throw new Error(res.error);
-            setSuccessDialog({ isOpen: true, message: "Subscription period updated." });
-            // Refresh list?
+            // Reload tenants to get fresh date
+            const updated = await apiRequest("/admin/tenants", token);
+            setTenants(updated);
+        } catch (e: any) {
+            setErrorDialog({ isOpen: true, message: e.message });
+        }
+    };
+
+    const handleDateUpdate = async (tenantId: string, dateStr: string) => {
+        if (!dateStr) return;
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/admin/tenants/${tenantId}/subscription`, token, {
+                method: "PATCH",
+                body: JSON.stringify({ currentPeriodEnd: dateStr })
+            });
+            if (res.error) throw new Error(res.error);
+            // Reload tenants
+            const updated = await apiRequest("/admin/tenants", token);
+            setTenants(updated);
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message });
         }
@@ -193,7 +250,34 @@ export default function AdminTenants() {
             />
 
             <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">Tenant Management</h2>
+                <div className="flex items-center gap-4">
+                    <h2 className="text-2xl font-bold">Tenant Management</h2>
+
+                    {/* Filters */}
+                    <div className="flex gap-2">
+                        <select
+                            className="text-sm border border-zinc-300 rounded-md px-2 py-1 bg-white outline-none focus:ring-2 focus:ring-blue-500"
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                        >
+                            <option value="all">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="paused">Paused</option>
+                            <option value="suspended">Suspended</option>
+                        </select>
+                        <select
+                            className="text-sm border border-zinc-300 rounded-md px-2 py-1 bg-white outline-none focus:ring-2 focus:ring-blue-500"
+                            value={tierFilter}
+                            onChange={(e) => setTierFilter(e.target.value)}
+                        >
+                            <option value="all">All Tiers</option>
+                            <option value="basic">Launch</option>
+                            <option value="growth">Growth</option>
+                            <option value="scale">Scale</option>
+                        </select>
+                    </div>
+                </div>
+
                 <button
                     onClick={() => setIsCreateOpen(true)}
                     className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium text-sm flex items-center gap-2"
@@ -219,26 +303,35 @@ export default function AdminTenants() {
                     <thead className="bg-zinc-50 border-b border-zinc-200">
                         <tr>
                             <th className="w-8"></th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Tenant</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Slug</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Tier</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider text-center">Stats</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider cursor-pointer hover:bg-zinc-100" onClick={() => handleSort('name')}>
+                                Tenant {sortField === 'name' && (sortDir === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider cursor-pointer hover:bg-zinc-100" onClick={() => handleSort('tier')}>
+                                Tier {sortField === 'tier' && (sortDir === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider text-center cursor-pointer hover:bg-zinc-100" onClick={() => handleSort('stats.owners')}>
+                                People {sortField === 'stats.owners' && (sortDir === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider text-center cursor-pointer hover:bg-zinc-100" onClick={() => handleSort('storageUsage')}>
+                                Usage {sortField === 'storageUsage' && (sortDir === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider cursor-pointer hover:bg-zinc-100" onClick={() => handleSort('status')}>
+                                Status {sortField === 'status' && (sortDir === 'asc' ? '↑' : '↓')}
+                            </th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-100">
-                        {Array.isArray(tenants) && tenants.map((t: any) => (
+                        {sortedTenants().map((t: any) => (
                             <Fragment key={t.id}>
-                                {/* ... (keep row) ... */}
-                                <tr key={t.id} className="hover:bg-zinc-50 transition-colors cursor-pointer" onClick={() => toggleTenantExpand(t.id)}>
-                                    {/* ... (row content) ... */}
+                                <tr className="hover:bg-zinc-50 transition-colors cursor-pointer" onClick={() => toggleTenantExpand(t.id)}>
                                     <td className="pl-4">
                                         {expandedTenant === t.id ? <ChevronDown size={16} className="text-zinc-400" /> : <ChevronRight size={16} className="text-zinc-400" />}
                                     </td>
-                                    <td className="px-6 py-4 font-medium text-zinc-900">{t.name}</td>
-                                    {/* ... rest of columns ... */}
-                                    <td className="px-6 py-4 text-zinc-600 font-mono text-xs bg-zinc-100 rounded self-start inline-block px-1 mt-1">{t.slug}</td>
+                                    <td className="px-6 py-4">
+                                        <div className="font-medium text-zinc-900">{t.name}</div>
+                                        <div className="text-zinc-500 text-xs font-mono mt-0.5 bg-zinc-100 inline-block px-1 rounded">{t.slug}</div>
+                                    </td>
                                     <td className="px-6 py-4">
                                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium uppercase tracking-wide border ${t.tier === 'scale' ? 'bg-purple-100 text-purple-800 border-purple-200' :
                                             t.tier === 'growth' ? 'bg-blue-100 text-blue-800 border-blue-200' :
@@ -248,19 +341,34 @@ export default function AdminTenants() {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
-                                        {/* ... (stats) ... */}
                                         <div className="flex gap-4 justify-center">
-                                            <div className="flex flex-col items-center">
+                                            <div className="flex flex-col items-center" title="Owners">
                                                 <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">Own</span>
                                                 <span className="text-sm font-bold text-zinc-700">{t.stats?.owners || 0}</span>
                                             </div>
-                                            <div className="flex flex-col items-center">
+                                            <div className="flex flex-col items-center" title="Instructors">
                                                 <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">Inst</span>
                                                 <span className="text-sm font-bold text-zinc-700">{t.stats?.instructors || 0}</span>
                                             </div>
-                                            <div className="flex flex-col items-center">
+                                            <div className="flex flex-col items-center" title="Subscribers">
                                                 <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">Subs</span>
                                                 <span className="text-sm font-bold text-blue-600">{t.stats?.subscribers || 0}</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex gap-4 justify-center">
+                                            <div className="flex flex-col items-center" title="Storage GB">
+                                                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">Sto</span>
+                                                <span className="text-xs font-bold text-zinc-700">{(t.storageUsage / (1024 * 1024 * 1024)).toFixed(1)}G</span>
+                                            </div>
+                                            <div className="flex flex-col items-center" title="VOD Minutes">
+                                                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">VOD</span>
+                                                <span className="text-xs font-bold text-zinc-700">{t.streamingUsage || 0}m</span>
+                                            </div>
+                                            <div className="flex flex-col items-center" title="Emails">
+                                                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">Eml</span>
+                                                <span className="text-xs font-bold text-zinc-700">{t.emailUsage || 0}</span>
                                             </div>
                                         </div>
                                     </td>
@@ -273,7 +381,6 @@ export default function AdminTenants() {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
-                                        {/* ... (actions) ... */}
                                         <div className="flex items-center gap-3">
                                             <Link
                                                 to={`/studio/${t.slug}`}
@@ -331,10 +438,23 @@ export default function AdminTenants() {
                                                     <div className="text-right bg-zinc-50 p-3 rounded border border-zinc-200">
                                                         <div className="text-xs text-zinc-500">Subscription Status</div>
                                                         <div className="font-medium text-zinc-900 capitalize">{t.subscriptionStatus || 'trialing'}</div>
-                                                        <div className="text-xs text-zinc-500 mt-1">Period Ends</div>
-                                                        <div className="font-medium text-zinc-900">
-                                                            {t.currentPeriodEnd ? new Date(t.currentPeriodEnd).toLocaleDateString() : 'Never'}
+
+                                                        <div className="text-xs text-zinc-500 mt-2">Period Ends</div>
+                                                        <div className="flex items-center justify-end gap-2 mt-1">
+                                                            <input
+                                                                type="date"
+                                                                className="text-xs border border-zinc-300 rounded px-2 py-1 bg-white"
+                                                                defaultValue={t.currentPeriodEnd ? new Date(t.currentPeriodEnd).toISOString().split('T')[0] : ''}
+                                                                onBlur={(e) => {
+                                                                    // Only save if changed and valid
+                                                                    if (e.target.value) {
+                                                                        const confirm = window.confirm(`Update renewal date to ${e.target.value}?`);
+                                                                        if (confirm) handleDateUpdate(t.id, e.target.value);
+                                                                    }
+                                                                }}
+                                                            />
                                                         </div>
+
                                                         <div className="mt-2 flex gap-2 justify-end">
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); handleSubscriptionUpdate(t.id, 30); }}
@@ -384,17 +504,6 @@ export default function AdminTenants() {
                                                                     </div>
                                                                 );
                                                             })}
-                                                        </div>
-
-                                                        {/* Usage Stats */}
-                                                        <div>
-                                                            <h5 className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">Usage Metrics</h5>
-                                                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                                                                <div className="bg-zinc-50 p-3 rounded-md border border-zinc-200">
-                                                                    <p className="text-xs text-zinc-500 mb-1">Emails Sent</p>
-                                                                    <p className="text-xl font-bold text-zinc-900">{tenantStats.emailCount || 0}</p>
-                                                                </div>
-                                                            </div>
                                                         </div>
                                                     </div>
                                                 )}

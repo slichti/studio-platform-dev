@@ -113,6 +113,8 @@ export default function EditUser() {
                 // So we set it and reload.
 
                 localStorage.setItem("impersonation_token", res.token);
+                // ALSO set as cookie for SSR compatibility
+                document.cookie = `__impersonate_token=${res.token}; path=/; max-age=3600; SameSite=Lax`;
 
                 // Redirect logic:
                 // If they have membership, go to that studio.

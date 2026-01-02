@@ -115,12 +115,24 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
     let roles: string[] = [];
 
     if (auth && auth.userId) {
-        // Global Admin Check
+        // Global Admin Check (Original User)
+        let isSystemAdmin = false;
+
+        // Check 1: Is the current (possibly impersonated) user a System Admin?
         const dbUser = await db.query.users.findFirst({
             where: eq(users.id, auth.userId)
         });
+        isSystemAdmin = dbUser?.isSystemAdmin === true;
 
-        const isSystemAdmin = dbUser?.isSystemAdmin === true;
+        // Check 2: If Impersonating, is the ACTUAL actor (impersonator) a System Admin?
+        if (!isSystemAdmin && auth.claims?.impersonatorId) {
+            const impersonator = await db.query.users.findFirst({
+                where: eq(users.id, auth.claims.impersonatorId)
+            });
+            if (impersonator?.isSystemAdmin) {
+                isSystemAdmin = true;
+            }
+        }
 
         if (isSystemAdmin) {
             roles.push('owner');

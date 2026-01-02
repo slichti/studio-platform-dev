@@ -74,12 +74,60 @@ export default function StudioBilling() {
                         <div>
                             <div className="flex justify-between text-sm mb-1">
                                 <span className="font-medium text-zinc-700">Storage (GB)</span>
-                                <span className="text-zinc-500">{usage.storageGB} / {tier.storage} GB</span>
+                                <span className="text-zinc-500">{usage.storageGB.toFixed(1)} / {tier.storage} GB</span>
                             </div>
                             <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
                                 <div
                                     className="h-full bg-purple-600 rounded-full"
                                     style={{ width: `${limitPercentage(usage.storageGB, tier.storage)}%` }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* VOD Minutes */}
+                        <div>
+                            <div className="flex justify-between text-sm mb-1">
+                                <span className="font-medium text-zinc-700">VOD Minutes (Stored)</span>
+                                <span className="text-zinc-500">
+                                    {usage.streamingUsage || 0} / {usage.streamingLimit === -1 ? 'Unlimited' : usage.streamingLimit}
+                                </span>
+                            </div>
+                            <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
+                                <div
+                                    className={`h-full rounded-full ${usage.streamingLimit !== -1 && usage.streamingUsage > usage.streamingLimit ? 'bg-red-500' : 'bg-pink-500'}`}
+                                    style={{ width: `${limitPercentage(usage.streamingUsage, usage.streamingLimit)}%` }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Emails */}
+                        <div>
+                            <div className="flex justify-between text-sm mb-1">
+                                <span className="font-medium text-zinc-700">Emails Sent (Monthly)</span>
+                                <span className="text-zinc-500">
+                                    {usage.emailUsage || 0} / {usage.emailLimit === -1 ? 'Unlimited' : usage.emailLimit}
+                                </span>
+                            </div>
+                            <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
+                                <div
+                                    className={`h-full rounded-full ${usage.emailLimit !== -1 && usage.emailUsage > usage.emailLimit ? 'bg-red-500' : 'bg-indigo-500'}`}
+                                    style={{ width: `${limitPercentage(usage.emailUsage, usage.emailLimit)}%` }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* SMS */}
+                        <div>
+                            <div className="flex justify-between text-sm mb-1">
+                                <span className="font-medium text-zinc-700">SMS Sent (Monthly)</span>
+                                <span className="text-zinc-500">
+                                    {usage.smsUsage || 0} / {usage.smsLimit === -1 ? 'Unlimited' : usage.smsLimit}
+                                </span>
+                            </div>
+                            <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
+                                <div
+                                    className={`h-full rounded-full ${usage.smsLimit !== -1 && usage.smsUsage > usage.smsLimit ? 'bg-red-500' : 'bg-blue-500'}`}
+                                    style={{ width: `${limitPercentage(usage.smsUsage, usage.smsLimit)}%` }}
                                 />
                             </div>
                         </div>

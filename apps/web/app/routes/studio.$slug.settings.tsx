@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useOutletContext, useLoaderData, Form, useNavigation, useSubmit, Link } from "react-router";
 // @ts-ignore
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router"; // Add types
-import { apiRequest } from "../utils/api";
+import { apiRequest, API_URL } from "../utils/api";
 import { getAuth } from "@clerk/react-router/server";
 import { Plus, Trash2, MapPin, CreditCard, FileText, Tag, Mail, MessageSquare, Video, Globe } from "lucide-react";
 
@@ -290,25 +290,27 @@ export default function StudioSettings() {
 
                         {tenant.settings?.noShowFeeEnabled && (
                             <div className="mb-4">
-                                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Fee Amount (cents)</label>
+                                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Fee Amount ($)</label>
                                 <input
                                     type="number"
+                                    step="0.01"
                                     className="w-full border-zinc-300 dark:border-zinc-700 rounded text-sm px-3 py-2 bg-white dark:bg-zinc-800"
-                                    placeholder="1000 ($10.00)"
-                                    defaultValue={tenant.settings?.noShowFeeAmount || 1000}
+                                    placeholder="10.00"
+                                    defaultValue={tenant.settings?.noShowFeeAmount ? (tenant.settings.noShowFeeAmount / 100).toFixed(2) : '10.00'}
                                     onBlur={async (e) => {
-                                        const val = parseInt(e.target.value);
+                                        const val = parseFloat(e.target.value);
                                         if (val > 0) {
+                                            const cents = Math.round(val * 100);
                                             const token = await (window as any).Clerk?.session?.getToken();
                                             await apiRequest(`/tenant/settings`, token, {
                                                 method: "PATCH",
                                                 headers: { 'X-Tenant-Slug': tenant.slug },
-                                                body: JSON.stringify({ settings: { noShowFeeAmount: val } })
+                                                body: JSON.stringify({ settings: { noShowFeeAmount: cents } })
                                             });
                                         }
                                     }}
                                 />
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Fee will be charged automatically when marking "No Show". ($10.00 = 1000)</p>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Fee will be charged automatically when marking "No Show".</p>
                             </div>
                         )}
 
@@ -404,7 +406,7 @@ export default function StudioSettings() {
                                 <div className="font-medium text-sm text-zinc-900 dark:text-zinc-100">Platform Managed</div>
                                 <div className="text-xs text-zinc-500 mt-1">We handle billing complexity. Standard fees.</div>
                                 {tenant.paymentProvider === 'connect' && !tenant.stripeAccountId && (
-                                    <a href={`https://studio-platform-api.studio-platform.workers.dev/studios/stripe/connect?tenantId=${tenant.id}`} className="mt-2 inline-block text-xs text-blue-600 hover:underline">Connect Stripe Account &rarr;</a>
+                                    <a href={`${API_URL}/studios/stripe/connect?tenantId=${tenant.id}`} className="mt-2 inline-block text-xs text-blue-600 hover:underline">Connect Stripe Account &rarr;</a>
                                 )}
                             </div>
 

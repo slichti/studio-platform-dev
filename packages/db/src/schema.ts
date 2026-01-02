@@ -32,8 +32,11 @@ export const tenants = sqliteTable('tenants', {
     // Quotas (Reset monthly)
     smsUsage: integer('sms_usage').default(0).notNull(),
     emailUsage: integer('email_usage').default(0).notNull(),
+    streamingUsage: integer('streaming_usage').default(0).notNull(), // in minutes
+
     smsLimit: integer('sms_limit'), // null = use tier default
     emailLimit: integer('email_limit'), // null = use tier default
+    streamingLimit: integer('streaming_limit'), // null = use tier default
 
     // Usage Stats (Updated via triggers/logic)
     storageUsage: integer('storage_usage').default(0).notNull(), // in bytes

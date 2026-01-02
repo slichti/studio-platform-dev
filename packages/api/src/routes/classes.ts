@@ -346,6 +346,19 @@ app.post('/:id/book', async (c) => {
 
     if (!member && !targetMemberId) {
         // Auto-join for self if not exists
+
+        // LIMIT CHECK: Students
+        const { UsageService } = await import('../services/pricing');
+        const usageService = new UsageService(db, tenant.id);
+        const canAddCallback = await usageService.checkLimit('students', tenant.tier || 'basic');
+
+        if (!canAddCallback) {
+            return c.json({
+                error: "Studio student limit reached. Cannot join this studio.",
+                code: "LIMIT_REACHED"
+            }, 403);
+        }
+
         const memberId = crypto.randomUUID();
         await db.insert(tenantMembers).values({ id: memberId, tenantId: tenant.id, userId: userId });
         await db.insert(tenantRoles).values({ memberId: memberId, role: 'student' });
@@ -388,19 +401,23 @@ app.post('/:id/book', async (c) => {
 
         if (!targetMember) return c.json({ error: 'Target member not found in this studio' }, 404);
 
-        // Verify Relationship: Current User must be Parent of Target User
-        const relationship = await db.query.userRelationships.findFirst({
-            where: and(
-                eq(userRelationships.parentUserId, userId),
-                eq(userRelationships.childUserId, targetMember.userId)
-            )
-        });
+        if (roles.includes('instructor') || roles.includes('owner')) {
+            bookingMemberId = targetMemberId;
+        } else {
+            // Verify Relationship: Current User must be Parent of Target User
+            const relationship = await db.query.userRelationships.findFirst({
+                where: and(
+                    eq(userRelationships.parentUserId, userId),
+                    eq(userRelationships.childUserId, targetMember.userId)
+                )
+            });
 
-        if (!relationship) {
-            return c.json({ error: 'You do not have permission to book for this member' }, 403);
+            if (!relationship) {
+                return c.json({ error: 'You do not have permission to book for this member' }, 403);
+            }
+
+            bookingMemberId = targetMemberId;
         }
-
-        bookingMemberId = targetMemberId;
     }
 
     if (!bookingMemberId) return c.json({ error: 'Could not determine member' }, 400);
@@ -530,17 +547,28 @@ app.get('/:id/bookings', async (c) => {
             .all();
 
         // 2. If active waiver exists, check signatures for these members
-        const finalResults = await Promise.all(results.map(async (b: any) => {
-            if (!activeWaiver) return { ...b, waiverSigned: true };
+        // 3. Check for Student Notes
+        const { studentNotes } = await import('db/src/schema');
 
-            const signature = await db.select({ id: waiverSignatures.id })
+        const finalResults = await Promise.all(results.map(async (b: any) => {
+            const waiverSigned = activeWaiver ? (await db.select({ id: waiverSignatures.id })
                 .from(waiverSignatures)
                 .where(and(
                     eq(waiverSignatures.memberId, b.memberId),
                     eq(waiverSignatures.templateId, activeWaiver.id)
-                )).get();
+                )).get()) : true;
 
-            return { ...b, waiverSigned: !!signature };
+            const existingNote = await db.select({ id: studentNotes.id })
+                .from(studentNotes)
+                .where(eq(studentNotes.studentId, b.memberId))
+                .limit(1)
+                .get();
+
+            return {
+                ...b,
+                waiverSigned: !!waiverSigned,
+                hasNotes: !!existingNote
+            };
         }));
 
         return c.json(finalResults);
@@ -784,6 +812,18 @@ app.post('/:id/recording', async (c) => {
     if (!c.env.CLOUDFLARE_STREAM_ACCOUNT_ID || !c.env.CLOUDFLARE_STREAM_API_TOKEN) {
         return c.json({ error: 'Video service not configured' }, 500);
     }
+
+    // LIMIT CHECK: Streaming Minutes
+    const { UsageService } = await import('../services/pricing');
+    const usageService = new UsageService(db, tenant.id);
+    const canUpload = await usageService.checkLimit('streamingUsage', tenant.tier || 'basic');
+    if (!canUpload) {
+        return c.json({
+            error: "Streaming limit reached. Upgrade to add more videos.",
+            code: "LIMIT_REACHED"
+        }, 403);
+    }
+
     const stream = new StreamService(c.env.CLOUDFLARE_STREAM_ACCOUNT_ID, c.env.CLOUDFLARE_STREAM_API_TOKEN);
 
     try {

@@ -1,10 +1,12 @@
 import { Hono } from 'hono';
+import Stripe from 'stripe';
 import { createDb } from '../db';
 import { products, posOrders, posOrderItems, tenantMembers } from 'db/src/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 
 type Bindings = {
     DB: D1Database;
+    STRIPE_SECRET_KEY: string;
 };
 
 type Variables = {
@@ -132,6 +134,70 @@ app.get('/orders', async (c) => {
     });
 
     return c.json({ orders });
+});
+
+// POST /process-payment - Initialize Stripe Payment
+app.post('/process-payment', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const { items, customerId } = await c.req.json();
+
+    if (!items || items.length === 0) return c.json({ error: "No items" }, 400);
+
+    // 1. Calculate Total Server-Side
+    let totalAmount = 0;
+    const itemDetails = [];
+
+    for (const item of items) {
+        const product = await db.select().from(products)
+            .where(and(eq(products.id, item.productId), eq(products.tenantId, tenant.id)))
+            .get();
+
+        if (!product) continue;
+
+        totalAmount += (product.price * item.quantity);
+        itemDetails.push({
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            quantity: item.quantity
+        });
+    }
+
+    if (totalAmount === 0) return c.json({ error: "Total amount is 0" }, 400);
+
+    // 2. Create PaymentIntent
+    if (!c.env.STRIPE_SECRET_KEY) return c.json({ error: "Server misconfiguration" }, 500);
+
+    const stripe = new Stripe(c.env.STRIPE_SECRET_KEY, { apiVersion: '2025-12-15.clover' as any }); // Use latest or available
+
+    const params: Stripe.PaymentIntentCreateParams = {
+        amount: totalAmount,
+        currency: tenant.currency || 'usd',
+        automatic_payment_methods: { enabled: true },
+        metadata: {
+            tenantId: tenant.id,
+            items: JSON.stringify(itemDetails.map(i => `${i.quantity}x ${i.name}`).join(', ')) // simplified metadata
+        }
+    };
+
+    // If tenant has own Stripe Account, use it
+    const options: Stripe.RequestOptions = {};
+    if (tenant.stripeAccountId) {
+        options.stripeAccount = tenant.stripeAccountId;
+    }
+
+    try {
+        const pi = await stripe.paymentIntents.create(params, options);
+        return c.json({
+            clientSecret: pi.client_secret,
+            amount: totalAmount,
+            currency: tenant.currency
+        });
+    } catch (e: any) {
+        console.error("Stripe Error:", e);
+        return c.json({ error: e.message }, 500);
+    }
 });
 
 export default app;
