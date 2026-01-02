@@ -28,6 +28,7 @@ import { ThemeToggle } from "../components/ThemeToggle";
 import { CommandBar } from "../components/CommandBar";
 import { SidebarGroup } from "../components/SidebarGroup";
 import { useClerk } from "@clerk/react-router";
+import { ImpersonationBanner } from "../components/ImpersonationBanner";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { params, request } = args;
@@ -148,18 +149,7 @@ export default function StudioLayout() {
                 </nav>
 
                 <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex flex-col gap-3">
-                    {(useLoaderData() as any).isImpersonating && (
-                        <button
-                            onClick={() => {
-                                localStorage.removeItem("impersonation_token");
-                                document.cookie = "__impersonate_token=; path=/; max-age=0; SameSite=Lax";
-                                window.location.href = "/admin/users";
-                            }}
-                            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold uppercase tracking-wider rounded transition-colors mb-2"
-                        >
-                            <Users size={14} /> Stop Impersonating
-                        </button>
-                    )}
+
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <UserButton />
@@ -176,7 +166,17 @@ export default function StudioLayout() {
             </aside >
 
             {/* Main Content */}
-            < main className="flex-1 ml-64 flex flex-col min-w-0" >
+            <main className="flex-1 ml-64 flex flex-col min-w-0">
+
+                {/* Impersonation Banner */}
+                {(useLoaderData() as any).isImpersonating && (
+                    <ImpersonationBanner
+                        tenantName={tenant.name}
+                        userName={`${me.firstName} ${me.lastName}`}
+                        currentRole={me.roles && me.roles.length > 0 ? me.roles[0] : 'student'}
+                    />
+                )}
+
                 {isPaused && (
                     <div className="bg-amber-100 border-b border-amber-200 text-amber-800 px-6 py-3 text-sm font-medium flex items-center gap-2">
                         <AlertTriangle size={16} />
@@ -200,8 +200,8 @@ export default function StudioLayout() {
                     <Outlet context={{ tenant, me, features: featureSet, roles: me?.roles || [] }} />
                 </div>
                 <CommandBar token={(useLoaderData() as any).token} />
-            </main >
-        </div >
+            </main>
+        </div>
     );
 }
 

@@ -135,7 +135,21 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
         }
 
         if (isSystemAdmin) {
-            roles.push('owner');
+            // Check for Role Override (View As)
+            const cookieHeader = c.req.header('Cookie');
+            let roleOverride = null;
+            if (cookieHeader) {
+                const match = cookieHeader.match(/(?:^|; )__impersonate_role=([^;]*)/);
+                if (match && match[1]) {
+                    roleOverride = match[1];
+                }
+            }
+
+            if (roleOverride && ['owner', 'instructor', 'student'].includes(roleOverride)) {
+                roles = [roleOverride];
+            } else {
+                roles.push('owner');
+            }
         }
 
         // Find Member record
@@ -153,7 +167,15 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
                 where: eq(tenantRoles.memberId, member.id)
             });
             const dbRoles = rolesResult.map(r => r.role);
-            roles = [...new Set([...roles, ...dbRoles])]; // Merge
+
+            // Only merge if NOT overriding as a lower role (student/instructor)
+            // But actually, "View As" usually means "Only this role".
+            // So if isSystemAdmin and override is set, we use ONLY the override.
+            // If NO override, we merge owner + dbRoles.
+
+            if (!isSystemAdmin || !roles.length || roles.includes('owner')) {
+                roles = [...new Set([...roles, ...dbRoles])];
+            }
         }
 
         c.set('roles', roles);
