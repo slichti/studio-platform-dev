@@ -35,8 +35,28 @@ export const tenants = sqliteTable('tenants', {
     smsLimit: integer('sms_limit'), // null = use tier default
     emailLimit: integer('email_limit'), // null = use tier default
 
+    // Usage Stats (Updated via triggers/logic)
+    storageUsage: integer('storage_usage').default(0).notNull(), // in bytes
+    memberCount: integer('member_count').default(0).notNull(),
+    instructorCount: integer('instructor_count').default(0).notNull(),
+
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
+
+// --- Uploads (File Tracking) ---
+export const uploads = sqliteTable('uploads', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    fileKey: text('file_key').notNull(), // R2 Key
+    fileUrl: text('file_url').notNull(),
+    sizeBytes: integer('size_bytes').notNull(),
+    mimeType: text('mime_type').notNull(),
+    originalName: text('original_name'),
+    uploadedBy: text('uploaded_by'), // User ID
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('upload_tenant_idx').on(table.tenantId),
+}));
 
 // --- Tenant Features (Entitlements) ---
 export const tenantFeatures = sqliteTable('tenant_features', {

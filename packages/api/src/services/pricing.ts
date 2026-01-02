@@ -1,6 +1,6 @@
 import { createDb } from '../db';
-import { eq, count, and, sql } from 'drizzle-orm';
-import { tenants, tenantMembers, classes, purchasedPacks } from 'db/src/schema';
+import { eq, count, and, sql, sum } from 'drizzle-orm';
+import { tenants, tenantMembers, classes, purchasedPacks, tenantRoles, uploads } from 'db/src/schema';
 
 export type Tier = 'basic' | 'growth' | 'scale';
 
@@ -122,8 +122,9 @@ export class UsageService {
             tier: tenants.tier
         }).from(tenants).where(eq(tenants.id, this.tenantId)).get();
 
-        // 5. Storage (Mocked for now)
-        const storageGB = 0.5;
+        // 5. Storage (From DB Column, updated via Uploads)
+        const storageBytes = tenant?.storageUsage || 0;
+        const storageGB = storageBytes / (1024 * 1024 * 1024);
 
         return {
             students: memberCount?.count || 0,
@@ -137,6 +138,43 @@ export class UsageService {
             emailLimit: tenant?.emailLimit ?? PricingService.getTierConfig(tenant?.tier).limits.email,
             storageGB
         };
+    }
+
+    // Sync Helper for Admin Dashboard sorting accuracy
+    async syncTenantStats() {
+        // 1. Members
+        const memberCount = await this.db.select({ count: count() })
+            .from(tenantMembers)
+            .where(and(eq(tenantMembers.tenantId, this.tenantId), eq(tenantMembers.status, 'active')))
+            .get();
+
+        // 2. Instructors
+        const instructorCount = await this.db.select({ count: count() })
+            .from(tenantRoles)
+            .innerJoin(tenantMembers, eq(tenantRoles.memberId, tenantMembers.id))
+            .where(and(
+                eq(tenantMembers.tenantId, this.tenantId),
+                eq(tenantRoles.role, 'instructor'),
+                eq(tenantMembers.status, 'active')
+            ))
+            .get();
+
+        // 3. Storage (Sum uploads table)
+        const storageSum = await this.db.select({ size: sum(uploads.sizeBytes) })
+            .from(uploads)
+            .where(eq(uploads.tenantId, this.tenantId))
+            .get();
+
+        const totalStorage = Number(storageSum?.size || 0);
+
+        await this.db.update(tenants)
+            .set({
+                memberCount: memberCount?.count || 0,
+                instructorCount: instructorCount?.count || 0,
+                storageUsage: totalStorage
+            })
+            .where(eq(tenants.id, this.tenantId))
+            .run();
     }
 
     async checkLimit(limitKey: 'students' | 'instructors' | 'locations' | 'smsUsage' | 'emailUsage', currentTier: string) {

@@ -271,9 +271,26 @@ app.get('/stats/health', async (c) => {
         activeTenants: tCount?.count || 0,
         totalUsers: uCount?.count || 0,
         recentErrors: 0, // Placeholder until we have error logging
-        dbLatencyMs: dbLatency,
         status: dbLatency < 100 ? 'healthy' : 'degraded'
     });
+});
+
+// POST /sync-stats - Force Recalculate usage for all tenants
+app.post('/sync-stats', async (c) => {
+    const db = createDb(c.env.DB);
+    const { tenants } = await import('db/src/schema');
+    const { UsageService } = await import('../services/pricing');
+
+    const allTenants = await db.select().from(tenants).all();
+    let updated = 0;
+
+    for (const tenant of allTenants) {
+        const service = new UsageService(db, tenant.id);
+        await service.syncTenantStats();
+        updated++;
+    }
+
+    return c.json({ success: true, updated });
 });
 
 export default app;

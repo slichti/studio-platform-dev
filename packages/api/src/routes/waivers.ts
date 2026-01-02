@@ -236,8 +236,8 @@ app.post('/:id/sign', async (c) => {
     // Send copy via email
     if (c.env.RESEND_API_KEY) {
         const { EmailService } = await import('../services/email');
-        const emailService = new EmailService(c.get('emailApiKey') || c.env.RESEND_API_KEY, {
-            branding: tenant.branding
+        const emailService = new EmailService(c.env.RESEND_API_KEY, {
+            branding: tenant.branding as any
         });
         // Get User Email
         const user = await db.select({ email: users.email }).from(users).where(eq(users.id, member.userId)).get();

@@ -133,6 +133,18 @@ app.patch('/:id/role', async (c) => {
 
     // Add new role
     if (role === 'instructor') {
+        // Enforce Limit
+        const { UsageService } = await import('../services/pricing');
+        const usageService = new UsageService(db, tenant.id);
+        const canAdd = await usageService.checkLimit('instructors', tenant.tier || 'basic');
+
+        if (!canAdd) {
+            return c.json({
+                error: "Instructor limit reached for your plan. Upgrade to add more instructors.",
+                code: "LIMIT_REACHED"
+            }, 403);
+        }
+
         await db.insert(tenantRoles).values({
             memberId,
             role: 'instructor'
@@ -371,7 +383,7 @@ app.post('/:id/email', async (c) => {
 
     if (!member || !member.user) return c.json({ error: 'Member or User not found' }, 404);
 
-    const emailService = new EmailService(c.get('emailApiKey') || c.env.RESEND_API_KEY, {
+    const emailService = new EmailService(c.env.RESEND_API_KEY, {
         settings: tenant.settings,
         branding: tenant.branding
     });

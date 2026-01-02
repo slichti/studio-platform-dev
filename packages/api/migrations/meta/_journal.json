@@ -71,6 +71,13 @@
       "when": 1767319596636,
       "tag": "0009_curious_peter_quill",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1767365632736,
+      "tag": "0010_neat_dragon_man",
+      "breakpoints": true
     }
   ]
 }

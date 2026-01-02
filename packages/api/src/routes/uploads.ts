@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { createDb } from '../db';
 
 import { tenants, tenantMembers } from 'db/src/schema'; // Assuming db package access
 // Actually better to use the types defined in index.ts or re-define locally if simpler
@@ -8,6 +9,7 @@ type Bindings = {
     CLOUDFLARE_ACCOUNT_ID: string;
     CLOUDFLARE_API_TOKEN: string;
     R2: R2Bucket;
+    DB: D1Database;
 };
 
 type Variables = {
@@ -112,6 +114,30 @@ app.post('/pdf', async (c) => {
             contentType: 'application/pdf',
         }
     });
+
+    // DB Tracking
+    const db = createDb(c.env.DB);
+    const { uploads } = await import('db/src/schema');
+    const { sql, eq } = await import('drizzle-orm');
+
+    // 1. Record Upload
+    await db.insert(uploads).values({
+        id: crypto.randomUUID(),
+        tenantId: tenant.id,
+        fileKey: objectKey,
+        fileUrl: `/uploads/${objectKey}`,
+        sizeBytes: file.size,
+        mimeType: 'application/pdf',
+        originalName: file.name,
+        uploadedBy: c.get('auth')?.userId || 'unknown',
+        createdAt: new Date()
+    }).run();
+
+    // 2. Increment Tenant Usage
+    await db.update(tenants)
+        .set({ storageUsage: sql`${tenants.storageUsage} + ${file.size}` })
+        .where(eq(tenants.id, tenant.id))
+        .run();
 
     // We can assume a public domain or just return the key.
     // If bucket is public, we can construct URL.
