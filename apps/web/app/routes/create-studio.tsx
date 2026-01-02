@@ -159,6 +159,11 @@ export default function CreateStudio() {
                                         <div>
                                             <div className="font-medium text-zinc-900">Growth ({interval === 'annual' ? '$39/mo' : '$49/mo'})</div>
                                             <div className="text-sm text-zinc-500">14-day free trial. {billingText}.</div>
+                                            {interval === 'annual' && (
+                                                <div className="text-xs text-emerald-600 font-medium mt-1">
+                                                    Total $468/year. Save $120.
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="h-4 w-4 rounded-full border border-zinc-300 flex items-center justify-center">
                                             {tier === 'growth' && <div className="h-2 w-2 bg-blue-600 rounded-full" />}
@@ -171,6 +176,11 @@ export default function CreateStudio() {
                                         <div>
                                             <div className="font-medium text-zinc-900">Scale ({interval === 'annual' ? '$99/mo' : '$129/mo'})</div>
                                             <div className="text-sm text-zinc-500">14-day free trial. {billingText}.</div>
+                                            {interval === 'annual' && (
+                                                <div className="text-xs text-emerald-600 font-medium mt-1">
+                                                    Total $1,188/year. Save $360.
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="h-4 w-4 rounded-full border border-zinc-300 flex items-center justify-center">
                                             {tier === 'scale' && <div className="h-2 w-2 bg-blue-600 rounded-full" />}
