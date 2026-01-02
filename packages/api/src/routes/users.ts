@@ -20,6 +20,50 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
+// GET /users/me - Get full user profile including tenants
+app.get('/me', async (c) => {
+    const auth = c.get('auth');
+    if (!auth?.userId) return c.json({ error: 'Unauthorized' }, 401);
+
+    const db = createDb(c.env.DB);
+
+    // Fetch User with memberships -> tenant, roles
+    const user = await db.query.users.findFirst({
+        where: eq(users.id, auth.userId),
+        with: {
+            memberships: {
+                with: {
+                    tenant: true,
+                    roles: true
+                }
+            }
+        }
+    });
+
+    if (!user) {
+        // Just in case user exists in Clerk but not DB yet (webhook lag?)
+        return c.json({ error: 'User not found in database' }, 404);
+    }
+
+    const myTenants = user.memberships.map(m => ({
+        id: m.tenant.id,
+        name: m.tenant.name,
+        slug: m.tenant.slug,
+        roles: m.roles.map(r => r.role),
+        branding: m.tenant.branding
+    }));
+
+    return c.json({
+        id: user.id,
+        email: user.email,
+        firstName: (user.profile as any)?.firstName,
+        lastName: (user.profile as any)?.lastName,
+        portraitUrl: (user.profile as any)?.portraitUrl,
+        isSystemAdmin: user.isSystemAdmin,
+        tenants: myTenants
+    });
+});
+
 // GET /users/me/family - List family members for the current tenant
 app.get('/me/family', async (c) => {
     const auth = c.get('auth');

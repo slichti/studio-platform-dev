@@ -15,18 +15,24 @@ export const loader: LoaderFunction = async (args) => {
 
     const token = await getToken();
     let isSystemAdmin = false;
+    let tenants: any[] = [];
+    let userProfile: any = null;
 
     try {
         const user = await apiRequest("/users/me", token);
-        if (user && user.isSystemAdmin) {
-            isSystemAdmin = true;
+        if (user) {
+            if (user.isSystemAdmin) {
+                isSystemAdmin = true;
+            }
+            tenants = user.tenants || [];
+            userProfile = user;
         }
     } catch (e) {
         // Fail gracefully if we can't fetch profile
         console.error("Failed to fetch user profile", e);
     }
 
-    return { isSystemAdmin };
+    return { isSystemAdmin, tenants, userProfile };
 };
 
 export default function DashboardRoute() {
