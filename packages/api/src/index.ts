@@ -325,7 +325,86 @@ tenantApp.put('/credentials/zoom', async (c) => {
     .where(eq(tenants.id, tenant.id))
     .run();
 
+
   return c.json({ success: true });
+});
+
+tenantApp.get('/domain', async (c) => {
+  const tenant = c.get('tenant');
+  if (!tenant.customDomain) return c.json({ domain: null });
+
+  // Verification Logic
+  const { CloudflareService } = await import('./services/cloudflare');
+  const cf = new CloudflareService(c.env.CLOUDFLARE_ACCOUNT_ID, c.env.CLOUDFLARE_API_TOKEN);
+
+  try {
+    const result = await cf.getDomain(tenant.customDomain);
+    return c.json({
+      domain: tenant.customDomain,
+      status: result?.status || 'unknown', // active, pending, etc.
+      dns_records: result?.validation_data || [] // Instructions for user
+    });
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500);
+  }
+});
+
+tenantApp.post('/domain', async (c) => {
+  const tenant = c.get('tenant');
+
+  // 1. Check Tier
+  if (tenant.tier !== 'scale') {
+    return c.json({ error: "Custom domains are only available on the Scale plan." }, 403);
+  }
+
+  const { domain } = await c.req.json();
+  if (!domain) return c.json({ error: "Domain is required" }, 400);
+
+  const db = createDb(c.env.DB);
+  const { CloudflareService } = await import('./services/cloudflare');
+  const cf = new CloudflareService(c.env.CLOUDFLARE_ACCOUNT_ID, c.env.CLOUDFLARE_API_TOKEN);
+
+  try {
+    // 2. Add to Cloudflare
+    const result = await cf.addDomain(domain);
+
+    // 3. Update DB
+    await db.update(tenants)
+      .set({ customDomain: domain })
+      .where(eq(tenants.id, tenant.id))
+      .run();
+
+    return c.json({
+      success: true,
+      domain: result.name,
+      status: result.status,
+      dns_records: result.validation_data
+    });
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500);
+  }
+});
+
+tenantApp.delete('/domain', async (c) => {
+  const tenant = c.get('tenant');
+  if (!tenant.customDomain) return c.json({ success: true }); // No op
+
+  const db = createDb(c.env.DB);
+  const { CloudflareService } = await import('./services/cloudflare');
+  const cf = new CloudflareService(c.env.CLOUDFLARE_ACCOUNT_ID, c.env.CLOUDFLARE_API_TOKEN);
+
+  try {
+    await cf.deleteDomain(tenant.customDomain);
+
+    await db.update(tenants)
+      .set({ customDomain: null })
+      .where(eq(tenants.id, tenant.id))
+      .run();
+
+    return c.json({ success: true });
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500);
+  }
 });
 
 tenantApp.get('/me', (c) => {
