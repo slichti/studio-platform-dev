@@ -5,6 +5,7 @@ import { Link } from "react-router";
 import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/react-router";
 import { ThemeToggle } from "~/components/ThemeToggle";
 import { Check, X } from "lucide-react";
+import { useState } from "react";
 
 export const meta: MetaFunction = () => {
     return [
@@ -16,7 +17,7 @@ export const meta: MetaFunction = () => {
 const TIERS = [
     {
         name: 'Launch',
-        price: 'Free',
+        prices: { monthly: 'Free', annual: 'Free' },
         period: null,
         description: 'Perfect for new instructors and hobbyists.',
         trial: null,
@@ -36,9 +37,10 @@ const TIERS = [
     },
     {
         name: 'Growth',
-        price: '$49',
+        prices: { monthly: '$49', annual: '$39' },
         period: '/month',
         description: 'For established studios growing their community.',
+        billingNote: { monthly: null, annual: 'Billed $468 yearly' },
         trial: "14-Day Free Trial",
         features: [
             'Everything in Launch',
@@ -57,9 +59,10 @@ const TIERS = [
     },
     {
         name: 'Scale',
-        price: '$129',
+        prices: { monthly: '$129', annual: '$99' },
         period: '/month',
         description: 'For multi-location studios and franchises.',
+        billingNote: { monthly: null, annual: 'Billed $1188 yearly' },
         trial: "14-Day Free Trial",
         features: [
             'Everything in Growth',
@@ -79,6 +82,7 @@ const TIERS = [
 
 export default function Pricing() {
     const { user } = useUser();
+    const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
 
     return (
         <div className="font-sans min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 transition-colors duration-300 flex flex-col">
@@ -121,13 +125,31 @@ export default function Pricing() {
 
             {/* Pricing Section */}
             <main className="flex-grow py-24 px-6">
-                <div className="max-w-7xl mx-auto text-center mb-16">
+                <div className="max-w-7xl mx-auto text-center mb-10">
                     <h1 className="text-4xl md:text-5xl font-extrabold mb-6 tracking-tight">
                         Simple, transparent pricing
                     </h1>
                     <p className="text-xl text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
                         Start for free and scale as you grow. No hidden fees or surprises.
                     </p>
+                </div>
+
+                {/* Billing Toggle */}
+                <div className="flex justify-center items-center gap-4 mb-16">
+                    <span className={`text-sm font-medium ${billingInterval === 'monthly' ? 'text-zinc-900 dark:text-white' : 'text-zinc-500 dark:text-zinc-400'}`}>Monthly</span>
+                    <button
+                        onClick={() => setBillingInterval(prev => prev === 'monthly' ? 'annual' : 'monthly')}
+                        className="relative inline-flex h-8 w-14 items-center rounded-full bg-zinc-200 dark:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    >
+                        <span className="sr-only">Toggle billing interval</span>
+                        <span
+                            className={`${billingInterval === 'annual' ? 'translate-x-7' : 'translate-x-1'
+                                } inline-block h-6 w-6 transform rounded-full bg-white transition shadow-sm`}
+                        />
+                    </button>
+                    <span className={`text-sm font-medium ${billingInterval === 'annual' ? 'text-zinc-900 dark:text-white' : 'text-zinc-500 dark:text-zinc-400'}`}>
+                        Annually <span className="text-green-600 dark:text-green-400 text-xs ml-1 font-bold">(Save ~20%)</span>
+                    </span>
                 </div>
 
                 <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
@@ -142,10 +164,15 @@ export default function Pricing() {
                             <div className="mb-6">
                                 <h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-2">{tier.name}</h3>
                                 <div className="flex items-baseline gap-1">
-                                    <span className="text-4xl font-bold text-zinc-900 dark:text-white">{tier.price}</span>
+                                    <span className="text-4xl font-bold text-zinc-900 dark:text-white">
+                                        {tier.prices[billingInterval]}
+                                    </span>
                                     {tier.period && <span className="text-zinc-500 dark:text-zinc-400">{tier.period}</span>}
                                 </div>
                                 <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2">{tier.description}</p>
+                                {billingInterval === 'annual' && tier.billingNote?.annual && (
+                                    <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">{tier.billingNote.annual}</p>
+                                )}
                                 {tier.trial && (
                                     <div className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
                                         {tier.trial}
@@ -165,7 +192,7 @@ export default function Pricing() {
                             </div>
 
                             <Link
-                                to={tier.ctaLink}
+                                to={`${tier.ctaLink}&interval=${billingInterval}`}
                                 className={`w-full py-3 px-4 rounded-lg font-medium text-center transition-colors ${tier.highlight
                                     ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg'
                                     : 'bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200'

@@ -10,17 +10,22 @@ export default function CreateStudio() {
     const navigation = useNavigation();
     const [searchParams] = useSearchParams();
 
+    const [interval, setInterval] = useState<'monthly' | 'annual'>('monthly');
     const [name, setName] = useState("");
     const [slug, setSlug] = useState("");
     const [tier, setTier] = useState("basic");
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
-    // Initialize tier from URL
+    // Initialize tier/interval from URL
     useEffect(() => {
         const tierParam = searchParams.get("tier");
         if (tierParam && ['basic', 'growth', 'scale'].includes(tierParam)) {
             setTier(tierParam);
+        }
+        const intervalParam = searchParams.get("interval");
+        if (intervalParam && ['monthly', 'annual'].includes(intervalParam)) {
+            setInterval(intervalParam as 'monthly' | 'annual');
         }
     }, [searchParams]);
 
@@ -40,7 +45,7 @@ export default function CreateStudio() {
             const token = await (window as any).Clerk?.session?.getToken();
             const res: any = await apiRequest('/onboarding/studio', token, {
                 method: 'POST',
-                body: JSON.stringify({ name, slug, tier })
+                body: JSON.stringify({ name, slug, tier, interval })
             });
 
             if (res.tenant) {
@@ -58,6 +63,8 @@ export default function CreateStudio() {
     };
 
     if (!isLoaded) return <div className="p-10 text-center">Loading...</div>;
+
+    const billingText = interval === 'annual' ? 'Billed annually' : 'Billed monthly';
 
     return (
         <div className="min-h-screen bg-zinc-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -122,7 +129,16 @@ export default function CreateStudio() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-zinc-700 mb-3">Select Plan</label>
+                                <div className="flex justify-between items-center mb-3">
+                                    <label className="block text-sm font-medium text-zinc-700">Select Plan</label>
+                                    <button
+                                        type="button"
+                                        onClick={() => setInterval(prev => prev === 'monthly' ? 'annual' : 'monthly')}
+                                        className="text-xs text-blue-600 hover:text-blue-500 font-medium"
+                                    >
+                                        Switch to {interval === 'monthly' ? 'Annual' : 'Monthly'}
+                                    </button>
+                                </div>
                                 <div className="grid grid-cols-1 gap-4">
                                     <div
                                         onClick={() => setTier('basic')}
@@ -141,8 +157,8 @@ export default function CreateStudio() {
                                         className={`cursor-pointer border rounded-lg p-4 flex items-center justify-between transition-all ${tier === 'growth' ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-zinc-200 hover:border-blue-300'}`}
                                     >
                                         <div>
-                                            <div className="font-medium text-zinc-900">Growth ($49/mo)</div>
-                                            <div className="text-sm text-zinc-500">14-day free trial. Then $49/mo.</div>
+                                            <div className="font-medium text-zinc-900">Growth ({interval === 'annual' ? '$39/mo' : '$49/mo'})</div>
+                                            <div className="text-sm text-zinc-500">14-day free trial. {billingText}.</div>
                                         </div>
                                         <div className="h-4 w-4 rounded-full border border-zinc-300 flex items-center justify-center">
                                             {tier === 'growth' && <div className="h-2 w-2 bg-blue-600 rounded-full" />}
@@ -153,8 +169,8 @@ export default function CreateStudio() {
                                         className={`cursor-pointer border rounded-lg p-4 flex items-center justify-between transition-all ${tier === 'scale' ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-zinc-200 hover:border-blue-300'}`}
                                     >
                                         <div>
-                                            <div className="font-medium text-zinc-900">Scale ($129/mo)</div>
-                                            <div className="text-sm text-zinc-500">14-day free trial. Then $129/mo.</div>
+                                            <div className="font-medium text-zinc-900">Scale ({interval === 'annual' ? '$99/mo' : '$129/mo'})</div>
+                                            <div className="text-sm text-zinc-500">14-day free trial. {billingText}.</div>
                                         </div>
                                         <div className="h-4 w-4 rounded-full border border-zinc-300 flex items-center justify-center">
                                             {tier === 'scale' && <div className="h-2 w-2 bg-blue-600 rounded-full" />}
