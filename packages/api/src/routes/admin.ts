@@ -140,6 +140,36 @@ app.patch('/tenants/:id/quotas', async (c) => {
     return c.json({ success: true });
 });
 
+// PATCH /tenants/:id/subscription - Admin Update Subscription (Edit Trial)
+app.patch('/tenants/:id/subscription', async (c) => {
+    const db = createDb(c.env.DB);
+    const { tenants } = await import('db/src/schema');
+    const tenantId = c.req.param('id');
+    const { status, trialDays, currentPeriodEnd } = await c.req.json();
+
+    const updateData: any = {};
+    if (status) updateData.subscriptionStatus = status;
+
+    if (trialDays !== undefined) {
+        updateData.currentPeriodEnd = new Date(Date.now() + (trialDays * 24 * 60 * 60 * 1000));
+    } else if (currentPeriodEnd) {
+        updateData.currentPeriodEnd = new Date(currentPeriodEnd);
+    }
+
+    if (Object.keys(updateData).length === 0) {
+        return c.json({ error: "No changes provided" }, 400);
+    }
+
+    await db.update(tenants)
+        .set(updateData)
+        .where(eq(tenants.id, tenantId))
+        .run();
+
+    return c.json({ success: true });
+});
+
+// GET /tenants - Full list for management
+
 // GET /tenants - Full list for management
 app.get('/tenants', async (c) => {
     const db = createDb(c.env.DB);
@@ -273,6 +303,59 @@ app.get('/stats/health', async (c) => {
         recentErrors: 0, // Placeholder until we have error logging
         status: dbLatency < 100 ? 'healthy' : 'degraded'
     });
+});
+
+// POST /tenants - Admin Create Tenant (Bypass Billing)
+app.post('/tenants', async (c) => {
+    const db = createDb(c.env.DB);
+    const { tenants, tenantMembers, tenantRoles } = await import('db/src/schema');
+    const auth = c.get('auth');
+
+    // Only System Admins (already protected by middleware)
+
+    try {
+        const { name, slug, tier, trialDays } = await c.req.json();
+
+        if (!name || !slug) return c.json({ error: "Name and Slug required" }, 400);
+
+        const tenantId = crypto.randomUUID();
+        const trialEnd = trialDays ? new Date(Date.now() + (trialDays * 24 * 60 * 60 * 1000)) : null;
+
+        const newTenant = {
+            id: tenantId,
+            name,
+            slug: slug.toLowerCase(),
+            tier: tier || 'basic',
+            status: 'active' as const,
+            subscriptionStatus: 'active' as const, // Force active for admins
+            currentPeriodEnd: trialEnd, // Set custom trial/period end
+            createdAt: new Date(),
+            settings: { enableStudentRegistration: true }
+        };
+
+        await db.insert(tenants).values(newTenant).run();
+
+        // Add creator as Owner
+        const memberId = crypto.randomUUID();
+        await db.insert(tenantMembers).values({
+            id: memberId,
+            tenantId,
+            userId: auth.userId,
+            status: 'active'
+        }).run();
+
+        await db.insert(tenantRoles).values({
+            memberId,
+            role: 'owner'
+        }).run();
+
+        return c.json(newTenant, 201);
+    } catch (e: any) {
+        if (e.message?.includes('UNIQUE constraint failed')) {
+            return c.json({ error: "Slug already taken" }, 409);
+        }
+        return c.json({ error: e.message }, 500);
+    }
 });
 
 // POST /sync-stats - Force Recalculate usage for all tenants

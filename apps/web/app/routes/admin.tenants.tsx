@@ -68,18 +68,18 @@ export default function AdminTenants() {
                 body: JSON.stringify({
                     name: formData.name,
                     slug: formData.slug,
-                    ownerEmail: formData.ownerEmail,
-                    tier: formData.plan
+                    tier: formData.plan,
+                    trialDays: (formData as any).trialDays
                 })
             });
 
             if (res.error) {
                 setErrorDialog({ isOpen: true, message: res.error });
             } else {
-                setTenants([...tenants, res.tenant]);
+                setTenants([...tenants, res]); // res returns the new tenant
                 setIsCreateOpen(false);
                 setFormData({ name: "", slug: "", ownerEmail: "", plan: "basic" });
-                setSuccessDialog({ isOpen: true, message: `Tenant ${res.tenant.name} (${res.tenant.slug}) has been provisioned successfully.` });
+                setSuccessDialog({ isOpen: true, message: `Tenant ${res.name} (${res.slug}) has been provisioned successfully.` });
             }
         } catch (e: any) {
             console.error(e);
@@ -88,7 +88,6 @@ export default function AdminTenants() {
             setLoading(false);
         }
     };
-
 
     const handleStatusChange = async (tenantId: string, newStatus: string) => {
         try {
@@ -109,8 +108,24 @@ export default function AdminTenants() {
         }
     };
 
+    const handleSubscriptionUpdate = async (tenantId: string, daysToAdd: number) => {
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/admin/tenants/${tenantId}/subscription`, token, {
+                method: "PATCH",
+                body: JSON.stringify({ trialDays: daysToAdd })
+            });
+            if (res.error) throw new Error(res.error);
+            setSuccessDialog({ isOpen: true, message: "Subscription period updated." });
+            // Refresh list?
+        } catch (e: any) {
+            setErrorDialog({ isOpen: true, message: e.message });
+        }
+    };
+
 
     const toggleTenantExpand = async (tenantId: string) => {
+        // ... (keep existing)
         if (expandedTenant === tenantId) {
             setExpandedTenant(null);
             return;
@@ -122,7 +137,7 @@ export default function AdminTenants() {
             const token = await getToken();
             const [featuresRes, statsRes]: [any, any] = await Promise.all([
                 apiRequest(`/admin/tenants/${tenantId}/features`, token),
-                apiRequest(`/admin/tenants/${tenantId}/stats`, token) // New endpoint I added in admin.ts
+                apiRequest(`/admin/tenants/${tenantId}/stats`, token)
             ]);
             setTenantFeatures(featuresRes.features || {});
             setTenantStats(statsRes || {});
@@ -132,8 +147,6 @@ export default function AdminTenants() {
             setFeaturesLoading(false);
         }
     };
-
-    // ... handleFeatureToggle ...
 
     const handleFeatureToggle = async (tenantId: string, featureKey: string, currentValue: boolean) => {
         // Optimistic Update
@@ -157,6 +170,8 @@ export default function AdminTenants() {
             }));
         }
     };
+
+    // ... (keep Form Code - skipping to return block)
 
     return (
         <div>
@@ -188,7 +203,6 @@ export default function AdminTenants() {
             </div>
 
             <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm">
-                {/* Error Display */}
                 {(tenants as any)?.error && (
                     <div className="p-4 bg-red-50 text-red-700 border-b border-red-100 mb-4">
                         <div className="font-bold">Access Denied: {(tenants as any).error}</div>
@@ -216,11 +230,14 @@ export default function AdminTenants() {
                     <tbody className="divide-y divide-zinc-100">
                         {Array.isArray(tenants) && tenants.map((t: any) => (
                             <Fragment key={t.id}>
+                                {/* ... (keep row) ... */}
                                 <tr key={t.id} className="hover:bg-zinc-50 transition-colors cursor-pointer" onClick={() => toggleTenantExpand(t.id)}>
+                                    {/* ... (row content) ... */}
                                     <td className="pl-4">
                                         {expandedTenant === t.id ? <ChevronDown size={16} className="text-zinc-400" /> : <ChevronRight size={16} className="text-zinc-400" />}
                                     </td>
                                     <td className="px-6 py-4 font-medium text-zinc-900">{t.name}</td>
+                                    {/* ... rest of columns ... */}
                                     <td className="px-6 py-4 text-zinc-600 font-mono text-xs bg-zinc-100 rounded self-start inline-block px-1 mt-1">{t.slug}</td>
                                     <td className="px-6 py-4">
                                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium uppercase tracking-wide border ${t.tier === 'scale' ? 'bg-purple-100 text-purple-800 border-purple-200' :
@@ -231,6 +248,7 @@ export default function AdminTenants() {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
+                                        {/* ... (stats) ... */}
                                         <div className="flex gap-4 justify-center">
                                             <div className="flex flex-col items-center">
                                                 <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">Own</span>
@@ -255,6 +273,7 @@ export default function AdminTenants() {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
+                                        {/* ... (actions) ... */}
                                         <div className="flex items-center gap-3">
                                             <Link
                                                 to={`/studio/${t.slug}`}
@@ -303,9 +322,35 @@ export default function AdminTenants() {
                                     <tr className="bg-zinc-50/50">
                                         <td colSpan={7} className="px-6 pb-6 pt-2">
                                             <div className="bg-white border border-zinc-200 rounded-lg p-4 shadow-inner">
-                                                <h4 className="text-sm font-semibold text-zinc-900 mb-3 flex items-center gap-2">
-                                                    <Activity size={16} /> Entitlements & Features
-                                                </h4>
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <h4 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
+                                                        <Activity size={16} /> Entitlements & Features
+                                                    </h4>
+
+                                                    {/* Subscription Info */}
+                                                    <div className="text-right bg-zinc-50 p-3 rounded border border-zinc-200">
+                                                        <div className="text-xs text-zinc-500">Subscription Status</div>
+                                                        <div className="font-medium text-zinc-900 capitalize">{t.subscriptionStatus || 'trialing'}</div>
+                                                        <div className="text-xs text-zinc-500 mt-1">Period Ends</div>
+                                                        <div className="font-medium text-zinc-900">
+                                                            {t.currentPeriodEnd ? new Date(t.currentPeriodEnd).toLocaleDateString() : 'Never'}
+                                                        </div>
+                                                        <div className="mt-2 flex gap-2 justify-end">
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleSubscriptionUpdate(t.id, 30); }}
+                                                                className="text-xs text-blue-600 hover:text-blue-800 underline"
+                                                            >
+                                                                extend +30d
+                                                            </button>
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleSubscriptionUpdate(t.id, 9999); }}
+                                                                className="text-xs text-blue-600 hover:text-blue-800 underline"
+                                                            >
+                                                                infinite
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
 
                                                 {featuresLoading ? (
                                                     <div className="text-sm text-zinc-500 py-2">Loading capabilities...</div>
@@ -341,7 +386,7 @@ export default function AdminTenants() {
                                                             })}
                                                         </div>
 
-                                                        {/* Usage Stats (New Section) */}
+                                                        {/* Usage Stats */}
                                                         <div>
                                                             <h5 className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">Usage Metrics</h5>
                                                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -358,18 +403,20 @@ export default function AdminTenants() {
                                     </tr>
                                 )}
                             </Fragment>
-                        ))}
-                    </tbody>
-                </table>
+                        ))
+                        }
+                    </tbody >
+                </table >
                 {(!Array.isArray(tenants) || tenants.length === 0) && (
                     <div className="p-8 text-center text-zinc-500">
                         No tenants found. Create one to get started.
                     </div>
-                )}
-            </div>
+                )
+                }
+            </div >
 
             {/* Create Tenant Modal */}
-            <Modal
+            < Modal
                 isOpen={isCreateOpen}
                 onClose={() => setIsCreateOpen(false)}
                 title="Spin Up New Tenant"
@@ -423,37 +470,45 @@ export default function AdminTenants() {
                         </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-zinc-700 mb-1">Owner Email</label>
-                        <input
-                            type="email"
-                            required
-                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-                            placeholder="owner@example.com"
-                            value={formData.ownerEmail}
-                            onChange={(e) => setFormData({ ...formData, ownerEmail: e.target.value })}
-                        />
-                        <p className="text-xs text-zinc-500 mt-1">We'll link to an existing user or create a placeholder.</p>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-700 mb-1">Plan Tier</label>
+                            <select
+                                className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                                value={formData.plan}
+                                onChange={(e) => setFormData({ ...formData, plan: e.target.value })}
+                            >
+                                <option value="basic">Launch (Basic)</option>
+                                <option value="growth">Growth</option>
+                                <option value="scale">Scale</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-700 mb-1">Trial Period (Days)</label>
+                            <input
+                                type="number"
+                                min="0"
+                                className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
+                                placeholder="14"
+                                value={(formData as any).trialDays || ''}
+                                onChange={(e) => setFormData({ ...formData, trialDays: parseInt(e.target.value) } as any)}
+                            />
+                            <p className="text-xs text-zinc-500 mt-1">Leave empty for no trial</p>
+                        </div>
                     </div>
 
+                    <p className="text-xs text-zinc-500">
+                        This studio will be created under your admin account with billing bypassed.
+                    </p>
+
                     <div className="pt-4 flex gap-3">
-                        <button
-                            type="button"
-                            onClick={() => setIsCreateOpen(false)}
-                            className="flex-1 px-4 py-2 border border-zinc-300 text-zinc-700 rounded-md hover:bg-zinc-50 font-medium"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium disabled:opacity-50"
-                        >
+                        <button type="button" onClick={() => setIsCreateOpen(false)} className="flex-1 px-4 py-2 border border-zinc-300 text-zinc-700 rounded-md hover:bg-zinc-50 font-medium">Cancel</button>
+                        <button type="submit" disabled={loading} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium disabled:opacity-50">
                             {loading ? "Provisioning..." : "Launch Studio"}
                         </button>
                     </div>
                 </form>
-            </Modal>
-        </div>
+            </Modal >
+        </div >
     );
 }

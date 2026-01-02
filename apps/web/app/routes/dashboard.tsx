@@ -18,6 +18,8 @@ export const loader: LoaderFunction = async (args) => {
     let tenants: any[] = [];
     let userProfile: any = null;
 
+    let error = null;
+
     try {
         const user = await apiRequest("/users/me", token);
         if (user) {
@@ -27,12 +29,13 @@ export const loader: LoaderFunction = async (args) => {
             tenants = user.tenants || [];
             userProfile = user;
         }
-    } catch (e) {
-        // Fail gracefully if we can't fetch profile
+    } catch (e: any) {
+        // Fail gracefully but expose error
         console.error("Failed to fetch user profile", e);
+        error = e.message || "Failed to load profile";
     }
 
-    return { isSystemAdmin, tenants, userProfile };
+    return { isSystemAdmin, tenants, userProfile, error };
 };
 
 export default function DashboardRoute() {
@@ -71,6 +74,12 @@ export default function DashboardRoute() {
 
     return (
         <Layout navItems={navItems}>
+            {(isSystemAdmin === false && (useLoaderData() as any).error) && (
+                <div className="bg-red-50 text-red-700 p-4 border-b border-red-200 text-sm text-center">
+                    Warning: Profile load failed. Admin features may be hidden. <br />
+                    <span className="font-mono text-xs opacity-75">{(useLoaderData() as any).error}</span>
+                </div>
+            )}
             <Outlet />
         </Layout>
     );
