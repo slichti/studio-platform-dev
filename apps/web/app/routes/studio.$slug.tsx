@@ -125,7 +125,9 @@ export default function StudioLayout() {
                     </SidebarGroup>
 
                     <SidebarGroup title="Commerce">
-                        <NavItem to="pos" icon={<ShoppingCart size={18} />}>POS & Retail</NavItem>
+                        {(features.has('pos') || ['growth', 'scale'].includes(tenant.tier)) && (
+                            <NavItem to="pos" icon={<ShoppingCart size={18} />}>POS & Retail</NavItem>
+                        )}
                         <NavItem to="memberships" icon={<CreditCard size={18} />}>Memberships</NavItem>
                         <NavItem to="commerce/packs" icon={<Package size={18} />}>Class Packs</NavItem>
                         <NavItem to="finances/gift-cards" icon={<Ticket size={18} />}>Gift Cards</NavItem>
@@ -134,8 +136,12 @@ export default function StudioLayout() {
 
                     <SidebarGroup title="Management">
                         <NavItem to="students" icon={<Users size={18} />}>Students</NavItem>
-                        <NavItem to="marketing" icon={<Mail size={18} />}>Marketing</NavItem>
-                        <NavItem to="financials/payroll" icon={<CreditCard size={18} />}>Payroll</NavItem>
+                        {['growth', 'scale'].includes(tenant.tier) && (
+                            <NavItem to="marketing" icon={<Mail size={18} />}>Marketing</NavItem>
+                        )}
+                        {(['scale'].includes(tenant.tier) || features.has('payroll')) && (
+                            <NavItem to="financials/payroll" icon={<CreditCard size={18} />}>Payroll</NavItem>
+                        )}
                         <NavItem to="finances" icon={<DollarSign size={18} />}>Finances</NavItem>
                         <NavItem to="settings" icon={<Settings size={18} />}>Settings</NavItem>
                     </SidebarGroup>
