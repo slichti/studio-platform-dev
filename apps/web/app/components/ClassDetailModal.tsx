@@ -188,14 +188,56 @@ export function ClassDetailModal({
                                         </div>
                                     </div>
 
+                                    {/* Zoom Section */}
+                                    {(classEvent.resource?.zoomEnabled || classEvent.resource?.zoomMeetingUrl) && (
+                                        <div className="bg-blue-50 p-3 rounded-md text-sm border border-blue-100">
+                                            <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                                                <Video size={16} />
+                                                Virtual Class Access
+                                            </h4>
+
+                                            {classEvent.resource?.zoomMeetingUrl ? (
+                                                <div className="space-y-2">
+                                                    <a
+                                                        href={classEvent.resource.zoomMeetingUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="block w-full text-center bg-blue-600 text-white py-2 rounded-md font-medium hover:bg-blue-700 transition"
+                                                    >
+                                                        Launch Zoom Meeting
+                                                    </a>
+
+                                                    {classEvent.resource?.zoomMeetingId && (
+                                                        <div className="text-xs text-blue-800 space-y-1 mt-2 pt-2 border-t border-blue-200">
+                                                            <div className="flex justify-between">
+                                                                <span className="font-medium">Meeting ID:</span>
+                                                                <span className="font-mono select-all">{classEvent.resource.zoomMeetingId}</span>
+                                                            </div>
+                                                            {classEvent.resource?.zoomPassword && (
+                                                                <div className="flex justify-between">
+                                                                    <span className="font-medium">Passcode:</span>
+                                                                    <span className="font-mono select-all">{classEvent.resource.zoomPassword}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="text-blue-700 text-xs italic">
+                                                    Zoom link is being generated or not available.
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
                                     {/* Substitution Section */}
                                     <div className="border-t pt-4">
                                         <div className="flex justify-between items-center mb-3">
                                             <h4 className="text-sm font-semibold text-gray-900">Shift Coverage</h4>
                                             {classEvent.resource?.substitutions?.length > 0 && (
                                                 <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${classEvent.resource.substitutions[0].status === 'approved' ? 'bg-green-100 text-green-700' :
-                                                        classEvent.resource.substitutions[0].status === 'claimed' ? 'bg-blue-100 text-blue-700' :
-                                                            'bg-amber-100 text-amber-700'
+                                                    classEvent.resource.substitutions[0].status === 'claimed' ? 'bg-blue-100 text-blue-700' :
+                                                        'bg-amber-100 text-amber-700'
                                                     }`}>
                                                     Sub: {classEvent.resource.substitutions[0].status}
                                                 </span>

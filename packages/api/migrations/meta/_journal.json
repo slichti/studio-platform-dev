@@ -85,6 +85,13 @@
       "when": 1767368311412,
       "tag": "0011_friendly_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1767389687338,
+      "tag": "0012_purple_thanos",
+      "breakpoints": true
     }
   ]
 }

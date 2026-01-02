@@ -134,6 +134,7 @@ export default function StudioSettings() {
                     </div>
                 </form>
             </div>
+
             {/* Registration Controls */}
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm mb-8">
                 <div className="flex justify-between items-start mb-4">
@@ -363,6 +364,108 @@ export default function StudioSettings() {
                                 </select>
                             </div>
                         )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Class Management Settings */}
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm mb-8">
+                <div className="mb-4">
+                    <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Class Management</h2>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Configure booking windows and cancellation policies.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Attendance Switch Cutoff</label>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="number"
+                                className="w-24 border-zinc-300 dark:border-zinc-700 rounded text-sm px-3 py-2 bg-white dark:bg-zinc-800"
+                                placeholder="15"
+                                defaultValue={tenant.settings?.classSettings?.attendanceSwitchCutoffMinutes || '15'}
+                                onBlur={async (e) => {
+                                    const val = parseInt(e.target.value);
+                                    const token = await (window as any).Clerk?.session?.getToken();
+                                    await apiRequest(`/tenant/settings`, token, {
+                                        method: "PATCH",
+                                        headers: { 'X-Tenant-Slug': tenant.slug },
+                                        body: JSON.stringify({ settings: { classSettings: { ...tenant.settings?.classSettings, attendanceSwitchCutoffMinutes: val } } })
+                                    });
+                                }}
+                            />
+                            <span className="text-sm text-zinc-500">minutes before class</span>
+                        </div>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">When students can last switch between In-Person and Zoom.</p>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Cancellation Cutoff</label>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="number"
+                                className="w-24 border-zinc-300 dark:border-zinc-700 rounded text-sm px-3 py-2 bg-white dark:bg-zinc-800"
+                                placeholder="60"
+                                defaultValue={tenant.settings?.classSettings?.cancellationCutoffMinutes || '60'}
+                                onBlur={async (e) => {
+                                    const val = parseInt(e.target.value);
+                                    const token = await (window as any).Clerk?.session?.getToken();
+                                    await apiRequest(`/tenant/settings`, token, {
+                                        method: "PATCH",
+                                        headers: { 'X-Tenant-Slug': tenant.slug },
+                                        body: JSON.stringify({ settings: { classSettings: { ...tenant.settings?.classSettings, cancellationCutoffMinutes: val } } })
+                                    });
+                                }}
+                            />
+                            <span className="text-sm text-zinc-500">minutes before class</span>
+                        </div>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Latest time a student can cancel without penalty.</p>
+                    </div>
+
+                    <div className="md:col-span-2 border-t border-zinc-100 dark:border-zinc-800 pt-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Cancellation Notifications</span>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400">Notify students when you cancel a class.</p>
+                            </div>
+                            <div className="flex gap-4">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                                        checked={tenant.settings?.notificationSettings?.cancellationEmail !== false} // Default true
+                                        onChange={async (e) => {
+                                            const checked = e.target.checked;
+                                            const token = await (window as any).Clerk?.session?.getToken();
+                                            await apiRequest(`/tenant/settings`, token, {
+                                                method: "PATCH",
+                                                headers: { 'X-Tenant-Slug': tenant.slug },
+                                                body: JSON.stringify({ settings: { notificationSettings: { ...tenant.settings?.notificationSettings, cancellationEmail: checked } } })
+                                            });
+                                            window.location.reload();
+                                        }}
+                                    />
+                                    <span className="text-sm text-zinc-700 dark:text-zinc-300">Email</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                                        checked={tenant.settings?.notificationSettings?.cancellationSms || false}
+                                        onChange={async (e) => {
+                                            const checked = e.target.checked;
+                                            const token = await (window as any).Clerk?.session?.getToken();
+                                            await apiRequest(`/tenant/settings`, token, {
+                                                method: "PATCH",
+                                                headers: { 'X-Tenant-Slug': tenant.slug },
+                                                body: JSON.stringify({ settings: { notificationSettings: { ...tenant.settings?.notificationSettings, cancellationSms: checked } } })
+                                            });
+                                            window.location.reload();
+                                        }}
+                                    />
+                                    <span className="text-sm text-zinc-700 dark:text-zinc-300">SMS</span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -687,6 +790,6 @@ export default function StudioSettings() {
                 </div>
             </Link>
 
-        </div >
+        </div>
     );
 }

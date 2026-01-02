@@ -1,40 +1,33 @@
-type ZoomTokenResponse = {
-    access_token: string;
-    token_type: string;
-    expires_in: number;
-    scope: string;
-};
 
-type ZoomMeetingResponse = {
-    id: number;
-    join_url: string;
-    start_url: string;
-    password?: string;
-};
+import { EncryptionUtils } from '../utils/encryption';
 
 export class ZoomService {
     private accountId: string;
     private clientId: string;
     private clientSecret: string;
+    private db: D1Database;
 
-    constructor(accountId: string, clientId: string, clientSecret: string) {
+    constructor(
+        accountId: string,
+        clientId: string,
+        clientSecret: string,
+        db: D1Database
+    ) {
         this.accountId = accountId;
         this.clientId = clientId;
         this.clientSecret = clientSecret;
+        this.db = db;
     }
 
-    public async getAccessToken(): Promise<string> {
-        const credentials = btoa(`${this.clientId}:${this.clientSecret}`);
-        const params = new URLSearchParams({
-            grant_type: 'account_credentials',
-            account_id: this.accountId,
-        });
+    private async getAccessToken(): Promise<string> {
+        // In a real implementation we should cache this token in DB or KV
+        const tokenUrl = `https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${this.accountId}`;
+        const auth = btoa(`${this.clientId}:${this.clientSecret}`);
 
-        const response = await fetch(`https://zoom.us/oauth/token?${params.toString()}`, {
+        const response = await fetch(tokenUrl, {
             method: 'POST',
             headers: {
-                'Authorization': `Basic ${credentials}`,
-                'Content-Type': 'application/x-www-form-urlencoded'
+                'Authorization': `Basic ${auth}`
             }
         });
 
@@ -43,41 +36,34 @@ export class ZoomService {
             throw new Error(`Failed to get Zoom access token: ${error}`);
         }
 
-        const data = await response.json() as ZoomTokenResponse;
+        const data: any = await response.json();
         return data.access_token;
     }
 
-    async createMeeting(userId: string, topic: string, startTime: Date, durationMinutes: number): Promise<string> {
+    async createMeeting(topic: string, startTime: Date, durationMinutes: number) {
         const token = await this.getAccessToken();
 
-        // 1. Get Zoom User ID (or use 'me' if S2S app is authorized for all)
-        // For S2S, 'me' refers to the account owner/admin context usually, but to create for a specific user
-        // we might need their specific email. For now, let's create under the main account 'me'.
-        // In real app, we'd map our DB userId -> Zoom userId via another lookup.
-        const userIdForZoom = 'me';
-
-        const body = {
-            topic: topic,
-            type: 2, // Scheduled Meeting
-            start_time: startTime.toISOString(), // 2024-02-28T10:00:00Z
-            duration: durationMinutes,
-            // timezone: 'UTC', // Zoom defaults to account timezone or UTC
-            settings: {
-                host_video: true,
-                participant_video: true,
-                join_before_host: false,
-                mute_upon_entry: true,
-                auto_recording: 'cloud' // For our future recording requirement!
-            }
-        };
-
-        const response = await fetch(`https://api.zoom.us/v2/users/${userIdForZoom}/meetings`, {
+        const response = await fetch('https://api.zoom.us/v2/users/me/meetings', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(body)
+            body: JSON.stringify({
+                topic,
+                type: 2, // Scheduled meeting
+                start_time: startTime.toISOString().split('.')[0] + 'Z', // Zoom expects ISO8601
+                duration: durationMinutes,
+                timezone: 'UTC', // We store everything in UTC
+                settings: {
+                    host_video: true,
+                    participant_video: true,
+                    join_before_host: true,
+                    mute_upon_entry: true,
+                    waiting_room: false,
+                    auto_recording: 'none' // or 'cloud'
+                }
+            })
         });
 
         if (!response.ok) {
@@ -85,7 +71,40 @@ export class ZoomService {
             throw new Error(`Failed to create Zoom meeting: ${error}`);
         }
 
-        const data = await response.json() as ZoomMeetingResponse;
-        return data.join_url;
+        return await response.json();
+    }
+
+    async deleteMeeting(meetingId: string) {
+        if (!meetingId) return;
+        const token = await this.getAccessToken();
+
+        await fetch(`https://api.zoom.us/v2/meetings/${meetingId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+    }
+
+    // Helper to get Zoom Service instance for a tenant
+    static async getForTenant(tenant: any, env: any, encryption: EncryptionUtils): Promise<ZoomService | null> {
+        if (!tenant.zoomCredentials) return null;
+
+        try {
+            const creds = tenant.zoomCredentials as any;
+            if (!creds.accountId || !creds.clientId || !creds.clientSecret) return null;
+
+            const decryptedSecret = await encryption.decrypt(creds.clientSecret);
+
+            return new ZoomService(
+                creds.accountId,
+                creds.clientId,
+                decryptedSecret,
+                env.DB // Pass D1 for caching if we implemented it
+            );
+        } catch (e) {
+            console.error("Failed to initialize Zoom Service", e);
+            return null;
+        }
     }
 }

@@ -150,7 +150,13 @@ app.get('/subscriptions', async (c) => {
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
     const roles = c.get('roles') || [];
-    if (!roles.includes('owner') && !roles.includes('instructor')) {
+    const auth = c.get('auth');
+    if (!auth || !auth.userId) return c.json({ error: 'Unauthorized' }, 401);
+
+    const isInternal = roles.includes('owner') || roles.includes('instructor');
+
+    // Allow students, owners, instructors
+    if (!isInternal && !roles.includes('student')) {
         return c.json({ error: 'Access Denied' }, 403);
     }
 
@@ -158,7 +164,7 @@ app.get('/subscriptions', async (c) => {
         // Need to import tenantMembers, users to join
         const { tenantMembers, users } = await import('db/src/schema');
 
-        const results = await db.select({
+        let query = db.select({
             id: subscriptions.id,
             status: subscriptions.status,
             currentPeriodEnd: subscriptions.currentPeriodEnd,
@@ -175,6 +181,30 @@ app.get('/subscriptions', async (c) => {
             .innerJoin(users, eq(tenantMembers.userId, users.id))
             .where(eq(membershipPlans.tenantId, tenant.id));
 
+        // If not internal (i.e. is Student), filter by own userId
+        if (!isInternal) {
+            query = db.select({
+                id: subscriptions.id,
+                status: subscriptions.status,
+                currentPeriodEnd: subscriptions.currentPeriodEnd,
+                planName: membershipPlans.name,
+                user: {
+                    id: users.id,
+                    email: users.email,
+                    profile: users.profile
+                }
+            })
+                .from(subscriptions)
+                .innerJoin(membershipPlans, eq(subscriptions.planId, membershipPlans.id))
+                .innerJoin(tenantMembers, eq(subscriptions.memberId, tenantMembers.id))
+                .innerJoin(users, eq(tenantMembers.userId, users.id))
+                .where(and(
+                    eq(membershipPlans.tenantId, tenant.id),
+                    eq(users.id, auth.userId)
+                )) as any;
+        }
+
+        const results = await query;
         return c.json(results);
     } catch (e: any) {
         return c.json({ error: e.message }, 500);

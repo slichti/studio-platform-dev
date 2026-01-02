@@ -436,6 +436,8 @@ import adminRoutes from './routes/admin';
 import userRoutes from './routes/users';
 import adminFeatureRoutes from './routes/admin.features'; // Import new route
 
+import memberships from './routes/memberships';
+
 // ... (existing routes)
 
 app.route('/tenant', tenantApp);
@@ -445,14 +447,8 @@ app.route('/locations', locationRoutes);
 app.route('/webhooks', webhookRoutes);
 app.route('/uploads', uploadRoutes);
 import commerce from './routes/commerce';
-app.route('/commerce', commerce);
-app.route('/admin', adminRoutes);
-app.route('/admin', adminFeatureRoutes); // Mount at /admin (routes are /tenants/:id/features)
-app.route('/users', userRoutes);
-import memberships from './routes/memberships';
 app.use('/commerce*', authMiddleware);
 app.use('/commerce*', tenantMiddleware);
-
 app.route('/commerce', commerce);
 
 app.route('/members', members);

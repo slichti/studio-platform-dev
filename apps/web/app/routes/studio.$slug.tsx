@@ -131,8 +131,6 @@ export default function StudioLayout() {
                         )}
                         <NavItem to="memberships" icon={<CreditCard size={18} />}>Memberships</NavItem>
                         <NavItem to="commerce/packs" icon={<Package size={18} />}>Class Packs</NavItem>
-                        <NavItem to="finances/gift-cards" icon={<Ticket size={18} />}>Gift Cards</NavItem>
-                        <NavItem to="settings/discounts" icon={<Tag size={18} />}>Discounts</NavItem>
                     </SidebarGroup>
 
                     <SidebarGroup title="Management">
@@ -143,7 +141,9 @@ export default function StudioLayout() {
                         {(['scale'].includes(tenant.tier) || featureSet.has('payroll')) && (
                             <NavItem to="financials/payroll" icon={<CreditCard size={18} />}>Payroll</NavItem>
                         )}
+                        <NavItem to="finances/gift-cards" icon={<Ticket size={18} />}>Gift Cards</NavItem>
                         <NavItem to="finances" icon={<DollarSign size={18} />}>Finances</NavItem>
+                        <NavItem to="settings/discounts" icon={<Tag size={18} />}>Discounts</NavItem>
                         <NavItem to="settings" icon={<Settings size={18} />}>Settings</NavItem>
                     </SidebarGroup>
                 </nav>

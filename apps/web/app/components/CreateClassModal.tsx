@@ -141,22 +141,29 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                     <label className="block text-sm font-medium text-zinc-700 mb-1">Location</label>
                     <select
                         className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                        value={(formData as any).createZoom ? "virtual_zoom" : formData.locationId}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === "virtual_zoom") {
-                                setFormData({ ...formData, locationId: "", createZoom: true } as any);
-                            } else {
-                                setFormData({ ...formData, locationId: val, createZoom: false } as any);
-                            }
-                        }}
+                        value={formData.locationId}
+                        onChange={(e) => setFormData({ ...formData, locationId: e.target.value })}
                     >
                         <option value="">Select Location (Optional)</option>
-                        <option value="virtual_zoom">Virtual (Zoom)</option>
                         {locations.map((loc: any) => (
                             <option key={loc.id} value={loc.id}>{loc.name}</option>
                         ))}
                     </select>
+                </div>
+
+                <div>
+                    <label className="flex items-center gap-2 text-sm text-zinc-700 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={(formData as any).createZoom}
+                            onChange={(e) => setFormData({ ...formData, createZoom: e.target.checked } as any)}
+                            className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span>Enable Zoom (Virtual Access)</span>
+                    </label>
+                    {(formData as any).createZoom && (
+                        <p className="text-xs text-zinc-500 ml-6 mt-1">A Zoom meeting will be created automatically.</p>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

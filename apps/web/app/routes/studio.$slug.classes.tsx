@@ -17,6 +17,11 @@ type ClassEvent = {
     capacity?: number;
     confirmedCount?: number;
     userBookingStatus?: string;
+    zoomEnabled?: boolean;
+    userBooking?: {
+        id: string; // Booking ID
+        attendanceType: 'in_person' | 'zoom';
+    };
 };
 
 type FamilyMember = {
@@ -59,7 +64,8 @@ export const action = async (args: ActionFunctionArgs) => {
 
     if (intent === "book" || intent === "waitlist") {
         try {
-            const body = { intent, memberId: memberId || undefined };
+            const attendanceType = formData.get("attendanceType");
+            const body = { intent, memberId: memberId || undefined, attendanceType: attendanceType || undefined };
             const res = await apiRequest(`/classes/${classId}/book`, token, {
                 method: "POST",
                 headers: { 'X-Tenant-Slug': params.slug! },
@@ -74,6 +80,43 @@ export const action = async (args: ActionFunctionArgs) => {
             return { error: e.message || "Booking failed", classId };
         }
     }
+
+    if (intent === "switch_attendance") {
+        const bookingId = formData.get("bookingId");
+        const newType = formData.get("attendanceType");
+        try {
+            const res: any = await apiRequest(`/classes/${classId}/bookings/${bookingId}`, token, {
+                method: "PATCH",
+                headers: { 'X-Tenant-Slug': params.slug! },
+                body: JSON.stringify({ attendanceType: newType })
+            });
+
+            if (res.error) {
+                return { error: res.error, classId };
+            }
+            return { success: true, classId };
+        } catch (e: any) {
+            return { error: e.message || "Update failed", classId };
+        }
+    }
+
+    if (intent === "cancel_booking") {
+        const bookingId = formData.get("bookingId");
+        try {
+            const res: any = await apiRequest(`/classes/${classId}/bookings/${bookingId}/cancel`, token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': params.slug! }
+            });
+
+            if (res.error) {
+                return { error: res.error, classId };
+            }
+            return { success: true, classId };
+        } catch (e: any) {
+            return { error: e.message || "Cancellation failed", classId };
+        }
+    }
+
     return null;
 };
 
@@ -91,11 +134,10 @@ export default function StudioPublicClasses() {
         if (family.length > 0) {
             setSelectedClass(cls);
         } else {
-            // Direct submit if no family options
-            // We can't easily trigger the fetcher from here without a form ref or similar, 
-            // but the button itself is usually type=submit inside a form.
-            // If family exists, we intercept.
-            // Actually, simplest is two different buttons/UI paths.
+            // Direct click logic handled in render, but if we need modal for zoom choice:
+            if (cls.zoomEnabled) {
+                setSelectedClass(cls);
+            }
         }
     };
 
@@ -123,16 +165,48 @@ export default function StudioPublicClasses() {
                 </div>
             )}
 
-            {/* Booking Modal for Family */}
+            {/* Booking Modal */}
             {selectedClass && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
                     <div className="bg-white dark:bg-zinc-900 rounded-lg max-w-sm w-full p-6 shadow-xl border border-zinc-200 dark:border-zinc-800">
                         <h3 className="text-lg font-bold mb-4">Book {selectedClass.title}</h3>
+
+                        {/* Attendance Type Selector (only if Zoom enabled) */}
+                        {selectedClass.zoomEnabled && (
+                            <div className="mb-4 bg-zinc-50 p-3 rounded text-sm">
+                                <p className="font-semibold text-zinc-700 mb-2">Attendance Preference</p>
+                                <div className="flex gap-4">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="attendanceType_global" defaultChecked value="in_person" className="text-blue-600 focus:ring-blue-500"
+                                            onChange={(e) => {
+                                                (window as any)._tempAttendanceType = e.target.value;
+                                            }}
+                                        />
+                                        <span>In-Person</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="attendanceType_global" value="zoom" className="text-blue-600 focus:ring-blue-500"
+                                            onChange={(e) => { (window as any)._tempAttendanceType = e.target.value; }}
+                                        />
+                                        <span>Virtual (Zoom)</span>
+                                    </label>
+                                </div>
+                            </div>
+                        )}
+
                         <p className="text-sm text-zinc-500 mb-4">Who would you like to book for?</p>
 
                         <div className="space-y-2">
                             {/* Self */}
-                            <fetcher.Form method="post" onSubmit={() => setSelectedClass(null)}>
+                            <fetcher.Form method="post" onSubmit={(e) => {
+                                const type = (window as any)._tempAttendanceType || 'in_person';
+                                const input = document.createElement('input');
+                                input.type = 'hidden';
+                                input.name = 'attendanceType';
+                                input.value = type;
+                                e.currentTarget.appendChild(input);
+                                setSelectedClass(null);
+                            }}>
                                 <input type="hidden" name="classId" value={selectedClass.id} />
                                 <input type="hidden" name="intent" value={((selectedClass.confirmedCount || 0) >= (selectedClass.capacity || Infinity)) ? "waitlist" : "book"} />
                                 <button type="submit" className="w-full text-left px-4 py-3 rounded border hover:bg-zinc-50 flex justify-between items-center group">
@@ -143,11 +217,18 @@ export default function StudioPublicClasses() {
 
                             {/* Family Members */}
                             {family.map((f: FamilyMember) => (
-                                <fetcher.Form key={f.userId} method="post" onSubmit={() => setSelectedClass(null)}>
+                                <fetcher.Form key={f.userId} method="post" onSubmit={(e) => {
+                                    const type = (window as any)._tempAttendanceType || 'in_person';
+                                    const input = document.createElement('input');
+                                    input.type = 'hidden';
+                                    input.name = 'attendanceType';
+                                    input.value = type;
+                                    e.currentTarget.appendChild(input);
+                                    setSelectedClass(null)
+                                }}>
                                     <input type="hidden" name="classId" value={selectedClass.id} />
                                     <input type="hidden" name="intent" value={((selectedClass.confirmedCount || 0) >= (selectedClass.capacity || Infinity)) ? "waitlist" : "book"} />
                                     <input type="hidden" name="memberId" value={f.memberId || ''} />
-                                    {/* Note: If memberId is null (not joined tenant), backend might fail or auto-join logic needed. Backend handles auto-join if standard user, but might need logic for child. Currently backend checks tenantMembers table. Our /me/family endpoint auto-joins them on creation, so f.memberId should be present. */}
 
                                     <button type="submit" className="w-full text-left px-4 py-3 rounded border hover:bg-zinc-50 flex justify-between items-center group">
                                         <span className="font-medium">{f.firstName} {f.lastName}</span>
@@ -210,27 +291,78 @@ export default function StudioPublicClasses() {
                                                             }
                                                         </button>
                                                     ) : (
-                                                        <fetcher.Form method="post">
-                                                            <input type="hidden" name="intent" value={((cls.confirmedCount || 0) >= (cls.capacity || Infinity)) ? "waitlist" : "book"} />
-                                                            <input type="hidden" name="classId" value={cls.id} />
-                                                            <button
-                                                                type="submit"
-                                                                disabled={(fetcher.state !== "idle" && fetcher.formData?.get("classId") === cls.id) || (cls as any).userBookingStatus === 'confirmed' || (cls as any).userBookingStatus === 'waitlisted'}
-                                                                className={`px-4 py-2 text-sm font-medium rounded transition-colors disabled:opacity-50 ${((cls as any).userBookingStatus === 'confirmed' || (cls as any).userBookingStatus === 'waitlisted')
-                                                                    ? 'bg-zinc-100 text-zinc-500 cursor-default'
-                                                                    : 'bg-zinc-900 text-white hover:bg-zinc-800'
-                                                                    }`}
-                                                            >
-                                                                {(fetcher.state !== "idle" && fetcher.formData?.get("classId") === cls.id)
-                                                                    ? "Processing..."
-                                                                    : (cls as any).userBookingStatus === 'confirmed'
-                                                                        ? "Booked"
-                                                                        : (cls as any).userBookingStatus === 'waitlisted'
-                                                                            ? "On Waitlist"
-                                                                            : ((cls.confirmedCount || 0) >= (cls.capacity || Infinity) ? "Join Waitlist" : "Book")
-                                                                }
-                                                            </button>
-                                                        </fetcher.Form>
+                                                        <div className="flex flex-col gap-2 items-end">
+                                                            {(cls as any).userBookingStatus === 'confirmed' ? (
+                                                                <div className="flex items-center gap-2">
+                                                                    {cls.zoomEnabled && cls.userBooking ? (
+                                                                        <fetcher.Form method="post">
+                                                                            <input type="hidden" name="intent" value="switch_attendance" />
+                                                                            <input type="hidden" name="classId" value={cls.id} />
+                                                                            <input type="hidden" name="bookingId" value={cls.userBooking.id} />
+                                                                            <input type="hidden" name="attendanceType" value={cls.userBooking.attendanceType === 'zoom' ? 'in_person' : 'zoom'} />
+                                                                            <button
+                                                                                type="submit"
+                                                                                title="Switch Attendance Type"
+                                                                                disabled={fetcher.state !== "idle"}
+                                                                                className="text-xs text-blue-600 hover:underline disabled:opacity-50"
+                                                                            >
+                                                                                Switch to {cls.userBooking.attendanceType === 'zoom' ? 'In-Person' : 'Zoom'}
+                                                                            </button>
+                                                                        </fetcher.Form>
+                                                                    ) : null}
+
+                                                                    {/* Cancel Button */}
+                                                                    <fetcher.Form method="post" onSubmit={(e) => {
+                                                                        if (!confirm("Are you sure you want to cancel this booking?")) {
+                                                                            e.preventDefault();
+                                                                        }
+                                                                    }}>
+                                                                        <input type="hidden" name="intent" value="cancel_booking" />
+                                                                        <input type="hidden" name="classId" value={cls.id} />
+                                                                        <input type="hidden" name="bookingId" value={cls.userBooking!.id} />
+                                                                        <button
+                                                                            type="submit"
+                                                                            disabled={fetcher.state !== "idle"}
+                                                                            className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                                                                        >
+                                                                            Cancel
+                                                                        </button>
+                                                                    </fetcher.Form>
+
+                                                                    <span className="px-4 py-2 text-sm font-medium rounded bg-zinc-100 text-zinc-500 cursor-default">
+                                                                        Booked {cls.userBooking?.attendanceType === 'zoom' ? '(Virtual)' : '(In-Person)'}
+                                                                    </span>
+                                                                </div>
+                                                            ) : (
+                                                                <fetcher.Form method="post">
+                                                                    <input type="hidden" name="intent" value={((cls.confirmedCount || 0) >= (cls.capacity || Infinity)) ? "waitlist" : "book"} />
+                                                                    <input type="hidden" name="classId" value={cls.id} />
+                                                                    <button
+                                                                        type="submit"
+                                                                        onClick={(e) => {
+                                                                            if (cls.zoomEnabled) {
+                                                                                e.preventDefault();
+                                                                                setSelectedClass(cls);
+                                                                            }
+                                                                        }}
+                                                                        disabled={(fetcher.state !== "idle" && fetcher.formData?.get("classId") === cls.id) || (cls as any).userBookingStatus === 'confirmed' || (cls as any).userBookingStatus === 'waitlisted'}
+                                                                        className={`px-4 py-2 text-sm font-medium rounded transition-colors disabled:opacity-50 ${((cls as any).userBookingStatus === 'confirmed' || (cls as any).userBookingStatus === 'waitlisted')
+                                                                            ? 'bg-zinc-100 text-zinc-500 cursor-default'
+                                                                            : 'bg-zinc-900 text-white hover:bg-zinc-800'
+                                                                            }`}
+                                                                    >
+                                                                        {(fetcher.state !== "idle" && fetcher.formData?.get("classId") === cls.id)
+                                                                            ? "Processing..."
+                                                                            : (cls as any).userBookingStatus === 'confirmed'
+                                                                                ? "Booked"
+                                                                                : (cls as any).userBookingStatus === 'waitlisted'
+                                                                                    ? "On Waitlist"
+                                                                                    : ((cls.confirmedCount || 0) >= (cls.capacity || Infinity) ? "Join Waitlist" : "Book")
+                                                                        }
+                                                                    </button>
+                                                                </fetcher.Form>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </>
                                             ) : (
@@ -246,6 +378,6 @@ export default function StudioPublicClasses() {
                     ))
                 )}
             </div>
-        </div>
+        </div >
     );
 }

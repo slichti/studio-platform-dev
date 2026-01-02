@@ -183,6 +183,9 @@ export const classes = sqliteTable('classes', {
     price: integer('price').default(0), // In cents
     currency: text('currency').default('usd'),
     zoomMeetingUrl: text('zoom_meeting_url'),
+    zoomMeetingId: text('zoom_meeting_id'),
+    zoomPassword: text('zoom_password'),
+    zoomEnabled: integer('zoom_enabled', { mode: 'boolean' }).default(false),
     thumbnailUrl: text('thumbnail_url'),
     cloudflareStreamId: text('cloudflare_stream_id'),
     recordingStatus: text('recording_status', { enum: ['processing', 'ready', 'error'] }),
@@ -232,6 +235,7 @@ export const bookings = sqliteTable('bookings', {
     classId: text('class_id').notNull().references(() => classes.id),
     memberId: text('member_id').notNull().references(() => tenantMembers.id), // Bookings are by Members
     status: text('status', { enum: ['confirmed', 'cancelled', 'waitlisted'] }).default('confirmed'),
+    attendanceType: text('attendance_type', { enum: ['in_person', 'zoom'] }).default('in_person').notNull(),
     checkedInAt: integer('checked_in_at', { mode: 'timestamp' }), // Attendance tracking
 
     // Payment Tracking

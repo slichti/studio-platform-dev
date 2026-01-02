@@ -3,6 +3,7 @@ import { classes, tenants, bookings, tenantMembers, users, tenantRoles, classSer
 import { createDb } from '../db';
 import { eq, and, gte, lte, gt, sql, inArray } from 'drizzle-orm';
 import { ZoomService } from '../services/zoom';
+import { EncryptionUtils } from '../utils/encryption';
 import { StreamService } from '../services/stream';
 
 type Bindings = {
@@ -14,6 +15,7 @@ type Bindings = {
     RESEND_API_KEY: string;
     CLOUDFLARE_STREAM_ACCOUNT_ID: string;
     CLOUDFLARE_STREAM_API_TOKEN: string;
+    ENCRYPTION_SECRET: string;
 };
 
 type Variables = {
@@ -84,7 +86,8 @@ app.get('/', async (c) => {
     });
 
     // Check for user bookings if logged in
-    const userId = c.get('auth').userId;
+    const auth = c.get('auth');
+    const userId = auth?.userId;
     let userBookings: Map<string, string> = new Map();
 
     if (userId) {
@@ -230,20 +233,48 @@ app.post('/', async (c) => {
             let zoomUrl = undefined;
 
             if (createZoomMeeting) {
-                const credentials = (tenant.zoomCredentials as any) || {
-                    accountId: c.env.ZOOM_ACCOUNT_ID,
-                    clientId: c.env.ZOOM_CLIENT_ID,
-                    clientSecret: c.env.ZOOM_CLIENT_SECRET
-                };
+                // Ensure Zoom Service is initialized
+                const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
+                const zoomService = await ZoomService.getForTenant(tenant, c.env, encryption);
 
-                if (credentials.accountId && credentials.clientId && credentials.clientSecret) {
-                    // Create for first instance only
-                    if (date.getTime() === dates[0].getTime()) {
-                        try {
-                            const zoom = new ZoomService(credentials.accountId, credentials.clientId, credentials.clientSecret);
-                            zoomUrl = await zoom.createMeeting(userId, title, date, durationMinutes);
-                        } catch (e) { console.error("Zoom failed", e); }
-                    }
+                if (zoomService && date.getTime() === dates[0].getTime()) {
+                    try {
+                        const meeting = await zoomService.createMeeting(`${title}`, date, durationMinutes);
+                        zoomUrl = meeting.join_url;
+                        // For recurring series, we might only create one meeting for the first one, 
+                        // or shared meeting? Zoom recurring meetings approach is complex. 
+                        // For simple MVP: Create separate meetings or use same link?
+                        // If we use same link, we need RRule on Zoom side. 
+                        // Let's simple check: if we want unique links, we loop.
+                        // But here we are inside loop.
+                    } catch (e) { console.error("Zoom Sync Error", e); }
+                }
+            }
+
+            // NOTE: For recurring classes, ideally we should create a RECURRING meeting in Zoom.
+            // But implementing full sync is complex.
+            // Simplified: If createZoomMeeting is true, we create a meeting for EACH instance if we are iterating? 
+            // Or simpler: Create one recurring meeting on Zoom and share URL. 
+            // Let's create one meeting on Zoom for the first date, and reuse URL? No, that breaks time.
+
+            // Re-evaluating Loop:
+            // We should use Zoom's recurrence if possible. 
+            // But DB schema splits them into individual classes.
+            // Let's iterate and create unique meetings for each for now (safer but slower), 
+            // OR create one Recurring Zoom Meeting ID and reuse.
+            // Let's try One Recurring Zoom Meeting for the SERIES.
+
+            // (Revisiting logic to keep it simple for now: We won't support auto-Zoom for recurring series in this MVP iteration to avoid API rate limits, or we do it efficiently).
+            // Let's just create individual meetings for now but handle errors gracefully.
+
+            let meetingData: any = null;
+            if (createZoomMeeting) {
+                const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
+                const zoomService = await ZoomService.getForTenant(tenant, c.env, encryption);
+                if (zoomService) {
+                    try {
+                        meetingData = await zoomService.createMeeting(title, date, durationMinutes);
+                    } catch (e) { console.error("Zoom error", e); }
                 }
             }
 
@@ -259,7 +290,10 @@ app.post('/', async (c) => {
                 durationMinutes,
                 capacity,
                 locationId,
-                zoomMeetingUrl: zoomUrl,
+                zoomEnabled: createZoomMeeting || false,
+                zoomMeetingUrl: meetingData?.join_url,
+                zoomMeetingId: meetingData?.id?.toString(),
+                zoomPassword: meetingData?.password,
                 price: price || 0,
                 currency: currency || tenant.currency || 'usd'
             });
@@ -282,21 +316,18 @@ app.post('/', async (c) => {
     // Check if we should create a zoom meeting
     // Logic: Explicit flag OR Location name "Zoom" (if we had location lookup, but let's stick to flag for now)
 
-    if (createZoomMeeting) {
-        const credentials = (tenant.zoomCredentials as any) || {
-            accountId: c.env.ZOOM_ACCOUNT_ID,
-            clientId: c.env.ZOOM_CLIENT_ID,
-            clientSecret: c.env.ZOOM_CLIENT_SECRET
-        };
+    let meetingData: any = null;
 
-        if (credentials.accountId && credentials.clientId && credentials.clientSecret) {
+    if (createZoomMeeting) {
+        const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
+        const zoomService = await ZoomService.getForTenant(tenant, c.env, encryption);
+
+        if (zoomService) {
             try {
-                const zoom = new ZoomService(credentials.accountId, credentials.clientId, credentials.clientSecret);
-                zoomMeetingUrl = await zoom.createMeeting(userId, title, new Date(startTime), durationMinutes);
+                // userId is used as 'host'? No, Zoom Service uses Me or Account default. 
+                meetingData = await zoomService.createMeeting(title, new Date(startTime), durationMinutes);
             } catch (e) {
                 console.error("Zoom creation failed:", e);
-                // We don't block class creation if zoom fails, but maybe we should warn?
-                // For now, proceed without URL.
             }
         }
     }
@@ -312,7 +343,10 @@ app.post('/', async (c) => {
             durationMinutes,
             capacity,
             locationId,
-            zoomMeetingUrl,
+            zoomEnabled: createZoomMeeting || false,
+            zoomMeetingUrl: meetingData?.join_url,
+            zoomMeetingId: meetingData?.id?.toString(),
+            zoomPassword: meetingData?.password,
             price: price || 0,
             currency: currency || tenant.currency || 'usd'
         });
@@ -334,6 +368,7 @@ app.post('/:id/book', async (c) => {
     // Check Capacity & Waitlist
     const requestBody = await c.req.json().catch(() => ({})); // Safe parse body in case it's empty
     const intent = requestBody.intent; // 'waitlist' or undefined
+    const attendanceType = requestBody.attendanceType || 'in_person'; // 'in_person' | 'zoom'
     const targetMemberId = requestBody.memberId; // Optional: book for a family member
 
     const tenant = c.get('tenant');
@@ -496,6 +531,7 @@ app.post('/:id/book', async (c) => {
             classId,
             memberId: memberWithPlans.id,
             status: 'confirmed',
+            attendanceType: attendanceType,
             paymentMethod,
             usedPackId
         });
@@ -667,18 +703,51 @@ app.post('/:id/bookings/:bookingId/cancel', async (c) => {
     const { id: classId, bookingId } = c.req.param();
 
     // RBAC - Owner/Instructor can cancel any; Student can cancel their own? 
-    // For this route let's assume Instructor context management.
+    const userId = c.get('auth').userId;
     const roles = c.get('roles') || [];
-    if (!roles.includes('instructor') && !roles.includes('owner')) {
-        return c.json({ error: 'Access Denied' }, 403);
-    }
+
+    // Check Permissions later based on booking ownership
 
     try {
-        // Find booking to restore credits
         const booking = await db.select().from(bookings).where(eq(bookings.id, bookingId)).get();
-
         if (!booking) return c.json({ error: 'Booking not found' }, 404);
         if (booking.status === 'cancelled') return c.json({ error: 'Already cancelled' }, 400);
+
+        // Permission Check
+        if (!roles.includes('instructor') && !roles.includes('owner')) {
+            const member = await db.select().from(tenantMembers).where(eq(tenantMembers.id, booking.memberId)).get();
+            if (!member || member.userId !== userId) {
+                return c.json({ error: 'Access Denied' }, 403);
+            }
+        }
+
+        const classInfo = await db.select().from(classes).where(eq(classes.id, classId)).get();
+        const tenant = c.get('tenant');
+        const settings = (tenant?.settings || {}) as any;
+
+        // Late Cancel Logic
+        if (!roles.includes('instructor') && !roles.includes('owner') && classInfo) {
+            const cutoffMinutes = settings.classSettings?.cancellationCutoffMinutes || 60;
+            const now = new Date();
+            const startTime = new Date(classInfo.startTime);
+            const diffMinutes = (startTime.getTime() - now.getTime()) / 60000;
+
+            if (diffMinutes < cutoffMinutes) {
+                // Late Cancel!
+                // If fee enabled, maybe charge or mark as 'late_cancel'?
+                // For now, let's just mark it legally as cancelled but maybe different status?
+                // Or just warn?
+                // Current requirement: "cutoff for people to cancel... unable to changes... students might be charged no-show fee"
+                // Let's Block cancellation if strictly passed cutoff? Or allow with warning? 
+                // User said "cutoff for people to cancel their attendance". This implies they CANNOT cancel after cutoff.
+                // So we return error.
+
+                return c.json({
+                    error: `Cannot cancel less than ${cutoffMinutes} minutes before class.`,
+                    code: 'LATE_CANCELLATION'
+                }, 403);
+            }
+        }
 
         // Restore credit logic
         if (booking.paymentMethod === 'credit' && booking.usedPackId) {
@@ -695,6 +764,41 @@ app.post('/:id/bookings/:bookingId/cancel', async (c) => {
             .set({ status: 'cancelled' })
             .where(eq(bookings.id, bookingId))
             .run();
+
+        // Notification to Student
+        if (booking.memberId && classInfo && tenant) {
+            const memberData = await db.select({
+                email: users.email,
+                profile: users.profile,
+                phone: users.phone
+            })
+                .from(tenantMembers)
+                .innerJoin(users, eq(tenantMembers.userId, users.id))
+                .where(eq(tenantMembers.id, booking.memberId))
+                .get();
+
+            if (memberData && c.env.RESEND_API_KEY) {
+                const { EmailService } = await import('../services/email');
+                const emailService = new EmailService(c.env.RESEND_API_KEY, {
+                    branding: tenant.branding as any,
+                    settings: tenant.settings as any
+                });
+                const notificationSettings = (tenant.settings as any)?.notificationSettings || {};
+                const profile = memberData.profile as any;
+                const firstName = profile?.firstName || 'there';
+
+                // Email Notification (Default True)
+                if (notificationSettings.cancellationEmail !== false) {
+                    c.executionCtx.waitUntil(emailService.sendGenericEmail(
+                        memberData.email,
+                        `Booking Cancelled: ${classInfo.title}`,
+                        `<p>Hi ${firstName},</p>
+                          <p>Your booking for <strong>${classInfo.title}</strong> on ${new Date(classInfo.startTime).toLocaleString([], { dateStyle: 'full', timeStyle: 'short' })} has been cancelled.</p>
+                          <p>If this was a mistake, please book again via the studio app.</p>`
+                    ));
+                }
+            }
+        }
 
         return c.json({ success: true, status: 'cancelled' });
     } catch (e: any) {
