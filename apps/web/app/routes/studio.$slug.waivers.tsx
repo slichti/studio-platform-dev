@@ -1,7 +1,7 @@
 // @ts-ignore
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 // @ts-ignore
-import { useLoaderData, Form, useActionData, useNavigation, useOutletContext } from "react-router";
+import { useLoaderData, Form, useActionData, useNavigation, useOutletContext, Link } from "react-router";
 import { useAuth } from "@clerk/react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
@@ -84,48 +84,39 @@ export default function StudioWaivers() {
     const { data, error } = useLoaderData<any>();
     const { me, roles } = useOutletContext<any>();
     const isOwner = roles.includes('owner');
-    const [isCreateOpen, setIsCreateOpen] = useState(false);
     const navigation = useNavigation();
     const isSubmitting = navigation.state === "submitting";
-    const actionData = useActionData<{ success?: boolean; error?: string }>();
-    const { getToken } = useAuth();
-    const [uploading, setUploading] = useState(false);
     const [signature, setSignature] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (actionData?.success && !isSubmitting) {
-            setIsCreateOpen(false);
-        }
-    }, [actionData, isSubmitting]);
-
+    // Initial Error Check
     if (error) {
-        return <div className="text-red-600">Error: {error}</div>;
+        return <div className="p-8 text-red-600">Error: {error}</div>;
     }
 
     // OWNER VIEW
     if (isOwner) {
         const templates = (data as { templates?: any[] })?.templates || [];
         return (
-            <div>
+            <div className="max-w-4xl mx-auto py-8 px-4">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Waivers & Forms</h2>
-                    <button
-                        onClick={() => setIsCreateOpen(true)}
-                        style={{ background: 'var(--accent)', color: 'white' }}
-                        className="px-4 py-2 rounded-md hover:opacity-90 text-sm font-medium"
+                    <Link
+                        to="new"
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium flex items-center gap-2"
                     >
                         + Create Waiver
-                    </button>
+                    </Link>
                 </div>
 
                 <div className="space-y-4">
                     {templates.length === 0 ? (
-                        <div className="p-8 text-center text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700">
-                            No waiver templates created yet.
+                        <div className="p-12 text-center text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700">
+                            <p className="mb-2 font-medium">No waiver templates yet</p>
+                            <p className="text-sm">Create a liability waiver for your members to sign.</p>
                         </div>
                     ) : (
                         templates.map((t: any) => (
-                            <div key={t.id} className="p-6 rounded-lg shadow-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                            <div key={t.id} className="p-6 rounded-lg shadow-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 transition-colors">
                                 <div className="flex justify-between items-start mb-2">
                                     <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100">{t.title}</h3>
                                     <Form method="post">
@@ -134,166 +125,98 @@ export default function StudioWaivers() {
                                         <input type="hidden" name="active" value={(!t.active).toString()} />
                                         <button
                                             type="submit"
-                                            className={`text-xs px-2 py-1 rounded border ${t.active ? 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200' : 'bg-zinc-100 text-zinc-800 border-zinc-200 hover:bg-zinc-200'}`}
+                                            className={`text-xs px-2 py-1 rounded border font-medium transition-colors ${t.active
+                                                ? 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800'
+                                                : 'bg-zinc-100 text-zinc-800 border-zinc-200 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700'
+                                                }`}
                                         >
                                             {t.active ? 'Active' : 'Inactive'}
                                         </button>
                                     </Form>
                                 </div>
-                                <div className="text-sm line-clamp-3 mb-4 whitespace-pre-wrap p-3 rounded bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-400">{t.content}</div>
+                                <div className="text-sm line-clamp-3 mb-1 whitespace-pre-wrap text-zinc-600 dark:text-zinc-400 font-mono bg-zinc-50 dark:bg-zinc-950 p-3 rounded border border-zinc-100 dark:border-zinc-800/50">
+                                    {t.content}
+                                </div>
                             </div>
                         ))
                     )}
                 </div>
-
-                <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Create Waiver">
-                    <Form method="post">
-                        <input type="hidden" name="intent" value="create" />
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Title</label>
-                                <input
-                                    name="title"
-                                    required
-                                    placeholder="Liability Release"
-                                    className="w-full rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Content</label>
-                                <textarea
-                                    name="content"
-                                    required
-                                    rows={10}
-                                    className="w-full rounded px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-blue-500 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
-                                    placeholder="Legal text here..."
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Create from PDF (Optional)</label>
-                                <input
-                                    type="file"
-                                    accept=".pdf"
-                                    onChange={async (e) => {
-                                        const file = e.target.files?.[0];
-                                        if (file) {
-                                            setUploading(true);
-                                            try {
-                                                const token = await getToken();
-                                                const slug = window.location.pathname.split('/')[2];
-                                                const formData = new FormData();
-                                                formData.append('file', file);
-
-                                                const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://studio-platform-api.slichti.workers.dev'}/uploads/pdf`, {
-                                                    method: 'POST',
-                                                    headers: {
-                                                        'Authorization': `Bearer ${token}`,
-                                                        'X-Tenant-Slug': slug
-                                                    },
-                                                    body: formData
-                                                });
-
-                                                if (!res.ok) throw new Error(await res.text());
-                                                const data = await res.json();
-
-                                                const input = document.getElementById('pdf-url-input') as HTMLInputElement;
-                                                if (input) input.value = data.url;
-                                                alert("PDF Uploaded successfully!");
-                                            } catch (err: any) {
-                                                alert("Upload failed: " + err.message);
-                                            } finally {
-                                                setUploading(false);
-                                            }
-                                        }
-                                    }}
-                                    className="block w-full text-sm text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                                />
-                                <input type="hidden" name="pdfUrl" id="pdf-url-input" />
-                            </div>
-                            {actionData && 'error' in actionData && actionData.error && (
-                                <div className="text-red-600 text-sm bg-red-50 p-2 rounded border border-red-200">
-                                    Error saving: {(actionData as any).error}
-                                </div>
-                            )}
-                            <button
-                                disabled={isSubmitting || uploading}
-                                style={{ background: 'var(--accent)', color: 'white' }}
-                                className="w-full py-2 rounded font-medium disabled:opacity-50"
-                            >
-                                {isSubmitting ? 'Saving...' : 'Save Waiver'}
-                            </button>
-                        </div>
-                    </Form>
-                </Modal>
             </div>
         );
     }
 
     // STUDENT VIEW
-    const { waiver, required, signed, signatureDate, family } = data || {};
+    const { waiver, required, signed, signatureDate, family, signedMemberIds } = (data as any) || {};
     const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 
     if (!required || !waiver) {
         return (
-            <div className="text-center py-12">
-                <h2 className="text-xl font-medium text-zinc-900 dark:text-zinc-100">Good to go!</h2>
-                <p className="text-zinc-500 dark:text-zinc-400">No pending waivers to sign.</p>
+            <div className="max-w-md mx-auto py-12 px-4 text-center">
+                <div className="mb-4 inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                </div>
+                <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Good to go!</h2>
+                <p className="text-zinc-500 dark:text-zinc-400">You have no pending waivers to sign.</p>
             </div>
         );
     }
 
+    const isSigned = signedMemberIds?.includes(selectedMemberId || me?.id);
+
     return (
-        <div className="max-w-2xl mx-auto py-8">
+        <div className="max-w-2xl mx-auto py-8 px-4">
             <h2 className="text-2xl font-bold mb-6 text-zinc-900 dark:text-zinc-100">{waiver.title}</h2>
 
-            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-8 shadow-sm mb-6 max-h-[500px] overflow-y-auto">
-                <div className="prose dark:prose-invert text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm mb-6 max-h-[60vh] overflow-y-auto">
+                <div className="prose dark:prose-invert text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap font-serif text-sm leading-relaxed">
                     {waiver.content}
                 </div>
             </div>
 
-            {family?.length > 0 && (
+            {family && family.length > 0 && (
                 <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 rounded-lg p-4">
                     <label className="block text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">Who are you signing for?</label>
                     <select
-                        className="w-full bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-md text-sm"
+                        className="w-full bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-md text-sm px-3 py-2"
                         value={selectedMemberId || ''}
                         onChange={(e) => setSelectedMemberId(e.target.value || null)}
                     >
-                        <option value="">Myself {data.signed ? '✅' : ''}</option>
+                        <option value="">Myself {signed ? '✅' : ''}</option>
                         {family.map((f: any) => (
                             <option key={f.memberId} value={f.memberId}>
-                                {f.firstName} {f.lastName} {data.signedMemberIds?.includes(f.memberId) ? '✅' : ''}
+                                {f.firstName} {f.lastName} {signedMemberIds?.includes(f.memberId) ? '✅' : ''}
                             </option>
                         ))}
                     </select>
                 </div>
             )}
 
-            {data.signedMemberIds?.includes(selectedMemberId || me?.id) ? (
-                <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg flex items-center justify-center gap-2">
-                    ✅ This member has signed the waiver.
+            {isSigned ? (
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900/50 text-green-800 dark:text-green-300 p-6 rounded-lg flex flex-col items-center justify-center gap-2 text-center">
+                    <div className="text-2xl">✅</div>
+                    <div className="font-bold">Waiver Signed</div>
+                    <div className="text-sm opacity-80">This member has successfully signed the waiver.</div>
                 </div>
             ) : (
-                <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-6">
-                    <h3 className="font-bold mb-4 dark:text-white">Sign Waiver</h3>
+                <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
+                    <h3 className="font-bold mb-4 text-zinc-900 dark:text-white">Sign Waiver</h3>
                     <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
                         Please draw your signature below to accept this agreement.
                     </p>
 
-                    <div className="mb-6">
+                    <div className="mb-6 bg-white dark:bg-zinc-950 rounded border border-zinc-200 dark:border-zinc-800 overflow-hidden">
                         <SignaturePad
                             onChange={(data) => setSignature(data)}
                             width={600}
                             height={200}
                         />
-                        {signature && (
-                            <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                Signature captured
-                            </p>
-                        )}
                     </div>
+                    {signature && (
+                        <p className="text-xs text-green-600 dark:text-green-400 mb-4 flex items-center gap-1 font-medium">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            Signature captured
+                        </p>
+                    )}
 
                     <Form method="post">
                         <input type="hidden" name="intent" value="sign" />
@@ -302,16 +225,17 @@ export default function StudioWaivers() {
                         <input type="hidden" name="onBehalfOfMemberId" value={selectedMemberId || ''} />
 
                         <div className="flex items-start gap-3 mb-6">
-                            <input type="checkbox" required id="agree" className="mt-1" />
-                            <label htmlFor="agree" className="text-sm text-zinc-700 dark:text-zinc-300">
+                            <input type="checkbox" required id="agree" className="mt-1 w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500" />
+                            <label htmlFor="agree" className="text-sm text-zinc-700 dark:text-zinc-300 leading-snug">
                                 I have read and agree to the terms of this waiver.
                                 By drawing my signature above and checking this box, I electronically sign this document.
                             </label>
                         </div>
 
                         <button
+                            type="submit"
                             disabled={!signature || isSubmitting}
-                            className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {isSubmitting ? 'Signing...' : 'Sign Waiver'}
                         </button>
@@ -321,3 +245,4 @@ export default function StudioWaivers() {
         </div>
     );
 }
+

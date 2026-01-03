@@ -27,7 +27,12 @@ app.get('/', async (c) => {
 
     if (!tenant) {
         console.error("Members Route: Tenant context MISSING", { url: c.req.url, headers: c.req.header() });
-        return c.json({ error: 'Tenant context required' }, 400);
+        return c.json({
+            error: 'Tenant context required',
+            details: 'Tenant object is missing in context',
+            url: c.req.url,
+            headers: c.req.header()
+        }, 400);
     }
 
     if (!roles.includes('owner') && !roles.includes('instructor')) {

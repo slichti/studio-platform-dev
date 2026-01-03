@@ -414,10 +414,12 @@ tenantApp.get('/me', (c) => {
   if (!member) {
     return c.json({ error: "Not a member" }, 401);
   }
+  console.log('[DEBUG /tenant/me] Member found:', member.id, 'User present:', !!(member as any).user);
   return c.json({
     member: {
       ...member,
-      user: (member as any).user // Ensure user is passed if loaded (needs 'with' clause in middleware?)
+      user: (member as any).user,
+      _debug_userId: member.userId // Verify if this matches auth.userId
     },
     roles
   });
@@ -452,11 +454,13 @@ app.route('/locations', locationRoutes);
 app.route('/webhooks', webhookRoutes);
 app.route('/uploads', uploadRoutes);
 import commerce from './routes/commerce';
-app.use('/commerce*', authMiddleware);
+app.use('/commerce*', optionalAuthMiddleware);
 app.use('/commerce*', tenantMiddleware);
 app.route('/commerce', commerce);
 
 app.route('/members', members);
+app.use('/memberships*', optionalAuthMiddleware);
+app.use('/memberships*', tenantMiddleware);
 app.route('/memberships', memberships);
 
 import appointments from './routes/appointments';

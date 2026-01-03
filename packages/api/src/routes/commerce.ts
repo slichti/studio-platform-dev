@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantMembers, coupons, couponRedemptions } from 'db/src/schema'; // Ensure exported
+import { tenants, tenantMembers, coupons, couponRedemptions, classPackDefinitions, giftCards } from 'db/src/schema'; // Ensure exported
 import { eq, and, gt, sql } from 'drizzle-orm';
 
 type Bindings = {
@@ -83,7 +83,7 @@ app.delete('/coupons/:id', async (c) => {
 app.get('/packs', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const { classPackDefinitions } = await import('db/src/schema');
+    // const { classPackDefinitions } = await import('db/src/schema');
 
     const packs = await db.select().from(classPackDefinitions)
         .where(and(
@@ -174,7 +174,7 @@ app.post('/checkout/session', async (c) => {
     if (!packId) return c.json({ error: "Pack ID required" }, 400);
 
     // 1. Fetch Pack
-    const { classPackDefinitions, giftCards } = await import('db/src/schema');
+    // const { classPackDefinitions, giftCards } = await import('db/src/schema');
     const pack = await db.select().from(classPackDefinitions)
         .where(and(eq(classPackDefinitions.id, packId), eq(classPackDefinitions.tenantId, tenant.id)))
         .get();
