@@ -39,6 +39,9 @@ export default async function handleRequest(
             status: responseStatusCode,
         });
     } catch (e: any) {
+        if (e instanceof Response) {
+            return e;
+        }
         console.error("CRITICAL WORKER CRASH:", e);
         return new Response(`
             <h1>🔥 Critical Worker Crash 🔥</h1>

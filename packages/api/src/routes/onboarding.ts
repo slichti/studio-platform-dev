@@ -78,26 +78,31 @@ app.post('/studio', async (c) => {
         let subscriptionStatus = 'active';
 
         if (['growth', 'scale'].includes(tier)) {
-            try {
-                const { StripeService } = await import('../services/stripe');
-                const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
+            // Check for System Admin Bypass
+            if (user.isSystemAdmin) {
+                subscriptionStatus = 'active';
+                stripeSubscriptionId = 'COMPED_ADMIN';
+            } else {
+                try {
+                    const { StripeService } = await import('../services/stripe');
+                    const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
 
-                // 1. Create Customer
-                // 1. Create Customer
-                const profile = user.profile as any;
-                const customer = await stripe.createCustomer(user.email, `${name} (Owner: ${profile?.firstName || ''} ${profile?.lastName || ''})`);
-                stripeCustomerId = customer.id;
+                    // 1. Create Customer
+                    const profile = user.profile as any;
+                    const customer = await stripe.createCustomer(user.email, `${name} (Owner: ${profile?.firstName || ''} ${profile?.lastName || ''})`);
+                    stripeCustomerId = customer.id;
 
-                // 2. Create Subscription (Trial)
-                const priceId = tier === 'growth' ? c.env.STRIPE_PRICE_GROWTH : c.env.STRIPE_PRICE_SCALE;
+                    // 2. Create Subscription (Trial)
+                    const priceId = tier === 'growth' ? c.env.STRIPE_PRICE_GROWTH : c.env.STRIPE_PRICE_SCALE;
 
-                if (priceId) {
-                    const sub = await stripe.createSubscription(stripeCustomerId, priceId, 14); // 14 day trial
-                    stripeSubscriptionId = sub.id;
-                    subscriptionStatus = 'trialing';
+                    if (priceId) {
+                        const sub = await stripe.createSubscription(stripeCustomerId, priceId, 14); // 14 day trial
+                        stripeSubscriptionId = sub.id;
+                        subscriptionStatus = 'trialing';
+                    }
+                } catch (err: any) {
+                    console.error("Stripe Onboarding Error:", err);
                 }
-            } catch (err: any) {
-                console.error("Stripe Onboarding Error:", err);
             }
         }
 

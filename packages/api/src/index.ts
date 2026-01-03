@@ -82,6 +82,7 @@ app.get('/', (c) => {
 // 1. Global Auth (Strict) for Admin/Users/Uploads
 app.use('/users/*', authMiddleware);
 app.use('/admin/*', authMiddleware);
+app.use('/onboarding/*', authMiddleware);
 app.use('/uploads/*', authMiddleware);
 app.use('/uploads/*', tenantMiddleware);
 

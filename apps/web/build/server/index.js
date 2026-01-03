@@ -40,6 +40,9 @@ async function handleRequest(request, responseStatusCode, responseHeaders, route
       status: responseStatusCode
     });
   } catch (e) {
+    if (e instanceof Response) {
+      return e;
+    }
     console.error("CRITICAL WORKER CRASH:", e);
     return new Response(`
             <h1>🔥 Critical Worker Crash 🔥</h1>
