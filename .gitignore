@@ -10,3 +10,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .turbo
+
+# Allow web build deployment
+!apps/web/build
+!apps/web/build/client

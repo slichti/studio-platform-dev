@@ -434,6 +434,7 @@ import webhookRoutes from './routes/webhooks';
 import uploadRoutes from './routes/uploads';
 import adminRoutes from './routes/admin';
 import userRoutes from './routes/users';
+app.route('/users', userRoutes);
 import adminFeatureRoutes from './routes/admin.features'; // Import new route
 
 import memberships from './routes/memberships';

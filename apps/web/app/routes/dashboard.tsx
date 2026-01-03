@@ -35,6 +35,10 @@ export const loader: LoaderFunction = async (args) => {
         error = e.message || "Failed to load profile";
     }
 
+    if (isSystemAdmin && tenants.length === 0) {
+        return redirect("/admin");
+    }
+
     return { isSystemAdmin, tenants, userProfile, error };
 };
 
