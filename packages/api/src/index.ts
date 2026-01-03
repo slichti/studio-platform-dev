@@ -415,7 +415,10 @@ tenantApp.get('/me', (c) => {
     return c.json({ error: "Not a member" }, 401);
   }
   return c.json({
-    member,
+    member: {
+      ...member,
+      user: (member as any).user // Ensure user is passed if loaded (needs 'with' clause in middleware?)
+    },
     roles
   });
 })

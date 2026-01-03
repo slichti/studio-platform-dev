@@ -25,7 +25,10 @@ app.get('/', async (c) => {
     const tenant = c.get('tenant');
     const roles = c.get('roles') || [];
 
-    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+    if (!tenant) {
+        console.error("Members Route: Tenant context MISSING", { url: c.req.url, headers: c.req.header() });
+        return c.json({ error: 'Tenant context required' }, 400);
+    }
 
     if (!roles.includes('owner') && !roles.includes('instructor')) {
         return c.json({ error: 'Access Denied' }, 403);
@@ -55,7 +58,8 @@ app.get('/me', async (c) => {
     const member = await db.query.tenantMembers.findFirst({
         where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id)),
         with: {
-            roles: true
+            roles: true,
+            user: true
         }
     });
 

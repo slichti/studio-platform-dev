@@ -29,7 +29,7 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
 
     // 0. Check Header (Strongly preferred for API calls)
     const headerTenantId = c.req.header('X-Tenant-Id');
-    const headerTenantSlug = c.req.header('X-Tenant-Slug');
+    const headerTenantSlug = c.req.header('X-Tenant-Slug')?.toLowerCase();
     let tenant;
 
     if (headerTenantId) {
@@ -63,10 +63,14 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
     }
 
     if (!tenant) {
-        return c.json({ error: 'Tenant not found. Provide X-Tenant-Id header or use a studio domain.' }, 404);
+        return c.json({
+            error: `Tenant not found. Context: ${hostname}, Header: ${headerTenantSlug || 'N/A'}, ID: ${headerTenantId || 'N/A'}`,
+            debug: true
+        }, 404);
     }
 
     c.set('tenant', tenant);
+    console.log(`[TenantMiddleware] Set tenant context for ${hostname}: ${tenant?.name} (${tenant?.id})`);
 
     // -------------------------------------------------------------
     // Credential Decryption (BYOK)
@@ -157,7 +161,8 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
             where: and(
                 eq(tenantMembers.userId, auth.userId),
                 eq(tenantMembers.tenantId, tenant.id)
-            )
+            ),
+            with: { user: true }
         });
 
         if (member) {

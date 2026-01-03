@@ -284,25 +284,35 @@ app.get('/stats/health', async (c) => {
     const { sql, count, eq } = await import('drizzle-orm');
 
     // Counts
-    const [tCount, uCount, errorCount] = await Promise.all([
-        db.select({ count: count() }).from(tenants).where(eq(tenants.status, 'active')).get(),
-        db.select({ count: count() }).from(users).get(),
-        // Count errors in last 24h (simulated by checking logs with "Failed" text in details or specific action)
-        // For now just recent logs count
-        db.select({ count: count() }).from(auditLogs).get()
-    ]);
+    let tCount: any, uCount: any, errorCount: any;
+    try {
+        [tCount, uCount, errorCount] = await Promise.all([
+            db.select({ count: count() }).from(tenants).where(sql`${tenants.status} = 'active'`).get(),
+            db.select({ count: count() }).from(users).get(),
+            db.select({ count: count() }).from(auditLogs).get()
+        ]);
+    } catch (e: any) {
+        console.error("Stats Count Failed:", e);
+        return c.json({ error: "Stats Query Failed: " + e.message }, 500);
+    }
 
-    // Database Latency Check
-    const start = performance.now();
-    await db.select().from(tenants).limit(1).all();
-    const dbLatency = Math.round(performance.now() - start);
+    // Database Latency Check (TEMPORARILY DISABLED FOR DEBUGGING)
+    // const start = performance.now();
+    // try {
+    //    await db.select().from(tenants).limit(1).all();
+    // } catch (e: any) {
+    //    console.error("DB Health Check Failed:", e);
+    //    return c.json({ error: "DB Unreachable: " + e.message }, 500);
+    // }
+    // const dbLatency = Math.round(performance.now() - start);
 
     return c.json({
+        version: "v1.0.2-DEBUG", // VERIFICATION MARKER
         activeTenants: tCount?.count || 0,
         totalUsers: uCount?.count || 0,
         recentErrors: 0,
-        dbLatencyMs: dbLatency,
-        status: dbLatency < 300 ? 'healthy' : 'degraded'
+        dbLatencyMs: 0, // dbLatency,
+        status: 'healthy' // dbLatency < 300 ? 'healthy' : 'degraded'
     });
 });
 

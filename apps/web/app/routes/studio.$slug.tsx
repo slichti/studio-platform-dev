@@ -134,7 +134,7 @@ export default function StudioLayout() {
                     </SidebarGroup>
 
                     <SidebarGroup title="Management">
-                        <NavItem to="students" icon={<Users size={18} />}>Students</NavItem>
+                        <NavItem to="students" icon={<Users size={18} />}>People</NavItem>
                         {['growth', 'scale'].includes(tenant.tier) && (
                             <NavItem to="marketing" icon={<Mail size={18} />}>Marketing</NavItem>
                         )}
@@ -142,11 +142,21 @@ export default function StudioLayout() {
                             <NavItem to="financials/payroll" icon={<CreditCard size={18} />}>Payroll</NavItem>
                         )}
                         <NavItem to="finances/gift-cards" icon={<Ticket size={18} />}>Gift Cards</NavItem>
-                        <NavItem to="finances" icon={<DollarSign size={18} />}>Finances</NavItem>
+                        <NavItem to="finances" end icon={<DollarSign size={18} />}>Finances</NavItem>
                         <NavItem to="settings/discounts" icon={<Tag size={18} />}>Discounts</NavItem>
-                        <NavItem to="settings" icon={<Settings size={18} />}>Settings</NavItem>
+                        <NavItem to="settings" end icon={<Settings size={18} />}>Settings</NavItem>
                     </SidebarGroup>
                 </nav>
+
+                {/* System Admin Escape Hatch */}
+                {((useLoaderData() as any).me?.user?.isSystemAdmin || (useLoaderData() as any).isImpersonating) && (
+                    <div className="px-4 pb-2">
+                        <a href="/admin" className="flex items-center gap-2 px-3 py-2 bg-zinc-800 text-zinc-100 rounded-lg text-sm hover:bg-zinc-700 transition">
+                            <Users size={16} />
+                            <span>Return to Admin</span>
+                        </a>
+                    </div>
+                )}
 
                 <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex flex-col gap-3">
 
@@ -161,6 +171,10 @@ export default function StudioLayout() {
                             </div>
                         </div>
                         <ThemeToggle />
+                    </div>
+                    {/* DEBUG INFO */}
+                    <div className="text-[10px] text-zinc-400 font-mono truncate">
+                        UI: v1.0.2-DEBUG | U:{(useLoaderData() as any).me?.user ? 'Load' : 'Miss'} | A:{(useLoaderData() as any).me?.user?.isSystemAdmin ? 'Y' : 'N'}
                     </div>
                 </div>
             </aside >

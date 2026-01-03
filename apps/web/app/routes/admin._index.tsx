@@ -27,7 +27,10 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
         const [logs, health] = await Promise.all([
             apiRequest("/admin/logs", token, {}, apiUrl),
-            apiRequest("/admin/stats/health", token, {}, apiUrl).catch(() => ({})) // Fail gracefully
+            apiRequest("/admin/stats/health", token, {}, apiUrl).catch((e) => {
+                console.error("Health Check Failed:", e);
+                return { status: 'error', error: e.message || "Fetch Failed" };
+            })
         ]);
         return { logs, health };
     } catch (e: any) {
@@ -118,9 +121,9 @@ export default function AdminIndex() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <StatCard
                     title="System Status"
-                    value={health?.status === 'healthy' ? 'Operational' : 'Degraded'}
-                    status={health?.status === 'healthy' ? 'success' : 'warning'}
-                    trend={`Latency: ${health?.dbLatencyMs || 0}ms`}
+                    value={health?.status === 'error' ? 'Error' : (health?.status === 'healthy' ? 'Operational' : 'Degraded')}
+                    status={health?.status === 'error' ? "error" : (health?.status === 'healthy' ? 'success' : 'warning')}
+                    trend={health?.status === 'error' ? (health?.error || "Unknown Error") : `Latency: ${health?.dbLatencyMs || 0}ms`}
                 />
                 <StatCard
                     title="Active Tenants"
