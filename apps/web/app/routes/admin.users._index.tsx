@@ -15,7 +15,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const url = new URL(args.request.url);
     const search = url.searchParams.get("search") || "";
     const tenantId = url.searchParams.get("tenantId") || "";
-    const apiUrl = (args.context.env as any).VITE_API_URL;
+    const env = (args.context as any).cloudflare?.env || (args.context as any).env || {};
+    const apiUrl = env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev";
 
     try {
         // Construct query params

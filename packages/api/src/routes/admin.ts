@@ -300,8 +300,9 @@ app.get('/stats/health', async (c) => {
     return c.json({
         activeTenants: tCount?.count || 0,
         totalUsers: uCount?.count || 0,
-        recentErrors: 0, // Placeholder until we have error logging
-        status: dbLatency < 100 ? 'healthy' : 'degraded'
+        recentErrors: 0,
+        dbLatencyMs: dbLatency,
+        status: dbLatency < 300 ? 'healthy' : 'degraded'
     });
 });
 

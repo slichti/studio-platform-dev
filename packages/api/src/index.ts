@@ -433,7 +433,7 @@ tenantApp.get('/usage', async (c) => {
 
 import webhookRoutes from './routes/webhooks';
 import uploadRoutes from './routes/uploads';
-import adminRoutes from './routes/admin';
+// import adminRoutes from './routes/admin'; // Moved to bottom
 import userRoutes from './routes/users';
 app.route('/users', userRoutes);
 import adminFeatureRoutes from './routes/admin.features'; // Import new route
@@ -484,9 +484,8 @@ app.use('/gift-cards*', tenantMiddleware);
 app.route('/gift-cards', giftCards);   // Public-level validation
 
 // Main Admin Router (Super Admin)
-// Assuming there is an existing one or we create new prefix
 import admin from './routes/admin';
-app.route('/admin-api', admin); // Avoid conflict with existing /admin if any, or strictly partition
+app.route('/admin', admin);
 
 import onboarding from './routes/onboarding';
 app.route('/onboarding', onboarding);

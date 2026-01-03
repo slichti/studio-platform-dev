@@ -22,8 +22,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
     }
 
     try {
-        const apiUrl = (args.context.env as any).VITE_API_URL;
-        if (!apiUrl) throw new Error("VITE_API_URL is undefined in context");
+        const env = (args.context as any).cloudflare?.env || (args.context as any).env || {};
+        const apiUrl = env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev";
 
         const [logs, health] = await Promise.all([
             apiRequest("/admin/logs", token, {}, apiUrl),
@@ -31,7 +31,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
         ]);
         return { logs, health };
     } catch (e: any) {
-        const apiUrl = (args.context.env as any)?.VITE_API_URL || "UNKNOWN";
+        const env = (args.context as any).cloudflare?.env || (args.context as any).env || {};
+        const apiUrl = env.VITE_API_URL || "UNKNOWN";
         const message = e.message || "Unknown Error";
 
         // Handle 403 Forbidden specifically (Not an Admin)

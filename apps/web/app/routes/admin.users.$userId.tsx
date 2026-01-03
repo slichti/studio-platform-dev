@@ -11,7 +11,8 @@ export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
     const token = await getToken();
     const userId = args.params.userId;
-    const apiUrl = (args.context.env as any).VITE_API_URL;
+    const env = (args.context as any).cloudflare?.env || (args.context as any).env || {};
+    const apiUrl = env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev";
     try {
         const [user, tenants] = await Promise.all([
             apiRequest(`/admin/users/${userId}`, token, {}, apiUrl),
