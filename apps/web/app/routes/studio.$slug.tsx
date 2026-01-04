@@ -130,12 +130,25 @@ export default function StudioLayout() {
 
                     <SidebarGroup title="Commerce">
                         {(featureSet.has('pos') || ['growth', 'scale'].includes(tenant.tier)) && (
-                            <NavItem to="pos" icon={<ShoppingCart size={18} />}>POS & Retail</NavItem>
+                            <>
+                                <NavItem to="pos" icon={<ShoppingCart size={18} />}>POS & Retail</NavItem>
+                                {/* Only show coupons/gift cards if POS/Retail is enabled? Or treat them as general commerce? 
+                                    Let's group them with POS for now as requested by user implication of "Commerce module". 
+                                    Or maybe keep them separate. The prompt says "POS/Retail section will add a cost".
+                                    Let's wrap the whole Commerce group or just POS? 
+                                    "sections like POS/Retail are modules".
+                                */}
+                            </>
                         )}
                         <NavItem to="memberships" icon={<CreditCard size={18} />}>Memberships</NavItem>
                         <NavItem to="commerce/packs" icon={<Package size={18} />}>Class Packs</NavItem>
-                        <NavItem to="commerce/coupons" icon={<Ticket size={18} />}>Coupons</NavItem>
-                        <NavItem to="commerce/gift-cards" icon={<Ticket size={18} />}>Gift Cards</NavItem>
+
+                        {(featureSet.has('pos') || ['growth', 'scale'].includes(tenant.tier)) && (
+                            <>
+                                <NavItem to="commerce/coupons" icon={<Ticket size={18} />}>Coupons</NavItem>
+                                <NavItem to="commerce/gift-cards" icon={<Ticket size={18} />}>Gift Cards</NavItem>
+                            </>
+                        )}
                     </SidebarGroup>
 
                     <SidebarGroup title="Management">
