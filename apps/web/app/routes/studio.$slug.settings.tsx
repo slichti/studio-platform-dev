@@ -5,7 +5,7 @@ import { useOutletContext, useLoaderData, Form, useNavigation, useSubmit, Link }
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router"; // Add types
 import { apiRequest, API_URL } from "../utils/api";
 import { getAuth } from "@clerk/react-router/server";
-import { Plus, Trash2, MapPin, CreditCard, FileText, Tag, Mail, MessageSquare, Video, Globe } from "lucide-react";
+import { Plus, Trash2, MapPin, CreditCard, FileText, Mail, MessageSquare, Video, Globe } from "lucide-react";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { params } = args;
@@ -764,18 +764,7 @@ export default function StudioSettings() {
                 </div>
             </Link>
 
-            {/* Discounts */}
-            <Link to={`/studio/${tenant.slug}/settings/discounts`} className="block bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm mb-8 hover:border-blue-300 transition-colors group">
-                <div className="flex justify-between items-center">
-                    <div>
-                        <h2 className="text-lg font-semibold dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Discounts & Promo Codes</h2>
-                        <p className="text-sm text-zinc-500 dark:text-zinc-400">Create and manage coupon codes for your classes.</p>
-                    </div>
-                    <div className="bg-zinc-100 dark:bg-zinc-800 p-2 rounded-full group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                        <Tag className="h-5 w-5" />
-                    </div>
-                </div>
-            </Link>
+
 
             {/* Custom Domain */}
             <Link to={`/studio/${tenant.slug}/settings/domain`} className="block bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm mb-8 hover:border-purple-300 transition-colors group">
