@@ -1,7 +1,10 @@
 {
     "name": "web",
     "private": true,
-    "sideEffects": false,
+    "sideEffects": [
+        "./polyfill.ts",
+        "*.css"
+    ],
     "type": "module",
     "scripts": {
         "build": "react-router build && rm -f build/client/index.html",
