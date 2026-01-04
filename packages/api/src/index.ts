@@ -140,14 +140,13 @@ const publicStudioPaths = [
 ];
 
 // 3. Apply Middleware
-// All studio routes need tenant context
-studioPaths.forEach(path => app.use(path, tenantMiddleware));
 
-// Public studio routes get optional auth
+// first, identify the user (Auth)
 publicStudioPaths.forEach(path => app.use(path, optionalAuthMiddleware));
-
-// Restricted studio routes get full auth
 authenticatedPaths.forEach(path => app.use(path, authMiddleware));
+
+// then, establish studio context and member status (Tenant)
+studioPaths.forEach(path => app.use(path, tenantMiddleware));
 
 // 4. Infrastructure/Common Studio Logic
 const studioApp = new Hono<{ Bindings: Bindings, Variables: Variables }>()
