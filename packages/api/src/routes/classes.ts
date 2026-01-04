@@ -618,7 +618,6 @@ app.post('/:id/book', async (c) => {
     }
 
     // Handle Family Booking Logic
-    const roles = c.get('roles') || [];
     if (targetMemberId) {
         // Verify targetMemberId exists in this tenant
         const targetMember = await db.query.tenantMembers.findFirst({

@@ -49,6 +49,7 @@ export default function StudioStudents() {
     const [searchQuery, setSearchQuery] = useState("");
     const [isAddingMember, setIsAddingMember] = useState(false);
     const [isSubmittingMember, setIsSubmittingMember] = useState(false);
+    const [editingMember, setEditingMember] = useState<any | null>(null);
 
     // Filter members
     const filteredMembers = (members || []).filter((m: any) => {
@@ -90,6 +91,29 @@ export default function StudioStudents() {
         } finally {
             setIsSubmittingMember(false);
             setIsAddingMember(false);
+        }
+    };
+
+    const handleRemoveMember = async () => {
+        if (!editingMember) return;
+        if (!confirm(`Are you sure you want to remove ${editingMember.user.email} from the studio? This will archive their membership.`)) return;
+
+        setUpdating(editingMember.id);
+        try {
+            const token = await getToken();
+            const res = await apiRequest(`/members/${editingMember.id}`, token, {
+                method: "DELETE",
+                headers: { 'X-Tenant-Slug': slug! }
+            }) as any;
+            if (res.error) alert(res.error);
+            else {
+                setEditingMember(null);
+                window.location.reload();
+            }
+        } catch (e: any) {
+            alert(e.message);
+        } finally {
+            setUpdating(null);
         }
     };
 
@@ -213,7 +237,12 @@ export default function StudioStudents() {
                                         {new Date(member.joinedAt).toLocaleDateString()}
                                     </td>
                                     <td className="px-6 py-4">
-                                        <button className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 text-sm font-medium transition-colors">Edit</button>
+                                        <button
+                                            onClick={() => setEditingMember(member)}
+                                            className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 text-sm font-medium transition-colors"
+                                        >
+                                            Edit
+                                        </button>
                                     </td>
                                 </tr>
                             ))
@@ -285,6 +314,52 @@ export default function StudioStudents() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+            {/* Manage Member Modal */}
+            {editingMember && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 w-full max-w-md shadow-2xl border border-zinc-200 dark:border-zinc-700 animate-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-start mb-4">
+                            <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Manage Member</h3>
+                            <button onClick={() => setEditingMember(null)} className="text-zinc-400 hover:text-zinc-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 18 18" /></svg>
+                            </button>
+                        </div>
+                        <p className="text-sm text-zinc-500 mb-6">
+                            Managing <strong>{editingMember.user.email}</strong>
+                        </p>
+
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Role</label>
+                                <select
+                                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                                    value={(Array.isArray(editingMember.roles) ? editingMember.roles : []).find((r: any) => r.role === 'owner' || r.role === 'instructor')?.role || 'student'}
+                                    onChange={(e) => handleRoleChange(editingMember.id, e.target.value)}
+                                    disabled={!isOwner}
+                                >
+                                    <option value="student">Student</option>
+                                    <option value="instructor">Instructor</option>
+                                </select>
+                                {!isOwner && <p className="text-xs text-zinc-500 mt-1">Only owners can manage roles.</p>}
+                            </div>
+
+                            <div className="bg-red-50 dark:bg-red-900/10 p-4 rounded-lg border border-red-100 dark:border-red-900/20">
+                                <h4 className="text-sm font-bold text-red-900 dark:text-red-400 mb-1">Danger Zone</h4>
+                                <p className="text-xs text-red-700 dark:text-red-300 mb-3">
+                                    Removing a member will archive their access to the studio.
+                                </p>
+                                <button
+                                    onClick={handleRemoveMember}
+                                    disabled={updating === editingMember.id || !isOwner}
+                                    className="w-full px-4 py-2 text-sm bg-white dark:bg-zinc-900 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 font-medium transition-colors"
+                                >
+                                    {updating === editingMember.id ? 'Removing...' : 'Remove from Studio'}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

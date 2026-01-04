@@ -23,36 +23,142 @@ type Variables = {
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 
 // GET /members: List all members (Owner only)
+// GET /members: List all members (Owner only)
 app.get('/', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     const roles = c.get('roles') || [];
+    const query = c.req.query('q')?.toLowerCase();
 
-    if (!tenant) {
-        console.error("Members Route: Tenant context MISSING", { url: c.req.url, headers: c.req.header() });
-        return c.json({
-            error: 'Tenant context required',
-            details: 'Tenant object is missing in context',
-            url: c.req.url,
-            headers: c.req.header()
-        }, 400);
-    }
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
     if (!roles.includes('owner') && !roles.includes('instructor')) {
         return c.json({ error: 'Access Denied' }, 403);
     }
 
-    // Fetch members with roles
-    const members = await db.query.tenantMembers.findMany({
+    // Basic fetch
+    let members = await db.query.tenantMembers.findMany({
         where: eq(tenantMembers.tenantId, tenant.id),
         with: {
             roles: true,
-            user: true // assuming relation exists
-        }
+            user: true
+        },
+        orderBy: (tenantMembers, { desc }) => [desc(tenantMembers.joinedAt)]
     });
 
+    // In-memory filter for search (SQLite LIKE across joined tables is tricky with Drizzle Query Builder sometimes)
+    // Optimization: If list gets huge, move to raw SQL or better relational query.
+    if (query) {
+        members = members.filter(m => {
+            const email = m.user.email.toLowerCase();
+            const first = (m.user.profile as any)?.firstName?.toLowerCase() || '';
+            const last = (m.user.profile as any)?.lastName?.toLowerCase() || '';
+            const full = `${first} ${last}`;
+            return email.includes(query) || first.includes(query) || last.includes(query) || full.includes(query);
+        });
+    }
+
     return c.json({ members });
-    return c.json({ members });
+});
+
+// POST /members: Add/Invite Member manually
+app.post('/', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    const { email, firstName, lastName, role } = await c.req.json();
+
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    } // Instructors can add students
+
+    if (!email) return c.json({ error: 'Email is required' }, 400);
+
+    // 1. Check if user exists globally
+    let userId: string;
+    let user = await db.query.users.findFirst({ where: eq(users.email, email) });
+
+    if (user) {
+        userId = user.id;
+    } else {
+        // Create new Skeleton User
+        userId = crypto.randomUUID();
+        await db.insert(users).values({
+            id: userId,
+            email,
+            profile: { firstName, lastName },
+            createdAt: new Date()
+        }).run();
+    }
+
+    // 2. Check if already a member of THIS tenant
+    const existingMember = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.userId, userId), eq(tenantMembers.tenantId, tenant.id))
+    });
+
+    if (existingMember) {
+        return c.json({ error: 'User is already a member of this studio' }, 409);
+    }
+
+    // 3. Add as Member
+    const memberId = crypto.randomUUID();
+    await db.insert(tenantMembers).values({
+        id: memberId,
+        tenantId: tenant.id,
+        userId,
+        status: 'active',
+        joinedAt: new Date(),
+        profile: { firstName, lastName } // Snapshot
+    }).run();
+
+    // 4. Assign Role
+    const assignedRole = (roles.includes('owner') && role === 'instructor') ? 'instructor' : 'student';
+    await db.insert(tenantRoles).values({
+        memberId,
+        role: assignedRole
+    }).run();
+
+    return c.json({ success: true, memberId });
+});
+
+// DELETE /members/:id: Remove (Archive) Member
+app.delete('/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    const memberId = c.req.param('id');
+
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+    // Only Owners can delete members? Or Instructors too? owner for now.
+    if (!roles.includes('owner')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.id, memberId), eq(tenantMembers.tenantId, tenant.id))
+    });
+
+    if (!member) return c.json({ error: 'Member not found' }, 404);
+    if (member.userId === c.get('auth').userId) return c.json({ error: 'Cannot remove yourself' }, 400);
+
+    // Hard Delete or Archive? 
+    // "Remove from Studio" usually implies access revocation.
+    // Let's Delete roles and then Member record to keep it clean, 
+    // UNLESS they have financial history (bookings/purchases).
+    // Safe approach: Soft Delete (status=archived).
+    // User requested "Remove", let's try Soft Delete first as it preserves history.
+
+    await db.update(tenantMembers)
+        .set({ status: 'archived' })
+        .where(eq(tenantMembers.id, memberId))
+        .run();
+
+    // Also remove roles to prevent login? Or does status=archived block it?
+    // tenantMiddleware checks role list. If archvied, we should probably strip roles.
+    await db.delete(tenantRoles).where(eq(tenantRoles.memberId, memberId)).run();
+
+    return c.json({ success: true });
 });
 
 // POST /members: Add a member (Owner/Instructor)
