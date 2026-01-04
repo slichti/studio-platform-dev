@@ -6,6 +6,8 @@
         "**/.server/**/*.tsx",
         "**/.client/**/*.ts",
         "**/.client/**/*.tsx",
+        "functions/**/*.ts",
+        "functions/**/*.js",
         "env.d.ts"
     ],
     "compilerOptions": {
