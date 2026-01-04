@@ -8,6 +8,7 @@ import { UserButton } from "@clerk/react-router";
 import {
     LayoutGrid,
     Calendar,
+    User,
     Users,
     Settings,
     CreditCard,
