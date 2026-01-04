@@ -11,13 +11,14 @@ export class StreamService {
      * Upload a video via a public or signed URL (e.g. Zoom download URL).
      * Cloudflare Stream will pull the file asynchronously.
      */
-    async uploadViaLink(url: string, meta: { name: string }): Promise<string> {
+    async uploadViaLink(url: string, meta: { name: string, meta?: Record<string, any> }): Promise<string> {
         // Prepare the payload
         // See: https://developers.cloudflare.com/stream/uploading-videos/upload-via-link/
         const body = {
             url: url,
             meta: {
-                name: meta.name
+                name: meta.name,
+                ...meta.meta // Spread generic metadata (e.g. classId, tenantId)
             },
             // requireSignedURLs: true // Optional: enforce signed URLs for playback
         };

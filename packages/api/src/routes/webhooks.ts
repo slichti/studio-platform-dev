@@ -2,8 +2,8 @@ import { Hono } from 'hono';
 import { createDb } from '../db';
 import { ZoomService } from '../services/zoom';
 import { StreamService } from '../services/stream';
-import { classes, users, classPackDefinitions, purchasedPacks, giftCards, giftCardTransactions, tenantMembers, tenants } from 'db/src/schema';
-import { eq, and } from 'drizzle-orm';
+import { classes, users, classPackDefinitions, purchasedPacks, giftCards, giftCardTransactions, tenantMembers, tenants, tenantFeatures } from 'db/src/schema'; // Added tenantFeatures
+import { eq, and, sql } from 'drizzle-orm';
 // import { verifyWebhookSignature } from '../services/zoom'; 
 
 type Bindings = {
@@ -38,15 +38,59 @@ app.post('/zoom', async (c) => {
     if (body.event === 'recording.completed') {
         const payload = body.payload.object;
         const recordingFile = payload.recording_files?.find((f: any) => f.file_type === 'MP4');
+        const meetingId = payload.id; // Zoom Meeting ID (BigInt often, so keep as is or stringify)
+
         if (recordingFile && recordingFile.download_url && c.env.ZOOM_ACCOUNT_ID && c.env.CLOUDFLARE_ACCOUNT_ID) {
             try {
+                const db = createDb(c.env.DB);
+
+                // 1. Find the Class assoc with this Meeting ID
+                // Note: Zoom sends Long (number), DB stores text.
+                const meetingIdStr = String(meetingId);
+                const classRecord = await db.select({
+                    id: classes.id,
+                    tenantId: classes.tenantId,
+                    tenant: tenants
+                })
+                    .from(classes)
+                    .innerJoin(tenants, eq(classes.tenantId, tenants.id))
+                    .where(eq(classes.zoomMeetingId, meetingIdStr))
+                    .limit(1)
+                    .get();
+
+                if (!classRecord) {
+                    console.log(`Zoom Recording: No class found for meeting ID ${meetingIdStr}. Skipping.`);
+                    return c.json({ received: true });
+                }
+
+                // 2. Check Permissions (VOD Feature or Tier)
+                const feature = await db.select()
+                    .from(tenantFeatures)
+                    .where(and(eq(tenantFeatures.tenantId, classRecord.tenantId), eq(tenantFeatures.featureKey, 'vod')))
+                    .get();
+
+                // Explicit enable OR implicit tier entitlement
+                const isEnabled = (feature && feature.enabled) || ['scale', 'growth'].includes(classRecord.tenant.tier);
+
+                if (!isEnabled) {
+                    console.log(`Zoom Recording: VOD not enabled for tenant ${classRecord.tenant.slug}. Skipping download.`);
+                    return c.json({ received: true });
+                }
+
+                // 3. Process Download
                 // Fix: Pass DB (c.env.DB) to ZoomService
                 const zoomService = new ZoomService(c.env.ZOOM_ACCOUNT_ID, c.env.ZOOM_CLIENT_ID, c.env.ZOOM_CLIENT_SECRET, c.env.DB);
                 // @ts-ignore - Assuming getAccessToken might be private/protected
                 const zoomToken = await zoomService.getAccessToken();
                 const streamService = new StreamService(c.env.CLOUDFLARE_ACCOUNT_ID, c.env.CLOUDFLARE_API_TOKEN);
                 const downloadUrlWithToken = `${recordingFile.download_url}?access_token=${zoomToken}`;
-                await streamService.uploadViaLink(downloadUrlWithToken, { name: payload.topic || `Meeting ${payload.id}` });
+
+                // Use classRecord.id to link it optionally later? Original code just uploaded.
+                await streamService.uploadViaLink(downloadUrlWithToken, {
+                    name: payload.topic || `Meeting ${payload.id}`,
+                    meta: { classId: classRecord.id, tenantId: classRecord.tenantId }
+                });
+
             } catch (e) {
                 console.error("Failed to process recording upload", e);
             }
