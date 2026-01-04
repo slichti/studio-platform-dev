@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Modal } from "./Modal";
 import { apiRequest } from "../utils/api";
 import { useAuth } from "@clerk/react-router";
+// @ts-ignore
+import { useParams } from "react-router";
 
 interface CreateClassModalProps {
     isOpen: boolean;
@@ -14,6 +16,7 @@ interface CreateClassModalProps {
 
 export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], instructors = [] }: CreateClassModalProps) {
     const { getToken } = useAuth();
+    const { slug } = useParams();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
@@ -46,12 +49,12 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
             let recurrenceRule = undefined;
             if (formData.isRecurring) {
                 const { RRule } = await import("rrule");
-                // const rule = new RRule({ ... }); // unused
                 recurrenceRule = formData.recurrencePattern === "weekly" ? "FREQ=WEEKLY" : "FREQ=DAILY";
             }
 
             const res: any = await apiRequest("/classes", token, {
                 method: "POST",
+                headers: { 'X-Tenant-Slug': slug! },
                 body: JSON.stringify({
                     title: formData.name,
                     description: formData.description,
@@ -76,7 +79,6 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
             } else {
                 onSuccess(res.class || res);
                 onClose();
-                // Reset form
                 setFormData({
                     name: "",
                     description: "",

@@ -1,21 +1,25 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { locations } from 'db/src/schema'; // adjustments might be needed based on exports
+import { locations, tenants, tenantMembers } from 'db/src/schema';
 import { eq, and } from 'drizzle-orm';
-// @ts-ignore
-import { tenantMiddleware } from '../middleware/tenant';
 
 type Bindings = {
     DB: D1Database;
 };
 
 type Variables = {
-    tenant: any;
-}
+    tenant: typeof tenants.$inferSelect;
+    member?: typeof tenantMembers.$inferSelect;
+    roles?: string[];
+    auth: {
+        userId: string | null;
+        claims: any;
+    };
+    features: Set<string>;
+    isImpersonating?: boolean;
+};
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
-
-app.use('*', tenantMiddleware);
 
 // GET /: List locations
 app.get('/', async (c) => {

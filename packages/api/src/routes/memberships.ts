@@ -1,30 +1,25 @@
 import { Hono } from 'hono';
-import { membershipPlans, subscriptions, tenants } from 'db/src/schema'; // Ensure exported in schema
 import { createDb } from '../db';
 import { eq, and } from 'drizzle-orm';
+import { tenants, tenantMembers, membershipPlans, subscriptions } from 'db/src/schema'; // Ensure exported in schema
 
 type Bindings = {
     DB: D1Database;
 };
 
 type Variables = {
-    auth: {
-        userId: string;
-    };
-    tenant?: any;
+    tenant: typeof tenants.$inferSelect;
+    member?: typeof tenantMembers.$inferSelect;
     roles?: string[];
+    auth: {
+        userId: string | null;
+        claims: any;
+    };
+    features: Set<string>;
     isImpersonating?: boolean;
-}
-
-import { tenantMiddleware } from '../middleware/tenant';
-import { authMiddleware } from '../middleware/auth';
+};
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
-
-// Enforce Auth and Tenant for all membership routes internally to be safe
-// app.use('*', authMiddleware); // Already applied in index.ts but can double up if needed. index.ts order should prevail.
-// Let's rely on index.ts for auth, but apply tenant here since index.ts seems flaky for it.
-app.use('*', tenantMiddleware);
 
 // GET /plans: List all membership plans for tenant
 app.get('/plans', async (c) => {

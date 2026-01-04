@@ -1,13 +1,39 @@
 import { Hono } from 'hono'
 import { createDb } from './db';
-import { tenantMiddleware } from './middleware/tenant';
 import { tenants, tenantMembers } from 'db/src/schema';
 import { eq } from 'drizzle-orm';
+import { authMiddleware } from './middleware/auth';
+import { optionalAuthMiddleware } from './middleware/optionalAuth';
+import { tenantMiddleware } from './middleware/tenant';
+import { cors } from 'hono/cors';
+import { logger } from 'hono/logger';
+
+// Route Imports
+import studioRoutes from './routes/studios';
+import classRoutes from './routes/classes';
+import locationRoutes from './routes/locations';
+import members from './routes/members';
+import memberships from './routes/memberships';
+import waivers from './routes/waivers';
+import appointments from './routes/appointments';
+import payroll from './routes/payroll';
+import marketing from './routes/marketing';
+import substitutions from './routes/substitutions';
+import leads from './routes/leads';
+import pos from './routes/pos';
+import giftCards from './routes/gift-cards';
+import admin from './routes/admin';
+import onboarding from './routes/onboarding';
+import dataImport from './routes/import';
+import webhookRoutes from './routes/webhooks';
+import uploadRoutes from './routes/uploads';
+import userRoutes from './routes/users';
+import commerce from './routes/commerce';
 
 type Bindings = {
   DB: D1Database;
   CLERK_SECRET_KEY: string;
-  CLERK_PEM_PUBLIC_KEY: string; // PEM format public key for RS256 verification
+  CLERK_PEM_PUBLIC_KEY: string;
   ZOOM_ACCOUNT_ID: string;
   ZOOM_CLIENT_ID: string;
   ZOOM_CLIENT_SECRET: string;
@@ -20,6 +46,7 @@ type Bindings = {
   RESEND_API_KEY: string;
   CLERK_WEBHOOK_SECRET: string;
   R2: R2Bucket;
+  ENCRYPTION_SECRET: string;
 };
 
 type Variables = {
@@ -31,25 +58,15 @@ type Variables = {
     claims: any;
   };
   features: Set<string>;
+  isImpersonating?: boolean;
 };
-
-import studioRoutes from './routes/studios';
-import classRoutes from './routes/classes';
-import locationRoutes from './routes/locations';
-
-import { authMiddleware } from './middleware/auth';
-
-import { cors } from 'hono/cors';
-import { logger } from 'hono/logger';
-
-import members from './routes/members';
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>()
 
 app.use('*', logger());
 app.use('*', cors({
   origin: (origin) => {
-    if (!origin) return 'https://studio-platform-web.pages.dev'; // Fallback
+    if (!origin) return 'https://studio-platform-web.pages.dev';
     if (origin.endsWith('.pages.dev') || origin.endsWith('.slichti.org') || origin.includes('localhost')) {
       return origin;
     }
@@ -72,56 +89,80 @@ app.onError((err: any, c) => {
   }, 500);
 });
 
-// Public routes
 app.get('/', (c) => {
   return c.text('Health Check: OK')
 })
 
-// Protected Routes Middleware
-// Middleware Configuration
-// 1. Global Auth (Strict) for Admin/Users/Uploads
-app.use('/users/*', authMiddleware);
+// 1. Global Platform Routes
 app.use('/admin/*', authMiddleware);
+app.use('/users/*', authMiddleware);
 app.use('/onboarding/*', authMiddleware);
-app.use('/uploads/*', authMiddleware);
-app.use('/uploads/*', tenantMiddleware);
+app.use('/studios/*', authMiddleware);
 
-// 2. Tenant Context (Required for all studio routes)
-app.use('/studios/*', authMiddleware); // Studio Management requires auth
-app.use('/locations/*', authMiddleware);
-app.use('/locations/*', tenantMiddleware);
+// 2. Studio Route Paths (Groups for middleware application)
+const studioPaths = [
+  '/locations', '/locations/*',
+  '/members', '/members/*',
+  '/memberships', '/memberships/*',
+  '/waivers', '/waivers/*',
+  '/appointments', '/appointments/*',
+  '/payroll', '/payroll/*',
+  '/marketing', '/marketing/*',
+  '/substitutions', '/substitutions/*',
+  '/leads', '/leads/*',
+  '/pos', '/pos/*',
+  '/uploads', '/uploads/*',
+  '/tenant', '/tenant/*',
+  '/classes', '/classes/*',
+  '/commerce', '/commerce/*',
+  '/gift-cards', '/gift-cards/*'
+];
 
-// 3. Optional Auth for Classes (Public Access)
-// We use optionalAuthMiddleware so we can know IF a user is logged in, but not block if not.
-import { optionalAuthMiddleware } from './middleware/optionalAuth';
-app.use('/classes/*', optionalAuthMiddleware);
-app.use('/classes/*', tenantMiddleware);
+const authenticatedPaths = [
+  '/locations', '/locations/*',
+  '/members', '/members/*',
+  '/memberships', '/memberships/*',
+  '/waivers', '/waivers/*',
+  '/appointments', '/appointments/*',
+  '/payroll', '/payroll/*',
+  '/marketing', '/marketing/*',
+  '/substitutions', '/substitutions/*',
+  '/leads', '/leads/*',
+  '/pos', '/pos/*',
+  '/uploads', '/uploads/*',
+  '/tenant', '/tenant/*'
+];
 
-// 4. Strict Auth + Tenant for Members/Memberships
-app.use('/members*', authMiddleware);
-app.use('/members*', tenantMiddleware);
-app.use('/memberships*', authMiddleware);
-app.use('/memberships*', tenantMiddleware);
-import waivers from './routes/waivers';
-app.use('/waivers*', authMiddleware); // Or optional if we want public viewing of agreement? Usually signing requires auth for signature binding.
-// For now, let's say specific methods in waivers route handle auth, but tenant middleware is needed.
-app.use('/waivers*', tenantMiddleware);
-app.route('/waivers', waivers);
+const publicStudioPaths = [
+  '/classes', '/classes/*',
+  '/commerce', '/commerce/*',
+  '/gift-cards', '/gift-cards/*'
+];
 
-// Note: '/studios/*' is creating tenants, so it might not be inside a tenant yet?
-// Actually 'POST /studios' creates one. 'GET /studios/:id' views one.
-// If we enforce tenantMiddleware on ALL /studios/*, we break creation.
-// So let's apply explicitly to sub-resources.
+// 3. Apply Middleware
+// All studio routes need tenant context
+studioPaths.forEach(path => app.use(path, tenantMiddleware));
 
-// Tenant Middleware Application (for domain-based access)
-const tenantApp = new Hono<{ Bindings: Bindings, Variables: Variables }>()
-tenantApp.use('*', authMiddleware); // Auth first
-tenantApp.use('*', tenantMiddleware); // Then Tenant (which checks membership)
+// Public studio routes get optional auth
+publicStudioPaths.forEach(path => app.use(path, optionalAuthMiddleware));
 
-tenantApp.get('/info', (c) => {
+// Restricted studio routes get full auth
+authenticatedPaths.forEach(path => app.use(path, authMiddleware));
+
+// 4. Infrastructure/Common Studio Logic
+const studioApp = new Hono<{ Bindings: Bindings, Variables: Variables }>()
+
+// 5. Setup Feature Route sub-apps (will be mounted in next step)
+const publicStudioApp = new Hono<{ Bindings: Bindings, Variables: Variables }>()
+publicStudioApp.route('/classes', classRoutes);
+publicStudioApp.route('/commerce', commerce);
+publicStudioApp.route('/gift-cards', giftCards);
+app.route('/studios', studioRoutes);
+
+// 6. Base Studio Logic
+studioApp.get('/info', (c) => {
   const tenant = c.get('tenant');
   if (!tenant) return c.json({ error: "No tenant" }, 404);
-
   return c.json({
     id: tenant.id,
     name: tenant.name,
@@ -132,19 +173,18 @@ tenantApp.get('/info', (c) => {
     branding: tenant.branding,
     features: Array.from(c.get('features') || [])
   });
-})
+});
 
-tenantApp.get('/stats', async (c) => {
+studioApp.get('/stats', async (c) => {
   const tenant = c.get('tenant');
   const db = createDb(c.env.DB);
   const { count, sum, and, eq, gte } = await import('drizzle-orm');
-  const { tenantMembers, tenantRoles, classes, bookings, posOrders, purchasedPacks, giftCards, waiverTemplates, waiverSignatures } = await import('db/src/schema');
+  const { tenantMembers, tenantRoles, classes, bookings, posOrders, purchasedPacks, waiverTemplates, waiverSignatures } = await import('db/src/schema');
 
   const now = new Date();
   const firstOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
   const [memberCount, bookingsCount, revenuePos, revenuePacks] = await Promise.all([
-    // Active Students
     db.select({ count: count() })
       .from(tenantMembers)
       .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
@@ -154,7 +194,6 @@ tenantApp.get('/stats', async (c) => {
         eq(tenantMembers.status, 'active')
       )).get(),
 
-    // Upcoming Bookings (next 7 days)
     db.select({ count: count() })
       .from(bookings)
       .innerJoin(classes, eq(bookings.classId, classes.id))
@@ -163,7 +202,6 @@ tenantApp.get('/stats', async (c) => {
         gte(classes.startTime, now)
       )).get(),
 
-    // Monthly Revenue (POS)
     db.select({ total: sum(posOrders.totalAmount) })
       .from(posOrders)
       .where(and(
@@ -172,25 +210,14 @@ tenantApp.get('/stats', async (c) => {
         eq(posOrders.status, 'completed')
       )).get(),
 
-    // Monthly Revenue (Packs)
     db.select({ total: sum(purchasedPacks.price) })
       .from(purchasedPacks)
       .where(and(
         eq(purchasedPacks.tenantId, tenant.id),
         gte(purchasedPacks.createdAt, firstOfCurrentMonth)
-      )).get(),
-
-    // Gift Card Liability
-    db.select({ total: sum(giftCards.currentBalance) })
-      .from(giftCards)
-      .where(and(
-        eq(giftCards.tenantId, tenant.id),
-        eq(giftCards.status, 'active')
       )).get()
   ]);
 
-  // Waiver Compliance
-  // 1. Get active template
   const activeTemplate = await db.query.waiverTemplates.findFirst({
     where: and(eq(waiverTemplates.tenantId, tenant.id), eq(waiverTemplates.active, true))
   });
@@ -203,13 +230,12 @@ tenantApp.get('/stats', async (c) => {
       .where(and(
         eq(waiverSignatures.templateId, activeTemplate.id),
         eq(tenantMembers.status, 'active')
-      )).get(); // Count active members who have signed THIS waiver
+      )).get();
     signedCount = (result as any)?.count || 0;
   }
 
   const posTotal = Number((revenuePos as any)?.total || 0);
   const packTotal = Number((revenuePacks as any)?.total || 0);
-  const liabilityTotal = Number((revenuePacks as any)?.[4]?.total || 0); // Logic fix: Promise.all index
 
   return c.json({
     activeStudents: (memberCount as any)?.count || 0,
@@ -219,12 +245,11 @@ tenantApp.get('/stats', async (c) => {
       signed: signedCount,
       total: (memberCount as any)?.count || 0,
       activeWaiver: !!activeTemplate
-    },
-    giftCardLiability: Number((revenuePacks as any)?.length > 4 ? 0 : 0) // Temp fix for logic above, better re-assign from destructure
+    }
   });
 });
 
-tenantApp.get('/search', async (c) => {
+studioApp.get('/search', async (c) => {
   const tenant = c.get('tenant');
   const db = createDb(c.env.DB);
   const q = c.req.query('q')?.toLowerCase();
@@ -270,235 +295,72 @@ tenantApp.get('/search', async (c) => {
       .all()
   ]);
 
-  return c.json({
-    students,
-    classes: upcomingClasses,
-    orders: recentOrders
-  });
+  return c.json({ students, classes: upcomingClasses, orders: recentOrders });
 });
 
-tenantApp.patch('/settings', async (c) => {
+studioApp.patch('/settings', async (c) => {
   const tenant = c.get('tenant');
   const db = createDb(c.env.DB);
   const body = await c.req.json();
-
-  // Validate Allowed Settings
-  const allowedKeys = ['name', 'settings', 'branding'];
-  // We allow patching top-level 'name', and the 'settings' JSON object.
-  // The frontend sends { name } or { settings: { ... } } or both.
-
   const updateData: any = {};
   if (body.name) updateData.name = body.name;
-
   if (body.settings) {
-    // Merge with existing settings
-    const currentSettings = tenant.settings || {};
-    updateData.settings = { ...currentSettings, ...body.settings };
+    updateData.settings = { ...(tenant.settings || {}), ...body.settings };
   }
-
-  if (Object.keys(updateData).length === 0) {
-    return c.json({ received: true });
-  }
-
-  await db.update(tenants)
-    .set(updateData)
-    .where(eq(tenants.id, tenant.id))
-    .run();
-
+  if (Object.keys(updateData).length === 0) return c.json({ received: true });
+  await db.update(tenants).set(updateData).where(eq(tenants.id, tenant.id)).run();
   return c.json({ success: true });
 });
 
-tenantApp.put('/credentials/zoom', async (c) => {
+studioApp.put('/credentials/zoom', async (c) => {
   const tenant = c.get('tenant');
   const db = createDb(c.env.DB);
-  const body = await c.req.json();
-  const { accountId, clientId, clientSecret } = body;
-
-  if (!accountId || !clientId || !clientSecret) {
-    return c.json({ error: 'Missing credentials' }, 400);
-  }
-
-  // TODO: Encrypt these before saving in production
-  const credentials = { accountId, clientId, clientSecret };
-
-  await db.update(tenants)
-    .set({ zoomCredentials: credentials })
-    .where(eq(tenants.id, tenant.id))
-    .run();
-
-
+  const { accountId, clientId, clientSecret } = await c.req.json();
+  if (!accountId || !clientId || !clientSecret) return c.json({ error: 'Missing credentials' }, 400);
+  await db.update(tenants).set({ zoomCredentials: { accountId, clientId, clientSecret } }).where(eq(tenants.id, tenant.id)).run();
   return c.json({ success: true });
 });
 
-tenantApp.get('/domain', async (c) => {
-  const tenant = c.get('tenant');
-  if (!tenant.customDomain) return c.json({ domain: null });
-
-  // Verification Logic
-  const { CloudflareService } = await import('./services/cloudflare');
-  const cf = new CloudflareService(c.env.CLOUDFLARE_ACCOUNT_ID, c.env.CLOUDFLARE_API_TOKEN);
-
-  try {
-    const result = await cf.getDomain(tenant.customDomain);
-    return c.json({
-      domain: tenant.customDomain,
-      status: result?.status || 'unknown', // active, pending, etc.
-      dns_records: result?.validation_data || [] // Instructions for user
-    });
-  } catch (e: any) {
-    return c.json({ error: e.message }, 500);
-  }
-});
-
-tenantApp.post('/domain', async (c) => {
-  const tenant = c.get('tenant');
-
-  // 1. Check Tier
-  if (tenant.tier !== 'scale') {
-    return c.json({ error: "Custom domains are only available on the Scale plan." }, 403);
-  }
-
-  const { domain } = await c.req.json();
-  if (!domain) return c.json({ error: "Domain is required" }, 400);
-
-  const db = createDb(c.env.DB);
-  const { CloudflareService } = await import('./services/cloudflare');
-  const cf = new CloudflareService(c.env.CLOUDFLARE_ACCOUNT_ID, c.env.CLOUDFLARE_API_TOKEN);
-
-  try {
-    // 2. Add to Cloudflare
-    const result = await cf.addDomain(domain);
-
-    // 3. Update DB
-    await db.update(tenants)
-      .set({ customDomain: domain })
-      .where(eq(tenants.id, tenant.id))
-      .run();
-
-    return c.json({
-      success: true,
-      domain: result.name,
-      status: result.status,
-      dns_records: result.validation_data
-    });
-  } catch (e: any) {
-    return c.json({ error: e.message }, 500);
-  }
-});
-
-tenantApp.delete('/domain', async (c) => {
-  const tenant = c.get('tenant');
-  if (!tenant.customDomain) return c.json({ success: true }); // No op
-
-  const db = createDb(c.env.DB);
-  const { CloudflareService } = await import('./services/cloudflare');
-  const cf = new CloudflareService(c.env.CLOUDFLARE_ACCOUNT_ID, c.env.CLOUDFLARE_API_TOKEN);
-
-  try {
-    await cf.deleteDomain(tenant.customDomain);
-
-    await db.update(tenants)
-      .set({ customDomain: null })
-      .where(eq(tenants.id, tenant.id))
-      .run();
-
-    return c.json({ success: true });
-  } catch (e: any) {
-    return c.json({ error: e.message }, 500);
-  }
-});
-
-tenantApp.get('/me', (c) => {
+studioApp.get('/me', (c) => {
   const member = c.get('member');
   const roles = c.get('roles');
-  if (!member) {
-    return c.json({ error: "Not a member" }, 401);
-  }
-  console.log('[DEBUG /tenant/me] Member found:', member.id, 'User present:', !!(member as any).user);
-  return c.json({
-    member: {
-      ...member,
-      user: (member as any).user,
-      _debug_userId: member.userId // Verify if this matches auth.userId
-    },
-    roles
-  });
-})
+  if (!member) return c.json({ error: "Not a member" }, 401);
+  return c.json({ member, roles });
+});
 
-tenantApp.get('/usage', async (c) => {
+studioApp.get('/usage', async (c) => {
   const tenant = c.get('tenant');
   const db = createDb(c.env.DB);
   const { UsageService } = await import('./services/pricing');
-
   const usageService = new UsageService(db, tenant.id);
   const usage = await usageService.getUsage();
-
   return c.json(usage);
 });
 
-import webhookRoutes from './routes/webhooks';
-import uploadRoutes from './routes/uploads';
-// import adminRoutes from './routes/admin'; // Moved to bottom
-import userRoutes from './routes/users';
-app.route('/users', userRoutes);
-import adminFeatureRoutes from './routes/admin.features'; // Import new route
-
-import memberships from './routes/memberships';
-
-// ... (existing routes)
-
-app.route('/tenant', tenantApp);
-app.route('/studios', studioRoutes);
-app.route('/classes', classRoutes);
+// Final Route Mounts
 app.route('/locations', locationRoutes);
-app.route('/webhooks', webhookRoutes);
-app.route('/uploads', uploadRoutes);
-import commerce from './routes/commerce';
-app.use('/commerce*', optionalAuthMiddleware);
-app.use('/commerce*', tenantMiddleware);
-app.route('/commerce', commerce);
-
 app.route('/members', members);
-app.use('/memberships*', optionalAuthMiddleware);
-app.use('/memberships*', tenantMiddleware);
 app.route('/memberships', memberships);
-
-import appointments from './routes/appointments';
+app.route('/waivers', waivers);
 app.route('/appointments', appointments);
-
-import payroll from './routes/payroll';
 app.route('/payroll', payroll);
-
-import marketing from './routes/marketing';
 app.route('/marketing', marketing);
-
-import substitutions from './routes/substitutions';
 app.route('/substitutions', substitutions);
-
-import leads from './routes/leads';
-app.use('/leads*', authMiddleware);
-app.use('/leads*', tenantMiddleware);
 app.route('/leads', leads);
-
-import pos from './routes/pos';
-app.use('/pos*', authMiddleware);
-app.use('/pos*', tenantMiddleware);
 app.route('/pos', pos);
+app.route('/uploads', uploadRoutes);
 
-import giftCards from './routes/gift-cards';
-tenantApp.route('/gift-cards', giftCards); // Admin-level within tenant
-app.use('/gift-cards*', tenantMiddleware);
-app.route('/gift-cards', giftCards);   // Public-level validation
+app.route('/classes', classRoutes);
+app.route('/commerce', commerce);
+app.route('/gift-cards', giftCards);
 
-// Main Admin Router (Super Admin)
-import admin from './routes/admin';
+app.route('/tenant', studioApp);
+
+app.route('/users', userRoutes);
 app.route('/admin', admin);
-
-import onboarding from './routes/onboarding';
 app.route('/onboarding', onboarding);
-
-import dataImport from './routes/import';
 app.route('/import', dataImport);
+app.route('/webhooks', webhookRoutes);
 
 import { scheduled } from './cron';
 
@@ -506,4 +368,3 @@ export default {
   fetch: app.fetch,
   scheduled
 }
-

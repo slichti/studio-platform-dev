@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { eq, and, desc } from 'drizzle-orm';
-import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings } from 'db/src/schema';
+import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings, tenants } from 'db/src/schema';
 
 type Bindings = {
     DB: D1Database;
@@ -9,13 +9,16 @@ type Bindings = {
 };
 
 type Variables = {
-    auth: {
-        userId: string;
-    };
-    tenant?: any;
+    tenant: typeof tenants.$inferSelect;
+    member?: typeof tenantMembers.$inferSelect;
     roles?: string[];
+    auth: {
+        userId: string | null;
+        claims: any;
+    };
+    features: Set<string>;
     isImpersonating?: boolean;
-}
+};
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 
@@ -61,7 +64,7 @@ app.get('/me', async (c) => {
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
     const member = await db.query.tenantMembers.findFirst({
-        where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id)),
+        where: and(eq(tenantMembers.userId, auth.userId!), eq(tenantMembers.tenantId, tenant.id)),
         with: {
             roles: true,
             user: true
@@ -83,7 +86,7 @@ app.patch('/me/settings', async (c) => {
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
     const member = await db.query.tenantMembers.findFirst({
-        where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id))
+        where: and(eq(tenantMembers.userId, auth.userId!), eq(tenantMembers.tenantId, tenant.id))
     });
 
     if (!member) return c.json({ error: 'Not a member' }, 404);
@@ -266,7 +269,7 @@ app.post('/:id/notes', async (c) => {
 
     // Find author member ID within this tenant
     const authorMember = await db.query.tenantMembers.findFirst({
-        where: and(eq(tenantMembers.userId, authorUserId), eq(tenantMembers.tenantId, tenant.id))
+        where: and(eq(tenantMembers.userId, authorUserId!), eq(tenantMembers.tenantId, tenant.id))
     });
 
     if (!authorMember) return c.json({ error: 'Author not found in tenant' }, 400);
@@ -393,8 +396,8 @@ app.post('/:id/email', async (c) => {
     if (!member || !member.user) return c.json({ error: 'Member or User not found' }, 404);
 
     const emailService = new EmailService(c.env.RESEND_API_KEY, {
-        settings: tenant.settings,
-        branding: tenant.branding
+        settings: tenant.settings as any,
+        branding: tenant.branding as any
     });
 
     // Wrap body in simple template

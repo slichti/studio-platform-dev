@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { appointmentServices, availabilities, appointments, tenantMembers, users, tenants } from 'db/src/schema'; // Updated imports
+import { appointmentServices, availabilities, appointments, tenantMembers, users, tenants } from 'db/src/schema';
 import { eq, and, gte, lte, or, lt, gt } from 'drizzle-orm';
 
 type Bindings = {
@@ -8,12 +8,15 @@ type Bindings = {
 };
 
 type Variables = {
-    auth: {
-        userId: string;
-    };
     tenant: typeof tenants.$inferSelect;
     member?: typeof tenantMembers.$inferSelect;
     roles?: string[];
+    auth: {
+        userId: string | null;
+        claims: any;
+    };
+    features: Set<string>;
+    isImpersonating?: boolean;
 };
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
@@ -184,7 +187,7 @@ app.post('/book', async (c) => {
     let member = c.get('member');
     if (!member) {
         member = await db.query.tenantMembers.findFirst({
-            where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id))
+            where: and(eq(tenantMembers.userId, auth.userId!), eq(tenantMembers.tenantId, tenant.id))
         });
         if (!member) return c.json({ error: "Must be a member" }, 403);
     }

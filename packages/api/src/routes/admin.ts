@@ -52,6 +52,274 @@ app.get('/logs', async (c) => {
     return c.json(logs);
 });
 
+// GET /users - List all users across the platform
+app.get('/users', async (c) => {
+    const db = createDb(c.env.DB);
+    const { users, tenantMembers, tenants, tenantRoles } = await import('db/src/schema');
+    const { eq, or, like, desc, asc, and } = await import('drizzle-orm');
+
+    const search = c.req.query('search');
+    const tenantId = c.req.query('tenantId');
+    const sort = c.req.query('sort') || 'joined_desc';
+
+    let query = db.query.users.findMany({
+        with: {
+            memberships: {
+                with: {
+                    tenant: true,
+                    roles: true
+                }
+            }
+        },
+        where: (users, { and, or, like }) => {
+            const conditions = [];
+            if (search) {
+                conditions.push(or(
+                    like(users.email, `%${search}%`),
+                    like(users.id, `%${search}%`),
+                    sql`LOWER(json_extract(${users.profile}, '$.firstName')) LIKE ${`%${search.toLowerCase()}%`}`,
+                    sql`LOWER(json_extract(${users.profile}, '$.lastName')) LIKE ${`%${search.toLowerCase()}%`}`
+                ));
+            }
+            if (tenantId) {
+                // This is a bit tricky with findMany and relations if we want to filter the ROOT users by their memberships.
+                // We'll handle tenant filtering after fetching or via a more complex where clause if needed.
+                // For now, let's keep it simple and filter in memory if tenantId is provided or use a subquery.
+            }
+            return conditions.length > 0 ? and(...conditions) : undefined;
+        },
+        orderBy: (users, { desc, asc }) => {
+            if (sort === 'name_asc') return [asc(sql`json_extract(${users.profile}, '$.firstName')`)];
+            if (sort === 'name_desc') return [desc(sql`json_extract(${users.profile}, '$.firstName')`)];
+            if (sort === 'joined_asc') return [asc(users.createdAt)];
+            return [desc(users.createdAt)];
+        },
+        limit: 100
+    });
+
+    let result = await query;
+
+    // Filter by tenant if requested
+    if (tenantId) {
+        result = result.filter(u => u.memberships.some(m => m.tenantId === tenantId));
+    }
+
+    return c.json(result);
+});
+
+// PATCH /users/bulk - Bulk actions on users
+app.patch('/users/bulk', async (c) => {
+    const db = createDb(c.env.DB);
+    const { users, auditLogs } = await import('db/src/schema');
+    const { inArray } = await import('drizzle-orm');
+    const auth = c.get('auth');
+
+    const { userIds, action, value } = await c.req.json();
+
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+        return c.json({ error: "No users selected" }, 400);
+    }
+
+    if (action === 'set_system_admin') {
+        const isAdmin = !!value;
+        await db.update(users)
+            .set({ isSystemAdmin: isAdmin })
+            .where(inArray(users.id, userIds))
+            .run();
+
+        // Audit Log
+        await db.insert(auditLogs).values({
+            id: crypto.randomUUID(),
+            action: isAdmin ? 'promote_to_admin' : 'demote_from_admin',
+            actorId: auth.userId,
+            targetId: userIds.join(','),
+            details: { count: userIds.length, value: isAdmin },
+            ipAddress: c.req.header('CF-Connecting-IP')
+        });
+
+        return c.json({ success: true, updated: userIds.length });
+    }
+
+    return c.json({ error: "Invalid action" }, 400);
+});
+
+// POST /users - Create a user manually (Admin only)
+app.post('/users', async (c) => {
+    const db = createDb(c.env.DB);
+    const { users, tenantMembers, tenantRoles, auditLogs } = await import('db/src/schema');
+    const auth = c.get('auth');
+
+    const { firstName, lastName, email, isSystemAdmin, initialTenantId, initialRole } = await c.req.json();
+
+    if (!email) return c.json({ error: "Email is required" }, 400);
+
+    const userId = crypto.randomUUID(); // In production, this would likely be a Clerk ID if syncing
+
+    try {
+        await db.insert(users).values({
+            id: userId,
+            email,
+            profile: { firstName, lastName },
+            isSystemAdmin: !!isSystemAdmin,
+            createdAt: new Date()
+        }).run();
+
+        if (initialTenantId) {
+            const memberId = crypto.randomUUID();
+            await db.insert(tenantMembers).values({
+                id: memberId,
+                tenantId: initialTenantId,
+                userId: userId,
+                status: 'active',
+                joinedAt: new Date(),
+                profile: { firstName, lastName }
+            }).run();
+
+            await db.insert(tenantRoles).values({
+                memberId,
+                role: (initialRole as any) || 'student'
+            }).run();
+        }
+
+        // Audit Log
+        await db.insert(auditLogs).values({
+            id: crypto.randomUUID(),
+            action: 'create_user_manual',
+            actorId: auth.userId,
+            targetId: userId,
+            details: { email, initialTenantId },
+            ipAddress: c.req.header('CF-Connecting-IP')
+        });
+
+        return c.json({ success: true, userId }, 201);
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
+// GET /users/:id - Get single user with details
+app.get('/users/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const { users } = await import('db/src/schema');
+    const { eq } = await import('drizzle-orm');
+    const userId = c.req.param('id');
+
+    const user = await db.query.users.findFirst({
+        where: eq(users.id, userId),
+        with: {
+            memberships: {
+                with: {
+                    tenant: true,
+                    roles: true
+                }
+            }
+        }
+    });
+
+    if (!user) return c.json({ error: "User not found" }, 404);
+
+    return c.json(user);
+});
+
+// PUT /users/:id - Update user (Admins only)
+app.put('/users/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const { users, auditLogs } = await import('db/src/schema');
+    const { eq } = await import('drizzle-orm');
+    const auth = c.get('auth');
+    const userId = c.req.param('id');
+    const { isSystemAdmin } = await c.req.json();
+
+    await db.update(users)
+        .set({ isSystemAdmin: !!isSystemAdmin })
+        .where(eq(users.id, userId))
+        .run();
+
+    // Audit Log
+    await db.insert(auditLogs).values({
+        id: crypto.randomUUID(),
+        action: 'update_user_admin',
+        actorId: auth.userId,
+        targetId: userId,
+        details: { isSystemAdmin: !!isSystemAdmin },
+        ipAddress: c.req.header('CF-Connecting-IP')
+    });
+
+    return c.json({ success: true });
+});
+
+// POST /users/:id/memberships - Grant studio access
+app.post('/users/:id/memberships', async (c) => {
+    const db = createDb(c.env.DB);
+    const { tenantMembers, tenantRoles, auditLogs } = await import('db/src/schema');
+    const auth = c.get('auth');
+    const userId = c.req.param('id');
+    const { tenantId, role } = await c.req.json();
+
+    if (!tenantId) return c.json({ error: "Tenant ID required" }, 400);
+
+    const memberId = crypto.randomUUID();
+    await db.insert(tenantMembers).values({
+        id: memberId,
+        tenantId,
+        userId,
+        status: 'active',
+        joinedAt: new Date()
+    }).run();
+
+    await db.insert(tenantRoles).values({
+        memberId,
+        role: role || 'student'
+    }).run();
+
+    // Audit Log
+    await db.insert(auditLogs).values({
+        id: crypto.randomUUID(),
+        action: 'grant_studio_access',
+        actorId: auth.userId,
+        targetId: userId,
+        details: { tenantId, role },
+        ipAddress: c.req.header('CF-Connecting-IP')
+    });
+
+    return c.json({ success: true, memberId });
+});
+
+// DELETE /users/:id/memberships - Revoke studio access
+app.delete('/users/:id/memberships', async (c) => {
+    const db = createDb(c.env.DB);
+    const { tenantMembers, tenantRoles, auditLogs } = await import('db/src/schema');
+    const { eq, and } = await import('drizzle-orm');
+    const auth = c.get('auth');
+    const userId = c.req.param('id');
+    const { tenantId } = await c.req.json();
+
+    if (!tenantId) return c.json({ error: "Tenant ID required" }, 400);
+
+    // Find member record first
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.userId, userId), eq(tenantMembers.tenantId, tenantId))
+    });
+
+    if (!member) return c.json({ error: "Membership not found" }, 404);
+
+    // Delete roles then member
+    await db.delete(tenantRoles).where(eq(tenantRoles.memberId, member.id)).run();
+    await db.delete(tenantMembers).where(eq(tenantMembers.id, member.id)).run();
+
+    // Audit Log
+    await db.insert(auditLogs).values({
+        id: crypto.randomUUID(),
+        action: 'revoke_studio_access',
+        actorId: auth.userId,
+        targetId: userId,
+        details: { tenantId },
+        ipAddress: c.req.header('CF-Connecting-IP')
+    });
+
+    return c.json({ success: true });
+});
+
 // GET /stats/email - Global Email Stats
 app.get('/stats/email', async (c) => {
     const db = createDb(c.env.DB);

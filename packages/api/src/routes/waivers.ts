@@ -16,13 +16,11 @@ type Variables = {
         userId: string | null;
         claims: any;
     };
+    features: Set<string>;
+    isImpersonating?: boolean;
 };
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
-
-// Force Tenant Middleware for this route to ensure context is available
-import { tenantMiddleware } from '../middleware/tenant';
-app.use('*', tenantMiddleware);
 
 // GET /status: Check if current member needs to sign a waiver
 app.get('/status', async (c) => {

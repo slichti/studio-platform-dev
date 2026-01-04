@@ -40,7 +40,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
     // Fetch classes, locations, and instructors parallel
     try {
         const [classes, locationsRes, instructorsRes] = await Promise.all([
-            apiRequest("/classes", token),
+            apiRequest("/classes", token, { headers: { 'X-Tenant-Slug': params.slug! } }),
             apiRequest("/locations", token, { headers: { 'X-Tenant-Slug': params.slug! } }),
             apiRequest("/members?role=instructor", token, { headers: { 'X-Tenant-Slug': params.slug! } })
         ]);

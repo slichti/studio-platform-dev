@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { substitutions, classes, tenantMembers, users } from 'db/src/schema'; // Ensure these match schema exports
+import { substitutions, classes, tenantMembers, users, tenants } from 'db/src/schema'; // Ensure these match schema exports
 import { eq, and, desc } from 'drizzle-orm';
 
 type Bindings = {
@@ -8,10 +8,15 @@ type Bindings = {
 };
 
 type Variables = {
-    auth: { userId: string };
-    tenant: any;
-    member: any;
-    roles: string[];
+    tenant: typeof tenants.$inferSelect;
+    member?: typeof tenantMembers.$inferSelect;
+    roles?: string[];
+    auth: {
+        userId: string | null;
+        claims: any;
+    };
+    features: Set<string>;
+    isImpersonating?: boolean;
 };
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
