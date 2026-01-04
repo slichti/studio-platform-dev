@@ -62,7 +62,12 @@ export default function CreateStudio() {
         }
     };
 
+
+
     if (!isLoaded) return <div className="p-10 text-center">Loading...</div>;
+
+    // Check if user is verified
+    const isVerified = user?.primaryEmailAddress?.verification?.status === 'verified';
 
     const billingText = interval === 'annual' ? 'Billed annually' : 'Billed monthly';
 
@@ -83,6 +88,24 @@ export default function CreateStudio() {
 
                 <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
                     <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+                        {!isVerified && (
+                            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                                <div className="flex">
+                                    <div className="flex-shrink-0">
+                                        {/* Icon */}
+                                        <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                        </svg>
+                                    </div>
+                                    <div className="ml-3">
+                                        <p className="text-sm text-yellow-700">
+                                            Please verify your email address to create a studio. Check your inbox.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {error && (
                             <div className="bg-red-50 text-red-600 p-3 rounded mb-4 text-sm">
                                 {error}
@@ -90,6 +113,7 @@ export default function CreateStudio() {
                         )}
 
                         <form className="space-y-6" onSubmit={handleSubmit}>
+                            {/* ... inputs ... */}
                             <div>
                                 <label htmlFor="name" className="block text-sm font-medium text-zinc-700">
                                     Studio Name
@@ -192,8 +216,8 @@ export default function CreateStudio() {
                             <div>
                                 <button
                                     type="submit"
-                                    disabled={loading}
-                                    className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-zinc-900 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500 disabled:opacity-70"
+                                    disabled={loading || !isVerified}
+                                    className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-zinc-900 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500 disabled:opacity-70 disabled:cursor-not-allowed"
                                 >
                                     {loading ? 'Creating...' : 'Create Studio'}
                                 </button>

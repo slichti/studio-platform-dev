@@ -13,6 +13,7 @@ type Bindings = {
 type Variables = {
     auth: {
         userId: string;
+        claims?: any;
     };
 }
 
@@ -23,6 +24,15 @@ app.post('/studio', async (c) => {
     const auth = c.get('auth');
     if (!auth?.userId) {
         return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    // Enforce Email Verification
+    // Clerk provides 'email_verified' in the session token claims
+    if (!auth.claims?.email_verified) {
+        return c.json({
+            error: "Email verification required",
+            code: "EMAIL_NOT_VERIFIED"
+        }, 403);
     }
 
     const { name, slug, tier } = await c.req.json();

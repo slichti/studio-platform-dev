@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings, tenants } from 'db/src/schema';
 
 type Bindings = {
@@ -99,12 +99,20 @@ app.post('/', async (c) => {
 
     // 4. Create Member
     const memberId = crypto.randomUUID();
+    const isNewUser = !existingMember && user.id.startsWith('u_') && !user.lastActiveAt; // User created just now
+    let invitationToken = null;
+
+    if (isNewUser) {
+        invitationToken = crypto.randomUUID();
+    }
+
     await db.insert(tenantMembers).values({
         id: memberId,
         tenantId: tenant.id,
         userId: user.id,
-        status: 'active',
-        joinedAt: new Date()
+        status: invitationToken ? 'inactive' : 'active', // Invitees are inactive until acceptance
+        joinedAt: new Date(),
+        settings: invitationToken ? { invitationToken } : {}
     }).run();
 
     // Default role: student
@@ -112,6 +120,34 @@ app.post('/', async (c) => {
         memberId,
         role: 'student'
     }).run();
+
+    // Send Invitation Email
+    if (invitationToken) {
+        const { EmailService } = await import('../services/email');
+        const emailService = new EmailService(c.env.RESEND_API_KEY, {
+            branding: tenant.branding as any,
+            settings: tenant.settings as any
+        });
+
+        // Construct Invite URL (Need app URL, let's assume standard based on environment or request origin)
+        // Hardcoded generic for now, ideally env variable or c.req.header('origin')
+        const origin = c.req.header('origin') || 'https://studio-platform.com'; // Fallback
+        const inviteUrl = `${origin}/accept-invite?token=${invitationToken}`;
+
+        try {
+            await emailService.sendGenericEmail(
+                email,
+                `You've been invited to join ${tenant.name}`,
+                `<p>Hello ${firstName},</p>
+                 <p>You have been invited to join <strong>${tenant.name}</strong> on Studio Platform.</p>
+                 <p><a href="${inviteUrl}" style="background: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Accept Invitation</a></p>
+                 <p>Or paste this link: ${inviteUrl}</p>`
+            );
+        } catch (e) {
+            console.error("Failed to send invitation", e);
+            // Don't fail the request, just log
+        }
+    }
 
     // Fetch complete member object to return
     const newMember = await db.query.tenantMembers.findFirst({
@@ -123,6 +159,82 @@ app.post('/', async (c) => {
     });
 
     return c.json({ success: true, member: newMember });
+});
+
+// POST /members/accept-invite: Claim a profile
+app.post('/accept-invite', async (c) => {
+    const db = createDb(c.env.DB);
+    const auth = c.get('auth');
+    const { token } = await c.req.json();
+
+    if (!auth?.userId) return c.json({ error: "Unauthorized" }, 401);
+    if (!token) return c.json({ error: "Token required" }, 400);
+
+    // 1. Find the member with this invitation token
+    // We need to scan permissions? No, settings is JSON. Drizzle doesn't query JSON easily in SQLite without raw SQL sometimes.
+    // Query: SELECT * FROM tenant_members WHERE json_extract(settings, '$.invitationToken') = ?
+    // Using Drizzle's sql operator
+
+    // We must find which tenant this belongs to. The token should be unique enough or we search all.
+    // Ideally we'd optimize this, but for MVP scanning is heavy?
+    // Let's rely on the token being a UUID.
+
+    // BETTER: User clicks link knowing nothing.
+    // We need to find the pending member record.
+    // const { sql } = await import('drizzle-orm');
+
+    // NOTE: This scan might be slow if millions of members. 
+    // For now, let's assume we can query it.
+
+    const pendingMembers = await db.select().from(tenantMembers)
+        .where(sql`json_extract(settings, '$.invitationToken') = ${token}`)
+        .limit(1);
+
+    const pendingMember = pendingMembers[0];
+
+    if (!pendingMember) {
+        return c.json({ error: "Invalid invitation code" }, 404);
+    }
+
+    // 2. "Merge" Logic
+    // The pending member points to a placeholder ID (e.g. u_123).
+    // The auth.userId is the real Clerk ID (e.g. user_xyz).
+    // We need to update the tenantMember to point to auth.userId.
+
+    // 2a. Check if auth user is ALREADY a member of this tenant?
+    const existingReal = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, pendingMember.tenantId))
+    });
+
+    if (existingReal) {
+        // User already joined this studio independently?
+        // Maybe merge data?
+        // For simple MVP: Error or just point the old data to new?
+        // Let's just update the pending one and if conflict, we might have issues.
+        // If unique index on (tenantId, userId), we can't update.
+        return c.json({ error: "You are already a member of this studio." }, 409);
+    }
+
+    // 3. Update Member
+    // - Clear token
+    // - Set status active
+    // - Set userId to real ID
+
+    const settings = (pendingMember.settings as any) || {};
+    delete settings.invitationToken;
+
+    await db.update(tenantMembers).set({
+        userId: auth.userId,
+        status: 'active',
+        settings
+    }).where(eq(tenantMembers.id, pendingMember.id)).run();
+
+    // 4. Cleanup Placeholder User?
+    // If the placeholder user has no other members, delete it.
+    // const placeholderUserId = pendingMember.userId;
+    // ... check and delete ... (Optional cleanup)
+
+    return c.json({ success: true, tenantId: pendingMember.tenantId });
 });
 
 // GET /me: Current Member Details
