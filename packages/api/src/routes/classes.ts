@@ -251,7 +251,7 @@ app.post('/', async (c) => {
 
                 if (zoomService && date.getTime() === dates[0].getTime()) {
                     try {
-                        const meeting: any = await zoomService.createMeeting(`${title}`, date, durationMinutes);
+                        const meeting = await zoomService.createMeeting(`${title}`, date, durationMinutes) as any;
                         zoomUrl = meeting.join_url;
                         // For recurring series, we might only create one meeting for the first one, 
                         // or shared meeting? Zoom recurring meetings approach is complex. 
@@ -541,6 +541,7 @@ app.post('/:id/book', async (c) => {
         return c.json({ error: 'Authentication required' }, 401);
     }
     const userId = auth.userId;
+    const roles = c.get('roles') || [];
 
     // Check Capacity & Waitlist
     const requestBody = await c.req.json().catch(() => ({})); // Safe parse body in case it's empty
@@ -910,8 +911,22 @@ app.post('/:id/bookings/:bookingId/promote', async (c) => {
     }
 
     try {
-        const booking = await db.select().from(bookings).where(eq(bookings.id, bookingId)).get();
-        if (!booking) return c.json({ error: 'Booking not found' }, 404);
+        const tenant = c.get('tenant');
+        if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+        // Security Patch: Verify booking belongs to this tenant via Class link
+        const result = await db.select({ booking: bookings })
+            .from(bookings)
+            .innerJoin(classes, eq(bookings.classId, classes.id))
+            .where(and(
+                eq(bookings.id, bookingId),
+                eq(classes.tenantId, tenant.id)
+            ))
+            .get();
+
+        if (!result) return c.json({ error: 'Booking not found' }, 404);
+        const booking = result.booking;
+
         if (booking.status !== 'waitlisted') return c.json({ error: 'Booking is not waitlisted' }, 400);
 
         // Promote
@@ -925,7 +940,6 @@ app.post('/:id/bookings/:bookingId/promote', async (c) => {
             .run();
 
         // Optional: Email Notification
-        const tenant = c.get('tenant');
         if (c.env.RESEND_API_KEY && tenant) {
             const user = await db.select({ email: users.email, phone: users.phone })
                 .from(tenantMembers)
