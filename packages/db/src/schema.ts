@@ -579,6 +579,7 @@ export const giftCards = sqliteTable('gift_cards', {
     status: text('status', { enum: ['active', 'exhausted', 'disabled', 'expired'] }).default('active').notNull(),
     expiryDate: integer('expiry_date', { mode: 'timestamp' }),
     buyerMemberId: text('buyer_member_id').references(() => tenantMembers.id),
+    recipientMemberId: text('recipient_member_id').references(() => tenantMembers.id), // Link to Student Member (if known)
     recipientEmail: text('recipient_email'),
     notes: text('notes'),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),

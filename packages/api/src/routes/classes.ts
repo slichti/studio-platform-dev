@@ -239,7 +239,7 @@ app.post('/', async (c) => {
 
                 if (zoomService && date.getTime() === dates[0].getTime()) {
                     try {
-                        const meeting = await zoomService.createMeeting(`${title}`, date, durationMinutes);
+                        const meeting: any = await zoomService.createMeeting(`${title}`, date, durationMinutes);
                         zoomUrl = meeting.join_url;
                         // For recurring series, we might only create one meeting for the first one, 
                         // or shared meeting? Zoom recurring meetings approach is complex. 
@@ -428,6 +428,7 @@ app.post('/:id/book', async (c) => {
     }
 
     // Handle Family Booking Logic
+    const roles = c.get('roles') || [];
     if (targetMemberId) {
         // Verify targetMemberId exists in this tenant
         const targetMember = await db.query.tenantMembers.findFirst({

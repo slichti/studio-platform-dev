@@ -19,11 +19,18 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const url = new URL(args.request.url);
     const packId = url.searchParams.get("packId");
 
-    return { token, packId, slug: args.params.slug };
+    // Gift Card Params
+    const giftCardAmount = url.searchParams.get("giftCardAmount");
+    const recipientEmail = url.searchParams.get("recipientEmail");
+    const recipientName = url.searchParams.get("recipientName");
+    const senderName = url.searchParams.get("senderName");
+    const message = url.searchParams.get("message");
+
+    return { token, packId, giftCardAmount, recipientEmail, recipientName, senderName, message, slug: args.params.slug };
 };
 
 export default function CheckoutPage() {
-    const { token, packId, slug } = useLoaderData<{ token: string | null, packId: string | null, slug: string }>();
+    const { token, packId, giftCardAmount, recipientEmail, recipientName, senderName, message, slug } = useLoaderData<any>();
     const [clientSecret, setClientSecret] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
@@ -52,13 +59,21 @@ export default function CheckoutPage() {
     // 3. We call /checkout/session with code.
 
     useEffect(() => {
-        if (!packId || !token) return;
+        if ((!packId && !giftCardAmount) || !token) return;
         createSession(); // Load initial session without coupon
-    }, [packId, token, slug]);
+    }, [packId, giftCardAmount, token, slug]);
 
     const createSession = (code?: string, giftCode?: string) => {
         setLoadingSession(true);
-        const payload: any = { packId, couponCode: code };
+        const payload: any = {
+            packId,
+            couponCode: code,
+            giftCardAmount,
+            recipientEmail,
+            recipientName,
+            senderName,
+            message
+        };
         if (giftCode) payload.giftCardCode = giftCode;
 
         apiRequest(`/commerce/checkout/session`, token, {
@@ -69,6 +84,9 @@ export default function CheckoutPage() {
             .then((res: any) => {
                 if (res.error) {
                     setError(res.error);
+                } else if (res.complete && res.returnUrl) {
+                    // Direct completion (e.g. 100% discount)
+                    window.location.href = res.returnUrl;
                 } else {
                     setClientSecret(res.clientSecret);
                     setError(null);

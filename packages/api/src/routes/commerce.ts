@@ -6,6 +6,7 @@ import { eq, and, gt, sql } from 'drizzle-orm';
 type Bindings = {
     DB: D1Database;
     STRIPE_SECRET_KEY: string;
+    RESEND_API_KEY: string;
 };
 
 type Variables = {
@@ -164,24 +165,38 @@ app.post('/checkout/session', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     const user = c.get('auth'); // from authMiddleware
+    const member = c.get('member');
 
     // Check if tenant has stripe connected
     if (!tenant.stripeAccountId) {
         return c.json({ error: "Payments not enabled for this studio." }, 400);
     }
 
-    const { packId, couponCode, giftCardCode } = await c.req.json();
-    if (!packId) return c.json({ error: "Pack ID required" }, 400);
+    const body = await c.req.json();
+    const { packId, couponCode, giftCardCode, giftCardAmount, recipientEmail, recipientName, senderName, message } = body;
 
-    // 1. Fetch Pack
-    // const { classPackDefinitions, giftCards } = await import('db/src/schema');
-    const pack = await db.select().from(classPackDefinitions)
-        .where(and(eq(classPackDefinitions.id, packId), eq(classPackDefinitions.tenantId, tenant.id)))
-        .get();
+    if (!packId && !giftCardAmount) return c.json({ error: "Pack ID or Amount required" }, 400);
 
-    if (!pack) return c.json({ error: "Pack not found" }, 404);
+    let finalAmount = 0;
+    let pack = null;
 
-    let finalAmount = pack.price || 0; // cents
+    if (packId) {
+        // 1. Fetch Pack
+        // const { classPackDefinitions, giftCards } = await import('db/src/schema');
+        pack = await db.select().from(classPackDefinitions)
+            .where(and(eq(classPackDefinitions.id, packId), eq(classPackDefinitions.tenantId, tenant.id)))
+            .get();
+
+        if (!pack) return c.json({ error: "Pack not found" }, 404);
+        finalAmount = pack.price || 0;
+    } else {
+        if (giftCardAmount) {
+            finalAmount = parseInt(giftCardAmount);
+        } else {
+            return c.json({ error: "Product or Amount required" }, 400);
+        }
+    }
+
     let appliedCouponId = undefined;
     let appliedGiftCardId = undefined;
 
@@ -207,6 +222,7 @@ app.post('/checkout/session', async (c) => {
     }
 
     // 3. Apply Gift Card
+    let creditApplied = 0;
     if (giftCardCode && finalAmount > 0) {
         const card = await db.select().from(giftCards)
             .where(and(
@@ -216,13 +232,50 @@ app.post('/checkout/session', async (c) => {
             )).get();
 
         if (card) {
-            const creditToApply = Math.min(card.currentBalance, finalAmount);
-            finalAmount -= creditToApply;
+            creditApplied = Math.min(card.currentBalance, finalAmount);
+            finalAmount -= creditApplied;
             appliedGiftCardId = card.id;
         }
     }
 
-    // 3. Create Session
+    // 4. Handle Zero Amount (Direct Fulfillment)
+    if (finalAmount === 0) {
+        // Direct Fulfillment
+        const { FulfillmentService } = await import('../services/fulfillment');
+        const fulfillment = new FulfillmentService(createDb(c.env.DB), c.env.RESEND_API_KEY);
+        const mockPaymentId = `direct_${crypto.randomUUID()}`;
+
+        // Handle Pack Logic
+        if (pack) {
+            await fulfillment.fulfillPackPurchase({
+                packId: pack.id,
+                tenantId: tenant.id,
+                memberId: member?.id || undefined,
+                userId: user?.userId,
+                couponId: appliedCouponId
+            }, mockPaymentId, 0);
+        }
+
+        // Handle Gift Card Purchase Logic
+        if (giftCardAmount) {
+            await fulfillment.fulfillGiftCardPurchase({
+                type: 'gift_card_purchase',
+                tenantId: tenant.id,
+                userId: user?.userId,
+                recipientEmail, recipientName, senderName, message,
+                amount: parseInt(giftCardAmount) // Use original intended amount
+            }, mockPaymentId, parseInt(giftCardAmount));
+        }
+
+        // Redeem Used Gift Card
+        if (appliedGiftCardId && creditApplied > 0) {
+            await fulfillment.redeemGiftCard(appliedGiftCardId, creditApplied, mockPaymentId);
+        }
+
+        return c.json({ complete: true, returnUrl: `${new URL(c.req.url).origin}/studio/${tenant.slug}/return?session_id=${mockPaymentId}` });
+    }
+
+    // 5. Create Stripe Session
     const { StripeService } = await import('../services/stripe');
     const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY || '');
 
@@ -243,17 +296,25 @@ app.post('/checkout/session', async (c) => {
         const session = await stripeService.createEmbeddedCheckoutSession(
             tenant.stripeAccountId,
             {
-                title: pack.name,
+                title: pack ? pack.name : `Gift Card ($${(parseInt(giftCardAmount || '0') / 100).toFixed(2)})`,
                 amount: finalAmount,
                 currency: tenant.currency || 'usd',
                 returnUrl: `${new URL(c.req.url).origin}/studio/${tenant.slug}/return?session_id={CHECKOUT_SESSION_ID}`,
                 customerEmail,
                 metadata: {
-                    type: 'pack_purchase',
-                    packId: pack.id,
+                    type: pack ? 'pack_purchase' : 'gift_card_purchase',
+                    packId: pack?.id || '',
+                    amount: String(finalAmount),
                     tenantId: tenant.id,
                     userId: user?.userId || 'guest',
-                    couponId: appliedCouponId || ''
+                    couponId: appliedCouponId || '',
+                    recipientEmail: recipientEmail || '',
+                    recipientName: recipientName || '',
+                    senderName: senderName || '',
+                    message: message || '',
+                    // NEW: Pass GC info to webhook
+                    usedGiftCardId: appliedGiftCardId || '',
+                    creditApplied: String(creditApplied)
                 }
             }
         );
@@ -264,5 +325,9 @@ app.post('/checkout/session', async (c) => {
         return c.json({ error: "Payment init failed: " + e.message }, 500);
     }
 });
+
+// ... wait, I need to rewrite the route to capture variables better.
+// Let's rewrite the whole route safely.
+
 
 export default app;
