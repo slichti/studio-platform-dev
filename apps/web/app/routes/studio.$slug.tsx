@@ -134,6 +134,7 @@ export default function StudioLayout() {
                         )}
                         <NavItem to="memberships" icon={<CreditCard size={18} />}>Memberships</NavItem>
                         <NavItem to="commerce/packs" icon={<Package size={18} />}>Class Packs</NavItem>
+                        <NavItem to="commerce/coupons" icon={<Ticket size={18} />}>Coupons</NavItem>
                         <NavItem to="commerce/gift-cards" icon={<Ticket size={18} />}>Gift Cards</NavItem>
                     </SidebarGroup>
 
