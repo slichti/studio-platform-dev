@@ -79,31 +79,16 @@ export default function POSPage() {
         if (cart.length === 0) return;
         setLoading(true);
         try {
-            // 1. If gift card, redeem first
-            if (appliedGiftCard) {
-                const redeemAmount = Math.min(appliedGiftCard.balance, cartTotal);
-                const redeemRes: any = await apiRequest("/gift-cards/redeem", token, {
-                    method: "POST",
-                    headers: { 'X-Tenant-Slug': slug },
-                    body: JSON.stringify({
-                        code: appliedGiftCard.code,
-                        amount: redeemAmount,
-                        referenceId: 'POS-TEMP' // Will update after order created
-                    })
-                });
-                if (redeemRes.error) {
-                    throw new Error(redeemRes.error);
-                }
-            }
-
-            // 2. Process Order
+            // 2. Process Order (Unified)
             const res: any = await apiRequest("/pos/orders", token, {
                 method: "POST",
                 headers: { 'X-Tenant-Slug': slug },
                 body: JSON.stringify({
                     items: cart,
                     totalAmount: cartTotal,
-                    paymentMethod: paymentMethod === 'gift_card' ? 'other' : paymentMethod
+                    paymentMethod: paymentMethod === 'gift_card' ? 'other' : paymentMethod,
+                    redeemGiftCardCode: appliedGiftCard?.code,
+                    redeemAmount: appliedGiftCard ? Math.min(appliedGiftCard.balance, cartTotal) : 0
                 })
             });
 

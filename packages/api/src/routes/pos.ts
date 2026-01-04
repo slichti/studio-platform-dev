@@ -1,12 +1,13 @@
 import { Hono } from 'hono';
 import Stripe from 'stripe';
 import { createDb } from '../db';
-import { products, posOrders, posOrderItems, tenantMembers } from 'db/src/schema';
+import { products, posOrders, posOrderItems, tenantMembers, giftCards } from 'db/src/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 
 type Bindings = {
     DB: D1Database;
     STRIPE_SECRET_KEY: string;
+    RESEND_API_KEY: string;
 };
 
 type Variables = {
@@ -59,16 +60,36 @@ app.post('/orders', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     const staff = c.get('member');
-    const { items, memberId, paymentMethod, totalAmount } = await c.req.json();
+    const { items, memberId, paymentMethod, totalAmount, redeemGiftCardCode, redeemAmount } = await c.req.json();
 
     if (!items || items.length === 0) return c.json({ error: "No items in order" }, 400);
 
     const orderId = crypto.randomUUID();
 
     try {
-        // Start Transaction (if supported, else sequential)
-        // D1 doesn't support full transactions in Drizzle yet in all environments, but let's use batch
+        // --- 1. Validate & Redeem Gift Card (Integrated) ---
+        let giftCardRedemptionId: string | null = null;
+        if (redeemGiftCardCode && redeemAmount > 0) {
+            const { FulfillmentService } = await import('../services/fulfillment');
+            const fulfillment = new FulfillmentService(db, c.env.RESEND_API_KEY);
 
+            // Check card
+            const card = await db.select().from(giftCards).where(and(
+                eq(giftCards.tenantId, tenant.id),
+                eq(giftCards.code, redeemGiftCardCode),
+                eq(giftCards.status, 'active')
+            )).get();
+
+            if (!card) return c.json({ error: "Invalid Gift Card Code" }, 400);
+            if (card.currentBalance < redeemAmount) return c.json({ error: "Insufficient Gift Card Balance" }, 400);
+
+            // Redeem logic
+            await fulfillment.redeemGiftCard(card.id, redeemAmount, orderId);
+            // We don't have the transaction ID returned easily from fulfillment service helper, 
+            // but the service logs the transaction linked to this orderId.
+        }
+
+        // --- 2. Create Order ---
         const orderValues = {
             id: orderId,
             tenantId: tenant.id,
@@ -88,29 +109,23 @@ app.post('/orders', async (c) => {
             totalPrice: it.unitPrice * it.quantity
         }));
 
-        // Batch execution
         await db.insert(posOrders).values(orderValues).run();
 
         for (const item of itemInserts) {
             await db.insert(posOrderItems).values(item).run();
-            // Update stock
-            await db.update(products)
-                .set({ stockQuantity: eq(products.stockQuantity, products.stockQuantity) as any /* Placeholder for atomic decr if supported or just simple fetch-update */ })
-                .where(eq(products.id, item.productId))
-            // Note: D1/SQLite doesn't easily do atomic decr via Drizzle in a single line without more complex SQL. 
-            // For MVP, we'll just skip atomic for now or use raw SQL.
-            // Better: 
-            // .set({ stockQuantity: sql`${products.stockQuantity} - ${item.quantity}` })
         }
 
-        // Real atomic update:
+        // --- 3. Atomic Stock Deduction (Raw SQL) ---
         for (const item of items) {
-            await db.run(sql`UPDATE products SET stock_quantity = stock_quantity - ${item.quantity} WHERE id = ${item.productId}`);
+            // Using sql template tag for safe parameter injection
+            await db.run(sql`UPDATE products SET stock_quantity = stock_quantity - ${item.quantity} WHERE id = ${item.productId} AND tenant_id = ${tenant.id}`);
         }
 
         return c.json({ success: true, orderId });
     } catch (e: any) {
         console.error("POS Order Failed:", e);
+        // Simple rollback attempt? D1 doesn't support full rollback easily across requests yet.
+        // In real non-MVP, we'd want robust transaction handling.
         return c.json({ error: e.message }, 500);
     }
 });
