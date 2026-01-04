@@ -18,12 +18,23 @@ export interface TenantEmailConfig {
 
 export class EmailService {
     private resend: Resend;
-    private fromEmail = 'noreply@studio-platform.com';
+    private fromEmail: string;
     private config?: TenantEmailConfig;
 
-    constructor(apiKey: string, config?: TenantEmailConfig) {
+    constructor(apiKey: string, config?: TenantEmailConfig, domainConfig?: { slug: string, customDomain?: string | null }) {
         this.resend = new Resend(apiKey);
         this.config = config;
+
+        // Dynamic Sender Logic
+        if (domainConfig?.customDomain) {
+            this.fromEmail = `no-reply@${domainConfig.customDomain}`;
+        } else if (domainConfig?.slug) {
+            // Fallback to platform subdomain
+            this.fromEmail = `no-reply@${domainConfig.slug}.studio-platform.com`;
+        } else {
+            // Default Fallback
+            this.fromEmail = 'noreply@studio-platform.com';
+        }
     }
 
     private getEmailOptions() {
@@ -53,6 +64,7 @@ export class EmailService {
                     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; color: #333; }
                     .container { max-width: 600px; margin: 0 auto; padding: 20px; }
                     .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eaeaea; font-size: 12px; color: #666; }
+                    .button { display: inline-block; padding: 10px 20px; background-color: #000; color: #fff; text-decoration: none; border-radius: 5px; margin-top: 15px; }
                 </style>
             </head>
             <body>
@@ -63,6 +75,33 @@ export class EmailService {
             </body>
             </html>
         `;
+    }
+
+    async sendInvitation(to: string, studioName: string, inviteUrl: string) {
+        const htmlContent = `
+            <h1>You've been invited to ${studioName}</h1>
+            <p>Hello,</p>
+            <p>You have been added as a member of <strong>${studioName}</strong>.</p>
+            <p>Click the button below to access your account and view the schedule:</p>
+            <a href="${inviteUrl}" class="button">Access Studio</a>
+            <p style="font-size: 12px; color: #888; margin-top: 20px;">If the button doesn't work, verify that you are logged in with this email address.</p>
+        `;
+
+        const { bcc } = this.getRecipients(to, 'transactional');
+        const options = this.getEmailOptions();
+
+        try {
+            await this.resend.emails.send({
+                ...options,
+                to,
+                bcc,
+                subject: `Invitation to ${studioName}`,
+                html: this.wrapHtml(htmlContent)
+            });
+            console.log(`Invitation email sent to ${to} from ${this.fromEmail}`);
+        } catch (e) {
+            console.error("Failed to send invitation email", e);
+        }
     }
 
     private getRecipients(to: string, type: 'transactional' | 'notification'): { to: string; bcc?: string } {

@@ -119,6 +119,31 @@ app.post('/', async (c) => {
         role: assignedRole
     }).run();
 
+    // 5. Send Invitation Email
+    if (c.env.RESEND_API_KEY) {
+        try {
+            const { EmailService } = await import('../services/email');
+            const emailService = new EmailService(c.env.RESEND_API_KEY, {
+                settings: tenant.settings as any,
+                branding: tenant.branding as any
+            }, {
+                slug: tenant.slug,
+                customDomain: tenant.customDomain
+            });
+
+            // Determine URL (Use custom domain if available, else platform subdomain)
+            const baseUrl = tenant.customDomain
+                ? `https://${tenant.customDomain}`
+                : `https://${tenant.slug}.studio-platform.com`; // Adjust based on actual platform domain logic
+
+            const inviteUrl = `${baseUrl}/login?email=${encodeURIComponent(email)}`;
+
+            c.executionCtx.waitUntil(emailService.sendInvitation(email, tenant.name, inviteUrl));
+        } catch (e) {
+            console.error("Failed to send invitation email async", e);
+        }
+    }
+
     return c.json({ success: true, memberId });
 });
 
