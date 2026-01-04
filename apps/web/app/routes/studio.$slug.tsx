@@ -137,6 +137,7 @@ export default function StudioLayout() {
                     </SidebarGroup>
 
                     <SidebarGroup title="Management">
+                        <NavItem to="leads" icon={<User size={18} />}>Leads</NavItem>
                         <NavItem to="students" icon={<Users size={18} />}>People</NavItem>
                         {['growth', 'scale'].includes(tenant.tier) && (
                             <NavItem to="marketing" icon={<Mail size={18} />}>Marketing</NavItem>
