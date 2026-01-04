@@ -146,7 +146,7 @@ export default function StudioLayout() {
                         )}
 
                         <NavItem to="finances" end icon={<DollarSign size={18} />}>Finances</NavItem>
-                        <NavItem to="settings/discounts" icon={<Tag size={18} />}>Discounts</NavItem>
+                        <NavItem to="discounts" icon={<Tag size={18} />}>Discounts</NavItem>
                         <NavItem to="settings" end icon={<Settings size={18} />}>Settings</NavItem>
                     </SidebarGroup>
                 </nav>
