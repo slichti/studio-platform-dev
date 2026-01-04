@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantMembers, tenantRoles, users } from 'db/src/schema'; // Ensure exported
+import { tenants, tenantMembers, tenantRoles, users, auditLogs } from 'db/src/schema'; // Ensure exported
 import { eq } from 'drizzle-orm';
 
 type Bindings = {
@@ -137,6 +137,27 @@ app.post('/studio', async (c) => {
             memberId,
             role: 'owner'
         }).run();
+
+        // 5. Admin Audit Log (New Tenant)
+        try {
+            await db.insert(auditLogs).values({
+                id: crypto.randomUUID(),
+                action: 'tenant.created',
+                actorId: auth.userId,
+                targetId: tenantId,
+                details: {
+                    name: newTenant.name,
+                    slug: newTenant.slug,
+                    tier: newTenant.tier,
+                    ownerEmail: user.email,
+                    ownerName: `${(user.profile as any)?.firstName} ${(user.profile as any)?.lastName}`
+                },
+                ipAddress: c.req.header('CF-Connecting-IP') || 'unknown'
+            }).run();
+        } catch (e) {
+            console.error("Failed to log audit event", e);
+            // Non-blocking
+        }
 
         return c.json({ tenant: newTenant }, 201);
     } catch (e: any) {

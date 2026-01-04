@@ -40,11 +40,21 @@ app.use('*', async (c, next) => {
 // GET /logs - Recent Audit Logs
 app.get('/logs', async (c) => {
     const db = createDb(c.env.DB);
-    const { auditLogs } = await import('db/src/schema');
-    const { desc } = await import('drizzle-orm');
+    const { auditLogs, users } = await import('db/src/schema');
+    const { desc, eq } = await import('drizzle-orm');
 
-    const logs = await db.select()
+    const logs = await db.select({
+        id: auditLogs.id,
+        action: auditLogs.action,
+        actorId: auditLogs.actorId,
+        targetId: auditLogs.targetId,
+        details: auditLogs.details,
+        createdAt: auditLogs.createdAt,
+        actorEmail: users.email,
+        actorProfile: users.profile
+    })
         .from(auditLogs)
+        .leftJoin(users, eq(auditLogs.actorId, users.id))
         .orderBy(desc(auditLogs.createdAt))
         .limit(100)
         .all();

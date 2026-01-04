@@ -9,6 +9,7 @@ export default function AdminLayout() {
         { label: "Overview", href: "/admin", end: true, icon: "📊" },
         { label: "Tenants", href: "/admin/tenants", icon: "🏢" },
         { label: "Emails", href: "/admin/emails", icon: "📧" },
+        { label: "Activity Logs", href: "/admin/logs", icon: "📋" },
         { label: "System Users", href: "/admin/users", icon: "👥" },
         { label: "System Status", href: "/admin/status", icon: "🟢" },
     ];
