@@ -150,17 +150,15 @@ export default function StudioLayout() {
                     </SidebarGroup>
                 </nav>
 
-                {/* System Admin Escape Hatch */}
-                {((useLoaderData() as any).me?.user?.isSystemAdmin || (useLoaderData() as any).isImpersonating) && (
-                    <div className="px-4 pb-2">
-                        <a href="/admin" className="flex items-center gap-2 px-3 py-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 rounded-lg text-sm transition">
-                            <Users size={16} />
-                            <span>Return to Admin</span>
-                        </a>
-                    </div>
-                )}
 
                 <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex flex-col gap-3">
+                    {/* System Admin Escape Hatch */}
+                    {((useLoaderData() as any).me?.user?.isSystemAdmin || (useLoaderData() as any).isImpersonating) && (
+                        <a href="/admin" className="flex items-center gap-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 text-xs font-medium transition mb-1">
+                            <Users size={14} />
+                            <span>Return to Admin</span>
+                        </a>
+                    )}
 
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
