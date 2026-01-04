@@ -32,12 +32,12 @@ export const loader = async (args: LoaderFunctionArgs) => {
         return { members };
     } catch (e: any) {
         console.error("Failed to load members", e);
-        return { members: [], error: e.message };
+        return { members: [], error: e.message, errorDetails: (e as any).data };
     }
 };
 
 export default function StudioStudents() {
-    const { members, error } = useLoaderData<{ members: Student[], error?: string }>();
+    const { members, error, errorDetails } = useLoaderData<{ members: Student[], error?: string, errorDetails?: any }>();
     const { roles } = useOutletContext<any>();
     const isOwner = roles && roles.includes('owner');
     const { getToken } = useAuth();
@@ -52,7 +52,7 @@ export default function StudioStudents() {
                 method: "PATCH",
                 headers: { 'X-Tenant-Slug': window.location.pathname.split('/')[2] }, // Grab slug from URL hack or context
                 body: JSON.stringify({ role: newRole })
-            });
+            }) as any;
             if (res.error) alert(res.error);
             else window.location.reload(); // Simple refresh for now
         } catch (e: any) {
@@ -80,6 +80,11 @@ export default function StudioStudents() {
             {error && (
                 <div className="bg-red-50 text-red-700 p-4 rounded mb-4 text-sm">
                     Failed to load members: {error}
+                    {errorDetails && (
+                        <pre className="mt-2 text-xs bg-red-100 p-2 rounded overflow-auto">
+                            {JSON.stringify(errorDetails, null, 2)}
+                        </pre>
+                    )}
                 </div>
             )}
 

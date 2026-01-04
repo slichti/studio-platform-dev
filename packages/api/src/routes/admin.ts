@@ -287,7 +287,7 @@ app.get('/stats/health', async (c) => {
     let tCount: any, uCount: any, errorCount: any;
     try {
         [tCount, uCount, errorCount] = await Promise.all([
-            db.select().from(tenants).where(sql`${tenants.status} = 'active'`).all().then(r => ({ count: r.length })),
+            db.select().from(tenants).where(eq(tenants.status, 'active')).all().then(r => ({ count: r.length })),
             db.select({ count: count() }).from(users).get(),
             db.select({ count: count() }).from(auditLogs).get()
         ]);

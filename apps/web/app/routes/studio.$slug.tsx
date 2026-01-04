@@ -62,7 +62,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
         // Fetch My Role in this specific tenant
         if (tenantInfo.error) {
             console.error("Studio layout loader: Tenant fetch error", tenantInfo.error);
-            throw new Response("Studio Not Found", { status: 404 });
+            const msg = typeof tenantInfo.error === 'string' ? tenantInfo.error : JSON.stringify(tenantInfo.error);
+            throw new Response(`Studio Not Found: ${msg}`, { status: 404 });
         }
 
         // Status Enforcement
@@ -87,7 +88,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
         if (e instanceof Response) throw e;
 
         console.error("Studio layout loader failed:", e);
-        throw new Response("Studio Not Found or Access Denied", { status: 404 });
+        const details = (e as any).data || e.message;
+        throw new Response(`Studio Not Found/Access Denied: ${JSON.stringify(details)}`, { status: 404 });
     }
 };
 

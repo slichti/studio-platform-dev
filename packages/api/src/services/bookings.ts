@@ -33,6 +33,7 @@ export class BookingService {
 
         // 3. Handle Logic (Fee & Notification)
         if (settings.noShowFeeEnabled && settings.noShowFeeAmount > 0) {
+            const classInfo = await this.db.select({ title: classes.title }).from(classes).where(eq(classes.id, booking.classId)).get();
 
             // Trigger Notification
             if (this.env.RESEND_API_KEY && member.user) {
@@ -42,7 +43,6 @@ export class BookingService {
                     settings: member.tenant?.settings as any
                 };
                 const emailService = new EmailService(this.env.RESEND_API_KEY, emailConfig);
-                const classInfo = await this.db.select({ title: classes.title }).from(classes).where(eq(classes.id, booking.classId)).get();
 
                 await emailService.notifyNoShow(
                     member.user.email,
@@ -52,7 +52,8 @@ export class BookingService {
             }
 
             // Attempt Charge (Placeholder)
-            console.log(`[Mock Charge] Charging ${settings.noShowFeeAmount} to member ${booking.memberId} for No-Show`);
+            const chargeDescription = `No Show [${classInfo?.title || 'Class'}]`;
+            console.log(`[Mock Charge] Charging ${settings.noShowFeeAmount} to member ${booking.memberId} for ${chargeDescription}`);
         }
     }
 }
