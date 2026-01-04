@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { payrollConfig, payouts, payrollItems, tenantMembers, classes, appointments, bookings, appointmentServices } from 'db/src/schema';
-import { eq, and, gte, lte, inArray, sql } from 'drizzle-orm';
+import { payrollConfig, payouts, payrollItems, tenantMembers, classes, appointments, bookings, appointmentServices, users } from 'db/src/schema';
+import { eq, and, gte, lte, inArray, sql, desc } from 'drizzle-orm';
 
 type Bindings = {
     DB: D1Database;
@@ -343,4 +343,36 @@ app.post('/payout', async (c) => {
     return c.json({ success: true, payoutId });
 });
 
+
+// 5. GET /payouts - List Payout History
+app.get('/payouts', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+
+    const historyWithNames = await db.select({
+        payout: payouts,
+        instructorFirstName: sql`json_extract(${tenantMembers.profile}, '$.firstName')`,
+        instructorLastName: sql`json_extract(${tenantMembers.profile}, '$.lastName')`,
+        instructorEmail: users.email
+    })
+        .from(payouts)
+        .leftJoin(tenantMembers, eq(payouts.instructorId, tenantMembers.id))
+        .leftJoin(users, eq(tenantMembers.userId, users.id))
+        .where(eq(payouts.tenantId, tenant.id))
+        .orderBy(desc(payouts.createdAt))
+        .all();
+
+    // Map to cleaner format
+    const formatted = historyWithNames.map((row: any) => ({
+        ...row.payout,
+        instructorName: (row.instructorFirstName && row.instructorLastName)
+            ? `${row.instructorFirstName} ${row.instructorLastName}`
+            : 'Unknown Instructor',
+        instructorEmail: row.instructorEmail
+    }));
+
+    return c.json({ payouts: formatted });
+});
+
 export default app;
+

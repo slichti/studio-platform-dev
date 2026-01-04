@@ -89,7 +89,10 @@ export default function StudioMemberships() {
     const actionData = useActionData();
     const navigation = useNavigation();
     const isSubmitting = navigation.state === "submitting";
-    const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+    // Modal State: Create or Edit
+    const [modalState, setModalState] = useState<{ type: 'closed' } | { type: 'create' } | { type: 'edit', plan: any }>({ type: 'closed' });
+
     const submit = useSubmit();
     const { getToken } = useAuth(); // Clerk hook for client-side token
 
@@ -101,10 +104,24 @@ export default function StudioMemberships() {
 
     useEffect(() => {
         if (actionData?.success && !isSubmitting) {
-            setIsCreateOpen(false);
+            setModalState({ type: 'closed' });
             setCardData({ image: null, title: '', subtitle: '', previewUrl: '' });
         }
     }, [actionData, isSubmitting]);
+
+    // Reset card data when modal opens
+    useEffect(() => {
+        if (modalState.type === 'create') {
+            setCardData({ image: null, title: '', subtitle: '', previewUrl: '' });
+        } else if (modalState.type === 'edit') {
+            setCardData({
+                image: null,
+                title: modalState.plan.overlayTitle || '',
+                subtitle: modalState.plan.overlaySubtitle || '',
+                previewUrl: ''
+            });
+        }
+    }, [modalState.type, modalState.type === 'edit' ? modalState.plan : null]);
 
     const handleCreateWrapper = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -114,7 +131,7 @@ export default function StudioMemberships() {
         const formData = new FormData(form);
 
         try {
-            // Upload Image if present
+            // Upload Image if present (only if changed/new blob)
             if (cardData.image) {
                 const token = await getToken();
                 const slug = window.location.pathname.split('/')[2];
@@ -136,27 +153,37 @@ export default function StudioMemberships() {
                 if (!res.ok) throw new Error("Image upload failed");
                 const data = await res.json() as { url: string };
                 formData.append('imageUrl', data.url);
+            } else if (modalState.type === 'edit' && modalState.plan.imageUrl) {
+                // Keep existing URL if no new image
+                formData.append('imageUrl', modalState.plan.imageUrl);
             }
 
             // Append Overlay Text
             formData.append('overlayTitle', cardData.title);
             formData.append('overlaySubtitle', cardData.subtitle);
 
+            if (modalState.type === 'edit') {
+                formData.append('planId', modalState.plan.id);
+            }
+
             submit(formData, { method: "post" });
         } catch (err) {
             console.error(err);
-            alert("Failed to create plan: " + err);
+            alert("Failed to save plan: " + err);
         } finally {
             setUploading(false);
         }
     };
+
+    const isOpen = modalState.type !== 'closed';
+    const planToEdit = modalState.type === 'edit' ? modalState.plan : null;
 
     return (
         <div className="text-zinc-900 dark:text-zinc-100">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Memberships</h2>
                 <button
-                    onClick={() => setIsCreateOpen(true)}
+                    onClick={() => setModalState({ type: 'create' })}
                     className="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors text-sm font-medium"
                 >
                     + New Plan
@@ -174,7 +201,7 @@ export default function StudioMemberships() {
                     <div className="col-span-full text-center p-12 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-dashed border-zinc-300 dark:border-zinc-700">
                         <h3 className="font-medium mb-1 text-zinc-900 dark:text-zinc-100">No Membership Plans</h3>
                         <p className="text-sm mb-4 text-zinc-500 dark:text-zinc-400">Create tiers like "Unlimited" or "10-Pack" for your students.</p>
-                        <button onClick={() => setIsCreateOpen(true)} className="text-blue-600 hover:underline">Create first plan</button>
+                        <button onClick={() => setModalState({ type: 'create' })} className="text-blue-600 hover:underline">Create first plan</button>
                     </div>
                 ) : (
                     plans.map((plan: any) => (
@@ -207,7 +234,10 @@ export default function StudioMemberships() {
                                     <span className="text-sm font-normal text-zinc-500 dark:text-zinc-400">/{plan.interval}</span>
                                 </div>
                                 <p className="text-sm mb-6 min-h-[40px] text-zinc-500 dark:text-zinc-400">{plan.description || "No description provided."}</p>
-                                <button className="w-full py-2 rounded hover:bg-zinc-50 dark:hover:bg-zinc-800 font-medium text-sm border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 transition-colors">
+                                <button
+                                    onClick={() => setModalState({ type: 'edit', plan })}
+                                    className="w-full py-2 rounded hover:bg-zinc-50 dark:hover:bg-zinc-800 font-medium text-sm border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 transition-colors"
+                                >
                                     Edit Plan
                                 </button>
                                 <Form method="post" onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
@@ -266,11 +296,11 @@ export default function StudioMemberships() {
                 )}
             </div>
 
-            {/* Create Plan Modal */}
+            {/* Create/Edit Plan Modal */}
             <Modal
-                isOpen={isCreateOpen}
-                onClose={() => setIsCreateOpen(false)}
-                title="Create Membership Plan"
+                isOpen={isOpen}
+                onClose={() => setModalState({ type: 'closed' })}
+                title={modalState.type === 'edit' ? "Edit Membership Plan" : "Create Membership Plan"}
                 maxWidth="max-w-4xl"
             >
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -278,6 +308,10 @@ export default function StudioMemberships() {
                     <div>
                         <h4 className="font-semibold mb-4 text-zinc-900 dark:text-zinc-100">Card Appearance</h4>
                         <CardCreator
+                            key={planToEdit ? planToEdit.id : 'new'}
+                            initialImage={planToEdit?.imageUrl}
+                            initialTitle={planToEdit?.overlayTitle}
+                            initialSubtitle={planToEdit?.overlaySubtitle}
                             onChange={setCardData}
                         />
                     </div>
@@ -290,6 +324,7 @@ export default function StudioMemberships() {
                             <input
                                 name="name"
                                 required
+                                defaultValue={planToEdit?.name || ''}
                                 placeholder="e.g. Gold Unlimited"
                                 className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md focus:ring-blue-500 focus:border-blue-500 text-zinc-900 dark:text-zinc-100"
                             />
@@ -303,12 +338,17 @@ export default function StudioMemberships() {
                                     name="price"
                                     step="0.01"
                                     required
+                                    defaultValue={planToEdit ? (planToEdit.price / 100).toFixed(2) : ''}
                                     className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md focus:ring-blue-500 focus:border-blue-500 text-zinc-900 dark:text-zinc-100"
                                 />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Interval</label>
-                                <select name="interval" className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md focus:ring-blue-500 focus:border-blue-500 text-zinc-900 dark:text-zinc-100">
+                                <select
+                                    name="interval"
+                                    defaultValue={planToEdit?.interval || 'month'}
+                                    className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md focus:ring-blue-500 focus:border-blue-500 text-zinc-900 dark:text-zinc-100"
+                                >
                                     <option value="month">Monthly</option>
                                     <option value="week">Weekly</option>
                                     <option value="year">Yearly</option>
@@ -322,6 +362,7 @@ export default function StudioMemberships() {
                             <textarea
                                 name="description"
                                 rows={3}
+                                defaultValue={planToEdit?.description || ''}
                                 className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md focus:ring-blue-500 focus:border-blue-500 text-zinc-900 dark:text-zinc-100"
                             />
                         </div>
@@ -329,7 +370,7 @@ export default function StudioMemberships() {
                         <div className="pt-4 flex gap-3">
                             <button
                                 type="button"
-                                onClick={() => setIsCreateOpen(false)}
+                                onClick={() => setModalState({ type: 'closed' })}
                                 className="flex-1 px-4 py-2 border border-zinc-200 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100 transition-colors"
                             >
                                 Cancel
@@ -339,7 +380,7 @@ export default function StudioMemberships() {
                                 disabled={isSubmitting || uploading}
                                 className="flex-1 px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-md hover:opacity-90 font-medium disabled:opacity-50 transition-colors"
                             >
-                                {uploading ? "Uploading..." : (isSubmitting ? "Creating..." : "Create Plan")}
+                                {uploading ? "Uploading..." : (isSubmitting ? "Saving..." : (modalState.type === 'edit' ? "Save Changes" : "Create Plan"))}
                             </button>
                         </div>
                     </Form>

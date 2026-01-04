@@ -5,28 +5,41 @@ import { LoaderFunction } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { useState, useEffect } from "react";
-import { DollarSign, Settings, Calendar, CheckCircle, ChevronRight, Download } from "lucide-react";
+import { DollarSign, Settings, Calendar, CheckCircle, ChevronRight, Download, Plus, Search } from "lucide-react";
 import { format } from "date-fns/format";
+import { Modal } from "~/components/Modal";
 
 export const loader: LoaderFunction = async (args: any) => {
     const { getToken } = await getAuth(args);
     const token = await getToken();
     const slug = args.params.slug;
 
-    // Fetch initial data: Payroll Configs
+    // Fetch initial data: Payroll Configs, Members (for dropdown), Payouts
     let configs = [];
+    let payouts = [];
+    let members = [];
+
     try {
-        const res: any = await apiRequest("/payroll/config", token, { headers: { 'X-Tenant-Slug': slug } });
-        configs = res.configs || [];
+        const [configRes, payoutsRes, membersRes] = await Promise.all([
+            apiRequest("/payroll/config", token, { headers: { 'X-Tenant-Slug': slug } }),
+            apiRequest("/payroll/payouts", token, { headers: { 'X-Tenant-Slug': slug } }), // New endpoint
+            apiRequest("/members", token, { headers: { 'X-Tenant-Slug': slug } })
+        ]);
+
+        configs = (configRes as any).configs || [];
+        payouts = (payoutsRes as any).payouts || [];
+        members = (membersRes as any).members || [];
     } catch (e) {
-        console.error("Failed to load payroll config", e);
+        console.error("Failed to load payroll data", e);
     }
 
-    return { configs, token, slug };
+    return { configs, payouts, members, token, slug };
 };
 
 export default function PayrollPage() {
-    const { configs, token, slug } = useLoaderData<any>();
+    const { configs: initialConfigs, payouts: initialPayouts, members, token, slug } = useLoaderData<any>();
+    const [configs, setConfigs] = useState(initialConfigs);
+    const [payouts, setPayouts] = useState(initialPayouts);
     const [tab, setTab] = useState<"config" | "run" | "history">("run");
 
     return (
@@ -63,21 +76,66 @@ export default function PayrollPage() {
                 </nav>
             </div>
 
-            {tab === "config" && <PayrollConfig configs={configs} token={token} slug={slug} />}
+            {tab === "config" && <PayrollConfig configs={configs} members={members} token={token} slug={slug} onUpdate={(newConfigs) => setConfigs(newConfigs)} />}
             {tab === "run" && <RunPayroll token={token} slug={slug} />}
-            {tab === "history" && <div className="text-zinc-500 italic">History feature coming soon.</div>}
+            {tab === "history" && <PayoutHistory payouts={payouts} />}
         </div>
     );
 }
 
-function PayrollConfig({ configs, token, slug }: { configs: any[], token: string, slug: string }) {
-    const [list, setList] = useState(configs);
+function PayrollConfig({ configs, members, token, slug, onUpdate }: { configs: any[], members: any[], token: string, slug: string, onUpdate: (c: any[]) => void }) {
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
-    // In real app, fetching all members first might be needed to show those *without* config
-    // For now we just show existing.
+    // New Config Form State
+    const [selectedMemberId, setSelectedMemberId] = useState("");
+    const [payModel, setPayModel] = useState("flat");
+    const [rate, setRate] = useState("");
+
+    // Filter members to only show those NOT already configured (optional, but good UX)
+    // Or just all instructors?
+    // Let's filter for instructors only first.
+    const instructors = members.filter((m: any) => m.roles.some((r: any) => r.role === 'instructor' || r.role === 'owner'));
+
+    async function handleAdd(e: React.FormEvent) {
+        e.preventDefault();
+        setSubmitting(true);
+        try {
+            await apiRequest("/payroll/config", token, {
+                method: "PUT",
+                headers: { 'X-Tenant-Slug': slug },
+                body: JSON.stringify({
+                    memberId: selectedMemberId,
+                    payModel,
+                    rate: Number(rate)
+                })
+            });
+            // Refresh
+            const res: any = await apiRequest("/payroll/config", token, { headers: { 'X-Tenant-Slug': slug } });
+            onUpdate(res.configs || []);
+            setIsCreateOpen(false);
+            // Reset form
+            setSelectedMemberId("");
+            setRate("");
+        } catch (e: any) {
+            alert(e.message);
+        } finally {
+            setSubmitting(false);
+        }
+    }
 
     return (
         <div>
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">Rate Configurations</h2>
+                <button
+                    onClick={() => setIsCreateOpen(true)}
+                    className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-zinc-800"
+                >
+                    <Plus className="h-4 w-4" /> Add Configuration
+                </button>
+            </div>
+
             <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden">
                 <table className="min-w-full divide-y divide-zinc-200">
                     <thead className="bg-zinc-50">
@@ -89,14 +147,13 @@ function PayrollConfig({ configs, token, slug }: { configs: any[], token: string
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-zinc-200">
-                        {list.map((conf) => (
+                        {configs.map((conf) => (
                             <ConfigRow key={conf.id} config={conf} token={token} slug={slug} />
                         ))}
-                        {list.length === 0 && (
+                        {configs.length === 0 && (
                             <tr>
-                                <td colSpan={4} className="px-6 py-4 text-center text-sm text-zinc-500">
-                                    No configurations found. <br />
-                                    <span className="text-xs"> (In MVP, you need to seed configs or use API to create them first, as UI to add new is skipped for brevity)</span>
+                                <td colSpan={4} className="px-6 py-8 text-center text-sm text-zinc-500">
+                                    No configurations found. Add one to get started.
                                 </td>
                             </tr>
                         )}
@@ -104,8 +161,64 @@ function PayrollConfig({ configs, token, slug }: { configs: any[], token: string
                 </table>
             </div>
             <p className="mt-4 text-sm text-zinc-500">
-                * Note: Rates for percentage model are in basis points (5000 = 50%). Flat rates are in cents.
+                * Note: Rates for percentage model are in basis points (5000 = 50%). Flat/Hourly rates are in cents.
             </p>
+
+            <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Add Payroll Configuration">
+                <form onSubmit={handleAdd} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 mb-1">Instructor</label>
+                        <select
+                            value={selectedMemberId}
+                            onChange={e => setSelectedMemberId(e.target.value)}
+                            required
+                            className="w-full border border-zinc-300 rounded px-3 py-2"
+                        >
+                            <option value="">Select Instructor...</option>
+                            {instructors.map((m: any) => (
+                                <option key={m.id} value={m.id}>
+                                    {m.user?.profile?.firstName} {m.user?.profile?.lastName} ({m.user?.email})
+                                </option>
+                            ))}
+                        </select>
+                        <p className="text-xs text-zinc-500 mt-1">Only showing members with 'Instructor' role.</p>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 mb-1">Pay Model</label>
+                        <select
+                            value={payModel}
+                            onChange={e => setPayModel(e.target.value)}
+                            className="w-full border border-zinc-300 rounded px-3 py-2"
+                        >
+                            <option value="flat">Flat Rate (per session)</option>
+                            <option value="hourly">Hourly Rate</option>
+                            <option value="percentage">Percentage (Revenue Share)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 mb-1">
+                            Rate {payModel === 'percentage' ? '(in Basis Points, e.g. 5000 = 50%)' : '(in Cents)'}
+                        </label>
+                        <input
+                            type="number"
+                            required
+                            value={rate}
+                            onChange={e => setRate(e.target.value)}
+                            placeholder={payModel === 'percentage' ? '5000' : '3000'}
+                            className="w-full border border-zinc-300 rounded px-3 py-2"
+                        />
+                    </div>
+                    <div className="flex justify-end pt-4">
+                        <button
+                            type="submit"
+                            disabled={submitting}
+                            className="bg-zinc-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-zinc-800 disabled:opacity-50"
+                        >
+                            {submitting ? "Saving..." : "Save Configuration"}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
 }
@@ -114,7 +227,6 @@ function ConfigRow({ config, token, slug }: { config: any, token: string, slug: 
     const [editing, setEditing] = useState(false);
     const [model, setModel] = useState(config.payModel);
     const [rate, setRate] = useState(config.rate);
-    const fetcher = useFetcher();
 
     async function handleSave() {
         try {
@@ -128,7 +240,7 @@ function ConfigRow({ config, token, slug }: { config: any, token: string, slug: 
                 })
             });
             setEditing(false);
-            // Ideally revalidate loader
+            // Ideally notify parent to refresh, but local state update is OK for MVP
         } catch (e) {
             alert("Failed to save");
         }
@@ -137,17 +249,17 @@ function ConfigRow({ config, token, slug }: { config: any, token: string, slug: 
     if (editing) {
         return (
             <tr>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-900 bg-yellow-50">
                     {config.member?.user?.profile?.firstName} {config.member?.user?.profile?.lastName}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <select value={model} onChange={(e) => setModel(e.target.value)} className="border rounded px-2 py-1">
+                <td className="px-6 py-4 whitespace-nowrap text-sm bg-yellow-50">
+                    <select value={model} onChange={(e) => setModel(e.target.value)} className="border rounded px-2 py-1 bg-white">
                         <option value="flat">Flat Rate (per session)</option>
                         <option value="hourly">Hourly Rate</option>
                         <option value="percentage">Percentage (Revenue Share)</option>
                     </select>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                <td className="px-6 py-4 whitespace-nowrap text-sm bg-yellow-50">
                     <input
                         type="number"
                         value={rate}
@@ -155,8 +267,8 @@ function ConfigRow({ config, token, slug }: { config: any, token: string, slug: 
                         className="border rounded px-2 py-1 w-24"
                     />
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                    <button onClick={handleSave} className="text-blue-600 hover:text-blue-900 mr-3">Save</button>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm bg-yellow-50">
+                    <button onClick={handleSave} className="text-blue-600 hover:text-blue-900 mr-3 font-medium">Save</button>
                     <button onClick={() => setEditing(false)} className="text-zinc-600 hover:text-zinc-900">Cancel</button>
                 </td>
             </tr>
@@ -178,6 +290,64 @@ function ConfigRow({ config, token, slug }: { config: any, token: string, slug: 
                 <button onClick={() => setEditing(true)} className="text-blue-600 hover:text-blue-900">Edit</button>
             </td>
         </tr>
+    );
+}
+
+function PayoutHistory({ payouts }: { payouts: any[] }) {
+    return (
+        <div>
+            <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden shadow-sm">
+                <table className="min-w-full divide-y divide-zinc-200">
+                    <thead className="bg-zinc-50">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Date</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Instructor</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Period</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Amount</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-zinc-200">
+                        {payouts.map((p) => (
+                            <tr key={p.id} className="hover:bg-zinc-50 transition-colors">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
+                                    {new Date(p.createdAt).toLocaleDateString()}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-900 font-medium">
+                                    {p.instructorName}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
+                                    {new Date(p.periodStart).toLocaleDateString()} - {new Date(p.periodEnd).toLocaleDateString()}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-zinc-900">
+                                    ${(p.amount / 100).toFixed(2)}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className={`px-2 py-1 text-xs rounded-full capitalize ${p.status === 'paid' ? 'bg-green-100 text-green-700' :
+                                            p.status === 'processing' ? 'bg-blue-100 text-blue-700' :
+                                                'bg-gray-100 text-gray-500'
+                                        }`}>
+                                        {p.status}
+                                    </span>
+                                    {p.stripeTransferId && (
+                                        <span className="ml-2 text-[10px] text-zinc-400 font-mono">
+                                            {p.stripeTransferId.substring(0, 8)}...
+                                        </span>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                        {payouts.length === 0 && (
+                            <tr>
+                                <td colSpan={5} className="px-6 py-8 text-center text-sm text-zinc-500">
+                                    No payout history found.
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     );
 }
 
@@ -327,3 +497,4 @@ function PayrollCard({ instructorId, data, token, slug, period }: any) {
         </div>
     );
 }
+

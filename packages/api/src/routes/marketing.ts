@@ -6,6 +6,7 @@ import { UsageService } from '../services/pricing';
 
 type Bindings = {
     DB: D1Database;
+    RESEND_API_KEY: string;
 };
 
 type Variables = {
@@ -119,25 +120,51 @@ app.post('/', async (c) => {
     }
 
     // 3. "Send" Emails (Create Logs)
-    const logs = recipients.map(r => ({
-        id: crypto.randomUUID(),
-        tenantId: tenant.id,
-        campaignId,
-        recipientEmail: r.email || "unknown@placeholder.com", // Fallback
-        subject,
-        status: 'sent', // Simulate success
-        sentAt: new Date()
-    })).filter(l => l.recipientEmail && l.recipientEmail.includes('@')); // Simple filter
+    const { EmailService } = await import('../services/email');
+    const emailService = new EmailService(c.env.RESEND_API_KEY, {
+        branding: tenant.branding as any,
+        settings: tenant.settings as any
+    });
+
+    const logs: any[] = [];
+    const errors: any[] = [];
+
+    // Send in batches to avoid overwhelming Resend or the Worker (though Resend handles high volume well)
+    // For MVP, simplistic loop with Promise.all for speed, or sequential for safety?
+    // Let's do sequential or small batches for now to be safe.
+    for (const r of recipients) {
+        if (!r.email) continue;
+        try {
+            await emailService.sendGenericEmail(
+                r.email,
+                subject,
+                content, // Content is plain text for now, wrapHtml will handle basic container
+                true // isNotification/Broadcast
+            );
+
+            logs.push({
+                id: crypto.randomUUID(),
+                tenantId: tenant.id,
+                campaignId,
+                recipientEmail: r.email,
+                subject,
+                status: 'sent',
+                sentAt: new Date()
+            });
+        } catch (e: any) {
+            console.error(`Failed to send to ${r.email}`, e);
+            errors.push({ email: r.email, error: e.message });
+        }
+    }
 
     if (logs.length > 0) {
-        // Batch insert (D1 limit is high but safer to batch if thousands. MVP: Assume < 100)
         await db.insert(emailLogs).values(logs as any).run();
     }
 
     // 4. Update Campaign Stats
     await db.update(marketingCampaigns).set({
-        status: 'sent',
-        stats: { sent: logs.length, failed: 0 }
+        status: logs.length > 0 ? 'sent' : 'failed',
+        stats: { sent: logs.length, failed: errors.length }
     }).where(eq(marketingCampaigns.id, campaignId)).run();
 
     // 5. Increment Usage

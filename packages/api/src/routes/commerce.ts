@@ -178,20 +178,23 @@ app.post('/checkout/session', async (c) => {
     if (!packId && !giftCardAmount) return c.json({ error: "Pack ID or Amount required" }, 400);
 
     let finalAmount = 0;
+    let basePrice = 0;
+    let discountAmount = 0;
     let pack = null;
 
     if (packId) {
         // 1. Fetch Pack
-        // const { classPackDefinitions, giftCards } = await import('db/src/schema');
         pack = await db.select().from(classPackDefinitions)
             .where(and(eq(classPackDefinitions.id, packId), eq(classPackDefinitions.tenantId, tenant.id)))
             .get();
 
         if (!pack) return c.json({ error: "Pack not found" }, 404);
         finalAmount = pack.price || 0;
+        basePrice = finalAmount;
     } else {
         if (giftCardAmount) {
             finalAmount = parseInt(giftCardAmount);
+            basePrice = finalAmount;
         } else {
             return c.json({ error: "Product or Amount required" }, 400);
         }
@@ -211,11 +214,11 @@ app.post('/checkout/session', async (c) => {
 
         if (coupon) {
             if (coupon.type === 'percent') {
-                const discount = Math.round(finalAmount * (coupon.value / 100));
-                finalAmount -= discount;
+                discountAmount = Math.round(basePrice * (coupon.value / 100));
             } else {
-                finalAmount -= coupon.value;
+                discountAmount = coupon.value;
             }
+            finalAmount -= discountAmount;
             if (finalAmount < 0) finalAmount = 0;
             appliedCouponId = coupon.id;
         }
@@ -296,7 +299,7 @@ app.post('/checkout/session', async (c) => {
         const session = await stripeService.createEmbeddedCheckoutSession(
             tenant.stripeAccountId,
             {
-                title: pack ? pack.name : `Gift Card ($${(parseInt(giftCardAmount || '0') / 100).toFixed(2)})`,
+                title: pack ? pack.name : `Gift Card ($${(basePrice / 100).toFixed(2)})`,
                 amount: finalAmount,
                 currency: tenant.currency || 'usd',
                 returnUrl: `${new URL(c.req.url).origin}/studio/${tenant.slug}/return?session_id={CHECKOUT_SESSION_ID}`,
@@ -304,7 +307,6 @@ app.post('/checkout/session', async (c) => {
                 metadata: {
                     type: pack ? 'pack_purchase' : 'gift_card_purchase',
                     packId: pack?.id || '',
-                    amount: String(finalAmount),
                     tenantId: tenant.id,
                     userId: user?.userId || 'guest',
                     couponId: appliedCouponId || '',
@@ -312,9 +314,17 @@ app.post('/checkout/session', async (c) => {
                     recipientName: recipientName || '',
                     senderName: senderName || '',
                     message: message || '',
-                    // NEW: Pass GC info to webhook
+
+                    // Financial Breakdown
+                    vendorName: tenant.name,
+                    productName: pack ? pack.name : 'Gift Card Credit',
+                    basePrice: String(basePrice),
+                    discountAmount: String(discountAmount),
+                    creditApplied: String(creditApplied),
+                    finalChargeAmount: String(finalAmount),
+                    couponCode: couponCode || '',
                     usedGiftCardId: appliedGiftCardId || '',
-                    creditApplied: String(creditApplied)
+                    giftCardCode: giftCardCode || ''
                 }
             }
         );
@@ -325,9 +335,6 @@ app.post('/checkout/session', async (c) => {
         return c.json({ error: "Payment init failed: " + e.message }, 500);
     }
 });
-
-// ... wait, I need to rewrite the route to capture variables better.
-// Let's rewrite the whole route safely.
 
 
 export default app;

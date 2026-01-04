@@ -108,6 +108,7 @@ export function SignaturePad({ onChange, width = 500, height = 200 }: SignatureP
                 width={width}
                 height={height}
                 className="touch-none cursor-crosshair bg-white"
+                style={{ touchAction: 'none' }}
                 onMouseDown={handleMouseDown}
                 onMouseMove={(e) => {
                     if (!isDrawing) return;
