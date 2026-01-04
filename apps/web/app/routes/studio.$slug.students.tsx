@@ -26,9 +26,11 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const token = await getToken();
 
     try {
-        const members = await apiRequest("/members", token, {
+        const res = await apiRequest("/members", token, {
             headers: { 'X-Tenant-Slug': params.slug! }
-        });
+        }) as any;
+        console.log("Students Loader Res:", JSON.stringify(res, null, 2));
+        const members = Array.isArray(res.members) ? res.members : [];
         return { members };
     } catch (e: any) {
         console.error("Failed to load members", e);
@@ -107,18 +109,18 @@ export default function StudioStudents() {
                                 </td>
                             </tr>
                         ) : (
-                            members.map((member: any) => (
+                            (Array.isArray(members) ? members : []).map((member: any) => (
                                 <tr key={member.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
                                     <td className="px-6 py-4 font-medium text-zinc-900 dark:text-zinc-100">
                                         <div className="flex items-center gap-3">
                                             <div className="h-8 w-8 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center text-xs font-bold uppercase">
-                                                {member.user.email.substring(0, 2)}
+                                                {(member.user?.email || '??').substring(0, 2)}
                                             </div>
                                             <Link
                                                 to={`${member.id}`}
                                                 className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
                                             >
-                                                {member.user.profile?.firstName ? `${member.user.profile.firstName} ${member.user.profile.lastName}` : 'Unknown Name'}
+                                                {member.user?.profile?.firstName ? `${member.user.profile.firstName} ${member.user.profile.lastName}` : 'Unknown Student'}
                                             </Link>
                                         </div>
                                     </td>
@@ -128,7 +130,7 @@ export default function StudioStudents() {
                                             <select
                                                 disabled={updating === member.id}
                                                 className="text-sm border-zinc-200 dark:border-zinc-700 rounded p-1 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
-                                                value={member.roles.find((r: any) => r.role === 'owner' || r.role === 'instructor')?.role || 'student'}
+                                                value={(Array.isArray(member.roles) ? member.roles : []).find((r: any) => r.role === 'owner' || r.role === 'instructor')?.role || 'student'}
                                                 onChange={(e) => handleRoleChange(member.id, e.target.value)}
                                             >
                                                 <option value="student">Student</option>
@@ -137,7 +139,7 @@ export default function StudioStudents() {
                                             </select>
                                         ) : (
                                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 capitalize">
-                                                {member.roles.map((r: any) => r.role).join(', ') || 'Student'}
+                                                {(Array.isArray(member.roles) ? member.roles : []).map((r: any) => r.role).join(', ') || 'Student'}
                                             </span>
                                         )}
                                     </td>

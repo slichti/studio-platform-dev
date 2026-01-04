@@ -153,7 +153,7 @@ export default function StudioLayout() {
                 {/* System Admin Escape Hatch */}
                 {((useLoaderData() as any).me?.user?.isSystemAdmin || (useLoaderData() as any).isImpersonating) && (
                     <div className="px-4 pb-2">
-                        <a href="/admin" className="flex items-center gap-2 px-3 py-2 bg-zinc-800 text-zinc-100 rounded-lg text-sm hover:bg-zinc-700 transition">
+                        <a href="/admin" className="flex items-center gap-2 px-3 py-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 rounded-lg text-sm transition">
                             <Users size={16} />
                             <span>Return to Admin</span>
                         </a>
