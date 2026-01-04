@@ -6,7 +6,7 @@ import { useState, Fragment } from "react";
 import { useAuth } from "@clerk/react-router";
 import { Modal } from "../components/Modal";
 import { ErrorDialog, ConfirmationDialog } from "../components/Dialogs";
-import { ChevronDown, ChevronRight, Activity, CreditCard, Video, Monitor, ShoppingCart } from "lucide-react";
+import { ChevronDown, ChevronRight, Activity, CreditCard, Video, Monitor, ShoppingCart, Mail } from "lucide-react";
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -41,6 +41,7 @@ export default function AdminTenants() {
         { key: 'vod', label: 'Video on Demand', icon: Video },
         { key: 'zoom', label: 'Zoom Integration', icon: Monitor }, // Placeholder for now
         { key: 'pos', label: 'POS & Retail', icon: ShoppingCart },
+        { key: 'marketing', label: 'Marketing & CRM', icon: Mail },
         { key: 'payroll', label: 'Payroll & Compensation', icon: CreditCard },
     ];
 
