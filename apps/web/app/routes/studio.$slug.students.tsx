@@ -43,7 +43,48 @@ export default function StudioStudents() {
     const { roles } = useOutletContext<any>();
     const isOwner = roles && roles.includes('owner');
     const { getToken } = useAuth();
+
     const [updating, setUpdating] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [isAddingMember, setIsAddingMember] = useState(false);
+    const [isSubmittingMember, setIsSubmittingMember] = useState(false);
+
+    // Filter members
+    const filteredMembers = (members || []).filter((m: any) => {
+        const q = searchQuery.toLowerCase();
+        const name = `${m.user?.profile?.firstName || ''} ${m.user?.profile?.lastName || ''}`.toLowerCase();
+        const email = (m.user?.email || '').toLowerCase();
+        return name.includes(q) || email.includes(q);
+    });
+
+    const handleAddMember = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setIsSubmittingMember(true);
+        const formData = new FormData(e.currentTarget);
+        const email = formData.get('email');
+        const firstName = formData.get('firstName');
+        const lastName = formData.get('lastName');
+
+        try {
+            const token = await getToken();
+            const res = await apiRequest(`/members`, token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': window.location.pathname.split('/')[2] },
+                body: JSON.stringify({ email, firstName, lastName })
+            }) as any;
+
+            if (res.error) {
+                alert(res.error);
+            } else {
+                window.location.reload();
+            }
+        } catch (e: any) {
+            alert(e.message);
+        } finally {
+            setIsSubmittingMember(false);
+            setIsAddingMember(false);
+        }
+    };
 
     const handleRoleChange = async (memberId: string, newRole: string) => {
         if (!confirm(`Are you sure you want to change this user's role to ${newRole}?`)) return;
@@ -71,9 +112,14 @@ export default function StudioStudents() {
                 <div className="flex gap-2">
                     <input
                         placeholder="Search members..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
                         className="px-3 py-2 border border-zinc-200 dark:border-zinc-800 rounded-md text-sm min-w-[250px] bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
                     />
-                    <button className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 text-sm font-medium">
+                    <button
+                        onClick={() => setIsAddingMember(true)}
+                        className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 text-sm font-medium"
+                    >
                         Add Member
                     </button>
                 </div>
@@ -108,8 +154,14 @@ export default function StudioStudents() {
                                     No members found yet.
                                 </td>
                             </tr>
+                        ) : filteredMembers.length === 0 ? (
+                            <tr>
+                                <td colSpan={5} className="px-6 py-8 text-center text-zinc-500 dark:text-zinc-400">
+                                    No members match your search.
+                                </td>
+                            </tr>
                         ) : (
-                            (Array.isArray(members) ? members : []).map((member: any) => (
+                            filteredMembers.map((member: any) => (
                                 <tr key={member.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
                                     <td className="px-6 py-4 font-medium text-zinc-900 dark:text-zinc-100">
                                         <div className="flex items-center gap-3">
@@ -156,9 +208,66 @@ export default function StudioStudents() {
                 </table>
 
                 <div className="p-4 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 text-center text-xs text-zinc-500 dark:text-zinc-400">
-                    Showing {members.length} member{members.length === 1 ? '' : 's'}
+                    Showing {filteredMembers.length} member{filteredMembers.length === 1 ? '' : 's'}
                 </div>
             </div>
+
+            {/* Add Member Modal */}
+            {isAddingMember && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white dark:bg-zinc-900 rounded-lg p-6 w-full max-w-md shadow-xl border border-zinc-200 dark:border-zinc-800">
+                        <h2 className="text-lg font-bold mb-4 text-zinc-900 dark:text-zinc-100">Add New Member</h2>
+                        <form onSubmit={handleAddMember} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Email Address</label>
+                                <input
+                                    type="email"
+                                    name="email"
+                                    required
+                                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                                    placeholder="student@example.com"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">First Name</label>
+                                    <input
+                                        type="text"
+                                        name="firstName"
+                                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                                        placeholder="Jane"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Last Name</label>
+                                    <input
+                                        type="text"
+                                        name="lastName"
+                                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                                        placeholder="Doe"
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-3 mt-6">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAddingMember(false)}
+                                    className="px-4 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSubmittingMember}
+                                    className="px-4 py-2 text-sm bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50"
+                                >
+                                    {isSubmittingMember ? "Adding..." : "Add Member"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

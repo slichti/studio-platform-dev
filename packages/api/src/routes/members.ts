@@ -55,6 +55,76 @@ app.get('/', async (c) => {
     return c.json({ members });
 });
 
+// POST /members: Add a member (Owner/Instructor)
+app.post('/', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    const { email, firstName, lastName } = await c.req.json();
+
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+    if (!email) return c.json({ error: 'Email is required' }, 400);
+
+    // 1. Check if user exists
+    let user = await db.query.users.findFirst({
+        where: eq(users.email, email)
+    });
+
+    // 2. If not, create placeholder user
+    if (!user) {
+        const userId = `u_${crypto.randomUUID()}`; // Prefix to indicate generated
+        await db.insert(users).values({
+            id: userId,
+            email,
+            profile: { firstName, lastName },
+            createdAt: new Date(),
+            // Mark as placeholder if schema supports, or just rely on ID format
+        }).run();
+        user = await db.query.users.findFirst({ where: eq(users.id, userId) });
+    }
+
+    if (!user) return c.json({ error: "Failed to resolve user" }, 500);
+
+    // 3. Check if already member
+    const existingMember = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.userId, user.id), eq(tenantMembers.tenantId, tenant.id))
+    });
+
+    if (existingMember) {
+        return c.json({ error: "User is already a member of this studio" }, 409);
+    }
+
+    // 4. Create Member
+    const memberId = crypto.randomUUID();
+    await db.insert(tenantMembers).values({
+        id: memberId,
+        tenantId: tenant.id,
+        userId: user.id,
+        status: 'active',
+        joinedAt: new Date()
+    }).run();
+
+    // Default role: student
+    await db.insert(tenantRoles).values({
+        memberId,
+        role: 'student'
+    }).run();
+
+    // Fetch complete member object to return
+    const newMember = await db.query.tenantMembers.findFirst({
+        where: eq(tenantMembers.id, memberId),
+        with: {
+            user: true,
+            roles: true
+        }
+    });
+
+    return c.json({ success: true, member: newMember });
+});
+
 // GET /me: Current Member Details
 app.get('/me', async (c) => {
     const db = createDb(c.env.DB);
