@@ -10,7 +10,7 @@ type Bindings = {
 
 type Variables = {
     tenant: typeof tenants.$inferSelect;
-    member?: typeof tenantMembers.$inferSelect;
+    member?: any;
     roles?: string[];
     auth: {
         userId: string | null;

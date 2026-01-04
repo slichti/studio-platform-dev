@@ -51,7 +51,7 @@ type Bindings = {
 
 type Variables = {
   tenant: typeof tenants.$inferSelect;
-  member?: typeof tenantMembers.$inferSelect;
+  member?: any; // Includes user relation from 'with' query
   roles?: string[];
   auth: {
     userId: string | null;
@@ -324,8 +324,26 @@ studioApp.put('/credentials/zoom', async (c) => {
 studioApp.get('/me', (c) => {
   const member = c.get('member');
   const roles = c.get('roles');
+
   if (!member) return c.json({ error: "Not a member" }, 401);
-  return c.json({ member, roles });
+
+  // Flatten the response for the frontend
+  const user = member.user || {};
+  const profile = member.profile || user.profile || {};
+
+  return c.json({
+    id: member.id,
+    userId: member.userId,
+    firstName: profile.firstName || user.firstName || 'User',
+    lastName: profile.lastName || user.lastName || '',
+    email: user.email || 'N/A',
+    portraitUrl: profile.portraitUrl || user.portraitUrl,
+    roles,
+    user: {
+      ...user,
+      isSystemAdmin: user.isSystemAdmin || false
+    }
+  });
 });
 
 studioApp.get('/usage', async (c) => {

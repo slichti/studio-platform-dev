@@ -174,12 +174,21 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
             const dbRoles = rolesResult.map(r => r.role);
 
             // Only merge if NOT overriding as a lower role (student/instructor)
-            // But actually, "View As" usually means "Only this role".
-            // So if isSystemAdmin and override is set, we use ONLY the override.
-            // If NO override, we merge owner + dbRoles.
-
             if (!isSystemAdmin || !roles.length || roles.includes('owner')) {
                 roles = [...new Set([...roles, ...dbRoles])];
+            }
+        } else if (isSystemAdmin) {
+            // Synthesize virtual member for system admins who aren't explicitly members
+            c.set('member', {
+                id: `virt_${auth.userId}`,
+                tenantId: tenant.id,
+                userId: auth.userId,
+                status: 'active',
+                user: dbUser, // Original global user record
+                profile: dbUser?.profile // Use global profile
+            });
+            if (!roles.includes('owner')) {
+                roles.push('owner');
             }
         }
 
