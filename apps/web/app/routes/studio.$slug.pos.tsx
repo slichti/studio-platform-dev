@@ -1,500 +1,637 @@
 // @ts-ignore
-import { useLoaderData } from "react-router";
+import { useState, useEffect, useRef } from "react";
 // @ts-ignore
-import { LoaderFunction } from "react-router";
-import { getAuth } from "@clerk/react-router/server";
+import { useLoaderData, useOutletContext, Link } from "react-router";
 import { apiRequest } from "~/utils/api";
-import { useState } from "react";
-import { ShoppingCart, Plus, Minus, Trash2, Search, Package, Clock, ShoppingBag, CreditCard, Banknote, Ticket } from "lucide-react";
-import { GiftCardInput } from "../components/GiftCardInput";
+import {
+    ShoppingCart,
+    Plus,
+    Search,
+    CreditCard,
+    Trash2,
+    Save,
+    X,
+    User,
+    Wifi,
+    RefreshCw,
+    Archive,
+    Edit,
+    CheckCircle2,
+    Loader2
+} from "lucide-react";
+// @ts-ignore
+import { loadStripeTerminal } from "@stripe/terminal-js";
 
-export const loader: LoaderFunction = async (args: any) => {
-    const { getToken } = await getAuth(args);
-    const token = await getToken();
-    const slug = args.params.slug;
-
-    try {
-        const [productsRes, ordersRes] = await Promise.all([
-            apiRequest("/pos/products", token, { headers: { 'X-Tenant-Slug': slug } }),
-            apiRequest("/pos/orders", token, { headers: { 'X-Tenant-Slug': slug } })
-        ]);
-
-        return {
-            products: (productsRes as any).products || [],
-            orders: (ordersRes as any).orders || [],
-            token,
-            slug
-        };
-    } catch (e) {
-        console.error("Failed to load POS data", e);
-        return { products: [], orders: [], token, slug };
-    }
+// Types
+type Product = {
+    id: string;
+    name: string;
+    description: string;
+    price: number;
+    currency: string;
+    stockQuantity: number;
+    category: string;
+    imageUrl?: string;
+    isActive: boolean;
+    stripeProductId?: string;
 };
 
-export default function POSPage() {
-    const { products: initialProducts, orders: initialOrders, token, slug } = useLoaderData<any>();
+type CartItem = {
+    productId: string;
+    name: string;
+    price: number;
+    quantity: number;
+};
 
-    const [view, setView] = useState<"pos" | "history" | "inventory">("pos");
-    const [products, setProducts] = useState(initialProducts);
-    const [orders, setOrders] = useState(initialOrders);
-    const [cart, setCart] = useState<any[]>([]);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [paymentMethod, setPaymentMethod] = useState<"card" | "cash" | "gift_card">("card");
-    const [appliedGiftCard, setAppliedGiftCard] = useState<any>(null);
+type Customer = {
+    id: string; // memberId or stripeId
+    email: string;
+    profile?: { firstName: string; lastName: string };
+    name?: string; // For stripe guests
+    isStripeGuest?: boolean;
+    stripeCustomerId?: string;
+};
 
-    // --- POS Logic ---
-    const addToCart = (product: any) => {
-        setCart(prev => {
-            const existing = prev.find(item => item.productId === product.id);
-            if (existing) {
-                return prev.map(item =>
-                    item.productId === product.id
-                        ? { ...item, quantity: item.quantity + 1 }
-                        : item
-                );
+export default function POSTerminal() {
+    const { tenant, token, features } = useOutletContext<any>() || {};
+    const [products, setProducts] = useState<Product[]>([]);
+    const [cart, setCart] = useState<CartItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [processing, setProcessing] = useState(false);
+
+    // Terminal State
+    const [terminal, setTerminal] = useState<any>(null);
+    const [terminalStatus, setTerminalStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
+    const [readers, setReaders] = useState<any[]>([]);
+    const [activeReader, setActiveReader] = useState<any>(null);
+    const [showReaderModal, setShowReaderModal] = useState(false);
+
+    // Product Modal
+    const [showProductModal, setShowProductModal] = useState(false);
+    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+    // Customer State
+    const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+    const [showCustomerSearch, setShowCustomerSearch] = useState(false);
+    const [customerQuery, setCustomerQuery] = useState("");
+    const [customerResults, setCustomerResults] = useState<Customer[]>([]);
+    const [searchingCustomer, setSearchingCustomer] = useState(false);
+    const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
+
+    // Load Products
+    useEffect(() => {
+        loadProducts();
+    }, [refreshTrigger, tenant]);
+
+    const loadProducts = async () => {
+        try {
+            const res = await apiRequest('/pos/products', token);
+            if (res.products) {
+                setProducts(res.products.filter((p: Product) => p.isActive));
             }
-            return [...prev, {
-                productId: product.id,
-                name: product.name,
-                unitPrice: product.price,
-                quantity: 1
-            }];
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // --- Stripe Terminal Setup ---
+    useEffect(() => {
+        if (!tenant) return;
+
+        const initTerminal = async () => {
+            const StripeTerminal = await loadStripeTerminal();
+            if (!StripeTerminal) return;
+
+            const t = StripeTerminal.create({
+                onFetchConnectionToken: async () => {
+                    // Call backend to get secret
+                    const res = await apiRequest('/pos/connection-token', token, { method: 'POST' });
+                    if (res.error) throw new Error(res.error);
+                    return res.secret;
+                },
+                onUnexpectedReaderDisconnect: () => {
+                    setTerminalStatus('disconnected');
+                    setActiveReader(null);
+                }
+            });
+            setTerminal(t);
+        };
+
+        initTerminal();
+    }, [tenant]);
+
+    const discoverReaders = async () => {
+        if (!terminal) return;
+        setProcessing(true);
+        try {
+            // Discover Internet Readers (WisePOS E / Verifone P630)
+            const res = await terminal.discoverReaders({ discoveryMethod: 'internet', simulated: false }).catch((e: any) => ({ error: e })); // Try Real first
+            if (res.discoveredReaders) setReaders(res.discoveredReaders);
+            else if (res.error) console.error(res.error);
+
+            // Fallback Mock for Demo if scan fails immediately
+            if (!res.discoveredReaders) {
+                // const mockRes = await terminal.discoverReaders({ discoveryMethod: 'internet', simulated: true });
+                // if (mockRes.discoveredReaders) setReaders(mockRes.discoveredReaders);
+            }
+        } catch (e) { console.error(e); }
+        setProcessing(false);
+    };
+
+    const handleConnectReader = async (reader: any) => {
+        setTerminalStatus('connecting');
+        try {
+            const result = await terminal.connectReader(reader);
+            if (result.reader) {
+                setActiveReader(result.reader);
+                setTerminalStatus('connected');
+                setShowReaderModal(false);
+            } else {
+                console.error("Connect failed", result.error);
+                setTerminalStatus('disconnected');
+            }
+        } catch (e) {
+            console.error("Connect error", e);
+            setTerminalStatus('disconnected');
+        }
+    };
+
+    // --- Cart Logic ---
+    const addToCart = (product: Product) => {
+        setCart(prev => {
+            const existing = prev.find(p => p.productId === product.id);
+            if (existing) {
+                return prev.map(p => p.productId === product.id ? { ...p, quantity: p.quantity + 1 } : p);
+            }
+            return [...prev, { productId: product.id, name: product.name, price: product.price, quantity: 1 }];
         });
     };
 
-    const updateQuantity = (productId: string, delta: number) => {
-        setCart(prev => prev.map(item => {
-            if (item.productId === productId) {
-                const newQty = Math.max(0, item.quantity + delta);
-                return { ...item, quantity: newQty };
-            }
-            return item;
-        }).filter(item => item.quantity > 0));
+    const removeFromCart = (productId: string) => {
+        setCart(prev => prev.filter(p => p.productId !== productId));
     };
 
-    const cartTotal = cart.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-    const handleCheckout = async () => {
+    // --- Checkout ---
+    const handleCheckout = async (paymentMethod: 'card' | 'cash' | 'terminal') => {
         if (cart.length === 0) return;
-        setLoading(true);
-        try {
-            // 2. Process Order (Unified)
-            const res: any = await apiRequest("/pos/orders", token, {
-                method: "POST",
-                headers: { 'X-Tenant-Slug': slug },
-                body: JSON.stringify({
-                    items: cart,
-                    totalAmount: cartTotal,
-                    paymentMethod: paymentMethod === 'gift_card' ? 'other' : paymentMethod,
-                    redeemGiftCardCode: appliedGiftCard?.code,
-                    redeemAmount: appliedGiftCard ? Math.min(appliedGiftCard.balance, cartTotal) : 0
-                })
-            });
+        setProcessing(true);
 
-            if (res.error) {
-                alert(res.error);
+        try {
+            // 1. Terminal Payment
+            if (paymentMethod === 'terminal') {
+                if (terminalStatus !== 'connected' || !activeReader) {
+                    alert("Please connect a reader first.");
+                    setProcessing(false);
+                    setShowReaderModal(true);
+                    return;
+                }
+
+                // Create Payment on Backend first to get Client Secret? 
+                // Terminal SDK needs client_secret from a PaymentIntent.
+                // So we call `/pos/process-payment` first.
+                const piRes = await apiRequest('/pos/process-payment', token, {
+                    method: 'POST',
+                    body: JSON.stringify({ items: cart, customerId: selectedCustomer?.stripeCustomerId })
+                });
+
+                if (piRes.error) throw new Error(piRes.error);
+                const clientSecret = piRes.clientSecret;
+
+                // Use SDK to collect payment
+                const result = await terminal.collectPaymentMethod(clientSecret);
+                if (result.error) throw new Error(result.error.message);
+
+                const processResult = await terminal.processPayment(result.paymentIntent);
+                if (processResult.error) throw new Error(processResult.error.message);
+
+                // Payment Success! Now create Order record in our DB
+                await createOrder('card', processResult.paymentIntent.id, selectedCustomer?.id);
+
+            } else if (paymentMethod === 'card') {
+                // Manual Entry or Saved Card Logic (Simplifying for MVP to manual success for now or call standard Stripe flow)
+                await createOrder('card', 'manual_entry', selectedCustomer?.id);
             } else {
-                alert("Sale Successful!");
-                setCart([]);
-                setAppliedGiftCard(null);
-                setPaymentMethod("card");
-                // Refresh data
-                const [pRes, oRes]: any = await Promise.all([
-                    apiRequest("/pos/products", token, { headers: { 'X-Tenant-Slug': slug } }),
-                    apiRequest("/pos/orders", token, { headers: { 'X-Tenant-Slug': slug } })
-                ]);
-                setProducts(pRes.products || []);
-                setOrders(oRes.orders || []);
+                // Cash
+                await createOrder('cash', null, selectedCustomer?.id);
             }
-        } catch (e: any) {
-            alert("Checkout failed: " + e.message);
+
+            setCart([]);
+            setSelectedCustomer(null);
+            alert("Order Completed!");
+            setRefreshTrigger(p => p + 1); // Update stock
+        } catch (err: any) {
+            console.error(err);
+            alert(`Checkout Failed: ${err.message}`);
         } finally {
-            setLoading(false);
+            setProcessing(false);
         }
     };
 
-    // --- Inventory Management ---
-    const [showAddProduct, setShowAddProduct] = useState(false);
-    const [newProduct, setNewProduct] = useState({ name: "", price: "", stock: "0", category: "Retail" });
-
-    const handleAddProduct = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        try {
-            await apiRequest("/pos/products", token, {
-                method: "POST",
-                headers: { 'X-Tenant-Slug': slug },
-                body: JSON.stringify({
-                    name: newProduct.name,
-                    price: parseInt(newProduct.price) * 100, // to cents
-                    stockQuantity: parseInt(newProduct.stock),
-                    category: newProduct.category
-                })
-            });
-            setShowAddProduct(false);
-            setNewProduct({ name: "", price: "", stock: "0", category: "Retail" });
-            const pRes: any = await apiRequest("/pos/products", token, { headers: { 'X-Tenant-Slug': slug } });
-            setProducts(pRes.products || []);
-        } catch (e) {
-            alert("Failed to add product");
-        } finally {
-            setLoading(false);
-        }
+    const createOrder = async (method: string, paymentRef: string | null, memberId: string | undefined) => {
+        await apiRequest('/pos/orders', token, {
+            method: 'POST',
+            body: JSON.stringify({
+                items: cart,
+                memberId: memberId || null,
+                paymentMethod: method,
+                totalAmount: total,
+                // stripePaymentIntentId: paymentRef 
+            })
+        });
     };
 
-    const filteredProducts = products.filter((p: any) =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.sku?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // --- Search Customers ---
+    useEffect(() => {
+        if (!customerQuery || customerQuery.length < 2) {
+            setCustomerResults([]);
+            return;
+        }
+        const timer = setTimeout(async () => {
+            setSearchingCustomer(true);
+            try {
+                const res = await apiRequest(`/pos/customers?query=${customerQuery}`, token);
+                setCustomerResults(res.customers || []);
+            } catch (e) { console.error(e); }
+            finally { setSearchingCustomer(false); }
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [customerQuery]);
+
 
     return (
-        <div className="flex flex-col h-screen max-h-screen overflow-hidden bg-zinc-50 dark:bg-zinc-950">
-            {/* Header / Tabs */}
-            <div className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-6 py-4 flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-6">
-                    <h1 className="text-xl font-bold flex items-center gap-2">
-                        <ShoppingBag className="text-blue-600" /> POS & Retail
-                    </h1>
-                    <nav className="flex gap-1 bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg">
+        <div className="flex h-full">
+            {/* --- Main Product Area --- */}
+            <div className="flex-1 p-6 overflow-y-auto bg-zinc-50 dark:bg-zinc-950">
+                <div className="flex justify-between items-center mb-6">
+                    <div>
+                        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">POS & Retail</h1>
+                        <p className="text-sm text-zinc-500">Manage inventory and process sales.</p>
+                    </div>
+                    <div className="flex gap-2">
                         <button
-                            onClick={() => setView("pos")}
-                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${view === 'pos' ? 'bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700'}`}
+                            onClick={() => setShowReaderModal(true)}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${terminalStatus === 'connected' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-white text-zinc-700 border-zinc-200'}`}
                         >
-                            Terminal
+                            <Wifi size={16} />
+                            {terminalStatus === 'connected' ? activeReader?.label || 'Reader Connected' : 'Connect Reader'}
                         </button>
                         <button
-                            onClick={() => setView("history")}
-                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${view === 'history' ? 'bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700'}`}
+                            onClick={() => { setEditingProduct(null); setShowProductModal(true); }}
+                            className="flex items-center gap-2 px-3 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg text-sm hover:opacity-90"
                         >
-                            Orders
+                            <Plus size={16} /> Add Product
                         </button>
-                        <button
-                            onClick={() => setView("inventory")}
-                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${view === 'inventory' ? 'bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700'}`}
-                        >
-                            Inventory
-                        </button>
-                    </nav>
+                    </div>
                 </div>
-                <div className="flex items-center gap-4">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                        <input
-                            type="text"
-                            placeholder="Find products..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10 pr-4 py-2 bg-zinc-50 dark:bg-zinc-800 border-none rounded-full text-sm focus:ring-2 focus:ring-blue-500 outline-none w-64"
+
+                {/* Categories / Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {products.map(product => (
+                        <div key={product.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow group relative">
+                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                <button onClick={() => { setEditingProduct(product); setShowProductModal(true); }} className="p-1.5 bg-zinc-100 rounded text-zinc-600 hover:text-blue-600">
+                                    <Edit size={14} />
+                                </button>
+                            </div>
+
+                            <div className="aspect-square bg-zinc-100 dark:bg-zinc-800 rounded-lg flex items-center justify-center text-zinc-300">
+                                {product.imageUrl ? <img src={product.imageUrl} className="w-full h-full object-cover rounded-lg" /> : <Archive size={32} />}
+                            </div>
+                            <div>
+                                <div className="flex justify-between items-start">
+                                    <h3 className="font-medium text-zinc-900 dark:text-zinc-100 truncate">{product.name}</h3>
+                                    <span className="text-xs font-bold bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-600">${(product.price / 100).toFixed(2)}</span>
+                                </div>
+                                <p className="text-xs text-zinc-500 truncate">{product.category || 'General'}</p>
+                            </div>
+                            <div className="mt-auto pt-2 flex items-center justify-between">
+                                <span className={`text-xs ${product.stockQuantity > 0 ? 'text-green-600' : 'text-red-500'} font-medium`}>
+                                    {product.stockQuantity} in stock
+                                </span>
+                                <button
+                                    onClick={() => addToCart(product)}
+                                    disabled={product.stockQuantity <= 0}
+                                    className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <Plus size={16} />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* --- Sidebar Cart --- */}
+            <div className="w-96 bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-10 shadow-xl">
+                {/* Customer Selector */}
+                <div className="p-4 border-b border-zinc-100 dark:border-zinc-800">
+                    {selectedCustomer ? (
+                        <div className="flex justify-between items-center bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-blue-200 text-blue-700 flex items-center justify-center text-xs font-bold">
+                                    {selectedCustomer.profile?.firstName?.[0] || selectedCustomer.name?.[0] || 'C'}
+                                </div>
+                                <div>
+                                    <div className="text-sm font-medium text-blue-900 dark:text-blue-100">{selectedCustomer.profile ? `${selectedCustomer.profile.firstName} ${selectedCustomer.profile.lastName}` : selectedCustomer.name}</div>
+                                    <div className="text-[10px] text-blue-600 dark:text-blue-300 truncate w-32">{selectedCustomer.email}</div>
+                                </div>
+                            </div>
+                            <button onClick={() => setSelectedCustomer(null)} className="text-blue-400 hover:text-blue-600"><X size={14} /></button>
+                        </div>
+                    ) : (
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowCustomerSearch(!showCustomerSearch)}
+                                className="w-full flex items-center justify-between px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-500 hover:border-blue-400 transition-colors"
+                            >
+                                <span className="flex items-center gap-2"><User size={14} /> Add Customer to Sale</span>
+                                <Plus size={14} />
+                            </button>
+
+                            {/* Dropdown Search */}
+                            {showCustomerSearch && (
+                                <div className="absolute top-12 left-0 right-0 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-lg p-2 z-20">
+                                    <div className="flex items-center gap-2 px-2 py-1 bg-zinc-50 rounded border border-zinc-100 mb-2">
+                                        <Search size={14} className="text-zinc-400" />
+                                        <input
+                                            autoFocus
+                                            className="bg-transparent text-sm w-full outline-none"
+                                            placeholder="Search name or email..."
+                                            value={customerQuery}
+                                            onChange={(e) => setCustomerQuery(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="max-h-48 overflow-y-auto space-y-1">
+                                        {searchingCustomer && <div className="text-xs text-center p-2 text-zinc-400">Searching...</div>}
+                                        {customerResults.map(c => (
+                                            <button
+                                                key={c.id || c.stripeCustomerId}
+                                                onClick={() => { setSelectedCustomer(c); setShowCustomerSearch(false); setCustomerQuery(""); }}
+                                                className="w-full text-left p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded text-sm group"
+                                            >
+                                                <div className="font-medium">{c.profile ? `${c.profile.firstName} ${c.profile.lastName}` : c.name}</div>
+                                                <div className="text-xs text-zinc-500">{c.email}</div>
+                                                {c.isStripeGuest && <span className="text-[10px] bg-indigo-50 text-indigo-600 px-1 rounded ml-auto">Stripe</span>}
+                                            </button>
+                                        ))}
+                                        <button
+                                            onClick={() => { setShowNewCustomerModal(true); setShowCustomerSearch(false); }}
+                                            className="w-full text-left p-2 border-t border-zinc-100 text-blue-600 text-xs font-medium hover:bg-blue-50 rounded mt-1"
+                                        >
+                                            + Create New Customer
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                    {cart.map((item, idx) => (
+                        <div key={idx} className="flex justify-between items-center group">
+                            <div>
+                                <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{item.name}</div>
+                                <div className="text-xs text-zinc-500">${(item.price / 100).toFixed(2)} x {item.quantity}</div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="font-medium text-sm">${(item.price * item.quantity / 100).toFixed(2)}</div>
+                                <button onClick={() => removeFromCart(item.productId)} className="text-zinc-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Trash2 size={14} />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                    {cart.length === 0 && (
+                        <div className="h-full flex flex-col items-center justify-center text-zinc-400 space-y-2 opacity-50">
+                            <ShoppingCart size={32} />
+                            <span className="text-sm">Cart is empty</span>
+                        </div>
+                    )}
+                </div>
+
+                <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 space-y-3">
+                    <div className="flex justify-between items-center text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                        <span>Total</span>
+                        <span>${(total / 100).toFixed(2)}</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                        <button
+                            disabled={processing || cart.length === 0}
+                            onClick={() => handleCheckout('card')}
+                            className="bg-white border border-zinc-200 text-zinc-700 py-3 rounded-lg font-medium hover:bg-zinc-50 flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                            <CreditCard size={16} /> Manual Card
+                        </button>
+                        <button
+                            disabled={processing || cart.length === 0}
+                            onClick={() => handleCheckout('cash')}
+                            className="bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50"
+                        >
+                            Cash
+                        </button>
+                    </div>
+                    <button
+                        disabled={processing || cart.length === 0}
+                        onClick={() => handleCheckout('terminal')}
+                        className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg transition-all ${terminalStatus === 'connected' ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200 dark:shadow-blue-900/20' : 'bg-zinc-200 text-zinc-500 cursor-not-allowed'}`}
+                    >
+                        {processing ? <Loader2 className="animate-spin" /> : <Wifi size={20} />}
+                        {terminalStatus === 'connected' ? 'Charge Application' : 'Connect Reader to Charge'}
+                    </button>
+                </div>
+            </div>
+
+            {/* --- Product Modal --- */}
+            {showProductModal && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden p-6 space-y-4">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-lg font-bold">{editingProduct ? 'Edit Product' : 'New Product'}</h2>
+                            <button onClick={() => setShowProductModal(false)}><X size={20} /></button>
+                        </div>
+                        <ProductForm
+                            token={token}
+                            product={editingProduct}
+                            onSuccess={() => { setShowProductModal(false); setRefreshTrigger(p => p + 1); }}
                         />
                     </div>
                 </div>
-            </div>
+            )}
 
-            <div className="flex-1 flex overflow-hidden">
-                {/* Main View Area */}
-                <div className="flex-1 overflow-auto p-6">
-                    {view === 'pos' && (
-                        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-                            {filteredProducts.map((p: any) => (
-                                <button
-                                    key={p.id}
-                                    onClick={() => addToCart(p)}
-                                    disabled={p.stockQuantity <= 0}
-                                    className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-blue-500 dark:hover:border-blue-500 transition-all flex flex-col items-start gap-3 text-left group disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <div className="w-full aspect-square bg-zinc-100 dark:bg-zinc-800 rounded-lg flex items-center justify-center mb-1 group-hover:scale-105 transition-transform">
-                                        <Package className="h-10 w-10 text-zinc-300" />
+            {/* --- Reader Modal --- */}
+            {showReaderModal && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-2xl shadow-2xl p-6 space-y-6">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-xl font-bold flex items-center gap-2"><Wifi /> Connect Reader</h2>
+                            <button onClick={() => setShowReaderModal(false)}><X size={20} /></button>
+                        </div>
+
+                        <div className="flex flex-col gap-4 min-h-[200px]">
+                            {readers.length === 0 ? (
+                                <div className="flex-1 flex flex-col items-center justify-center space-y-4 text-center">
+                                    <div className="p-4 bg-zinc-100 rounded-full"><Search size={24} className="text-zinc-400" /></div>
+                                    <div>
+                                        <p className="font-medium">No Readers Found</p>
+                                        <p className="text-sm text-zinc-500 max-w-xs mx-auto mt-1">Make sure your WisePOS E or Verifone P630 is on, connected to WiFi, and registered in your Stripe Dashboard > Terminal.</p>
                                     </div>
-                                    <div className="flex-1 min-w-0 w-full">
-                                        <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 truncate">{p.name}</h3>
-                                        <p className="text-sm text-zinc-500 line-clamp-1">{p.category}</p>
-                                    </div>
-                                    <div className="flex justify-between items-end w-full">
-                                        <span className="text-lg font-bold text-blue-600">${(p.price / 100).toFixed(2)}</span>
-                                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${p.stockQuantity > 5 ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'}`}>
-                                            {p.stockQuantity} Left
-                                        </span>
-                                    </div>
-                                </button>
-                            ))}
-                            {filteredProducts.length === 0 && (
-                                <div className="col-span-full py-20 text-center">
-                                    <Package className="h-12 w-12 text-zinc-200 mx-auto mb-4" />
-                                    <p className="text-zinc-500">No products found. Add some in Inventory.</p>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                                    <button
+                                        onClick={async () => {
+                                            setProcessing(true);
+                                            if (terminal) {
+                                                const res = await terminal.discoverReaders({ discoveryMethod: 'internet', simulated: false }).catch((e: any) => ({ error: e })); // Try Real first
 
-                    {view === 'history' && (
-                        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-                            <table className="w-full text-left border-collapse">
-                                <thead className="bg-zinc-50 dark:bg-zinc-800/50">
-                                    <tr>
-                                        <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase">Order ID</th>
-                                        <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase">Customer</th>
-                                        <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase">Total</th>
-                                        <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase">Items</th>
-                                        <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase">Date</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                    {orders.map((o: any) => (
-                                        <tr key={o.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
-                                            <td className="px-6 py-4 text-sm font-mono text-zinc-600 dark:text-zinc-400">#{o.id.substring(0, 8)}</td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded-full bg-zinc-200 flex items-center justify-center text-[10px] font-bold">
-                                                        {o.member?.user?.profile?.firstName?.charAt(0) || '?'}
-                                                    </div>
-                                                    <span className="text-sm font-medium">
-                                                        {o.member?.user?.profile?.firstName || 'Guest'} {o.member?.user?.profile?.lastName || ''}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className="text-sm font-bold text-green-600">${(o.totalAmount / 100).toFixed(2)}</span>
-                                            </td>
-                                            <td className="px-6 py-4 text-xs text-zinc-500">
-                                                {o.items.map((it: any) => it.product.name).join(", ")}
-                                            </td>
-                                            <td className="px-6 py-4 text-xs text-zinc-400">
-                                                {new Date(o.createdAt).toLocaleString()}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {orders.length === 0 && (
-                                        <tr>
-                                            <td colSpan={5} className="px-6 py-20 text-center text-zinc-500 italic">No orders processed yet.</td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-
-                    {view === 'inventory' && (
-                        <div className="space-y-6">
-                            <div className="flex justify-between items-center">
-                                <h2 className="text-xl font-bold">Manage Inventory</h2>
-                                <button
-                                    onClick={() => setShowAddProduct(true)}
-                                    className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-blue-700"
-                                >
-                                    <Plus className="h-4 w-4" /> Add Product
-                                </button>
-                            </div>
-
-                            {showAddProduct && (
-                                <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-md">
-                                    <h3 className="font-semibold mb-4">New Product Details</h3>
-                                    <form onSubmit={handleAddProduct} className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                        <div className="md:col-span-2">
-                                            <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Product Name</label>
-                                            <input
-                                                className="w-full border border-zinc-200 dark:border-zinc-700 rounded px-3 py-2 text-sm"
-                                                placeholder="e.g. Studio T-Shirt"
-                                                value={newProduct.name}
-                                                onChange={e => setNewProduct({ ...newProduct, name: e.target.value })}
-                                                required
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Price ($)</label>
-                                            <input
-                                                type="number"
-                                                className="w-full border border-zinc-200 dark:border-zinc-700 rounded px-3 py-2 text-sm"
-                                                placeholder="25.00"
-                                                value={newProduct.price}
-                                                onChange={e => setNewProduct({ ...newProduct, price: e.target.value })}
-                                                required
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Initial Stock</label>
-                                            <input
-                                                type="number"
-                                                className="w-full border border-zinc-200 dark:border-zinc-700 rounded px-3 py-2 text-sm"
-                                                placeholder="10"
-                                                value={newProduct.stock}
-                                                onChange={e => setNewProduct({ ...newProduct, stock: e.target.value })}
-                                                required
-                                            />
-                                        </div>
-                                        <div className="md:col-span-4 flex justify-end gap-3 mt-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowAddProduct(false)}
-                                                className="px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-lg"
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button
-                                                type="submit"
-                                                disabled={loading}
-                                                className="bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 text-white px-6 py-2 rounded-lg text-sm font-medium hover:opacity-90"
-                                            >
-                                                {loading ? 'Saving...' : 'Create Product'}
-                                            </button>
-                                        </div>
-                                    </form>
-                                </div>
-                            )}
-
-                            <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                                <table className="w-full text-left">
-                                    <thead className="bg-zinc-50 dark:bg-zinc-800/50">
-                                        <tr>
-                                            <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase">Product</th>
-                                            <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase">Category</th>
-                                            <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase">Price</th>
-                                            <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase">In Stock</th>
-                                            <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                        {products.map((p: any) => (
-                                            <tr key={p.id}>
-                                                <td className="px-6 py-4 text-sm font-medium">{p.name}</td>
-                                                <td className="px-6 py-4 text-sm text-zinc-500">{p.category}</td>
-                                                <td className="px-6 py-4 text-sm font-bold">${(p.price / 100).toFixed(2)}</td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`text-sm font-medium ${p.stockQuantity <= 5 ? 'text-red-500' : 'text-zinc-900 dark:text-zinc-100'}`}>
-                                                        {p.stockQuantity}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${p.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                                                        {p.isActive ? 'Active' : 'Hidden'}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* POS Sidebar: Cart */}
-                {view === 'pos' && (
-                    <div className="w-96 bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 flex flex-col shadow-xl">
-                        <div className="p-6 border-b border-zinc-100 dark:border-zinc-800">
-                            <h2 className="text-lg font-bold flex items-center gap-2">
-                                <ShoppingCart className="h-5 w-5 text-zinc-400" /> Current Cart
-                            </h2>
-                        </div>
-
-                        <div className="flex-1 overflow-auto p-6 space-y-4">
-                            {cart.length === 0 ? (
-                                <div className="h-full flex flex-col items-center justify-center text-zinc-400 opacity-50 space-y-3">
-                                    <ShoppingCart className="h-12 w-12" />
-                                    <p className="text-sm">Cart is empty</p>
+                                                if (res && res.discoveredReaders) {
+                                                    setReaders(res.discoveredReaders);
+                                                } else if (res && res.error) {
+                                                    console.error(res.error);
+                                                }
+                                                // Fallback Mock for Demo if scan fails immediately
+                                                if (!res || !res.discoveredReaders) {
+                                                    // const mockRes = await terminal.discoverReaders({ discoveryMethod: 'internet', simulated: true });
+                                                    // if (mockRes.discoveredReaders) setReaders(mockRes.discoveredReaders);
+                                                }
+                                            }
+                                            setProcessing(false);
+                                        }}
+                                        disabled={processing}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                                    >
+                                        {processing ? 'Scanning...' : 'Scan for Readers'}
+                                    </button>
                                 </div>
                             ) : (
-                                cart.map((item: any) => (
-                                    <div key={item.productId} className="flex gap-3 items-start animate-in slide-in-from-right-1">
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">{item.name}</h4>
-                                            <p className="text-xs text-zinc-500">${(item.unitPrice / 100).toFixed(2)} ea</p>
-                                        </div>
-                                        <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1">
-                                            <button onClick={() => updateQuantity(item.productId, -1)} className="p-1 hover:bg-white dark:hover:bg-zinc-700 rounded transition-colors">
-                                                <Minus className="h-3 w-3" />
+                                <div className="space-y-2">
+                                    {readers.map((r, i) => (
+                                        <div key={i} className="flex items-center justify-between p-3 border rounded-lg hover:bg-zinc-50">
+                                            <div>
+                                                <div className="font-medium">{r.label || r.serialNumber}</div>
+                                                <div className="text-xs text-zinc-500">{r.deviceType} • {r.status}</div>
+                                            </div>
+                                            <button
+                                                onClick={() => handleConnectReader(r)}
+                                                className="px-3 py-1.5 bg-zinc-900 text-white rounded text-sm font-medium"
+                                            >
+                                                Connect
                                             </button>
-                                            <span className="w-6 text-center text-xs font-bold">{item.quantity}</span>
-                                            <button onClick={() => addToCart({ id: item.productId, name: item.name, price: item.unitPrice })} className="p-1 hover:bg-white dark:hover:bg-zinc-700 rounded transition-colors">
-                                                <Plus className="h-3 w-3" />
-                                            </button>
                                         </div>
-                                        <div className="text-sm font-bold w-16 text-right">
-                                            ${((item.unitPrice * item.quantity) / 100).toFixed(2)}
-                                        </div>
-                                    </div>
-                                ))
+                                    ))}
+                                </div>
                             )}
-                        </div>
-
-                        <div className="p-6 bg-zinc-50 dark:bg-zinc-900/50 border-t border-zinc-200 dark:border-zinc-800 space-y-6">
-                            {/* Payment Method Selector */}
-                            <div className="space-y-3">
-                                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">Payment Method</label>
-                                <div className="grid grid-cols-3 gap-2">
-                                    <button
-                                        onClick={() => setPaymentMethod("card")}
-                                        className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${paymentMethod === 'card' ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-blue-300'}`}
-                                    >
-                                        <CreditCard size={18} />
-                                        <span className="text-[10px] font-extrabold mt-1">CARD</span>
-                                    </button>
-                                    <button
-                                        onClick={() => setPaymentMethod("cash")}
-                                        className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${paymentMethod === 'cash' ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-500/20' : 'bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-emerald-300'}`}
-                                    >
-                                        <Banknote size={18} />
-                                        <span className="text-[10px] font-extrabold mt-1">CASH</span>
-                                    </button>
-                                    <button
-                                        onClick={() => setPaymentMethod("gift_card")}
-                                        className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${paymentMethod === 'gift_card' ? 'bg-amber-600 border-amber-600 text-white shadow-lg shadow-amber-500/20' : 'bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-amber-300'}`}
-                                    >
-                                        <Ticket size={18} />
-                                        <span className="text-[10px] font-extrabold mt-1">GIFT</span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            {paymentMethod === 'gift_card' && (
-                                <GiftCardInput
-                                    token={token}
-                                    slug={slug}
-                                    onApply={(card) => setAppliedGiftCard(card)}
-                                    onRemove={() => setAppliedGiftCard(null)}
-                                />
-                            )}
-
-                            <div className="space-y-2">
-                                <div className="flex justify-between items-center text-zinc-500 text-sm">
-                                    <span>Subtotal</span>
-                                    <span>${(cartTotal / 100).toFixed(2)}</span>
-                                </div>
-                                {appliedGiftCard && (
-                                    <div className="flex justify-between items-center text-emerald-600 text-sm font-bold">
-                                        <span>Gift Card Credit</span>
-                                        <span>-${(Math.min(appliedGiftCard.balance, cartTotal) / 100).toFixed(2)}</span>
-                                    </div>
-                                )}
-                                <div className="flex justify-between items-center text-lg font-bold text-zinc-900 dark:text-zinc-100 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-                                    <span>Remaining</span>
-                                    <span>${(Math.max(0, cartTotal - (appliedGiftCard?.balance || 0)) / 100).toFixed(2)}</span>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => setCart([])}
-                                    className="flex-1 py-3 text-sm font-medium text-zinc-600 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl transition-colors"
-                                >
-                                    Clear
-                                </button>
-                                <button
-                                    onClick={handleCheckout}
-                                    disabled={loading || cart.length === 0}
-                                    className="flex-[2] bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 text-white py-3 rounded-xl font-bold shadow-lg shadow-zinc-200 dark:shadow-none hover:translate-y-[-2px] active:translate-y-0 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                                >
-                                    {loading ? 'Processing...' : (
-                                        <>
-                                            Charge ${(Math.max(0, cartTotal - (appliedGiftCard?.balance || 0)) / 100).toFixed(2)}
-                                        </>
-                                    )}
-                                </button>
-                            </div>
                         </div>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
+
+            {/* --- New Customer Modal --- */}
+            {showNewCustomerModal && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-2xl shadow-2xl p-6">
+                        <h2 className="text-lg font-bold mb-4">Create New Customer</h2>
+                        <CustomerForm
+                            token={token}
+                            onSuccess={(c: any) => { setSelectedCustomer(c); setShowNewCustomerModal(false); }}
+                            onCancel={() => setShowNewCustomerModal(false)}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
+}
+
+function ProductForm({ token, product, onSuccess }: any) {
+    const [submitting, setSubmitting] = useState(false);
+
+    return (
+        <form className="space-y-4" onSubmit={async (e) => {
+            e.preventDefault();
+            setSubmitting(true);
+            const fd = new FormData(e.currentTarget);
+            const data = Object.fromEntries(fd);
+            data.price = (parseFloat(data.price as string) * 100).toString(); // dollars to cents, keep as string/number mismatch fixed by logic
+            // actually API expects number
+            const payload = {
+                ...data,
+                price: Math.round(parseFloat(data.price as string) * 100),
+                stockQuantity: parseInt(data.stockQuantity as string),
+                isActive: true
+            };
+
+            const url = product ? `/pos/products/${product.id}` : '/pos/products';
+            const method = product ? 'PUT' : 'POST';
+
+            await apiRequest(url, token, { method, body: JSON.stringify(payload) });
+            setSubmitting(false);
+            onSuccess();
+        }}>
+            <div>
+                <label className="block text-xs font-medium mb-1">Product Name</label>
+                <input name="name" defaultValue={product?.name} required className="w-full input-field border border-zinc-200 rounded p-2" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-xs font-medium mb-1">Price ($)</label>
+                    <input name="price" type="number" step="0.01" defaultValue={product ? (product.price / 100) : ''} required className="w-full input-field border border-zinc-200 rounded p-2" />
+                </div>
+                <div>
+                    <label className="block text-xs font-medium mb-1">Stock</label>
+                    <input name="stockQuantity" type="number" defaultValue={product?.stockQuantity} required className="w-full input-field border border-zinc-200 rounded p-2" />
+                </div>
+            </div>
+            <div>
+                <label className="block text-xs font-medium mb-1">Description</label>
+                <textarea name="description" defaultValue={product?.description} className="w-full input-field h-20 border border-zinc-200 rounded p-2" />
+            </div>
+            {product && (
+                <div className="flex justify-between items-center text-xs text-zinc-500">
+                    <span>Active product</span>
+                    <button type="button" onClick={async () => {
+                        if (!confirm("Archive this product?")) return;
+                        await apiRequest(`/pos/products/${product.id}/archive`, token, { method: 'POST' });
+                        onSuccess();
+                    }} className="text-red-500 hover:underline">Archive Product</button>
+                </div>
+            )}
+            <button disabled={submitting} type="submit" className="w-full bg-zinc-900 text-white rounded p-2 hover:bg-zinc-800">
+                {submitting ? 'Saving...' : 'Save Product'}
+            </button>
+        </form>
+    );
+}
+
+function CustomerForm({ token, onSuccess, onCancel }: any) {
+    const [submitting, setSubmitting] = useState(false);
+    return (
+        <form className="space-y-4" onSubmit={async (e) => {
+            e.preventDefault();
+            setSubmitting(true);
+            const fd = new FormData(e.currentTarget);
+            const data = Object.fromEntries(fd);
+
+            const res = await apiRequest('/pos/customers', token, { method: 'POST', body: JSON.stringify(data) });
+            setSubmitting(false);
+            if (res.customer) onSuccess(res.customer);
+        }}>
+            <div>
+                <label className="block text-xs font-medium mb-1">Customer Name</label>
+                <input name="name" required className="w-full input-field border border-zinc-200 rounded p-2" placeholder="Jane Doe" />
+            </div>
+            <div>
+                <label className="block text-xs font-medium mb-1">Email</label>
+                <input name="email" type="email" required className="w-full input-field border border-zinc-200 rounded p-2" placeholder="jane@example.com" />
+            </div>
+            <div className="flex gap-2 justify-end pt-2">
+                <button type="button" onClick={onCancel} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
+                <button type="submit" disabled={submitting} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">{submitting ? 'Creating...' : 'Create Customer'}</button>
+            </div>
+        </form>
+    )
 }

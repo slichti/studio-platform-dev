@@ -223,4 +223,74 @@ export class StripeService {
             // We usually transfer FROM the platform account's balance which was collected via application fees.
         });
     }
+
+    /**
+     * Create Terminal Connection Token
+     */
+    async createTerminalConnectionToken(connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        return client.terminal.connectionTokens.create({}, options);
+    }
+
+    /**
+     * Product Management
+     */
+    async createProduct(params: { name: string; description?: string; images?: string[]; active?: boolean; metadata?: Record<string, string> }, connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        return client.products.create({
+            name: params.name,
+            description: params.description,
+            images: params.images,
+            active: params.active,
+            metadata: params.metadata
+        }, options);
+    }
+
+    async createPrice(params: { productId: string; unitAmount: number; currency: string; recurring?: Stripe.PriceCreateParams.Recurring }, connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        return client.prices.create({
+            product: params.productId,
+            unit_amount: params.unitAmount,
+            currency: params.currency,
+            recurring: params.recurring
+        }, options);
+    }
+
+    async updateProduct(id: string, params: { name?: string; description?: string; images?: string[]; active?: boolean; metadata?: Record<string, string> }, connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        return client.products.update(id, {
+            name: params.name,
+            description: params.description,
+            images: params.images,
+            active: params.active,
+            metadata: params.metadata
+        }, options);
+    }
+
+    async archiveProduct(id: string, connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        return client.products.update(id, { active: false }, options);
+    }
+
+    /**
+     * Customer Management
+     */
+    async createCustomer(params: { email: string; name: string; phone?: string; metadata?: Record<string, string> }, connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        return client.customers.create({
+            email: params.email,
+            name: params.name,
+            phone: params.phone,
+            metadata: params.metadata
+        }, options);
+    }
+
+    async searchCustomers(query: string, connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        // Use search API for better filtering
+        return client.customers.search({
+            query: `name~"${query}" OR email~"${query}"`,
+            limit: 10
+        }, options);
+    }
 }

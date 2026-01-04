@@ -529,6 +529,8 @@ export const products = sqliteTable('products', {
     currency: text('currency').default('usd'),
     stockQuantity: integer('stock_quantity').default(0).notNull(),
     imageUrl: text('image_url'),
+    stripeProductId: text('stripe_product_id'),
+    stripePriceId: text('stripe_price_id'),
     isActive: integer('is_active', { mode: 'boolean' }).default(true).notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
