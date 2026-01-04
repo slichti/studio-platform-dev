@@ -26,13 +26,24 @@ app.get('/coupons', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
 
-    // Sort by newest
-    const list = await db.select().from(coupons)
+    // Sort by newest and include usage count
+    const list = await db.select({
+        coupon: coupons,
+        usageCount: sql<number>`count(${couponRedemptions.id})`
+    })
+        .from(coupons)
+        .leftJoin(couponRedemptions, eq(coupons.id, couponRedemptions.couponId))
         .where(eq(coupons.tenantId, tenant.id))
+        .groupBy(coupons.id)
         .orderBy(sql`${coupons.createdAt} DESC`)
         .all();
 
-    return c.json({ coupons: list });
+    return c.json({
+        coupons: list.map(({ coupon, usageCount }) => ({
+            ...coupon,
+            usageCount // Add calculated count
+        }))
+    });
 });
 
 // POST /coupons - Create

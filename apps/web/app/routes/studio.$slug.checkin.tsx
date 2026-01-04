@@ -263,6 +263,11 @@ export default function StaffCheckInPage() {
                                                         <span>•</span>
                                                         <span>{booking.user.email}</span>
                                                     </div>
+                                                    {booking.paymentMethod === 'drop_in' && (
+                                                        <div className="mt-1">
+                                                            <span className="text-[10px] font-bold uppercase tracking-wider text-red-600 bg-red-100 px-1.5 py-0.5 rounded">Unpaid / Pay at Door</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <div className="flex-shrink-0">
                                                     {booking.checkedInAt ? (

@@ -24,30 +24,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
 };
 
 export default function CouponsPage() {
-    const { coupons: initialCoupons, error } = useLoaderData<any>();
+    const { coupons: initialCoupons, error } = useLoaderData<typeof loader>();
     const { tenant } = useOutletContext<any>() || {};
-    const { getToken } = useOutletContext<any>() || {}; // Actually from useAuth, but passed down? Or use hook again.
-    // Better to use hook if context not reliable for auth
-    // Assuming context has token or re-fetch
-    // Let's rely on standard pattern:
-    // const { getToken } = useAuth(); // Clerk hook
-
-    const [coupons, setCoupons] = useState(initialCoupons);
-    const [loading, setLoading] = useState(false);
-    const [isCreateOpen, setIsCreateOpen] = useState(false);
-    const [form, setForm] = useState({ code: '', type: 'percent', value: '', usageLimit: '' });
-
-    const handleCreate = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        try {
-            // Need token here. Usually we use useAuth() hook in component
-            // We can't use `getToken` from loader context easily unless passed
-            // Standardizing:
-            // const { getToken } = useAuth();
-            // Let's import useAuth
-        } catch (e) { }
-    };
 
     return <CouponsView initialCoupons={initialCoupons} tenant={tenant} />;
 }
@@ -242,7 +220,7 @@ function CouponsView({ initialCoupons, tenant }: any) {
                                         )}
                                     </td>
                                     <td className="px-6 py-4 text-zinc-500">
-                                        {coupon.usageLimit ? coupon.usageLimit : 'Unlimited'}
+                                        {coupon.usageCount || 0} / {coupon.usageLimit ? coupon.usageLimit : '∞'}
                                     </td>
                                     <td className="px-6 py-4">
                                         {coupon.active ? (

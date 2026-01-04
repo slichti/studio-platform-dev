@@ -574,7 +574,8 @@ app.get('/:id/bookings', async (c) => {
             },
             memberId: bookings.memberId,
             checkedInAt: bookings.checkedInAt,
-            createdAt: bookings.createdAt
+            createdAt: bookings.createdAt,
+            paymentMethod: bookings.paymentMethod
         })
             .from(bookings)
             .innerJoin(tenantMembers, eq(bookings.memberId, tenantMembers.id))
