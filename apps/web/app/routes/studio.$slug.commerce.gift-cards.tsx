@@ -1,7 +1,7 @@
 // @ts-ignore
-import { useState } from "react";
+import { useState, useEffect } from "react";
 // @ts-ignore
-import { useLoaderData, useParams, useOutletContext, Link } from "react-router";
+import { useLoaderData, useParams, useOutletContext, Link, useSearchParams } from "react-router";
 // @ts-ignore
 import type { LoaderFunctionArgs } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
@@ -148,6 +148,27 @@ export default function GiftCardsPage() {
         return `/studio/${slug}/checkout?${params.toString()}`;
     };
 
+
+    // Deep Linking: Auto-open Claim Modal
+    const [searchParams, setSearchParams] = useSearchParams();
+    const claimCode = searchParams.get('claimCode');
+
+    useEffect(() => {
+        if (claimCode) {
+            setLinkCode(claimCode.toUpperCase());
+            setShowLinkModal(true);
+            setSearchParams(params => {
+                params.delete('claimCode');
+                return params;
+            });
+        }
+    }, [claimCode]);
+
+    // Analytics Calculation
+    const totalIssued = giftCards.reduce((acc: number, c: any) => acc + c.initialValue, 0);
+    const totalLiability = giftCards.reduce((acc: number, c: any) => acc + (c.status === 'active' ? c.currentBalance : 0), 0);
+    const redemptionRate = totalIssued > 0 ? ((totalIssued - totalLiability) / totalIssued) * 100 : 0;
+
     return (
         <div className="p-8 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -182,12 +203,33 @@ export default function GiftCardsPage() {
             {activeTab === 'list' ? (
                 <div className="space-y-8">
                     {/* Stats */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm">
-                            <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1">{isAdmin ? "Total Loading Balance" : "My Balance"}</p>
-                            <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100">${(giftCards.reduce((acc: number, c: any) => acc + (c.status === 'active' ? c.currentBalance : 0), 0) / 100).toLocaleString()}</h2>
+                    {isAdmin ? (
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-4">
+                            <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm">
+                                <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1">Total Liability</p>
+                                <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100">${(totalLiability / 100).toLocaleString()}</h2>
+                            </div>
+                            <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm">
+                                <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1">Total Issued</p>
+                                <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100">${(totalIssued / 100).toLocaleString()}</h2>
+                            </div>
+                            <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm">
+                                <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1">Redemption Rate</p>
+                                <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100">{redemptionRate.toFixed(1)}%</h2>
+                            </div>
+                            <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm">
+                                <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1">Active Cards</p>
+                                <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100">{giftCards.filter((c: any) => c.status === 'active').length}</h2>
+                            </div>
                         </div>
-                    </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm">
+                                <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1">My Balance</p>
+                                <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100">${(totalLiability / 100).toLocaleString()}</h2>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Table */}
                     <div className="space-y-4">
