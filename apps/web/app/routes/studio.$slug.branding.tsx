@@ -9,6 +9,7 @@ export default function StudioBranding() {
     const [primaryColor, setPrimaryColor] = useState(tenant.branding?.primaryColor || '#4f46e5');
     const [replyTo, setReplyTo] = useState(tenant.branding?.emailReplyTo || '');
     const [footerText, setFooterText] = useState(tenant.branding?.emailFooterText || '');
+    const [hidePoweredBy, setHidePoweredBy] = useState(tenant.branding?.hidePoweredBy || false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
@@ -29,7 +30,8 @@ export default function StudioBranding() {
                     branding: {
                         primaryColor,
                         emailReplyTo: replyTo,
-                        emailFooterText: footerText
+                        emailFooterText: footerText,
+                        hidePoweredBy
                     }
                 })
             });
@@ -115,6 +117,36 @@ export default function StudioBranding() {
                             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                                 Address or legal text to include at the bottom of every email.
                             </p>
+                        </div>
+                    </div>
+
+                    <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
+                        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Platform Branding</h2>
+
+                        <div className="flex items-start gap-3">
+                            <div className="flex items-center h-5">
+                                <input
+                                    id="hidePoweredBy"
+                                    type="checkbox"
+                                    checked={hidePoweredBy}
+                                    onChange={(e) => setHidePoweredBy(e.target.checked)}
+                                    disabled={tenant.tier !== 'scale'}
+                                    className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                />
+                            </div>
+                            <div className="text-sm">
+                                <label htmlFor="hidePoweredBy" className={`font-medium ${tenant.tier !== 'scale' ? 'text-zinc-400' : 'text-zinc-900 dark:text-zinc-100'}`}>
+                                    Hide "Powered by StudioPlatform" badge
+                                </label>
+                                <p className="text-zinc-500 dark:text-zinc-400">
+                                    Remove the branding badge from your site footer.
+                                    {tenant.tier !== 'scale' && (
+                                        <span className="text-amber-600 dark:text-amber-500 ml-1">
+                                            Requires Scale tier.
+                                        </span>
+                                    )}
+                                </p>
+                            </div>
                         </div>
                     </div>
 

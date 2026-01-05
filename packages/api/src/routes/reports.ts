@@ -83,10 +83,52 @@ app.get('/revenue', async (c) => {
         mrr: mrr
     };
 
+    // Chart Data (Time Series)
+    // Fetch raw data for time-series aggregation
+    const [retailItems, packItems] = await Promise.all([
+        db.select({ date: posOrders.createdAt, amount: posOrders.totalAmount })
+            .from(posOrders)
+            .where(and(
+                eq(posOrders.tenantId, tenant.id),
+                between(posOrders.createdAt, start, end),
+                eq(posOrders.status, 'completed')
+            )).all(),
+
+        db.select({ date: purchasedPacks.createdAt, amount: purchasedPacks.price })
+            .from(purchasedPacks)
+            .where(and(
+                eq(purchasedPacks.tenantId, tenant.id),
+                between(purchasedPacks.createdAt, start, end)
+            )).all()
+    ]);
+
+    // Aggregate by day
+    const dayMap = new Map<string, number>();
+
+    // Initialize all days in range with 0
+    const cursor = new Date(start);
+    while (cursor <= end) {
+        dayMap.set(cursor.toISOString().split('T')[0], 0);
+        cursor.setDate(cursor.getDate() + 1);
+    }
+
+    [...retailItems, ...packItems].forEach(item => {
+        const d = new Date(item.date);
+        const key = d.toISOString().split('T')[0];
+        if (dayMap.has(key)) {
+            dayMap.set(key, (dayMap.get(key) || 0) + (item.amount || 0));
+        }
+    });
+
+    const chartData = Array.from(dayMap.entries())
+        .map(([name, value]) => ({ name, value: value / 100 })) // Value in dollars
+        .sort((a, b) => a.name.localeCompare(b.name));
+
     return c.json({
         grossVolume,
         mrr,
         breakdown,
+        chartData,
         period: { start, end }
     });
 });
@@ -100,23 +142,8 @@ app.get('/attendance', async (c) => {
     const start = c.req.query('startDate') ? new Date(c.req.query('startDate')!) : new Date(new Date().setDate(new Date().getDate() - 30));
     const end = c.req.query('endDate') ? new Date(c.req.query('endDate')!) : new Date();
 
-    // 1. Total Bookings vs Check-ins
-    const attendanceStats = await db.select({
-        count: count(bookings.id),
-        status: bookings.status,
-        checkedIn: bookings.checkedInAt
-    })
-        .from(bookings)
-        .innerJoin(classes, eq(bookings.classId, classes.id))
-        .where(and(
-            eq(classes.tenantId, tenant.id),
-            between(classes.startTime, start, end)
-        ))
-        .groupBy(bookings.status, bookings.checkedInAt) // This grouping might be too granular for simple counts, let's just fetch all and agg in code or use multiple queries
-        .all();
-
-    // Simplify:
-    // Total Confirmed
+    // 1. Total Bookings vs Check-ins logic...
+    // Re-using previous aggregations for Totals
     const totalBookings = await db.select({ count: count() })
         .from(bookings)
         .innerJoin(classes, eq(bookings.classId, classes.id))
@@ -126,7 +153,6 @@ app.get('/attendance', async (c) => {
             eq(bookings.status, 'confirmed')
         )).get();
 
-    // Total Checked In
     const totalCheckins = await db.select({ count: count() })
         .from(bookings)
         .innerJoin(classes, eq(bookings.classId, classes.id))
@@ -137,7 +163,7 @@ app.get('/attendance', async (c) => {
             sql`${bookings.checkedInAt} IS NOT NULL`
         )).get();
 
-    // Top Classes (by attendance)
+    // Top Classes
     const topClasses = await db.select({
         title: classes.title,
         attendees: count(bookings.id)
@@ -154,10 +180,46 @@ app.get('/attendance', async (c) => {
         .limit(5)
         .all();
 
+    // Chart Data (Daily Attendance)
+    const dailyData = await db.select({
+        date: classes.startTime,
+        count: count(bookings.id)
+    })
+        .from(classes)
+        .leftJoin(bookings, eq(classes.id, bookings.classId))
+        .where(and(
+            eq(classes.tenantId, tenant.id),
+            between(classes.startTime, start, end),
+            eq(bookings.status, 'confirmed')
+        ))
+        .groupBy(classes.startTime) // Group by Class Time first
+        .all();
+
+    // Now aggregate class-times to days in JS
+    const dayMap = new Map<string, number>();
+    const cursor = new Date(start);
+    while (cursor <= end) {
+        dayMap.set(cursor.toISOString().split('T')[0], 0);
+        cursor.setDate(cursor.getDate() + 1);
+    }
+
+    dailyData.forEach(item => {
+        const d = new Date(item.date);
+        const key = d.toISOString().split('T')[0];
+        if (dayMap.has(key)) {
+            dayMap.set(key, (dayMap.get(key) || 0) + item.count);
+        }
+    });
+
+    const chartData = Array.from(dayMap.entries())
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
     return c.json({
         totalBookings: totalBookings?.count || 0,
         totalCheckins: totalCheckins?.count || 0,
-        topClasses
+        topClasses,
+        chartData
     });
 });
 

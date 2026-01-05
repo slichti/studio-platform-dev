@@ -16,7 +16,9 @@ import {
     AreaChart,
     Area
 } from 'recharts';
-import { Loader2, DollarSign, Users, TrendingUp } from "lucide-react";
+import { Loader2, DollarSign, Users, TrendingUp, CheckCircle2 } from "lucide-react";
+import { PrivacyBlur } from "../components/PrivacyBlur";
+import { useAdminPrivacy } from "../hooks/useAdminPrivacy";
 
 export default function StudioReports() {
     const { tenant } = useOutletContext<any>();
@@ -25,6 +27,16 @@ export default function StudioReports() {
     const [revenueData, setRevenueData] = useState<any>(null);
     const [attendanceData, setAttendanceData] = useState<any>(null);
     const [dateRange, setDateRange] = useState('30d'); // 30d, 90d, 1y
+
+    // Privacy Logic
+    const [impersonating, setImpersonating] = useState(false);
+    useEffect(() => {
+        setImpersonating(!!localStorage.getItem('impersonation_token'));
+    }, []);
+
+    const { isPrivacyMode } = useAdminPrivacy();
+    // Blur if impersonating AND privacy mode is active
+    const shouldBlur = impersonating && isPrivacyMode;
 
     useEffect(() => {
         fetchData();
@@ -89,18 +101,18 @@ export default function StudioReports() {
                     <>
                         <MetricCard
                             title="Gross Volume (Period)"
-                            value={`$${(revenueData.grossVolume / 100).toFixed(2)}`}
+                            value={<PrivacyBlur revealed={!shouldBlur} placeholder="***">{`$${(revenueData.grossVolume / 100).toFixed(2)}`}</PrivacyBlur>}
                             icon={<DollarSign size={20} className="text-green-500" />}
                         />
                         <MetricCard
                             title="Monthly Recurring Revenue"
-                            value={`$${(revenueData.mrr / 100).toFixed(2)}`}
+                            value={<PrivacyBlur revealed={!shouldBlur} placeholder="***">{`$${(revenueData.mrr / 100).toFixed(2)}`}</PrivacyBlur>}
                             subtext="Active subscriptions snapshot"
                             icon={<TrendingUp size={20} className="text-blue-500" />}
                         />
                         <MetricCard
                             title="Sales Breakdown"
-                            value={`${((revenueData.breakdown.retail / (revenueData.grossVolume || 1)) * 100).toFixed(0)}% Retail`}
+                            value={<PrivacyBlur revealed={!shouldBlur} placeholder="***">{`${((revenueData.breakdown.retail / (revenueData.grossVolume || 1)) * 100).toFixed(0)}% Retail`}</PrivacyBlur>}
                             subtext={`$${(revenueData.breakdown.packs / 100).toFixed(0)} Packs`}
                             icon={<DollarSign size={20} className="text-purple-500" />}
                         />
@@ -117,43 +129,88 @@ export default function StudioReports() {
                             title="Check-in Rate"
                             value={`${((attendanceData.totalCheckins / (attendanceData.totalBookings || 1)) * 100).toFixed(0)}%`}
                             subtext={`${attendanceData.totalCheckins} Checked-in`}
-                            icon={<CheckCircle2 size={20} className="text-green-500" />} // Imported below or fix import
+                            icon={<CheckCircle2 size={20} className="text-green-500" />}
                         />
-                        {/* More cards... */}
                     </>
                 )}
             </div>
 
             {/* Charts Area */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                <div className="lg:col-span-2 bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative">
                     <h3 className="text-lg font-semibold mb-6">
                         {activeTab === 'financials' ? 'Revenue Trends' : 'Attendance Trends'}
                     </h3>
+
+                    {shouldBlur && activeTab === 'financials' && (
+                        <div className="absolute inset-0 z-10 backdrop-blur-md bg-white/30 dark:bg-black/30 flex items-center justify-center rounded-xl">
+                            <div className="bg-white dark:bg-zinc-800 px-4 py-2 rounded-lg shadow lg text-sm font-medium">Privacy Mode Enabled</div>
+                        </div>
+                    )}
+
                     <div className="h-80 w-full flex items-center justify-center text-zinc-400 text-sm">
-                        {/* Placeholder for actual time-series chart. 
-                            The backend currently returns aggregate totals. 
-                            We need to update backend to return time-series data for this chart to work fully.
-                            For now, rendering a static demo chart to show UI structure.
-                        */}
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={getDemoData(activeTab)}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E4E7" />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#71717A', fontSize: 12 }} dy={10} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#71717A', fontSize: 12 }} />
-                                <Tooltip
-                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                />
-                                <Area type="monotone" dataKey="value" stroke="#3B82F6" fill="#EFF6FF" strokeWidth={2} />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                        {activeTab === 'financials' && revenueData?.chartData ? (
+                            isEmpty(revenueData.chartData) ? (
+                                <div className="text-center">
+                                    <div className="mb-2">No revenue data for this period</div>
+                                    <div className="text-xs text-zinc-500">Record sales in POS to see trends</div>
+                                </div>
+                            ) : (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={revenueData.chartData}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E4E7" />
+                                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#71717A', fontSize: 12 }} dy={10}
+                                            tickFormatter={(val) => formatDate(val)}
+                                        />
+                                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#71717A', fontSize: 12 }} />
+                                        <Tooltip
+                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                            formatter={(value: number) => [`$${value.toFixed(2)}`, 'Revenue']}
+                                            labelFormatter={(l) => new Date(l).toLocaleDateString()}
+                                        />
+                                        <Area type="monotone" dataKey="value" stroke="#3B82F6" fill="#EFF6FF" strokeWidth={2} />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            )
+                        ) : null}
+
+                        {activeTab === 'attendance' && attendanceData?.chartData ? (
+                            isEmpty(attendanceData.chartData) ? (
+                                <div className="text-center">
+                                    <div className="mb-2">No attendance data for this period</div>
+                                </div>
+                            ) : (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={attendanceData.chartData}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E4E7" />
+                                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#71717A', fontSize: 12 }} dy={10}
+                                            tickFormatter={(val) => formatDate(val)}
+                                        />
+                                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#71717A', fontSize: 12 }} />
+                                        <Tooltip
+                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                            formatter={(value: number) => [value, 'Attendees']}
+                                            labelFormatter={(l) => new Date(l).toLocaleDateString()}
+                                        />
+                                        <Area type="monotone" dataKey="value" stroke="#10B981" fill="#ECFDF5" strokeWidth={2} />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            )
+                        ) : null}
                     </div>
                 </div>
 
-                <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative">
                     <h3 className="text-lg font-semibold mb-6">
                         {activeTab === 'financials' ? 'Top Selling' : 'Top Classes'}
                     </h3>
+
+                    {shouldBlur && activeTab === 'financials' && (
+                        <div className="absolute inset-0 z-10 backdrop-blur-md bg-white/30 dark:bg-black/30 flex items-center justify-center rounded-xl">
+                            {/* No text needed, just blur */}
+                        </div>
+                    )}
+
                     {activeTab === 'attendance' && attendanceData?.topClasses && (
                         <div className="space-y-4">
                             {attendanceData.topClasses.map((c: any, i: number) => (
@@ -167,6 +224,7 @@ export default function StudioReports() {
                                     </div>
                                 </div>
                             ))}
+                            {attendanceData.topClasses.length === 0 && <div className="text-center text-sm text-zinc-500 py-8">No data available</div>}
                         </div>
                     )}
                     {activeTab === 'financials' && (
@@ -191,31 +249,19 @@ function MetricCard({ title, value, subtext, icon }: any) {
             </div>
             <div>
                 <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium mb-1">{title}</p>
-                <h3 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{value}</h3>
+                <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{value}</div>
                 {subtext && <p className="text-xs text-zinc-500 mt-2">{subtext}</p>}
             </div>
         </div>
     );
 }
 
+function isEmpty(data: any[]) {
+    if (!data || data.length === 0) return true;
+    return data.every(d => d.value === 0);
+}
 
-
-function getDemoData(tab: string) {
-    if (tab === 'financials') {
-        return [
-            { name: 'Week 1', value: 4000 },
-            { name: 'Week 2', value: 3000 },
-            { name: 'Week 3', value: 2000 },
-            { name: 'Week 4', value: 2780 },
-        ];
-    }
-    return [
-        { name: 'Mon', value: 24 },
-        { name: 'Tue', value: 13 },
-        { name: 'Wed', value: 98 },
-        { name: 'Thu', value: 39 },
-        { name: 'Fri', value: 48 },
-        { name: 'Sat', value: 38 },
-        { name: 'Sun', value: 43 },
-    ];
+function formatDate(iso: string) {
+    const d = new Date(iso);
+    return `${d.getMonth() + 1}/${d.getDate()}`;
 }

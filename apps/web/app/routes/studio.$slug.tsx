@@ -5,8 +5,9 @@ import type { LoaderFunctionArgs } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { UserButton } from "@clerk/react-router";
+import { PoweredBy } from "../components/PoweredBy";
 import {
-    LayoutGrid,
+    LayoutDashboard,
     Calendar,
     User,
     Users,
@@ -160,7 +161,7 @@ export default function StudioLayout() {
                         {(['scale'].includes(tenant.tier) || featureSet.has('payroll')) && (
                             <NavItem to="financials/payroll" icon={<CreditCard size={18} />}>Payroll Admin</NavItem>
                         )}
-                        {(me.roles && me.roles.includes('instructor')) && (
+                        {(me.roles && me.roles.some((r: string) => ['instructor', 'admin', 'owner'].includes(r))) && (
                             <NavItem to="financials/my-payouts" icon={<DollarSign size={18} />}>My Payouts</NavItem>
                         )}
 
@@ -199,6 +200,9 @@ export default function StudioLayout() {
                     {/* DEBUG INFO */}
                     <div className="text-[10px] text-zinc-400 font-mono truncate">
                         UI: v1.0.2-DEBUG | U:{(useLoaderData() as any).me?.user ? 'Load' : 'Miss'} | A:{(useLoaderData() as any).me?.user?.isSystemAdmin ? 'Y' : 'N'}
+                    </div>
+                    <div className="pt-4 mt-auto">
+                        <PoweredBy tier={tenant.tier} branding={tenant.branding} />
                     </div>
                 </div>
             </aside >

@@ -7,6 +7,7 @@ import { useAuth } from "@clerk/react-router";
 import { Modal } from "../components/Modal";
 import { ErrorDialog, ConfirmationDialog } from "../components/Dialogs";
 import { ChevronDown, ChevronRight, Activity, CreditCard, Video, Monitor, ShoppingCart, Mail } from "lucide-react";
+import { PrivacyBlur } from "../components/PrivacyBlur";
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -65,6 +66,17 @@ export default function AdminTenants() {
 
     const [statusFilter, setStatusFilter] = useState('all');
     const [tierFilter, setTierFilter] = useState('all');
+
+    const [showFinancials, setShowFinancials] = useState(() => {
+        if (typeof window !== 'undefined') return localStorage.getItem('admin_show_financials') === 'true';
+        return false;
+    });
+
+    const toggleFinancials = () => {
+        const newValue = !showFinancials;
+        setShowFinancials(newValue);
+        localStorage.setItem('admin_show_financials', String(newValue));
+    };
 
     const handleSort = (field: string) => {
         if (sortField === field) {
@@ -257,7 +269,7 @@ export default function AdminTenants() {
                     <h2 className="text-2xl font-bold">Tenant Management</h2>
 
                     {/* Filters */}
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
                         <select
                             className="text-sm border border-zinc-300 rounded-md px-2 py-1 bg-white outline-none focus:ring-2 focus:ring-blue-500"
                             value={statusFilter}
@@ -278,6 +290,20 @@ export default function AdminTenants() {
                             <option value="growth">Growth</option>
                             <option value="scale">Scale</option>
                         </select>
+
+                        <div className="h-6 w-px bg-zinc-300 mx-2"></div>
+
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={toggleFinancials}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${showFinancials ? 'bg-indigo-600' : 'bg-zinc-200'}`}
+                            >
+                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showFinancials ? 'translate-x-6' : 'translate-x-1'}`} />
+                            </button>
+                            <span className="text-sm text-zinc-600 font-medium">
+                                {showFinancials ? 'Financials Visible' : 'Privacy Mode'}
+                            </span>
+                        </div>
                     </div>
                 </div>
 
@@ -355,7 +381,9 @@ export default function AdminTenants() {
                                             </div>
                                             <div className="flex flex-col items-center" title="Subscribers">
                                                 <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">Subs</span>
-                                                <span className="text-sm font-bold text-blue-600">{t.stats?.subscribers || 0}</span>
+                                                <PrivacyBlur revealed={showFinancials} placeholder="***">
+                                                    <span className="text-sm font-bold text-blue-600">{t.stats?.subscribers || 0}</span>
+                                                </PrivacyBlur>
                                             </div>
                                         </div>
                                     </td>
