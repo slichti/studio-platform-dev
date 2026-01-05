@@ -111,11 +111,12 @@ export class StripeService {
             returnUrl: string;
             metadata: Record<string, string>;
             customerEmail?: string;
+            customer?: string;
         }
     ) {
         const { client, options } = this.getClient(connectedAccountId);
 
-        return client.checkout.sessions.create({
+        const sessionParams: any = {
             ui_mode: 'embedded',
             payment_method_types: ['card', 'us_bank_account'],
             payment_method_options: {
@@ -138,8 +139,15 @@ export class StripeService {
             mode: 'payment',
             return_url: params.returnUrl,
             metadata: params.metadata,
-            customer_email: params.customerEmail,
-        }, options);
+        };
+
+        if (params.customer) {
+            sessionParams.customer = params.customer;
+        } else if (params.customerEmail) {
+            sessionParams.customer_email = params.customerEmail;
+        }
+
+        return client.checkout.sessions.create(sessionParams, options);
     }
 
     /**

@@ -533,6 +533,56 @@ app.post('/:id/book', async (c) => {
             await db.update(purchasedPacks)
                 .set({ remainingCredits: sql`${purchasedPacks.remainingCredits} - 1` })
                 .where(eq(purchasedPacks.id, usedPackId));
+        } else {
+            // Check for Parent's Packs (Shared Attendance)
+            const parents = await db.query.userRelationships.findMany({
+                where: eq(userRelationships.childUserId, memberWithPlans.userId),
+                with: {
+                    // We need parent's User ID to find their Member ID in this tenant
+                }
+            });
+
+            if (parents.length > 0) {
+                const parentUserIds = parents.map(p => p.parentUserId);
+
+                // Find Parent Members in this Tenant with Active Packs
+                const parentMembers = await db.query.tenantMembers.findMany({
+                    where: and(
+                        eq(tenantMembers.tenantId, tenant.id),
+                        inArray(tenantMembers.userId, parentUserIds)
+                    ),
+                    with: {
+                        purchasedPacks: {
+                            where: and(
+                                gt(purchasedPacks.remainingCredits, 0),
+                                // Check expiry if needed (handled by valid field usually or verify date)
+                            ),
+                            orderBy: (purchasedPacks, { asc }) => [asc(purchasedPacks.expiresAt)]
+                        }
+                    }
+                });
+
+                // Find first available pack among parents
+                let parentPack = null;
+                for (const pm of parentMembers) {
+                    if (pm.purchasedPacks.length > 0) {
+                        parentPack = pm.purchasedPacks[0];
+                        break;
+                    }
+                }
+
+                if (parentPack) {
+                    paymentMethod = 'credit';
+                    usedPackId = parentPack.id;
+
+                    // Deduct Credit from Parent's Pack
+                    await db.update(purchasedPacks)
+                        .set({ remainingCredits: sql`${purchasedPacks.remainingCredits} - 1` })
+                        .where(eq(purchasedPacks.id, usedPackId));
+
+                    // TODO: Log that this credit was used by Child? (Bookings table has memberId=Child, usedPackId=ParentPack. This is link enough).
+                }
+            }
         }
 
         // Logic for paid classes if no membership/credits would go here

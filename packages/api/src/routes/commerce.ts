@@ -301,10 +301,44 @@ app.post('/checkout/session', async (c) => {
 
     // Fetch user email if logged in
     let customerEmail = undefined;
+    let stripeCustomerId = undefined;
+
     if (user?.userId) {
-        const { users } = await import('db/src/schema');
-        const userRecord = await db.select({ email: users.email }).from(users).where(eq(users.id, user.userId)).get();
-        if (userRecord) customerEmail = userRecord.email;
+        const { users, userRelationships } = await import('db/src/schema');
+        const userRecord = await db.select({ email: users.email, stripeCustomerId: users.stripeCustomerId }).from(users).where(eq(users.id, user.userId)).get();
+
+        if (userRecord) {
+            customerEmail = userRecord.email;
+            stripeCustomerId = userRecord.stripeCustomerId;
+
+            // Family Logic: If user has no Stripe ID, check if they are a child of someone who does
+            if (!stripeCustomerId) {
+                const parents = await db.query.userRelationships.findMany({
+                    where: eq(userRelationships.childUserId, user.userId)
+                });
+
+                if (parents.length > 0) {
+                    // Try to find a parent with a Stripe ID
+                    // Optimization: just check the first one or iterate? 
+                    // Let's check all parents (usually 1 or 2)
+                    const parentIds = parents.map(p => p.parentUserId);
+                    const parentUsers = await db.query.users.findMany({
+                        where: (users, { inArray }) => inArray(users.id, parentIds),
+                        columns: { stripeCustomerId: true, email: true }
+                    });
+
+                    const parentWithStripe = parentUsers.find(p => p.stripeCustomerId);
+                    if (parentWithStripe) {
+                        stripeCustomerId = parentWithStripe.stripeCustomerId;
+                        // Optional: Use parent email for billing? Or keep child email (which might be dummy)?
+                        // If child email is dummy, usage of parent email is better for receipt.
+                        if (customerEmail?.endsWith('@placeholder.studio')) {
+                            customerEmail = parentWithStripe.email;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     try {
@@ -316,6 +350,7 @@ app.post('/checkout/session', async (c) => {
                 currency: tenant.currency || 'usd',
                 returnUrl: `${new URL(c.req.url).origin}/studio/${tenant.slug}/return?session_id={CHECKOUT_SESSION_ID}`,
                 customerEmail,
+                customer: stripeCustomerId || undefined,
                 metadata: {
                     type: pack ? 'pack_purchase' : 'gift_card_purchase',
                     packId: pack?.id || '',
