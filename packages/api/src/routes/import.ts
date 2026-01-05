@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantMembers, tenantRoles, users, subscriptions, membershipPlans, purchasedPacks, classPackDefinitions } from 'db/src/schema';
+import { tenants, tenantMembers, tenantRoles, users, subscriptions, membershipPlans, purchasedPacks, classPackDefinitions, classes, locations } from 'db/src/schema';
 import { eq, and } from 'drizzle-orm';
 import Papa from 'papaparse';
 
@@ -52,8 +52,85 @@ app.post('/csv', async (c) => {
     // Columns expected: email, firstname, lastname, phone, address, dob (YYYY-MM-DD), minor (yes/no)
     // Optional: membership (plan name), classpack (pack name)
 
+    // Check for Class Import headers
+    const headers = parseResult.meta.fields || [];
+    const isClassImport = headers.includes('title') && (headers.includes('starttime') || headers.includes('start_time')); // normalized headers logic might need checking
+
     for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
+
+        if (isClassImport) {
+            // --- CLASS IMPORT ---
+            const title = row.title;
+            const startTimeStr = row.starttime || row.start_time;
+
+            if (!title || !startTimeStr) {
+                summary.skipped++;
+                summary.errors.push(`Row ${i + 1}: Missing title or start_time`);
+                continue;
+            }
+
+            try {
+                // Find Instructor
+                const instructorEmail = row.instructoremail || row.instructor_email;
+                let instructorId: string | null = null;
+
+                if (instructorEmail) {
+                    const instructorUser = await db.query.users.findFirst({
+                        where: eq(users.email, instructorEmail)
+                    });
+                    if (instructorUser) {
+                        const member = await db.query.tenantMembers.findFirst({
+                            where: and(eq(tenantMembers.userId, instructorUser.id), eq(tenantMembers.tenantId, tenant.id))
+                        });
+                        instructorId = member?.id || null;
+                    }
+                } else {
+                    // Default to first owner/instructor if needed? No, fail.
+                    summary.errors.push(`Row ${i + 1}: Missing instructor_email`);
+                    continue;
+                }
+
+
+                if (!instructorId) {
+                    summary.errors.push(`Row ${i + 1}: Instructor not found for email ${instructorEmail}`);
+                    continue;
+                }
+
+                // Find Location
+                const locationName = row.location;
+                let locationId: string | null = null;
+                if (locationName) {
+                    const loc = await db.query.locations.findFirst({
+                        where: and(eq(locations.tenantId, tenant.id), eq(locations.name, locationName))
+                    });
+                    locationId = loc?.id || null;
+                }
+
+                await db.insert(classes).values({
+                    id: crypto.randomUUID(),
+                    tenantId: tenant.id,
+                    instructorId: instructorId,
+                    locationId: locationId,
+                    title: title,
+                    description: row.description,
+                    startTime: new Date(startTimeStr),
+                    durationMinutes: parseInt(row.duration || '60'),
+                    capacity: row.capacity ? parseInt(row.capacity) : 20,
+                    price: row.price ? Math.round(parseFloat(row.price) * 100) : 0,
+                    status: 'active',
+                    createdAt: new Date()
+                }).run();
+                summary.created++;
+
+            } catch (e: any) {
+                summary.errors.push(`Row ${i + 1}: ${e.message}`);
+            }
+
+            continue;
+        }
+
+        // --- USER / MEMBER IMPORT (Existing Logic) ---
         const email = row.email;
         if (!email) {
             summary.skipped++;

@@ -95,6 +95,11 @@ export default function DataImport() {
                         <li>Optional: <code>phone</code>, <code>address</code>, <code>dob</code> (YYYY-MM-DD), <code>minor</code> (yes/no)</li>
                         <li>Membership: <code>membership</code> (Plan Name - must match exactly)</li>
                     </ul>
+                    <p className="font-semibold mt-3 mb-1">OR Import Classes:</p>
+                    <ul className="list-disc pl-5 space-y-1">
+                        <li>Headers required: <code>title</code>, <code>start_time</code> (ISO 8601), <code>duration</code> (minutes), <code>instructor_email</code></li>
+                        <li>Optional: <code>description</code>, <code>capacity</code>, <code>price</code>, <code>location</code> (Name)</li>
+                    </ul>
                 </div>
 
                 <form onSubmit={handleUpload} className="space-y-6">
