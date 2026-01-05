@@ -240,8 +240,12 @@ app.post('/process-payment', async (c) => {
     try {
         const pi = await stripe.paymentIntents.create(params, options);
         return c.json({
-            return c.json({ error: e.message }, 500);
-        }
+            clientSecret: pi.client_secret,
+            id: pi.id
+        });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
 });
 
 // POST /connection-token - Generate Terminal Connection Token
