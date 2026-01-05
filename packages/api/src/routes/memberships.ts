@@ -47,7 +47,7 @@ app.post('/plans', async (c) => {
         return c.json({ error: 'Action Restricted: Cannot create financial plans while impersonating.' }, 403);
     }
 
-    const { name, description, price, interval, currency, imageUrl, overlayTitle, overlaySubtitle } = await c.req.json();
+    const { name, description, price, interval, currency, imageUrl, overlayTitle, overlaySubtitle, vodEnabled } = await c.req.json();
 
     if (!name || !price) {
         return c.json({ error: 'Name and Price required' }, 400);
@@ -66,6 +66,7 @@ app.post('/plans', async (c) => {
             imageUrl,
             overlayTitle,
             overlaySubtitle,
+            vodEnabled: !!vodEnabled,
             active: true
         });
 
@@ -95,10 +96,10 @@ app.patch('/plans/:id', async (c) => {
     try {
         const body = await c.req.json();
         // Filter mutable fields
-        const { name, description, price, interval, imageUrl, overlayTitle, overlaySubtitle, active } = body;
+        const { name, description, price, interval, imageUrl, overlayTitle, overlaySubtitle, active, vodEnabled } = body;
 
         await db.update(membershipPlans)
-            .set({ name, description, price, interval, imageUrl, overlayTitle, overlaySubtitle, active })
+            .set({ name, description, price, interval, imageUrl, overlayTitle, overlaySubtitle, active, vodEnabled })
             .where(and(eq(membershipPlans.id, id), eq(membershipPlans.tenantId, tenant.id)))
             .run();
 

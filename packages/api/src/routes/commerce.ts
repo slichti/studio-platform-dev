@@ -118,7 +118,7 @@ app.post('/packs', async (c) => {
         return c.json({ error: "Unauthorized" }, 403);
     }
 
-    const { name, credits, price, expirationDays } = await c.req.json();
+    const { name, credits, price, expirationDays, vodEnabled } = await c.req.json();
     if (!name || !credits) return c.json({ error: "Missing fields" }, 400);
 
     const { classPackDefinitions } = await import('db/src/schema');
@@ -131,6 +131,7 @@ app.post('/packs', async (c) => {
         credits: parseInt(credits),
         price: price ? parseInt(price) : 0,
         expirationDays: expirationDays ? parseInt(expirationDays) : null,
+        vodEnabled: !!vodEnabled,
         active: true
     }).run();
 

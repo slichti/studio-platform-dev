@@ -44,11 +44,12 @@ export const action = async (args: ActionFunctionArgs) => {
         const credits = parseInt(formData.get("credits") as string);
         const price = parseFloat(formData.get("price") as string) * 100; // Convert to cents
         const expirationDays = formData.get("expirationDays") ? parseInt(formData.get("expirationDays") as string) : null;
+        const vodEnabled = formData.get("vodEnabled") === "on";
 
         const res: any = await apiRequest(`/commerce/packs`, token, {
             method: "POST",
             headers: { 'X-Tenant-Slug': params.slug! },
-            body: JSON.stringify({ name, credits, price, expirationDays })
+            body: JSON.stringify({ name, credits, price, expirationDays, vodEnabled })
         });
 
         if (res.error) return { error: res.error };
@@ -134,6 +135,18 @@ export default function ClassPacksPage() {
                                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Leave blank for no expiration.</p>
                             </div>
                         </div>
+
+                        <div className="flex items-center gap-2 mb-6">
+                            <input
+                                type="checkbox"
+                                name="vodEnabled"
+                                id="vodEnabled"
+                                className="rounded border-zinc-300 dark:border-zinc-700 text-blue-600 focus:ring-blue-500"
+                            />
+                            <label htmlFor="vodEnabled" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Include VOD Access</label>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 ml-2">(Allows entry to On-Demand Library)</p>
+                        </div>
+
                         <div className="flex justify-end gap-3">
                             <button
                                 type="button"
@@ -155,7 +168,7 @@ export default function ClassPacksPage() {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {packs.map(pack => (
+                {packs.map((pack: ClassPackDefinition) => (
                     <div key={pack.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex justify-between items-start mb-4">
                             <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">

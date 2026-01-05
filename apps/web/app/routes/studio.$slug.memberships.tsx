@@ -59,6 +59,7 @@ export const action = async (args: ActionFunctionArgs) => {
     const imageUrl = formData.get("imageUrl");
     const overlayTitle = formData.get("overlayTitle");
     const overlaySubtitle = formData.get("overlaySubtitle");
+    const vodEnabled = formData.get("vodEnabled") === "on";
 
     try {
         const url = planId ? `/memberships/plans/${planId}` : "/memberships/plans";
@@ -74,7 +75,8 @@ export const action = async (args: ActionFunctionArgs) => {
                 description,
                 imageUrl,
                 overlayTitle,
-                overlaySubtitle
+                overlaySubtitle,
+                vodEnabled
             })
         });
         return { success: true, intent: planId ? "update_plan" : "create_plan" };
@@ -365,6 +367,18 @@ export default function StudioMemberships() {
                                 defaultValue={planToEdit?.description || ''}
                                 className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md focus:ring-blue-500 focus:border-blue-500 text-zinc-900 dark:text-zinc-100"
                             />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                name="vodEnabled"
+                                id="vodEnabled"
+                                defaultChecked={planToEdit?.vodEnabled || false}
+                                className="rounded border-zinc-300 dark:border-zinc-700 text-blue-600 focus:ring-blue-500"
+                            />
+                            <label htmlFor="vodEnabled" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Include VOD Access</label>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 ml-2">(Allows entry to On-Demand Library)</p>
                         </div>
 
                         <div className="pt-4 flex gap-3">

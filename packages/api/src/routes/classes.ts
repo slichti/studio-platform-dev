@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { classes, tenants, bookings, tenantMembers, users, tenantRoles, classSeries, subscriptions, purchasedPacks, userRelationships, waiverTemplates, waiverSignatures } from 'db/src/schema'; // Added subscriptions, purchasedPacks, userRelationships, waiver...
+import { classes, tenants, bookings, tenantMembers, users, tenantRoles, classSeries, subscriptions, purchasedPacks, userRelationships, waiverTemplates, waiverSignatures, membershipPlans, classPackDefinitions } from 'db/src/schema';
 import { createDb } from '../db';
 import { eq, and, gte, lte, gt, sql, inArray } from 'drizzle-orm';
 import { ZoomService } from '../services/zoom';
@@ -978,15 +978,51 @@ app.get('/:id/recording', async (c) => {
     if (roles.includes('owner') || roles.includes('instructor')) {
         canWatch = true;
     } else if (auth && auth.userId) {
-        // Check booking
         const member = c.get('member'); // Set by middleware
         if (member) {
-            const booking = await db.select().from(bookings).where(and(
-                eq(bookings.classId, classId),
-                eq(bookings.memberId, member.id),
-                eq(bookings.status, 'confirmed')
-            )).get();
-            if (booking) canWatch = true;
+            // 1. Check Booking (Attended/Confirmed)
+            const booking = await db.query.bookings.findFirst({
+                where: and(
+                    eq(bookings.classId, classId),
+                    eq(bookings.memberId, member.id),
+                    eq(bookings.status, 'confirmed')
+                )
+            });
+            if (booking) {
+                canWatch = true;
+            } else {
+                // 2. Check Membership with VOD Access
+                const activeSub = await db.select({ id: subscriptions.id })
+                    .from(subscriptions)
+                    .innerJoin(membershipPlans, eq(subscriptions.planId, membershipPlans.id))
+                    .where(and(
+                        eq(subscriptions.userId, auth.userId),
+                        eq(subscriptions.tenantId, tenant.id),
+                        inArray(subscriptions.status, ['active', 'trialing']),
+                        eq(membershipPlans.vodEnabled, true)
+                    ))
+                    .limit(1)
+                    .get();
+
+                if (activeSub) {
+                    canWatch = true;
+                } else {
+                    // 3. Check Class Pack with VOD Access
+                    const activePack = await db.select({ id: purchasedPacks.id })
+                        .from(purchasedPacks)
+                        .innerJoin(classPackDefinitions, eq(purchasedPacks.packDefinitionId, classPackDefinitions.id))
+                        .where(and(
+                            eq(purchasedPacks.memberId, member.id),
+                            eq(purchasedPacks.tenantId, tenant.id),
+                            gt(purchasedPacks.remainingCredits, 0),
+                            eq(classPackDefinitions.vodEnabled, true)
+                        ))
+                        .limit(1)
+                        .get();
+
+                    if (activePack) canWatch = true;
+                }
+            }
         }
     }
 

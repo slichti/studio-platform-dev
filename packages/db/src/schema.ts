@@ -222,7 +222,7 @@ export const subscriptions = sqliteTable('subscriptions', {
     memberId: text('member_id').references(() => tenantMembers.id), // Link to Member
     planId: text('plan_id').references(() => membershipPlans.id), // Link to Plan
 
-    status: text('status', { enum: ['active', 'past_due', 'canceled', 'incomplete'] }).notNull(),
+    status: text('status', { enum: ['active', 'past_due', 'canceled', 'incomplete', 'trialing'] }).notNull(),
     tier: text('tier', { enum: ['basic', 'premium'] }).default('basic'), // Deprecated in favor of planId
     currentPeriodEnd: integer('current_period_end', { mode: 'timestamp' }),
     stripeSubscriptionId: text('stripe_subscription_id'),
@@ -399,6 +399,7 @@ export const membershipPlans = sqliteTable('membership_plans', {
     imageUrl: text('image_url'),
     overlayTitle: text('overlay_title'),
     overlaySubtitle: text('overlay_subtitle'),
+    vodEnabled: integer('vod_enabled', { mode: 'boolean' }).default(false), // Grant VOD access?
     active: integer('active', { mode: 'boolean' }).default(true),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
@@ -434,6 +435,7 @@ export const classPackDefinitions = sqliteTable('class_pack_definitions', {
     price: integer('price').default(0), // in cents
     credits: integer('credits').notNull(), // Number of classes
     expirationDays: integer('expiration_days'), // Validity in days
+    vodEnabled: integer('vod_enabled', { mode: 'boolean' }).default(false), // Grant VOD access?
     active: integer('active', { mode: 'boolean' }).default(true),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
