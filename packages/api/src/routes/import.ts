@@ -62,34 +62,7 @@ app.post('/csv', async (c) => {
         }
 
         try {
-            // 1. Find or Create User (Mock user if not exists, since no password auth yet)
-            // Ideally we invite them via Clerk? But for migration we just need a record.
-            // But `users.id` is PK and usually Clerk ID. If we create a dummy ID, they can't login unless we reconcile later?
-            // Strategy: Create a placeholder user. When they sign up with that email, Clerk webhook should UPDATING existing user?
-            // Or we rely on Clerk for Auth. 
-            // If we create a User with ID 'migrated_...', they can't login.
-            // Unless we use Clerk API to create user? 
-            // Clerk API requires Secret Key. We have `CLERK_SECRET_KEY`.
-            // Creating users via Clerk API is best practice for migration.
-
-            // For MVP, we will try to find user by email in local DB. 
-            // If not found, we create a 'migrated' user locally. 
-            // *Correction*: Local DB `users` table is irrelevant for AUTH if ID doesn't match Clerk.
-            // If we insert 'migrated_123', and user signs up to Clerk, they get 'user_abc'.
-            // Clerk Webhook will insert 'user_abc'. Now we have duplicate emails? 
-            // `users.email` has index but not unique constraint in my schema? 
-            // Schema has `emailIdx` but `id` is PK. `email` should be unique.
-            // If we insert 'migrated_...', we block Clerk webhook from inserting true user if email is unique.
-            // We should ideally use Clerk API.
-
-            // BUT for this task, let's keep it simple: 
-            // Just insert into DB so they appear in lists.
-            // The reconciliation logic (merging 'migrated' user with 'real' user on signup) is complex.
-            // Alternative: Just fail if user doesn't exist? No, migration means importing new users.
-
-            // Let's assume we can insert with a generated ID.
-            // And hope to fix auth later (e.g. by updating ID when they claim account).
-
+            // 1. Find or Create User
             let user = await db.query.users.findFirst({
                 where: eq(users.email, email)
             });
@@ -109,8 +82,18 @@ app.post('/csv', async (c) => {
                     createdAt: new Date()
                 }).run();
             } else {
-                // Update profile if missing
-                // ...
+                // Update profile if missing or overwrite with CSV data
+                const updatedProfile = { ...(user.profile || {}), firstName: row.firstname || (user.profile as any)?.firstName, lastName: row.lastname || (user.profile as any)?.lastName };
+                const updateData: any = {};
+                if (row.firstname || row.lastname) updateData.profile = updatedProfile;
+                if (row.phone) updateData.phone = row.phone;
+                if (row.address) updateData.address = row.address;
+                if (row.dob) updateData.dob = new Date(row.dob);
+                if (row.minor) updateData.isMinor = row.minor?.toLowerCase() === 'yes' || row.minor === true;
+
+                if (Object.keys(updateData).length > 0) {
+                    await db.update(users).set(updateData).where(eq(users.id, userId!)).run();
+                }
             }
 
             // 2. Create Tenant Member
@@ -138,22 +121,51 @@ app.post('/csv', async (c) => {
                 summary.created++;
             }
 
-            // 4. Handle Membership / Packs (Optional)
+            // 4. Handle Membership
             if (row.membership && memberId) {
-                // Find Plan by name
                 const plan = await db.query.membershipPlans.findFirst({
                     where: and(eq(membershipPlans.tenantId, tenant.id), eq(membershipPlans.name, row.membership))
                 });
                 if (plan) {
-                    await db.insert(subscriptions).values({
+                    const existingSub = await db.query.subscriptions.findFirst({
+                        where: and(eq(subscriptions.userId, userId!), eq(subscriptions.tenantId, tenant.id), eq(subscriptions.status, 'active'))
+                    });
+
+                    if (!existingSub) {
+                        await db.insert(subscriptions).values({
+                            id: crypto.randomUUID(),
+                            userId: userId!,
+                            tenantId: tenant.id,
+                            memberId: memberId,
+                            planId: plan.id,
+                            status: 'active',
+                            createdAt: new Date()
+                        }).run();
+                    }
+                } else {
+                    summary.errors.push(`Row ${i + 1}: Membership plan '${row.membership}' not found.`);
+                }
+            }
+
+            // 5. Handle Class Packs
+            if (row.classpack && memberId) {
+                const packDef = await db.query.classPackDefinitions.findFirst({
+                    where: and(eq(classPackDefinitions.tenantId, tenant.id), eq(classPackDefinitions.name, row.classpack))
+                });
+
+                if (packDef) {
+                    await db.insert(purchasedPacks).values({
                         id: crypto.randomUUID(),
-                        userId: userId!,
                         tenantId: tenant.id,
                         memberId: memberId,
-                        planId: plan.id,
-                        status: 'active',
+                        packDefinitionId: packDef.id,
+                        initialCredits: packDef.credits,
+                        remainingCredits: packDef.credits,
+                        price: 0, // Imported packs usually free or paid externally
                         createdAt: new Date()
                     }).run();
+                } else {
+                    summary.errors.push(`Row ${i + 1}: Class pack '${row.classpack}' not found.`);
                 }
             }
 
