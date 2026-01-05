@@ -178,6 +178,12 @@ app.post('/:id/sign', async (c) => {
         return c.json({ error: 'Must be logged in to sign waiver' }, 401);
     }
 
+    // Security: Prevent impersonators from signing waivers
+    const isImpersonating = c.get('isImpersonating');
+    if (isImpersonating) {
+        return c.json({ error: 'System admins cannot sign waivers on behalf of customers.' }, 403);
+    }
+
     const body = await c.req.json();
     const { signatureData, ipAddress, onBehalfOfMemberId } = body;
     let targetMemberId = member.id;

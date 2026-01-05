@@ -17,6 +17,7 @@ type Variables = {
         userId: string | null;
         claims: any;
     };
+    isImpersonating?: boolean;
 };
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
@@ -182,6 +183,14 @@ app.post('/checkout/session', async (c) => {
     // Check if tenant has stripe connected
     if (!tenant.stripeAccountId) {
         return c.json({ error: "Payments not enabled for this studio." }, 400);
+    }
+
+    // Security: Prevent impersonators from processing payments
+    // Note: Variables type definition in commerce.ts needs to include isImpersonating
+    const isImpersonating = (c.get('auth') as any)?.isImpersonating || c.get('isImpersonating' as any);
+    // Safest way if type definition isn't updated yet in this file
+    if (isImpersonating) {
+        return c.json({ error: 'System admins cannot process payments on behalf of customers.' }, 403);
     }
 
     const body = await c.req.json();
