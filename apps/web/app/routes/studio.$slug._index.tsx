@@ -141,7 +141,6 @@ export default function StudioDashboardIndex() {
                             title="Manage Schedule"
                             description="Add classes and view bookings."
                         />
-                        )}
 
                         {/* Student Achievements Section */}
                         {!isOwner && (

@@ -98,6 +98,29 @@ app.get('/', (c) => {
   return c.text('Health Check: OK')
 })
 
+app.get('/public/tenant/:slug', async (c) => {
+  const slug = c.req.param('slug');
+  const db = createDb(c.env.DB);
+  const { tenants, tenantFeatures } = await import('db/src/schema');
+  const { eq, and } = await import('drizzle-orm');
+
+  const tenant = await db.select().from(tenants).where(eq(tenants.slug, slug)).get();
+  if (!tenant) return c.json({ error: "Tenant not found" }, 404);
+
+  const features = await db.select().from(tenantFeatures)
+    .where(and(eq(tenantFeatures.tenantId, tenant.id), eq(tenantFeatures.enabled, true)))
+    .all();
+
+  return c.json({
+    id: tenant.id,
+    name: tenant.name,
+    slug: tenant.slug,
+    branding: tenant.branding,
+    features: features.map(f => f.featureKey),
+    currency: tenant.currency
+  });
+});
+
 // 1. Global Platform Routes
 app.use('/admin/*', authMiddleware);
 app.use('/users/*', authMiddleware);

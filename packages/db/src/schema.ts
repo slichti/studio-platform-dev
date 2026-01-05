@@ -466,6 +466,7 @@ export const classPackDefinitions = sqliteTable('class_pack_definitions', {
     price: integer('price').default(0), // in cents
     credits: integer('credits').notNull(), // Number of classes
     expirationDays: integer('expiration_days'), // Validity in days
+    imageUrl: text('image_url'), // Visual representation
     vodEnabled: integer('vod_enabled', { mode: 'boolean' }).default(false), // Grant VOD access?
     active: integer('active', { mode: 'boolean' }).default(true),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),

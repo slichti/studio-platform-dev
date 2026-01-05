@@ -665,4 +665,47 @@ app.post('/sync-stats', async (c) => {
     return c.json({ success: true, updated });
 });
 
+// POST /projections - Platform Revenue Calculator (System Admin)
+app.post('/projections', async (c) => {
+    // Inputs: Number of tenants at each tier, avg users per tenant, etc.
+    // Or simpler: User inputs Scenario.
+    const {
+        basicCount, growthCount, scaleCount,
+        avgGrossPerTenant,
+        vodEnabledPercent // % of tenants using VOD (just example of add-on usage?)
+    } = await c.req.json();
+
+    const tiers = [
+        { id: 'basic', price: 0, fee: 0.05 },
+        { id: 'growth', price: 49, fee: 0.015 },
+        { id: 'scale', price: 129, fee: 0.0 }
+    ];
+
+    const basicRev = (basicCount || 0) * (tiers[0].price + (avgGrossPerTenant * tiers[0].fee));
+    const growthRev = (growthCount || 0) * (tiers[1].price + (avgGrossPerTenant * tiers[1].fee));
+    const scaleRev = (scaleCount || 0) * (tiers[2].price + (avgGrossPerTenant * tiers[2].fee));
+
+    // Add-on Projection (e.g. VOD storage cost or extra fees? Platform doesn't charge extra for VOD explicitly in current model, it's bundled in tiers).
+    // But maybe we project COST to us?
+    // Cost per tenant = Storage + Streaming. 
+    // Let's assume some simplified Costs:
+    // Storage: $0.02/GB. Streaming: $0.05/min.
+
+    // This is a "What If" calculator.
+
+    const totalRevenue = basicRev + growthRev + scaleRev;
+    const totalTenants = (basicCount || 0) + (growthCount || 0) + (scaleCount || 0);
+
+    return c.json({
+        scenarios: {
+            basic: { count: basicCount, revenue: basicRev },
+            growth: { count: growthCount, revenue: growthRev },
+            scale: { count: scaleCount, revenue: scaleRev }
+        },
+        totalTenants,
+        projectedMonthlyRevenue: totalRevenue,
+        avgRevenuePerTenant: totalTenants > 0 ? (totalRevenue / totalTenants) : 0
+    });
+});
+
 export default app;

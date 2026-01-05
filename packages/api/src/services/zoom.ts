@@ -86,6 +86,24 @@ export class ZoomService {
         });
     }
 
+    async updateMeeting(meetingId: string, topic: string, startTime: Date, durationMinutes: number) {
+        if (!meetingId) return;
+        const token = await this.getAccessToken();
+
+        await fetch(`https://api.zoom.us/v2/meetings/${meetingId}`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                topic,
+                start_time: startTime.toISOString().split('.')[0] + 'Z',
+                duration: durationMinutes
+            })
+        });
+    }
+
     // Helper to get Zoom Service instance for a tenant
     static async getForTenant(tenant: any, env: any, encryption: EncryptionUtils): Promise<ZoomService | null> {
         if (!tenant.zoomCredentials) return null;

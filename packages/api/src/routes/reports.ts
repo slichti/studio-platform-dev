@@ -113,7 +113,7 @@ app.get('/revenue', async (c) => {
     }
 
     [...retailItems, ...packItems].forEach(item => {
-        const d = new Date(item.date);
+        const d = new Date(item.date || new Date().toISOString());
         const key = d.toISOString().split('T')[0];
         if (dayMap.has(key)) {
             dayMap.set(key, (dayMap.get(key) || 0) + (item.amount || 0));
@@ -220,6 +220,46 @@ app.get('/attendance', async (c) => {
         totalCheckins: totalCheckins?.count || 0,
         topClasses,
         chartData
+    });
+});
+
+// POST /projection - Project Profit & Tier Recommendation (Tenant Side)
+app.post('/projection', async (c) => {
+    const { studentCount, monthlyFee, costs } = await c.req.json();
+
+    if (studentCount === undefined || monthlyFee === undefined) {
+        return c.json({ error: "Student Count and Monthly Fee required" }, 400);
+    }
+
+    const revenue = studentCount * monthlyFee; // Monthly
+
+    // TIERS logic (Standardized)
+    const tiers = [
+        { id: 'basic', name: 'Launch', price: 0, fee: 0.05 },
+        { id: 'growth', name: 'Growth', price: 49, fee: 0.015 },
+        { id: 'scale', name: 'Scale', price: 129, fee: 0.0 }
+    ];
+
+    const projections = tiers.map(t => {
+        const platformCost = t.price + (revenue * t.fee);
+        const profit = revenue - platformCost - (costs || 0);
+        return {
+            tier: t.id,
+            name: t.name,
+            revenue,
+            platformCost,
+            estimatedProfit: profit,
+            details: `Platform: $${platformCost.toFixed(2)} ($${t.price} fixed + ${(t.fee * 100)}% fees)`
+        };
+    });
+
+    // Sort by Profit Descending
+    const recommended = [...projections].sort((a, b) => b.estimatedProfit - a.estimatedProfit)[0];
+
+    return c.json({
+        inputs: { studentCount, monthlyFee, costs },
+        projections,
+        recommendation: recommended.tier
     });
 });
 

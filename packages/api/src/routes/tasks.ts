@@ -85,7 +85,7 @@ app.get('/', async (c) => {
         ...r.task,
         assignee: r.assigneeMember ? {
             id: r.assigneeMember.id,
-            firstName: r.assigneeUser?.profile?.firstName || r.assigneeUser?.firstName || 'Unknown', // Profile json logic is tricky if raw objects.
+            firstName: (r.assigneeUser?.profile as any)?.firstName || 'Unknown',
             // users.profile is defined as { mode: 'json' } in schema.
             // drizzle should parse it.
             // Let's assume parsed.
