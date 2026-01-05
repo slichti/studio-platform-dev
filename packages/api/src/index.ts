@@ -360,6 +360,29 @@ studioApp.get('/usage', async (c) => {
   return c.json(usage);
 });
 
+studioApp.post('/portal', async (c) => {
+  const tenant = c.get('tenant');
+  const { returnUrl } = await c.req.json();
+
+  if (!tenant.stripeCustomerId) {
+    return c.json({ error: "No billing account found" }, 400);
+  }
+
+  const { StripeService } = await import('./services/stripe');
+  const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+
+  try {
+    const session = await stripeService.createBillingPortalSession(
+      tenant.stripeCustomerId,
+      returnUrl || 'https://studio-platform-web.pages.dev'
+    );
+    return c.json({ url: session.url });
+  } catch (error: any) {
+    console.error('Portal Error:', error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
 // Final Route Mounts
 app.route('/locations', locationRoutes);
 app.route('/members', members);

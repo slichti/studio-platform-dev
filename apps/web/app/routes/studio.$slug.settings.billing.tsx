@@ -14,9 +14,7 @@ export const loader = async (args: any) => {
             apiRequest(`/tenant/info`, token, { headers: { 'X-Tenant-Slug': slug } }),
             apiRequest(`/tenant/usage`, token, { headers: { 'X-Tenant-Slug': slug } })
         ]);
-
-        const usage = usageRes; // API returns { students, locations, storageGB, ... }
-        return { tenant, usage, slug };
+        return { tenant, usage: usageRes, slug, token };
     } catch (e: any) {
         throw new Response("Unauthorized", { status: 401 });
     }
@@ -29,10 +27,26 @@ const TIERS = {
 };
 
 export default function StudioBilling() {
-    const { tenant, usage, slug } = useLoaderData<any>();
+    const { tenant, usage, slug, token } = useLoaderData<any>();
     const tier = (TIERS as any)[tenant.features?.includes('white_label') ? 'scale' : (tenant.tier || 'basic')] || TIERS.basic;
-    // Note: tenant.tier might not be in the info response yet if I didn't update the endpoint, checking...
-    // Actually tenant/info endpoint in index.ts returns specific fields. I need to make sure 'tier' is included.
+
+    const handleManageSubscription = async () => {
+        try {
+            const res = await apiRequest('/tenant/portal', token, {
+                method: 'POST',
+                body: JSON.stringify({ returnUrl: window.location.href }),
+                headers: { 'X-Tenant-Slug': slug }
+            }) as { url?: string };
+            if (res.url) {
+                window.location.href = res.url;
+            } else {
+                alert("Could not load billing portal. Please contact support.");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Failed to redirect to billing portal.");
+        }
+    };
 
     const limitPercentage = (current: number, max: number | string) => {
         if (max === 'Unlimited') return 0;
@@ -119,21 +133,23 @@ export default function StudioBilling() {
                             </div>
                         </div>
 
-                        {/* SMS */}
-                        <div>
-                            <div className="flex justify-between text-sm mb-1">
-                                <span className="font-medium text-zinc-700">SMS Sent (Monthly)</span>
-                                <span className="text-zinc-500">
-                                    {usage.smsUsage || 0} / {usage.smsLimit === -1 ? 'Unlimited' : usage.smsLimit}
-                                </span>
+                        {/* SMS (Only if included) */}
+                        {(usage.smsLimit === -1 || usage.smsLimit > 0) && (
+                            <div>
+                                <div className="flex justify-between text-sm mb-1">
+                                    <span className="font-medium text-zinc-700">SMS Sent (Monthly)</span>
+                                    <span className="text-zinc-500">
+                                        {usage.smsUsage || 0} / {usage.smsLimit === -1 ? 'Unlimited' : usage.smsLimit}
+                                    </span>
+                                </div>
+                                <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
+                                    <div
+                                        className={`h-full rounded-full ${usage.smsLimit !== -1 && usage.smsUsage > usage.smsLimit ? 'bg-red-500' : 'bg-blue-500'}`}
+                                        style={{ width: `${limitPercentage(usage.smsUsage, usage.smsLimit)}%` }}
+                                    />
+                                </div>
                             </div>
-                            <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
-                                <div
-                                    className={`h-full rounded-full ${usage.smsLimit !== -1 && usage.smsUsage > usage.smsLimit ? 'bg-red-500' : 'bg-blue-500'}`}
-                                    style={{ width: `${limitPercentage(usage.smsUsage, usage.smsLimit)}%` }}
-                                />
-                            </div>
-                        </div>
+                        )}
                     </div>
                 </div>
 
@@ -141,14 +157,23 @@ export default function StudioBilling() {
                 <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-6">
                     <h3 className="font-semibold text-zinc-900 mb-4">Manage Subscription</h3>
                     <div className="space-y-3">
-                        <button className="w-full py-2 bg-white border border-zinc-300 text-zinc-700 rounded-lg hover:bg-zinc-50 font-medium text-sm">
+                        <button
+                            onClick={handleManageSubscription}
+                            className="w-full py-2 bg-white border border-zinc-300 text-zinc-700 rounded-lg hover:bg-zinc-50 font-medium text-sm transition-colors cursor-pointer"
+                        >
                             Update Payment Method
                         </button>
-                        <button className="w-full py-2 bg-white border border-zinc-300 text-zinc-700 rounded-lg hover:bg-zinc-50 font-medium text-sm">
+                        <button
+                            onClick={handleManageSubscription}
+                            className="w-full py-2 bg-white border border-zinc-300 text-zinc-700 rounded-lg hover:bg-zinc-50 font-medium text-sm transition-colors cursor-pointer"
+                        >
                             View Invoices
                         </button>
                         <div className="pt-4 border-t border-zinc-200">
-                            <button className="w-full py-2 bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 font-medium text-sm">
+                            <button
+                                onClick={handleManageSubscription}
+                                className="w-full py-2 bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 font-medium text-sm transition-colors cursor-pointer"
+                            >
                                 Upgrade Plan
                             </button>
                         </div>
