@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { eq, and } from 'drizzle-orm';
-import { tenants, tenantMembers, membershipPlans, subscriptions } from 'db/src/schema'; // Ensure exported in schema
+import { tenants, tenantMembers, membershipPlans, subscriptions, users } from 'db/src/schema'; // Ensure exported in schema
 
 type Bindings = {
     DB: D1Database;
@@ -157,8 +157,8 @@ app.get('/subscriptions', async (c) => {
     }
 
     try {
-        // Need to import tenantMembers, users to join
-        const { tenantMembers, users } = await import('db/src/schema');
+        // Use static imports
+        // const { tenantMembers, users } = await import('db/src/schema');
 
         let query = db.select({
             id: subscriptions.id,
