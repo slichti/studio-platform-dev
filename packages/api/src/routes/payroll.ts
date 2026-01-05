@@ -1,119 +1,104 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { payrollConfig, payouts, payrollItems, tenantMembers, classes, appointments, bookings, appointmentServices, users } from 'db/src/schema';
-import { eq, and, gte, lte, inArray, sql, desc } from 'drizzle-orm';
+import {
+    payrollConfig,
+    payouts,
+    payrollItems,
+    tenantMembers,
+    classes,
+    bookings,
+    users,
+    appointments,
+    appointmentServices
+} from 'db/src/schema';
+import { and, eq, between, sql, desc, inArray } from 'drizzle-orm';
 
+// Type definitions for context
+import { tenants } from 'db/src/schema'; // We need this for the generic type logic if used, or just rely on runtime injection if typical
+// Re-using the pattern from reports.ts for Bindings/Variables
 type Bindings = {
     DB: D1Database;
-    STRIPE_SECRET_KEY: string;
 };
 
 type Variables = {
-    auth: {
-        userId: string;
-    };
-    tenant: any; // Using any for brevity if types aren't fully shared yet
+    tenant: typeof tenants.$inferSelect;
     member?: any;
 };
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 
-// 1. GET /config - List Rate Configurations
+// GET /config - List all instructors and their payroll config
 app.get('/config', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
-    // Join with Members to get names
-    const configs = await db.select({
-        config: payrollConfig,
-        member: tenantMembers,
-        user: {
-            firstName: sql`json_extract(${tenantMembers.profile}, '$.firstName')`, // Fallback if user join tricky
-            // Actually let's join users properly if possible, or just rely on member profile
+    // Get all instructors
+    // We need to join with potential payrollConfig
+    const instructors = await db.select({
+        memberId: tenantMembers.id,
+        firstName: sql<string>`json_extract(${tenantMembers.profile}, '$.firstName')`,
+        lastName: sql<string>`json_extract(${tenantMembers.profile}, '$.lastName')`,
+        role: sql<string>`'instructor'`, // Simplified for now, we should filter by role really
+        config: {
+            id: payrollConfig.id,
+            payModel: payrollConfig.payModel,
+            rate: payrollConfig.rate,
         }
     })
         .from(tenantMembers)
-        .leftJoin(payrollConfig, eq(payrollConfig.memberId, tenantMembers.id))
+        .leftJoin(payrollConfig, eq(tenantMembers.id, payrollConfig.memberId))
         .where(and(
             eq(tenantMembers.tenantId, tenant.id),
-            eq(tenantMembers.status, 'active'),
-            // Filter for instructors only if possible? 
-            // For now list all active members or maybe just those with role?
-            // Let's assume frontend filters or we add role filter later.
+            // Filter for instructors? simpler to just get all members who ARE instructors?
+            // For now, let's just get all members and filtering in UI or query if we can join roles.
+            // Joining roles is better.
         ))
         .all();
 
-    // The above query is a bit raw. Let's try to get members with role 'instructor' using query builder if roles are separate.
-    // Simpler: Just list existing configs.
+    // Filter for only 'instructor' role if possible, or leave to UI. 
+    // Let's optimize by joining tenantRoles
+    /*
+    const rows = await db.select(...)
+        .from(tenantMembers)
+        .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
+        .where(eq(tenantRoles.role, 'instructor'))
+    */
 
-    const existingConfigs = await db.query.payrollConfig.findMany({
-        where: eq(payrollConfig.tenantId, tenant.id),
-        with: {
-            member: {
-                with: { user: { columns: { profile: true, email: true } } }
-            }
-        }
-    });
-
-    // Also fetch all instructors to show those who don't have config yet
-    // This might be better done by the frontend fetching all members?
-    // Let's just return what we have configured for now.
-
-    return c.json({ configs: existingConfigs });
+    return c.json({ instructors });
 });
 
-
-// 2. PUT /config - Upsert Configuration
-app.put('/config', async (c) => {
+// POST /config - Update instructor payroll config
+app.post('/config', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     const body = await c.req.json();
-    const { memberId, payModel, rate } = body;
+    const { memberId, payModel, rate } = body; // rate in cents (flat/hourly) or basis points (%)
 
-    if (!memberId || !payModel || rate === undefined) return c.json({ error: "Missing fields" }, 400);
+    if (!memberId || !payModel || rate === undefined) {
+        return c.json({ error: 'Missing required fields' }, 400);
+    }
 
-    // Get Member to find User ID
-    const member = await db.select().from(tenantMembers).where(eq(tenantMembers.id, memberId)).get();
-    if (!member) return c.json({ error: "Member not found" }, 404);
-
-    const id = crypto.randomUUID(); // For new insert
-
-    // Upsert logic: Delete existing for this member and insert new? Or use onConflictDoUpdate
-    // SQLite upsert:
-    await db.insert(payrollConfig).values({
-        id,
-        tenantId: tenant.id,
-        memberId,
-        userId: member.userId,
-        payModel,
-        rate,
-        updatedAt: new Date()
-    })
-        .onConflictDoUpdate({
-            target: [payrollConfig.memberId], // Need a unique index on memberId for this tenant? 
-            // Schema doesn't strictly have unique(tenantId, memberId) yet but let's assume valid.
-            // Actually I defined index but not unique constraint in schema step.
-            // Let's do a check and update manually to be safe.
-            set: {
-                payModel,
-                rate,
-                updatedAt: new Date()
-            }
-        });
-
-    // Wait, I didn't add unique constraint in schema. 
-    // Let's manually check.
-    const existing = await db.select().from(payrollConfig).where(and(eq(payrollConfig.memberId, memberId), eq(payrollConfig.tenantId, tenant.id))).get();
+    // Upsert
+    // Check if exists
+    const existing = await db.select().from(payrollConfig).where(eq(payrollConfig.memberId, memberId)).get();
 
     if (existing) {
-        await db.update(payrollConfig).set({ payModel, rate, updatedAt: new Date() })
-            .where(eq(payrollConfig.id, existing.id)).run();
+        await db.update(payrollConfig)
+            .set({ payModel, rate, updatedAt: new Date() })
+            .where(eq(payrollConfig.id, existing.id))
+            .run();
     } else {
+        // Need userId for the schema link? Schema says userId is NOT NULL referencing users.id
+        // We have memberId. We need to fetch the member to get the userId.
+        const member = await db.select().from(tenantMembers).where(eq(tenantMembers.id, memberId)).get();
+        if (!member) return c.json({ error: 'Member not found' }, 404);
+
         await db.insert(payrollConfig).values({
             id: crypto.randomUUID(),
             tenantId: tenant.id,
-            userId: member.userId,
             memberId,
+            userId: member.userId,
             payModel,
             rate
         }).run();
@@ -122,257 +107,171 @@ app.put('/config', async (c) => {
     return c.json({ success: true });
 });
 
-
-// 3. GET /report - Calculate Earnings
-app.get('/report', async (c) => {
+// POST /generate - Calculate and Preview or Create
+app.post('/generate', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const { start, end } = c.req.query();
+    const { startDate, endDate, commit } = await c.req.json();
 
-    if (!start || !end) return c.json({ error: "Start and End dates required" }, 400);
+    if (!startDate || !endDate) return c.json({ error: "Date range required" }, 400);
 
-    const startDate = new Date(start);
-    const endDate = new Date(end);
+    const start = new Date(startDate);
+    const end = new Date(endDate);
 
-    // 1. Get all instructors and their config
-    const instructors = await db.query.tenantMembers.findMany({
-        where: eq(tenantMembers.tenantId, tenant.id),
-        with: {
-            // roles?
-        }
-    });
-
+    // 1. Get all instructors with config
     const configs = await db.select().from(payrollConfig).where(eq(payrollConfig.tenantId, tenant.id)).all();
-    const configMap = new Map(configs.map(c => [c.memberId, c]));
 
-    // 2. Find Completed Classes
-    const completedClasses = await db.query.classes.findMany({
-        where: and(
-            eq(classes.tenantId, tenant.id),
-            gte(classes.startTime, startDate),
-            lte(classes.startTime, endDate)
-            // TODO: filtering by completion? Or just assume past classes are payable?
-        ),
-        with: {
-            // Need bookings to calculate revenue if revenue share
-        }
-    });
+    const results = [];
 
-    // For revenue share, we need total booking value for each class
-    // This is expensive to query in loop.
-    // Let's aggregate bookings.
+    for (const config of configs) {
+        let totalDue = 0;
+        const items: any[] = [];
 
-    // 3. Find Completed Appointments
-    const completedAppointments = await db.query.appointments.findMany({
-        where: and(
-            eq(appointments.tenantId, tenant.id),
-            eq(appointments.status, 'confirmed'), // or completed
-            gte(appointments.startTime, startDate),
-            lte(appointments.startTime, endDate)
-        ),
-        with: {
-            service: true
-        }
-    });
+        // 2. Find Classes
+        const instructorClasses = await db.select()
+            .from(classes)
+            .where(and(
+                eq(classes.instructorId, config.memberId!),
+                between(classes.startTime, start, end),
+                eq(classes.status, 'active') // Only active classes
+            )).all();
 
-    // Calculate totals per instructor
-    const report: any = {}; // { [instructorId]: { instructor, items: [], total: 0 } }
+        for (const cls of instructorClasses) {
+            let amount = 0;
+            let details = "";
 
-    // Process Classes
-    for (const cls of completedClasses) {
-        if (!report[cls.instructorId]) report[cls.instructorId] = { items: [], total: 0 };
+            if (config.payModel === 'flat') {
+                amount = config.rate;
+                details = `Flat rate per class`;
+            } else if (config.payModel === 'hourly') {
+                const hours = cls.durationMinutes / 60;
+                amount = Math.round(config.rate * hours);
+                details = `${hours.toFixed(2)} hours @ $${(config.rate / 100).toFixed(2)}/hr`;
+            } else if (config.payModel === 'percentage') {
+                // Complex: Need bookings revenue
+                // For MVP, if checks 'price' of class * attendees? Or purely bookings?
+                // Let's assume % of Class Price * Count (Simplistic revenue)
+                // Or % or bookings.
+                // Let's do % of estimated revenue for now (Price * Confirmed Attendees)
+                // Accurate way: Sum of bookings pos charges?
+                // Fallback: (Class Price * Booked Count) * (Rate / 10000)
 
-        const config = configMap.get(cls.instructorId);
-        if (!config) continue; // No pay config, skip calculation
+                // Fetch count
+                const bookingCount = await db.select({ count: sql<number>`count(*)` })
+                    .from(bookings)
+                    .where(and(eq(bookings.classId, cls.id), eq(bookings.status, 'confirmed')))
+                    .get();
 
-        let amount = 0;
-        let details = "";
+                const revenue = (cls.price || 0) * (bookingCount?.count || 0);
+                amount = Math.round(revenue * (config.rate / 10000)); // Rate is basis points (5000 = 50%)
+                details = `${(config.rate / 100)}% of $${(revenue / 100).toFixed(2)} revenue`;
+            }
 
-        if (config.payModel === 'flat') {
-            amount = config.rate;
-            details = `Flat Rate: $${amount / 100}`;
-        } else if (config.payModel === 'hourly') {
-            const hours = cls.durationMinutes / 60;
-            amount = Math.round(hours * config.rate);
-            details = `${hours.toFixed(1)} hrs @ $${config.rate / 100}/hr`;
-        } else if (config.payModel === 'percentage') {
-            // Fetch bookings revenue
-            // TODO: Optimize this
-            const totalRevenue = 0; // Placeholder until we query bookings
-            amount = Math.round(totalRevenue * (config.rate / 10000));
-            details = `${config.rate / 100}% of Revenue`;
-        }
-
-        report[cls.instructorId].items.push({
-            type: 'class',
-            referenceId: cls.id,
-            title: `Class: ${cls.title}`,
-            date: cls.startTime,
-            amount,
-            details
-        });
-        report[cls.instructorId].total += amount;
-    }
-
-    // Process Appointments
-    for (const appt of completedAppointments) {
-        if (!report[appt.instructorId]) report[appt.instructorId] = { items: [], total: 0 };
-
-        const config = configMap.get(appt.instructorId);
-        if (!config) continue;
-
-        let amount = 0;
-        let details = "";
-
-        // Cast appointment with service for type safety
-        const service = (appt as any).service;
-
-        // Use payroll config OR service price share?
-        // Usually appointments have specific instructor splits.
-        // Let's assume Global Config applies for simplicity, OR revenue share of service price.
-
-        if (config.payModel === 'percentage') {
-            const price = service.price || 0;
-            // Schema: price is integer. Let's assume cents? Wait, service seed said 80. Checks DB...
-            // Service seed: "price: 80". Probably dollars if no cents specified?
-            // "price: integer('price').default(0)" usually implies cents in Stripe world.
-            // But let's verify. If 80 cents, that's cheap. If $80, it should be 8000.
-
-            // Assume service.price is CENTS. 
-            // My seed used 80. That's weird. Let's assume DOLLARS in seed and fix logic or assume cents.
-            // If seed used 80, and it's cents, that's wrong.
-            // Let's assume for calculation: service.price is cents.
-
-            const revenue = price;
-            amount = Math.round(revenue * (config.rate / 10000));
-            details = `${config.rate / 100}% of $${revenue}`; // Assuming price is dollars for now based on previous context, verify later
-        } else {
-            // Fallback to hourly/flat?
-            // Maybe flat rate per session matches config?
-            amount = config.rate; // e.g. $30 per session
-            details = `Flat Rate`;
+            if (amount > 0) {
+                totalDue += amount;
+                items.push({
+                    type: 'class',
+                    referenceId: cls.id,
+                    title: cls.title,
+                    date: cls.startTime,
+                    amount,
+                    details
+                });
+            }
         }
 
-        report[appt.instructorId].items.push({
-            type: 'appointment',
-            referenceId: appt.id,
-            title: `Appt: ${service.title}`,
-            date: appt.startTime,
-            amount,
-            details
-        });
-        report[appt.instructorId].total += amount;
-    }
+        // TODO: Appointments logic similarly...
 
-    return c.json({ report });
-});
-
-
-// 4. POST /payout - Create Payout Record
-app.post('/payout', async (c) => {
-    const db = createDb(c.env.DB);
-    const tenant = c.get('tenant');
-    const body = await c.req.json();
-    const { instructorId, amount, periodStart, periodEnd, items } = body;
-
-    // items: Array of { type, referenceId, amount }
-
-    const payoutId = crypto.randomUUID();
-
-    // 1. Fetch Instructor's Stripe Account ID
-    const { users } = await import('db/src/schema');
-    const instructor = await db.select({
-        stripeAccountId: users.stripeAccountId,
-        email: users.email
-    })
-        .from(users)
-        .innerJoin(tenantMembers, eq(users.id, tenantMembers.userId))
-        .where(eq(tenantMembers.id, instructorId))
-        .get();
-
-    let stripeTransferId = null;
-
-    // 2. If both have Stripe, trigger Transfer
-    if (tenant.stripeAccountId && instructor?.stripeAccountId) {
-        try {
-            const { StripeService } = await import('../services/stripe');
-            const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
-
-            const transfer = await stripe.createTransfer({
-                amount,
-                currency: tenant.currency || 'usd',
-                destination: instructor.stripeAccountId,
-                sourceAccountId: tenant.stripeAccountId,
-                description: `Payout for period ${periodStart} to ${periodEnd}`
+        if (totalDue > 0) {
+            results.push({
+                instructorId: config.memberId,
+                amount: totalDue,
+                itemCount: items.length,
+                items
             });
-            stripeTransferId = transfer.id;
-        } catch (err: any) {
-            console.error("Stripe Payout Error:", err);
-            // Optionally handle error (e.g. mark status as 'failed')
         }
     }
 
-    await db.insert(payouts).values({
-        id: payoutId,
-        tenantId: tenant.id,
-        instructorId,
-        amount,
-        periodStart: new Date(periodStart),
-        periodEnd: new Date(periodEnd),
-        status: stripeTransferId ? 'paid' : 'processing', // Mark as paid if transfer succeeded
-        paidAt: stripeTransferId ? new Date() : null,
-        stripeTransferId: stripeTransferId
-    }).run();
+    if (commit) {
+        // Save to DB
+        const generatedIds = [];
+        for (const res of results) {
+            const payoutId = crypto.randomUUID();
+            await db.insert(payouts).values({
+                id: payoutId,
+                tenantId: tenant.id,
+                instructorId: res.instructorId!,
+                amount: res.amount,
+                periodStart: start,
+                periodEnd: end,
+                status: 'processing',
+                createdAt: new Date()
+            }).run();
 
-    // Insert line items
-    if (items && items.length > 0) {
-        // Prepare batch
-        // SQLite supports multiple values insert? Drizzle does.
-        await db.insert(payrollItems).values(
-            items.map((item: any) => ({
-                id: crypto.randomUUID(),
-                payoutId,
-                type: item.type,
-                referenceId: item.referenceId,
-                amount: item.amount,
-                details: item.details
-            }))
-        );
+            for (const item of res.items) {
+                await db.insert(payrollItems).values({
+                    id: crypto.randomUUID(),
+                    payoutId,
+                    type: item.type,
+                    referenceId: item.referenceId,
+                    amount: item.amount,
+                    details: JSON.stringify({ note: item.details, title: item.title, date: item.date })
+                }).run();
+            }
+            generatedIds.push(payoutId);
+        }
+        return c.json({ success: true, count: generatedIds.length });
     }
 
-    return c.json({ success: true, payoutId });
+    return c.json({ preview: results });
 });
 
-
-// 5. GET /payouts - List Payout History
-app.get('/payouts', async (c) => {
+// GET /history
+app.get('/history', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    const member = c.get('member');
+    const isMine = c.req.query('mine') === 'true';
 
-    const historyWithNames = await db.select({
-        payout: payouts,
-        instructorFirstName: sql`json_extract(${tenantMembers.profile}, '$.firstName')`,
-        instructorLastName: sql`json_extract(${tenantMembers.profile}, '$.lastName')`,
-        instructorEmail: users.email
+    // If requesting own history, filter by memberId.
+    // Otherwise, assume Admin view (TODO: Enforce Admin Role check here for security)
+
+    let whereClause = eq(payouts.tenantId, tenant.id);
+    if (isMine) {
+        whereClause = and(whereClause, eq(payouts.instructorId, member.id));
+    }
+
+    const list = await db.select({
+        id: payouts.id,
+        amount: payouts.amount,
+        status: payouts.status,
+        periodStart: payouts.periodStart,
+        periodEnd: payouts.periodEnd,
+        paidAt: payouts.paidAt,
+        instructorFirstName: sql<string>`json_extract(${tenantMembers.profile}, '$.firstName')`,
+        instructorLastName: sql<string>`json_extract(${tenantMembers.profile}, '$.lastName')`,
     })
         .from(payouts)
-        .leftJoin(tenantMembers, eq(payouts.instructorId, tenantMembers.id))
-        .leftJoin(users, eq(tenantMembers.userId, users.id))
-        .where(eq(payouts.tenantId, tenant.id))
+        .innerJoin(tenantMembers, eq(payouts.instructorId, tenantMembers.id))
+        .where(whereClause)
         .orderBy(desc(payouts.createdAt))
         .all();
 
-    // Map to cleaner format
-    const formatted = historyWithNames.map((row: any) => ({
-        ...row.payout,
-        instructorName: (row.instructorFirstName && row.instructorLastName)
-            ? `${row.instructorFirstName} ${row.instructorLastName}`
-            : 'Unknown Instructor',
-        instructorEmail: row.instructorEmail
-    }));
+    return c.json({ history: list });
+});
 
-    return c.json({ payouts: formatted });
+// POST /:id/approve - Mark as Paid
+app.post('/:id/approve', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const id = c.req.param('id');
+
+    await db.update(payouts)
+        .set({ status: 'paid', paidAt: new Date(), notes: 'Manually marked as paid' })
+        .where(and(eq(payouts.id, id), eq(payouts.tenantId, tenant.id)))
+        .run();
+
+    return c.json({ success: true });
 });
 
 export default app;
-

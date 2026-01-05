@@ -158,12 +158,19 @@ export default function StudioLayout() {
                             <NavItem to="marketing" icon={<Mail size={18} />}>Marketing</NavItem>
                         )}
                         {(['scale'].includes(tenant.tier) || featureSet.has('payroll')) && (
-                            <NavItem to="financials/payroll" icon={<CreditCard size={18} />}>Payroll</NavItem>
+                            <NavItem to="financials/payroll" icon={<CreditCard size={18} />}>Payroll Admin</NavItem>
+                        )}
+                        {(me.roles && me.roles.includes('instructor')) && (
+                            <NavItem to="financials/my-payouts" icon={<DollarSign size={18} />}>My Payouts</NavItem>
                         )}
 
                         <NavItem to="finances" end icon={<DollarSign size={18} />}>Finances</NavItem>
                         <NavItem to="discounts" icon={<Tag size={18} />}>Discounts</NavItem>
                         <NavItem to="settings" end icon={<Settings size={18} />}>Settings</NavItem>
+                    </SidebarGroup>
+
+                    <SidebarGroup title="Analytics">
+                        <NavItem to="reports" icon={<LayoutGrid size={18} />}>Reports</NavItem>
                     </SidebarGroup>
                 </nav>
 

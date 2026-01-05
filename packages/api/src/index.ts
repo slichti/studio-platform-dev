@@ -31,6 +31,8 @@ import userRoutes from './routes/users';
 import commerce from './routes/commerce';
 import refunds from './routes/refunds';
 import platform from './routes/platform';
+import reports from './routes/reports';
+import payroll from './routes/payroll';
 
 type Bindings = {
   DB: D1Database;
@@ -395,6 +397,8 @@ app.route('/substitutions', substitutions);
 app.route('/leads', leads);
 app.route('/pos', pos);
 app.route('/uploads', uploadRoutes);
+app.route('/reports', reports);
+app.route('/payroll', payroll);
 
 app.route('/classes', classRoutes);
 app.route('/commerce', commerce);

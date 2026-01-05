@@ -1,500 +1,331 @@
-// @ts-ignore
-import { useLoaderData, useFetcher, Link, useOutletContext } from "react-router";
-// @ts-ignore
-import { LoaderFunction } from "react-router";
-import { getAuth } from "@clerk/react-router/server";
-import { apiRequest } from "~/utils/api";
+import { useOutletContext } from "react-router";
 import { useState, useEffect } from "react";
-import { DollarSign, Settings, Calendar, CheckCircle, ChevronRight, Download, Plus, Search } from "lucide-react";
-import { format } from "date-fns/format";
-import { Modal } from "~/components/Modal";
+import { apiRequest } from "../utils/api";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Loader2, DollarSign, Calendar, CheckCircle2, AlertCircle } from "lucide-react";
+import { format } from "date-fns";
+import {
+    Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger
+} from "../components/ui/dialog";
 
-export const loader: LoaderFunction = async (args: any) => {
-    const { getToken } = await getAuth(args);
-    const token = await getToken();
-    const slug = args.params.slug;
+// We'll need rudimentary UI components, if not present we'll use standard HTML/Tailwind
 
-    // Fetch initial data: Payroll Configs, Members (for dropdown), Payouts
-    let configs = [];
-    let payouts = [];
-    let members = [];
+export default function PayrollDashboard() {
+    const { tenant } = useOutletContext<any>() as any;
+    // @ts-ignore
+    const [token, setToken] = useState<string | null>(null);
 
-    try {
-        const [configRes, payoutsRes, membersRes] = await Promise.all([
-            apiRequest("/payroll/config", token, { headers: { 'X-Tenant-Slug': slug } }),
-            apiRequest("/payroll/payouts", token, { headers: { 'X-Tenant-Slug': slug } }), // New endpoint
-            apiRequest("/members", token, { headers: { 'X-Tenant-Slug': slug } })
-        ]);
+    useEffect(() => {
+        // @ts-ignore
+        window.Clerk?.session?.getToken().then(setToken);
+    }, []);
 
-        configs = (configRes as any).configs || [];
-        payouts = (payoutsRes as any).payouts || [];
-        members = (membersRes as any).members || [];
-    } catch (e) {
-        console.error("Failed to load payroll data", e);
-    }
-
-    return { configs, payouts, members, token, slug };
-};
-
-export default function PayrollPage() {
-    const { configs: initialConfigs, payouts: initialPayouts, members, token, slug } = useLoaderData<any>();
-    const [configs, setConfigs] = useState(initialConfigs);
-    const [payouts, setPayouts] = useState(initialPayouts);
-    const [tab, setTab] = useState<"config" | "run" | "history">("run");
+    if (!token) return <div className="p-8"><Loader2 className="animate-spin" /></div>;
 
     return (
-        <div className="max-w-6xl mx-auto py-8 px-4">
-            <h1 className="text-3xl font-bold text-zinc-900 mb-2">Payroll & Payouts</h1>
-            <p className="text-zinc-500 mb-8">Manage instructor compensation and record payouts.</p>
-
-            <div className="border-b border-zinc-200 mb-8">
-                <nav className="-mb-px flex space-x-8">
-                    <button
-                        onClick={() => setTab("run")}
-                        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${tab === "run" ? "border-blue-500 text-blue-600" : "border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300"
-                            }`}
-                    >
-                        <Calendar className="h-4 w-4" />
-                        Run Payroll
-                    </button>
-                    <button
-                        onClick={() => setTab("config")}
-                        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${tab === "config" ? "border-blue-500 text-blue-600" : "border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300"
-                            }`}
-                    >
-                        <Settings className="h-4 w-4" />
-                        Configuration
-                    </button>
-                    <button
-                        onClick={() => setTab("history")}
-                        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${tab === "history" ? "border-blue-500 text-blue-600" : "border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300"
-                            }`}
-                    >
-                        <CheckCircle className="h-4 w-4" />
-                        Payout History
-                    </button>
-                </nav>
+        <div className="p-8 max-w-6xl mx-auto">
+            <div className="mb-8">
+                <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Instructor Payroll</h1>
+                <p className="text-zinc-500 text-sm">Automate calculation and tracking of payouts.</p>
             </div>
 
-            {tab === "config" && <PayrollConfig configs={configs} members={members} token={token} slug={slug} onUpdate={(newConfigs) => setConfigs(newConfigs)} />}
-            {tab === "run" && <RunPayroll token={token} slug={slug} />}
-            {tab === "history" && <PayoutHistory payouts={payouts} />}
+            <Tabs defaultValue="run" className="space-y-6">
+                <TabsList>
+                    <TabsTrigger value="run">Run Payroll</TabsTrigger>
+                    <TabsTrigger value="history">History</TabsTrigger>
+                    <TabsTrigger value="config">Configuration</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="run">
+                    <RunPayroll token={token} />
+                </TabsContent>
+
+                <TabsContent value="history">
+                    <PayrollHistory token={token} />
+                </TabsContent>
+
+                <TabsContent value="config">
+                    <PayrollConfig token={token} />
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }
 
-function PayrollConfig({ configs, members, token, slug, onUpdate }: { configs: any[], members: any[], token: string, slug: string, onUpdate: (c: any[]) => void }) {
-    const [isCreateOpen, setIsCreateOpen] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
-
-    // New Config Form State
-    const [selectedMemberId, setSelectedMemberId] = useState("");
-    const [payModel, setPayModel] = useState("flat");
-    const [rate, setRate] = useState("");
-
-    // Filter members to only show those NOT already configured (optional, but good UX)
-    // Or just all instructors?
-    // Let's filter for instructors only first.
-    const instructors = members.filter((m: any) => m.roles.some((r: any) => r.role === 'instructor' || r.role === 'owner'));
-
-    async function handleAdd(e: React.FormEvent) {
-        e.preventDefault();
-        setSubmitting(true);
-        try {
-            await apiRequest("/payroll/config", token, {
-                method: "PUT",
-                headers: { 'X-Tenant-Slug': slug },
-                body: JSON.stringify({
-                    memberId: selectedMemberId,
-                    payModel,
-                    rate: Number(rate)
-                })
-            });
-            // Refresh
-            const res: any = await apiRequest("/payroll/config", token, { headers: { 'X-Tenant-Slug': slug } });
-            onUpdate(res.configs || []);
-            setIsCreateOpen(false);
-            // Reset form
-            setSelectedMemberId("");
-            setRate("");
-        } catch (e: any) {
-            alert(e.message);
-        } finally {
-            setSubmitting(false);
-        }
-    }
-
-    return (
-        <div>
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">Rate Configurations</h2>
-                <button
-                    onClick={() => setIsCreateOpen(true)}
-                    className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-zinc-800"
-                >
-                    <Plus className="h-4 w-4" /> Add Configuration
-                </button>
-            </div>
-
-            <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden">
-                <table className="min-w-full divide-y divide-zinc-200">
-                    <thead className="bg-zinc-50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Instructor</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Pay Model</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Rate</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-zinc-200">
-                        {configs.map((conf) => (
-                            <ConfigRow key={conf.id} config={conf} token={token} slug={slug} />
-                        ))}
-                        {configs.length === 0 && (
-                            <tr>
-                                <td colSpan={4} className="px-6 py-8 text-center text-sm text-zinc-500">
-                                    No configurations found. Add one to get started.
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-            <p className="mt-4 text-sm text-zinc-500">
-                * Note: Rates for percentage model are in basis points (5000 = 50%). Flat/Hourly rates are in cents.
-            </p>
-
-            <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Add Payroll Configuration">
-                <form onSubmit={handleAdd} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-zinc-700 mb-1">Instructor</label>
-                        <select
-                            value={selectedMemberId}
-                            onChange={e => setSelectedMemberId(e.target.value)}
-                            required
-                            className="w-full border border-zinc-300 rounded px-3 py-2"
-                        >
-                            <option value="">Select Instructor...</option>
-                            {instructors.map((m: any) => (
-                                <option key={m.id} value={m.id}>
-                                    {m.user?.profile?.firstName} {m.user?.profile?.lastName} ({m.user?.email})
-                                </option>
-                            ))}
-                        </select>
-                        <p className="text-xs text-zinc-500 mt-1">Only showing members with 'Instructor' role.</p>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-zinc-700 mb-1">Pay Model</label>
-                        <select
-                            value={payModel}
-                            onChange={e => setPayModel(e.target.value)}
-                            className="w-full border border-zinc-300 rounded px-3 py-2"
-                        >
-                            <option value="flat">Flat Rate (per session)</option>
-                            <option value="hourly">Hourly Rate</option>
-                            <option value="percentage">Percentage (Revenue Share)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-zinc-700 mb-1">
-                            Rate {payModel === 'percentage' ? '(in Basis Points, e.g. 5000 = 50%)' : '(in Cents)'}
-                        </label>
-                        <input
-                            type="number"
-                            required
-                            value={rate}
-                            onChange={e => setRate(e.target.value)}
-                            placeholder={payModel === 'percentage' ? '5000' : '3000'}
-                            className="w-full border border-zinc-300 rounded px-3 py-2"
-                        />
-                    </div>
-                    <div className="flex justify-end pt-4">
-                        <button
-                            type="submit"
-                            disabled={submitting}
-                            className="bg-zinc-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-zinc-800 disabled:opacity-50"
-                        >
-                            {submitting ? "Saving..." : "Save Configuration"}
-                        </button>
-                    </div>
-                </form>
-            </Modal>
-        </div>
-    );
-}
-
-function ConfigRow({ config, token, slug }: { config: any, token: string, slug: string }) {
-    const [editing, setEditing] = useState(false);
-    const [model, setModel] = useState(config.payModel);
-    const [rate, setRate] = useState(config.rate);
-
-    async function handleSave() {
-        try {
-            await apiRequest("/payroll/config", token, {
-                method: "PUT",
-                headers: { 'X-Tenant-Slug': slug },
-                body: JSON.stringify({
-                    memberId: config.memberId,
-                    payModel: model,
-                    rate: Number(rate)
-                })
-            });
-            setEditing(false);
-            // Ideally notify parent to refresh, but local state update is OK for MVP
-        } catch (e) {
-            alert("Failed to save");
-        }
-    }
-
-    if (editing) {
-        return (
-            <tr>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-900 bg-yellow-50">
-                    {config.member?.user?.profile?.firstName} {config.member?.user?.profile?.lastName}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm bg-yellow-50">
-                    <select value={model} onChange={(e) => setModel(e.target.value)} className="border rounded px-2 py-1 bg-white">
-                        <option value="flat">Flat Rate (per session)</option>
-                        <option value="hourly">Hourly Rate</option>
-                        <option value="percentage">Percentage (Revenue Share)</option>
-                    </select>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm bg-yellow-50">
-                    <input
-                        type="number"
-                        value={rate}
-                        onChange={(e) => setRate(e.target.value)}
-                        className="border rounded px-2 py-1 w-24"
-                    />
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm bg-yellow-50">
-                    <button onClick={handleSave} className="text-blue-600 hover:text-blue-900 mr-3 font-medium">Save</button>
-                    <button onClick={() => setEditing(false)} className="text-zinc-600 hover:text-zinc-900">Cancel</button>
-                </td>
-            </tr>
-        )
-    }
-
-    return (
-        <tr>
-            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-zinc-900">
-                {config.member?.user?.profile?.firstName} {config.member?.user?.profile?.lastName}
-            </td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500 capitalize">
-                {config.payModel}
-            </td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
-                {config.rate} {config.payModel === 'percentage' ? 'bps' : 'cents'}
-            </td>
-            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button onClick={() => setEditing(true)} className="text-blue-600 hover:text-blue-900">Edit</button>
-            </td>
-        </tr>
-    );
-}
-
-function PayoutHistory({ payouts }: { payouts: any[] }) {
-    return (
-        <div>
-            <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden shadow-sm">
-                <table className="min-w-full divide-y divide-zinc-200">
-                    <thead className="bg-zinc-50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Date</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Instructor</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Period</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Amount</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-zinc-200">
-                        {payouts.map((p) => (
-                            <tr key={p.id} className="hover:bg-zinc-50 transition-colors">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
-                                    {new Date(p.createdAt).toLocaleDateString()}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-900 font-medium">
-                                    {p.instructorName}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
-                                    {new Date(p.periodStart).toLocaleDateString()} - {new Date(p.periodEnd).toLocaleDateString()}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-zinc-900">
-                                    ${(p.amount / 100).toFixed(2)}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className={`px-2 py-1 text-xs rounded-full capitalize ${p.status === 'paid' ? 'bg-green-100 text-green-700' :
-                                            p.status === 'processing' ? 'bg-blue-100 text-blue-700' :
-                                                'bg-gray-100 text-gray-500'
-                                        }`}>
-                                        {p.status}
-                                    </span>
-                                    {p.stripeTransferId && (
-                                        <span className="ml-2 text-[10px] text-zinc-400 font-mono">
-                                            {p.stripeTransferId.substring(0, 8)}...
-                                        </span>
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
-                        {payouts.length === 0 && (
-                            <tr>
-                                <td colSpan={5} className="px-6 py-8 text-center text-sm text-zinc-500">
-                                    No payout history found.
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    );
-}
-
-function RunPayroll({ token, slug }: { token: string, slug: string }) {
-    const [startDate, setStartDate] = useState(
-        new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
-    );
-    const [endDate, setEndDate] = useState(
-        new Date().toISOString().split('T')[0]
-    );
-    const [report, setReport] = useState<any>(null);
+function RunPayroll({ token }: { token: string }) {
+    const [startDate, setStartDate] = useState(format(new Date(new Date().setDate(1)), 'yyyy-MM-dd')); // Start of month
+    const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd')); // Today
+    const [preview, setPreview] = useState<any[] | null>(null);
     const [loading, setLoading] = useState(false);
 
-    async function runReport() {
+    const handlePreview = async () => {
         setLoading(true);
         try {
-            const res: any = await apiRequest(`/payroll/report?start=${startDate}&end=${endDate}`, token, {
-                headers: { 'X-Tenant-Slug': slug }
-            });
-            setReport(res.report);
+            const res = await apiRequest('/payroll/generate', token, {
+                method: 'POST',
+                body: JSON.stringify({ startDate, endDate, commit: false })
+            }) as any;
+            setPreview(res.preview);
         } catch (e) {
             console.error(e);
+            alert("Failed to generate preview");
         } finally {
             setLoading(false);
         }
-    }
+    };
+
+    const handleCommit = async () => {
+        if (!confirm("Are you sure? This will generate payout records.")) return;
+        setLoading(true);
+        try {
+            const res = await apiRequest('/payroll/generate', token, {
+                method: 'POST',
+                body: JSON.stringify({ startDate, endDate, commit: true })
+            }) as any;
+            if (res.success) {
+                alert(`Successfully generated ${res.count} payouts.`);
+                setPreview(null);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Failed to commit payroll");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
-        <div>
-            <div className="bg-zinc-50 p-4 rounded-lg flex gap-4 items-end mb-8 border border-zinc-200">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
+            <h3 className="text-lg font-semibold mb-4">Generate Cycle</h3>
+            <div className="flex gap-4 items-end mb-6">
                 <div>
-                    <label className="block text-xs font-medium text-zinc-600 mb-1">Period Start</label>
-                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="border rounded px-3 py-2 text-sm" />
+                    <label className="block text-xs font-medium text-zinc-500 mb-1">Start Date</label>
+                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded px-3 py-2 text-sm" />
                 </div>
                 <div>
-                    <label className="block text-xs font-medium text-zinc-600 mb-1">Period End</label>
-                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="border rounded px-3 py-2 text-sm" />
+                    <label className="block text-xs font-medium text-zinc-500 mb-1">End Date</label>
+                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded px-3 py-2 text-sm" />
                 </div>
-                <button
-                    onClick={runReport}
-                    disabled={loading}
-                    className="bg-zinc-900 text-white px-4 py-2 rounded text-sm font-medium hover:bg-zinc-800 disabled:opacity-50"
-                >
-                    {loading ? "Calculating..." : "Calculate Payroll"}
+                <button onClick={handlePreview} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors">
+                    {loading ? 'Processing...' : 'Preview Calculation'}
                 </button>
             </div>
 
-            {report && (
-                <div className="space-y-6">
-                    {Object.keys(report).length === 0 && <p className="text-zinc-500 text-center py-8">No earnings found for this period.</p>}
+            {preview && (
+                <div className="space-y-4">
+                    <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-lg flex justify-between items-center">
+                        <span className="font-medium text-zinc-700 dark:text-zinc-300">Total Calculation</span>
+                        <span className="text-xl font-bold text-green-600">
+                            ${(preview.reduce((acc: any, curr: any) => acc + curr.amount, 0) / 100).toFixed(2)}
+                        </span>
+                    </div>
 
-                    {Object.entries(report).map(([instructorId, data]: [string, any]) => (
-                        <PayrollCard
-                            key={instructorId}
-                            instructorId={instructorId}
-                            data={data}
-                            token={token}
-                            slug={slug}
-                            period={{ start: startDate, end: endDate }}
-                        />
-                    ))}
+                    <div className="space-y-2">
+                        {preview.map((p: any) => (
+                            <div key={p.instructorId} className="border border-zinc-200 dark:border-zinc-800 rounded p-4 flex justify-between items-start">
+                                <div>
+                                    <div className="font-semibold text-zinc-900 dark:text-zinc-100">Instructor ID: {p.instructorId.substring(0, 8)}...</div>
+                                    <div className="text-xs text-zinc-500">{p.itemCount} items calculated</div>
+                                    <ul className="mt-2 text-xs text-zinc-500 space-y-1">
+                                        {p.items.map((item: any, i: number) => (
+                                            <li key={i}>• {item.title} ({new Date(item.date).toLocaleDateString()}): {item.details} = <strong>${(item.amount / 100).toFixed(2)}</strong></li>
+                                        ))}
+                                    </ul>
+                                </div>
+                                <div className="text-lg font-bold">${(p.amount / 100).toFixed(2)}</div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {preview.length === 0 && <div className="text-zinc-500 text-sm">No payouts calculated for this period. check configurations or activity.</div>}
+
+                    {preview.length > 0 && (
+                        <div className="flex justify-end mt-6">
+                            <button onClick={handleCommit} disabled={loading} className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded shadow font-medium">
+                                Generate & Save
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
     );
 }
 
-function PayrollCard({ instructorId, data, token, slug, period }: any) {
-    const [paying, setPaying] = useState(false);
-    const [paid, setPaid] = useState(false);
+function PayrollHistory({ token }: { token: string }) {
+    const [history, setHistory] = useState<any[]>([]);
 
-    async function handleMarkPaid() {
-        if (!confirm(`Mark $${data.total / 100} as paid?`)) return;
-        setPaying(true);
-        try {
-            await apiRequest("/payroll/payout", token, {
-                method: "POST",
-                headers: { 'X-Tenant-Slug': slug },
-                body: JSON.stringify({
-                    instructorId,
-                    amount: data.total,
-                    periodStart: period.start,
-                    periodEnd: period.end,
-                    items: data.items
-                })
-            });
-            setPaid(true);
-        } catch (e: any) {
-            alert("Failed to record payout: " + e.message);
-        } finally {
-            setPaying(false);
-        }
-    }
+    const fetchHistory = async () => {
+        const res = await apiRequest('/payroll/history', token) as any;
+        setHistory(res.history);
+    };
+
+    useEffect(() => { fetchHistory() }, []);
+
+    const markPaid = async (id: string) => {
+        if (!confirm("Mark this as paid manually?")) return;
+        await apiRequest(`/payroll/${id}/approve`, token, { method: 'POST' });
+        fetchHistory();
+    };
 
     return (
-        <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm">
-            <div className="bg-zinc-50 px-6 py-4 flex justify-between items-center border-b border-zinc-200">
-                <div>
-                    <h3 className="font-semibold text-lg">Instructor ID: {instructorId.substring(0, 8)}...</h3>
-                    {/* Ideally fetch name if report didn't populate it perfectly */}
-                    <p className="text-sm text-zinc-500">{data.items.length} items</p>
-                </div>
-                <div className="text-right">
-                    <p className="text-2xl font-bold font-mono text-zinc-900">${(data.total / 100).toFixed(2)}</p>
-                    <p className="text-xs text-zinc-500 uppercase tracking-wide">Total Owing</p>
-                </div>
-            </div>
-            <div className="px-6 py-4">
-                <table className="min-w-full text-sm">
-                    <thead>
-                        <tr className="text-zinc-500 border-b border-zinc-100">
-                            <th className="text-left py-2 font-medium">Date</th>
-                            <th className="text-left py-2 font-medium">Item</th>
-                            <th className="text-left py-2 font-medium">Details</th>
-                            <th className="text-right py-2 font-medium">Amount</th>
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden">
+            <table className="w-full text-sm text-left">
+                <thead className="bg-zinc-50 dark:bg-zinc-800 text-zinc-500 font-medium border-b border-zinc-200 dark:border-zinc-800">
+                    <tr>
+                        <th className="p-4">Period</th>
+                        <th className="p-4">Instructor</th>
+                        <th className="p-4">Amount</th>
+                        <th className="p-4">Status</th>
+                        <th className="p-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                    {history.map(row => (
+                        <tr key={row.id}>
+                            <td className="p-4">
+                                {new Date(row.periodStart).toLocaleDateString()} - {new Date(row.periodEnd).toLocaleDateString()}
+                            </td>
+                            <td className="p-4 font-medium">
+                                {row.instructorFirstName} {row.instructorLastName}
+                            </td>
+                            <td className="p-4 font-mono font-medium">
+                                ${(row.amount / 100).toFixed(2)}
+                            </td>
+                            <td className="p-4">
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${row.status === 'paid' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                    }`}>
+                                    {row.status.toUpperCase()}
+                                </span>
+                            </td>
+                            <td className="p-4">
+                                {row.status !== 'paid' && (
+                                    <button onClick={() => markPaid(row.id)} className="text-blue-600 hover:text-blue-500 text-xs font-medium border border-blue-200 rounded px-2 py-1">
+                                        Mark Paid
+                                    </button>
+                                )}
+                                {row.status === 'paid' && row.paidAt && (
+                                    <span className="text-xs text-zinc-400">Paid {new Date(row.paidAt).toLocaleDateString()}</span>
+                                )}
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-50">
-                        {data.items.map((item: any, i: number) => (
-                            <tr key={i}>
-                                <td className="py-2 text-zinc-600">{new Date(item.date).toLocaleDateString()}</td>
-                                <td className="py-2 font-medium text-zinc-900">{item.title}</td>
-                                <td className="py-2 text-zinc-500 text-xs">{item.details}</td>
-                                <td className="py-2 text-right text-zinc-900">${(item.amount / 100).toFixed(2)}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-            <div className="px-6 py-4 bg-zinc-50 border-t border-zinc-200 flex justify-end">
-                {paid ? (
-                    <span className="flex items-center gap-2 text-green-600 font-medium px-4 py-2">
-                        <CheckCircle className="h-5 w-5" />
-                        Payout Recorded
-                    </span>
-                ) : (
-                    <button
-                        onClick={handleMarkPaid}
-                        disabled={paying}
-                        className="bg-green-600 text-white px-4 py-2 rounded-md font-medium text-sm hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
-                    >
-                        <DollarSign className="h-4 w-4" />
-                        {paying ? "Recording..." : "Mark as Paid"}
-                    </button>
-                )}
-            </div>
+                    ))}
+                    {history.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-zinc-500">No history found.</td></tr>}
+                </tbody>
+            </table>
         </div>
-    );
+    )
 }
 
+function PayrollConfig({ token }: { token: string }) {
+    const [instructors, setInstructors] = useState<any[]>([]);
+
+    // Config form
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [formModel, setFormModel] = useState('flat');
+    const [formRate, setFormRate] = useState('0');
+
+    const fetchConfig = async () => {
+        const res = await apiRequest('/payroll/config', token) as any;
+        setInstructors(res.instructors);
+    };
+
+    useEffect(() => { fetchConfig() }, []);
+
+    const handleSave = async () => {
+        if (!editingId) return;
+        let rate = parseFloat(formRate);
+        if (formModel === 'flat' || formModel === 'hourly') {
+            // Convert to cents
+            rate = Math.round(rate * 100);
+        } else {
+            // Percentage: basis points. Input 50% -> 5000
+            rate = Math.round(rate * 100);
+        }
+
+        await apiRequest('/payroll/config', token, {
+            method: 'POST',
+            body: JSON.stringify({
+                memberId: editingId,
+                payModel: formModel,
+                rate
+            })
+        });
+        setEditingId(null);
+        fetchConfig();
+    };
+
+    const startEdit = (inst: any) => {
+        setEditingId(inst.memberId);
+        if (inst.config?.payModel) {
+            setFormModel(inst.config.payModel);
+            setFormRate((inst.config.rate / 100).toString());
+        } else {
+            setFormModel('flat');
+            setFormRate('0');
+        }
+    };
+
+    return (
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden">
+            <table className="w-full text-sm text-left">
+                <thead className="bg-zinc-50 dark:bg-zinc-800 text-zinc-500 font-medium border-b border-zinc-200 dark:border-zinc-800">
+                    <tr>
+                        <th className="p-4">Name</th>
+                        <th className="p-4">Current Model</th>
+                        <th className="p-4">Rate</th>
+                        <th className="p-4">Action</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                    {instructors.map(inst => (
+                        <tr key={inst.memberId}>
+                            <td className="p-4 font-medium">{inst.firstName} {inst.lastName}</td>
+                            <td className="p-4 text-zinc-600 dark:text-zinc-400 capitalize">
+                                {inst.config ? inst.config.payModel : 'Not Set'}
+                            </td>
+                            <td className="p-4 font-mono">
+                                {inst.config ? (
+                                    inst.config.payModel === 'percentage'
+                                        ? `${(inst.config.rate / 100)}%`
+                                        : `$${(inst.config.rate / 100).toFixed(2)}`
+                                ) : '-'}
+                            </td>
+                            <td className="p-4">
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <button onClick={() => startEdit(inst)} className="text-blue-600 hover:text-blue-500 font-medium">Configure</button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Configure Payroll</DialogTitle>
+                                            <DialogDescription>Set default pay rate for {inst.firstName}.</DialogDescription>
+                                        </DialogHeader>
+                                        <div className="space-y-4 py-4">
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">Pay Model</label>
+                                                <select className="w-full rounded border border-zinc-300 p-2" value={formModel} onChange={e => setFormModel(e.target.value)}>
+                                                    <option value="flat">Flat Rate (Per Class)</option>
+                                                    <option value="hourly">Hourly Rate</option>
+                                                    <option value="percentage">Revenue Share (%)</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">
+                                                    {formModel === 'percentage' ? 'Percentage (%)' : 'Rate ($)'}
+                                                </label>
+                                                <input type="number" step="0.01" className="w-full rounded border border-zinc-300 p-2" value={formRate} onChange={e => setFormRate(e.target.value)} />
+                                            </div>
+                                            <button onClick={handleSave} className="w-full bg-blue-600 text-white rounded py-2 font-medium">Save Configuration</button>
+                                        </div>
+                                    </DialogContent>
+                                </Dialog>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    )
+}
