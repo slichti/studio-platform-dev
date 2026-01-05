@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { classes, tenants, bookings, tenantMembers, users, tenantRoles, classSeries, subscriptions, purchasedPacks, userRelationships, waiverTemplates, waiverSignatures, membershipPlans, classPackDefinitions } from 'db/src/schema';
+import { classes, tenants, bookings, tenantMembers, users, tenantRoles, classSeries, subscriptions, purchasedPacks, userRelationships, waiverTemplates, waiverSignatures, membershipPlans, classPackDefinitions, challenges, userChallenges } from 'db/src/schema';
 import { createDb } from '../db';
 import { eq, and, gte, lte, gt, sql, inArray } from 'drizzle-orm';
 import { ZoomService } from '../services/zoom';
@@ -734,6 +734,72 @@ app.patch('/:id/bookings/:bookingId/check-in', async (c) => {
             .set({ checkedInAt: checkedIn ? new Date() : null })
             .where(eq(bookings.id, bookingId))
             .run();
+
+        if (checkedIn) {
+            // Loyalty Logic: Increment Progress
+            const booking = await db.select({ memberId: bookings.memberId }).from(bookings).where(eq(bookings.id, bookingId)).get();
+            if (booking) {
+                const member = await db.select({ userId: tenantMembers.userId, tenantId: tenantMembers.tenantId })
+                    .from(tenantMembers)
+                    .where(eq(tenantMembers.id, booking.memberId))
+                    .get();
+
+                if (member) {
+                    const activeChallenges = await db.select()
+                        .from(challenges)
+                        .where(and(
+                            eq(challenges.tenantId, member.tenantId),
+                            eq(challenges.active, true),
+                            eq(challenges.type, 'count') // Only counting classes for now
+                        ))
+                        .all();
+
+                    for (const challenge of activeChallenges) {
+                        // Find or Create User Challenge progress
+                        let userProgress = await db.select()
+                            .from(userChallenges)
+                            .where(and(
+                                eq(userChallenges.userId, member.userId),
+                                eq(userChallenges.challengeId, challenge.id)
+                            ))
+                            .get();
+
+                        if (!userProgress) {
+                            // Initialize
+                            userProgress = await db.insert(userChallenges).values({
+                                id: crypto.randomUUID(),
+                                tenantId: member.tenantId,
+                                userId: member.userId,
+                                challengeId: challenge.id,
+                                progress: 0,
+                                status: 'active'
+                            }).returning().get();
+                        }
+
+                        if (userProgress.status === 'active') {
+                            const newProgress = userProgress.progress + 1;
+                            const isCompleted = newProgress >= challenge.targetValue;
+
+                            await db.update(userChallenges)
+                                .set({
+                                    progress: newProgress,
+                                    status: isCompleted ? 'completed' : 'active',
+                                    completedAt: isCompleted ? new Date() : null,
+                                    updatedAt: new Date()
+                                })
+                                .where(eq(userChallenges.id, userProgress.id))
+                                .run();
+
+                            if (isCompleted) {
+                                // TODO: Trigger Reward Fulfillment (Coupon/Badge)
+                                // identifying this for future task reference
+                                console.log(`User ${member.userId} completed challenge ${challenge.title}!`);
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         return c.json({ success: true, checkedIn });
     } catch (e: any) {

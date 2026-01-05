@@ -639,6 +639,41 @@ export const leads = sqliteTable('leads', {
     statusIdx: index('lead_status_idx').on(table.status),
 }));
 
+// --- Phase 4b: Gamified Loyalty (Challenges) ---
+export const challenges = sqliteTable('challenges', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    title: text('title').notNull(), // e.g. "Summer Warrior"
+    description: text('description'),
+    type: text('type', { enum: ['count', 'streak'] }).notNull(), // 'count' = total classes, 'streak' = consecutive days/weeks (Phase 2)
+    targetValue: integer('target_value').notNull(), // e.g. 10 classes
+    rewardType: text('reward_type', { enum: ['badge', 'coupon', 'retail_credit'] }).notNull(),
+    rewardValue: text('reward_value', { mode: 'json' }), // { badgeUrl: '...', couponId: '...' }
+    startDate: integer('start_date', { mode: 'timestamp' }),
+    endDate: integer('end_date', { mode: 'timestamp' }),
+    active: integer('active', { mode: 'boolean' }).default(true),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('challenge_tenant_idx').on(table.tenantId),
+}));
+
+export const userChallenges = sqliteTable('user_challenges', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    userId: text('user_id').notNull().references(() => users.id), // Global User ID
+    challengeId: text('challenge_id').notNull().references(() => challenges.id),
+
+    progress: integer('progress').default(0).notNull(),
+    status: text('status', { enum: ['active', 'completed'] }).default('active').notNull(),
+    completedAt: integer('completed_at', { mode: 'timestamp' }),
+
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    userChallengeIdx: uniqueIndex('user_challenge_idx').on(table.userId, table.challengeId),
+    tenantIdx: index('user_challenge_tenant_idx').on(table.tenantId),
+}));
+
 // --- Relations ---
 import { relations } from 'drizzle-orm';
 
@@ -802,6 +837,29 @@ export const posOrderItemsRelations = relations(posOrderItems, ({ one }) => ({
     product: one(products, {
         fields: [posOrderItems.productId],
         references: [products.id],
+    }),
+}));
+
+export const challengesRelations = relations(challenges, ({ one, many }) => ({
+    tenant: one(tenants, {
+        fields: [challenges.tenantId],
+        references: [tenants.id],
+    }),
+    participants: many(userChallenges),
+}));
+
+export const userChallengesRelations = relations(userChallenges, ({ one }) => ({
+    user: one(users, {
+        fields: [userChallenges.userId],
+        references: [users.id],
+    }),
+    tenant: one(tenants, {
+        fields: [userChallenges.tenantId],
+        references: [tenants.id],
+    }),
+    challenge: one(challenges, {
+        fields: [userChallenges.challengeId],
+        references: [challenges.id],
     }),
 }));
 

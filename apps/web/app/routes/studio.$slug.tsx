@@ -8,7 +8,6 @@ import { UserButton } from "@clerk/react-router";
 import { PoweredBy } from "../components/PoweredBy";
 import {
     LayoutDashboard,
-    LayoutGrid,
     Calendar,
     User,
     Users,
@@ -26,7 +25,10 @@ import {
     ShoppingCart,
     CheckCircle2,
     Ticket,
-    ListTodo
+    ListTodo,
+    BarChart3,
+    Search,
+    Award
 } from "lucide-react";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { CommandBar } from "../components/CommandBar";
@@ -119,7 +121,7 @@ export default function StudioLayout() {
 
                 <nav className="flex-1 overflow-y-auto p-4 space-y-4">
                     <div className="space-y-1">
-                        <NavItem to={`/studio/${slug}`} end icon={<LayoutGrid size={18} />}>Dashboard</NavItem>
+                        <NavItem to={`/studio/${slug}`} end icon={<LayoutDashboard size={18} />}>Dashboard</NavItem>
                     </div>
 
                     <SidebarGroup title="Operations">
@@ -158,7 +160,10 @@ export default function StudioLayout() {
                         <NavItem to="leads" icon={<User size={18} />}>Leads</NavItem>
                         <NavItem to="tasks" icon={<ListTodo size={18} />}>Tasks</NavItem>
                         {(featureSet.has('marketing') || ['growth', 'scale'].includes(tenant.tier)) && (
-                            <NavItem to="marketing" icon={<Mail size={18} />}>Marketing</NavItem>
+                            <>
+                                <NavItem to="marketing" icon={<Mail size={18} />}>Marketing</NavItem>
+                                <NavItem to="loyalty" icon={<Award size={18} />}>Loyalty</NavItem>
+                            </>
                         )}
                     </SidebarGroup>
 
@@ -177,7 +182,7 @@ export default function StudioLayout() {
                     </SidebarGroup>
 
                     <SidebarGroup title="Analytics">
-                        <NavItem to="reports" icon={<LayoutGrid size={18} />}>Reports</NavItem>
+                        <NavItem to="reports" icon={<BarChart3 size={18} />}>Reports</NavItem>
                     </SidebarGroup>
                 </nav>
 
@@ -238,7 +243,7 @@ export default function StudioLayout() {
                         onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
                         className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs text-zinc-400 hover:border-blue-500 transition-all shadow-sm group"
                     >
-                        <LayoutGrid size={14} className="group-hover:text-blue-500" />
+                        <Search size={14} className="group-hover:text-blue-500" />
                         <span>Search...</span>
                         <kbd className="ml-2 px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded font-sans opacity-50">⌘K</kbd>
                     </button>

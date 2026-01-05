@@ -4,7 +4,7 @@ import { useLoaderData, useOutletContext, Link } from "react-router";
 import type { LoaderFunctionArgs } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
-import { Users, Calendar, DollarSign, ArrowRight, Activity, TrendingUp, FileSignature, Ticket } from "lucide-react";
+import { Users, Calendar, DollarSign, ArrowRight, Activity, TrendingUp, FileSignature, Ticket, Award, Target } from "lucide-react";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken } = await getAuth(args);
@@ -12,13 +12,14 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const { slug } = args.params;
 
     try {
-        const stats: any = await apiRequest(`/tenant/stats`, token, {
-            headers: { 'X-Tenant-Slug': slug! }
-        });
-        return { stats };
+        const [stats, myProgress] = await Promise.all([
+            apiRequest(`/tenant/stats`, token, { headers: { 'X-Tenant-Slug': slug! } }).catch(() => ({ activeStudents: 0 })),
+            apiRequest(`/challenges/my-progress`, token, { headers: { 'X-Tenant-Slug': slug! } }).catch(() => [])
+        ]);
+        return { stats, myProgress };
     } catch (e) {
         console.error("Dashboard loader failed:", e);
-        return { stats: { activeStudents: 0, upcomingBookings: 0, monthlyRevenueCents: 0 } };
+        return { stats: { activeStudents: 0, upcomingBookings: 0, monthlyRevenueCents: 0 }, myProgress: [] };
     }
 }
 
@@ -135,12 +136,53 @@ export default function StudioDashboardIndex() {
                                 description="Update your colors, logo and style."
                             />
                         )}
-                        {(isOwner || roles.includes('instructor')) && (
-                            <DashboardAction
-                                to="schedule"
-                                title="Manage Schedule"
-                                description="Add classes and view bookings."
-                            />
+                        <DashboardAction
+                            to="schedule"
+                            title="Manage Schedule"
+                            description="Add classes and view bookings."
+                        />
+                        )}
+
+                        {/* Student Achievements Section */}
+                        {!isOwner && (
+                            <div className="md:col-span-2 mt-4">
+                                <h3 className="text-lg font-bold mb-4 text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                    <Award className="text-yellow-500" />
+                                    Your Achievements
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {((useLoaderData() as any).myProgress || []).map((challenge: any) => (
+                                        <div key={challenge.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-4 rounded-xl flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-yellow-600 dark:text-yellow-400 shrink-0">
+                                                {challenge.userProgress.status === 'completed' ? <Award size={24} /> : <Target size={24} />}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <h4 className="font-bold text-sm text-zinc-900 dark:text-zinc-100 truncate">{challenge.title}</h4>
+                                                    {challenge.userProgress.status === 'completed' && (
+                                                        <span className="text-[10px] font-bold bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">EARNED</span>
+                                                    )}
+                                                </div>
+                                                <div className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-full h-2 mb-1">
+                                                    <div
+                                                        className="bg-yellow-500 h-2 rounded-full transition-all"
+                                                        style={{ width: `${Math.min(100, (challenge.userProgress.progress / challenge.targetValue) * 100)}%` }}
+                                                    />
+                                                </div>
+                                                <div className="text-xs text-zinc-500 flex justify-between">
+                                                    <span>{challenge.userProgress.progress} / {challenge.targetValue} classes</span>
+                                                    <span>{Math.round((challenge.userProgress.progress / challenge.targetValue) * 100)}%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {(!((useLoaderData() as any).myProgress) || (useLoaderData() as any).myProgress.length === 0) && (
+                                        <div className="col-span-2 text-center py-4 text-zinc-500 dark:text-zinc-400 text-sm italic">
+                                            Join active challenges to earn rewards!
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         )}
                         {isOwner && (
                             <DashboardAction

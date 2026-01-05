@@ -1,0 +1,224 @@
+
+// @ts-ignore
+import { useLoaderData, useActionData, Form, useNavigation, useSubmit, redirect } from "react-router";
+// @ts-ignore
+import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
+import { apiRequest } from "~/utils/api";
+import { getAuth } from "@clerk/react-router/server";
+import { Award, Plus, Trash2, Calendar, Target, Gift } from "lucide-react";
+import { useState, useEffect } from "react";
+
+export const loader = async (args: LoaderFunctionArgs) => {
+    const { getToken } = await getAuth(args);
+    const token = await getToken();
+    const { slug } = args.params;
+
+    try {
+        const challenges = await apiRequest('/challenges', token, {
+            headers: { 'X-Tenant-Slug': slug! }
+        });
+        return { challenges: Array.isArray(challenges) ? challenges : [], error: null };
+    } catch (e) {
+        return { challenges: [], error: "Failed to load challenges" };
+    }
+};
+
+export const action = async (args: ActionFunctionArgs) => {
+    const { request, params } = args;
+    const { getToken } = await getAuth(args);
+    const token = await getToken();
+    const { slug } = params;
+
+    const formData = await request.formData();
+    const intent = formData.get("intent");
+
+    if (intent === "create") {
+        const data = {
+            title: formData.get("title"),
+            description: formData.get("description"),
+            type: formData.get("type"), // 'count'
+            targetValue: parseInt(formData.get("targetValue") as string),
+            rewardType: formData.get("rewardType"), // 'badge', 'coupon'
+            rewardValue: formData.get("rewardValue") ? JSON.parse(formData.get("rewardValue") as string) : {},
+            startDate: formData.get("startDate"),
+            endDate: formData.get("endDate")
+        };
+
+        try {
+            await apiRequest('/challenges', token, {
+                method: 'POST',
+                headers: { 'X-Tenant-Slug': slug! },
+                body: JSON.stringify(data)
+            });
+            return { success: true };
+        } catch (e: any) {
+            return { error: e.message || "Failed to create" };
+        }
+    }
+
+    return null;
+};
+
+export default function LoyaltyPage() {
+    // @ts-ignore
+    const { challenges, error } = useLoaderData<typeof loader>();
+    const actionData = useActionData<typeof action>();
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+    useEffect(() => {
+        if (actionData && (actionData as any).success) {
+            setIsCreateModalOpen(false);
+        }
+    }, [actionData]);
+
+    return (
+        <div className="p-8 max-w-6xl mx-auto animate-in fade-in duration-500">
+            <div className="flex items-center justify-between mb-8">
+                <div>
+                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                        <Award className="text-yellow-500" />
+                        Loyalty Challenges
+                    </h1>
+                    <p className="text-zinc-500 dark:text-zinc-400 mt-1">
+                        Gamify attendance with challenges and rewards.
+                    </p>
+                </div>
+                <button
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg hover:opacity-90 transition-opacity font-medium shadow-sm"
+                >
+                    <Plus size={16} />
+                    Create Challenge
+                </button>
+            </div>
+
+            {error && (
+                <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6 border border-red-100">
+                    {error}
+                </div>
+            )}
+
+            {actionData && (actionData as any).error && (
+                <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6 border border-red-100">
+                    {(actionData as any).error}
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {challenges.map((challenge: any) => (
+                    <div key={challenge.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg text-yellow-600 dark:text-yellow-400">
+                                <Target size={24} />
+                            </div>
+                            <span className={`px-2 py-1 text-xs rounded-full font-medium ${challenge.active ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'bg-zinc-100 text-zinc-500'}`}>
+                                {challenge.active ? 'Active' : 'Inactive'}
+                            </span>
+                        </div>
+
+                        <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-2">{challenge.title}</h3>
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4 line-clamp-2 min-h-[40px]">{challenge.description}</p>
+
+                        <div className="space-y-3 pt-4 border-t border-zinc-100 dark:border-zinc-800 text-sm text-zinc-600 dark:text-zinc-300">
+                            <div className="flex items-center gap-2">
+                                <Target size={14} className="text-zinc-400" />
+                                <span>Goal: <strong>{challenge.targetValue}</strong> {challenge.type === 'count' ? 'Classes' : 'Streak Days'}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Gift size={14} className="text-zinc-400" />
+                                <span className="capitalize">Reward: <strong>{challenge.rewardType.replace('_', ' ')}</strong></span>
+                            </div>
+                            {challenge.endDate && (
+                                <div className="flex items-center gap-2">
+                                    <Calendar size={14} className="text-zinc-400" />
+                                    <span>Ends: {new Date(challenge.endDate).toLocaleDateString()}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                ))}
+
+                {challenges.length === 0 && (
+                    <div className="col-span-full py-16 text-center border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/20">
+                        <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4 text-zinc-400">
+                            <Award size={32} />
+                        </div>
+                        <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100">No active challenges</h3>
+                        <p className="text-zinc-500 max-w-sm mx-auto mt-2 text-sm">Create your first challenge to start engaging students and building loyalty.</p>
+                    </div>
+                )}
+            </div>
+
+            {/* Create Modal */}
+            {isCreateModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center bg-zinc-50 dark:bg-zinc-900/50">
+                            <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">New Challenge</h2>
+                            <button onClick={() => setIsCreateModalOpen(false)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors">
+                                <Trash2 size={20} className="rotate-45" />
+                            </button>
+                        </div>
+                        <Form method="post" className="p-6 space-y-4">
+                            <input type="hidden" name="intent" value="create" />
+
+                            <div>
+                                <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Title</label>
+                                <input name="title" required className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" placeholder="e.g. Summer Warrior" />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Description</label>
+                                <textarea name="description" rows={3} className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all resize-none" placeholder="Attend 10 classes in June..." />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Goal Type</label>
+                                    <div className="relative">
+                                        <select name="type" className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                                            <option value="count">Total Classes</option>
+                                            <option value="streak">Streak (Days)</option>
+                                        </select>
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+                                            <Target size={14} />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Target Value</label>
+                                    <input name="targetValue" type="number" required defaultValue="10" min="1" className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Reward Type</label>
+                                    <div className="relative">
+                                        <select name="rewardType" className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                                            <option value="badge">Digital Badge</option>
+                                            <option value="coupon">Discount Coupon</option>
+                                            <option value="retail_credit">Retail Credit</option>
+                                        </select>
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+                                            <Gift size={14} />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">End Date</label>
+                                    <input name="endDate" type="date" className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" />
+                                </div>
+                            </div>
+
+                            <div className="pt-6 flex justify-end gap-3 border-t border-zinc-100 dark:border-zinc-800 mt-2">
+                                <button type="button" onClick={() => setIsCreateModalOpen(false)} className="px-4 py-2 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors font-medium text-sm">Cancel</button>
+                                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm shadow-sm shadow-blue-200 dark:shadow-none">Create Challenge</button>
+                            </div>
+                        </Form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}

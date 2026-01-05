@@ -32,6 +32,7 @@ import commerce from './routes/commerce';
 import refunds from './routes/refunds';
 import platform from './routes/platform';
 import reports from './routes/reports';
+import challenges from './routes/challenges';
 
 type Bindings = {
   DB: D1Database;
@@ -406,6 +407,7 @@ app.route('/commerce', commerce);
 app.route('/gift-cards', giftCards);
 app.route('/tasks', tasks);
 app.route('/refunds', refunds);
+app.route('/challenges', challenges);
 app.route('/platform', platform);
 
 app.route('/tenant', studioApp);
