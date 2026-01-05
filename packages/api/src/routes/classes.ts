@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { classes, tenants, bookings, tenantMembers, users, tenantRoles, classSeries, subscriptions, purchasedPacks, userRelationships, waiverTemplates, waiverSignatures, membershipPlans, classPackDefinitions, challenges, userChallenges } from 'db/src/schema';
+import { classes, tenants, bookings, tenantMembers, users, tenantRoles, classSeries, subscriptions, purchasedPacks, userRelationships, waiverTemplates, waiverSignatures, membershipPlans, classPackDefinitions, challenges, userChallenges, giftCards, giftCardTransactions } from 'db/src/schema';
 import { createDb } from '../db';
 import { eq, and, gte, lte, gt, sql, inArray } from 'drizzle-orm';
 import { ZoomService } from '../services/zoom';
@@ -739,7 +739,7 @@ app.patch('/:id/bookings/:bookingId/check-in', async (c) => {
             // Loyalty Logic: Increment Progress
             const booking = await db.select({ memberId: bookings.memberId }).from(bookings).where(eq(bookings.id, bookingId)).get();
             if (booking) {
-                const member = await db.select({ userId: tenantMembers.userId, tenantId: tenantMembers.tenantId })
+                const member = await db.select({ id: tenantMembers.id, userId: tenantMembers.userId, tenantId: tenantMembers.tenantId })
                     .from(tenantMembers)
                     .where(eq(tenantMembers.id, booking.memberId))
                     .get();
@@ -791,9 +791,40 @@ app.patch('/:id/bookings/:bookingId/check-in', async (c) => {
                                 .run();
 
                             if (isCompleted) {
-                                // TODO: Trigger Reward Fulfillment (Coupon/Badge)
-                                // identifying this for future task reference
                                 console.log(`User ${member.userId} completed challenge ${challenge.title}!`);
+
+                                // Reward Fulfillment
+                                if (challenge.rewardType === 'retail_credit') {
+                                    const val = challenge.rewardValue as any;
+                                    const creditAmount = parseInt(val?.creditAmount || '0');
+                                    if (creditAmount > 0) {
+                                        const code = `REW-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+                                        const card = await db.insert(giftCards).values({
+                                            id: crypto.randomUUID(),
+                                            tenantId: member.tenantId,
+                                            code,
+                                            initialValue: creditAmount,
+                                            currentBalance: creditAmount,
+                                            status: 'active',
+                                            recipientMemberId: member.id, // Linking to Member ID
+                                            notes: `Reward for challenge: ${challenge.title}`,
+                                            createdAt: new Date(),
+                                            updatedAt: new Date()
+                                        }).returning().get();
+
+                                        await db.insert(giftCardTransactions).values({
+                                            id: crypto.randomUUID(),
+                                            giftCardId: card.id,
+                                            amount: creditAmount,
+                                            type: 'adjustment',
+                                            referenceId: userProgress.id, // Reference the User Challenge ID
+                                            createdAt: new Date()
+                                        });
+
+                                        console.log(`Issued Gift Card ${code} for $${creditAmount / 100}`);
+                                    }
+                                }
                             }
                         }
                     }
