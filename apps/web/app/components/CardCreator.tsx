@@ -62,8 +62,8 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
     return (
         <div className="card-creator space-y-4">
             {mode === 'upload' && (
-                <div className="border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg p-8 text-center bg-zinc-50 dark:bg-zinc-800/50">
-                    <p className="text-zinc-500 mb-4">Upload a background image for your membership card.</p>
+                <div className="border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg p-8 text-center bg-zinc-50 dark:bg-zinc-800/50 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                    <p className="text-zinc-500 dark:text-zinc-400 mb-4 font-medium">Upload a background image for your membership card.</p>
                     <input
                         type="file"
                         accept="image/*"
@@ -73,7 +73,7 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
                     />
                     <label
                         htmlFor="card-image-upload"
-                        className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-md font-medium hover:bg-blue-700 transition-colors"
+                        className="cursor-pointer inline-block bg-indigo-600 text-white px-4 py-2 rounded-md font-medium hover:bg-indigo-700 transition-colors shadow-sm"
                     >
                         Choose Image
                     </label>
@@ -95,14 +95,14 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
                         <button
                             type="button"
                             onClick={() => setMode('upload')}
-                            className="bg-zinc-700 text-white px-3 py-1 rounded text-sm hover:bg-zinc-600"
+                            className="bg-zinc-800/80 backdrop-blur text-white px-3 py-1 rounded text-sm hover:bg-zinc-700 font-medium transition-colors"
                         >
                             Change Image
                         </button>
                         <button
                             type="button"
                             onClick={handleCropSave}
-                            className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+                            className="bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700 font-medium transition-colors shadow-lg"
                         >
                             Apply Crop
                         </button>
@@ -139,7 +139,7 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
                             <button
                                 type="button"
                                 onClick={() => setMode('crop')}
-                                className="bg-white text-zinc-900 px-4 py-2 rounded-full font-medium"
+                                className="bg-white text-zinc-900 px-4 py-2 rounded-full font-medium hover:bg-zinc-100 shadow-lg transform transition-transform hover:scale-105"
                             >
                                 Edit Image
                             </button>
@@ -149,32 +149,26 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
                     {/* Text Inputs */}
                     <div className="grid grid-cols-1 gap-4">
                         <div>
-                            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Overlay Title</label>
+                            <label className="block text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Overlay Title</label>
                             <input
                                 value={title}
                                 onChange={(e) => {
                                     setTitle(e.target.value);
-                                    // Should notify parent too? Yes, but need last cropped blob. 
-                                    // For now, let's just update local and rely on parent saving from a ref or similar? 
-                                    // Or just pass null image to onChange to indicate text update only?
-                                    // Simplified: We call onChange only on 'Save' in parent? No, real-time preview in modal.
-                                    // Let's rely on parent passing initial values, and this component managing internal state, 
-                                    // passing updates back UP when changed.
                                     onChange({ image: null, title: e.target.value, subtitle, previewUrl: "" });
                                 }}
-                                className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800"
+                                className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-indigo-500 focus:border-indigo-500 text-zinc-900 dark:text-zinc-100"
                                 placeholder="3 MONTH MEMBERSHIP"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Overlay Subtitle (Optional)</label>
+                            <label className="block text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Overlay Subtitle (Optional)</label>
                             <input
                                 value={subtitle}
                                 onChange={(e) => {
                                     setSubtitle(e.target.value);
                                     onChange({ image: null, title, subtitle: e.target.value, previewUrl: "" });
                                 }}
-                                className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800"
+                                className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-indigo-500 focus:border-indigo-500 text-zinc-900 dark:text-zinc-100"
                                 placeholder="Unlimited Yoga"
                             />
                         </div>

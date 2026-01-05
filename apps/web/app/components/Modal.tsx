@@ -37,24 +37,22 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = "max-w-md" 
 
             {/* Content */}
             <div
-                className={`relative rounded-xl shadow-2xl w-full ${maxWidth} overflow-hidden animate-in zoom-in-95 duration-200`}
-                style={{ background: 'var(--card-bg)', border: '1px solid var(--border)' }}
+                className={`relative rounded-xl shadow-2xl w-full ${maxWidth} overflow-hidden animate-in zoom-in-95 duration-200 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800`}
                 role="dialog"
                 aria-modal="true"
             >
                 {title && (
-                    <div className="px-6 py-4 flex items-center justify-between" style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)' }}>
-                        <h3 className="font-semibold text-lg" style={{ color: 'var(--text)' }}>{title}</h3>
+                    <div className="px-6 py-4 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
+                        <h3 className="font-semibold text-lg text-zinc-900 dark:text-zinc-100">{title}</h3>
                         <button
                             onClick={onClose}
-                            className="p-1 rounded-md transition-colors hover:opacity-70"
-                            style={{ color: 'var(--text-muted)' }}
+                            className="p-1 rounded-md transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 dark:text-zinc-400"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                         </button>
                     </div>
                 )}
-                <div className="p-6">
+                <div className="p-6 text-zinc-900 dark:text-zinc-100">
                     {children}
                 </div>
             </div>
