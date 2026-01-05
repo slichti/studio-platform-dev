@@ -1,7 +1,8 @@
-import { UserButton, useUser, useClerk } from "@clerk/react-router";
+import { useUser, useClerk } from "@clerk/react-router";
 // @ts-ignore
 import { NavLink } from "react-router";
 import { useState, useEffect } from "react";
+import { ThemeToggle } from "./ThemeToggle";
 
 type LayoutProps = {
     children: React.ReactNode;
@@ -11,79 +12,16 @@ type LayoutProps = {
     title?: string;
 };
 
-type Theme = 'light' | 'dark';
-
-const THEMES = {
-    dark: {
-        bg: '#1c1e2e',
-        sidebarBg: '#181924',
-        headerBg: '#181924',
-        border: '#282a3a',
-        text: '#e5e7eb',
-        textMuted: '#9ca3af',
-        accentText: '#818cf8',
-        cardBg: '#232536',
-        hoverBg: '#282a3a',
-        navActiveBg: '#282a3a',
-        navActiveText: '#fff',
-    },
-    light: {
-        bg: '#f8f9fa',
-        sidebarBg: '#ffffff',
-        headerBg: '#ffffff',
-        border: '#e9ecef',
-        text: '#343a40',
-        textMuted: '#868e96',
-        accentText: '#4f46e5', // Indigo 600
-        cardBg: '#ffffff',
-        hoverBg: '#f1f3f5',
-        navActiveBg: '#f1f3f5',
-        navActiveText: '#212529',
-    }
-};
-
 export default function Layout({ children, tenantName = "Studio Platform", role, navItems, title = "Overview" }: LayoutProps) {
     const { user, isLoaded } = useUser();
     const { signOut } = useClerk();
-    const [theme, setTheme] = useState<Theme>('dark'); // Default to dark as requested initally
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [impersonationToken, setImpersonationToken] = useState<string | null>(null);
 
     useEffect(() => {
-        // Load from local storage or prefer-color-scheme
-        const stored = localStorage.getItem('theme') as Theme;
-        if (stored) {
-            setTheme(stored);
-        } else if (window.matchMedia('(prefers-color-scheme: light)').matches) {
-            setTheme('light');
-        }
-
-        // Check for impersonation token on mount to avoid hydration mismatch
+        // Check for impersonation token on mount
         setImpersonationToken(localStorage.getItem("impersonation_token"));
     }, []);
-
-    const toggleTheme = () => {
-        const newTheme = theme === 'dark' ? 'light' : 'dark';
-        setTheme(newTheme);
-        localStorage.setItem('theme', newTheme);
-    };
-
-    const colors = THEMES[theme];
-
-    // Inject CSS variables
-    const styleVariables = {
-        '--bg': colors.bg,
-        '--sidebar-bg': colors.sidebarBg,
-        '--header-bg': colors.headerBg,
-        '--border': colors.border,
-        '--text': colors.text,
-        '--text-muted': colors.textMuted,
-        '--accent': colors.accentText,
-        '--card-bg': colors.cardBg,
-        '--hover-bg': colors.hoverBg,
-        '--nav-active-bg': colors.navActiveBg,
-        '--nav-active-text': colors.navActiveText,
-    } as React.CSSProperties;
 
     const handleLogout = () => {
         if (typeof window !== "undefined") {
@@ -94,24 +32,32 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
     };
 
     return (
-        <div style={{ ...styleVariables, display: 'flex', height: '100vh', fontFamily: "'Inter', sans-serif", background: 'var(--bg)', color: 'var(--text)', transition: 'background 0.3s, color 0.3s' }}>
+        <div className="flex h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans transition-colors duration-300">
             {/* Sidebar */}
-            <aside style={{ width: '260px', background: 'var(--sidebar-bg)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', transition: 'background 0.3s, border-color 0.3s' }}>
+            <aside className="w-64 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col transition-colors duration-300">
                 {/* Logo / Tenant Area */}
-                <div style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '16px', borderBottom: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: '2rem' }}>🧘‍♀️</div>
+                <div className="p-6 flex items-center gap-4 border-b border-zinc-200 dark:border-zinc-800">
+                    <div className="text-3xl">🧘‍♀️</div>
                     <div>
-                        <h1 style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--accent)', lineHeight: '1.2' }}>
+                        <h1 className="text-lg font-bold text-indigo-600 dark:text-indigo-400 leading-tight">
                             {tenantName}
                         </h1>
                     </div>
                 </div>
 
                 {/* Navigation */}
-                <nav style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflowY: 'auto' }}>
+                <nav className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
                     {navItems || (
                         <>
-                            <NavLink to="/dashboard" style={({ isActive }) => ({ display: 'block', padding: '10px 12px', borderRadius: '8px', background: isActive ? 'var(--nav-active-bg)' : 'transparent', textDecoration: 'none', color: isActive ? 'var(--nav-active-text)' : 'var(--text-muted)', fontSize: '0.95rem', fontWeight: isActive ? 600 : 400, transition: 'all 0.2s' })}>
+                            <NavLink
+                                to="/dashboard"
+                                className={({ isActive }: { isActive: boolean }) =>
+                                    `block px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
+                                        ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white'
+                                        : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200'
+                                    }`
+                                }
+                            >
                                 Overview
                             </NavLink>
                         </>
@@ -120,11 +66,11 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
             </aside>
 
             {/* Main Content Area */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Impersonation Banner */}
                 {impersonationToken && (
-                    <div style={{ background: '#ef4444', color: 'white', padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', fontSize: '0.9rem', fontWeight: '500' }}>
-                        <span>⚠️ You are currently impersonating a user ({typeof window !== 'undefined' ? localStorage.getItem("impersonation_target_email") : "User"}). Financial actions are restricted.</span>
+                    <div className="bg-red-500 text-white px-4 py-2 flex items-center justify-center gap-3 text-sm font-medium">
+                        <span>⚠️ Impersonating {typeof window !== 'undefined' ? localStorage.getItem("impersonation_target_email") : "User"}</span>
                         <button
                             onClick={() => {
                                 localStorage.removeItem("impersonation_token");
@@ -132,67 +78,59 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
                                 setImpersonationToken(null);
                                 window.location.href = "/";
                             }}
-                            style={{ background: 'white', color: '#ef4444', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer' }}
+                            className="bg-white text-red-500 px-2 py-0.5 rounded text-xs font-bold hover:bg-red-50"
                         >
-                            Exit Impersonation
+                            Exit
                         </button>
                     </div>
                 )}
 
                 {/* Header */}
-                <header style={{ height: '70px', background: 'var(--header-bg)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px', transition: 'background 0.3s, border-color 0.3s' }}>
+                <header className="h-[70px] bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-8 transition-colors duration-300">
                     {/* Left: Page Title */}
-                    <div style={{ fontSize: '1.1rem', fontWeight: '500', color: 'var(--text)' }}>
+                    <div className="text-lg font-medium text-zinc-900 dark:text-zinc-100">
                         {title}
                     </div>
 
                     {/* Right: User Profile */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    <div className="flex items-center gap-5">
                         {/* Theme Toggle */}
-                        <button onClick={toggleTheme} style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--hover-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
-                            {theme === 'dark' ? '☾' : '☀'}
-                        </button>
+                        <ThemeToggle />
 
                         {/* User Info Dropdown Trigger */}
                         {isLoaded && user && (
-                            <div style={{ position: 'relative' }}>
-                                <div
-                                    role="button"
-                                    tabIndex={0}
+                            <div className="relative">
+                                <button
+                                    className="flex items-center gap-3 p-1 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsDropdownOpen(!isDropdownOpen); }}
-                                    style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px', borderRadius: '8px', transition: 'background 0.2s' }}
-                                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--hover-bg)'}
-                                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                 >
-                                    {/* Avatar */}
-                                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem' }}>
+                                    <div className="w-10 h-10 rounded-full overflow-hidden bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">
                                         {user.imageUrl ? (
-                                            <img src={user.imageUrl} alt={user.fullName || "User"} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            <img src={user.imageUrl} alt={user.fullName || "User"} className="w-full h-full object-cover" />
                                         ) : (
                                             <span>{user.firstName ? user.firstName[0] : 'U'}</span>
                                         )}
                                     </div>
 
-                                    <div style={{ textAlign: 'left' }}>
-                                        <div style={{ fontWeight: '600', fontSize: '0.9rem', color: 'var(--text)' }}>{user.fullName}</div>
-                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '400' }}>{role || "admin"}</div>
+                                    <div className="text-left hidden md:block">
+                                        <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">{user.fullName}</div>
+                                        <div className="text-xs text-zinc-500 dark:text-zinc-400 capitalize">{role || "admin"}</div>
                                     </div>
 
-                                    {/* Chevron */}
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-400">
                                         <polyline points="6 9 12 15 18 9"></polyline>
                                     </svg>
-                                </div>
+                                </button>
 
                                 {/* Dropdown Menu */}
                                 {isDropdownOpen && (
                                     <>
-                                        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 40 }} onClick={() => setIsDropdownOpen(false)} />
-                                        <div style={{ position: 'absolute', top: 'calc(100% + 10px)', right: 0, width: '200px', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)', zIndex: 50 }}>
-                                            <NavLink to="/dashboard/profile" onClick={() => setIsDropdownOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', borderRadius: '6px', textDecoration: 'none', color: 'var(--text)', fontSize: '0.9rem', transition: 'background 0.2s' }}
-                                                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--hover-bg)'}
-                                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                        <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
+                                        <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg p-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+                                            <NavLink
+                                                to="/dashboard/profile"
+                                                onClick={() => setIsDropdownOpen(false)}
+                                                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                                                 My Profile
@@ -205,21 +143,19 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
                                                         localStorage.removeItem("impersonation_token");
                                                         localStorage.removeItem("impersonation_target_email");
                                                         setImpersonationToken(null);
-                                                        window.location.href = "/admin"; // Explicit redirect to admin
+                                                        window.location.href = "/admin";
                                                     }}
-                                                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', borderRadius: '6px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: '0.9rem', textAlign: 'left', transition: 'background 0.2s' }}
-                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--hover-bg)'}
-                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
                                                 >
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 0 0-10 10v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6a10 10 0 0 0-10-10Z" /><path d="M12 12v6" /><circle cx="12" cy="7" r="1" /></svg>
-                                                    Return to Admin Console
+                                                    Return to Admin
                                                 </button>
                                             )}
 
-                                            <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}></div>
-                                            <button onClick={() => { setIsDropdownOpen(false); handleLogout(); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', borderRadius: '6px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '0.9rem', textAlign: 'left', transition: 'background 0.2s' }}
-                                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
-                                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                            <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1"></div>
+                                            <button
+                                                onClick={() => { setIsDropdownOpen(false); handleLogout(); }}
+                                                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
                                                 Sign Out
@@ -233,7 +169,7 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
                 </header>
 
                 {/* Page Content */}
-                <main style={{ flex: 1, padding: '40px', overflowY: 'auto', background: 'var(--bg)', transition: 'background 0.3s' }}>
+                <main className="flex-1 p-8 overflow-y-auto bg-zinc-50 dark:bg-zinc-950 transition-colors duration-300">
                     {children}
                 </main>
             </div>
