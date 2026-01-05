@@ -1,7 +1,7 @@
 // @ts-ignore
 import type { LoaderFunctionArgs } from "react-router";
 // @ts-ignore
-import { useLoaderData, useOutletContext, Link } from "react-router";
+import { useLoaderData, useOutletContext, Link, useParams } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { useState } from "react";
@@ -29,7 +29,6 @@ export const loader = async (args: LoaderFunctionArgs) => {
         const res = await apiRequest("/members", token, {
             headers: { 'X-Tenant-Slug': params.slug! }
         }) as any;
-        console.log("Students Loader Res:", JSON.stringify(res, null, 2));
         const members = Array.isArray(res.members) ? res.members : [];
         return { members };
     } catch (e: any) {
@@ -41,6 +40,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
 export default function StudioStudents() {
     const { members, error, errorDetails } = useLoaderData<{ members: Student[], error?: string, errorDetails?: any }>();
     const { roles } = useOutletContext<any>();
+    const params = useParams();
+    const slug = params.slug;
     const isOwner = roles && roles.includes('owner');
     const { getToken } = useAuth();
 
@@ -65,11 +66,17 @@ export default function StudioStudents() {
         const firstName = formData.get('firstName');
         const lastName = formData.get('lastName');
 
+        if (!slug) {
+            alert("Missing studio slug");
+            setIsSubmittingMember(false);
+            return;
+        }
+
         try {
             const token = await getToken();
             const res = await apiRequest(`/members`, token, {
                 method: "POST",
-                headers: { 'X-Tenant-Slug': window.location.pathname.split('/')[2] },
+                headers: { 'X-Tenant-Slug': slug },
                 body: JSON.stringify({ email, firstName, lastName })
             }) as any;
 
@@ -89,15 +96,22 @@ export default function StudioStudents() {
     const handleRoleChange = async (memberId: string, newRole: string) => {
         if (!confirm(`Are you sure you want to change this user's role to ${newRole}?`)) return;
         setUpdating(memberId);
+
+        if (!slug) {
+            alert("Missing studio slug");
+            setUpdating(null);
+            return;
+        }
+
         try {
             const token = await getToken();
             const res = await apiRequest(`/members/${memberId}/role`, token, {
                 method: "PATCH",
-                headers: { 'X-Tenant-Slug': window.location.pathname.split('/')[2] }, // Grab slug from URL hack or context
+                headers: { 'X-Tenant-Slug': slug },
                 body: JSON.stringify({ role: newRole })
             }) as any;
             if (res.error) alert(res.error);
-            else window.location.reload(); // Simple refresh for now
+            else window.location.reload();
         } catch (e: any) {
             alert(e.message);
         } finally {
@@ -114,11 +128,11 @@ export default function StudioStudents() {
                         placeholder="Search members..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="px-3 py-2 border border-zinc-200 dark:border-zinc-800 rounded-md text-sm min-w-[250px] bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
+                        className="px-3 py-2 border border-zinc-200 dark:border-zinc-800 rounded-md text-sm min-w-[250px] bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400"
                     />
                     <button
                         onClick={() => setIsAddingMember(true)}
-                        className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 text-sm font-medium"
+                        className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 text-sm font-medium transition-colors"
                     >
                         Add Member
                     </button>
@@ -126,7 +140,7 @@ export default function StudioStudents() {
             </div>
 
             {error && (
-                <div className="bg-red-50 text-red-700 p-4 rounded mb-4 text-sm">
+                <div className="bg-red-50 text-red-700 p-4 rounded mb-4 text-sm border border-red-100">
                     Failed to load members: {error}
                     {errorDetails && (
                         <pre className="mt-2 text-xs bg-red-100 p-2 rounded overflow-auto">
@@ -150,14 +164,14 @@ export default function StudioStudents() {
                     <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                         {members.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="px-6 py-8 text-center text-zinc-500 dark:text-zinc-400">
+                                <td colSpan={5} className="px-6 py-8 text-center text-zinc-500 dark:text-zinc-400 italic">
                                     No members found yet.
                                 </td>
                             </tr>
                         ) : filteredMembers.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="px-6 py-8 text-center text-zinc-500 dark:text-zinc-400">
-                                    No members match your search.
+                                <td colSpan={5} className="px-6 py-8 text-center text-zinc-500 dark:text-zinc-400 italic">
+                                    No members match your search for "{searchQuery}".
                                 </td>
                             </tr>
                         ) : (
@@ -165,7 +179,7 @@ export default function StudioStudents() {
                                 <tr key={member.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
                                     <td className="px-6 py-4 font-medium text-zinc-900 dark:text-zinc-100">
                                         <div className="flex items-center gap-3">
-                                            <div className="h-8 w-8 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center text-xs font-bold uppercase">
+                                            <div className="h-8 w-8 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center text-xs font-bold uppercase ring-1 ring-blue-200 dark:ring-blue-800">
                                                 {(member.user?.email || '??').substring(0, 2)}
                                             </div>
                                             <Link
@@ -181,7 +195,7 @@ export default function StudioStudents() {
                                         {isOwner ? (
                                             <select
                                                 disabled={updating === member.id}
-                                                className="text-sm border-zinc-200 dark:border-zinc-700 rounded p-1 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                                                className="text-sm border border-zinc-200 dark:border-zinc-700 rounded-md p-1.5 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 outline-none"
                                                 value={(Array.isArray(member.roles) ? member.roles : []).find((r: any) => r.role === 'owner' || r.role === 'instructor')?.role || 'student'}
                                                 onChange={(e) => handleRoleChange(member.id, e.target.value)}
                                             >
@@ -190,7 +204,7 @@ export default function StudioStudents() {
                                                 <option value="owner">Owner</option>
                                             </select>
                                         ) : (
-                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 capitalize">
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 capitalize border border-zinc-200 dark:border-zinc-700">
                                                 {(Array.isArray(member.roles) ? member.roles : []).map((r: any) => r.role).join(', ') || 'Student'}
                                             </span>
                                         )}
@@ -199,7 +213,7 @@ export default function StudioStudents() {
                                         {new Date(member.joinedAt).toLocaleDateString()}
                                     </td>
                                     <td className="px-6 py-4">
-                                        <button className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 text-sm">Edit</button>
+                                        <button className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 text-sm font-medium transition-colors">Edit</button>
                                     </td>
                                 </tr>
                             ))
@@ -214,9 +228,15 @@ export default function StudioStudents() {
 
             {/* Add Member Modal */}
             {isAddingMember && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-white dark:bg-zinc-900 rounded-lg p-6 w-full max-w-md shadow-xl border border-zinc-200 dark:border-zinc-800">
-                        <h2 className="text-lg font-bold mb-4 text-zinc-900 dark:text-zinc-100">Add New Member</h2>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 w-full max-w-md shadow-2xl border border-zinc-200 dark:border-zinc-700 animate-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-start mb-4">
+                            <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Add New Member</h2>
+                            <button onClick={() => setIsAddingMember(false)} className="text-zinc-400 hover:text-zinc-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 18 18" /></svg>
+                            </button>
+                        </div>
+
                         <form onSubmit={handleAddMember} className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Email Address</label>
@@ -224,7 +244,7 @@ export default function StudioStudents() {
                                     type="email"
                                     name="email"
                                     required
-                                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-shadow"
                                     placeholder="student@example.com"
                                 />
                             </div>
@@ -234,7 +254,7 @@ export default function StudioStudents() {
                                     <input
                                         type="text"
                                         name="firstName"
-                                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-shadow"
                                         placeholder="Jane"
                                     />
                                 </div>
@@ -243,25 +263,25 @@ export default function StudioStudents() {
                                     <input
                                         type="text"
                                         name="lastName"
-                                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-shadow"
                                         placeholder="Doe"
                                     />
                                 </div>
                             </div>
-                            <div className="flex justify-end gap-3 mt-6">
+                            <div className="flex justify-end gap-3 mt-6 pt-2">
                                 <button
                                     type="button"
                                     onClick={() => setIsAddingMember(false)}
-                                    className="px-4 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
+                                    className="px-4 py-2 text-sm font-medium border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={isSubmittingMember}
-                                    className="px-4 py-2 text-sm bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50"
+                                    className="px-4 py-2 text-sm font-bold bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 transition-colors shadow-sm"
                                 >
-                                    {isSubmittingMember ? "Adding..." : "Add Member"}
+                                    {isSubmittingMember ? "Adding Member..." : "Add Member"}
                                 </button>
                             </div>
                         </form>

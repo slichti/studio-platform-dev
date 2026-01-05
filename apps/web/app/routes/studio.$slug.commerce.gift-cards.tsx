@@ -22,7 +22,10 @@ import {
     Send,
     Link as LinkIcon,
     ChevronDown,
-    ChevronUp
+    ChevronUp,
+    Ban,
+    Mail,
+    CheckCircle
 } from "lucide-react";
 
 export const loader = async (args: LoaderFunctionArgs) => {
@@ -58,11 +61,16 @@ export default function GiftCardsPage() {
     const [transactions, setTransactions] = useState<any[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
 
+    // Action Menu State
+    const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+
     // Issue Modal State (Admin)
     const [issueData, setIssueData] = useState({ amount: "", recipientEmail: "", notes: "" });
+    const [issueSuccess, setIssueSuccess] = useState<string | null>(null);
 
     // Link Modal State
     const [linkCode, setLinkCode] = useState("");
+    const [linkSuccess, setLinkSuccess] = useState(false);
 
     // Buy Form State
     const [buyData, setBuyData] = useState({
@@ -89,10 +97,9 @@ export default function GiftCardsPage() {
                 })
             });
             if (res.error) throw new Error(res.error);
-            setShowIssueModal(false);
+            setIssueSuccess(`Card Issued: ${res.code}`);
             setIssueData({ amount: "", recipientEmail: "", notes: "" });
             await refreshCards();
-            alert(`Gift Card issued: ${res.code}`);
         } catch (e: any) { alert(e.message); } finally { setLoading(false); }
     };
 
@@ -106,10 +113,10 @@ export default function GiftCardsPage() {
                 body: JSON.stringify({ code: linkCode })
             });
             if (res.error) throw new Error(res.error);
-            setShowLinkModal(false);
             setLinkCode("");
+            setLinkSuccess(true);
             await refreshCards();
-            alert("Card linked successfully!");
+            setTimeout(() => { setShowLinkModal(false); setLinkSuccess(false); }, 1500);
         } catch (e: any) { alert(e.message); } finally { setLoading(false); }
     };
 
@@ -163,6 +170,13 @@ export default function GiftCardsPage() {
             });
         }
     }, [claimCode]);
+
+    // Close menus on click outside
+    useEffect(() => {
+        const handleClick = () => setActiveMenuId(null);
+        window.addEventListener('click', handleClick);
+        return () => window.removeEventListener('click', handleClick);
+    }, []);
 
     // Analytics Calculation
     const totalIssued = giftCards.reduce((acc: number, c: any) => acc + c.initialValue, 0);
@@ -240,7 +254,7 @@ export default function GiftCardsPage() {
                             </div>
                         )}
 
-                        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden">
+                        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-visible">
                             {filteredCards.length === 0 ? (
                                 <div className="p-12 text-center text-zinc-500">
                                     <Ticket className="h-12 w-12 mx-auto mb-4 opacity-20" />
@@ -272,10 +286,31 @@ export default function GiftCardsPage() {
                                                     </td>
                                                     <td className="px-6 py-4 text-xs text-zinc-500">{new Date(card.createdAt).toLocaleDateString()}</td>
                                                     {isAdmin && <td className="px-6 py-4 text-xs text-zinc-500">{card.recipientEmail || '-'}</td>}
-                                                    <td className="px-6 py-4 text-right">
-                                                        <button onClick={() => toggleHistory(card.id)} className="text-zinc-400 hover:text-blue-600 transition-colors p-2">
-                                                            {expandedCardId === card.id ? <ChevronUp size={16} /> : <History size={16} />}
-                                                        </button>
+                                                    <td className="px-6 py-4 text-right relative">
+                                                        {isAdmin ? (
+                                                            <div className="relative">
+                                                                <button onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === card.id ? null : card.id); }} className="text-zinc-400 hover:text-blue-600 transition-colors p-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                                                                    <MoreHorizontal size={16} />
+                                                                </button>
+                                                                {activeMenuId === card.id && (
+                                                                    <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-100 dark:border-zinc-800 z-50 overflow-hidden py-1">
+                                                                        <button onClick={() => { setActiveMenuId(null); toggleHistory(card.id); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2">
+                                                                            <History size={14} /> View History
+                                                                        </button>
+                                                                        <button onClick={() => { setActiveMenuId(null); /* Implement Resend Logic */ alert("Resend feature coming soon"); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2">
+                                                                            <Mail size={14} /> Resend Email
+                                                                        </button>
+                                                                        <button onClick={() => { setActiveMenuId(null); /* Implement Void Logic */ alert("Void feature coming soon"); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 text-red-600 flex items-center gap-2 border-t border-zinc-100 dark:border-zinc-800">
+                                                                            <Ban size={14} /> Void Card
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <button onClick={() => toggleHistory(card.id)} className="text-zinc-400 hover:text-blue-600 transition-colors p-2">
+                                                                {expandedCardId === card.id ? <ChevronUp size={16} /> : <History size={16} />}
+                                                            </button>
+                                                        )}
                                                     </td>
                                                 </tr>
                                                 {expandedCardId === card.id && (
@@ -363,54 +398,6 @@ export default function GiftCardsPage() {
                                 <p className="text-center text-xs text-zinc-400 mt-4 flex items-center justify-center gap-1"><CreditCard size={12} /> Secure payment via Stripe</p>
                             </div>
                         </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Admin Issue Modal */}
-            {showIssueModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                        <div className="p-8 border-b border-zinc-100 dark:border-zinc-800">
-                            <h2 className="text-2xl font-black">Issue Gift Card</h2>
-                            <p className="text-sm text-zinc-500">This will generate a unique code for store credit.</p>
-                        </div>
-                        <form onSubmit={handleIssue} className="p-8 space-y-6">
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest pl-1">Amount ($)</label>
-                                <input type="number" step="0.01" placeholder="50.00" required value={issueData.amount} onChange={e => setIssueData({ ...issueData, amount: e.target.value })} className="w-full px-4 py-4 bg-zinc-100 dark:bg-zinc-800 border-none rounded-2xl text-lg font-bold outline-none ring-2 ring-transparent focus:ring-blue-500 transition-all" />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest pl-1">Recipient Email (Optional)</label>
-                                <input type="email" placeholder="friend@example.com" value={issueData.recipientEmail} onChange={e => setIssueData({ ...issueData, recipientEmail: e.target.value })} className="w-full px-4 py-4 bg-zinc-100 dark:bg-zinc-800 border-none rounded-2xl text-sm outline-none ring-2 ring-transparent focus:ring-blue-500 transition-all" />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4 pt-4">
-                                <button type="button" onClick={() => setShowIssueModal(false)} className="py-4 font-bold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-2xl transition-colors">Cancel</button>
-                                <button type="submit" disabled={loading} className="py-4 bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 text-white font-bold rounded-2xl shadow-lg flex items-center justify-center gap-2 hover:translate-y-[-2px] active:translate-y-0 transition-all">{loading ? <Loader2 className="animate-spin" size={20} /> : "Issue Credit"}</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Link Card Modal */}
-            {showLinkModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                        <div className="p-8 border-b border-zinc-100 dark:border-zinc-800">
-                            <h2 className="text-2xl font-black">Link Gift Card</h2>
-                            <p className="text-sm text-zinc-500">Enter a code to add it to your digital wallet.</p>
-                        </div>
-                        <form onSubmit={handleLinkCard} className="p-8 space-y-6">
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest pl-1">Gift Code</label>
-                                <input type="text" placeholder="GIFT-XXXX-XXXX" required value={linkCode} onChange={e => setLinkCode(e.target.value.toUpperCase())} className="w-full px-4 py-4 bg-zinc-100 dark:bg-zinc-800 border-none rounded-2xl text-lg font-bold font-mono outline-none ring-2 ring-transparent focus:ring-blue-500 transition-all" />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4 pt-4">
-                                <button type="button" onClick={() => setShowLinkModal(false)} className="py-4 font-bold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-2xl transition-colors">Cancel</button>
-                                <button type="submit" disabled={loading} className="py-4 bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 text-white font-bold rounded-2xl shadow-lg flex items-center justify-center gap-2 hover:translate-y-[-2px] active:translate-y-0 transition-all">{loading ? <Loader2 className="animate-spin" size={20} /> : "Link Card"}</button>
-                            </div>
-                        </form>
                     </div>
                 </div>
             )}

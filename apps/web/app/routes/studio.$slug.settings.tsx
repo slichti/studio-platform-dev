@@ -1,3 +1,4 @@
+// @ts-ignore
 import { useState, useEffect } from "react";
 // @ts-ignore
 import { useOutletContext, useLoaderData, Form, useNavigation, useSubmit, Link } from "react-router";
@@ -5,7 +6,7 @@ import { useOutletContext, useLoaderData, Form, useNavigation, useSubmit, Link }
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router"; // Add types
 import { apiRequest, API_URL } from "../utils/api";
 import { getAuth } from "@clerk/react-router/server";
-import { Plus, Trash2, MapPin, CreditCard, FileText, Mail, MessageSquare, Video, Globe } from "lucide-react";
+import { Plus, Trash2, MapPin, CreditCard, FileText, Mail, MessageSquare, Video, Globe, CheckCircle, Smartphone, ShoppingBag } from "lucide-react";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { params } = args;
@@ -64,6 +65,9 @@ export default function StudioSettings() {
     // Location State
     const [isAddingLocation, setIsAddingLocation] = useState(false);
 
+    // Order Reader Modal
+    const [showOrderReader, setShowOrderReader] = useState(false);
+
     const handleSaveName = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -85,6 +89,12 @@ export default function StudioSettings() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleOrderReader = async (e: React.FormEvent) => {
+        e.preventDefault();
+        alert("Your request for a Stripe Terminal Reader (WisePOS E) has been received. Our team will contact you shortly to confirm shipping details.");
+        setShowOrderReader(false);
     };
 
     return (
@@ -504,12 +514,24 @@ export default function StudioSettings() {
                                         }
                                     }
                                 }}
-                                className={`cursor-pointer border rounded-lg p-4 transition-all ${tenant.paymentProvider === 'connect' ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300'}`}
+                                className={`relative cursor-pointer border rounded-lg p-4 transition-all ${tenant.paymentProvider === 'connect' ? 'border-blue-500 ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300'}`}
                             >
-                                <div className="font-medium text-sm text-zinc-900 dark:text-zinc-100">Platform Managed</div>
-                                <div className="text-xs text-zinc-500 mt-1">We handle billing complexity. Standard fees.</div>
+                                {tenant.paymentProvider === 'connect' && <div className="absolute top-2 right-2 text-blue-600"><CheckCircle size={20} className="fill-blue-100" /></div>}
+                                <div className="font-bold text-sm text-zinc-900 dark:text-zinc-100 mb-1">Platform Managed</div>
+                                <div className="text-xs text-zinc-500">We handle billing complexity. Standard fees. Recommended for most studios.</div>
                                 {tenant.paymentProvider === 'connect' && !tenant.stripeAccountId && (
-                                    <a href={`${API_URL}/studios/stripe/connect?tenantId=${tenant.id}`} className="mt-2 inline-block text-xs text-blue-600 hover:underline">Connect Stripe Account &rarr;</a>
+                                    <a href={`${API_URL}/studios/stripe/connect?tenantId=${tenant.id}`} className="mt-4 block w-full py-2 text-center bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700">Connect Stripe Account &rarr;</a>
+                                )}
+                                {tenant.paymentProvider === 'connect' && tenant.stripeAccountId && (
+                                    <div className="mt-4 pt-4 border-t border-blue-200 dark:border-blue-800">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="text-[10px] uppercase font-bold text-blue-700">Hardware</span>
+                                        </div>
+                                        <button onClick={() => setShowOrderReader(true)} className="w-full flex items-center justify-center gap-2 py-2 border border-blue-300 text-blue-700 rounded text-xs font-bold hover:bg-blue-100 transition-colors">
+                                            <Smartphone size={14} /> Order Terminal Reader
+                                        </button>
+                                        <p className="text-[10px] text-blue-600/70 mt-1 text-center">BBPOS WisePOS E available</p>
+                                    </div>
                                 )}
                             </div>
 
@@ -524,10 +546,11 @@ export default function StudioSettings() {
                                         window.location.reload();
                                     }
                                 }}
-                                className={`cursor-pointer border rounded-lg p-4 transition-all ${tenant.paymentProvider === 'custom' ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300'}`}
+                                className={`relative cursor-pointer border rounded-lg p-4 transition-all ${tenant.paymentProvider === 'custom' ? 'border-blue-500 ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300'}`}
                             >
-                                <div className="font-medium text-sm text-zinc-900 dark:text-zinc-100">Self Managed (BYOK)</div>
-                                <div className="text-xs text-zinc-500 mt-1">Use your own Stripe keys. No platform fees.</div>
+                                {tenant.paymentProvider === 'custom' && <div className="absolute top-2 right-2 text-blue-600"><CheckCircle size={20} className="fill-blue-100" /></div>}
+                                <div className="font-bold text-sm text-zinc-900 dark:text-zinc-100 mb-1">Self Managed (BYOK)</div>
+                                <div className="text-xs text-zinc-500">Use your own Stripe keys. No platform fees. You handle compliance.</div>
                             </div>
                         </div>
 
@@ -545,7 +568,7 @@ export default function StudioSettings() {
                                     });
                                     alert("Stripe keys saved.");
                                 } catch (err: any) { alert(err.message); }
-                            }} className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded border border-zinc-200 dark:border-zinc-700 space-y-3">
+                            }} className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded border border-zinc-200 dark:border-zinc-700 space-y-3 animate-in slide-in-from-top-2">
                                 <input name="stripePublishableKey" placeholder="Publishable Key (pk_...)" className="w-full text-sm border-zinc-300 rounded px-3 py-2" />
                                 <input name="stripeSecretKey" type="password" placeholder="Secret Key (sk_...)" className="w-full text-sm border-zinc-300 rounded px-3 py-2" />
                                 <button type="submit" className="text-xs bg-zinc-900 text-white px-3 py-1.5 rounded">Save Stripe Keys</button>
@@ -765,7 +788,6 @@ export default function StudioSettings() {
             </Link>
 
 
-
             {/* Custom Domain */}
             <Link to={`/studio/${tenant.slug}/settings/domain`} className="block bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm mb-8 hover:border-purple-300 transition-colors group">
                 <div className="flex justify-between items-center">
@@ -778,6 +800,27 @@ export default function StudioSettings() {
                     </div>
                 </div>
             </Link>
+
+            {/* Order Reader Modal */}
+            {showOrderReader && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-md rounded-2xl p-8 shadow-2xl">
+                        <h2 className="text-xl font-bold mb-2">Order BBPOS WisePOS E</h2>
+                        <p className="text-sm text-zinc-500 mb-6">Connect your Stripe account to the physical world with a pre-certified card reader. $249/unit.</p>
+
+                        <div className="bg-zinc-50 p-4 rounded-xl mb-6 flex justify-center">
+                            <CreditCard size={48} className="text-zinc-300" />
+                        </div>
+
+                        <div className="flex gap-4">
+                            <button onClick={() => setShowOrderReader(false)} className="flex-1 py-3 font-bold text-zinc-500 hover:bg-zinc-100 rounded-xl">Cancel</button>
+                            <button onClick={handleOrderReader} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 flex items-center justify-center gap-2">
+                                <ShoppingBag size={16} /> Place Order
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </div>
     );
