@@ -1,5 +1,5 @@
 import { createDb } from './db';
-import { tenants, classes, bookings, tenantMembers } from 'db/src/schema'; // Ensure imports
+import { tenants, classes, bookings, tenantMembers, marketingAutomations, users, emailLogs } from 'db/src/schema'; // Ensure imports
 import { and, eq, lte, gt, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 import { BookingService } from './services/bookings';
 
@@ -181,6 +181,120 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
                         `Class Cancelled: ${cls.title}`,
                         `<p>Hi ${profile.firstName || 'Instructor'}, your class <strong>${cls.title}</strong> on ${cls.startTime.toLocaleString()} has been automatically cancelled as it did not reach the minimum of ${minEnrollment} students by the cutoff time.</p>`
                     );
+                }
+            }
+        }
+    }
+
+
+    // 3. Marketing Automations: Birthdays
+    // Find all enabled birthday automations
+    const birthdayAutos = await db.select().from(marketingAutomations)
+        .where(and(
+            eq(marketingAutomations.triggerType, 'birthday'),
+            eq(marketingAutomations.isEnabled, true)
+        ));
+
+    if (birthdayAutos.length > 0) {
+        // We need to match users with today's birthday.
+        // SQLite: strftime('%m-%d', dob, 'unixepoch') = strftime('%m-%d', 'now')
+        // Assuming dob is stored as integer (unix timestamp in seconds or ms).
+        // Drizzle 'timestamp' mode usually handles Date objects -> ms or seconds depending on config.
+        // Schema says: integer('dob', { mode: 'timestamp' }) -> mapped to Date in JS, but stored as INTEGER (ms? or seconds?)
+        // Drizzle-orm/sqlite-core usually stores as ms by default for 'timestamp' mode IIRC, or we need to check.
+        // If it's MS, we divide by 1000.
+        // Let's assume MS.
+
+        const monthDay = now.toISOString().slice(5, 10); // "MM-DD" e.g "01-05"
+
+        // It is safer to fetch candidate users in JS if not too many, or use raw SQL.
+        // But we need to do it per-tenant to respect the automation.
+
+        for (const auto of birthdayAutos) {
+            // Fetch users for this tenant
+            const tenantUsers = await db.select({
+                email: users.email,
+                firstName: users.profile,
+                dob: users.dob
+            })
+                .from(tenantMembers)
+                .innerJoin(users, eq(tenantMembers.userId, users.id))
+                .where(and(
+                    eq(tenantMembers.tenantId, auto.tenantId),
+                    eq(tenantMembers.status, 'active'),
+                    isNotNull(users.dob)
+                ));
+
+            // Filter in JS for simplicity avoiding SQLite quirks across environments
+            const birthdays = tenantUsers.filter(u => {
+                if (!u.dob) return false;
+                const d = new Date(u.dob);
+                // Compare Month and Date
+                return d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+            });
+
+            if (birthdays.length === 0) continue;
+
+            // Prepare Email Service
+            // Need tenant settings/branding.
+            const tenant = await db.query.tenants.findFirst({
+                where: eq(tenants.id, auto.tenantId)
+            });
+            if (!tenant) continue;
+
+            const { EmailService } = await import('./services/email');
+            const emailService = new EmailService(env.RESEND_API_KEY, {
+                branding: tenant.branding as any,
+                settings: tenant.settings as any
+            });
+
+            for (const user of birthdays) {
+                // Check if already sent today
+                // We can check emailLogs for this automationId + recipientEmail + sentAt > start of today
+                const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+                const existingLog = await db.query.emailLogs.findFirst({
+                    where: and(
+                        eq(emailLogs.recipientEmail, user.email),
+                        // We check metadata for automationId? Or just check recent logs?
+                        // Schema has metadata as json. Drizzle query helper might not filter JSON field easily.
+                        // But we can check sentAt first.
+                        gte(emailLogs.sentAt, startOfDay)
+                    )
+                });
+
+                // If we found a log today, check if it was for this automation (in JS)
+                if (existingLog) {
+                    const meta = existingLog.metadata as any;
+                    if (meta && meta.automationId === auto.id) continue;
+                }
+
+                // Send Email
+                // Parse profile json if needed (Drizzle 'json' mode handles it automatically?)
+                // Query returns it as object if typed correctly.
+                const profile: any = user.firstName || {};
+                const firstName = profile.firstName || 'Student';
+
+                let content = auto.content;
+                content = content.replace(/{{firstName}}/g, firstName);
+                content = content.replace(/{{studioName}}/g, tenant.name);
+                const subject = auto.subject.replace(/{{firstName}}/g, firstName);
+
+                try {
+                    console.log(`Sending Birthday email to ${user.email} (Tenant: ${tenant.slug})`);
+                    await emailService.sendGenericEmail(user.email, subject, content, true);
+
+                    await db.insert(emailLogs).values({
+                        id: crypto.randomUUID(),
+                        tenantId: tenant.id,
+                        recipientEmail: user.email,
+                        subject: subject,
+                        status: 'sent',
+                        metadata: { trigger: 'birthday', automationId: auto.id }
+                    } as any).run();
+
+                } catch (e) {
+                    console.error("Failed to send birthday email", e);
                 }
             }
         }

@@ -367,6 +367,23 @@ export const marketingCampaigns = sqliteTable('marketing_campaigns', {
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
+export const marketingAutomations = sqliteTable('marketing_automations', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+
+    triggerType: text('trigger_type', { enum: ['new_student', 'birthday', 'absent_30_days'] }).notNull(),
+    subject: text('subject').notNull(),
+    content: text('content').notNull(), // HTML or Text
+
+    isEnabled: integer('is_enabled', { mode: 'boolean' }).default(false).notNull(),
+    metadata: text('metadata', { mode: 'json' }), // Extra config
+
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantTriggerIdx: uniqueIndex('automation_tenant_trigger_idx').on(table.tenantId, table.triggerType),
+}));
+
 export const emailLogs = sqliteTable('email_logs', {
     id: text('id').primaryKey(),
     tenantId: text('tenant_id').notNull().references(() => tenants.id),
@@ -798,6 +815,13 @@ export const giftCardsRelations = relations(giftCards, ({ one, many }) => ({
         references: [tenantMembers.id],
     }),
     transactions: many(giftCardTransactions),
+}));
+
+export const marketingAutomationsRelations = relations(marketingAutomations, ({ one }) => ({
+    tenant: one(tenants, {
+        fields: [marketingAutomations.tenantId],
+        references: [tenants.id],
+    }),
 }));
 
 // --- CRM: Tasks ---

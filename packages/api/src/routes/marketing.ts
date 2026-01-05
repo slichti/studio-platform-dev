@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { marketingCampaigns, emailLogs, tenants, tenantMembers, users } from 'db/src/schema'; // Ensure these are exported from schema
+import { marketingCampaigns, marketingAutomations, emailLogs, tenants, tenantMembers, users } from 'db/src/schema'; // Ensure these are exported from schema
 import { eq, desc, and } from 'drizzle-orm';
 import { UsageService } from '../services/pricing';
 
@@ -171,6 +171,108 @@ app.post('/', async (c) => {
     await usageService.incrementUsage('email', logs.length);
 
     return c.json({ success: true, count: logs.length });
+});
+
+// --- Automations ---
+
+// GET /automations
+app.get('/automations', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+
+    const existing = await db.select().from(marketingAutomations)
+        .where(eq(marketingAutomations.tenantId, tenant.id))
+        .all();
+
+    const requiredTypes = ['new_student', 'birthday', 'absent_30_days'];
+    const missing = requiredTypes.filter(t => !existing.find(e => e.triggerType === t));
+
+    if (missing.length > 0) {
+        // Create defaults
+        for (const type of missing) {
+            let defaultSubject = "";
+            let defaultContent = "";
+
+            if (type === 'new_student') {
+                defaultSubject = "Welcome to " + tenant.name + "!";
+                defaultContent = "Welcome to the studio! We're excited to have you.";
+            } else if (type === 'birthday') {
+                defaultSubject = "Happy Birthday from " + tenant.name + "!";
+                defaultContent = "Wishing you a fantastic birthday!";
+            } else if (type === 'absent_30_days') {
+                defaultSubject = "We miss you at " + tenant.name;
+                defaultContent = "It's been a while! Come back and join us for a class.";
+            }
+
+            const [newAuto] = await db.insert(marketingAutomations).values({
+                id: crypto.randomUUID(),
+                tenantId: tenant.id,
+                triggerType: type as any,
+                subject: defaultSubject,
+                content: defaultContent,
+                isEnabled: false
+            }).returning();
+            existing.push(newAuto);
+        }
+    }
+
+    return c.json({ automations: existing });
+});
+
+// PATCH /automations/:id
+app.patch('/automations/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const id = c.req.param('id');
+    const body = await c.req.json();
+
+    const allowed = ['subject', 'content', 'isEnabled'];
+    const updateData: any = {};
+    for (const k of allowed) {
+        if (body[k] !== undefined) updateData[k] = body[k];
+    }
+    updateData.updatedAt = new Date();
+
+    const [updated] = await db.update(marketingAutomations)
+        .set(updateData)
+        .where(and(eq(marketingAutomations.id, id), eq(marketingAutomations.tenantId, tenant.id)))
+        .returning();
+
+    return c.json(updated);
+});
+
+// POST /automations/:id/test
+app.post('/automations/:id/test', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const id = c.req.param('id');
+    const { email } = await c.req.json(); // Test recipient
+
+    if (!email) return c.json({ error: "Email required" }, 400);
+
+    const [automation] = await db.select().from(marketingAutomations)
+        .where(and(eq(marketingAutomations.id, id), eq(marketingAutomations.tenantId, tenant.id)))
+        .all();
+
+    if (!automation) return c.json({ error: "Automation not found" }, 404);
+
+    const { EmailService } = await import('../services/email');
+    const emailService = new EmailService(c.env.RESEND_API_KEY, {
+        branding: tenant.branding as any,
+        settings: tenant.settings as any
+    });
+
+    try {
+        await emailService.sendGenericEmail(
+            email,
+            "[TEST] " + automation.subject,
+            automation.content,
+            true
+        );
+        return c.json({ success: true });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
 });
 
 export default app;

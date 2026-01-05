@@ -120,6 +120,13 @@
       "when": 1767619960221,
       "tag": "0016_strong_eternity",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1767626549232,
+      "tag": "0017_young_madripoor",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { eq, and, desc, sql } from 'drizzle-orm';
-import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings, tenants } from 'db/src/schema';
+import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings, tenants, marketingAutomations, emailLogs } from 'db/src/schema';
 
 type Bindings = {
     DB: D1Database;
@@ -157,6 +157,54 @@ app.post('/', async (c) => {
             roles: true
         }
     });
+
+    // --- Marketing Automation: New Student ---
+    const newStudentAuto = await db.query.marketingAutomations.findFirst({
+        where: and(
+            eq(marketingAutomations.tenantId, tenant.id),
+            eq(marketingAutomations.triggerType, 'new_student'),
+            eq(marketingAutomations.isEnabled, true)
+        )
+    });
+
+    if (newStudentAuto) {
+        const { EmailService } = await import('../services/email');
+        const emailService = new EmailService(c.env.RESEND_API_KEY, {
+            branding: tenant.branding as any,
+            settings: tenant.settings as any
+        });
+
+        // Simple variable replacement
+        // e.g. {{firstName}} -> user.firstName
+        let content = newStudentAuto.content;
+        content = content.replace(/{{firstName}}/g, firstName || 'Student');
+        content = content.replace(/{{lastName}}/g, lastName || '');
+        content = content.replace(/{{studioName}}/g, tenant.name);
+
+        const subject = newStudentAuto.subject.replace(/{{firstName}}/g, firstName || 'Student');
+
+        try {
+            await emailService.sendGenericEmail(
+                email,
+                subject,
+                content,
+                true
+            );
+
+            // Log it
+            await db.insert(emailLogs).values({
+                id: crypto.randomUUID(),
+                tenantId: tenant.id,
+                recipientEmail: email,
+                subject: subject,
+                status: 'sent',
+                metadata: { trigger: 'new_student', automationId: newStudentAuto.id }
+            } as any).run();
+
+        } catch (e) {
+            console.error("Failed to send New Student automation", e);
+        }
+    }
 
     return c.json({ success: true, member: newMember });
 });
