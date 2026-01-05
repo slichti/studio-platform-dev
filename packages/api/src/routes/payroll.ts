@@ -33,6 +33,10 @@ app.get('/config', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
+    const { isFeatureEnabled } = await import('../utils/features');
+    if (!isFeatureEnabled(tenant, 'payroll')) return c.json({ error: 'Payroll feature not enabled' }, 403);
+
+
     // Get all instructors
     // We need to join with potential payrollConfig
     const instructors = await db.select({
@@ -180,7 +184,53 @@ app.post('/generate', async (c) => {
             }
         }
 
-        // TODO: Appointments logic similarly...
+        // 3. Find Appointments (Completed)
+        const instructorAppointments = await db.select({
+            id: appointments.id,
+            startTime: appointments.startTime,
+            endTime: appointments.endTime,
+            servicePrice: appointmentServices.price,
+            serviceTitle: appointmentServices.title
+        })
+            .from(appointments)
+            .innerJoin(appointmentServices, eq(appointments.serviceId, appointmentServices.id))
+            .where(and(
+                eq(appointments.instructorId, config.memberId!),
+                between(appointments.startTime, start, end),
+                eq(appointments.status, 'completed')
+            )).all();
+
+        for (const apt of instructorAppointments) {
+            let amount = 0;
+            let details = "";
+            const durationMinutes = (apt.endTime.getTime() - apt.startTime.getTime()) / (1000 * 60);
+
+            if (config.payModel === 'flat') {
+                amount = config.rate;
+                details = `Flat rate per appointment`;
+            } else if (config.payModel === 'hourly') {
+                const hours = durationMinutes / 60;
+                amount = Math.round(config.rate * hours);
+                details = `${hours.toFixed(2)} hours @ $${(config.rate / 100).toFixed(2)}/hr`;
+            } else if (config.payModel === 'percentage') {
+                const revenue = apt.servicePrice || 0;
+                amount = Math.round(revenue * (config.rate / 10000));
+                details = `${(config.rate / 100)}% of $${(revenue / 100).toFixed(2)} service price`;
+            }
+
+            if (amount > 0) {
+                totalDue += amount;
+                items.push({
+                    type: 'appointment',
+                    referenceId: apt.id,
+                    title: apt.serviceTitle,
+                    date: apt.startTime,
+                    amount,
+                    details
+                });
+            }
+        }
+
 
         if (totalDue > 0) {
             results.push({
@@ -238,7 +288,7 @@ app.get('/history', async (c) => {
 
     let whereClause = eq(payouts.tenantId, tenant.id);
     if (isMine) {
-        whereClause = and(whereClause, eq(payouts.instructorId, member.id));
+        whereClause = and(whereClause, eq(payouts.instructorId, member.id))!;
     }
 
     const list = await db.select({

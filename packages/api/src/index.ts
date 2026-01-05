@@ -33,6 +33,7 @@ import refunds from './routes/refunds';
 import platform from './routes/platform';
 import reports from './routes/reports';
 import challenges from './routes/challenges';
+import jobs from './routes/jobs';
 
 type Bindings = {
   DB: D1Database;
@@ -409,6 +410,7 @@ app.route('/tasks', tasks);
 app.route('/refunds', refunds);
 app.route('/challenges', challenges);
 app.route('/platform', platform);
+app.route('/jobs', jobs);
 
 app.route('/tenant', studioApp);
 

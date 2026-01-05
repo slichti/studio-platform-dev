@@ -115,6 +115,11 @@ export const tenantMembers = sqliteTable('tenant_members', {
     settings: text('settings', { mode: 'json' }), // User's preferences for this studio (notifications etc)
     status: text('status', { enum: ['active', 'inactive', 'archived'] }).default('active').notNull(),
     joinedAt: integer('joined_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+
+    // AI Churn Prediction
+    churnScore: integer('churn_score').default(100), // 0-100 (100 = Safe)
+    churnStatus: text('churn_status', { enum: ['safe', 'at_risk', 'churned'] }).default('safe'),
+    lastChurnCheck: integer('last_churn_check', { mode: 'timestamp' }),
 }, (table) => ({
     tenantUserIdx: index('tenant_user_idx').on(table.tenantId, table.userId),
 }));
@@ -147,6 +152,7 @@ export const locations = sqliteTable('locations', {
     tenantId: text('tenant_id').notNull().references(() => tenants.id),
     name: text('name').notNull(),
     address: text('address'),
+    layout: text('layout', { mode: 'json' }), // JSON: { rows: 5, cols: 5, spots: [{ id: 'A1', type: 'standard', x: 0, y: 0 }] }
     timezone: text('timezone').default('UTC'),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
@@ -237,6 +243,14 @@ export const bookings = sqliteTable('bookings', {
     status: text('status', { enum: ['confirmed', 'cancelled', 'waitlisted'] }).default('confirmed'),
     attendanceType: text('attendance_type', { enum: ['in_person', 'zoom'] }).default('in_person').notNull(),
     checkedInAt: integer('checked_in_at', { mode: 'timestamp' }), // Attendance tracking
+
+    // Guest Pass Logic
+    isGuest: integer('is_guest', { mode: 'boolean' }).default(false),
+    guestName: text('guest_name'),
+    guestEmail: text('guest_email'),
+
+    // Spot Booking Logic
+    spotNumber: text('spot_number'), // e.g. "A1" or "10"
 
     // Payment Tracking
     paymentMethod: text('payment_method', { enum: ['credit', 'subscription', 'drop_in', 'free'] }),
@@ -646,7 +660,9 @@ export const challenges = sqliteTable('challenges', {
     title: text('title').notNull(), // e.g. "Summer Warrior"
     description: text('description'),
     type: text('type', { enum: ['count', 'streak', 'minutes'] }).notNull(), // 'count' = total classes, 'streak' = consecutive days/weeks, 'minutes' = total duration
-    targetValue: integer('target_value').notNull(), // e.g. 10 classes
+    period: text('period', { enum: ['day', 'week', 'month'] }), // For streaks: e.g. "3 classes per [week]"
+    frequency: integer('frequency').default(1), // e.g. [3] classes per week
+    targetValue: integer('target_value').notNull(), // e.g. 10 weeks streak to complete
     rewardType: text('reward_type', { enum: ['badge', 'coupon', 'retail_credit'] }).notNull(),
     rewardValue: text('reward_value', { mode: 'json' }), // { badgeUrl: '...', couponId: '...' }
     startDate: integer('start_date', { mode: 'timestamp' }),
@@ -665,6 +681,7 @@ export const userChallenges = sqliteTable('user_challenges', {
 
     progress: integer('progress').default(0).notNull(),
     status: text('status', { enum: ['active', 'completed'] }).default('active').notNull(),
+    metadata: text('metadata', { mode: 'json' }), // { currentPeriod: '2023-W01', periodCount: 2 }
     completedAt: integer('completed_at', { mode: 'timestamp' }),
 
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),

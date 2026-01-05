@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { classes, tenants, bookings, tenantMembers, users, tenantRoles, classSeries, subscriptions, purchasedPacks, userRelationships, waiverTemplates, waiverSignatures, membershipPlans, classPackDefinitions, challenges, userChallenges, giftCards, giftCardTransactions } from 'db/src/schema';
 import { createDb } from '../db';
-import { eq, and, gte, lte, gt, sql, inArray } from 'drizzle-orm';
+import { eq, and, gte, lte, gt, ne, sql, inArray } from 'drizzle-orm';
 import { ZoomService } from '../services/zoom';
 import { EncryptionUtils } from '../utils/encryption';
 import { StreamService } from '../services/stream';
@@ -381,6 +381,10 @@ app.post('/:id/book', async (c) => {
     const intent = requestBody.intent; // 'waitlist' or undefined
     const attendanceType = requestBody.attendanceType || 'in_person'; // 'in_person' | 'zoom'
     const targetMemberId = requestBody.memberId; // Optional: book for a family member
+    const guestName = requestBody.guestName;
+    const guestEmail = requestBody.guestEmail;
+    const isGuest = !!guestName;
+    const spotNumber = requestBody.spotNumber;
 
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
@@ -435,6 +439,14 @@ app.post('/:id/book', async (c) => {
                 code: 'WAIVER_REQUIRED',
                 needsWaiver: true
             }, 403);
+        }
+    }
+
+    // Feature Check: Guest Pass
+    if (isGuest) {
+        const { isFeatureEnabled } = await import('../utils/features');
+        if (!isFeatureEnabled(tenant, 'guest_pass')) {
+            return c.json({ error: 'Guest passes are not enabled for this studio' }, 403);
         }
     }
 
@@ -498,6 +510,27 @@ app.post('/:id/book', async (c) => {
         }
     }
 
+    // Spot Booking Logic
+    if (spotNumber) {
+        const { isFeatureEnabled } = await import('../utils/features');
+        if (!isFeatureEnabled(tenant, 'spot_booking')) {
+            return c.json({ error: 'Spot booking is not enabled' }, 403);
+        }
+
+        const existingSpot = await db.select({ id: bookings.id })
+            .from(bookings)
+            .where(and(
+                eq(bookings.classId, classId),
+                eq(bookings.spotNumber, spotNumber),
+                ne(bookings.status, 'cancelled')
+            ))
+            .get();
+
+        if (existingSpot) {
+            return c.json({ error: `Spot ${spotNumber} is already taken`, code: 'SPOT_TAKEN' }, 409);
+        }
+    }
+
     const id = crypto.randomUUID();
 
     try {
@@ -522,7 +555,8 @@ app.post('/:id/book', async (c) => {
         let paymentMethod: 'subscription' | 'credit' | 'drop_in' = 'drop_in';
         let usedPackId = undefined;
 
-        if (memberWithPlans.memberships.length > 0) {
+        // Note: Subscriptions generally don't cover Guests unless specified (simplified: guests need credits/drop-in)
+        if (memberWithPlans.memberships.length > 0 && !isGuest) {
             paymentMethod = 'subscription';
         } else if (memberWithPlans.purchasedPacks.length > 0) {
             paymentMethod = 'credit';
@@ -595,7 +629,11 @@ app.post('/:id/book', async (c) => {
             status: 'confirmed',
             attendanceType: attendanceType,
             paymentMethod,
-            usedPackId
+            usedPackId,
+            isGuest,
+            guestName,
+            guestEmail,
+            spotNumber
         });
 
         // SMS Notification
@@ -607,8 +645,6 @@ app.post('/:id/book', async (c) => {
             if (userForSms?.phone) {
                 const { SmsService } = await import('../services/sms');
                 const smsService = new SmsService(c.env.TWILIO_ACCOUNT_SID, c.env.TWILIO_AUTH_TOKEN, c.env.TWILIO_FROM_NUMBER, db, tenant.id);
-                // Re-fetch class title if needed or assume we have it. We don't have it easily in scope except via another query or if we fetched it earlier
-                // We fetched classInfo earlier.
 
                 c.executionCtx.waitUntil(smsService.sendSms(
                     userForSms.phone,
@@ -620,6 +656,7 @@ app.post('/:id/book', async (c) => {
         return c.json({ id, status: 'confirmed' }, 201);
     } catch (e: any) {
         return c.json({ error: e.message }, 500);
+
     }
 });
 
@@ -796,11 +833,10 @@ app.patch('/:id/bookings/:bookingId/check-in', async (c) => {
 
                 if (member) {
                     // Feature Gating: Check Tenant Tier/Features
+                    const { isFeatureEnabled } = await import('../utils/features');
                     const tenant = await db.select().from(tenants).where(eq(tenants.id, member.tenantId)).get();
-                    // Assuming 'loyalty' feature flag or specific tiers
-                    const isLoyaltyEnabled = tenant && (['growth', 'scale'].includes(tenant.tier));
 
-                    if (isLoyaltyEnabled) {
+                    if (tenant && isFeatureEnabled(tenant, 'loyalty')) {
                         const activeChallenges = await db.select()
                             .from(challenges)
                             .where(and(
@@ -822,7 +858,7 @@ app.patch('/:id/bookings/:bookingId/check-in', async (c) => {
                                 increment = classInfo?.durationMinutes || 0;
                             }
 
-                            if (increment > 0) {
+                            if (increment > 0 || challenge.type === 'streak') {
                                 // Find or Create User Challenge progress
                                 let userProgress = await db.select()
                                     .from(userChallenges)
@@ -840,57 +876,139 @@ app.patch('/:id/bookings/:bookingId/check-in', async (c) => {
                                         userId: member.userId,
                                         challengeId: challenge.id,
                                         progress: 0,
-                                        status: 'active'
+                                        status: 'active',
+                                        metadata: { currentCount: 0, streakCount: 0 }
                                     }).returning().get();
                                 }
 
                                 if (userProgress.status === 'active') {
-                                    const newProgress = userProgress.progress + increment;
-                                    const isCompleted = newProgress >= challenge.targetValue;
+                                    let newProgress = userProgress.progress;
+                                    let shouldUpdate = false;
+                                    let metadata: any = userProgress.metadata || {};
 
-                                    await db.update(userChallenges)
-                                        .set({
-                                            progress: newProgress,
-                                            status: isCompleted ? 'completed' : 'active',
-                                            completedAt: isCompleted ? new Date() : null,
-                                            updatedAt: new Date()
-                                        })
-                                        .where(eq(userChallenges.id, userProgress.id))
-                                        .run();
+                                    if (challenge.type === 'streak') {
+                                        // STREAK LOGIC
+                                        if (isFeatureEnabled(tenant, 'streaks')) {
+                                            const now = new Date();
+                                            const period = challenge.period || 'week';
+                                            const frequency = challenge.frequency || 1;
 
-                                    if (isCompleted) {
-                                        console.log(`User ${member.userId} completed challenge ${challenge.title}!`);
+                                            // Determine Current Period Key
+                                            let currentPeriodKey = '';
+                                            if (period === 'week') {
+                                                const oneJan = new Date(now.getFullYear(), 0, 1);
+                                                const days = Math.floor((now.getTime() - oneJan.getTime()) / 86400000);
+                                                const week = Math.ceil((now.getDay() + 1 + days) / 7);
+                                                currentPeriodKey = `${now.getFullYear()}-W${week}`;
+                                            } else if (period === 'month') {
+                                                currentPeriodKey = `${now.getFullYear()}-M${now.getMonth() + 1}`;
+                                            } else {
+                                                currentPeriodKey = now.toISOString().split('T')[0];
+                                            }
 
-                                        // Reward Fulfillment
-                                        if (challenge.rewardType === 'retail_credit') {
-                                            const val = challenge.rewardValue as any;
-                                            const creditAmount = parseInt(val?.creditAmount || '0');
-                                            if (creditAmount > 0) {
-                                                const code = `REW-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+                                            // Period Transition
+                                            if (metadata.currentPeriod !== currentPeriodKey) {
+                                                let isBroken = false;
 
-                                                const card = await db.insert(giftCards).values({
-                                                    id: crypto.randomUUID(),
-                                                    tenantId: member.tenantId,
-                                                    code,
-                                                    initialValue: creditAmount,
-                                                    currentBalance: creditAmount,
-                                                    status: 'active',
-                                                    recipientMemberId: member.id, // Linking to Member ID
-                                                    notes: `Reward for challenge: ${challenge.title}`,
-                                                    createdAt: new Date(),
-                                                    updatedAt: new Date()
-                                                }).returning().get();
+                                                if (metadata.currentPeriod) {
+                                                    // 1. Did we complete the last period we attempted?
+                                                    if (!metadata.periodCompleted) {
+                                                        isBroken = true;
+                                                    } else {
+                                                        // 2. Gap Check (Did we skip a week/month?)
+                                                        if (period === 'week') {
+                                                            const [prevYear, prevWeek] = metadata.currentPeriod.split('-W').map(Number);
+                                                            const [currYear, currWeek] = currentPeriodKey.split('-W').map(Number);
+                                                            const diff = ((currYear * 52) + currWeek) - ((prevYear * 52) + prevWeek);
+                                                            if (diff > 1) isBroken = true;
+                                                        } else if (period === 'month') {
+                                                            const [prevYear, prevMonth] = metadata.currentPeriod.split('-M').map(Number);
+                                                            const [currYear, currMonth] = currentPeriodKey.split('-M').map(Number);
+                                                            const diff = ((currYear * 12) + currMonth) - ((prevYear * 12) + prevMonth);
+                                                            if (diff > 1) isBroken = true;
+                                                        } else if (period === 'day') {
+                                                            const prevDate = new Date(metadata.currentPeriod);
+                                                            const currDate = new Date(currentPeriodKey);
+                                                            const diffDays = (currDate.getTime() - prevDate.getTime()) / (1000 * 3600 * 24);
+                                                            if (diffDays > 1) isBroken = true;
+                                                        }
+                                                    }
+                                                }
 
-                                                await db.insert(giftCardTransactions).values({
-                                                    id: crypto.randomUUID(),
-                                                    giftCardId: card.id,
-                                                    amount: creditAmount,
-                                                    type: 'adjustment',
-                                                    referenceId: userProgress.id, // Reference the User Challenge ID
-                                                    createdAt: new Date()
-                                                });
+                                                if (isBroken) {
+                                                    newProgress = 0; // Break streak
+                                                }
 
-                                                console.log(`Issued Gift Card ${code} for $${creditAmount / 100}`);
+                                                // Reset counters for new period
+                                                metadata.currentPeriod = currentPeriodKey;
+                                                metadata.currentCount = 0;
+                                                metadata.periodCompleted = false;
+                                                shouldUpdate = true;
+                                            }
+
+                                            // Increment for this period
+                                            metadata.currentCount = (metadata.currentCount || 0) + 1;
+                                            shouldUpdate = true;
+
+                                            // Check Completion
+                                            if (metadata.currentCount >= frequency && !metadata.periodCompleted) {
+                                                metadata.periodCompleted = true;
+                                                newProgress += 1;
+                                                shouldUpdate = true;
+                                            }
+                                        }
+                                    } else {
+                                        // Count / Minutes
+                                        newProgress += increment;
+                                        shouldUpdate = true;
+                                    }
+
+                                    if (shouldUpdate) {
+                                        const isCompleted = newProgress >= challenge.targetValue;
+
+                                        await db.update(userChallenges)
+                                            .set({
+                                                progress: newProgress,
+                                                status: isCompleted ? 'completed' : 'active',
+                                                metadata: metadata,
+                                                completedAt: isCompleted ? new Date() : null,
+                                                updatedAt: new Date()
+                                            })
+                                            .where(eq(userChallenges.id, userProgress.id))
+                                            .run();
+
+                                        if (isCompleted) {
+                                            console.log(`User ${member.userId} completed challenge ${challenge.title}!`);
+
+                                            // Reward Fulfillment
+                                            if (challenge.rewardType === 'retail_credit') {
+                                                const val = challenge.rewardValue as any;
+                                                const creditAmount = parseInt(val?.creditAmount || '0');
+                                                if (creditAmount > 0) {
+                                                    const code = `REW-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+                                                    const card = await db.insert(giftCards).values({
+                                                        id: crypto.randomUUID(),
+                                                        tenantId: member.tenantId,
+                                                        code,
+                                                        initialValue: creditAmount,
+                                                        currentBalance: creditAmount,
+                                                        status: 'active',
+                                                        recipientMemberId: member.id,
+                                                        notes: `Reward for challenge: ${challenge.title}`,
+                                                        createdAt: new Date(),
+                                                        updatedAt: new Date()
+                                                    }).returning().get();
+
+                                                    await db.insert(giftCardTransactions).values({
+                                                        id: crypto.randomUUID(),
+                                                        giftCardId: card.id,
+                                                        amount: creditAmount,
+                                                        type: 'adjustment',
+                                                        referenceId: userProgress.id,
+                                                        createdAt: new Date()
+                                                    });
+                                                }
                                             }
                                         }
                                     }

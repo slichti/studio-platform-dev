@@ -7,6 +7,7 @@ import { UsageService } from '../services/pricing';
 type Bindings = {
     DB: D1Database;
     RESEND_API_KEY: string;
+    GEMINI_API_KEY: string;
 };
 
 type Variables = {
@@ -272,6 +273,44 @@ app.post('/automations/:id/test', async (c) => {
         return c.json({ success: true });
     } catch (e: any) {
         return c.json({ error: e.message }, 500);
+    }
+});
+
+// POST /content/generate - AI Content Assistant
+app.post('/content/generate', async (c) => {
+    const tenant = c.get('tenant');
+    const { isFeatureEnabled } = await import('../utils/features');
+    if (!isFeatureEnabled(tenant, 'ai_content')) {
+        return c.json({ error: "AI Content feature not enabled" }, 403);
+    }
+
+    const { prompt, type } = await c.req.json();
+    if (!prompt) return c.json({ error: "Prompt required" }, 400);
+
+    const apiKey = c.env.GEMINI_API_KEY;
+    if (!apiKey) return c.json({ error: "AI Config missing" }, 500);
+
+    try {
+        const systemPrompt = `You are a helpful assistant for a boutique fitness studio called "${tenant.name}". 
+        Write ${type || 'email'} content. Be professional, encouraging, and concise.`;
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{
+                    role: 'user',
+                    parts: [{ text: `${systemPrompt}\n\nTask: ${prompt}` }]
+                }]
+            })
+        });
+
+        const data: any = await response.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+        return c.json({ text });
+    } catch (e: any) {
+        return c.json({ error: "AI Generation failed: " + e.message }, 500);
     }
 });
 

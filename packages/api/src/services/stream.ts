@@ -111,4 +111,35 @@ export class StreamService {
 
         return true;
     }
+
+    /**
+     * Create a Live Input for streaming.
+     * Returns the RTMPS URL and Key for broadcasting, and the UID for playback.
+     */
+    async createLiveInput(meta: { name: string, meta?: Record<string, any> }) {
+        const body = {
+            meta: {
+                name: meta.name,
+                ...meta.meta
+            },
+            recording: { mode: 'automatic' } // Auto-record to VOD
+        };
+
+        const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${this.accountId}/stream/live_inputs`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${this.apiToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+            const error = await response.text();
+            throw new Error(`Failed to create Live Input: ${error}`);
+        }
+
+        const data = await response.json() as any;
+        return data.result; // contains uid, rtmps, rtmpsPlayback, etc.
+    }
 }

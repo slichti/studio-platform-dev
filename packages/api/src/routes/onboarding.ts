@@ -99,7 +99,7 @@ app.post('/studio', async (c) => {
 
                     // 1. Create Customer
                     const profile = user.profile as any;
-                    const customer = await stripe.createCustomer(user.email, `${name} (Owner: ${profile?.firstName || ''} ${profile?.lastName || ''})`);
+                    const customer = await stripe.createCustomer({ email: user.email, name: `${name} (Owner: ${profile?.firstName || ''} ${profile?.lastName || ''})` });
                     stripeCustomerId = customer.id;
 
                     // 2. Create Subscription (Trial)
