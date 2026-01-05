@@ -2,11 +2,11 @@ import { jsx, jsxs, Fragment } from "react/jsx-runtime";
 import { ServerRouter } from "react-router-dom";
 import { isbot } from "isbot";
 import { renderToReadableStream } from "react-dom/server";
-import { UNSAFE_withComponentProps, useLoaderData, Meta, Links, Outlet, ScrollRestoration, Scripts, UNSAFE_withErrorBoundaryProps, useRouteError, Link, useNavigate, useNavigation, useSearchParams, useParams, NavLink, redirect, useFetcher, useOutletContext, Form, useActionData, useSubmit, useRouteLoaderData } from "react-router";
+import { UNSAFE_withComponentProps, useLoaderData, Meta, Links, Outlet, ScrollRestoration, Scripts, UNSAFE_withErrorBoundaryProps, useRouteError, Link, useSearchParams, useNavigate, useNavigation, useParams, NavLink, redirect, useOutletContext, Form, useActionData, useSubmit, useFetcher, useRouteLoaderData } from "react-router";
 import { useState, useEffect, createContext, useContext, useRef, useCallback, Fragment as Fragment$1, useMemo } from "react";
 import { ClerkProvider, useUser, SignedIn, UserButton, SignedOut, RedirectToSignIn, useAuth, useClerk, SignIn, SignUp } from "@clerk/react-router";
 import { rootAuthLoader, getAuth } from "@clerk/react-router/server";
-import { Sun, Moon, HelpCircle, Check, Minus, Search, Loader2, X, User, Dumbbell, ShoppingCart, ChevronDown, ChevronRight, Users, LogOut, LayoutGrid, Calendar, Clock, CheckCircle2, RefreshCw, FileSignature, CreditCard, Package, Ticket, Mail, DollarSign, Tag, Settings, AlertTriangle, Plus, MoreHorizontal, CheckCircle, AlertCircle, XCircle, ArrowLeft, Trash, Send, Video, MessageSquare, MapPin, Trash2, FileText, Globe, ShieldCheck, ExternalLink, Upload, Pencil, Circle, UserPlus, StickyNote, Save, Activity, TrendingUp, ArrowRight, ShoppingBag, Banknote, Building2, Monitor } from "lucide-react";
+import { Sun, Moon, HelpCircle, Check, Minus, Search, Loader2, X, User, Dumbbell, ShoppingCart, ChevronDown, ChevronRight, Users, LogOut, LayoutGrid, Calendar, Clock, CheckCircle2, RefreshCw, FileSignature, CreditCard, Package, Ticket, Mail, DollarSign, Tag, Settings, AlertTriangle, Gift, Link as Link$1, Plus, MoreHorizontal, History, Ban, ChevronUp, CheckCircle, Trash2, AlertCircle, XCircle, ArrowLeft, Trash, Send, Video, Smartphone, MessageSquare, MapPin, FileText, Globe, ShoppingBag, ShieldCheck, ExternalLink, Upload, Pencil, Circle, UserPlus, StickyNote, Save, Activity, TrendingUp, ArrowRight, Phone, Wifi, Edit, Archive, Building2, Monitor } from "lucide-react";
 import { Menu, Transition, Dialog } from "@headlessui/react";
 import Cropper from "react-easy-crop";
 import { loadStripe } from "@stripe/stripe-js";
@@ -18,6 +18,7 @@ import { startOfWeek } from "date-fns/startOfWeek";
 import { getDay } from "date-fns/getDay";
 import { enUS } from "date-fns/locale/en-US";
 import { format as format$1 } from "date-fns";
+import { loadStripeTerminal } from "@stripe/terminal-js";
 async function handleRequest(request, responseStatusCode, responseHeaders, routerContext, loadContext) {
   try {
     let body = await renderToReadableStream(
@@ -103,7 +104,7 @@ const useTheme = () => {
     throw new Error("useTheme must be used within a ThemeProvider");
   return context;
 };
-const styles = "/assets/index-Bb6gapAh.css";
+const styles = "/assets/index-DpOfmWev.css";
 const links = () => [{
   rel: "stylesheet",
   href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
@@ -133,7 +134,7 @@ const meta$2 = () => [{
   name: "apple-mobile-web-app-status-bar-style",
   content: "black-translucent"
 }];
-async function loader$B(args) {
+async function loader$D(args) {
   try {
     return await rootAuthLoader(args, ({
       request
@@ -226,7 +227,7 @@ const route0 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProper
   ErrorBoundary,
   default: root,
   links,
-  loader: loader$B,
+  loader: loader$D,
   meta: meta$2
 }, Symbol.toStringTag, { value: "Module" }));
 function ThemeToggle() {
@@ -836,6 +837,163 @@ async function apiRequest(path, token, options = {}, baseUrl) {
   }
   return res.json();
 }
+const acceptInvite = UNSAFE_withComponentProps(function AcceptInvite() {
+  const {
+    isLoaded,
+    isSignedIn,
+    user
+  } = useUser();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const token = searchParams.get("token");
+  const [status, setStatus] = useState("validating");
+  const [error, setError] = useState(null);
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (!token) {
+      setStatus("error");
+      setError("Invalid invitation link (no token).");
+      return;
+    }
+    if (!isSignedIn) {
+      return;
+    }
+    acceptInvitation();
+  }, [isLoaded, isSignedIn, token]);
+  const acceptInvitation = async () => {
+    setStatus("accepting");
+    try {
+      const authToken = await window.Clerk?.session?.getToken();
+      const res = await apiRequest("/members/accept-invite", authToken, {
+        method: "POST",
+        body: JSON.stringify({
+          token
+        })
+      });
+      if (res.success) {
+        setStatus("success");
+        setTimeout(() => {
+          navigate("/");
+        }, 2e3);
+      } else {
+        setStatus("error");
+        setError(res.error || "Failed to accept invitation.");
+      }
+    } catch (e) {
+      setStatus("error");
+      setError(e.message || "An unexpected error occurred.");
+    }
+  };
+  if (!isLoaded) return /* @__PURE__ */ jsx("div", {
+    className: "p-10 text-center",
+    children: "Loading..."
+  });
+  if (!token) {
+    return /* @__PURE__ */ jsx("div", {
+      className: "min-h-screen bg-zinc-50 flex flex-col justify-center items-center p-4",
+      children: /* @__PURE__ */ jsxs("div", {
+        className: "bg-white p-8 rounded shadow text-center max-w-md",
+        children: [/* @__PURE__ */ jsx("h2", {
+          className: "text-red-600 font-bold mb-2",
+          children: "Invalid Link"
+        }), /* @__PURE__ */ jsx("p", {
+          className: "text-zinc-600",
+          children: "This invitation link appears to be missing a token."
+        })]
+      })
+    });
+  }
+  return /* @__PURE__ */ jsxs("div", {
+    className: "min-h-screen bg-zinc-50 flex flex-col justify-center items-center p-4",
+    children: [/* @__PURE__ */ jsx(SignedOut, {
+      children: /* @__PURE__ */ jsxs("div", {
+        className: "bg-white p-8 rounded shadow text-center max-w-md w-full",
+        children: [/* @__PURE__ */ jsx("h2", {
+          className: "text-2xl font-bold mb-4",
+          children: "You've been invited!"
+        }), /* @__PURE__ */ jsx("p", {
+          className: "text-zinc-600 mb-6",
+          children: "Please sign in or create an account to accept this invitation."
+        }), /* @__PURE__ */ jsx("div", {
+          className: "flex justify-center",
+          children: /* @__PURE__ */ jsx(RedirectToSignIn, {
+            afterSignInUrl: `/accept-invite?token=${token}`
+          })
+        })]
+      })
+    }), /* @__PURE__ */ jsx(SignedIn, {
+      children: /* @__PURE__ */ jsxs("div", {
+        className: "bg-white p-8 rounded shadow text-center max-w-md w-full",
+        children: [status === "accepting" && /* @__PURE__ */ jsxs("div", {
+          children: [/* @__PURE__ */ jsx("div", {
+            className: "animate-spin rounded-full h-12 w-12 border-b-2 border-zinc-900 mx-auto mb-4"
+          }), /* @__PURE__ */ jsx("h2", {
+            className: "text-xl font-bold",
+            children: "Accepting Invitation..."
+          }), /* @__PURE__ */ jsx("p", {
+            className: "text-zinc-500",
+            children: "Linking your account to the studio."
+          })]
+        }), status === "success" && /* @__PURE__ */ jsxs("div", {
+          children: [/* @__PURE__ */ jsx("div", {
+            className: "mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4",
+            children: /* @__PURE__ */ jsx("svg", {
+              className: "h-6 w-6 text-green-600",
+              fill: "none",
+              stroke: "currentColor",
+              viewBox: "0 0 24 24",
+              children: /* @__PURE__ */ jsx("path", {
+                strokeLinecap: "round",
+                strokeLinejoin: "round",
+                strokeWidth: "2",
+                d: "M5 13l4 4L19 7"
+              })
+            })
+          }), /* @__PURE__ */ jsx("h2", {
+            className: "text-xl font-bold text-green-600",
+            children: "Welcome!"
+          }), /* @__PURE__ */ jsx("p", {
+            className: "text-zinc-600 mt-2",
+            children: "Invitation accepted successfully."
+          }), /* @__PURE__ */ jsx("p", {
+            className: "text-xs text-zinc-400 mt-4",
+            children: "Redirecting you..."
+          })]
+        }), status === "error" && /* @__PURE__ */ jsxs("div", {
+          children: [/* @__PURE__ */ jsx("div", {
+            className: "mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4",
+            children: /* @__PURE__ */ jsx("svg", {
+              className: "h-6 w-6 text-red-600",
+              fill: "none",
+              stroke: "currentColor",
+              viewBox: "0 0 24 24",
+              children: /* @__PURE__ */ jsx("path", {
+                strokeLinecap: "round",
+                strokeLinejoin: "round",
+                strokeWidth: "2",
+                d: "M6 18L18 6M6 6l12 12"
+              })
+            })
+          }), /* @__PURE__ */ jsx("h2", {
+            className: "text-xl font-bold text-red-600",
+            children: "Error"
+          }), /* @__PURE__ */ jsx("p", {
+            className: "text-zinc-600 mt-2",
+            children: error
+          }), /* @__PURE__ */ jsx("button", {
+            onClick: () => navigate("/"),
+            className: "mt-6 px-4 py-2 bg-zinc-900 text-white rounded hover:bg-zinc-800",
+            children: "Go Home"
+          })]
+        })]
+      })
+    })]
+  });
+});
+const route3 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  default: acceptInvite
+}, Symbol.toStringTag, { value: "Module" }));
 const createStudio = UNSAFE_withComponentProps(function CreateStudio() {
   const {
     user,
@@ -895,6 +1053,7 @@ const createStudio = UNSAFE_withComponentProps(function CreateStudio() {
     className: "p-10 text-center",
     children: "Loading..."
   });
+  const isVerified = user?.primaryEmailAddress?.verification?.status === "verified";
   const billingText = interval === "annual" ? "Billed annually" : "Billed monthly";
   return /* @__PURE__ */ jsxs("div", {
     className: "min-h-screen bg-zinc-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8",
@@ -914,7 +1073,31 @@ const createStudio = UNSAFE_withComponentProps(function CreateStudio() {
         className: "mt-8 sm:mx-auto sm:w-full sm:max-w-md",
         children: /* @__PURE__ */ jsxs("div", {
           className: "bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10",
-          children: [error && /* @__PURE__ */ jsx("div", {
+          children: [!isVerified && /* @__PURE__ */ jsx("div", {
+            className: "bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6",
+            children: /* @__PURE__ */ jsxs("div", {
+              className: "flex",
+              children: [/* @__PURE__ */ jsx("div", {
+                className: "flex-shrink-0",
+                children: /* @__PURE__ */ jsx("svg", {
+                  className: "h-5 w-5 text-yellow-400",
+                  viewBox: "0 0 20 20",
+                  fill: "currentColor",
+                  children: /* @__PURE__ */ jsx("path", {
+                    fillRule: "evenodd",
+                    d: "M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z",
+                    clipRule: "evenodd"
+                  })
+                })
+              }), /* @__PURE__ */ jsx("div", {
+                className: "ml-3",
+                children: /* @__PURE__ */ jsx("p", {
+                  className: "text-sm text-yellow-700",
+                  children: "Please verify your email address to create a studio. Check your inbox."
+                })
+              })]
+            })
+          }), error && /* @__PURE__ */ jsx("div", {
             className: "bg-red-50 text-red-600 p-3 rounded mb-4 text-sm",
             children: error
           }), /* @__PURE__ */ jsxs("form", {
@@ -1034,8 +1217,8 @@ const createStudio = UNSAFE_withComponentProps(function CreateStudio() {
             }), /* @__PURE__ */ jsx("div", {
               children: /* @__PURE__ */ jsx("button", {
                 type: "submit",
-                disabled: loading,
-                className: "w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-zinc-900 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500 disabled:opacity-70",
+                disabled: loading || !isVerified,
+                className: "w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-zinc-900 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500 disabled:opacity-70 disabled:cursor-not-allowed",
                 children: loading ? "Creating..." : "Create Studio"
               })
             })]
@@ -1045,7 +1228,7 @@ const createStudio = UNSAFE_withComponentProps(function CreateStudio() {
     })]
   });
 });
-const route3 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route4 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: createStudio
 }, Symbol.toStringTag, { value: "Module" }));
@@ -1309,7 +1492,7 @@ function ImpersonationBanner({ tenantName, userName, currentRole }) {
     ] })
   ] });
 }
-const loader$A = async (args) => {
+const loader$C = async (args) => {
   const {
     params,
     request
@@ -1461,12 +1644,14 @@ const studio_$slug = UNSAFE_withComponentProps(function StudioLayout() {
           })]
         }), /* @__PURE__ */ jsxs(SidebarGroup, {
           title: "Commerce",
-          children: [(featureSet.has("pos") || ["growth", "scale"].includes(tenant.tier)) && /* @__PURE__ */ jsx(NavItem, {
-            to: "pos",
-            icon: /* @__PURE__ */ jsx(ShoppingCart, {
-              size: 18
-            }),
-            children: "POS & Retail"
+          children: [(featureSet.has("pos") || ["growth", "scale"].includes(tenant.tier)) && /* @__PURE__ */ jsx(Fragment, {
+            children: /* @__PURE__ */ jsx(NavItem, {
+              to: "pos",
+              icon: /* @__PURE__ */ jsx(ShoppingCart, {
+                size: 18
+              }),
+              children: "POS & Retail"
+            })
           }), /* @__PURE__ */ jsx(NavItem, {
             to: "memberships",
             icon: /* @__PURE__ */ jsx(CreditCard, {
@@ -1479,22 +1664,36 @@ const studio_$slug = UNSAFE_withComponentProps(function StudioLayout() {
               size: 18
             }),
             children: "Class Packs"
-          }), /* @__PURE__ */ jsx(NavItem, {
-            to: "commerce/gift-cards",
-            icon: /* @__PURE__ */ jsx(Ticket, {
-              size: 18
-            }),
-            children: "Gift Cards"
+          }), (featureSet.has("pos") || ["growth", "scale"].includes(tenant.tier)) && /* @__PURE__ */ jsxs(Fragment, {
+            children: [/* @__PURE__ */ jsx(NavItem, {
+              to: "commerce/coupons",
+              icon: /* @__PURE__ */ jsx(Ticket, {
+                size: 18
+              }),
+              children: "Coupons"
+            }), /* @__PURE__ */ jsx(NavItem, {
+              to: "commerce/gift-cards",
+              icon: /* @__PURE__ */ jsx(Ticket, {
+                size: 18
+              }),
+              children: "Gift Cards"
+            })]
           })]
         }), /* @__PURE__ */ jsxs(SidebarGroup, {
           title: "Management",
           children: [/* @__PURE__ */ jsx(NavItem, {
+            to: "leads",
+            icon: /* @__PURE__ */ jsx(User, {
+              size: 18
+            }),
+            children: "Leads"
+          }), /* @__PURE__ */ jsx(NavItem, {
             to: "students",
             icon: /* @__PURE__ */ jsx(Users, {
               size: 18
             }),
             children: "People"
-          }), ["growth", "scale"].includes(tenant.tier) && /* @__PURE__ */ jsx(NavItem, {
+          }), (featureSet.has("marketing") || ["growth", "scale"].includes(tenant.tier)) && /* @__PURE__ */ jsx(NavItem, {
             to: "marketing",
             icon: /* @__PURE__ */ jsx(Mail, {
               size: 18
@@ -1620,12 +1819,12 @@ function NavItem({
     children: [icon, children]
   });
 }
-const route4 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route5 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug,
-  loader: loader$A
+  loader: loader$C
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$z = async (args) => {
+const loader$B = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -1640,7 +1839,7 @@ const loader$z = async (args) => {
       }
     });
     return {
-      giftCards: giftCardsRes || [],
+      giftCards: giftCardsRes.giftCards || [],
       token
     };
   } catch (e) {
@@ -1658,84 +1857,145 @@ const studio_$slug_commerce_giftCards = UNSAFE_withComponentProps(function GiftC
   const {
     slug
   } = useParams();
+  const {
+    roles
+  } = useOutletContext() || {};
+  const isAdmin = roles?.includes("owner") || roles?.includes("instructor");
   const [giftCards, setGiftCards] = useState(initialCards);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showIssueModal, setShowIssueModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("list");
+  const [showIssueModal, setShowIssueModal] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [expandedCardId, setExpandedCardId] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [activeMenuId, setActiveMenuId] = useState(null);
   const [issueData, setIssueData] = useState({
     amount: "",
     recipientEmail: "",
     notes: ""
   });
-  const handleIssue = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  const [issueSuccess, setIssueSuccess] = useState(null);
+  const [linkCode, setLinkCode] = useState("");
+  const [linkSuccess, setLinkSuccess] = useState(false);
+  const [buyData, setBuyData] = useState({
+    amount: "50",
+    customAmount: "",
+    isForSelf: true,
+    recipientEmail: "",
+    recipientName: "",
+    senderName: "",
+    message: ""
+  });
+  const toggleHistory = async (cardId) => {
+    if (expandedCardId === cardId) {
+      setExpandedCardId(null);
+      return;
+    }
+    setExpandedCardId(cardId);
+    setLoadingHistory(true);
+    setTransactions([]);
     try {
-      const res = await apiRequest("/gift-cards/issue", token, {
-        method: "POST",
-        headers: {
-          "X-Tenant-Slug": slug
-        },
-        body: JSON.stringify({
-          amount: parseFloat(issueData.amount) * 100,
-          recipientEmail: issueData.recipientEmail,
-          notes: issueData.notes
-        })
-      });
-      if (res.error) throw new Error(res.error);
-      setShowIssueModal(false);
-      setIssueData({
-        amount: "",
-        recipientEmail: "",
-        notes: ""
-      });
-      const refresh = await apiRequest("/gift-cards", token, {
+      const res = await apiRequest(`/gift-cards/${cardId}/transactions`, token, {
         headers: {
           "X-Tenant-Slug": slug
         }
       });
-      setGiftCards(refresh || []);
-      alert(`Gift Card issued: ${res.code}`);
-    } catch (e2) {
-      alert(e2.message);
+      if (res.transactions) setTransactions(res.transactions);
+    } catch (e) {
+      console.error(e);
     } finally {
-      setLoading(false);
+      setLoadingHistory(false);
     }
   };
   const filteredCards = giftCards.filter((c) => c.code.toLowerCase().includes(searchQuery.toLowerCase()) || c.recipientEmail?.toLowerCase().includes(searchQuery.toLowerCase()));
+  const getCheckoutUrl = () => {
+    const amount = buyData.amount === "custom" ? buyData.customAmount : buyData.amount;
+    const amountCents = parseFloat(amount) * 100;
+    const params = new URLSearchParams();
+    params.set("giftCardAmount", amountCents.toString());
+    if (!buyData.isForSelf) {
+      if (buyData.recipientEmail) params.set("recipientEmail", buyData.recipientEmail);
+      if (buyData.recipientName) params.set("recipientName", buyData.recipientName);
+      if (buyData.senderName) params.set("senderName", buyData.senderName);
+      if (buyData.message) params.set("message", buyData.message);
+    }
+    return `/studio/${slug}/checkout?${params.toString()}`;
+  };
+  const [searchParams, setSearchParams] = useSearchParams();
+  const claimCode = searchParams.get("claimCode");
+  useEffect(() => {
+    if (claimCode) {
+      setLinkCode(claimCode.toUpperCase());
+      setShowLinkModal(true);
+      setSearchParams((params) => {
+        params.delete("claimCode");
+        return params;
+      });
+    }
+  }, [claimCode]);
+  useEffect(() => {
+    const handleClick = () => setActiveMenuId(null);
+    window.addEventListener("click", handleClick);
+    return () => window.removeEventListener("click", handleClick);
+  }, []);
+  const totalIssued = giftCards.reduce((acc, c) => acc + c.initialValue, 0);
+  const totalLiability = giftCards.reduce((acc, c) => acc + (c.status === "active" ? c.currentBalance : 0), 0);
+  const redemptionRate = totalIssued > 0 ? (totalIssued - totalLiability) / totalIssued * 100 : 0;
   return /* @__PURE__ */ jsxs("div", {
     className: "p-8 max-w-7xl mx-auto",
     children: [/* @__PURE__ */ jsxs("div", {
-      className: "flex justify-between items-center mb-8",
+      className: "flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4",
       children: [/* @__PURE__ */ jsxs("div", {
         children: [/* @__PURE__ */ jsxs("h1", {
           className: "text-3xl font-extrabold text-zinc-900 dark:text-zinc-100 flex items-center gap-3",
-          children: [/* @__PURE__ */ jsx(Ticket, {
+          children: [/* @__PURE__ */ jsx(Gift, {
             className: "text-blue-600"
-          }), " Gift Cards & Credits"]
+          }), " Gift Cards"]
         }), /* @__PURE__ */ jsx("p", {
           className: "text-sm text-zinc-500 mt-1",
-          children: "Manage store credit, issue gift cards, and track redemptions."
+          children: isAdmin ? "Manage store credit and issue cards." : "View your balance or send a gift."
         })]
-      }), /* @__PURE__ */ jsxs("button", {
-        onClick: () => setShowIssueModal(true),
-        className: "bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg hover:translate-y-[-2px] transition-all",
-        children: [/* @__PURE__ */ jsx(Plus, {
-          size: 20
-        }), " Issue New Card"]
+      }), /* @__PURE__ */ jsxs("div", {
+        className: "flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl",
+        children: [/* @__PURE__ */ jsx("button", {
+          onClick: () => setActiveTab("list"),
+          className: `px-4 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === "list" ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm" : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400"}`,
+          children: isAdmin ? "Manage Cards" : "My Cards"
+        }), /* @__PURE__ */ jsx("button", {
+          onClick: () => setActiveTab("buy"),
+          className: `px-4 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === "buy" ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm" : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400"}`,
+          children: "Purchase Gift Card"
+        })]
+      }), /* @__PURE__ */ jsxs("div", {
+        className: "flex gap-2",
+        children: [activeTab === "list" && !isAdmin && /* @__PURE__ */ jsxs("button", {
+          onClick: () => setShowLinkModal(true),
+          className: "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all",
+          children: [/* @__PURE__ */ jsx(Link$1, {
+            size: 18
+          }), " Link Card"]
+        }), isAdmin && activeTab === "list" && /* @__PURE__ */ jsxs("button", {
+          onClick: () => setShowIssueModal(true),
+          className: "bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg hover:translate-y-[-2px] transition-all",
+          children: [/* @__PURE__ */ jsx(Plus, {
+            size: 20
+          }), " Issue New Card"]
+        })]
       })]
-    }), /* @__PURE__ */ jsxs("div", {
-      className: "grid grid-cols-1 lg:grid-cols-4 gap-8",
-      children: [/* @__PURE__ */ jsxs("div", {
-        className: "lg:col-span-1 space-y-4",
+    }), activeTab === "list" ? /* @__PURE__ */ jsxs("div", {
+      className: "space-y-8",
+      children: [isAdmin ? /* @__PURE__ */ jsxs("div", {
+        className: "grid grid-cols-1 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-4",
         children: [/* @__PURE__ */ jsxs("div", {
           className: "bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm",
           children: [/* @__PURE__ */ jsx("p", {
             className: "text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1",
-            children: "Active Balance"
+            children: "Total Liability"
           }), /* @__PURE__ */ jsxs("h2", {
             className: "text-2xl font-black text-zinc-900 dark:text-zinc-100",
-            children: ["$", (giftCards.reduce((acc, c) => acc + (c.status === "active" ? c.currentBalance : 0), 0) / 100).toLocaleString()]
+            children: ["$", (totalLiability / 100).toLocaleString()]
           })]
         }), /* @__PURE__ */ jsxs("div", {
           className: "bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm",
@@ -1744,12 +2004,42 @@ const studio_$slug_commerce_giftCards = UNSAFE_withComponentProps(function GiftC
             children: "Total Issued"
           }), /* @__PURE__ */ jsxs("h2", {
             className: "text-2xl font-black text-zinc-900 dark:text-zinc-100",
-            children: ["$", (giftCards.reduce((acc, c) => acc + c.initialValue, 0) / 100).toLocaleString()]
+            children: ["$", (totalIssued / 100).toLocaleString()]
+          })]
+        }), /* @__PURE__ */ jsxs("div", {
+          className: "bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm",
+          children: [/* @__PURE__ */ jsx("p", {
+            className: "text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1",
+            children: "Redemption Rate"
+          }), /* @__PURE__ */ jsxs("h2", {
+            className: "text-2xl font-black text-zinc-900 dark:text-zinc-100",
+            children: [redemptionRate.toFixed(1), "%"]
+          })]
+        }), /* @__PURE__ */ jsxs("div", {
+          className: "bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm",
+          children: [/* @__PURE__ */ jsx("p", {
+            className: "text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1",
+            children: "Active Cards"
+          }), /* @__PURE__ */ jsx("h2", {
+            className: "text-2xl font-black text-zinc-900 dark:text-zinc-100",
+            children: giftCards.filter((c) => c.status === "active").length
           })]
         })]
+      }) : /* @__PURE__ */ jsx("div", {
+        className: "grid grid-cols-1 md:grid-cols-4 gap-4",
+        children: /* @__PURE__ */ jsxs("div", {
+          className: "bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm",
+          children: [/* @__PURE__ */ jsx("p", {
+            className: "text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1",
+            children: "My Balance"
+          }), /* @__PURE__ */ jsxs("h2", {
+            className: "text-2xl font-black text-zinc-900 dark:text-zinc-100",
+            children: ["$", (totalLiability / 100).toLocaleString()]
+          })]
+        })
       }), /* @__PURE__ */ jsxs("div", {
-        className: "lg:col-span-3 space-y-4",
-        children: [/* @__PURE__ */ jsxs("div", {
+        className: "space-y-4",
+        children: [isAdmin && /* @__PURE__ */ jsxs("div", {
           className: "relative",
           children: [/* @__PURE__ */ jsx(Search, {
             className: "absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400"
@@ -1761,15 +2051,22 @@ const studio_$slug_commerce_giftCards = UNSAFE_withComponentProps(function GiftC
             className: "w-full pl-12 pr-4 py-3 bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
           })]
         }), /* @__PURE__ */ jsx("div", {
-          className: "bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden",
-          children: /* @__PURE__ */ jsxs("table", {
+          className: "bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-visible",
+          children: filteredCards.length === 0 ? /* @__PURE__ */ jsxs("div", {
+            className: "p-12 text-center text-zinc-500",
+            children: [/* @__PURE__ */ jsx(Ticket, {
+              className: "h-12 w-12 mx-auto mb-4 opacity-20"
+            }), /* @__PURE__ */ jsx("p", {
+              children: "No gift cards found."
+            })]
+          }) : /* @__PURE__ */ jsxs("table", {
             className: "w-full text-left",
             children: [/* @__PURE__ */ jsx("thead", {
               className: "bg-zinc-50 dark:bg-zinc-800/50",
               children: /* @__PURE__ */ jsxs("tr", {
                 children: [/* @__PURE__ */ jsx("th", {
                   className: "px-6 py-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest",
-                  children: "Gift Card"
+                  children: "Code"
                 }), /* @__PURE__ */ jsx("th", {
                   className: "px-6 py-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest",
                   children: "Balance"
@@ -1779,165 +2076,418 @@ const studio_$slug_commerce_giftCards = UNSAFE_withComponentProps(function GiftC
                 }), /* @__PURE__ */ jsx("th", {
                   className: "px-6 py-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest",
                   children: "Issued"
+                }), isAdmin && /* @__PURE__ */ jsx("th", {
+                  className: "px-6 py-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest",
+                  children: "Recipient"
                 }), /* @__PURE__ */ jsx("th", {
                   className: "px-6 py-4"
                 })]
               })
             }), /* @__PURE__ */ jsx("tbody", {
               className: "divide-y divide-zinc-50 dark:divide-zinc-800",
-              children: filteredCards.map((card) => /* @__PURE__ */ jsxs("tr", {
-                className: "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group",
-                children: [/* @__PURE__ */ jsx("td", {
-                  className: "px-6 py-4",
-                  children: /* @__PURE__ */ jsxs("div", {
-                    className: "flex flex-col",
-                    children: [/* @__PURE__ */ jsx("span", {
-                      className: "font-mono font-bold text-zinc-900 dark:text-zinc-100",
-                      children: card.code
-                    }), /* @__PURE__ */ jsx("span", {
-                      className: "text-xs text-zinc-500",
-                      children: card.recipientEmail || "No recipient"
-                    })]
-                  })
-                }), /* @__PURE__ */ jsx("td", {
-                  className: "px-6 py-4",
-                  children: /* @__PURE__ */ jsxs("div", {
-                    className: "flex flex-col",
+              children: filteredCards.map((card) => /* @__PURE__ */ jsxs(Fragment, {
+                children: [/* @__PURE__ */ jsxs("tr", {
+                  className: "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors",
+                  children: [/* @__PURE__ */ jsx("td", {
+                    className: "px-6 py-4 font-mono font-bold text-zinc-900 dark:text-zinc-100",
+                    children: card.code
+                  }), /* @__PURE__ */ jsxs("td", {
+                    className: "px-6 py-4",
                     children: [/* @__PURE__ */ jsxs("span", {
                       className: "font-bold text-zinc-900 dark:text-zinc-100",
                       children: ["$", (card.currentBalance / 100).toFixed(2)]
                     }), /* @__PURE__ */ jsxs("span", {
-                      className: "text-[10px] text-zinc-400 uppercase font-bold",
-                      children: ["of $", (card.initialValue / 100).toFixed(2)]
+                      className: "text-zinc-400 text-xs ml-1",
+                      children: ["/ $", (card.initialValue / 100).toFixed(2)]
                     })]
-                  })
-                }), /* @__PURE__ */ jsx("td", {
-                  className: "px-6 py-4",
-                  children: /* @__PURE__ */ jsx("span", {
-                    className: `text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-tighter ${card.status === "active" ? "bg-emerald-100 text-emerald-700" : card.status === "exhausted" ? "bg-zinc-200 text-zinc-600" : "bg-red-100 text-red-700"}`,
-                    children: card.status
-                  })
-                }), /* @__PURE__ */ jsx("td", {
-                  className: "px-6 py-4 text-xs text-zinc-500",
-                  children: new Date(card.createdAt).toLocaleDateString()
-                }), /* @__PURE__ */ jsx("td", {
-                  className: "px-6 py-4 text-right",
-                  children: /* @__PURE__ */ jsx("button", {
-                    className: "p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full transition-colors opacity-0 group-hover:opacity-100",
-                    children: /* @__PURE__ */ jsx(MoreHorizontal, {
-                      size: 16
+                  }), /* @__PURE__ */ jsx("td", {
+                    className: "px-6 py-4",
+                    children: /* @__PURE__ */ jsx("span", {
+                      className: `text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-tighter ${card.status === "active" ? "bg-emerald-100 text-emerald-700" : card.status === "exhausted" ? "bg-zinc-200 text-zinc-600" : "bg-red-100 text-red-700"}`,
+                      children: card.status
+                    })
+                  }), /* @__PURE__ */ jsx("td", {
+                    className: "px-6 py-4 text-xs text-zinc-500",
+                    children: new Date(card.createdAt).toLocaleDateString()
+                  }), isAdmin && /* @__PURE__ */ jsx("td", {
+                    className: "px-6 py-4 text-xs text-zinc-500",
+                    children: card.recipientEmail || "-"
+                  }), /* @__PURE__ */ jsx("td", {
+                    className: "px-6 py-4 text-right relative",
+                    children: isAdmin ? /* @__PURE__ */ jsxs("div", {
+                      className: "relative",
+                      children: [/* @__PURE__ */ jsx("button", {
+                        onClick: (e) => {
+                          e.stopPropagation();
+                          setActiveMenuId(activeMenuId === card.id ? null : card.id);
+                        },
+                        className: "text-zinc-400 hover:text-blue-600 transition-colors p-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800",
+                        children: /* @__PURE__ */ jsx(MoreHorizontal, {
+                          size: 16
+                        })
+                      }), activeMenuId === card.id && /* @__PURE__ */ jsxs("div", {
+                        className: "absolute right-0 top-full mt-1 w-48 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-100 dark:border-zinc-800 z-50 overflow-hidden py-1",
+                        children: [/* @__PURE__ */ jsxs("button", {
+                          onClick: () => {
+                            setActiveMenuId(null);
+                            toggleHistory(card.id);
+                          },
+                          className: "w-full text-left px-4 py-2.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2",
+                          children: [/* @__PURE__ */ jsx(History, {
+                            size: 14
+                          }), " View History"]
+                        }), /* @__PURE__ */ jsxs("button", {
+                          onClick: () => {
+                            setActiveMenuId(null);
+                            alert("Resend feature coming soon");
+                          },
+                          className: "w-full text-left px-4 py-2.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2",
+                          children: [/* @__PURE__ */ jsx(Mail, {
+                            size: 14
+                          }), " Resend Email"]
+                        }), /* @__PURE__ */ jsxs("button", {
+                          onClick: () => {
+                            setActiveMenuId(null);
+                            alert("Void feature coming soon");
+                          },
+                          className: "w-full text-left px-4 py-2.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 text-red-600 flex items-center gap-2 border-t border-zinc-100 dark:border-zinc-800",
+                          children: [/* @__PURE__ */ jsx(Ban, {
+                            size: 14
+                          }), " Void Card"]
+                        })]
+                      })]
+                    }) : /* @__PURE__ */ jsx("button", {
+                      onClick: () => toggleHistory(card.id),
+                      className: "text-zinc-400 hover:text-blue-600 transition-colors p-2",
+                      children: expandedCardId === card.id ? /* @__PURE__ */ jsx(ChevronUp, {
+                        size: 16
+                      }) : /* @__PURE__ */ jsx(History, {
+                        size: 16
+                      })
+                    })
+                  })]
+                }, card.id), expandedCardId === card.id && /* @__PURE__ */ jsx("tr", {
+                  className: "bg-zinc-50/50 dark:bg-zinc-800/20",
+                  children: /* @__PURE__ */ jsx("td", {
+                    colSpan: isAdmin ? 6 : 5,
+                    className: "px-6 py-4",
+                    children: /* @__PURE__ */ jsxs("div", {
+                      className: "bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-xl p-4 animate-in slide-in-from-top-2",
+                      children: [/* @__PURE__ */ jsx("h4", {
+                        className: "text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3",
+                        children: "Transaction History"
+                      }), loadingHistory ? /* @__PURE__ */ jsx("div", {
+                        className: "flex justify-center py-4",
+                        children: /* @__PURE__ */ jsx(Loader2, {
+                          className: "animate-spin text-zinc-300"
+                        })
+                      }) : transactions.length === 0 ? /* @__PURE__ */ jsx("p", {
+                        className: "text-sm text-zinc-500",
+                        children: "No transactions found."
+                      }) : /* @__PURE__ */ jsx("div", {
+                        className: "space-y-2",
+                        children: transactions.map((tx) => /* @__PURE__ */ jsxs("div", {
+                          className: "flex justify-between items-center text-sm p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg",
+                          children: [/* @__PURE__ */ jsxs("div", {
+                            className: "flex items-center gap-3",
+                            children: [/* @__PURE__ */ jsx("div", {
+                              className: `w-8 h-8 rounded-full flex items-center justify-center ${tx.amount > 0 ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"}`,
+                              children: tx.amount > 0 ? /* @__PURE__ */ jsx(Plus, {
+                                size: 14
+                              }) : /* @__PURE__ */ jsx("div", {
+                                className: "w-2 h-[2px] bg-current"
+                              })
+                            }), /* @__PURE__ */ jsxs("div", {
+                              children: [/* @__PURE__ */ jsx("p", {
+                                className: "font-medium text-zinc-900 dark:text-zinc-100 capitalize",
+                                children: tx.type
+                              }), /* @__PURE__ */ jsx("p", {
+                                className: "text-xs text-zinc-400",
+                                children: new Date(tx.createdAt).toLocaleString()
+                              })]
+                            })]
+                          }), /* @__PURE__ */ jsxs("span", {
+                            className: `font-mono font-bold ${tx.amount > 0 ? "text-emerald-600" : "text-zinc-900 dark:text-zinc-100"}`,
+                            children: [tx.amount > 0 ? "+" : "", "$", (tx.amount / 100).toFixed(2)]
+                          })]
+                        }, tx.id))
+                      })]
                     })
                   })
                 })]
-              }, card.id))
+              }))
             })]
           })
         })]
       })]
-    }), showIssueModal && /* @__PURE__ */ jsx("div", {
-      className: "fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4",
-      children: /* @__PURE__ */ jsxs("div", {
-        className: "bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200",
-        children: [/* @__PURE__ */ jsxs("div", {
-          className: "p-8 border-b border-zinc-100 dark:border-zinc-800",
-          children: [/* @__PURE__ */ jsx("h2", {
-            className: "text-2xl font-black",
-            children: "Issue Gift Card"
-          }), /* @__PURE__ */ jsx("p", {
-            className: "text-sm text-zinc-500",
-            children: "This will generate a unique code for store credit."
-          })]
-        }), /* @__PURE__ */ jsxs("form", {
-          onSubmit: handleIssue,
-          className: "p-8 space-y-6",
+    }) : (
+      /* BUY TAB CONTENT (Same as before) */
+      /* @__PURE__ */ jsx("div", {
+        className: "max-w-3xl mx-auto",
+        children: /* @__PURE__ */ jsxs("div", {
+          className: "bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-xl overflow-hidden",
           children: [/* @__PURE__ */ jsxs("div", {
-            className: "space-y-2",
-            children: [/* @__PURE__ */ jsx("label", {
-              className: "text-xs font-bold text-zinc-500 uppercase tracking-widest pl-1",
-              children: "Amount ($)"
-            }), /* @__PURE__ */ jsx("input", {
-              type: "number",
-              step: "0.01",
-              placeholder: "50.00",
-              required: true,
-              value: issueData.amount,
-              onChange: (e) => setIssueData({
-                ...issueData,
-                amount: e.target.value
-              }),
-              className: "w-full px-4 py-4 bg-zinc-100 dark:bg-zinc-800 border-none rounded-2xl text-lg font-bold outline-none ring-2 ring-transparent focus:ring-blue-500 transition-all"
+            className: "p-8 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/30",
+            children: [/* @__PURE__ */ jsx("h2", {
+              className: "text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-2",
+              children: "Purchase Gift Card"
+            }), /* @__PURE__ */ jsx("p", {
+              className: "text-zinc-500",
+              children: "Give the gift of yoga and wellness. Sent instantly via email."
             })]
           }), /* @__PURE__ */ jsxs("div", {
-            className: "space-y-2",
-            children: [/* @__PURE__ */ jsx("label", {
-              className: "text-xs font-bold text-zinc-500 uppercase tracking-widest pl-1",
-              children: "Recipient Email (Optional)"
-            }), /* @__PURE__ */ jsx("input", {
-              type: "email",
-              placeholder: "friend@example.com",
-              value: issueData.recipientEmail,
-              onChange: (e) => setIssueData({
-                ...issueData,
-                recipientEmail: e.target.value
-              }),
-              className: "w-full px-4 py-4 bg-zinc-100 dark:bg-zinc-800 border-none rounded-2xl text-sm outline-none ring-2 ring-transparent focus:ring-blue-500 transition-all"
-            })]
-          }), /* @__PURE__ */ jsxs("div", {
-            className: "grid grid-cols-2 gap-4 pt-4",
-            children: [/* @__PURE__ */ jsx("button", {
-              type: "button",
-              onClick: () => setShowIssueModal(false),
-              className: "py-4 font-bold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-2xl transition-colors",
-              children: "Cancel"
-            }), /* @__PURE__ */ jsx("button", {
-              type: "submit",
-              disabled: loading,
-              className: "py-4 bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 text-white font-bold rounded-2xl shadow-lg flex items-center justify-center gap-2 hover:translate-y-[-2px] active:translate-y-0 transition-all",
-              children: loading ? /* @__PURE__ */ jsx(Loader2, {
-                className: "animate-spin",
-                size: 20
-              }) : "Issue Credit"
+            className: "p-8 space-y-8",
+            children: [/* @__PURE__ */ jsxs("div", {
+              className: "space-y-4",
+              children: [/* @__PURE__ */ jsx("label", {
+                className: "text-xs font-bold text-zinc-400 uppercase tracking-widest",
+                children: "Select Amount"
+              }), /* @__PURE__ */ jsx("div", {
+                className: "grid grid-cols-2 md:grid-cols-4 gap-4",
+                children: ["25", "50", "100", "custom"].map((amt) => /* @__PURE__ */ jsx("button", {
+                  onClick: () => setBuyData({
+                    ...buyData,
+                    amount: amt
+                  }),
+                  className: `py-4 px-4 rounded-2xl font-bold border-2 transition-all ${buyData.amount === amt ? "border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300"}`,
+                  children: amt === "custom" ? "Custom" : `$${amt}`
+                }, amt))
+              }), buyData.amount === "custom" && /* @__PURE__ */ jsx("div", {
+                className: "animate-in fade-in slide-in-from-top-2",
+                children: /* @__PURE__ */ jsxs("div", {
+                  className: "relative",
+                  children: [/* @__PURE__ */ jsx("span", {
+                    className: "absolute left-4 top-1/2 -translate-y-1/2 font-bold text-zinc-400",
+                    children: "$"
+                  }), /* @__PURE__ */ jsx("input", {
+                    type: "number",
+                    placeholder: "Enter amount (e.g. 150)",
+                    value: buyData.customAmount,
+                    onChange: (e) => setBuyData({
+                      ...buyData,
+                      customAmount: e.target.value
+                    }),
+                    className: "w-full pl-8 pr-4 py-4 bg-zinc-50 dark:bg-zinc-800 border-none rounded-2xl font-bold text-lg outline-none focus:ring-2 focus:ring-blue-500"
+                  })]
+                })
+              })]
+            }), /* @__PURE__ */ jsxs("div", {
+              className: "space-y-4",
+              children: [/* @__PURE__ */ jsx("label", {
+                className: "text-xs font-bold text-zinc-400 uppercase tracking-widest",
+                children: "Who is this for?"
+              }), /* @__PURE__ */ jsxs("div", {
+                className: "flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-2xl",
+                children: [/* @__PURE__ */ jsx("button", {
+                  onClick: () => setBuyData({
+                    ...buyData,
+                    isForSelf: true
+                  }),
+                  className: `flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all ${buyData.isForSelf ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm" : "text-zinc-500"}`,
+                  children: "For Me"
+                }), /* @__PURE__ */ jsx("button", {
+                  onClick: () => setBuyData({
+                    ...buyData,
+                    isForSelf: false
+                  }),
+                  className: `flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all ${!buyData.isForSelf ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm" : "text-zinc-500"}`,
+                  children: "For Someone Else"
+                })]
+              })]
+            }), !buyData.isForSelf && /* @__PURE__ */ jsxs("div", {
+              className: "space-y-4 animate-in fade-in slide-in-from-top-4",
+              children: [/* @__PURE__ */ jsxs("div", {
+                className: "grid grid-cols-1 md:grid-cols-2 gap-4",
+                children: [/* @__PURE__ */ jsxs("div", {
+                  className: "space-y-1",
+                  children: [/* @__PURE__ */ jsx("label", {
+                    className: "text-xs font-bold text-zinc-400 uppercase tracking-widest",
+                    children: "Recipient Name"
+                  }), /* @__PURE__ */ jsx("input", {
+                    type: "text",
+                    placeholder: "Jane Doe",
+                    value: buyData.recipientName,
+                    onChange: (e) => setBuyData({
+                      ...buyData,
+                      recipientName: e.target.value
+                    }),
+                    className: "w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  })]
+                }), /* @__PURE__ */ jsxs("div", {
+                  className: "space-y-1",
+                  children: [/* @__PURE__ */ jsx("label", {
+                    className: "text-xs font-bold text-zinc-400 uppercase tracking-widest",
+                    children: "Recipient Email"
+                  }), /* @__PURE__ */ jsx("input", {
+                    type: "email",
+                    placeholder: "jane@example.com",
+                    value: buyData.recipientEmail,
+                    onChange: (e) => setBuyData({
+                      ...buyData,
+                      recipientEmail: e.target.value
+                    }),
+                    className: "w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  })]
+                })]
+              }), /* @__PURE__ */ jsxs("div", {
+                className: "space-y-1",
+                children: [/* @__PURE__ */ jsx("label", {
+                  className: "text-xs font-bold text-zinc-400 uppercase tracking-widest",
+                  children: "Your Name (From)"
+                }), /* @__PURE__ */ jsx("input", {
+                  type: "text",
+                  placeholder: "Your Name",
+                  value: buyData.senderName,
+                  onChange: (e) => setBuyData({
+                    ...buyData,
+                    senderName: e.target.value
+                  }),
+                  className: "w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                })]
+              }), /* @__PURE__ */ jsxs("div", {
+                className: "space-y-1",
+                children: [/* @__PURE__ */ jsx("label", {
+                  className: "text-xs font-bold text-zinc-400 uppercase tracking-widest",
+                  children: "Message (Optional)"
+                }), /* @__PURE__ */ jsx("textarea", {
+                  placeholder: "Enjoy!",
+                  rows: 3,
+                  value: buyData.message,
+                  onChange: (e) => setBuyData({
+                    ...buyData,
+                    message: e.target.value
+                  }),
+                  className: "w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                })]
+              })]
+            }), /* @__PURE__ */ jsxs("div", {
+              className: "pt-4",
+              children: [/* @__PURE__ */ jsx("a", {
+                href: getCheckoutUrl(),
+                className: `block w-full py-4 rounded-2xl font-black text-center transition-all ${!buyData.isForSelf && !buyData.recipientEmail || buyData.amount === "custom" && !buyData.customAmount ? "bg-zinc-100 text-zinc-400 cursor-not-allowed" : "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 hover:scale-[1.02] shadow-xl"}`,
+                children: "Proceed to Checkout"
+              }), /* @__PURE__ */ jsxs("p", {
+                className: "text-center text-xs text-zinc-400 mt-4 flex items-center justify-center gap-1",
+                children: [/* @__PURE__ */ jsx(CreditCard, {
+                  size: 12
+                }), " Secure payment via Stripe"]
+              })]
             })]
           })]
-        })]
+        })
       })
-    })]
+    )]
   });
 });
-const route5 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route6 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_commerce_giftCards,
-  loader: loader$z
+  loader: loader$B
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$y = async (args) => {
+function Modal({ isOpen, onClose, title, children, maxWidth = "max-w-md" }) {
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    if (isOpen) {
+      document.addEventListener("keydown", handleEscape);
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen, onClose]);
+  if (!isOpen) return null;
+  return /* @__PURE__ */ jsxs("div", { className: "fixed inset-0 z-50 flex items-center justify-center p-4", children: [
+    /* @__PURE__ */ jsx(
+      "div",
+      {
+        className: "absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200",
+        onClick: onClose
+      }
+    ),
+    /* @__PURE__ */ jsxs(
+      "div",
+      {
+        className: `relative rounded-xl shadow-2xl w-full ${maxWidth} overflow-hidden animate-in zoom-in-95 duration-200`,
+        style: { background: "var(--card-bg)", border: "1px solid var(--border)" },
+        role: "dialog",
+        "aria-modal": "true",
+        children: [
+          title && /* @__PURE__ */ jsxs("div", { className: "px-6 py-4 flex items-center justify-between", style: { background: "var(--bg-subtle)", borderBottom: "1px solid var(--border)" }, children: [
+            /* @__PURE__ */ jsx("h3", { className: "font-semibold text-lg", style: { color: "var(--text)" }, children: title }),
+            /* @__PURE__ */ jsx(
+              "button",
+              {
+                onClick: onClose,
+                className: "p-1 rounded-md transition-colors hover:opacity-70",
+                style: { color: "var(--text-muted)" },
+                children: /* @__PURE__ */ jsxs("svg", { xmlns: "http://www.w3.org/2000/svg", width: "20", height: "20", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
+                  /* @__PURE__ */ jsx("line", { x1: "18", y1: "6", x2: "6", y2: "18" }),
+                  /* @__PURE__ */ jsx("line", { x1: "6", y1: "6", x2: "18", y2: "18" })
+                ] })
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsx("div", { className: "p-6", children })
+        ]
+      }
+    )
+  ] });
+}
+const loader$A = async (args) => {
   const {
     getToken
   } = await getAuth(args);
   const token = await getToken();
   const slug = args.params.slug;
   let configs = [];
+  let payouts = [];
+  let members = [];
   try {
-    const res = await apiRequest("/payroll/config", token, {
-      headers: {
-        "X-Tenant-Slug": slug
-      }
-    });
-    configs = res.configs || [];
+    const [configRes, payoutsRes, membersRes] = await Promise.all([
+      apiRequest("/payroll/config", token, {
+        headers: {
+          "X-Tenant-Slug": slug
+        }
+      }),
+      apiRequest("/payroll/payouts", token, {
+        headers: {
+          "X-Tenant-Slug": slug
+        }
+      }),
+      // New endpoint
+      apiRequest("/members", token, {
+        headers: {
+          "X-Tenant-Slug": slug
+        }
+      })
+    ]);
+    configs = configRes.configs || [];
+    payouts = payoutsRes.payouts || [];
+    members = membersRes.members || [];
   } catch (e) {
-    console.error("Failed to load payroll config", e);
+    console.error("Failed to load payroll data", e);
   }
   return {
     configs,
+    payouts,
+    members,
     token,
     slug
   };
 };
 const studio_$slug_financials_payroll = UNSAFE_withComponentProps(function PayrollPage() {
   const {
-    configs,
+    configs: initialConfigs,
+    payouts: initialPayouts,
+    members,
     token,
     slug
   } = useLoaderData();
+  const [configs, setConfigs] = useState(initialConfigs);
+  const [payouts, setPayouts] = useState(initialPayouts);
   const [tab, setTab] = useState("run");
   return /* @__PURE__ */ jsxs("div", {
     className: "max-w-6xl mx-auto py-8 px-4",
@@ -1973,25 +2523,75 @@ const studio_$slug_financials_payroll = UNSAFE_withComponentProps(function Payro
       })
     }), tab === "config" && /* @__PURE__ */ jsx(PayrollConfig, {
       configs,
+      members,
       token,
-      slug
+      slug,
+      onUpdate: (newConfigs) => setConfigs(newConfigs)
     }), tab === "run" && /* @__PURE__ */ jsx(RunPayroll, {
       token,
       slug
-    }), tab === "history" && /* @__PURE__ */ jsx("div", {
-      className: "text-zinc-500 italic",
-      children: "History feature coming soon."
+    }), tab === "history" && /* @__PURE__ */ jsx(PayoutHistory, {
+      payouts
     })]
   });
 });
 function PayrollConfig({
   configs,
+  members,
   token,
-  slug
+  slug,
+  onUpdate
 }) {
-  const [list, setList] = useState(configs);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [selectedMemberId, setSelectedMemberId] = useState("");
+  const [payModel, setPayModel] = useState("flat");
+  const [rate, setRate] = useState("");
+  const instructors = members.filter((m) => m.roles.some((r) => r.role === "instructor" || r.role === "owner"));
+  async function handleAdd(e) {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await apiRequest("/payroll/config", token, {
+        method: "PUT",
+        headers: {
+          "X-Tenant-Slug": slug
+        },
+        body: JSON.stringify({
+          memberId: selectedMemberId,
+          payModel,
+          rate: Number(rate)
+        })
+      });
+      const res = await apiRequest("/payroll/config", token, {
+        headers: {
+          "X-Tenant-Slug": slug
+        }
+      });
+      onUpdate(res.configs || []);
+      setIsCreateOpen(false);
+      setSelectedMemberId("");
+      setRate("");
+    } catch (e2) {
+      alert(e2.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
   return /* @__PURE__ */ jsxs("div", {
-    children: [/* @__PURE__ */ jsx("div", {
+    children: [/* @__PURE__ */ jsxs("div", {
+      className: "flex justify-between items-center mb-4",
+      children: [/* @__PURE__ */ jsx("h2", {
+        className: "text-xl font-bold",
+        children: "Rate Configurations"
+      }), /* @__PURE__ */ jsxs("button", {
+        onClick: () => setIsCreateOpen(true),
+        className: "bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-zinc-800",
+        children: [/* @__PURE__ */ jsx(Plus, {
+          className: "h-4 w-4"
+        }), " Add Configuration"]
+      })]
+    }), /* @__PURE__ */ jsx("div", {
       className: "bg-white rounded-lg border border-zinc-200 overflow-hidden",
       children: /* @__PURE__ */ jsxs("table", {
         className: "min-w-full divide-y divide-zinc-200",
@@ -2014,25 +2614,90 @@ function PayrollConfig({
           })
         }), /* @__PURE__ */ jsxs("tbody", {
           className: "bg-white divide-y divide-zinc-200",
-          children: [list.map((conf) => /* @__PURE__ */ jsx(ConfigRow, {
+          children: [configs.map((conf) => /* @__PURE__ */ jsx(ConfigRow, {
             config: conf,
             token,
             slug
-          }, conf.id)), list.length === 0 && /* @__PURE__ */ jsx("tr", {
-            children: /* @__PURE__ */ jsxs("td", {
+          }, conf.id)), configs.length === 0 && /* @__PURE__ */ jsx("tr", {
+            children: /* @__PURE__ */ jsx("td", {
               colSpan: 4,
-              className: "px-6 py-4 text-center text-sm text-zinc-500",
-              children: ["No configurations found. ", /* @__PURE__ */ jsx("br", {}), /* @__PURE__ */ jsx("span", {
-                className: "text-xs",
-                children: " (In MVP, you need to seed configs or use API to create them first, as UI to add new is skipped for brevity)"
-              })]
+              className: "px-6 py-8 text-center text-sm text-zinc-500",
+              children: "No configurations found. Add one to get started."
             })
           })]
         })]
       })
     }), /* @__PURE__ */ jsx("p", {
       className: "mt-4 text-sm text-zinc-500",
-      children: "* Note: Rates for percentage model are in basis points (5000 = 50%). Flat rates are in cents."
+      children: "* Note: Rates for percentage model are in basis points (5000 = 50%). Flat/Hourly rates are in cents."
+    }), /* @__PURE__ */ jsx(Modal, {
+      isOpen: isCreateOpen,
+      onClose: () => setIsCreateOpen(false),
+      title: "Add Payroll Configuration",
+      children: /* @__PURE__ */ jsxs("form", {
+        onSubmit: handleAdd,
+        className: "space-y-4",
+        children: [/* @__PURE__ */ jsxs("div", {
+          children: [/* @__PURE__ */ jsx("label", {
+            className: "block text-sm font-medium text-zinc-700 mb-1",
+            children: "Instructor"
+          }), /* @__PURE__ */ jsxs("select", {
+            value: selectedMemberId,
+            onChange: (e) => setSelectedMemberId(e.target.value),
+            required: true,
+            className: "w-full border border-zinc-300 rounded px-3 py-2",
+            children: [/* @__PURE__ */ jsx("option", {
+              value: "",
+              children: "Select Instructor..."
+            }), instructors.map((m) => /* @__PURE__ */ jsxs("option", {
+              value: m.id,
+              children: [m.user?.profile?.firstName, " ", m.user?.profile?.lastName, " (", m.user?.email, ")"]
+            }, m.id))]
+          }), /* @__PURE__ */ jsx("p", {
+            className: "text-xs text-zinc-500 mt-1",
+            children: "Only showing members with 'Instructor' role."
+          })]
+        }), /* @__PURE__ */ jsxs("div", {
+          children: [/* @__PURE__ */ jsx("label", {
+            className: "block text-sm font-medium text-zinc-700 mb-1",
+            children: "Pay Model"
+          }), /* @__PURE__ */ jsxs("select", {
+            value: payModel,
+            onChange: (e) => setPayModel(e.target.value),
+            className: "w-full border border-zinc-300 rounded px-3 py-2",
+            children: [/* @__PURE__ */ jsx("option", {
+              value: "flat",
+              children: "Flat Rate (per session)"
+            }), /* @__PURE__ */ jsx("option", {
+              value: "hourly",
+              children: "Hourly Rate"
+            }), /* @__PURE__ */ jsx("option", {
+              value: "percentage",
+              children: "Percentage (Revenue Share)"
+            })]
+          })]
+        }), /* @__PURE__ */ jsxs("div", {
+          children: [/* @__PURE__ */ jsxs("label", {
+            className: "block text-sm font-medium text-zinc-700 mb-1",
+            children: ["Rate ", payModel === "percentage" ? "(in Basis Points, e.g. 5000 = 50%)" : "(in Cents)"]
+          }), /* @__PURE__ */ jsx("input", {
+            type: "number",
+            required: true,
+            value: rate,
+            onChange: (e) => setRate(e.target.value),
+            placeholder: payModel === "percentage" ? "5000" : "3000",
+            className: "w-full border border-zinc-300 rounded px-3 py-2"
+          })]
+        }), /* @__PURE__ */ jsx("div", {
+          className: "flex justify-end pt-4",
+          children: /* @__PURE__ */ jsx("button", {
+            type: "submit",
+            disabled: submitting,
+            className: "bg-zinc-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-zinc-800 disabled:opacity-50",
+            children: submitting ? "Saving..." : "Save Configuration"
+          })
+        })]
+      })
     })]
   });
 }
@@ -2044,7 +2709,6 @@ function ConfigRow({
   const [editing, setEditing] = useState(false);
   const [model, setModel] = useState(config.payModel);
   const [rate, setRate] = useState(config.rate);
-  useFetcher();
   async function handleSave() {
     try {
       await apiRequest("/payroll/config", token, {
@@ -2066,14 +2730,14 @@ function ConfigRow({
   if (editing) {
     return /* @__PURE__ */ jsxs("tr", {
       children: [/* @__PURE__ */ jsxs("td", {
-        className: "px-6 py-4 whitespace-nowrap text-sm text-zinc-900",
+        className: "px-6 py-4 whitespace-nowrap text-sm text-zinc-900 bg-yellow-50",
         children: [config.member?.user?.profile?.firstName, " ", config.member?.user?.profile?.lastName]
       }), /* @__PURE__ */ jsx("td", {
-        className: "px-6 py-4 whitespace-nowrap text-sm",
+        className: "px-6 py-4 whitespace-nowrap text-sm bg-yellow-50",
         children: /* @__PURE__ */ jsxs("select", {
           value: model,
           onChange: (e) => setModel(e.target.value),
-          className: "border rounded px-2 py-1",
+          className: "border rounded px-2 py-1 bg-white",
           children: [/* @__PURE__ */ jsx("option", {
             value: "flat",
             children: "Flat Rate (per session)"
@@ -2086,7 +2750,7 @@ function ConfigRow({
           })]
         })
       }), /* @__PURE__ */ jsx("td", {
-        className: "px-6 py-4 whitespace-nowrap text-sm",
+        className: "px-6 py-4 whitespace-nowrap text-sm bg-yellow-50",
         children: /* @__PURE__ */ jsx("input", {
           type: "number",
           value: rate,
@@ -2094,10 +2758,10 @@ function ConfigRow({
           className: "border rounded px-2 py-1 w-24"
         })
       }), /* @__PURE__ */ jsxs("td", {
-        className: "px-6 py-4 whitespace-nowrap text-right text-sm",
+        className: "px-6 py-4 whitespace-nowrap text-right text-sm bg-yellow-50",
         children: [/* @__PURE__ */ jsx("button", {
           onClick: handleSave,
-          className: "text-blue-600 hover:text-blue-900 mr-3",
+          className: "text-blue-600 hover:text-blue-900 mr-3 font-medium",
           children: "Save"
         }), /* @__PURE__ */ jsx("button", {
           onClick: () => setEditing(false),
@@ -2125,6 +2789,72 @@ function ConfigRow({
         children: "Edit"
       })
     })]
+  });
+}
+function PayoutHistory({
+  payouts
+}) {
+  return /* @__PURE__ */ jsx("div", {
+    children: /* @__PURE__ */ jsx("div", {
+      className: "bg-white rounded-lg border border-zinc-200 overflow-hidden shadow-sm",
+      children: /* @__PURE__ */ jsxs("table", {
+        className: "min-w-full divide-y divide-zinc-200",
+        children: [/* @__PURE__ */ jsx("thead", {
+          className: "bg-zinc-50",
+          children: /* @__PURE__ */ jsxs("tr", {
+            children: [/* @__PURE__ */ jsx("th", {
+              className: "px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider",
+              children: "Date"
+            }), /* @__PURE__ */ jsx("th", {
+              className: "px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider",
+              children: "Instructor"
+            }), /* @__PURE__ */ jsx("th", {
+              className: "px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider",
+              children: "Period"
+            }), /* @__PURE__ */ jsx("th", {
+              className: "px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider",
+              children: "Amount"
+            }), /* @__PURE__ */ jsx("th", {
+              className: "px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider",
+              children: "Status"
+            })]
+          })
+        }), /* @__PURE__ */ jsxs("tbody", {
+          className: "bg-white divide-y divide-zinc-200",
+          children: [payouts.map((p) => /* @__PURE__ */ jsxs("tr", {
+            className: "hover:bg-zinc-50 transition-colors",
+            children: [/* @__PURE__ */ jsx("td", {
+              className: "px-6 py-4 whitespace-nowrap text-sm text-zinc-500",
+              children: new Date(p.createdAt).toLocaleDateString()
+            }), /* @__PURE__ */ jsx("td", {
+              className: "px-6 py-4 whitespace-nowrap text-sm text-zinc-900 font-medium",
+              children: p.instructorName
+            }), /* @__PURE__ */ jsxs("td", {
+              className: "px-6 py-4 whitespace-nowrap text-sm text-zinc-500",
+              children: [new Date(p.periodStart).toLocaleDateString(), " - ", new Date(p.periodEnd).toLocaleDateString()]
+            }), /* @__PURE__ */ jsxs("td", {
+              className: "px-6 py-4 whitespace-nowrap text-sm font-bold text-zinc-900",
+              children: ["$", (p.amount / 100).toFixed(2)]
+            }), /* @__PURE__ */ jsxs("td", {
+              className: "px-6 py-4 whitespace-nowrap",
+              children: [/* @__PURE__ */ jsx("span", {
+                className: `px-2 py-1 text-xs rounded-full capitalize ${p.status === "paid" ? "bg-green-100 text-green-700" : p.status === "processing" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"}`,
+                children: p.status
+              }), p.stripeTransferId && /* @__PURE__ */ jsxs("span", {
+                className: "ml-2 text-[10px] text-zinc-400 font-mono",
+                children: [p.stripeTransferId.substring(0, 8), "..."]
+              })]
+            })]
+          }, p.id)), payouts.length === 0 && /* @__PURE__ */ jsx("tr", {
+            children: /* @__PURE__ */ jsx("td", {
+              colSpan: 5,
+              className: "px-6 py-8 text-center text-sm text-zinc-500",
+              children: "No payout history found."
+            })
+          })]
+        })]
+      })
+    })
   });
 }
 function RunPayroll({
@@ -2310,12 +3040,338 @@ function PayrollCard({
     })]
   });
 }
-const route6 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route7 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_financials_payroll,
-  loader: loader$y
+  loader: loader$A
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$x = async (args) => {
+const loader$z = async (args) => {
+  const {
+    params
+  } = args;
+  const {
+    getToken,
+    userId
+  } = await getAuth(args);
+  if (!userId) return {
+    error: "Unauthorized"
+  };
+  const token = await getToken();
+  try {
+    const res = await apiRequest("/coupons", token, {
+      headers: {
+        "X-Tenant-Slug": params.slug
+      }
+    });
+    return {
+      coupons: res.coupons || [],
+      error: null
+    };
+  } catch (e) {
+    return {
+      coupons: [],
+      error: "Failed to load coupons"
+    };
+  }
+};
+const studio_$slug_commerce_coupons = UNSAFE_withComponentProps(function CouponsPage() {
+  const {
+    coupons: initialCoupons,
+    error
+  } = useLoaderData();
+  const {
+    tenant
+  } = useOutletContext() || {};
+  return /* @__PURE__ */ jsx(CouponsView, {
+    initialCoupons,
+    tenant
+  });
+});
+function CouponsView({
+  initialCoupons,
+  tenant
+}) {
+  const [coupons, setCoupons] = useState(initialCoupons || []);
+  const [loading, setLoading] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [form, setForm] = useState({
+    code: "",
+    type: "percent",
+    value: "",
+    usageLimit: ""
+  });
+  const {
+    getToken
+  } = useAuth();
+  const fetchCoupons = async () => {
+    const token = await getToken();
+    const res = await apiRequest("/coupons", token, {
+      headers: {
+        "X-Tenant-Slug": tenant.slug
+      }
+    });
+    setCoupons(res.coupons || []);
+  };
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const token = await getToken();
+      const res = await apiRequest("/coupons", token, {
+        method: "POST",
+        headers: {
+          "X-Tenant-Slug": tenant.slug
+        },
+        body: JSON.stringify(form)
+      });
+      if (res.error) throw new Error(res.error);
+      setIsCreateOpen(false);
+      setForm({
+        code: "",
+        type: "percent",
+        value: "",
+        usageLimit: ""
+      });
+      await fetchCoupons();
+    } catch (e2) {
+      alert(e2.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleDeactivate = async (id) => {
+    if (!confirm("Are you sure you want to deactivate this coupon?")) return;
+    setLoading(true);
+    try {
+      const token = await getToken();
+      await apiRequest(`/coupons/${id}`, token, {
+        method: "DELETE",
+        headers: {
+          "X-Tenant-Slug": tenant.slug
+        }
+      });
+      await fetchCoupons();
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  return /* @__PURE__ */ jsxs("div", {
+    className: "p-8 max-w-6xl mx-auto",
+    children: [/* @__PURE__ */ jsxs("div", {
+      className: "mb-8 flex justify-between items-center",
+      children: [/* @__PURE__ */ jsxs("div", {
+        className: "flex items-center gap-3",
+        children: [/* @__PURE__ */ jsx("div", {
+          className: "w-12 h-12 bg-pink-100 dark:bg-pink-900/30 rounded-xl flex items-center justify-center",
+          children: /* @__PURE__ */ jsx(Tag, {
+            className: "text-pink-600 dark:text-pink-400",
+            size: 24
+          })
+        }), /* @__PURE__ */ jsxs("div", {
+          children: [/* @__PURE__ */ jsx("h1", {
+            className: "text-3xl font-bold text-zinc-900 dark:text-zinc-100",
+            children: "Coupons"
+          }), /* @__PURE__ */ jsx("p", {
+            className: "text-zinc-500 dark:text-zinc-400 text-sm",
+            children: "Manage discounts and promotional codes."
+          })]
+        })]
+      }), /* @__PURE__ */ jsxs("button", {
+        onClick: () => setIsCreateOpen(true),
+        className: "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-2 rounded-lg text-sm font-bold hover:bg-zinc-800 transition-colors shadow-lg shadow-zinc-500/10 flex items-center gap-2",
+        children: [/* @__PURE__ */ jsx(Plus, {
+          size: 16
+        }), " New Coupon"]
+      })]
+    }), isCreateOpen && /* @__PURE__ */ jsx("div", {
+      className: "fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm",
+      children: /* @__PURE__ */ jsxs("div", {
+        className: "bg-white dark:bg-zinc-900 rounded-xl max-w-md w-full p-6 shadow-2xl border border-zinc-200 dark:border-zinc-800",
+        children: [/* @__PURE__ */ jsx("h3", {
+          className: "text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4",
+          children: "Create Coupon"
+        }), /* @__PURE__ */ jsxs("form", {
+          onSubmit: handleCreate,
+          children: [/* @__PURE__ */ jsxs("div", {
+            className: "mb-4",
+            children: [/* @__PURE__ */ jsx("label", {
+              className: "block text-xs font-bold text-zinc-500 uppercase mb-1",
+              children: "Coupon Code"
+            }), /* @__PURE__ */ jsx("input", {
+              type: "text",
+              className: "w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-lg px-3 py-2 text-sm font-mono uppercase",
+              placeholder: "e.g. SUMMER25",
+              value: form.code,
+              onChange: (e) => setForm({
+                ...form,
+                code: e.target.value.toUpperCase()
+              }),
+              required: true
+            })]
+          }), /* @__PURE__ */ jsxs("div", {
+            className: "grid grid-cols-2 gap-4 mb-4",
+            children: [/* @__PURE__ */ jsxs("div", {
+              children: [/* @__PURE__ */ jsx("label", {
+                className: "block text-xs font-bold text-zinc-500 uppercase mb-1",
+                children: "Type"
+              }), /* @__PURE__ */ jsxs("select", {
+                className: "w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-lg px-3 py-2 text-sm",
+                value: form.type,
+                onChange: (e) => setForm({
+                  ...form,
+                  type: e.target.value
+                }),
+                children: [/* @__PURE__ */ jsx("option", {
+                  value: "percent",
+                  children: "Percentage (%)"
+                }), /* @__PURE__ */ jsx("option", {
+                  value: "amount",
+                  children: "Fixed Amount ($)"
+                })]
+              })]
+            }), /* @__PURE__ */ jsxs("div", {
+              children: [/* @__PURE__ */ jsx("label", {
+                className: "block text-xs font-bold text-zinc-500 uppercase mb-1",
+                children: "Value"
+              }), /* @__PURE__ */ jsx("input", {
+                type: "number",
+                className: "w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-lg px-3 py-2 text-sm",
+                placeholder: form.type === "percent" ? "e.g. 10" : "e.g. 1000 (cents)",
+                value: form.value,
+                onChange: (e) => setForm({
+                  ...form,
+                  value: e.target.value
+                }),
+                required: true,
+                min: "1"
+              }), /* @__PURE__ */ jsx("p", {
+                className: "text-[10px] text-zinc-400 mt-1",
+                children: form.type === "amount" ? "In cents (e.g. 1000 = $10.00)" : "Percentage value (1-100)"
+              })]
+            })]
+          }), /* @__PURE__ */ jsxs("div", {
+            className: "mb-6",
+            children: [/* @__PURE__ */ jsx("label", {
+              className: "block text-xs font-bold text-zinc-500 uppercase mb-1",
+              children: "Usage Limit (Optional)"
+            }), /* @__PURE__ */ jsx("input", {
+              type: "number",
+              className: "w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-lg px-3 py-2 text-sm",
+              placeholder: "Unlimited",
+              value: form.usageLimit,
+              onChange: (e) => setForm({
+                ...form,
+                usageLimit: e.target.value
+              }),
+              min: "1"
+            })]
+          }), /* @__PURE__ */ jsxs("div", {
+            className: "flex justify-end gap-2",
+            children: [/* @__PURE__ */ jsx("button", {
+              type: "button",
+              onClick: () => setIsCreateOpen(false),
+              className: "px-4 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200",
+              children: "Cancel"
+            }), /* @__PURE__ */ jsx("button", {
+              type: "submit",
+              disabled: loading,
+              className: "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 rounded-lg text-sm font-bold hover:bg-zinc-800 disabled:opacity-50",
+              children: loading ? "Creating..." : "Create Coupon"
+            })]
+          })]
+        })]
+      })
+    }), /* @__PURE__ */ jsx("div", {
+      className: "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-sm",
+      children: coupons.length === 0 ? /* @__PURE__ */ jsxs("div", {
+        className: "p-12 text-center text-zinc-400",
+        children: [/* @__PURE__ */ jsx(Tag, {
+          className: "mx-auto h-12 w-12 mb-4 opacity-20"
+        }), /* @__PURE__ */ jsx("h3", {
+          className: "text-zinc-900 dark:text-zinc-100 font-bold mb-1",
+          children: "No Coupons Yet"
+        }), /* @__PURE__ */ jsx("p", {
+          className: "text-sm",
+          children: "Create your first discount code to get started."
+        })]
+      }) : /* @__PURE__ */ jsxs("table", {
+        className: "w-full text-left text-sm",
+        children: [/* @__PURE__ */ jsx("thead", {
+          className: "bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800",
+          children: /* @__PURE__ */ jsxs("tr", {
+            children: [/* @__PURE__ */ jsx("th", {
+              className: "px-6 py-4 font-bold text-zinc-900 dark:text-zinc-100",
+              children: "Code"
+            }), /* @__PURE__ */ jsx("th", {
+              className: "px-6 py-4 font-bold text-zinc-900 dark:text-zinc-100",
+              children: "Discount"
+            }), /* @__PURE__ */ jsx("th", {
+              className: "px-6 py-4 font-bold text-zinc-900 dark:text-zinc-100",
+              children: "Usage Limit"
+            }), /* @__PURE__ */ jsx("th", {
+              className: "px-6 py-4 font-bold text-zinc-900 dark:text-zinc-100",
+              children: "Status"
+            }), /* @__PURE__ */ jsx("th", {
+              className: "px-6 py-4 font-bold text-zinc-900 dark:text-zinc-100 text-right",
+              children: "Actions"
+            })]
+          })
+        }), /* @__PURE__ */ jsx("tbody", {
+          className: "divide-y divide-zinc-100 dark:divide-zinc-800",
+          children: coupons.map((coupon) => /* @__PURE__ */ jsxs("tr", {
+            className: "group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors",
+            children: [/* @__PURE__ */ jsx("td", {
+              className: "px-6 py-4 font-mono font-bold text-zinc-800 dark:text-zinc-200",
+              children: coupon.code
+            }), /* @__PURE__ */ jsx("td", {
+              className: "px-6 py-4 text-zinc-600 dark:text-zinc-300",
+              children: coupon.type === "percent" ? /* @__PURE__ */ jsxs("span", {
+                className: "bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold",
+                children: [coupon.value, "% OFF"]
+              }) : /* @__PURE__ */ jsxs("span", {
+                className: "bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs font-bold",
+                children: ["$", (coupon.value / 100).toFixed(2), " OFF"]
+              })
+            }), /* @__PURE__ */ jsxs("td", {
+              className: "px-6 py-4 text-zinc-500",
+              children: [coupon.usageCount || 0, " / ", coupon.usageLimit ? coupon.usageLimit : "∞"]
+            }), /* @__PURE__ */ jsx("td", {
+              className: "px-6 py-4",
+              children: coupon.active ? /* @__PURE__ */ jsxs("span", {
+                className: "inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700",
+                children: [/* @__PURE__ */ jsx("span", {
+                  className: "w-1.5 h-1.5 rounded-full bg-green-500"
+                }), " Active"]
+              }) : /* @__PURE__ */ jsx("span", {
+                className: "inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-bold bg-zinc-100 text-zinc-500",
+                children: "Inactive"
+              })
+            }), /* @__PURE__ */ jsx("td", {
+              className: "px-6 py-4 text-right",
+              children: coupon.active && /* @__PURE__ */ jsx("button", {
+                onClick: () => handleDeactivate(coupon.id),
+                disabled: loading,
+                className: "text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-colors",
+                title: "Deactivate Coupon",
+                children: /* @__PURE__ */ jsx(Trash2, {
+                  size: 16
+                })
+              })
+            })]
+          }, coupon.id))
+        })]
+      })
+    })]
+  });
+}
+const route8 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  default: studio_$slug_commerce_coupons,
+  loader: loader$z
+}, Symbol.toStringTag, { value: "Module" }));
+const loader$y = async (args) => {
   const {
     params
   } = args;
@@ -2350,6 +3406,7 @@ const action$a = async (args) => {
     const credits = parseInt(formData.get("credits"));
     const price = parseFloat(formData.get("price")) * 100;
     const expirationDays = formData.get("expirationDays") ? parseInt(formData.get("expirationDays")) : null;
+    const vodEnabled = formData.get("vodEnabled") === "on";
     const res = await apiRequest(`/commerce/packs`, token, {
       method: "POST",
       headers: {
@@ -2359,7 +3416,8 @@ const action$a = async (args) => {
         name,
         credits,
         price,
-        expirationDays
+        expirationDays,
+        vodEnabled
       })
     });
     if (res.error) return {
@@ -2467,6 +3525,21 @@ const studio_$slug_commerce_packs = UNSAFE_withComponentProps(function ClassPack
             })]
           })]
         }), /* @__PURE__ */ jsxs("div", {
+          className: "flex items-center gap-2 mb-6",
+          children: [/* @__PURE__ */ jsx("input", {
+            type: "checkbox",
+            name: "vodEnabled",
+            id: "vodEnabled",
+            className: "rounded border-zinc-300 dark:border-zinc-700 text-blue-600 focus:ring-blue-500"
+          }), /* @__PURE__ */ jsx("label", {
+            htmlFor: "vodEnabled",
+            className: "text-sm font-medium text-zinc-700 dark:text-zinc-300",
+            children: "Include VOD Access"
+          }), /* @__PURE__ */ jsx("p", {
+            className: "text-xs text-zinc-500 dark:text-zinc-400 ml-2",
+            children: "(Allows entry to On-Demand Library)"
+          })]
+        }), /* @__PURE__ */ jsxs("div", {
           className: "flex justify-end gap-3",
           children: [/* @__PURE__ */ jsx("button", {
             type: "button",
@@ -2554,13 +3627,13 @@ const studio_$slug_commerce_packs = UNSAFE_withComponentProps(function ClassPack
     })]
   });
 });
-const route7 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route9 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action: action$a,
   default: studio_$slug_commerce_packs,
-  loader: loader$x
+  loader: loader$y
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$w = async (args) => {
+const loader$x = async (args) => {
   const {
     params
   } = args;
@@ -2949,12 +4022,12 @@ function SubList({
     }, sub.id))
   });
 }
-const route8 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route10 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_substitutions,
-  loader: loader$w
+  loader: loader$x
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$v = async (args) => {
+const loader$w = async (args) => {
   const {
     getToken,
     userId
@@ -3224,63 +4297,11 @@ const studio_$slug_appointments = UNSAFE_withComponentProps(function Appointment
     })]
   });
 });
-const route9 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route11 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_appointments,
-  loader: loader$v
+  loader: loader$w
 }, Symbol.toStringTag, { value: "Module" }));
-function Modal({ isOpen, onClose, title, children, maxWidth = "max-w-md" }) {
-  useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === "Escape") onClose();
-    };
-    if (isOpen) {
-      document.addEventListener("keydown", handleEscape);
-      document.body.style.overflow = "hidden";
-    }
-    return () => {
-      document.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = "unset";
-    };
-  }, [isOpen, onClose]);
-  if (!isOpen) return null;
-  return /* @__PURE__ */ jsxs("div", { className: "fixed inset-0 z-50 flex items-center justify-center p-4", children: [
-    /* @__PURE__ */ jsx(
-      "div",
-      {
-        className: "absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200",
-        onClick: onClose
-      }
-    ),
-    /* @__PURE__ */ jsxs(
-      "div",
-      {
-        className: `relative rounded-xl shadow-2xl w-full ${maxWidth} overflow-hidden animate-in zoom-in-95 duration-200`,
-        style: { background: "var(--card-bg)", border: "1px solid var(--border)" },
-        role: "dialog",
-        "aria-modal": "true",
-        children: [
-          title && /* @__PURE__ */ jsxs("div", { className: "px-6 py-4 flex items-center justify-between", style: { background: "var(--bg-subtle)", borderBottom: "1px solid var(--border)" }, children: [
-            /* @__PURE__ */ jsx("h3", { className: "font-semibold text-lg", style: { color: "var(--text)" }, children: title }),
-            /* @__PURE__ */ jsx(
-              "button",
-              {
-                onClick: onClose,
-                className: "p-1 rounded-md transition-colors hover:opacity-70",
-                style: { color: "var(--text-muted)" },
-                children: /* @__PURE__ */ jsxs("svg", { xmlns: "http://www.w3.org/2000/svg", width: "20", height: "20", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
-                  /* @__PURE__ */ jsx("line", { x1: "18", y1: "6", x2: "6", y2: "18" }),
-                  /* @__PURE__ */ jsx("line", { x1: "6", y1: "6", x2: "18", y2: "18" })
-                ] })
-              }
-            )
-          ] }),
-          /* @__PURE__ */ jsx("div", { className: "p-6", children })
-        ]
-      }
-    )
-  ] });
-}
 const createImage = (url) => new Promise((resolve, reject) => {
   const image = new Image();
   image.addEventListener("load", () => resolve(image));
@@ -3494,7 +4515,7 @@ function CardCreator({ initialImage, initialTitle, initialSubtitle, onChange }) 
     ] })
   ] });
 }
-const loader$u = async (args) => {
+const loader$v = async (args) => {
   const {
     params
   } = args;
@@ -3563,6 +4584,7 @@ const action$9 = async (args) => {
   const imageUrl = formData.get("imageUrl");
   const overlayTitle = formData.get("overlayTitle");
   const overlaySubtitle = formData.get("overlaySubtitle");
+  const vodEnabled = formData.get("vodEnabled") === "on";
   try {
     const url = planId ? `/memberships/plans/${planId}` : "/memberships/plans";
     const method = planId ? "PATCH" : "POST";
@@ -3578,7 +4600,8 @@ const action$9 = async (args) => {
         description,
         imageUrl,
         overlayTitle,
-        overlaySubtitle
+        overlaySubtitle,
+        vodEnabled
       })
     });
     return {
@@ -3601,7 +4624,9 @@ const studio_$slug_memberships = UNSAFE_withComponentProps(function StudioMember
   const actionData = useActionData();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [modalState, setModalState] = useState({
+    type: "closed"
+  });
   const submit = useSubmit();
   const {
     getToken
@@ -3615,7 +4640,9 @@ const studio_$slug_memberships = UNSAFE_withComponentProps(function StudioMember
   const [uploading, setUploading] = useState(false);
   useEffect(() => {
     if (actionData?.success && !isSubmitting) {
-      setIsCreateOpen(false);
+      setModalState({
+        type: "closed"
+      });
       setCardData({
         image: null,
         title: "",
@@ -3624,6 +4651,23 @@ const studio_$slug_memberships = UNSAFE_withComponentProps(function StudioMember
       });
     }
   }, [actionData, isSubmitting]);
+  useEffect(() => {
+    if (modalState.type === "create") {
+      setCardData({
+        image: null,
+        title: "",
+        subtitle: "",
+        previewUrl: ""
+      });
+    } else if (modalState.type === "edit") {
+      setCardData({
+        image: null,
+        title: modalState.plan.overlayTitle || "",
+        subtitle: modalState.plan.overlaySubtitle || "",
+        previewUrl: ""
+      });
+    }
+  }, [modalState.type, modalState.type === "edit" ? modalState.plan : null]);
   const handleCreateWrapper = async (e) => {
     e.preventDefault();
     setUploading(true);
@@ -3650,19 +4694,26 @@ const studio_$slug_memberships = UNSAFE_withComponentProps(function StudioMember
         if (!res.ok) throw new Error("Image upload failed");
         const data = await res.json();
         formData.append("imageUrl", data.url);
+      } else if (modalState.type === "edit" && modalState.plan.imageUrl) {
+        formData.append("imageUrl", modalState.plan.imageUrl);
       }
       formData.append("overlayTitle", cardData.title);
       formData.append("overlaySubtitle", cardData.subtitle);
+      if (modalState.type === "edit") {
+        formData.append("planId", modalState.plan.id);
+      }
       submit(formData, {
         method: "post"
       });
     } catch (err) {
       console.error(err);
-      alert("Failed to create plan: " + err);
+      alert("Failed to save plan: " + err);
     } finally {
       setUploading(false);
     }
   };
+  const isOpen = modalState.type !== "closed";
+  const planToEdit = modalState.type === "edit" ? modalState.plan : null;
   return /* @__PURE__ */ jsxs("div", {
     className: "text-zinc-900 dark:text-zinc-100",
     children: [/* @__PURE__ */ jsxs("div", {
@@ -3671,7 +4722,9 @@ const studio_$slug_memberships = UNSAFE_withComponentProps(function StudioMember
         className: "text-2xl font-bold",
         children: "Memberships"
       }), /* @__PURE__ */ jsx("button", {
-        onClick: () => setIsCreateOpen(true),
+        onClick: () => setModalState({
+          type: "create"
+        }),
         className: "px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors text-sm font-medium",
         children: "+ New Plan"
       })]
@@ -3689,7 +4742,9 @@ const studio_$slug_memberships = UNSAFE_withComponentProps(function StudioMember
           className: "text-sm mb-4 text-zinc-500 dark:text-zinc-400",
           children: 'Create tiers like "Unlimited" or "10-Pack" for your students.'
         }), /* @__PURE__ */ jsx("button", {
-          onClick: () => setIsCreateOpen(true),
+          onClick: () => setModalState({
+            type: "create"
+          }),
           className: "text-blue-600 hover:underline",
           children: "Create first plan"
         })]
@@ -3732,6 +4787,10 @@ const studio_$slug_memberships = UNSAFE_withComponentProps(function StudioMember
             className: "text-sm mb-6 min-h-[40px] text-zinc-500 dark:text-zinc-400",
             children: plan.description || "No description provided."
           }), /* @__PURE__ */ jsx("button", {
+            onClick: () => setModalState({
+              type: "edit",
+              plan
+            }),
             className: "w-full py-2 rounded hover:bg-zinc-50 dark:hover:bg-zinc-800 font-medium text-sm border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 transition-colors",
             children: "Edit Plan"
           }), /* @__PURE__ */ jsxs(Form, {
@@ -3812,9 +4871,11 @@ const studio_$slug_memberships = UNSAFE_withComponentProps(function StudioMember
         children: "No active subscriptions yet."
       })
     }), /* @__PURE__ */ jsx(Modal, {
-      isOpen: isCreateOpen,
-      onClose: () => setIsCreateOpen(false),
-      title: "Create Membership Plan",
+      isOpen,
+      onClose: () => setModalState({
+        type: "closed"
+      }),
+      title: modalState.type === "edit" ? "Edit Membership Plan" : "Create Membership Plan",
       maxWidth: "max-w-4xl",
       children: /* @__PURE__ */ jsxs("div", {
         className: "grid grid-cols-1 lg:grid-cols-2 gap-8",
@@ -3823,8 +4884,11 @@ const studio_$slug_memberships = UNSAFE_withComponentProps(function StudioMember
             className: "font-semibold mb-4 text-zinc-900 dark:text-zinc-100",
             children: "Card Appearance"
           }), /* @__PURE__ */ jsx(CardCreator, {
+            initialImage: planToEdit?.imageUrl,
+            initialTitle: planToEdit?.overlayTitle,
+            initialSubtitle: planToEdit?.overlaySubtitle,
             onChange: setCardData
-          })]
+          }, planToEdit ? planToEdit.id : "new")]
         }), /* @__PURE__ */ jsxs(Form, {
           method: "post",
           onSubmit: handleCreateWrapper,
@@ -3839,6 +4903,7 @@ const studio_$slug_memberships = UNSAFE_withComponentProps(function StudioMember
             }), /* @__PURE__ */ jsx("input", {
               name: "name",
               required: true,
+              defaultValue: planToEdit?.name || "",
               placeholder: "e.g. Gold Unlimited",
               className: "w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md focus:ring-blue-500 focus:border-blue-500 text-zinc-900 dark:text-zinc-100"
             })]
@@ -3853,6 +4918,7 @@ const studio_$slug_memberships = UNSAFE_withComponentProps(function StudioMember
                 name: "price",
                 step: "0.01",
                 required: true,
+                defaultValue: planToEdit ? (planToEdit.price / 100).toFixed(2) : "",
                 className: "w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md focus:ring-blue-500 focus:border-blue-500 text-zinc-900 dark:text-zinc-100"
               })]
             }), /* @__PURE__ */ jsxs("div", {
@@ -3861,6 +4927,7 @@ const studio_$slug_memberships = UNSAFE_withComponentProps(function StudioMember
                 children: "Interval"
               }), /* @__PURE__ */ jsxs("select", {
                 name: "interval",
+                defaultValue: planToEdit?.interval || "month",
                 className: "w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md focus:ring-blue-500 focus:border-blue-500 text-zinc-900 dark:text-zinc-100",
                 children: [/* @__PURE__ */ jsx("option", {
                   value: "month",
@@ -3884,20 +4951,39 @@ const studio_$slug_memberships = UNSAFE_withComponentProps(function StudioMember
             }), /* @__PURE__ */ jsx("textarea", {
               name: "description",
               rows: 3,
+              defaultValue: planToEdit?.description || "",
               className: "w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md focus:ring-blue-500 focus:border-blue-500 text-zinc-900 dark:text-zinc-100"
+            })]
+          }), /* @__PURE__ */ jsxs("div", {
+            className: "flex items-center gap-2",
+            children: [/* @__PURE__ */ jsx("input", {
+              type: "checkbox",
+              name: "vodEnabled",
+              id: "vodEnabled",
+              defaultChecked: planToEdit?.vodEnabled || false,
+              className: "rounded border-zinc-300 dark:border-zinc-700 text-blue-600 focus:ring-blue-500"
+            }), /* @__PURE__ */ jsx("label", {
+              htmlFor: "vodEnabled",
+              className: "text-sm font-medium text-zinc-700 dark:text-zinc-300",
+              children: "Include VOD Access"
+            }), /* @__PURE__ */ jsx("p", {
+              className: "text-xs text-zinc-500 dark:text-zinc-400 ml-2",
+              children: "(Allows entry to On-Demand Library)"
             })]
           }), /* @__PURE__ */ jsxs("div", {
             className: "pt-4 flex gap-3",
             children: [/* @__PURE__ */ jsx("button", {
               type: "button",
-              onClick: () => setIsCreateOpen(false),
+              onClick: () => setModalState({
+                type: "closed"
+              }),
               className: "flex-1 px-4 py-2 border border-zinc-200 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100 transition-colors",
               children: "Cancel"
             }), /* @__PURE__ */ jsx("button", {
               type: "submit",
               disabled: isSubmitting || uploading,
               className: "flex-1 px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-md hover:opacity-90 font-medium disabled:opacity-50 transition-colors",
-              children: uploading ? "Uploading..." : isSubmitting ? "Creating..." : "Create Plan"
+              children: uploading ? "Uploading..." : isSubmitting ? "Saving..." : modalState.type === "edit" ? "Save Changes" : "Create Plan"
             })]
           })]
         })]
@@ -3905,13 +4991,13 @@ const studio_$slug_memberships = UNSAFE_withComponentProps(function StudioMember
     })]
   });
 });
-const route10 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route12 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action: action$9,
   default: studio_$slug_memberships,
-  loader: loader$u
+  loader: loader$v
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$t = async ({
+const loader$u = async ({
   params
 }) => {
   return redirect(`/studio/${params.slug}`);
@@ -3919,12 +5005,12 @@ const loader$t = async ({
 const studio_$slug_dashboard = UNSAFE_withComponentProps(function RedirectToStudioDashboard() {
   return null;
 });
-const route11 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route13 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_dashboard,
-  loader: loader$t
+  loader: loader$u
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$s = async (args) => {
+const loader$t = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -4166,12 +5252,12 @@ const studio_$slug_discounts = UNSAFE_withComponentProps(function DiscountsPage(
     })]
   });
 });
-const route12 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route14 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_discounts,
-  loader: loader$s
+  loader: loader$t
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$r = async (args) => {
+const loader$s = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -4425,10 +5511,10 @@ const studio_$slug_marketing = UNSAFE_withComponentProps(function MarketingPage(
     })]
   });
 });
-const route13 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route15 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_marketing,
-  loader: loader$r
+  loader: loader$s
 }, Symbol.toStringTag, { value: "Module" }));
 const studio_$slug_branding = UNSAFE_withComponentProps(function StudioBranding() {
   const {
@@ -4555,7 +5641,7 @@ const studio_$slug_branding = UNSAFE_withComponentProps(function StudioBranding(
     })]
   });
 });
-const route14 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route16 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_branding
 }, Symbol.toStringTag, { value: "Module" }));
@@ -4636,16 +5722,26 @@ function GiftCardInput({ token, slug, onApply, onRemove }) {
   ] });
 }
 const stripePromise = loadStripe(void 0);
-const loader$q = async (args) => {
+const loader$r = async (args) => {
   const {
     getToken
   } = await getAuth(args);
   const token = await getToken();
   const url = new URL(args.request.url);
   const packId = url.searchParams.get("packId");
+  const giftCardAmount = url.searchParams.get("giftCardAmount");
+  const recipientEmail = url.searchParams.get("recipientEmail");
+  const recipientName = url.searchParams.get("recipientName");
+  const senderName = url.searchParams.get("senderName");
+  const message = url.searchParams.get("message");
   return {
     token,
     packId,
+    giftCardAmount,
+    recipientEmail,
+    recipientName,
+    senderName,
+    message,
     slug: args.params.slug
   };
 };
@@ -4653,6 +5749,11 @@ const studio_$slug_checkout = UNSAFE_withComponentProps(function CheckoutPage() 
   const {
     token,
     packId,
+    giftCardAmount,
+    recipientEmail,
+    recipientName,
+    senderName,
+    message,
     slug
   } = useLoaderData();
   const [clientSecret, setClientSecret] = useState(null);
@@ -4664,14 +5765,19 @@ const studio_$slug_checkout = UNSAFE_withComponentProps(function CheckoutPage() 
   const [step, setStep] = useState("summary");
   const [packDetails, setPackDetails] = useState(null);
   useEffect(() => {
-    if (!packId || !token) return;
+    if (!packId && !giftCardAmount || !token) return;
     createSession();
-  }, [packId, token, slug]);
+  }, [packId, giftCardAmount, token, slug]);
   const createSession = (code, giftCode) => {
     setLoadingSession(true);
     const payload = {
       packId,
-      couponCode: code
+      couponCode: code,
+      giftCardAmount,
+      recipientEmail,
+      recipientName,
+      senderName,
+      message
     };
     if (giftCode) payload.giftCardCode = giftCode;
     apiRequest(`/commerce/checkout/session`, token, {
@@ -4683,6 +5789,8 @@ const studio_$slug_checkout = UNSAFE_withComponentProps(function CheckoutPage() 
     }).then((res) => {
       if (res.error) {
         setError(res.error);
+      } else if (res.complete && res.returnUrl) {
+        window.location.href = res.returnUrl;
       } else {
         setClientSecret(res.clientSecret);
         setError(null);
@@ -4768,12 +5876,12 @@ const studio_$slug_checkout = UNSAFE_withComponentProps(function CheckoutPage() 
     })]
   });
 });
-const route15 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route17 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_checkout,
-  loader: loader$q
+  loader: loader$r
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$p = async (args) => {
+const loader$q = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -4840,10 +5948,10 @@ const studio_$slug_checkout_return = UNSAFE_withComponentProps(function Checkout
     })]
   });
 });
-const route16 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route18 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_checkout_return,
-  loader: loader$p
+  loader: loader$q
 }, Symbol.toStringTag, { value: "Module" }));
 const studio_$slug_finances = UNSAFE_withComponentProps(function StudioFinances() {
   const {
@@ -4885,11 +5993,93 @@ const studio_$slug_finances = UNSAFE_withComponentProps(function StudioFinances(
     };
     fetchData();
   }, [tenant.id, isOwner, getToken]);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refundReason, setRefundReason] = useState("");
+  const [isRefunding, setIsRefunding] = useState(false);
+  const handleOpenRefund = (t) => {
+    setSelectedTransaction(t);
+    setRefundAmount((t.amount / 100).toFixed(2));
+    setIsRefundModalOpen(true);
+  };
+  const handleRefund = async () => {
+    if (!selectedTransaction) return;
+    setIsRefunding(true);
+    const token = await getToken();
+    let type = "pos";
+    if (selectedTransaction.description?.includes("Pack")) type = "pack";
+    if (selectedTransaction.description?.includes("Membership")) type = "membership";
+    const res = await apiRequest(`${"https://studio-platform-api.slichti.workers.dev"}/refunds`, token, {
+      method: "POST",
+      body: JSON.stringify({
+        amount: Math.round(parseFloat(refundAmount) * 100),
+        reason: refundReason,
+        referenceId: selectedTransaction.id,
+        // Ensure this is the platform ID if possible
+        type: selectedTransaction.type || type
+      })
+    });
+    setIsRefunding(false);
+    if (res && !res.error) {
+      alert("Refund processed successfully");
+      setIsRefundModalOpen(false);
+    } else {
+      alert(res?.error || "Refund failed");
+    }
+  };
   return /* @__PURE__ */ jsxs("div", {
     className: "max-w-4xl text-zinc-900 dark:text-zinc-100",
     children: [/* @__PURE__ */ jsx("h1", {
       className: "text-2xl font-bold mb-6",
       children: "Finances"
+    }), isRefundModalOpen && /* @__PURE__ */ jsx("div", {
+      className: "fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4",
+      children: /* @__PURE__ */ jsxs("div", {
+        className: "bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 w-full max-w-md p-6",
+        children: [/* @__PURE__ */ jsx("h3", {
+          className: "text-lg font-bold mb-4",
+          children: "Process Refund"
+        }), /* @__PURE__ */ jsxs("p", {
+          className: "text-sm text-zinc-500 mb-6",
+          children: ["Refund for ", selectedTransaction?.description, " on ", new Date(selectedTransaction?.date).toLocaleDateString()]
+        }), /* @__PURE__ */ jsxs("div", {
+          className: "space-y-4",
+          children: [/* @__PURE__ */ jsxs("div", {
+            children: [/* @__PURE__ */ jsx("label", {
+              className: "block text-sm font-medium mb-1",
+              children: "Amount ($)"
+            }), /* @__PURE__ */ jsx("input", {
+              type: "number",
+              value: refundAmount,
+              onChange: (e) => setRefundAmount(e.target.value),
+              className: "w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-md px-3 py-2"
+            })]
+          }), /* @__PURE__ */ jsxs("div", {
+            children: [/* @__PURE__ */ jsx("label", {
+              className: "block text-sm font-medium mb-1",
+              children: "Reason"
+            }), /* @__PURE__ */ jsx("textarea", {
+              value: refundReason,
+              onChange: (e) => setRefundReason(e.target.value),
+              placeholder: "Customer requested...",
+              className: "w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-md px-3 py-2"
+            })]
+          })]
+        }), /* @__PURE__ */ jsxs("div", {
+          className: "flex gap-3 mt-6 justify-end",
+          children: [/* @__PURE__ */ jsx("button", {
+            onClick: () => setIsRefundModalOpen(false),
+            className: "px-4 py-2 text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md",
+            children: "Cancel"
+          }), /* @__PURE__ */ jsx("button", {
+            onClick: handleRefund,
+            disabled: isRefunding,
+            className: "px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50",
+            children: isRefunding ? "Processing..." : "Confirm Refund"
+          })]
+        })]
+      })
     }), !tenant.stripeAccountId ? /* @__PURE__ */ jsxs("div", {
       className: "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-lg shadow-sm text-center",
       children: [/* @__PURE__ */ jsx("div", {
@@ -4900,7 +6090,7 @@ const studio_$slug_finances = UNSAFE_withComponentProps(function StudioFinances(
         children: "Setup Payouts"
       }), /* @__PURE__ */ jsx("p", {
         className: "mb-6 max-w-md mx-auto text-zinc-500 dark:text-zinc-400",
-        children: "Connect with Stripe to start accepting payments for classes and memberships. Funds will be deposited directly to your bank account."
+        children: "Connect with Stripe to start accepting payments for class packs and memberships. Funds will be deposited directly to your bank account."
       }), /* @__PURE__ */ jsxs("button", {
         onClick: handleConnectStripe,
         className: "bg-[#635BFF] text-white px-6 py-2.5 rounded-md font-medium hover:bg-[#534be0] transition-colors inline-flex items-center gap-2",
@@ -5004,6 +6194,9 @@ const studio_$slug_finances = UNSAFE_withComponentProps(function StudioFinances(
               }), /* @__PURE__ */ jsx("th", {
                 className: "text-right py-2 font-medium text-zinc-700 dark:text-zinc-300",
                 children: "Amount"
+              }), /* @__PURE__ */ jsx("th", {
+                className: "text-right py-2 font-medium text-zinc-700 dark:text-zinc-300",
+                children: "Actions"
               })]
             })
           }), /* @__PURE__ */ jsx("tbody", {
@@ -5021,6 +6214,13 @@ const studio_$slug_finances = UNSAFE_withComponentProps(function StudioFinances(
               }), /* @__PURE__ */ jsxs("td", {
                 className: "py-2 text-right text-zinc-900 dark:text-zinc-100",
                 children: ["$", (t.amount / 100).toFixed(2)]
+              }), /* @__PURE__ */ jsx("td", {
+                className: "py-2 text-right",
+                children: /* @__PURE__ */ jsx("button", {
+                  onClick: () => handleOpenRefund(t),
+                  className: "text-xs text-red-600 hover:text-red-700 hover:underline",
+                  children: "Refund"
+                })
               })]
             }, t.id))
           })]
@@ -5029,7 +6229,7 @@ const studio_$slug_finances = UNSAFE_withComponentProps(function StudioFinances(
     })]
   });
 });
-const route17 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route19 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_finances
 }, Symbol.toStringTag, { value: "Module" }));
@@ -5644,7 +6844,7 @@ const localizer = dateFnsLocalizer({
   getDay,
   locales
 });
-const loader$o = async (args) => {
+const loader$p = async (args) => {
   const {
     params
   } = args;
@@ -5822,12 +7022,12 @@ const studio_$slug_schedule = UNSAFE_withComponentProps(function StudioSchedule(
     })]
   });
 });
-const route18 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route20 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_schedule,
-  loader: loader$o
+  loader: loader$p
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$n = async (args) => {
+const loader$o = async (args) => {
   const {
     params
   } = args;
@@ -5899,6 +7099,7 @@ const studio_$slug_settings = UNSAFE_withComponentProps(function StudioSettings(
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [isAddingLocation, setIsAddingLocation] = useState(false);
+  const [showOrderReader, setShowOrderReader] = useState(false);
   const handleSaveName = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -5921,6 +7122,11 @@ const studio_$slug_settings = UNSAFE_withComponentProps(function StudioSettings(
     } finally {
       setLoading(false);
     }
+  };
+  const handleOrderReader = async (e) => {
+    e.preventDefault();
+    alert("Your request for a Stripe Terminal Reader (WisePOS E) has been received. Our team will contact you shortly to confirm shipping details.");
+    setShowOrderReader(false);
   };
   return /* @__PURE__ */ jsxs("div", {
     className: "max-w-4xl pb-10",
@@ -6502,17 +7708,41 @@ const studio_$slug_settings = UNSAFE_withComponentProps(function StudioSettings(
                   }
                 }
               },
-              className: `cursor-pointer border rounded-lg p-4 transition-all ${tenant.paymentProvider === "connect" ? "border-blue-500 ring-1 ring-blue-500 bg-blue-50 dark:bg-blue-900/20" : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300"}`,
-              children: [/* @__PURE__ */ jsx("div", {
-                className: "font-medium text-sm text-zinc-900 dark:text-zinc-100",
+              className: `relative cursor-pointer border rounded-lg p-4 transition-all ${tenant.paymentProvider === "connect" ? "border-blue-500 ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20" : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300"}`,
+              children: [tenant.paymentProvider === "connect" && /* @__PURE__ */ jsx("div", {
+                className: "absolute top-2 right-2 text-blue-600",
+                children: /* @__PURE__ */ jsx(CheckCircle, {
+                  size: 20,
+                  className: "fill-blue-100"
+                })
+              }), /* @__PURE__ */ jsx("div", {
+                className: "font-bold text-sm text-zinc-900 dark:text-zinc-100 mb-1",
                 children: "Platform Managed"
               }), /* @__PURE__ */ jsx("div", {
-                className: "text-xs text-zinc-500 mt-1",
-                children: "We handle billing complexity. Standard fees."
+                className: "text-xs text-zinc-500",
+                children: "We handle billing complexity. Standard fees. Recommended for most studios."
               }), tenant.paymentProvider === "connect" && !tenant.stripeAccountId && /* @__PURE__ */ jsx("a", {
                 href: `${API_URL}/studios/stripe/connect?tenantId=${tenant.id}`,
-                className: "mt-2 inline-block text-xs text-blue-600 hover:underline",
+                className: "mt-4 block w-full py-2 text-center bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700",
                 children: "Connect Stripe Account →"
+              }), tenant.paymentProvider === "connect" && tenant.stripeAccountId && /* @__PURE__ */ jsxs("div", {
+                className: "mt-4 pt-4 border-t border-blue-200 dark:border-blue-800",
+                children: [/* @__PURE__ */ jsx("div", {
+                  className: "flex justify-between items-center mb-2",
+                  children: /* @__PURE__ */ jsx("span", {
+                    className: "text-[10px] uppercase font-bold text-blue-700",
+                    children: "Hardware"
+                  })
+                }), /* @__PURE__ */ jsxs("button", {
+                  onClick: () => setShowOrderReader(true),
+                  className: "w-full flex items-center justify-center gap-2 py-2 border border-blue-300 text-blue-700 rounded text-xs font-bold hover:bg-blue-100 transition-colors",
+                  children: [/* @__PURE__ */ jsx(Smartphone, {
+                    size: 14
+                  }), " Order Terminal Reader"]
+                }), /* @__PURE__ */ jsx("p", {
+                  className: "text-[10px] text-blue-600/70 mt-1 text-center",
+                  children: "BBPOS WisePOS E available"
+                })]
               })]
             }), /* @__PURE__ */ jsxs("div", {
               onClick: async () => {
@@ -6527,13 +7757,19 @@ const studio_$slug_settings = UNSAFE_withComponentProps(function StudioSettings(
                   window.location.reload();
                 }
               },
-              className: `cursor-pointer border rounded-lg p-4 transition-all ${tenant.paymentProvider === "custom" ? "border-blue-500 ring-1 ring-blue-500 bg-blue-50 dark:bg-blue-900/20" : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300"}`,
-              children: [/* @__PURE__ */ jsx("div", {
-                className: "font-medium text-sm text-zinc-900 dark:text-zinc-100",
+              className: `relative cursor-pointer border rounded-lg p-4 transition-all ${tenant.paymentProvider === "custom" ? "border-blue-500 ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20" : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300"}`,
+              children: [tenant.paymentProvider === "custom" && /* @__PURE__ */ jsx("div", {
+                className: "absolute top-2 right-2 text-blue-600",
+                children: /* @__PURE__ */ jsx(CheckCircle, {
+                  size: 20,
+                  className: "fill-blue-100"
+                })
+              }), /* @__PURE__ */ jsx("div", {
+                className: "font-bold text-sm text-zinc-900 dark:text-zinc-100 mb-1",
                 children: "Self Managed (BYOK)"
               }), /* @__PURE__ */ jsx("div", {
-                className: "text-xs text-zinc-500 mt-1",
-                children: "Use your own Stripe keys. No platform fees."
+                className: "text-xs text-zinc-500",
+                children: "Use your own Stripe keys. No platform fees. You handle compliance."
               })]
             })]
           }), tenant.paymentProvider === "custom" && /* @__PURE__ */ jsxs("form", {
@@ -6557,7 +7793,7 @@ const studio_$slug_settings = UNSAFE_withComponentProps(function StudioSettings(
                 alert(err.message);
               }
             },
-            className: "bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded border border-zinc-200 dark:border-zinc-700 space-y-3",
+            className: "bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded border border-zinc-200 dark:border-zinc-700 space-y-3 animate-in slide-in-from-top-2",
             children: [/* @__PURE__ */ jsx("input", {
               name: "stripePublishableKey",
               placeholder: "Publishable Key (pk_...)",
@@ -6920,16 +8156,316 @@ const studio_$slug_settings = UNSAFE_withComponentProps(function StudioSettings(
           })
         })]
       })
+    }), showOrderReader && /* @__PURE__ */ jsx("div", {
+      className: "fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4",
+      children: /* @__PURE__ */ jsxs("div", {
+        className: "bg-white w-full max-w-md rounded-2xl p-8 shadow-2xl",
+        children: [/* @__PURE__ */ jsx("h2", {
+          className: "text-xl font-bold mb-2",
+          children: "Order BBPOS WisePOS E"
+        }), /* @__PURE__ */ jsx("p", {
+          className: "text-sm text-zinc-500 mb-6",
+          children: "Connect your Stripe account to the physical world with a pre-certified card reader. $249/unit."
+        }), /* @__PURE__ */ jsx("div", {
+          className: "bg-zinc-50 p-4 rounded-xl mb-6 flex justify-center",
+          children: /* @__PURE__ */ jsx(CreditCard, {
+            size: 48,
+            className: "text-zinc-300"
+          })
+        }), /* @__PURE__ */ jsxs("div", {
+          className: "flex gap-4",
+          children: [/* @__PURE__ */ jsx("button", {
+            onClick: () => setShowOrderReader(false),
+            className: "flex-1 py-3 font-bold text-zinc-500 hover:bg-zinc-100 rounded-xl",
+            children: "Cancel"
+          }), /* @__PURE__ */ jsxs("button", {
+            onClick: handleOrderReader,
+            className: "flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 flex items-center justify-center gap-2",
+            children: [/* @__PURE__ */ jsx(ShoppingBag, {
+              size: 16
+            }), " Place Order"]
+          })]
+        })]
+      })
     })]
   });
 });
-const route19 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route21 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action: action$8,
   default: studio_$slug_settings,
-  loader: loader$n
+  loader: loader$o
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$m = async (args) => {
+const studio_$slug_settings_hardware = UNSAFE_withComponentProps(function StudioHardwareSettings() {
+  const {
+    tenant
+  } = useOutletContext();
+  const {
+    getToken
+  } = useAuth();
+  const [skus, setSkus] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedSku, setSelectedSku] = useState(null);
+  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [shipping, setShipping] = useState({
+    name: tenant.name,
+    line1: tenant.address || "",
+    city: "",
+    state: "",
+    postal_code: "",
+    country: "US",
+    phone: ""
+  });
+  const [isOrdering, setIsOrdering] = useState(false);
+  useEffect(() => {
+    const fetchSkus = async () => {
+      const token = await getToken();
+      const url = "https://studio-platform-api.slichti.workers.dev";
+      try {
+        const res = await apiRequest(`${url}/platform/hardware/skus`, token);
+        if (res && res.data) {
+          setSkus(res.data);
+        }
+      } catch (e) {
+        console.error("Failed to fetch SKUs", e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchSkus();
+  }, [getToken]);
+  const handleOrder = async () => {
+    if (!selectedSku) return;
+    setIsOrdering(true);
+    const token = await getToken();
+    const payload = {
+      skuId: selectedSku.id,
+      quantity: 1,
+      shipping: {
+        name: shipping.name,
+        address: {
+          line1: shipping.line1,
+          city: shipping.city,
+          state: shipping.state,
+          postal_code: shipping.postal_code,
+          country: shipping.country
+        },
+        phone: shipping.phone
+      }
+    };
+    const res = await apiRequest(`${"https://studio-platform-api.slichti.workers.dev"}/platform/hardware/orders`, token, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    setIsOrdering(false);
+    if (res && !res.error) {
+      alert("Order Placed Successfully! You will receive confirmation shortly.");
+      setIsOrderModalOpen(false);
+    } else {
+      alert(`Order Failed: ${res?.error || "Unknown error"}`);
+    }
+  };
+  return /* @__PURE__ */ jsxs("div", {
+    className: "max-w-4xl text-zinc-900 dark:text-zinc-100",
+    children: [/* @__PURE__ */ jsx("h1", {
+      className: "text-2xl font-bold mb-6",
+      children: "Hardware & Terminals"
+    }), /* @__PURE__ */ jsx("p", {
+      className: "text-zinc-500 mb-8 max-w-2xl",
+      children: "Purchase Stripe Terminal readers to accept in-person payments fully integrated with your studio."
+    }), isOrderModalOpen && selectedSku && /* @__PURE__ */ jsx("div", {
+      className: "fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto",
+      children: /* @__PURE__ */ jsxs("div", {
+        className: "bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 w-full max-w-lg p-6 my-8",
+        children: [/* @__PURE__ */ jsxs("h3", {
+          className: "text-lg font-bold mb-4",
+          children: ["Order ", selectedSku.product?.name || "Reader"]
+        }), /* @__PURE__ */ jsxs("div", {
+          className: "space-y-4",
+          children: [/* @__PURE__ */ jsxs("div", {
+            className: "p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg flex items-center gap-4",
+            children: [selectedSku.image && /* @__PURE__ */ jsx("img", {
+              src: selectedSku.image,
+              alt: "",
+              className: "w-12 h-12 object-contain"
+            }), /* @__PURE__ */ jsxs("div", {
+              children: [/* @__PURE__ */ jsx("div", {
+                className: "font-medium",
+                children: selectedSku.product?.name
+              }), /* @__PURE__ */ jsxs("div", {
+                className: "text-sm text-zinc-500",
+                children: ["$", (selectedSku.price.unit_amount / 100).toFixed(2)]
+              })]
+            })]
+          }), /* @__PURE__ */ jsx("h4", {
+            className: "font-medium border-b dark:border-zinc-700 pb-2",
+            children: "Shipping Address"
+          }), /* @__PURE__ */ jsxs("div", {
+            className: "grid grid-cols-2 gap-4",
+            children: [/* @__PURE__ */ jsxs("div", {
+              className: "col-span-2",
+              children: [/* @__PURE__ */ jsx("label", {
+                className: "block text-xs font-medium mb-1",
+                children: "Recipient Name"
+              }), /* @__PURE__ */ jsx("input", {
+                value: shipping.name,
+                onChange: (e) => setShipping({
+                  ...shipping,
+                  name: e.target.value
+                }),
+                className: "w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-md px-3 py-2 text-sm"
+              })]
+            }), /* @__PURE__ */ jsxs("div", {
+              className: "col-span-2",
+              children: [/* @__PURE__ */ jsx("label", {
+                className: "block text-xs font-medium mb-1",
+                children: "Address Line 1"
+              }), /* @__PURE__ */ jsx("input", {
+                value: shipping.line1,
+                onChange: (e) => setShipping({
+                  ...shipping,
+                  line1: e.target.value
+                }),
+                className: "w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-md px-3 py-2 text-sm"
+              })]
+            }), /* @__PURE__ */ jsxs("div", {
+              children: [/* @__PURE__ */ jsx("label", {
+                className: "block text-xs font-medium mb-1",
+                children: "City"
+              }), /* @__PURE__ */ jsx("input", {
+                value: shipping.city,
+                onChange: (e) => setShipping({
+                  ...shipping,
+                  city: e.target.value
+                }),
+                className: "w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-md px-3 py-2 text-sm"
+              })]
+            }), /* @__PURE__ */ jsxs("div", {
+              children: [/* @__PURE__ */ jsx("label", {
+                className: "block text-xs font-medium mb-1",
+                children: "State"
+              }), /* @__PURE__ */ jsx("input", {
+                value: shipping.state,
+                onChange: (e) => setShipping({
+                  ...shipping,
+                  state: e.target.value
+                }),
+                className: "w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-md px-3 py-2 text-sm"
+              })]
+            }), /* @__PURE__ */ jsxs("div", {
+              children: [/* @__PURE__ */ jsx("label", {
+                className: "block text-xs font-medium mb-1",
+                children: "Zip Code"
+              }), /* @__PURE__ */ jsx("input", {
+                value: shipping.postal_code,
+                onChange: (e) => setShipping({
+                  ...shipping,
+                  postal_code: e.target.value
+                }),
+                className: "w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-md px-3 py-2 text-sm"
+              })]
+            }), /* @__PURE__ */ jsxs("div", {
+              children: [/* @__PURE__ */ jsx("label", {
+                className: "block text-xs font-medium mb-1",
+                children: "Country"
+              }), /* @__PURE__ */ jsxs("select", {
+                value: shipping.country,
+                onChange: (e) => setShipping({
+                  ...shipping,
+                  country: e.target.value
+                }),
+                className: "w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-md px-3 py-2 text-sm",
+                children: [/* @__PURE__ */ jsx("option", {
+                  value: "US",
+                  children: "United States"
+                }), /* @__PURE__ */ jsx("option", {
+                  value: "CA",
+                  children: "Canada"
+                }), /* @__PURE__ */ jsx("option", {
+                  value: "GB",
+                  children: "United Kingdom"
+                })]
+              })]
+            }), /* @__PURE__ */ jsxs("div", {
+              className: "col-span-2",
+              children: [/* @__PURE__ */ jsx("label", {
+                className: "block text-xs font-medium mb-1",
+                children: "Phone"
+              }), /* @__PURE__ */ jsx("input", {
+                value: shipping.phone,
+                onChange: (e) => setShipping({
+                  ...shipping,
+                  phone: e.target.value
+                }),
+                className: "w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-md px-3 py-2 text-sm"
+              })]
+            })]
+          })]
+        }), /* @__PURE__ */ jsxs("div", {
+          className: "flex gap-3 mt-6 justify-end",
+          children: [/* @__PURE__ */ jsx("button", {
+            onClick: () => setIsOrderModalOpen(false),
+            className: "px-4 py-2 text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md",
+            children: "Cancel"
+          }), /* @__PURE__ */ jsx("button", {
+            onClick: handleOrder,
+            disabled: isOrdering,
+            className: "px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50",
+            children: isOrdering ? "Placing Order..." : "Confirm Purchase"
+          })]
+        })]
+      })
+    }), isLoading ? /* @__PURE__ */ jsx("div", {
+      children: "Loading hardware..."
+    }) : skus.length === 0 ? /* @__PURE__ */ jsx("div", {
+      className: "p-8 bg-zinc-50 dark:bg-zinc-900 rounded-lg text-center text-zinc-500",
+      children: "No hardware available for purchase at this time."
+    }) : /* @__PURE__ */ jsx("div", {
+      className: "grid grid-cols-1 md:grid-cols-2 gap-6",
+      children: skus.map((sku) => /* @__PURE__ */ jsxs("div", {
+        className: "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden shadow-sm flex flex-col",
+        children: [/* @__PURE__ */ jsx("div", {
+          className: "aspect-video bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center p-4",
+          children: sku.image ? /* @__PURE__ */ jsx("img", {
+            src: sku.image,
+            alt: sku.product?.name,
+            className: "h-full object-contain"
+          }) : /* @__PURE__ */ jsx("div", {
+            className: "text-4xl",
+            children: "📠"
+          })
+        }), /* @__PURE__ */ jsxs("div", {
+          className: "p-6 flex-1 flex flex-col",
+          children: [/* @__PURE__ */ jsx("h3", {
+            className: "text-lg font-bold mb-1",
+            children: sku.product?.name || "Terminal Reader"
+          }), /* @__PURE__ */ jsx("p", {
+            className: "text-sm text-zinc-500 mb-4 flex-1",
+            children: sku.product?.description || "Accept payments securely with this Stripe Terminal reader."
+          }), /* @__PURE__ */ jsxs("div", {
+            className: "flex items-center justify-between mt-auto pt-4 border-t border-zinc-100 dark:border-zinc-800",
+            children: [/* @__PURE__ */ jsxs("div", {
+              className: "text-xl font-bold",
+              children: ["$", (sku.price.unit_amount / 100).toFixed(2)]
+            }), /* @__PURE__ */ jsx("button", {
+              onClick: () => {
+                setSelectedSku(sku);
+                setIsOrderModalOpen(true);
+              },
+              className: "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 rounded-md text-sm font-medium hover:opacity-90",
+              children: "Buy Now"
+            })]
+          })]
+        })]
+      }, sku.id))
+    })]
+  });
+});
+const route22 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  default: studio_$slug_settings_hardware
+}, Symbol.toStringTag, { value: "Module" }));
+const loader$n = async (args) => {
   const {
     getToken,
     userId
@@ -7175,12 +8711,12 @@ const studio_$slug_settings_billing = UNSAFE_withComponentProps(function StudioB
     })]
   });
 });
-const route20 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route23 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_settings_billing,
-  loader: loader$m
+  loader: loader$n
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$l = async (args) => {
+const loader$m = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -7301,12 +8837,12 @@ const studio_$slug_settings_addons = UNSAFE_withComponentProps(function AddonsPa
     })]
   });
 });
-const route21 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route24 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_settings_addons,
-  loader: loader$l
+  loader: loader$m
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$k = async (args) => {
+const loader$l = async (args) => {
   const {
     params
   } = args;
@@ -7627,10 +9163,10 @@ const studio_$slug_settings_domain = UNSAFE_withComponentProps(function DomainSe
     })]
   });
 });
-const route22 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route25 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_settings_domain,
-  loader: loader$k
+  loader: loader$l
 }, Symbol.toStringTag, { value: "Module" }));
 const studio_$slug_settings_import = UNSAFE_withComponentProps(function DataImport() {
   const {
@@ -7812,11 +9348,11 @@ const studio_$slug_settings_import = UNSAFE_withComponentProps(function DataImpo
     })]
   });
 });
-const route23 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route26 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_settings_import
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$j = async (args) => {
+const loader$k = async (args) => {
   const {
     params
   } = args;
@@ -7830,7 +9366,6 @@ const loader$j = async (args) => {
         "X-Tenant-Slug": params.slug
       }
     });
-    console.log("Students Loader Res:", JSON.stringify(res, null, 2));
     const members = Array.isArray(res.members) ? res.members : [];
     return {
       members
@@ -7853,22 +9388,74 @@ const studio_$slug_students = UNSAFE_withComponentProps(function StudioStudents(
   const {
     roles
   } = useOutletContext();
+  const params = useParams();
+  const slug = params.slug;
   const isOwner = roles && roles.includes("owner");
   const {
     getToken
   } = useAuth();
   const [updating, setUpdating] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isAddingMember, setIsAddingMember] = useState(false);
+  const [isSubmittingMember, setIsSubmittingMember] = useState(false);
+  const filteredMembers = (members || []).filter((m) => {
+    const q = searchQuery.toLowerCase();
+    const name = `${m.user?.profile?.firstName || ""} ${m.user?.profile?.lastName || ""}`.toLowerCase();
+    const email = (m.user?.email || "").toLowerCase();
+    return name.includes(q) || email.includes(q);
+  });
+  const handleAddMember = async (e) => {
+    e.preventDefault();
+    setIsSubmittingMember(true);
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email");
+    const firstName = formData.get("firstName");
+    const lastName = formData.get("lastName");
+    if (!slug) {
+      alert("Missing studio slug");
+      setIsSubmittingMember(false);
+      return;
+    }
+    try {
+      const token = await getToken();
+      const res = await apiRequest(`/members`, token, {
+        method: "POST",
+        headers: {
+          "X-Tenant-Slug": slug
+        },
+        body: JSON.stringify({
+          email,
+          firstName,
+          lastName
+        })
+      });
+      if (res.error) {
+        alert(res.error);
+      } else {
+        window.location.reload();
+      }
+    } catch (e2) {
+      alert(e2.message);
+    } finally {
+      setIsSubmittingMember(false);
+      setIsAddingMember(false);
+    }
+  };
   const handleRoleChange = async (memberId, newRole) => {
     if (!confirm(`Are you sure you want to change this user's role to ${newRole}?`)) return;
     setUpdating(memberId);
+    if (!slug) {
+      alert("Missing studio slug");
+      setUpdating(null);
+      return;
+    }
     try {
       const token = await getToken();
       const res = await apiRequest(`/members/${memberId}/role`, token, {
         method: "PATCH",
         headers: {
-          "X-Tenant-Slug": window.location.pathname.split("/")[2]
+          "X-Tenant-Slug": slug
         },
-        // Grab slug from URL hack or context
         body: JSON.stringify({
           role: newRole
         })
@@ -7891,14 +9478,17 @@ const studio_$slug_students = UNSAFE_withComponentProps(function StudioStudents(
         className: "flex gap-2",
         children: [/* @__PURE__ */ jsx("input", {
           placeholder: "Search members...",
-          className: "px-3 py-2 border border-zinc-200 dark:border-zinc-800 rounded-md text-sm min-w-[250px] bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
+          value: searchQuery,
+          onChange: (e) => setSearchQuery(e.target.value),
+          className: "px-3 py-2 border border-zinc-200 dark:border-zinc-800 rounded-md text-sm min-w-[250px] bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400"
         }), /* @__PURE__ */ jsx("button", {
-          className: "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 text-sm font-medium",
+          onClick: () => setIsAddingMember(true),
+          className: "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 text-sm font-medium transition-colors",
           children: "Add Member"
         })]
       })]
     }), error && /* @__PURE__ */ jsxs("div", {
-      className: "bg-red-50 text-red-700 p-4 rounded mb-4 text-sm",
+      className: "bg-red-50 text-red-700 p-4 rounded mb-4 text-sm border border-red-100",
       children: ["Failed to load members: ", error, errorDetails && /* @__PURE__ */ jsx("pre", {
         className: "mt-2 text-xs bg-red-100 p-2 rounded overflow-auto",
         children: JSON.stringify(errorDetails, null, 2)
@@ -7932,17 +9522,23 @@ const studio_$slug_students = UNSAFE_withComponentProps(function StudioStudents(
           children: members.length === 0 ? /* @__PURE__ */ jsx("tr", {
             children: /* @__PURE__ */ jsx("td", {
               colSpan: 5,
-              className: "px-6 py-8 text-center text-zinc-500 dark:text-zinc-400",
+              className: "px-6 py-8 text-center text-zinc-500 dark:text-zinc-400 italic",
               children: "No members found yet."
             })
-          }) : (Array.isArray(members) ? members : []).map((member) => /* @__PURE__ */ jsxs("tr", {
+          }) : filteredMembers.length === 0 ? /* @__PURE__ */ jsx("tr", {
+            children: /* @__PURE__ */ jsxs("td", {
+              colSpan: 5,
+              className: "px-6 py-8 text-center text-zinc-500 dark:text-zinc-400 italic",
+              children: ['No members match your search for "', searchQuery, '".']
+            })
+          }) : filteredMembers.map((member) => /* @__PURE__ */ jsxs("tr", {
             className: "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors",
             children: [/* @__PURE__ */ jsx("td", {
               className: "px-6 py-4 font-medium text-zinc-900 dark:text-zinc-100",
               children: /* @__PURE__ */ jsxs("div", {
                 className: "flex items-center gap-3",
                 children: [/* @__PURE__ */ jsx("div", {
-                  className: "h-8 w-8 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center text-xs font-bold uppercase",
+                  className: "h-8 w-8 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center text-xs font-bold uppercase ring-1 ring-blue-200 dark:ring-blue-800",
                   children: (member.user?.email || "??").substring(0, 2)
                 }), /* @__PURE__ */ jsx(Link, {
                   to: `${member.id}`,
@@ -7957,7 +9553,7 @@ const studio_$slug_students = UNSAFE_withComponentProps(function StudioStudents(
               className: "px-6 py-4",
               children: isOwner ? /* @__PURE__ */ jsxs("select", {
                 disabled: updating === member.id,
-                className: "text-sm border-zinc-200 dark:border-zinc-700 rounded p-1 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100",
+                className: "text-sm border border-zinc-200 dark:border-zinc-700 rounded-md p-1.5 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 outline-none",
                 value: (Array.isArray(member.roles) ? member.roles : []).find((r) => r.role === "owner" || r.role === "instructor")?.role || "student",
                 onChange: (e) => handleRoleChange(member.id, e.target.value),
                 children: [/* @__PURE__ */ jsx("option", {
@@ -7971,7 +9567,7 @@ const studio_$slug_students = UNSAFE_withComponentProps(function StudioStudents(
                   children: "Owner"
                 })]
               }) : /* @__PURE__ */ jsx("span", {
-                className: "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 capitalize",
+                className: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 capitalize border border-zinc-200 dark:border-zinc-700",
                 children: (Array.isArray(member.roles) ? member.roles : []).map((r) => r.role).join(", ") || "Student"
               })
             }), /* @__PURE__ */ jsx("td", {
@@ -7980,7 +9576,7 @@ const studio_$slug_students = UNSAFE_withComponentProps(function StudioStudents(
             }), /* @__PURE__ */ jsx("td", {
               className: "px-6 py-4",
               children: /* @__PURE__ */ jsx("button", {
-                className: "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 text-sm",
+                className: "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 text-sm font-medium transition-colors",
                 children: "Edit"
               })
             })]
@@ -7988,17 +9584,99 @@ const studio_$slug_students = UNSAFE_withComponentProps(function StudioStudents(
         })]
       }), /* @__PURE__ */ jsxs("div", {
         className: "p-4 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 text-center text-xs text-zinc-500 dark:text-zinc-400",
-        children: ["Showing ", members.length, " member", members.length === 1 ? "" : "s"]
+        children: ["Showing ", filteredMembers.length, " member", filteredMembers.length === 1 ? "" : "s"]
       })]
+    }), isAddingMember && /* @__PURE__ */ jsx("div", {
+      className: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200",
+      children: /* @__PURE__ */ jsxs("div", {
+        className: "bg-white dark:bg-zinc-900 rounded-xl p-6 w-full max-w-md shadow-2xl border border-zinc-200 dark:border-zinc-700 animate-in zoom-in-95 duration-200",
+        children: [/* @__PURE__ */ jsxs("div", {
+          className: "flex justify-between items-start mb-4",
+          children: [/* @__PURE__ */ jsx("h2", {
+            className: "text-xl font-bold text-zinc-900 dark:text-zinc-100",
+            children: "Add New Member"
+          }), /* @__PURE__ */ jsx("button", {
+            onClick: () => setIsAddingMember(false),
+            className: "text-zinc-400 hover:text-zinc-600",
+            children: /* @__PURE__ */ jsxs("svg", {
+              xmlns: "http://www.w3.org/2000/svg",
+              width: "24",
+              height: "24",
+              viewBox: "0 0 24 24",
+              fill: "none",
+              stroke: "currentColor",
+              strokeWidth: "2",
+              strokeLinecap: "round",
+              strokeLinejoin: "round",
+              children: [/* @__PURE__ */ jsx("path", {
+                d: "M18 6 6 18"
+              }), /* @__PURE__ */ jsx("path", {
+                d: "m6 6 18 18"
+              })]
+            })
+          })]
+        }), /* @__PURE__ */ jsxs("form", {
+          onSubmit: handleAddMember,
+          className: "space-y-4",
+          children: [/* @__PURE__ */ jsxs("div", {
+            children: [/* @__PURE__ */ jsx("label", {
+              className: "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1",
+              children: "Email Address"
+            }), /* @__PURE__ */ jsx("input", {
+              type: "email",
+              name: "email",
+              required: true,
+              className: "w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-shadow",
+              placeholder: "student@example.com"
+            })]
+          }), /* @__PURE__ */ jsxs("div", {
+            className: "grid grid-cols-2 gap-4",
+            children: [/* @__PURE__ */ jsxs("div", {
+              children: [/* @__PURE__ */ jsx("label", {
+                className: "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1",
+                children: "First Name"
+              }), /* @__PURE__ */ jsx("input", {
+                type: "text",
+                name: "firstName",
+                className: "w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-shadow",
+                placeholder: "Jane"
+              })]
+            }), /* @__PURE__ */ jsxs("div", {
+              children: [/* @__PURE__ */ jsx("label", {
+                className: "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1",
+                children: "Last Name"
+              }), /* @__PURE__ */ jsx("input", {
+                type: "text",
+                name: "lastName",
+                className: "w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-shadow",
+                placeholder: "Doe"
+              })]
+            })]
+          }), /* @__PURE__ */ jsxs("div", {
+            className: "flex justify-end gap-3 mt-6 pt-2",
+            children: [/* @__PURE__ */ jsx("button", {
+              type: "button",
+              onClick: () => setIsAddingMember(false),
+              className: "px-4 py-2 text-sm font-medium border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors",
+              children: "Cancel"
+            }), /* @__PURE__ */ jsx("button", {
+              type: "submit",
+              disabled: isSubmittingMember,
+              className: "px-4 py-2 text-sm font-bold bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 transition-colors shadow-sm",
+              children: isSubmittingMember ? "Adding Member..." : "Add Member"
+            })]
+          })]
+        })]
+      })
     })]
   });
 });
-const route24 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route27 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_students,
-  loader: loader$j
+  loader: loader$k
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$i = async (args) => {
+const loader$j = async (args) => {
   const {
     params
   } = args;
@@ -8923,13 +10601,13 @@ const studio_$slug_students_$id = UNSAFE_withComponentProps(function StudentProf
     })]
   });
 });
-const route25 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route28 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action: action$7,
   default: studio_$slug_students_$id,
-  loader: loader$i
+  loader: loader$j
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$h = async (args) => {
+const loader$i = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -8973,6 +10651,8 @@ const studio_$slug_checkin = UNSAFE_withComponentProps(function StaffCheckInPage
   const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isKioskMode, setIsKioskMode] = useState(false);
+  const [feedback, setFeedback] = useState(null);
   useEffect(() => {
     if (selectedClass) {
       loadRoster(selectedClass.id);
@@ -9017,6 +10697,29 @@ const studio_$slug_checkin = UNSAFE_withComponentProps(function StaffCheckInPage
       } : b));
     }
   };
+  useEffect(() => {
+    if (isKioskMode && feedback?.type === "success") {
+      const timer = setTimeout(() => {
+        setFeedback(null);
+        setSearchQuery("");
+      }, 3e3);
+      return () => clearTimeout(timer);
+    }
+  }, [feedback, isKioskMode]);
+  const handleKioskCheckIn = async (booking) => {
+    if (booking.checkedInAt) {
+      setFeedback({
+        message: `Already checked in!`,
+        type: "error"
+      });
+      return;
+    }
+    await toggleCheckIn(booking);
+    setFeedback({
+      message: `Welcome, ${booking.user.profile?.firstName}!`,
+      type: "success"
+    });
+  };
   if (!roles.includes("instructor") && !roles.includes("owner")) {
     return /* @__PURE__ */ jsx("div", {
       className: "p-8 text-center",
@@ -9048,101 +10751,168 @@ const studio_$slug_checkin = UNSAFE_withComponentProps(function StaffCheckInPage
             }), " • ", selectedClass.location?.name || "Studio Main"]
           })]
         })]
-      }), /* @__PURE__ */ jsx("div", {
-        className: "p-4 bg-white dark:bg-zinc-950 sticky top-[73px] z-10 border-b border-zinc-100 dark:border-zinc-800",
+      }), /* @__PURE__ */ jsx("button", {
+        onClick: () => setIsKioskMode(!isKioskMode),
+        className: `px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${isKioskMode ? "bg-blue-600 text-white border-blue-600" : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800"}`,
+        children: isKioskMode ? "Exit Kiosk" : "Kiosk Mode"
+      }), isKioskMode ? /* @__PURE__ */ jsx("div", {
+        className: "flex-1 flex flex-col items-center justify-start pt-24 px-8 bg-zinc-50 dark:bg-zinc-950",
         children: /* @__PURE__ */ jsxs("div", {
-          className: "relative",
-          children: [/* @__PURE__ */ jsx(Search, {
-            className: "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400"
-          }), /* @__PURE__ */ jsx("input", {
-            type: "text",
-            placeholder: "Find student...",
-            value: searchQuery,
-            onChange: (e) => setSearchQuery(e.target.value),
-            className: "w-full pl-10 pr-4 py-3 bg-zinc-100 dark:bg-zinc-900 border-none rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+          className: "max-w-2xl w-full",
+          children: [/* @__PURE__ */ jsxs("h1", {
+            className: "text-4xl font-extrabold text-center text-zinc-900 dark:text-zinc-100 mb-8 tracking-tight",
+            children: ["Welcome to ", selectedClass.location?.name || "the Studio"]
+          }), feedback ? /* @__PURE__ */ jsxs("div", {
+            className: `p-12 rounded-3xl text-center animate-in fade-in zoom-in duration-300 ${feedback.type === "success" ? "bg-emerald-500 text-white" : "bg-red-500 text-white"}`,
+            children: [/* @__PURE__ */ jsx(CheckCircle2, {
+              size: 64,
+              className: "mx-auto mb-4"
+            }), /* @__PURE__ */ jsx("h2", {
+              className: "text-3xl font-bold",
+              children: feedback.message
+            }), /* @__PURE__ */ jsx("p", {
+              className: "mt-2 opacity-80 uppercase tracking-widest font-medium text-sm",
+              children: "Enjoy your class!"
+            })]
+          }) : /* @__PURE__ */ jsxs("div", {
+            className: "space-y-6",
+            children: [/* @__PURE__ */ jsxs("div", {
+              className: "relative",
+              children: [/* @__PURE__ */ jsx(Search, {
+                className: "absolute left-6 top-1/2 -translate-y-1/2 h-8 w-8 text-zinc-400"
+              }), /* @__PURE__ */ jsx("input", {
+                type: "text",
+                placeholder: "Enter your name...",
+                value: searchQuery,
+                onChange: (e) => setSearchQuery(e.target.value),
+                className: "w-full pl-20 pr-8 py-8 bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-800 rounded-3xl text-3xl font-bold focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none shadow-xl",
+                autoFocus: true
+              })]
+            }), searchQuery.length > 1 && /* @__PURE__ */ jsxs("div", {
+              className: "bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden",
+              children: [filteredRoster.map((booking) => /* @__PURE__ */ jsxs("button", {
+                onClick: () => handleKioskCheckIn(booking),
+                className: "w-full flex items-center justify-between p-6 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800 last:border-0 transition-colors text-left",
+                children: [/* @__PURE__ */ jsxs("span", {
+                  className: "text-xl font-bold text-zinc-900 dark:text-zinc-100",
+                  children: [booking.user.profile?.firstName, " ", booking.user.profile?.lastName]
+                }), booking.checkedInAt ? /* @__PURE__ */ jsxs("span", {
+                  className: "text-emerald-500 font-bold flex items-center gap-2",
+                  children: [/* @__PURE__ */ jsx(CheckCircle2, {}), " Checked In"]
+                }) : /* @__PURE__ */ jsx("span", {
+                  className: "bg-blue-600 text-white px-6 py-2 rounded-xl font-bold text-sm",
+                  children: "Check In"
+                })]
+              }, booking.id)), filteredRoster.length === 0 && /* @__PURE__ */ jsx("div", {
+                className: "p-8 text-center text-zinc-400",
+                children: "No students found."
+              })]
+            })]
           })]
         })
-      }), /* @__PURE__ */ jsx("div", {
-        className: "flex-1 overflow-y-auto pb-24",
-        children: loading && roster.length === 0 ? /* @__PURE__ */ jsxs("div", {
-          className: "p-12 text-center text-zinc-400",
-          children: [/* @__PURE__ */ jsx(Loader2, {
-            className: "animate-spin mx-auto h-8 w-8 mb-2"
-          }), /* @__PURE__ */ jsx("p", {
-            className: "text-sm",
-            children: "Loading Roster..."
-          })]
-        }) : /* @__PURE__ */ jsxs("div", {
-          className: "divide-y divide-zinc-50 dark:divide-zinc-900",
-          children: [filteredRoster.map((booking) => /* @__PURE__ */ jsxs("button", {
-            onClick: () => toggleCheckIn(booking),
-            className: "w-full flex items-center gap-4 p-4 active:bg-zinc-50 dark:active:bg-zinc-900 transition-colors text-left group",
-            children: [/* @__PURE__ */ jsx("div", {
-              className: "flex-shrink-0",
-              children: booking.checkedInAt ? /* @__PURE__ */ jsx("div", {
-                className: "p-2 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 rounded-full",
-                children: /* @__PURE__ */ jsx(CheckCircle2, {
-                  size: 24
-                })
-              }) : /* @__PURE__ */ jsx("div", {
-                className: "p-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-400 rounded-full group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors",
-                children: /* @__PURE__ */ jsx(Circle, {
-                  size: 24
-                })
-              })
-            }), /* @__PURE__ */ jsxs("div", {
-              className: "flex-1 min-w-0",
-              children: [/* @__PURE__ */ jsxs("div", {
-                className: "font-bold text-zinc-900 dark:text-zinc-100 truncate",
-                children: [booking.user.profile?.firstName || "Student", " ", booking.user.profile?.lastName || ""]
-              }), /* @__PURE__ */ jsxs("div", {
-                className: "text-xs text-zinc-500 flex items-center gap-2 mt-0.5",
-                children: [booking.status === "confirmed" ? /* @__PURE__ */ jsx("span", {
-                  className: "text-emerald-500 font-bold uppercase tracking-tighter text-[9px]",
-                  children: "Reserved"
-                }) : /* @__PURE__ */ jsx("span", {
-                  className: "text-amber-500 font-bold uppercase tracking-tighter text-[9px]",
-                  children: booking.status
-                }), /* @__PURE__ */ jsx("span", {
-                  children: "•"
-                }), /* @__PURE__ */ jsx("span", {
-                  children: booking.user.email
-                })]
-              })]
-            }), /* @__PURE__ */ jsx("div", {
-              className: "flex-shrink-0",
-              children: booking.checkedInAt ? /* @__PURE__ */ jsxs("span", {
-                className: "text-[10px] text-zinc-400 font-medium",
-                children: ["Checked in ", new Date(booking.checkedInAt).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit"
-                })]
-              }) : /* @__PURE__ */ jsx("span", {
-                className: "text-[10px] text-blue-600 font-bold bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded",
-                children: "CHECK IN"
-              })
+      }) : /* @__PURE__ */ jsxs(Fragment, {
+        children: [/* @__PURE__ */ jsx("div", {
+          className: "p-4 bg-white dark:bg-zinc-950 sticky top-[73px] z-10 border-b border-zinc-100 dark:border-zinc-800",
+          children: /* @__PURE__ */ jsxs("div", {
+            className: "relative",
+            children: [/* @__PURE__ */ jsx(Search, {
+              className: "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400"
+            }), /* @__PURE__ */ jsx("input", {
+              type: "text",
+              placeholder: "Find student...",
+              value: searchQuery,
+              onChange: (e) => setSearchQuery(e.target.value),
+              className: "w-full pl-10 pr-4 py-3 bg-zinc-100 dark:bg-zinc-900 border-none rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 outline-none"
             })]
-          }, booking.id)), filteredRoster.length === 0 && /* @__PURE__ */ jsxs("div", {
+          })
+        }), /* @__PURE__ */ jsx("div", {
+          className: "flex-1 overflow-y-auto pb-24",
+          children: loading && roster.length === 0 ? /* @__PURE__ */ jsxs("div", {
             className: "p-12 text-center text-zinc-400",
-            children: [/* @__PURE__ */ jsx(Users, {
-              className: "mx-auto h-12 w-12 mb-4 opacity-20"
+            children: [/* @__PURE__ */ jsx(Loader2, {
+              className: "animate-spin mx-auto h-8 w-8 mb-2"
             }), /* @__PURE__ */ jsx("p", {
               className: "text-sm",
-              children: "No students booked yet."
-            }), /* @__PURE__ */ jsx("p", {
-              className: "text-xs mt-1",
-              children: "Bookings for this class will appear here."
+              children: "Loading Roster..."
             })]
-          })]
-        })
-      }), /* @__PURE__ */ jsx("div", {
-        className: "p-4 border-t border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex gap-4 sticky bottom-0 shadow-2xl",
-        children: /* @__PURE__ */ jsxs("button", {
-          className: "flex-1 bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform",
-          children: [/* @__PURE__ */ jsx(UserPlus, {
-            size: 20
-          }), "Quick Add Student"]
-        })
+          }) : /* @__PURE__ */ jsxs("div", {
+            className: "divide-y divide-zinc-50 dark:divide-zinc-900",
+            children: [filteredRoster.map((booking) => /* @__PURE__ */ jsxs("button", {
+              onClick: () => toggleCheckIn(booking),
+              className: "w-full flex items-center gap-4 p-4 active:bg-zinc-50 dark:active:bg-zinc-900 transition-colors text-left group",
+              children: [/* @__PURE__ */ jsx("div", {
+                className: "flex-shrink-0",
+                children: booking.checkedInAt ? /* @__PURE__ */ jsx("div", {
+                  className: "p-2 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 rounded-full",
+                  children: /* @__PURE__ */ jsx(CheckCircle2, {
+                    size: 24
+                  })
+                }) : /* @__PURE__ */ jsx("div", {
+                  className: "p-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-400 rounded-full group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors",
+                  children: /* @__PURE__ */ jsx(Circle, {
+                    size: 24
+                  })
+                })
+              }), /* @__PURE__ */ jsxs("div", {
+                className: "flex-1 min-w-0",
+                children: [/* @__PURE__ */ jsxs("div", {
+                  className: "font-bold text-zinc-900 dark:text-zinc-100 truncate",
+                  children: [booking.user.profile?.firstName || "Student", " ", booking.user.profile?.lastName || ""]
+                }), /* @__PURE__ */ jsxs("div", {
+                  className: "text-xs text-zinc-500 flex items-center gap-2 mt-0.5",
+                  children: [booking.status === "confirmed" ? /* @__PURE__ */ jsx("span", {
+                    className: "text-emerald-500 font-bold uppercase tracking-tighter text-[9px]",
+                    children: "Reserved"
+                  }) : /* @__PURE__ */ jsx("span", {
+                    className: "text-amber-500 font-bold uppercase tracking-tighter text-[9px]",
+                    children: booking.status
+                  }), /* @__PURE__ */ jsx("span", {
+                    children: "•"
+                  }), /* @__PURE__ */ jsx("span", {
+                    children: booking.user.email
+                  })]
+                }), booking.paymentMethod === "drop_in" && /* @__PURE__ */ jsx("div", {
+                  className: "mt-1",
+                  children: /* @__PURE__ */ jsx("span", {
+                    className: "text-[10px] font-bold uppercase tracking-wider text-red-600 bg-red-100 px-1.5 py-0.5 rounded",
+                    children: "Unpaid / Pay at Door"
+                  })
+                })]
+              }), /* @__PURE__ */ jsx("div", {
+                className: "flex-shrink-0",
+                children: booking.checkedInAt ? /* @__PURE__ */ jsxs("span", {
+                  className: "text-[10px] text-zinc-400 font-medium",
+                  children: ["Checked in ", new Date(booking.checkedInAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit"
+                  })]
+                }) : /* @__PURE__ */ jsx("span", {
+                  className: "text-[10px] text-blue-600 font-bold bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded",
+                  children: "CHECK IN"
+                })
+              })]
+            }, booking.id)), filteredRoster.length === 0 && /* @__PURE__ */ jsxs("div", {
+              className: "p-12 text-center text-zinc-400",
+              children: [/* @__PURE__ */ jsx(Users, {
+                className: "mx-auto h-12 w-12 mb-4 opacity-20"
+              }), /* @__PURE__ */ jsx("p", {
+                className: "text-sm",
+                children: "No students booked yet."
+              }), /* @__PURE__ */ jsx("p", {
+                className: "text-xs mt-1",
+                children: "Bookings for this class will appear here."
+              })]
+            })]
+          })
+        }), /* @__PURE__ */ jsx("div", {
+          className: "p-4 border-t border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex gap-4 sticky bottom-0 shadow-2xl",
+          children: /* @__PURE__ */ jsxs("button", {
+            className: "flex-1 bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform",
+            children: [/* @__PURE__ */ jsx(UserPlus, {
+              size: 20
+            }), "Quick Add Student"]
+          })
+        })]
       })]
     });
   }
@@ -9213,12 +10983,12 @@ const studio_$slug_checkin = UNSAFE_withComponentProps(function StaffCheckInPage
     })
   });
 });
-const route26 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route29 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_checkin,
-  loader: loader$h
+  loader: loader$i
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$g = async (args) => {
+const loader$h = async (args) => {
   const {
     params
   } = args;
@@ -9649,11 +11419,11 @@ const studio_$slug_classes = UNSAFE_withComponentProps(function StudioPublicClas
     })]
   });
 });
-const route27 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route30 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action: action$6,
   default: studio_$slug_classes,
-  loader: loader$g
+  loader: loader$h
 }, Symbol.toStringTag, { value: "Module" }));
 const action$5 = async (args) => {
   const {
@@ -9707,7 +11477,7 @@ const action$5 = async (args) => {
   }
   return null;
 };
-const loader$f = async (args) => {
+const loader$g = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -10191,11 +11961,11 @@ function NotesModal({
     })
   });
 }
-const route28 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route31 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action: action$5,
   default: studio_$slug_classes_$id_roster,
-  loader: loader$f
+  loader: loader$g
 }, Symbol.toStringTag, { value: "Module" }));
 function FamilyManager({ token }) {
   const fetcher = useFetcher();
@@ -10365,7 +12135,7 @@ function AvailabilityManager({ token, tenantSlug }) {
   ] });
 }
 var define_process_env_default = {};
-const loader$e = async (args) => {
+const loader$f = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -10549,11 +12319,11 @@ const studio_$slug_profile = UNSAFE_withComponentProps(function StudioProfilePag
     })]
   });
 });
-const route29 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route32 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action: action$4,
   default: studio_$slug_profile,
-  loader: loader$e
+  loader: loader$f
 }, Symbol.toStringTag, { value: "Module" }));
 function SignaturePad({ onChange, width = 500, height = 200 }) {
   const canvasRef = useRef(null);
@@ -10618,6 +12388,7 @@ function SignaturePad({ onChange, width = 500, height = 200 }) {
         width,
         height,
         className: "touch-none cursor-crosshair bg-white",
+        style: { touchAction: "none" },
         onMouseDown: handleMouseDown,
         onMouseMove: (e) => {
           if (!isDrawing) return;
@@ -10685,7 +12456,7 @@ function SignaturePad({ onChange, width = 500, height = 200 }) {
     ] })
   ] });
 }
-const loader$d = async (args) => {
+const loader$e = async (args) => {
   const {
     params
   } = args;
@@ -11022,11 +12793,11 @@ const studio_$slug_waivers = UNSAFE_withComponentProps(function StudioWaivers() 
     })]
   });
 });
-const route30 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route33 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action: action$3,
   default: studio_$slug_waivers,
-  loader: loader$d
+  loader: loader$e
 }, Symbol.toStringTag, { value: "Module" }));
 const action$2 = async (args) => {
   const {
@@ -11208,12 +12979,12 @@ const studio_$slug_waivers_new = UNSAFE_withComponentProps(function NewWaiverTem
     })]
   });
 });
-const route31 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route34 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action: action$2,
   default: studio_$slug_waivers_new
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$c = async (args) => {
+const loader$d = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -11480,689 +13251,1129 @@ function DashboardAction({
     })]
   });
 }
-const route32 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route35 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug__index,
-  loader: loader$c
+  loader: loader$d
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$b = async (args) => {
+const loader$c = async (args) => {
   const {
     getToken
   } = await getAuth(args);
   const token = await getToken();
   const slug = args.params.slug;
   try {
-    const [productsRes, ordersRes] = await Promise.all([apiRequest("/pos/products", token, {
+    const res = await apiRequest("/leads", token, {
       headers: {
         "X-Tenant-Slug": slug
       }
-    }), apiRequest("/pos/orders", token, {
-      headers: {
-        "X-Tenant-Slug": slug
-      }
-    })]);
+    });
     return {
-      products: productsRes.products || [],
-      orders: ordersRes.orders || [],
+      leads: res.leads || [],
       token,
       slug
     };
   } catch (e) {
-    console.error("Failed to load POS data", e);
     return {
-      products: [],
-      orders: [],
+      leads: [],
       token,
-      slug
+      slug,
+      error: e.message
     };
   }
 };
-const studio_$slug_pos = UNSAFE_withComponentProps(function POSPage() {
+const studio_$slug_leads = UNSAFE_withComponentProps(function LeadsPage() {
   const {
-    products: initialProducts,
-    orders: initialOrders,
+    leads: initialLeads,
     token,
     slug
   } = useLoaderData();
-  const [view, setView] = useState("pos");
-  const [products, setProducts] = useState(initialProducts);
-  const [orders, setOrders] = useState(initialOrders);
-  const [cart, setCart] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [leads, setLeads] = useState(initialLeads);
+  const [isAddOpen, setIsAddOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("card");
-  const [appliedGiftCard, setAppliedGiftCard] = useState(null);
-  const addToCart = (product) => {
-    setCart((prev) => {
-      const existing = prev.find((item) => item.productId === product.id);
-      if (existing) {
-        return prev.map((item) => item.productId === product.id ? {
-          ...item,
-          quantity: item.quantity + 1
-        } : item);
-      }
-      return [...prev, {
-        productId: product.id,
-        name: product.name,
-        unitPrice: product.price,
-        quantity: 1
-      }];
-    });
-  };
-  const updateQuantity = (productId, delta) => {
-    setCart((prev) => prev.map((item) => {
-      if (item.productId === productId) {
-        const newQty = Math.max(0, item.quantity + delta);
-        return {
-          ...item,
-          quantity: newQty
-        };
-      }
-      return item;
-    }).filter((item) => item.quantity > 0));
-  };
-  const cartTotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-  const handleCheckout = async () => {
-    if (cart.length === 0) return;
+  const [searchTerm, setSearchTerm] = useState("");
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    source: "",
+    notes: ""
+  });
+  const handleCreate = async (e) => {
+    e.preventDefault();
     setLoading(true);
     try {
-      if (appliedGiftCard) {
-        const redeemAmount = Math.min(appliedGiftCard.balance, cartTotal);
-        const redeemRes = await apiRequest("/gift-cards/redeem", token, {
-          method: "POST",
-          headers: {
-            "X-Tenant-Slug": slug
-          },
-          body: JSON.stringify({
-            code: appliedGiftCard.code,
-            amount: redeemAmount,
-            referenceId: "POS-TEMP"
-            // Will update after order created
-          })
-        });
-        if (redeemRes.error) {
-          throw new Error(redeemRes.error);
-        }
-      }
-      const res = await apiRequest("/pos/orders", token, {
+      const res = await apiRequest("/leads", token, {
         method: "POST",
         headers: {
           "X-Tenant-Slug": slug
         },
-        body: JSON.stringify({
-          items: cart,
-          totalAmount: cartTotal,
-          paymentMethod: paymentMethod === "gift_card" ? "other" : paymentMethod
-        })
+        body: JSON.stringify(formData)
       });
       if (res.error) {
         alert(res.error);
       } else {
-        alert("Sale Successful!");
-        setCart([]);
-        setAppliedGiftCard(null);
-        setPaymentMethod("card");
-        const [pRes, oRes] = await Promise.all([apiRequest("/pos/products", token, {
+        const refreshed = await apiRequest("/leads", token, {
           headers: {
             "X-Tenant-Slug": slug
           }
-        }), apiRequest("/pos/orders", token, {
-          headers: {
-            "X-Tenant-Slug": slug
-          }
-        })]);
-        setProducts(pRes.products || []);
-        setOrders(oRes.orders || []);
+        });
+        setLeads(refreshed.leads || []);
+        setIsAddOpen(false);
+        setFormData({
+          firstName: "",
+          lastName: "",
+          email: "",
+          phone: "",
+          source: "",
+          notes: ""
+        });
       }
-    } catch (e) {
-      alert("Checkout failed: " + e.message);
+    } catch (e2) {
+      alert("Failed to create lead: " + e2.message);
     } finally {
       setLoading(false);
     }
   };
-  const [showAddProduct, setShowAddProduct] = useState(false);
-  const [newProduct, setNewProduct] = useState({
-    name: "",
-    price: "",
-    stock: "0",
-    category: "Retail"
-  });
-  const handleAddProduct = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  const handleStatusChange = async (leadId, newStatus) => {
+    setLeads(leads.map((l) => l.id === leadId ? {
+      ...l,
+      status: newStatus
+    } : l));
     try {
-      await apiRequest("/pos/products", token, {
-        method: "POST",
+      await apiRequest(`/leads/${leadId}`, token, {
+        method: "PATCH",
         headers: {
           "X-Tenant-Slug": slug
         },
         body: JSON.stringify({
-          name: newProduct.name,
-          price: parseInt(newProduct.price) * 100,
-          // to cents
-          stockQuantity: parseInt(newProduct.stock),
-          category: newProduct.category
+          status: newStatus
         })
       });
-      setShowAddProduct(false);
-      setNewProduct({
-        name: "",
-        price: "",
-        stock: "0",
-        category: "Retail"
-      });
-      const pRes = await apiRequest("/pos/products", token, {
-        headers: {
-          "X-Tenant-Slug": slug
-        }
-      });
-      setProducts(pRes.products || []);
-    } catch (e2) {
-      alert("Failed to add product");
+    } catch (e) {
+      console.error(e);
+    }
+  };
+  const filteredLeads = leads.filter((l) => l.email.toLowerCase().includes(searchTerm.toLowerCase()) || (l.firstName + " " + l.lastName).toLowerCase().includes(searchTerm.toLowerCase()));
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "new":
+        return "bg-blue-100 text-blue-800";
+      case "contacted":
+        return "bg-yellow-100 text-yellow-800";
+      case "trialing":
+        return "bg-purple-100 text-purple-800";
+      case "converted":
+        return "bg-green-100 text-green-800";
+      case "lost":
+        return "bg-gray-100 text-gray-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+  return /* @__PURE__ */ jsxs("div", {
+    className: "p-8 max-w-7xl mx-auto",
+    children: [/* @__PURE__ */ jsxs("div", {
+      className: "flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8",
+      children: [/* @__PURE__ */ jsxs("div", {
+        children: [/* @__PURE__ */ jsx("h1", {
+          className: "text-3xl font-bold text-zinc-900 dark:text-zinc-100",
+          children: "Leads CRM"
+        }), /* @__PURE__ */ jsx("p", {
+          className: "text-zinc-500 dark:text-zinc-400 mt-1",
+          children: "Track and manage prospective students."
+        })]
+      }), /* @__PURE__ */ jsxs("button", {
+        onClick: () => setIsAddOpen(true),
+        className: "bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2 shadow-sm transition-all hover:translate-y-[-1px]",
+        children: [/* @__PURE__ */ jsx(Plus, {
+          size: 18
+        }), "Add New Lead"]
+      })]
+    }), /* @__PURE__ */ jsxs("div", {
+      className: "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden",
+      children: [/* @__PURE__ */ jsxs("div", {
+        className: "p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-4",
+        children: [/* @__PURE__ */ jsxs("div", {
+          className: "relative flex-1 max-w-md",
+          children: [/* @__PURE__ */ jsx(Search, {
+            className: "absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400",
+            size: 16
+          }), /* @__PURE__ */ jsx("input", {
+            type: "text",
+            placeholder: "Search leads...",
+            value: searchTerm,
+            onChange: (e) => setSearchTerm(e.target.value),
+            className: "w-full pl-10 pr-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-zinc-50 dark:bg-zinc-800 focus:ring-2 focus:ring-blue-500 outline-none"
+          })]
+        }), /* @__PURE__ */ jsxs("div", {
+          className: "text-sm text-zinc-500",
+          children: [filteredLeads.length, " leads found"]
+        })]
+      }), /* @__PURE__ */ jsx("div", {
+        className: "overflow-x-auto",
+        children: /* @__PURE__ */ jsxs("table", {
+          className: "w-full text-left",
+          children: [/* @__PURE__ */ jsx("thead", {
+            className: "bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800",
+            children: /* @__PURE__ */ jsxs("tr", {
+              children: [/* @__PURE__ */ jsx("th", {
+                className: "px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider",
+                children: "Name"
+              }), /* @__PURE__ */ jsx("th", {
+                className: "px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider",
+                children: "Contact"
+              }), /* @__PURE__ */ jsx("th", {
+                className: "px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider",
+                children: "Status"
+              }), /* @__PURE__ */ jsx("th", {
+                className: "px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider",
+                children: "Source"
+              }), /* @__PURE__ */ jsx("th", {
+                className: "px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider",
+                children: "Added"
+              })]
+            })
+          }), /* @__PURE__ */ jsxs("tbody", {
+            className: "divide-y divide-zinc-100 dark:divide-zinc-800",
+            children: [filteredLeads.map((lead) => /* @__PURE__ */ jsxs("tr", {
+              className: "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors",
+              children: [/* @__PURE__ */ jsx("td", {
+                className: "px-6 py-4",
+                children: /* @__PURE__ */ jsxs("div", {
+                  className: "flex items-center gap-3",
+                  children: [/* @__PURE__ */ jsxs("div", {
+                    className: "w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs uppercase",
+                    children: [lead.firstName?.[0], lead.lastName?.[0]]
+                  }), /* @__PURE__ */ jsxs("div", {
+                    children: [/* @__PURE__ */ jsxs("div", {
+                      className: "font-medium text-zinc-900 dark:text-zinc-100",
+                      children: [lead.firstName, " ", lead.lastName]
+                    }), lead.notes && /* @__PURE__ */ jsx("div", {
+                      className: "text-xs text-zinc-400 truncate max-w-[200px]",
+                      title: lead.notes,
+                      children: lead.notes
+                    })]
+                  })]
+                })
+              }), /* @__PURE__ */ jsx("td", {
+                className: "px-6 py-4",
+                children: /* @__PURE__ */ jsxs("div", {
+                  className: "flex flex-col gap-1 text-sm text-zinc-600 dark:text-zinc-400",
+                  children: [/* @__PURE__ */ jsxs("div", {
+                    className: "flex items-center gap-2",
+                    children: [/* @__PURE__ */ jsx(Mail, {
+                      size: 14,
+                      className: "text-zinc-400"
+                    }), /* @__PURE__ */ jsx("span", {
+                      children: lead.email
+                    })]
+                  }), lead.phone && /* @__PURE__ */ jsxs("div", {
+                    className: "flex items-center gap-2",
+                    children: [/* @__PURE__ */ jsx(Phone, {
+                      size: 14,
+                      className: "text-zinc-400"
+                    }), /* @__PURE__ */ jsx("span", {
+                      children: lead.phone
+                    })]
+                  })]
+                })
+              }), /* @__PURE__ */ jsx("td", {
+                className: "px-6 py-4",
+                children: /* @__PURE__ */ jsxs("select", {
+                  value: lead.status,
+                  onChange: (e) => handleStatusChange(lead.id, e.target.value),
+                  className: `text-xs font-bold uppercase px-2 py-1 rounded border-none outline-none cursor-pointer focus:ring-2 focus:ring-blue-500/50 ${getStatusColor(lead.status)}`,
+                  children: [/* @__PURE__ */ jsx("option", {
+                    value: "new",
+                    children: "New"
+                  }), /* @__PURE__ */ jsx("option", {
+                    value: "contacted",
+                    children: "Contacted"
+                  }), /* @__PURE__ */ jsx("option", {
+                    value: "trialing",
+                    children: "Trialing"
+                  }), /* @__PURE__ */ jsx("option", {
+                    value: "converted",
+                    children: "Converted"
+                  }), /* @__PURE__ */ jsx("option", {
+                    value: "lost",
+                    children: "Lost"
+                  })]
+                })
+              }), /* @__PURE__ */ jsx("td", {
+                className: "px-6 py-4 text-sm text-zinc-600 dark:text-zinc-400",
+                children: lead.source ? /* @__PURE__ */ jsx("span", {
+                  className: "bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded text-xs border border-zinc-200 dark:border-zinc-700",
+                  children: lead.source
+                }) : /* @__PURE__ */ jsx("span", {
+                  className: "text-zinc-400 text-xs italic",
+                  children: "Unknown"
+                })
+              }), /* @__PURE__ */ jsx("td", {
+                className: "px-6 py-4 text-sm text-zinc-500",
+                children: /* @__PURE__ */ jsxs("div", {
+                  className: "flex items-center gap-1",
+                  title: new Date(lead.createdAt).toLocaleString(),
+                  children: [/* @__PURE__ */ jsx(Clock, {
+                    size: 14,
+                    className: "text-zinc-400"
+                  }), format$1(new Date(lead.createdAt), "MMM d")]
+                })
+              })]
+            }, lead.id)), filteredLeads.length === 0 && /* @__PURE__ */ jsx("tr", {
+              children: /* @__PURE__ */ jsx("td", {
+                colSpan: 5,
+                className: "px-6 py-12 text-center text-zinc-500",
+                children: /* @__PURE__ */ jsxs("div", {
+                  className: "flex flex-col items-center gap-2",
+                  children: [/* @__PURE__ */ jsx(AlertCircle, {
+                    size: 32,
+                    className: "text-zinc-300"
+                  }), /* @__PURE__ */ jsx("p", {
+                    children: "No leads found matching your criteria."
+                  })]
+                })
+              })
+            })]
+          })]
+        })
+      })]
+    }), /* @__PURE__ */ jsx(Modal, {
+      isOpen: isAddOpen,
+      onClose: () => setIsAddOpen(false),
+      title: "Add New Lead",
+      children: /* @__PURE__ */ jsxs("form", {
+        onSubmit: handleCreate,
+        className: "space-y-4",
+        children: [/* @__PURE__ */ jsxs("div", {
+          className: "grid grid-cols-2 gap-4",
+          children: [/* @__PURE__ */ jsxs("div", {
+            children: [/* @__PURE__ */ jsx("label", {
+              className: "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1",
+              children: "First Name"
+            }), /* @__PURE__ */ jsx("input", {
+              type: "text",
+              required: true,
+              className: "w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white dark:bg-zinc-900",
+              value: formData.firstName,
+              onChange: (e) => setFormData({
+                ...formData,
+                firstName: e.target.value
+              })
+            })]
+          }), /* @__PURE__ */ jsxs("div", {
+            children: [/* @__PURE__ */ jsx("label", {
+              className: "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1",
+              children: "Last Name"
+            }), /* @__PURE__ */ jsx("input", {
+              type: "text",
+              className: "w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white dark:bg-zinc-900",
+              value: formData.lastName,
+              onChange: (e) => setFormData({
+                ...formData,
+                lastName: e.target.value
+              })
+            })]
+          })]
+        }), /* @__PURE__ */ jsxs("div", {
+          children: [/* @__PURE__ */ jsx("label", {
+            className: "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1",
+            children: "Email Address"
+          }), /* @__PURE__ */ jsx("input", {
+            type: "email",
+            required: true,
+            className: "w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white dark:bg-zinc-900",
+            value: formData.email,
+            onChange: (e) => setFormData({
+              ...formData,
+              email: e.target.value
+            })
+          })]
+        }), /* @__PURE__ */ jsxs("div", {
+          className: "grid grid-cols-2 gap-4",
+          children: [/* @__PURE__ */ jsxs("div", {
+            children: [/* @__PURE__ */ jsx("label", {
+              className: "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1",
+              children: "Phone (Optional)"
+            }), /* @__PURE__ */ jsx("input", {
+              type: "tel",
+              className: "w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white dark:bg-zinc-900",
+              value: formData.phone,
+              onChange: (e) => setFormData({
+                ...formData,
+                phone: e.target.value
+              })
+            })]
+          }), /* @__PURE__ */ jsxs("div", {
+            children: [/* @__PURE__ */ jsx("label", {
+              className: "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1",
+              children: "Source"
+            }), /* @__PURE__ */ jsxs("select", {
+              className: "w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white dark:bg-zinc-900",
+              value: formData.source,
+              onChange: (e) => setFormData({
+                ...formData,
+                source: e.target.value
+              }),
+              children: [/* @__PURE__ */ jsx("option", {
+                value: "",
+                children: "Select source..."
+              }), /* @__PURE__ */ jsx("option", {
+                value: "Walk-in",
+                children: "Walk-in"
+              }), /* @__PURE__ */ jsx("option", {
+                value: "Website",
+                children: "Website"
+              }), /* @__PURE__ */ jsx("option", {
+                value: "Referral",
+                children: "Referral"
+              }), /* @__PURE__ */ jsx("option", {
+                value: "Social Media",
+                children: "Social Media"
+              }), /* @__PURE__ */ jsx("option", {
+                value: "Other",
+                children: "Other"
+              })]
+            })]
+          })]
+        }), /* @__PURE__ */ jsxs("div", {
+          children: [/* @__PURE__ */ jsx("label", {
+            className: "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1",
+            children: "Notes"
+          }), /* @__PURE__ */ jsx("textarea", {
+            className: "w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none h-24 bg-white dark:bg-zinc-900",
+            value: formData.notes,
+            onChange: (e) => setFormData({
+              ...formData,
+              notes: e.target.value
+            }),
+            placeholder: "Interests, goals, availability..."
+          })]
+        }), /* @__PURE__ */ jsxs("div", {
+          className: "pt-4 flex gap-3",
+          children: [/* @__PURE__ */ jsx("button", {
+            type: "button",
+            onClick: () => setIsAddOpen(false),
+            className: "flex-1 px-4 py-2 border border-zinc-300 text-zinc-700 rounded-lg hover:bg-zinc-50 font-medium",
+            children: "Cancel"
+          }), /* @__PURE__ */ jsx("button", {
+            type: "submit",
+            disabled: loading,
+            className: "flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50",
+            children: loading ? "Adding..." : "Add Lead"
+          })]
+        })]
+      })
+    })]
+  });
+});
+const route36 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  default: studio_$slug_leads,
+  loader: loader$c
+}, Symbol.toStringTag, { value: "Module" }));
+const studio_$slug_pos = UNSAFE_withComponentProps(function POSTerminal() {
+  const {
+    tenant,
+    token,
+    features
+  } = useOutletContext() || {};
+  const [products, setProducts] = useState([]);
+  const [cart, setCart] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
+  const [terminal, setTerminal] = useState(null);
+  const [terminalStatus, setTerminalStatus] = useState("disconnected");
+  const [readers, setReaders] = useState([]);
+  const [activeReader, setActiveReader] = useState(null);
+  const [showReaderModal, setShowReaderModal] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [showCustomerSearch, setShowCustomerSearch] = useState(false);
+  const [customerQuery, setCustomerQuery] = useState("");
+  const [customerResults, setCustomerResults] = useState([]);
+  const [searchingCustomer, setSearchingCustomer] = useState(false);
+  const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
+  useEffect(() => {
+    loadProducts();
+  }, [refreshTrigger, tenant]);
+  const loadProducts = async () => {
+    try {
+      const res = await apiRequest("/pos/products", token);
+      if (res.products) {
+        setProducts(res.products.filter((p) => p.isActive));
+      }
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
-  const filteredProducts = products.filter((p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.sku?.toLowerCase().includes(searchQuery.toLowerCase()));
+  useEffect(() => {
+    if (!tenant) return;
+    const initTerminal = async () => {
+      const StripeTerminal = await loadStripeTerminal();
+      if (!StripeTerminal) return;
+      const t = StripeTerminal.create({
+        onFetchConnectionToken: async () => {
+          const res = await apiRequest("/pos/connection-token", token, {
+            method: "POST"
+          });
+          if (res.error) throw new Error(res.error);
+          return res.secret;
+        },
+        onUnexpectedReaderDisconnect: () => {
+          setTerminalStatus("disconnected");
+          setActiveReader(null);
+        }
+      });
+      setTerminal(t);
+    };
+    initTerminal();
+  }, [tenant]);
+  const handleConnectReader = async (reader) => {
+    setTerminalStatus("connecting");
+    try {
+      const result = await terminal.connectReader(reader);
+      if (result.reader) {
+        setActiveReader(result.reader);
+        setTerminalStatus("connected");
+        setShowReaderModal(false);
+      } else {
+        console.error("Connect failed", result.error);
+        setTerminalStatus("disconnected");
+      }
+    } catch (e) {
+      console.error("Connect error", e);
+      setTerminalStatus("disconnected");
+    }
+  };
+  const addToCart = (product) => {
+    setCart((prev) => {
+      const existing = prev.find((p) => p.productId === product.id);
+      if (existing) {
+        return prev.map((p) => p.productId === product.id ? {
+          ...p,
+          quantity: p.quantity + 1
+        } : p);
+      }
+      return [...prev, {
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        quantity: 1
+      }];
+    });
+  };
+  const removeFromCart = (productId) => {
+    setCart((prev) => prev.filter((p) => p.productId !== productId));
+  };
+  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const handleCheckout = async (paymentMethod) => {
+    if (cart.length === 0) return;
+    setProcessing(true);
+    try {
+      if (paymentMethod === "terminal") {
+        if (terminalStatus !== "connected" || !activeReader) {
+          alert("Please connect a reader first.");
+          setProcessing(false);
+          setShowReaderModal(true);
+          return;
+        }
+        const piRes = await apiRequest("/pos/process-payment", token, {
+          method: "POST",
+          body: JSON.stringify({
+            items: cart,
+            customerId: selectedCustomer?.stripeCustomerId
+          })
+        });
+        if (piRes.error) throw new Error(piRes.error);
+        const clientSecret = piRes.clientSecret;
+        const result = await terminal.collectPaymentMethod(clientSecret);
+        if (result.error) throw new Error(result.error.message);
+        const processResult = await terminal.processPayment(result.paymentIntent);
+        if (processResult.error) throw new Error(processResult.error.message);
+        await createOrder("card", processResult.paymentIntent.id, selectedCustomer?.id);
+      } else if (paymentMethod === "card") {
+        await createOrder("card", "manual_entry", selectedCustomer?.id);
+      } else {
+        await createOrder("cash", null, selectedCustomer?.id);
+      }
+      setCart([]);
+      setSelectedCustomer(null);
+      alert("Order Completed!");
+      setRefreshTrigger((p) => p + 1);
+    } catch (err) {
+      console.error(err);
+      alert(`Checkout Failed: ${err.message}`);
+    } finally {
+      setProcessing(false);
+    }
+  };
+  const createOrder = async (method, paymentRef, memberId) => {
+    await apiRequest("/pos/orders", token, {
+      method: "POST",
+      body: JSON.stringify({
+        items: cart,
+        memberId: memberId || null,
+        paymentMethod: method,
+        totalAmount: total
+        // stripePaymentIntentId: paymentRef 
+      })
+    });
+  };
+  useEffect(() => {
+    if (!customerQuery || customerQuery.length < 2) {
+      setCustomerResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setSearchingCustomer(true);
+      try {
+        const res = await apiRequest(`/pos/customers?query=${customerQuery}`, token);
+        setCustomerResults(res.customers || []);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setSearchingCustomer(false);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [customerQuery]);
   return /* @__PURE__ */ jsxs("div", {
-    className: "flex flex-col h-screen max-h-screen overflow-hidden bg-zinc-50 dark:bg-zinc-950",
+    className: "flex h-full",
     children: [/* @__PURE__ */ jsxs("div", {
-      className: "bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-6 py-4 flex items-center justify-between shadow-sm",
+      className: "flex-1 p-6 overflow-y-auto bg-zinc-50 dark:bg-zinc-950",
       children: [/* @__PURE__ */ jsxs("div", {
-        className: "flex items-center gap-6",
-        children: [/* @__PURE__ */ jsxs("h1", {
-          className: "text-xl font-bold flex items-center gap-2",
-          children: [/* @__PURE__ */ jsx(ShoppingBag, {
-            className: "text-blue-600"
-          }), " POS & Retail"]
-        }), /* @__PURE__ */ jsxs("nav", {
-          className: "flex gap-1 bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg",
-          children: [/* @__PURE__ */ jsx("button", {
-            onClick: () => setView("pos"),
-            className: `px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${view === "pos" ? "bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100" : "text-zinc-500 hover:text-zinc-700"}`,
-            children: "Terminal"
-          }), /* @__PURE__ */ jsx("button", {
-            onClick: () => setView("history"),
-            className: `px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${view === "history" ? "bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100" : "text-zinc-500 hover:text-zinc-700"}`,
-            children: "Orders"
-          }), /* @__PURE__ */ jsx("button", {
-            onClick: () => setView("inventory"),
-            className: `px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${view === "inventory" ? "bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100" : "text-zinc-500 hover:text-zinc-700"}`,
-            children: "Inventory"
+        className: "flex justify-between items-center mb-6",
+        children: [/* @__PURE__ */ jsxs("div", {
+          children: [/* @__PURE__ */ jsx("h1", {
+            className: "text-2xl font-bold text-zinc-900 dark:text-zinc-100",
+            children: "POS & Retail"
+          }), /* @__PURE__ */ jsx("p", {
+            className: "text-sm text-zinc-500",
+            children: "Manage inventory and process sales."
+          })]
+        }), /* @__PURE__ */ jsxs("div", {
+          className: "flex gap-2",
+          children: [/* @__PURE__ */ jsxs("button", {
+            onClick: () => setShowReaderModal(true),
+            className: `flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${terminalStatus === "connected" ? "bg-green-50 text-green-700 border-green-200" : "bg-white text-zinc-700 border-zinc-200"}`,
+            children: [/* @__PURE__ */ jsx(Wifi, {
+              size: 16
+            }), terminalStatus === "connected" ? activeReader?.label || "Reader Connected" : "Connect Reader"]
+          }), /* @__PURE__ */ jsxs("button", {
+            onClick: () => {
+              setEditingProduct(null);
+              setShowProductModal(true);
+            },
+            className: "flex items-center gap-2 px-3 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg text-sm hover:opacity-90",
+            children: [/* @__PURE__ */ jsx(Plus, {
+              size: 16
+            }), " Add Product"]
           })]
         })]
       }), /* @__PURE__ */ jsx("div", {
-        className: "flex items-center gap-4",
-        children: /* @__PURE__ */ jsxs("div", {
-          className: "relative",
-          children: [/* @__PURE__ */ jsx(Search, {
-            className: "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400"
-          }), /* @__PURE__ */ jsx("input", {
-            type: "text",
-            placeholder: "Find products...",
-            value: searchQuery,
-            onChange: (e) => setSearchQuery(e.target.value),
-            className: "pl-10 pr-4 py-2 bg-zinc-50 dark:bg-zinc-800 border-none rounded-full text-sm focus:ring-2 focus:ring-blue-500 outline-none w-64"
+        className: "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4",
+        children: products.map((product) => /* @__PURE__ */ jsxs("div", {
+          className: "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow group relative",
+          children: [/* @__PURE__ */ jsx("div", {
+            className: "absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1",
+            children: /* @__PURE__ */ jsx("button", {
+              onClick: () => {
+                setEditingProduct(product);
+                setShowProductModal(true);
+              },
+              className: "p-1.5 bg-zinc-100 rounded text-zinc-600 hover:text-blue-600",
+              children: /* @__PURE__ */ jsx(Edit, {
+                size: 14
+              })
+            })
+          }), /* @__PURE__ */ jsx("div", {
+            className: "aspect-square bg-zinc-100 dark:bg-zinc-800 rounded-lg flex items-center justify-center text-zinc-300",
+            children: product.imageUrl ? /* @__PURE__ */ jsx("img", {
+              src: product.imageUrl,
+              className: "w-full h-full object-cover rounded-lg"
+            }) : /* @__PURE__ */ jsx(Archive, {
+              size: 32
+            })
+          }), /* @__PURE__ */ jsxs("div", {
+            children: [/* @__PURE__ */ jsxs("div", {
+              className: "flex justify-between items-start",
+              children: [/* @__PURE__ */ jsx("h3", {
+                className: "font-medium text-zinc-900 dark:text-zinc-100 truncate",
+                children: product.name
+              }), /* @__PURE__ */ jsxs("span", {
+                className: "text-xs font-bold bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-600",
+                children: ["$", (product.price / 100).toFixed(2)]
+              })]
+            }), /* @__PURE__ */ jsx("p", {
+              className: "text-xs text-zinc-500 truncate",
+              children: product.category || "General"
+            })]
+          }), /* @__PURE__ */ jsxs("div", {
+            className: "mt-auto pt-2 flex items-center justify-between",
+            children: [/* @__PURE__ */ jsxs("span", {
+              className: `text-xs ${product.stockQuantity > 0 ? "text-green-600" : "text-red-500"} font-medium`,
+              children: [product.stockQuantity, " in stock"]
+            }), /* @__PURE__ */ jsx("button", {
+              onClick: () => addToCart(product),
+              disabled: product.stockQuantity <= 0,
+              className: "p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed",
+              children: /* @__PURE__ */ jsx(Plus, {
+                size: 16
+              })
+            })]
           })]
-        })
+        }, product.id))
       })]
     }), /* @__PURE__ */ jsxs("div", {
-      className: "flex-1 flex overflow-hidden",
-      children: [/* @__PURE__ */ jsxs("div", {
-        className: "flex-1 overflow-auto p-6",
-        children: [view === "pos" && /* @__PURE__ */ jsxs("div", {
-          className: "grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4",
-          children: [filteredProducts.map((p) => /* @__PURE__ */ jsxs("button", {
-            onClick: () => addToCart(p),
-            disabled: p.stockQuantity <= 0,
-            className: "bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-blue-500 dark:hover:border-blue-500 transition-all flex flex-col items-start gap-3 text-left group disabled:opacity-50 disabled:cursor-not-allowed",
-            children: [/* @__PURE__ */ jsx("div", {
-              className: "w-full aspect-square bg-zinc-100 dark:bg-zinc-800 rounded-lg flex items-center justify-center mb-1 group-hover:scale-105 transition-transform",
-              children: /* @__PURE__ */ jsx(Package, {
-                className: "h-10 w-10 text-zinc-300"
-              })
-            }), /* @__PURE__ */ jsxs("div", {
-              className: "flex-1 min-w-0 w-full",
-              children: [/* @__PURE__ */ jsx("h3", {
-                className: "font-semibold text-zinc-900 dark:text-zinc-100 truncate",
-                children: p.name
-              }), /* @__PURE__ */ jsx("p", {
-                className: "text-sm text-zinc-500 line-clamp-1",
-                children: p.category
-              })]
-            }), /* @__PURE__ */ jsxs("div", {
-              className: "flex justify-between items-end w-full",
-              children: [/* @__PURE__ */ jsxs("span", {
-                className: "text-lg font-bold text-blue-600",
-                children: ["$", (p.price / 100).toFixed(2)]
-              }), /* @__PURE__ */ jsxs("span", {
-                className: `text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${p.stockQuantity > 5 ? "bg-green-50 text-green-600" : "bg-amber-50 text-amber-600"}`,
-                children: [p.stockQuantity, " Left"]
-              })]
-            })]
-          }, p.id)), filteredProducts.length === 0 && /* @__PURE__ */ jsxs("div", {
-            className: "col-span-full py-20 text-center",
-            children: [/* @__PURE__ */ jsx(Package, {
-              className: "h-12 w-12 text-zinc-200 mx-auto mb-4"
-            }), /* @__PURE__ */ jsx("p", {
-              className: "text-zinc-500",
-              children: "No products found. Add some in Inventory."
-            })]
-          })]
-        }), view === "history" && /* @__PURE__ */ jsx("div", {
-          className: "bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden",
-          children: /* @__PURE__ */ jsxs("table", {
-            className: "w-full text-left border-collapse",
-            children: [/* @__PURE__ */ jsx("thead", {
-              className: "bg-zinc-50 dark:bg-zinc-800/50",
-              children: /* @__PURE__ */ jsxs("tr", {
-                children: [/* @__PURE__ */ jsx("th", {
-                  className: "px-6 py-4 text-xs font-bold text-zinc-500 uppercase",
-                  children: "Order ID"
-                }), /* @__PURE__ */ jsx("th", {
-                  className: "px-6 py-4 text-xs font-bold text-zinc-500 uppercase",
-                  children: "Customer"
-                }), /* @__PURE__ */ jsx("th", {
-                  className: "px-6 py-4 text-xs font-bold text-zinc-500 uppercase",
-                  children: "Total"
-                }), /* @__PURE__ */ jsx("th", {
-                  className: "px-6 py-4 text-xs font-bold text-zinc-500 uppercase",
-                  children: "Items"
-                }), /* @__PURE__ */ jsx("th", {
-                  className: "px-6 py-4 text-xs font-bold text-zinc-500 uppercase",
-                  children: "Date"
-                })]
-              })
-            }), /* @__PURE__ */ jsxs("tbody", {
-              className: "divide-y divide-zinc-200 dark:divide-zinc-800",
-              children: [orders.map((o) => /* @__PURE__ */ jsxs("tr", {
-                className: "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors",
-                children: [/* @__PURE__ */ jsxs("td", {
-                  className: "px-6 py-4 text-sm font-mono text-zinc-600 dark:text-zinc-400",
-                  children: ["#", o.id.substring(0, 8)]
-                }), /* @__PURE__ */ jsx("td", {
-                  className: "px-6 py-4",
-                  children: /* @__PURE__ */ jsxs("div", {
-                    className: "flex items-center gap-2",
-                    children: [/* @__PURE__ */ jsx("div", {
-                      className: "w-6 h-6 rounded-full bg-zinc-200 flex items-center justify-center text-[10px] font-bold",
-                      children: o.member?.user?.profile?.firstName?.charAt(0) || "?"
-                    }), /* @__PURE__ */ jsxs("span", {
-                      className: "text-sm font-medium",
-                      children: [o.member?.user?.profile?.firstName || "Guest", " ", o.member?.user?.profile?.lastName || ""]
-                    })]
-                  })
-                }), /* @__PURE__ */ jsx("td", {
-                  className: "px-6 py-4",
-                  children: /* @__PURE__ */ jsxs("span", {
-                    className: "text-sm font-bold text-green-600",
-                    children: ["$", (o.totalAmount / 100).toFixed(2)]
-                  })
-                }), /* @__PURE__ */ jsx("td", {
-                  className: "px-6 py-4 text-xs text-zinc-500",
-                  children: o.items.map((it) => it.product.name).join(", ")
-                }), /* @__PURE__ */ jsx("td", {
-                  className: "px-6 py-4 text-xs text-zinc-400",
-                  children: new Date(o.createdAt).toLocaleString()
-                })]
-              }, o.id)), orders.length === 0 && /* @__PURE__ */ jsx("tr", {
-                children: /* @__PURE__ */ jsx("td", {
-                  colSpan: 5,
-                  className: "px-6 py-20 text-center text-zinc-500 italic",
-                  children: "No orders processed yet."
-                })
-              })]
-            })]
-          })
-        }), view === "inventory" && /* @__PURE__ */ jsxs("div", {
-          className: "space-y-6",
+      className: "w-96 bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-10 shadow-xl",
+      children: [/* @__PURE__ */ jsx("div", {
+        className: "p-4 border-b border-zinc-100 dark:border-zinc-800",
+        children: selectedCustomer ? /* @__PURE__ */ jsxs("div", {
+          className: "flex justify-between items-center bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800",
           children: [/* @__PURE__ */ jsxs("div", {
-            className: "flex justify-between items-center",
-            children: [/* @__PURE__ */ jsx("h2", {
-              className: "text-xl font-bold",
-              children: "Manage Inventory"
-            }), /* @__PURE__ */ jsxs("button", {
-              onClick: () => setShowAddProduct(true),
-              className: "bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-blue-700",
-              children: [/* @__PURE__ */ jsx(Plus, {
-                className: "h-4 w-4"
-              }), " Add Product"]
-            })]
-          }), showAddProduct && /* @__PURE__ */ jsxs("div", {
-            className: "bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-md",
-            children: [/* @__PURE__ */ jsx("h3", {
-              className: "font-semibold mb-4",
-              children: "New Product Details"
-            }), /* @__PURE__ */ jsxs("form", {
-              onSubmit: handleAddProduct,
-              className: "grid grid-cols-1 md:grid-cols-4 gap-4",
-              children: [/* @__PURE__ */ jsxs("div", {
-                className: "md:col-span-2",
-                children: [/* @__PURE__ */ jsx("label", {
-                  className: "block text-xs font-bold text-zinc-500 uppercase mb-1",
-                  children: "Product Name"
-                }), /* @__PURE__ */ jsx("input", {
-                  className: "w-full border border-zinc-200 dark:border-zinc-700 rounded px-3 py-2 text-sm",
-                  placeholder: "e.g. Studio T-Shirt",
-                  value: newProduct.name,
-                  onChange: (e) => setNewProduct({
-                    ...newProduct,
-                    name: e.target.value
-                  }),
-                  required: true
-                })]
-              }), /* @__PURE__ */ jsxs("div", {
-                children: [/* @__PURE__ */ jsx("label", {
-                  className: "block text-xs font-bold text-zinc-500 uppercase mb-1",
-                  children: "Price ($)"
-                }), /* @__PURE__ */ jsx("input", {
-                  type: "number",
-                  className: "w-full border border-zinc-200 dark:border-zinc-700 rounded px-3 py-2 text-sm",
-                  placeholder: "25.00",
-                  value: newProduct.price,
-                  onChange: (e) => setNewProduct({
-                    ...newProduct,
-                    price: e.target.value
-                  }),
-                  required: true
-                })]
-              }), /* @__PURE__ */ jsxs("div", {
-                children: [/* @__PURE__ */ jsx("label", {
-                  className: "block text-xs font-bold text-zinc-500 uppercase mb-1",
-                  children: "Initial Stock"
-                }), /* @__PURE__ */ jsx("input", {
-                  type: "number",
-                  className: "w-full border border-zinc-200 dark:border-zinc-700 rounded px-3 py-2 text-sm",
-                  placeholder: "10",
-                  value: newProduct.stock,
-                  onChange: (e) => setNewProduct({
-                    ...newProduct,
-                    stock: e.target.value
-                  }),
-                  required: true
-                })]
-              }), /* @__PURE__ */ jsxs("div", {
-                className: "md:col-span-4 flex justify-end gap-3 mt-2",
-                children: [/* @__PURE__ */ jsx("button", {
-                  type: "button",
-                  onClick: () => setShowAddProduct(false),
-                  className: "px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-lg",
-                  children: "Cancel"
-                }), /* @__PURE__ */ jsx("button", {
-                  type: "submit",
-                  disabled: loading,
-                  className: "bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 text-white px-6 py-2 rounded-lg text-sm font-medium hover:opacity-90",
-                  children: loading ? "Saving..." : "Create Product"
-                })]
+            className: "flex items-center gap-3",
+            children: [/* @__PURE__ */ jsx("div", {
+              className: "w-8 h-8 rounded-full bg-blue-200 text-blue-700 flex items-center justify-center text-xs font-bold",
+              children: selectedCustomer.profile?.firstName?.[0] || selectedCustomer.name?.[0] || "C"
+            }), /* @__PURE__ */ jsxs("div", {
+              children: [/* @__PURE__ */ jsx("div", {
+                className: "text-sm font-medium text-blue-900 dark:text-blue-100",
+                children: selectedCustomer.profile ? `${selectedCustomer.profile.firstName} ${selectedCustomer.profile.lastName}` : selectedCustomer.name
+              }), /* @__PURE__ */ jsx("div", {
+                className: "text-[10px] text-blue-600 dark:text-blue-300 truncate w-32",
+                children: selectedCustomer.email
               })]
             })]
-          }), /* @__PURE__ */ jsx("div", {
-            className: "bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm",
-            children: /* @__PURE__ */ jsxs("table", {
-              className: "w-full text-left",
-              children: [/* @__PURE__ */ jsx("thead", {
-                className: "bg-zinc-50 dark:bg-zinc-800/50",
-                children: /* @__PURE__ */ jsxs("tr", {
-                  children: [/* @__PURE__ */ jsx("th", {
-                    className: "px-6 py-4 text-xs font-bold text-zinc-500 uppercase",
-                    children: "Product"
-                  }), /* @__PURE__ */ jsx("th", {
-                    className: "px-6 py-4 text-xs font-bold text-zinc-500 uppercase",
-                    children: "Category"
-                  }), /* @__PURE__ */ jsx("th", {
-                    className: "px-6 py-4 text-xs font-bold text-zinc-500 uppercase",
-                    children: "Price"
-                  }), /* @__PURE__ */ jsx("th", {
-                    className: "px-6 py-4 text-xs font-bold text-zinc-500 uppercase",
-                    children: "In Stock"
-                  }), /* @__PURE__ */ jsx("th", {
-                    className: "px-6 py-4 text-xs font-bold text-zinc-500 uppercase",
-                    children: "Status"
-                  })]
-                })
-              }), /* @__PURE__ */ jsx("tbody", {
-                className: "divide-y divide-zinc-200 dark:divide-zinc-800",
-                children: products.map((p) => /* @__PURE__ */ jsxs("tr", {
-                  children: [/* @__PURE__ */ jsx("td", {
-                    className: "px-6 py-4 text-sm font-medium",
-                    children: p.name
-                  }), /* @__PURE__ */ jsx("td", {
-                    className: "px-6 py-4 text-sm text-zinc-500",
-                    children: p.category
-                  }), /* @__PURE__ */ jsxs("td", {
-                    className: "px-6 py-4 text-sm font-bold",
-                    children: ["$", (p.price / 100).toFixed(2)]
-                  }), /* @__PURE__ */ jsx("td", {
-                    className: "px-6 py-4",
-                    children: /* @__PURE__ */ jsx("span", {
-                      className: `text-sm font-medium ${p.stockQuantity <= 5 ? "text-red-500" : "text-zinc-900 dark:text-zinc-100"}`,
-                      children: p.stockQuantity
-                    })
-                  }), /* @__PURE__ */ jsx("td", {
-                    className: "px-6 py-4",
-                    children: /* @__PURE__ */ jsx("span", {
-                      className: `text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${p.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`,
-                      children: p.isActive ? "Active" : "Hidden"
-                    })
-                  })]
-                }, p.id))
-              })]
+          }), /* @__PURE__ */ jsx("button", {
+            onClick: () => setSelectedCustomer(null),
+            className: "text-blue-400 hover:text-blue-600",
+            children: /* @__PURE__ */ jsx(X, {
+              size: 14
             })
           })]
-        })]
-      }), view === "pos" && /* @__PURE__ */ jsxs("div", {
-        className: "w-96 bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 flex flex-col shadow-xl",
-        children: [/* @__PURE__ */ jsx("div", {
-          className: "p-6 border-b border-zinc-100 dark:border-zinc-800",
-          children: /* @__PURE__ */ jsxs("h2", {
-            className: "text-lg font-bold flex items-center gap-2",
-            children: [/* @__PURE__ */ jsx(ShoppingCart, {
-              className: "h-5 w-5 text-zinc-400"
-            }), " Current Cart"]
-          })
-        }), /* @__PURE__ */ jsx("div", {
-          className: "flex-1 overflow-auto p-6 space-y-4",
-          children: cart.length === 0 ? /* @__PURE__ */ jsxs("div", {
-            className: "h-full flex flex-col items-center justify-center text-zinc-400 opacity-50 space-y-3",
-            children: [/* @__PURE__ */ jsx(ShoppingCart, {
-              className: "h-12 w-12"
-            }), /* @__PURE__ */ jsx("p", {
-              className: "text-sm",
-              children: "Cart is empty"
+        }) : /* @__PURE__ */ jsxs("div", {
+          className: "relative",
+          children: [/* @__PURE__ */ jsxs("button", {
+            onClick: () => setShowCustomerSearch(!showCustomerSearch),
+            className: "w-full flex items-center justify-between px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-500 hover:border-blue-400 transition-colors",
+            children: [/* @__PURE__ */ jsxs("span", {
+              className: "flex items-center gap-2",
+              children: [/* @__PURE__ */ jsx(User, {
+                size: 14
+              }), " Add Customer to Sale"]
+            }), /* @__PURE__ */ jsx(Plus, {
+              size: 14
             })]
-          }) : cart.map((item) => /* @__PURE__ */ jsxs("div", {
-            className: "flex gap-3 items-start animate-in slide-in-from-right-1",
+          }), showCustomerSearch && /* @__PURE__ */ jsxs("div", {
+            className: "absolute top-12 left-0 right-0 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-lg p-2 z-20",
             children: [/* @__PURE__ */ jsxs("div", {
-              className: "flex-1 min-w-0",
-              children: [/* @__PURE__ */ jsx("h4", {
-                className: "text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate",
-                children: item.name
-              }), /* @__PURE__ */ jsxs("p", {
-                className: "text-xs text-zinc-500",
-                children: ["$", (item.unitPrice / 100).toFixed(2), " ea"]
+              className: "flex items-center gap-2 px-2 py-1 bg-zinc-50 rounded border border-zinc-100 mb-2",
+              children: [/* @__PURE__ */ jsx(Search, {
+                size: 14,
+                className: "text-zinc-400"
+              }), /* @__PURE__ */ jsx("input", {
+                autoFocus: true,
+                className: "bg-transparent text-sm w-full outline-none",
+                placeholder: "Search name or email...",
+                value: customerQuery,
+                onChange: (e) => setCustomerQuery(e.target.value)
               })]
             }), /* @__PURE__ */ jsxs("div", {
-              className: "flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1",
-              children: [/* @__PURE__ */ jsx("button", {
-                onClick: () => updateQuantity(item.productId, -1),
-                className: "p-1 hover:bg-white dark:hover:bg-zinc-700 rounded transition-colors",
-                children: /* @__PURE__ */ jsx(Minus, {
-                  className: "h-3 w-3"
-                })
-              }), /* @__PURE__ */ jsx("span", {
-                className: "w-6 text-center text-xs font-bold",
-                children: item.quantity
-              }), /* @__PURE__ */ jsx("button", {
-                onClick: () => addToCart({
-                  id: item.productId,
-                  name: item.name,
-                  price: item.unitPrice
-                }),
-                className: "p-1 hover:bg-white dark:hover:bg-zinc-700 rounded transition-colors",
-                children: /* @__PURE__ */ jsx(Plus, {
-                  className: "h-3 w-3"
-                })
+              className: "max-h-48 overflow-y-auto space-y-1",
+              children: [searchingCustomer && /* @__PURE__ */ jsx("div", {
+                className: "text-xs text-center p-2 text-zinc-400",
+                children: "Searching..."
+              }), customerResults.map((c) => /* @__PURE__ */ jsxs("button", {
+                onClick: () => {
+                  setSelectedCustomer(c);
+                  setShowCustomerSearch(false);
+                  setCustomerQuery("");
+                },
+                className: "w-full text-left p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded text-sm group",
+                children: [/* @__PURE__ */ jsx("div", {
+                  className: "font-medium",
+                  children: c.profile ? `${c.profile.firstName} ${c.profile.lastName}` : c.name
+                }), /* @__PURE__ */ jsx("div", {
+                  className: "text-xs text-zinc-500",
+                  children: c.email
+                }), c.isStripeGuest && /* @__PURE__ */ jsx("span", {
+                  className: "text-[10px] bg-indigo-50 text-indigo-600 px-1 rounded ml-auto",
+                  children: "Stripe"
+                })]
+              }, c.id || c.stripeCustomerId)), /* @__PURE__ */ jsx("button", {
+                onClick: () => {
+                  setShowNewCustomerModal(true);
+                  setShowCustomerSearch(false);
+                },
+                className: "w-full text-left p-2 border-t border-zinc-100 text-blue-600 text-xs font-medium hover:bg-blue-50 rounded mt-1",
+                children: "+ Create New Customer"
               })]
-            }), /* @__PURE__ */ jsxs("div", {
-              className: "text-sm font-bold w-16 text-right",
-              children: ["$", (item.unitPrice * item.quantity / 100).toFixed(2)]
             })]
-          }, item.productId))
-        }), /* @__PURE__ */ jsxs("div", {
-          className: "p-6 bg-zinc-50 dark:bg-zinc-900/50 border-t border-zinc-200 dark:border-zinc-800 space-y-6",
+          })]
+        })
+      }), /* @__PURE__ */ jsxs("div", {
+        className: "flex-1 overflow-y-auto p-4 space-y-3",
+        children: [cart.map((item, idx) => /* @__PURE__ */ jsxs("div", {
+          className: "flex justify-between items-center group",
           children: [/* @__PURE__ */ jsxs("div", {
-            className: "space-y-3",
-            children: [/* @__PURE__ */ jsx("label", {
-              className: "text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1",
-              children: "Payment Method"
+            children: [/* @__PURE__ */ jsx("div", {
+              className: "text-sm font-medium text-zinc-900 dark:text-zinc-100",
+              children: item.name
             }), /* @__PURE__ */ jsxs("div", {
-              className: "grid grid-cols-3 gap-2",
-              children: [/* @__PURE__ */ jsxs("button", {
-                onClick: () => setPaymentMethod("card"),
-                className: `flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${paymentMethod === "card" ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20" : "bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-blue-300"}`,
-                children: [/* @__PURE__ */ jsx(CreditCard, {
-                  size: 18
-                }), /* @__PURE__ */ jsx("span", {
-                  className: "text-[10px] font-extrabold mt-1",
-                  children: "CARD"
-                })]
-              }), /* @__PURE__ */ jsxs("button", {
-                onClick: () => setPaymentMethod("cash"),
-                className: `flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${paymentMethod === "cash" ? "bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-500/20" : "bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-emerald-300"}`,
-                children: [/* @__PURE__ */ jsx(Banknote, {
-                  size: 18
-                }), /* @__PURE__ */ jsx("span", {
-                  className: "text-[10px] font-extrabold mt-1",
-                  children: "CASH"
-                })]
-              }), /* @__PURE__ */ jsxs("button", {
-                onClick: () => setPaymentMethod("gift_card"),
-                className: `flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${paymentMethod === "gift_card" ? "bg-amber-600 border-amber-600 text-white shadow-lg shadow-amber-500/20" : "bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-amber-300"}`,
-                children: [/* @__PURE__ */ jsx(Ticket, {
-                  size: 18
-                }), /* @__PURE__ */ jsx("span", {
-                  className: "text-[10px] font-extrabold mt-1",
-                  children: "GIFT"
-                })]
-              })]
+              className: "text-xs text-zinc-500",
+              children: ["$", (item.price / 100).toFixed(2), " x ", item.quantity]
             })]
-          }), paymentMethod === "gift_card" && /* @__PURE__ */ jsx(GiftCardInput, {
-            token,
-            slug,
-            onApply: (card) => setAppliedGiftCard(card),
-            onRemove: () => setAppliedGiftCard(null)
           }), /* @__PURE__ */ jsxs("div", {
-            className: "space-y-2",
+            className: "flex items-center gap-3",
             children: [/* @__PURE__ */ jsxs("div", {
-              className: "flex justify-between items-center text-zinc-500 text-sm",
-              children: [/* @__PURE__ */ jsx("span", {
-                children: "Subtotal"
-              }), /* @__PURE__ */ jsxs("span", {
-                children: ["$", (cartTotal / 100).toFixed(2)]
-              })]
-            }), appliedGiftCard && /* @__PURE__ */ jsxs("div", {
-              className: "flex justify-between items-center text-emerald-600 text-sm font-bold",
-              children: [/* @__PURE__ */ jsx("span", {
-                children: "Gift Card Credit"
-              }), /* @__PURE__ */ jsxs("span", {
-                children: ["-$", (Math.min(appliedGiftCard.balance, cartTotal) / 100).toFixed(2)]
-              })]
-            }), /* @__PURE__ */ jsxs("div", {
-              className: "flex justify-between items-center text-lg font-bold text-zinc-900 dark:text-zinc-100 pt-2 border-t border-zinc-100 dark:border-zinc-800",
-              children: [/* @__PURE__ */ jsx("span", {
-                children: "Remaining"
-              }), /* @__PURE__ */ jsxs("span", {
-                children: ["$", (Math.max(0, cartTotal - (appliedGiftCard?.balance || 0)) / 100).toFixed(2)]
-              })]
-            })]
-          }), /* @__PURE__ */ jsxs("div", {
-            className: "flex gap-3",
-            children: [/* @__PURE__ */ jsx("button", {
-              onClick: () => setCart([]),
-              className: "flex-1 py-3 text-sm font-medium text-zinc-600 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl transition-colors",
-              children: "Clear"
+              className: "font-medium text-sm",
+              children: ["$", (item.price * item.quantity / 100).toFixed(2)]
             }), /* @__PURE__ */ jsx("button", {
-              onClick: handleCheckout,
-              disabled: loading || cart.length === 0,
-              className: "flex-[2] bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 text-white py-3 rounded-xl font-bold shadow-lg shadow-zinc-200 dark:shadow-none hover:translate-y-[-2px] active:translate-y-0 transition-all disabled:opacity-50 flex items-center justify-center gap-2",
-              children: loading ? "Processing..." : /* @__PURE__ */ jsxs(Fragment, {
-                children: ["Charge $", (Math.max(0, cartTotal - (appliedGiftCard?.balance || 0)) / 100).toFixed(2)]
+              onClick: () => removeFromCart(item.productId),
+              className: "text-zinc-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity",
+              children: /* @__PURE__ */ jsx(Trash2, {
+                size: 14
               })
             })]
           })]
+        }, idx)), cart.length === 0 && /* @__PURE__ */ jsxs("div", {
+          className: "h-full flex flex-col items-center justify-center text-zinc-400 space-y-2 opacity-50",
+          children: [/* @__PURE__ */ jsx(ShoppingCart, {
+            size: 32
+          }), /* @__PURE__ */ jsx("span", {
+            className: "text-sm",
+            children: "Cart is empty"
+          })]
+        })]
+      }), /* @__PURE__ */ jsxs("div", {
+        className: "p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 space-y-3",
+        children: [/* @__PURE__ */ jsxs("div", {
+          className: "flex justify-between items-center text-lg font-bold text-zinc-900 dark:text-zinc-100",
+          children: [/* @__PURE__ */ jsx("span", {
+            children: "Total"
+          }), /* @__PURE__ */ jsxs("span", {
+            children: ["$", (total / 100).toFixed(2)]
+          })]
+        }), /* @__PURE__ */ jsxs("div", {
+          className: "grid grid-cols-2 gap-2",
+          children: [/* @__PURE__ */ jsxs("button", {
+            disabled: processing || cart.length === 0,
+            onClick: () => handleCheckout("card"),
+            className: "bg-white border border-zinc-200 text-zinc-700 py-3 rounded-lg font-medium hover:bg-zinc-50 flex items-center justify-center gap-2 disabled:opacity-50",
+            children: [/* @__PURE__ */ jsx(CreditCard, {
+              size: 16
+            }), " Manual Card"]
+          }), /* @__PURE__ */ jsx("button", {
+            disabled: processing || cart.length === 0,
+            onClick: () => handleCheckout("cash"),
+            className: "bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50",
+            children: "Cash"
+          })]
+        }), /* @__PURE__ */ jsxs("button", {
+          disabled: processing || cart.length === 0,
+          onClick: () => handleCheckout("terminal"),
+          className: `w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg transition-all ${terminalStatus === "connected" ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200 dark:shadow-blue-900/20" : "bg-zinc-200 text-zinc-500 cursor-not-allowed"}`,
+          children: [processing ? /* @__PURE__ */ jsx(Loader2, {
+            className: "animate-spin"
+          }) : /* @__PURE__ */ jsx(Wifi, {
+            size: 20
+          }), terminalStatus === "connected" ? "Charge Application" : "Connect Reader to Charge"]
         })]
       })]
+    }), showProductModal && /* @__PURE__ */ jsx("div", {
+      className: "fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4",
+      children: /* @__PURE__ */ jsxs("div", {
+        className: "bg-white dark:bg-zinc-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden p-6 space-y-4",
+        children: [/* @__PURE__ */ jsxs("div", {
+          className: "flex justify-between items-center",
+          children: [/* @__PURE__ */ jsx("h2", {
+            className: "text-lg font-bold",
+            children: editingProduct ? "Edit Product" : "New Product"
+          }), /* @__PURE__ */ jsx("button", {
+            onClick: () => setShowProductModal(false),
+            children: /* @__PURE__ */ jsx(X, {
+              size: 20
+            })
+          })]
+        }), /* @__PURE__ */ jsx(ProductForm, {
+          token,
+          product: editingProduct,
+          onSuccess: () => {
+            setShowProductModal(false);
+            setRefreshTrigger((p) => p + 1);
+          }
+        })]
+      })
+    }), showReaderModal && /* @__PURE__ */ jsx("div", {
+      className: "fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4",
+      children: /* @__PURE__ */ jsxs("div", {
+        className: "bg-white dark:bg-zinc-900 w-full max-w-lg rounded-2xl shadow-2xl p-6 space-y-6",
+        children: [/* @__PURE__ */ jsxs("div", {
+          className: "flex justify-between items-center",
+          children: [/* @__PURE__ */ jsxs("h2", {
+            className: "text-xl font-bold flex items-center gap-2",
+            children: [/* @__PURE__ */ jsx(Wifi, {}), " Connect Reader"]
+          }), /* @__PURE__ */ jsx("button", {
+            onClick: () => setShowReaderModal(false),
+            children: /* @__PURE__ */ jsx(X, {
+              size: 20
+            })
+          })]
+        }), /* @__PURE__ */ jsx("div", {
+          className: "flex flex-col gap-4 min-h-[200px]",
+          children: readers.length === 0 ? /* @__PURE__ */ jsxs("div", {
+            className: "flex-1 flex flex-col items-center justify-center space-y-4 text-center",
+            children: [/* @__PURE__ */ jsx("div", {
+              className: "p-4 bg-zinc-100 rounded-full",
+              children: /* @__PURE__ */ jsx(Search, {
+                size: 24,
+                className: "text-zinc-400"
+              })
+            }), /* @__PURE__ */ jsxs("div", {
+              children: [/* @__PURE__ */ jsx("p", {
+                className: "font-medium",
+                children: "No Readers Found"
+              }), /* @__PURE__ */ jsx("p", {
+                className: "text-sm text-zinc-500 max-w-xs mx-auto mt-1",
+                children: "Make sure your WisePOS E or Verifone P630 is on, connected to WiFi, and registered in your Stripe Dashboard > Terminal."
+              })]
+            }), /* @__PURE__ */ jsx("button", {
+              onClick: async () => {
+                setProcessing(true);
+                if (terminal) {
+                  const res = await terminal.discoverReaders({
+                    discoveryMethod: "internet",
+                    simulated: false
+                  }).catch((e) => ({
+                    error: e
+                  }));
+                  if (res && res.discoveredReaders) {
+                    setReaders(res.discoveredReaders);
+                  } else if (res && res.error) {
+                    console.error(res.error);
+                  }
+                  if (!res || !res.discoveredReaders) ;
+                }
+                setProcessing(false);
+              },
+              disabled: processing,
+              className: "px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium disabled:opacity-50",
+              children: processing ? "Scanning..." : "Scan for Readers"
+            })]
+          }) : /* @__PURE__ */ jsx("div", {
+            className: "space-y-2",
+            children: readers.map((r, i) => /* @__PURE__ */ jsxs("div", {
+              className: "flex items-center justify-between p-3 border rounded-lg hover:bg-zinc-50",
+              children: [/* @__PURE__ */ jsxs("div", {
+                children: [/* @__PURE__ */ jsx("div", {
+                  className: "font-medium",
+                  children: r.label || r.serialNumber
+                }), /* @__PURE__ */ jsxs("div", {
+                  className: "text-xs text-zinc-500",
+                  children: [r.deviceType, " • ", r.status]
+                })]
+              }), /* @__PURE__ */ jsx("button", {
+                onClick: () => handleConnectReader(r),
+                className: "px-3 py-1.5 bg-zinc-900 text-white rounded text-sm font-medium",
+                children: "Connect"
+              })]
+            }, i))
+          })
+        })]
+      })
+    }), showNewCustomerModal && /* @__PURE__ */ jsx("div", {
+      className: "fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4",
+      children: /* @__PURE__ */ jsxs("div", {
+        className: "bg-white dark:bg-zinc-900 w-full max-w-md rounded-2xl shadow-2xl p-6",
+        children: [/* @__PURE__ */ jsx("h2", {
+          className: "text-lg font-bold mb-4",
+          children: "Create New Customer"
+        }), /* @__PURE__ */ jsx(CustomerForm, {
+          token,
+          onSuccess: (c) => {
+            setSelectedCustomer(c);
+            setShowNewCustomerModal(false);
+          },
+          onCancel: () => setShowNewCustomerModal(false)
+        })]
+      })
     })]
   });
 });
-const route33 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+function ProductForm({
+  token,
+  product,
+  onSuccess
+}) {
+  const [submitting, setSubmitting] = useState(false);
+  return /* @__PURE__ */ jsxs("form", {
+    className: "space-y-4",
+    onSubmit: async (e) => {
+      e.preventDefault();
+      setSubmitting(true);
+      const fd = new FormData(e.currentTarget);
+      const data = Object.fromEntries(fd);
+      data.price = (parseFloat(data.price) * 100).toString();
+      const payload = {
+        ...data,
+        price: Math.round(parseFloat(data.price) * 100),
+        stockQuantity: parseInt(data.stockQuantity),
+        isActive: true
+      };
+      const url = product ? `/pos/products/${product.id}` : "/pos/products";
+      const method = product ? "PUT" : "POST";
+      await apiRequest(url, token, {
+        method,
+        body: JSON.stringify(payload)
+      });
+      setSubmitting(false);
+      onSuccess();
+    },
+    children: [/* @__PURE__ */ jsxs("div", {
+      children: [/* @__PURE__ */ jsx("label", {
+        className: "block text-xs font-medium mb-1",
+        children: "Product Name"
+      }), /* @__PURE__ */ jsx("input", {
+        name: "name",
+        defaultValue: product?.name,
+        required: true,
+        className: "w-full input-field border border-zinc-200 rounded p-2"
+      })]
+    }), /* @__PURE__ */ jsxs("div", {
+      className: "grid grid-cols-2 gap-4",
+      children: [/* @__PURE__ */ jsxs("div", {
+        children: [/* @__PURE__ */ jsx("label", {
+          className: "block text-xs font-medium mb-1",
+          children: "Price ($)"
+        }), /* @__PURE__ */ jsx("input", {
+          name: "price",
+          type: "number",
+          step: "0.01",
+          defaultValue: product ? product.price / 100 : "",
+          required: true,
+          className: "w-full input-field border border-zinc-200 rounded p-2"
+        })]
+      }), /* @__PURE__ */ jsxs("div", {
+        children: [/* @__PURE__ */ jsx("label", {
+          className: "block text-xs font-medium mb-1",
+          children: "Stock"
+        }), /* @__PURE__ */ jsx("input", {
+          name: "stockQuantity",
+          type: "number",
+          defaultValue: product?.stockQuantity,
+          required: true,
+          className: "w-full input-field border border-zinc-200 rounded p-2"
+        })]
+      })]
+    }), /* @__PURE__ */ jsxs("div", {
+      children: [/* @__PURE__ */ jsx("label", {
+        className: "block text-xs font-medium mb-1",
+        children: "Description"
+      }), /* @__PURE__ */ jsx("textarea", {
+        name: "description",
+        defaultValue: product?.description,
+        className: "w-full input-field h-20 border border-zinc-200 rounded p-2"
+      })]
+    }), product && /* @__PURE__ */ jsxs("div", {
+      className: "flex justify-between items-center text-xs text-zinc-500",
+      children: [/* @__PURE__ */ jsx("span", {
+        children: "Active product"
+      }), /* @__PURE__ */ jsx("button", {
+        type: "button",
+        onClick: async () => {
+          if (!confirm("Archive this product?")) return;
+          await apiRequest(`/pos/products/${product.id}/archive`, token, {
+            method: "POST"
+          });
+          onSuccess();
+        },
+        className: "text-red-500 hover:underline",
+        children: "Archive Product"
+      })]
+    }), /* @__PURE__ */ jsx("button", {
+      disabled: submitting,
+      type: "submit",
+      className: "w-full bg-zinc-900 text-white rounded p-2 hover:bg-zinc-800",
+      children: submitting ? "Saving..." : "Save Product"
+    })]
+  });
+}
+function CustomerForm({
+  token,
+  onSuccess,
+  onCancel
+}) {
+  const [submitting, setSubmitting] = useState(false);
+  return /* @__PURE__ */ jsxs("form", {
+    className: "space-y-4",
+    onSubmit: async (e) => {
+      e.preventDefault();
+      setSubmitting(true);
+      const fd = new FormData(e.currentTarget);
+      const data = Object.fromEntries(fd);
+      const res = await apiRequest("/pos/customers", token, {
+        method: "POST",
+        body: JSON.stringify(data)
+      });
+      setSubmitting(false);
+      if (res.customer) onSuccess(res.customer);
+    },
+    children: [/* @__PURE__ */ jsxs("div", {
+      children: [/* @__PURE__ */ jsx("label", {
+        className: "block text-xs font-medium mb-1",
+        children: "Customer Name"
+      }), /* @__PURE__ */ jsx("input", {
+        name: "name",
+        required: true,
+        className: "w-full input-field border border-zinc-200 rounded p-2",
+        placeholder: "Jane Doe"
+      })]
+    }), /* @__PURE__ */ jsxs("div", {
+      children: [/* @__PURE__ */ jsx("label", {
+        className: "block text-xs font-medium mb-1",
+        children: "Email"
+      }), /* @__PURE__ */ jsx("input", {
+        name: "email",
+        type: "email",
+        required: true,
+        className: "w-full input-field border border-zinc-200 rounded p-2",
+        placeholder: "jane@example.com"
+      })]
+    }), /* @__PURE__ */ jsxs("div", {
+      className: "flex gap-2 justify-end pt-2",
+      children: [/* @__PURE__ */ jsx("button", {
+        type: "button",
+        onClick: onCancel,
+        className: "px-4 py-2 border rounded-lg text-sm",
+        children: "Cancel"
+      }), /* @__PURE__ */ jsx("button", {
+        type: "submit",
+        disabled: submitting,
+        className: "px-4 py-2 bg-blue-600 text-white rounded-lg text-sm",
+        children: submitting ? "Creating..." : "Create Customer"
+      })]
+    })]
+  });
+}
+const route37 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
-  default: studio_$slug_pos,
-  loader: loader$b
+  default: studio_$slug_pos
 }, Symbol.toStringTag, { value: "Module" }));
-const THEMES = {
-  dark: {
-    bg: "#1c1e2e",
-    sidebarBg: "#181924",
-    headerBg: "#181924",
-    border: "#282a3a",
-    text: "#e5e7eb",
-    textMuted: "#9ca3af",
-    accentText: "#818cf8",
-    cardBg: "#232536",
-    hoverBg: "#282a3a",
-    navActiveBg: "#282a3a",
-    navActiveText: "#fff"
-  },
-  light: {
-    bg: "#f8f9fa",
-    sidebarBg: "#ffffff",
-    headerBg: "#ffffff",
-    border: "#e9ecef",
-    text: "#343a40",
-    textMuted: "#868e96",
-    accentText: "#4f46e5",
-    // Indigo 600
-    cardBg: "#ffffff",
-    hoverBg: "#f1f3f5",
-    navActiveBg: "#f1f3f5",
-    navActiveText: "#212529"
-  }
-};
 function Layout({ children, tenantName = "Studio Platform", role, navItems, title = "Overview" }) {
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
-  const [theme, setTheme] = useState("dark");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [impersonationToken, setImpersonationToken] = useState(null);
   useEffect(() => {
-    const stored = localStorage.getItem("theme");
-    if (stored) {
-      setTheme(stored);
-    } else if (window.matchMedia("(prefers-color-scheme: light)").matches) {
-      setTheme("light");
-    }
     setImpersonationToken(localStorage.getItem("impersonation_token"));
   }, []);
-  const toggleTheme = () => {
-    const newTheme = theme === "dark" ? "light" : "dark";
-    setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
-  };
-  const colors = THEMES[theme];
-  const styleVariables = {
-    "--bg": colors.bg,
-    "--sidebar-bg": colors.sidebarBg,
-    "--header-bg": colors.headerBg,
-    "--border": colors.border,
-    "--text": colors.text,
-    "--text-muted": colors.textMuted,
-    "--accent": colors.accentText,
-    "--card-bg": colors.cardBg,
-    "--hover-bg": colors.hoverBg,
-    "--nav-active-bg": colors.navActiveBg,
-    "--nav-active-text": colors.navActiveText
-  };
   const handleLogout = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("impersonation_token");
@@ -12170,20 +14381,26 @@ function Layout({ children, tenantName = "Studio Platform", role, navItems, titl
     }
     signOut({ redirectUrl: "/" });
   };
-  return /* @__PURE__ */ jsxs("div", { style: { ...styleVariables, display: "flex", height: "100vh", fontFamily: "'Inter', sans-serif", background: "var(--bg)", color: "var(--text)", transition: "background 0.3s, color 0.3s" }, children: [
-    /* @__PURE__ */ jsxs("aside", { style: { width: "260px", background: "var(--sidebar-bg)", borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", transition: "background 0.3s, border-color 0.3s" }, children: [
-      /* @__PURE__ */ jsxs("div", { style: { padding: "24px", display: "flex", alignItems: "center", gap: "16px", borderBottom: "1px solid var(--border)" }, children: [
-        /* @__PURE__ */ jsx("div", { style: { fontSize: "2rem" }, children: "🧘‍♀️" }),
-        /* @__PURE__ */ jsx("div", { children: /* @__PURE__ */ jsx("h1", { style: { fontSize: "1.2rem", fontWeight: "700", color: "var(--accent)", lineHeight: "1.2" }, children: tenantName }) })
+  return /* @__PURE__ */ jsxs("div", { className: "flex h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans transition-colors duration-300", children: [
+    /* @__PURE__ */ jsxs("aside", { className: "w-64 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col transition-colors duration-300", children: [
+      /* @__PURE__ */ jsxs("div", { className: "p-6 flex items-center gap-4 border-b border-zinc-200 dark:border-zinc-800", children: [
+        /* @__PURE__ */ jsx("div", { className: "text-3xl", children: "🧘‍♀️" }),
+        /* @__PURE__ */ jsx("div", { children: /* @__PURE__ */ jsx("h1", { className: "text-lg font-bold text-indigo-600 dark:text-indigo-400 leading-tight", children: tenantName }) })
       ] }),
-      /* @__PURE__ */ jsx("nav", { style: { padding: "20px", display: "flex", flexDirection: "column", gap: "8px", flex: 1, overflowY: "auto" }, children: navItems || /* @__PURE__ */ jsx(Fragment, { children: /* @__PURE__ */ jsx(NavLink, { to: "/dashboard", style: ({ isActive }) => ({ display: "block", padding: "10px 12px", borderRadius: "8px", background: isActive ? "var(--nav-active-bg)" : "transparent", textDecoration: "none", color: isActive ? "var(--nav-active-text)" : "var(--text-muted)", fontSize: "0.95rem", fontWeight: isActive ? 600 : 400, transition: "all 0.2s" }), children: "Overview" }) }) })
+      /* @__PURE__ */ jsx("nav", { className: "flex-1 overflow-y-auto p-4 flex flex-col gap-2", children: navItems || /* @__PURE__ */ jsx(Fragment, { children: /* @__PURE__ */ jsx(
+        NavLink,
+        {
+          to: "/dashboard",
+          className: ({ isActive }) => `block px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white" : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200"}`,
+          children: "Overview"
+        }
+      ) }) })
     ] }),
-    /* @__PURE__ */ jsxs("div", { style: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }, children: [
-      impersonationToken && /* @__PURE__ */ jsxs("div", { style: { background: "#ef4444", color: "white", padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", fontSize: "0.9rem", fontWeight: "500" }, children: [
+    /* @__PURE__ */ jsxs("div", { className: "flex-1 flex flex-col overflow-hidden", children: [
+      impersonationToken && /* @__PURE__ */ jsxs("div", { className: "bg-red-500 text-white px-4 py-2 flex items-center justify-center gap-3 text-sm font-medium", children: [
         /* @__PURE__ */ jsxs("span", { children: [
-          "⚠️ You are currently impersonating a user (",
-          typeof window !== "undefined" ? localStorage.getItem("impersonation_target_email") : "User",
-          "). Financial actions are restricted."
+          "⚠️ Impersonating ",
+          typeof window !== "undefined" ? localStorage.getItem("impersonation_target_email") : "User"
         ] }),
         /* @__PURE__ */ jsx(
           "button",
@@ -12194,49 +14411,40 @@ function Layout({ children, tenantName = "Studio Platform", role, navItems, titl
               setImpersonationToken(null);
               window.location.href = "/";
             },
-            style: { background: "white", color: "#ef4444", border: "none", borderRadius: "4px", padding: "4px 8px", fontSize: "0.8rem", fontWeight: "bold", cursor: "pointer" },
-            children: "Exit Impersonation"
+            className: "bg-white text-red-500 px-2 py-0.5 rounded text-xs font-bold hover:bg-red-50",
+            children: "Exit"
           }
         )
       ] }),
-      /* @__PURE__ */ jsxs("header", { style: { height: "70px", background: "var(--header-bg)", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px", transition: "background 0.3s, border-color 0.3s" }, children: [
-        /* @__PURE__ */ jsx("div", { style: { fontSize: "1.1rem", fontWeight: "500", color: "var(--text)" }, children: title }),
-        /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: "20px" }, children: [
-          /* @__PURE__ */ jsx("button", { onClick: toggleTheme, style: { width: "32px", height: "32px", borderRadius: "50%", background: "var(--hover-bg)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", border: "none", cursor: "pointer", transition: "all 0.2s" }, title: `Switch to ${theme === "dark" ? "light" : "dark"} mode`, children: theme === "dark" ? "☾" : "☀" }),
-          isLoaded && user && /* @__PURE__ */ jsxs("div", { style: { position: "relative" }, children: [
+      /* @__PURE__ */ jsxs("header", { className: "h-[70px] bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-8 transition-colors duration-300", children: [
+        /* @__PURE__ */ jsx("div", { className: "text-lg font-medium text-zinc-900 dark:text-zinc-100", children: title }),
+        /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-5", children: [
+          /* @__PURE__ */ jsx(ThemeToggle, {}),
+          isLoaded && user && /* @__PURE__ */ jsxs("div", { className: "relative", children: [
             /* @__PURE__ */ jsxs(
-              "div",
+              "button",
               {
-                role: "button",
-                tabIndex: 0,
+                className: "flex items-center gap-3 p-1 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors",
                 onClick: () => setIsDropdownOpen(!isDropdownOpen),
-                onKeyDown: (e) => {
-                  if (e.key === "Enter" || e.key === " ") setIsDropdownOpen(!isDropdownOpen);
-                },
-                style: { display: "flex", alignItems: "center", gap: "12px", background: "transparent", border: "none", cursor: "pointer", padding: "4px", borderRadius: "8px", transition: "background 0.2s" },
-                onMouseEnter: (e) => e.currentTarget.style.background = "var(--hover-bg)",
-                onMouseLeave: (e) => e.currentTarget.style.background = "transparent",
                 children: [
-                  /* @__PURE__ */ jsx("div", { style: { width: "40px", height: "40px", borderRadius: "50%", overflow: "hidden", background: "var(--accent)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: "1.2rem" }, children: user.imageUrl ? /* @__PURE__ */ jsx("img", { src: user.imageUrl, alt: user.fullName || "User", style: { width: "100%", height: "100%", objectFit: "cover" } }) : /* @__PURE__ */ jsx("span", { children: user.firstName ? user.firstName[0] : "U" }) }),
-                  /* @__PURE__ */ jsxs("div", { style: { textAlign: "left" }, children: [
-                    /* @__PURE__ */ jsx("div", { style: { fontWeight: "600", fontSize: "0.9rem", color: "var(--text)" }, children: user.fullName }),
-                    /* @__PURE__ */ jsx("div", { style: { fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "400" }, children: role || "admin" })
+                  /* @__PURE__ */ jsx("div", { className: "w-10 h-10 rounded-full overflow-hidden bg-indigo-600 flex items-center justify-center text-white font-bold text-lg", children: user.imageUrl ? /* @__PURE__ */ jsx("img", { src: user.imageUrl, alt: user.fullName || "User", className: "w-full h-full object-cover" }) : /* @__PURE__ */ jsx("span", { children: user.firstName ? user.firstName[0] : "U" }) }),
+                  /* @__PURE__ */ jsxs("div", { className: "text-left hidden md:block", children: [
+                    /* @__PURE__ */ jsx("div", { className: "font-semibold text-sm text-zinc-900 dark:text-zinc-100", children: user.fullName }),
+                    /* @__PURE__ */ jsx("div", { className: "text-xs text-zinc-500 dark:text-zinc-400 capitalize", children: role || "admin" })
                   ] }),
-                  /* @__PURE__ */ jsx("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "var(--text-muted)", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: /* @__PURE__ */ jsx("polyline", { points: "6 9 12 15 18 9" }) })
+                  /* @__PURE__ */ jsx("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className: "text-zinc-400", children: /* @__PURE__ */ jsx("polyline", { points: "6 9 12 15 18 9" }) })
                 ]
               }
             ),
             isDropdownOpen && /* @__PURE__ */ jsxs(Fragment, { children: [
-              /* @__PURE__ */ jsx("div", { style: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 40 }, onClick: () => setIsDropdownOpen(false) }),
-              /* @__PURE__ */ jsxs("div", { style: { position: "absolute", top: "calc(100% + 10px)", right: 0, width: "200px", background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: "8px", padding: "8px", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)", zIndex: 50 }, children: [
+              /* @__PURE__ */ jsx("div", { className: "fixed inset-0 z-40", onClick: () => setIsDropdownOpen(false) }),
+              /* @__PURE__ */ jsxs("div", { className: "absolute top-full right-0 mt-2 w-56 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg p-2 z-50 animate-in fade-in zoom-in-95 duration-200", children: [
                 /* @__PURE__ */ jsxs(
                   NavLink,
                   {
                     to: "/dashboard/profile",
                     onClick: () => setIsDropdownOpen(false),
-                    style: { display: "flex", alignItems: "center", gap: "8px", padding: "10px", borderRadius: "6px", textDecoration: "none", color: "var(--text)", fontSize: "0.9rem", transition: "background 0.2s" },
-                    onMouseEnter: (e) => e.currentTarget.style.background = "var(--hover-bg)",
-                    onMouseLeave: (e) => e.currentTarget.style.background = "transparent",
+                    className: "flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors",
                     children: [
                       /* @__PURE__ */ jsxs("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
                         /* @__PURE__ */ jsx("path", { d: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" }),
@@ -12256,20 +14464,18 @@ function Layout({ children, tenantName = "Studio Platform", role, navItems, titl
                       setImpersonationToken(null);
                       window.location.href = "/admin";
                     },
-                    style: { width: "100%", display: "flex", alignItems: "center", gap: "8px", padding: "10px", borderRadius: "6px", background: "transparent", border: "none", cursor: "pointer", color: "var(--accent)", fontSize: "0.9rem", textAlign: "left", transition: "background 0.2s" },
-                    onMouseEnter: (e) => e.currentTarget.style.background = "var(--hover-bg)",
-                    onMouseLeave: (e) => e.currentTarget.style.background = "transparent",
+                    className: "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors",
                     children: [
                       /* @__PURE__ */ jsxs("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
                         /* @__PURE__ */ jsx("path", { d: "M12 2a10 10 0 0 0-10 10v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6a10 10 0 0 0-10-10Z" }),
                         /* @__PURE__ */ jsx("path", { d: "M12 12v6" }),
                         /* @__PURE__ */ jsx("circle", { cx: "12", cy: "7", r: "1" })
                       ] }),
-                      "Return to Admin Console"
+                      "Return to Admin"
                     ]
                   }
                 ),
-                /* @__PURE__ */ jsx("div", { style: { height: "1px", background: "var(--border)", margin: "4px 0" } }),
+                /* @__PURE__ */ jsx("div", { className: "h-px bg-zinc-100 dark:bg-zinc-800 my-1" }),
                 /* @__PURE__ */ jsxs(
                   "button",
                   {
@@ -12277,9 +14483,7 @@ function Layout({ children, tenantName = "Studio Platform", role, navItems, titl
                       setIsDropdownOpen(false);
                       handleLogout();
                     },
-                    style: { width: "100%", display: "flex", alignItems: "center", gap: "8px", padding: "10px", borderRadius: "6px", background: "transparent", border: "none", cursor: "pointer", color: "#ef4444", fontSize: "0.9rem", textAlign: "left", transition: "background 0.2s" },
-                    onMouseEnter: (e) => e.currentTarget.style.background = "rgba(239, 68, 68, 0.1)",
-                    onMouseLeave: (e) => e.currentTarget.style.background = "transparent",
+                    className: "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors",
                     children: [
                       /* @__PURE__ */ jsxs("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
                         /* @__PURE__ */ jsx("path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" }),
@@ -12295,11 +14499,11 @@ function Layout({ children, tenantName = "Studio Platform", role, navItems, titl
           ] })
         ] })
       ] }),
-      /* @__PURE__ */ jsx("main", { style: { flex: 1, padding: "40px", overflowY: "auto", background: "var(--bg)", transition: "background 0.3s" }, children })
+      /* @__PURE__ */ jsx("main", { className: "flex-1 p-8 overflow-y-auto bg-zinc-50 dark:bg-zinc-950 transition-colors duration-300", children })
     ] })
   ] });
 }
-const loader$a = async (args) => {
+const loader$b = async (args) => {
   const {
     userId,
     getToken
@@ -12368,10 +14572,10 @@ const dashboard = UNSAFE_withComponentProps(function DashboardRoute() {
     }), /* @__PURE__ */ jsx(Outlet, {})]
   });
 });
-const route34 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route38 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: dashboard,
-  loader: loader$a
+  loader: loader$b
 }, Symbol.toStringTag, { value: "Module" }));
 function ImageUploader({ onUploadComplete }) {
   const { getToken } = useAuth();
@@ -12422,7 +14626,7 @@ function ImageUploader({ onUploadComplete }) {
     preview && /* @__PURE__ */ jsx("div", { style: { marginTop: "10px" }, children: /* @__PURE__ */ jsx("img", { src: preview, alt: "Preview", style: { width: "100px", height: "100px", objectFit: "cover", borderRadius: "6px" } }) })
   ] });
 }
-const loader$9 = async (args) => {
+const loader$a = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -12682,13 +14886,13 @@ const dashboard_classes = UNSAFE_withComponentProps(function ClassesRoute() {
     })]
   });
 });
-const route35 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route39 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action: action$1,
   default: dashboard_classes,
-  loader: loader$9
+  loader: loader$a
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$8 = async (args) => {
+const loader$9 = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -12837,12 +15041,12 @@ const dashboard_classes_$id_roster = UNSAFE_withComponentProps(function ClassRos
     })]
   });
 });
-const route36 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route40 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: dashboard_classes_$id_roster,
-  loader: loader$8
+  loader: loader$9
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$7 = async (args) => {
+const loader$8 = async (args) => {
   const {
     request,
     params
@@ -12962,12 +15166,12 @@ const dashboard_classes_$id_watch = UNSAFE_withComponentProps(function WatchReco
     })]
   });
 });
-const route37 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route41 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: dashboard_classes_$id_watch,
-  loader: loader$7
+  loader: loader$8
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$6 = async (args) => {
+const loader$7 = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -13219,11 +15423,11 @@ const dashboard_profile = UNSAFE_withComponentProps(function ProfileRoute() {
     })]
   });
 });
-const route38 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route42 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action,
   default: dashboard_profile,
-  loader: loader$6
+  loader: loader$7
 }, Symbol.toStringTag, { value: "Module" }));
 const dashboard__index = UNSAFE_withComponentProps(function DashboardIndex() {
   const data = useRouteLoaderData("routes/dashboard");
@@ -13338,11 +15542,11 @@ const dashboard__index = UNSAFE_withComponentProps(function DashboardIndex() {
     })]
   });
 });
-const route39 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route43 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: dashboard__index
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$5 = async ({
+const loader$6 = async ({
   request
 }) => {
   return new Response(`
@@ -13367,10 +15571,10 @@ ${JSON.stringify(Object.fromEntries(request.headers.entries()), null, 2)}
 const debugSsr = UNSAFE_withComponentProps(function DebugSSR() {
   return null;
 });
-const route40 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route44 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: debugSsr,
-  loader: loader$5
+  loader: loader$6
 }, Symbol.toStringTag, { value: "Module" }));
 const signIn_$ = UNSAFE_withComponentProps(function SignInPage() {
   return /* @__PURE__ */ jsxs("div", {
@@ -13512,7 +15716,7 @@ const signIn_$ = UNSAFE_withComponentProps(function SignInPage() {
     })]
   });
 });
-const route41 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route45 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: signIn_$
 }, Symbol.toStringTag, { value: "Module" }));
@@ -13527,7 +15731,7 @@ const signUp_$ = UNSAFE_withComponentProps(function SignUpPage() {
     children: /* @__PURE__ */ jsx(SignUp, {})
   });
 });
-const route42 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route46 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: signUp_$
 }, Symbol.toStringTag, { value: "Module" }));
@@ -13712,7 +15916,7 @@ const _index = UNSAFE_withComponentProps(function Index() {
     })]
   });
 });
-const route43 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route47 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: _index
 }, Symbol.toStringTag, { value: "Module" }));
@@ -13758,6 +15962,10 @@ const admin = UNSAFE_withComponentProps(function AdminLayout() {
     label: "Emails",
     href: "/admin/emails",
     icon: "📧"
+  }, {
+    label: "Activity Logs",
+    href: "/admin/logs",
+    icon: "📋"
   }, {
     label: "System Users",
     href: "/admin/users",
@@ -13864,7 +16072,7 @@ const admin = UNSAFE_withComponentProps(function AdminLayout() {
     })]
   });
 });
-const route44 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route48 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin
 }, Symbol.toStringTag, { value: "Module" }));
@@ -13920,7 +16128,7 @@ function ConfirmationDialog({
     ] })
   ] }) });
 }
-const loader$4 = async (args) => {
+const loader$5 = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -14307,12 +16515,12 @@ const admin_users_$userId = UNSAFE_withComponentProps(function EditUser() {
     })]
   });
 });
-const route45 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route49 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin_users_$userId,
-  loader: loader$4
+  loader: loader$5
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$3 = async (args) => {
+const loader$4 = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -14985,12 +17193,12 @@ function UserRow({
     })]
   });
 }
-const route46 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route50 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin_users__index,
-  loader: loader$3
+  loader: loader$4
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$2 = async (args) => {
+const loader$3 = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -15036,8 +17244,23 @@ const admin_tenants = UNSAFE_withComponentProps(function AdminTenants() {
       key: "zoom",
       label: "Zoom Integration",
       icon: Monitor
-    }
+    },
     // Placeholder for now
+    {
+      key: "pos",
+      label: "POS & Retail",
+      icon: ShoppingCart
+    },
+    {
+      key: "marketing",
+      label: "Marketing & CRM",
+      icon: Mail
+    },
+    {
+      key: "payroll",
+      label: "Payroll & Compensation",
+      icon: CreditCard
+    }
   ];
   const [errorDialog, setErrorDialog] = useState({
     isOpen: false,
@@ -15751,10 +17974,10 @@ const admin_tenants = UNSAFE_withComponentProps(function AdminTenants() {
     })]
   });
 });
-const route47 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route51 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin_tenants,
-  loader: loader$2
+  loader: loader$3
 }, Symbol.toStringTag, { value: "Module" }));
 function Card({ children, className = "" }) {
   return /* @__PURE__ */ jsx("div", { className: `bg-white rounded-xl border border-zinc-200 shadow-sm overflow-hidden ${className}`, children });
@@ -15793,7 +18016,7 @@ function Badge({ children, variant = "default", className = "" }) {
   };
   return /* @__PURE__ */ jsx("span", { className: `inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${variants[variant]} ${className}`, children });
 }
-const loader$1 = async (args) => {
+const loader$2 = async (args) => {
   let token;
   try {
     const {
@@ -15999,12 +18222,12 @@ const admin__index = UNSAFE_withComponentProps(function AdminIndex() {
     })]
   });
 });
-const route48 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route52 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin__index,
-  loader: loader$1
+  loader: loader$2
 }, Symbol.toStringTag, { value: "Module" }));
-const loader = async (args) => {
+const loader$1 = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -16142,10 +18365,10 @@ const admin_emails = UNSAFE_withComponentProps(function AdminEmailsPage() {
     })]
   });
 });
-const route49 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route53 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin_emails,
-  loader
+  loader: loader$1
 }, Symbol.toStringTag, { value: "Module" }));
 const admin_status = UNSAFE_withComponentProps(function AdminStatus() {
   return /* @__PURE__ */ jsxs("div", {
@@ -16243,11 +18466,177 @@ function StatusItem({
     })]
   });
 }
-const route50 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route54 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin_status
 }, Symbol.toStringTag, { value: "Module" }));
-const serverManifest = { "entry": { "module": "/assets/entry.client-DR1huiRx.js", "imports": ["/assets/jsx-runtime-u17CrQMm.js", "/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/index-DR8BQXRl.js"], "css": [] }, "routes": { "root": { "id": "root", "parentId": void 0, "path": "", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": true, "module": "/assets/root-D1izavIz.js", "imports": ["/assets/jsx-runtime-u17CrQMm.js", "/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/index-DR8BQXRl.js", "/assets/ThemeProvider-gFI_lCoN.js", "/assets/index-3zd-dFZh.js", "/assets/chunk-VMBS36YX-CVbuS9EW.js", "/assets/chunk-OT5FTIRN-DtMOiK0s.js", "/assets/index-B-TQESlZ.js", "/assets/chunk-6WD75OPE-B3xNZhDb.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/pricing.compare": { "id": "routes/pricing.compare", "parentId": "root", "path": "pricing/compare", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/pricing.compare-DoZNHJvW.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/ThemeToggle-FZbkSFns.js", "/assets/index-B-TQESlZ.js", "/assets/chunk-OT5FTIRN-DtMOiK0s.js", "/assets/index-3zd-dFZh.js", "/assets/chunk-VMBS36YX-CVbuS9EW.js", "/assets/chunk-6WD75OPE-B3xNZhDb.js", "/assets/createLucideIcon-DBCK0g1u.js", "/assets/check-DChhxz93.js", "/assets/minus-vrG3UI0e.js", "/assets/ThemeProvider-gFI_lCoN.js", "/assets/index-DR8BQXRl.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/pricing._index": { "id": "routes/pricing._index", "parentId": "root", "path": "pricing", "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/pricing._index-CL4mO05u.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/ThemeToggle-FZbkSFns.js", "/assets/check-DChhxz93.js", "/assets/index-B-TQESlZ.js", "/assets/chunk-VMBS36YX-CVbuS9EW.js", "/assets/chunk-6WD75OPE-B3xNZhDb.js", "/assets/ThemeProvider-gFI_lCoN.js", "/assets/createLucideIcon-DBCK0g1u.js", "/assets/chunk-OT5FTIRN-DtMOiK0s.js", "/assets/index-DR8BQXRl.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/create-studio": { "id": "routes/create-studio", "parentId": "root", "path": "create-studio", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/create-studio-C_0tVanL.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/chunk-VMBS36YX-CVbuS9EW.js", "/assets/index-3zd-dFZh.js", "/assets/index-B-TQESlZ.js", "/assets/chunk-OT5FTIRN-DtMOiK0s.js", "/assets/chunk-6WD75OPE-B3xNZhDb.js", "/assets/index-DR8BQXRl.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug": { "id": "routes/studio.$slug", "parentId": "root", "path": "studio/:slug", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug-OadmpkT6.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/ThemeToggle-FZbkSFns.js", "/assets/api-piI5qlNr.js", "/assets/search-BrLvoFqk.js", "/assets/loader-circle-COV7T8XM.js", "/assets/x-L17Zvwxg.js", "/assets/user-FeArKUSQ.js", "/assets/createLucideIcon-DBCK0g1u.js", "/assets/shopping-cart-BqixgRuK.js", "/assets/chevron-right-ffDf0NnB.js", "/assets/users-q6ftcTmk.js", "/assets/index-DR8BQXRl.js", "/assets/portal-Co02nI50.js", "/assets/check-DChhxz93.js", "/assets/calendar-CdZAn42y.js", "/assets/clock-DP-12_am.js", "/assets/circle-check-Ct3joEXe.js", "/assets/refresh-cw-CXCbsqJ0.js", "/assets/file-pen-line-CtUPpHrK.js", "/assets/credit-card-_D5TLMiK.js", "/assets/package-CbDZF-lV.js", "/assets/ticket-BzV2cjp6.js", "/assets/mail-Cx4vZ2DG.js", "/assets/dollar-sign-bVP3i--W.js", "/assets/tag-DBZdrIyh.js", "/assets/settings-CUTABKJc.js", "/assets/triangle-alert-CUUBkXBB.js", "/assets/chunk-6WD75OPE-B3xNZhDb.js", "/assets/ThemeProvider-gFI_lCoN.js", "/assets/chunk-OT5FTIRN-DtMOiK0s.js", "/assets/index-B-TQESlZ.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.commerce.gift-cards": { "id": "routes/studio.$slug.commerce.gift-cards", "parentId": "routes/studio.$slug", "path": "commerce/gift-cards", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.commerce.gift-cards-CUhVReFz.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/ticket-BzV2cjp6.js", "/assets/plus-Oa9IOj9y.js", "/assets/search-BrLvoFqk.js", "/assets/ellipsis-DLyPy4wR.js", "/assets/loader-circle-COV7T8XM.js", "/assets/createLucideIcon-DBCK0g1u.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.financials.payroll": { "id": "routes/studio.$slug.financials.payroll", "parentId": "routes/studio.$slug", "path": "financials/payroll", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.financials.payroll-CGIDHcIN.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/calendar-CdZAn42y.js", "/assets/settings-CUTABKJc.js", "/assets/circle-check-big-DNnVcxgB.js", "/assets/dollar-sign-bVP3i--W.js", "/assets/createLucideIcon-DBCK0g1u.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.commerce.packs": { "id": "routes/studio.$slug.commerce.packs", "parentId": "routes/studio.$slug", "path": "commerce/packs", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.commerce.packs-5l0oNcjP.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/plus-Oa9IOj9y.js", "/assets/package-CbDZF-lV.js", "/assets/dollar-sign-bVP3i--W.js", "/assets/calendar-CdZAn42y.js", "/assets/createLucideIcon-DBCK0g1u.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.substitutions": { "id": "routes/studio.$slug.substitutions", "parentId": "routes/studio.$slug", "path": "substitutions", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.substitutions-Cd2XxivR.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/chunk-OT5FTIRN-DtMOiK0s.js", "/assets/index-3zd-dFZh.js", "/assets/refresh-cw-CXCbsqJ0.js", "/assets/circle-alert-CRyvt8_I.js", "/assets/clock-DP-12_am.js", "/assets/circle-check-big-DNnVcxgB.js", "/assets/circle-x-B7pAMd5Y.js", "/assets/index-B-TQESlZ.js", "/assets/chunk-VMBS36YX-CVbuS9EW.js", "/assets/chunk-6WD75OPE-B3xNZhDb.js", "/assets/index-DR8BQXRl.js", "/assets/createLucideIcon-DBCK0g1u.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.appointments": { "id": "routes/studio.$slug.appointments", "parentId": "routes/studio.$slug", "path": "appointments", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.appointments-Bn6GbLRI.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/arrow-left-Da7CsRAp.js", "/assets/clock-DP-12_am.js", "/assets/calendar-CdZAn42y.js", "/assets/createLucideIcon-DBCK0g1u.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.memberships": { "id": "routes/studio.$slug.memberships", "parentId": "routes/studio.$slug", "path": "memberships", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.memberships-3lGabn1E.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/Modal-BDlUPslI.js", "/assets/tslib.es6-B_Z_Z_Y2.js", "/assets/chunk-OT5FTIRN-DtMOiK0s.js", "/assets/index-B-TQESlZ.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.dashboard": { "id": "routes/studio.$slug.dashboard", "parentId": "routes/studio.$slug", "path": "dashboard", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.dashboard-DNPGYuQU.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.discounts": { "id": "routes/studio.$slug.discounts", "parentId": "routes/studio.$slug", "path": "discounts", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.discounts-RdDmQ45S.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/plus-Oa9IOj9y.js", "/assets/tag-DBZdrIyh.js", "/assets/createLucideIcon-DBCK0g1u.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.marketing": { "id": "routes/studio.$slug.marketing", "parentId": "routes/studio.$slug", "path": "marketing", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.marketing-CAclnK0e.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/mail-Cx4vZ2DG.js", "/assets/createLucideIcon-DBCK0g1u.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.branding": { "id": "routes/studio.$slug.branding", "parentId": "routes/studio.$slug", "path": "branding", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.branding-9oLQxAo5.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.checkout": { "id": "routes/studio.$slug.checkout", "parentId": "routes/studio.$slug", "path": "checkout", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.checkout-BT5Shftd.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/index-B2VZcLkr.js", "/assets/api-piI5qlNr.js", "/assets/GiftCardInput-CA57ZPGS.js", "/assets/arrow-left-Da7CsRAp.js", "/assets/circle-check-Ct3joEXe.js", "/assets/createLucideIcon-DBCK0g1u.js", "/assets/circle-x-B7pAMd5Y.js", "/assets/ticket-BzV2cjp6.js", "/assets/loader-circle-COV7T8XM.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.checkout.return": { "id": "routes/studio.$slug.checkout.return", "parentId": "routes/studio.$slug.checkout", "path": "return", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.checkout.return-N-tf5hAi.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.finances": { "id": "routes/studio.$slug.finances", "parentId": "routes/studio.$slug", "path": "finances", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.finances-B1U_2T0M.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/chunk-OT5FTIRN-DtMOiK0s.js", "/assets/index-B-TQESlZ.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.schedule": { "id": "routes/studio.$slug.schedule", "parentId": "routes/studio.$slug", "path": "schedule", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.schedule-DAOCufyV.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/index-B2VZcLkr.js", "/assets/index-DR8BQXRl.js", "/assets/format-CiP18559.js", "/assets/Modal-BDlUPslI.js", "/assets/api-piI5qlNr.js", "/assets/chunk-OT5FTIRN-DtMOiK0s.js", "/assets/portal-Co02nI50.js", "/assets/x-L17Zvwxg.js", "/assets/video-DaONPkNJ.js", "/assets/loader-circle-COV7T8XM.js", "/assets/plus-Oa9IOj9y.js", "/assets/index-B-TQESlZ.js", "/assets/createLucideIcon-DBCK0g1u.js"], "css": ["/assets/studio._slug-BSwzzYnC.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings": { "id": "routes/studio.$slug.settings", "parentId": "routes/studio.$slug", "path": "settings", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings-D8rZ-Dxp.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/credit-card-_D5TLMiK.js", "/assets/mail-Cx4vZ2DG.js", "/assets/message-square-DSEEW91I.js", "/assets/video-DaONPkNJ.js", "/assets/plus-Oa9IOj9y.js", "/assets/createLucideIcon-DBCK0g1u.js", "/assets/trash-2-WnUCm0t9.js", "/assets/file-text-6EQg0Dnf.js", "/assets/globe-C7U5RCyL.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.billing": { "id": "routes/studio.$slug.settings.billing", "parentId": "routes/studio.$slug.settings", "path": "billing", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.billing-Du_fkHYD.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/check-DChhxz93.js", "/assets/createLucideIcon-DBCK0g1u.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.addons": { "id": "routes/studio.$slug.settings.addons", "parentId": "routes/studio.$slug.settings", "path": "addons", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.addons-DfXp7W3x.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/message-square-DSEEW91I.js", "/assets/check-DChhxz93.js", "/assets/createLucideIcon-DBCK0g1u.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.domain": { "id": "routes/studio.$slug.settings.domain", "parentId": "routes/studio.$slug.settings", "path": "domain", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.domain-BPp323kO.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/globe-C7U5RCyL.js", "/assets/triangle-alert-CUUBkXBB.js", "/assets/circle-check-big-DNnVcxgB.js", "/assets/refresh-cw-CXCbsqJ0.js", "/assets/trash-2-WnUCm0t9.js", "/assets/shield-check-DFfCLhMh.js", "/assets/createLucideIcon-DBCK0g1u.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.import": { "id": "routes/studio.$slug.settings.import", "parentId": "routes/studio.$slug.settings", "path": "import", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.import-CnOOtuVk.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/createLucideIcon-DBCK0g1u.js", "/assets/file-text-6EQg0Dnf.js", "/assets/circle-alert-CRyvt8_I.js", "/assets/circle-check-big-DNnVcxgB.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.students": { "id": "routes/studio.$slug.students", "parentId": "routes/studio.$slug", "path": "students", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.students-l1Wdjgho.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/chunk-OT5FTIRN-DtMOiK0s.js", "/assets/index-B-TQESlZ.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.students.$id": { "id": "routes/studio.$slug.students.$id", "parentId": "routes/studio.$slug.students", "path": ":id", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.students._id-DPTDsWi8.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/user-FeArKUSQ.js", "/assets/mail-Cx4vZ2DG.js", "/assets/format-CiP18559.js", "/assets/ellipsis-DLyPy4wR.js", "/assets/plus-Oa9IOj9y.js", "/assets/file-text-6EQg0Dnf.js", "/assets/check-DChhxz93.js", "/assets/createLucideIcon-DBCK0g1u.js", "/assets/trash-2-WnUCm0t9.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.checkin": { "id": "routes/studio.$slug.checkin", "parentId": "routes/studio.$slug", "path": "checkin", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.checkin-CHZy0Xd_.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/arrow-left-Da7CsRAp.js", "/assets/search-BrLvoFqk.js", "/assets/loader-circle-COV7T8XM.js", "/assets/circle-check-Ct3joEXe.js", "/assets/createLucideIcon-DBCK0g1u.js", "/assets/users-q6ftcTmk.js", "/assets/user-plus-BmnRfScZ.js", "/assets/calendar-CdZAn42y.js", "/assets/circle-alert-CRyvt8_I.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.classes": { "id": "routes/studio.$slug.classes", "parentId": "routes/studio.$slug", "path": "classes", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.classes-BGV-V9PJ.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.classes.$id.roster": { "id": "routes/studio.$slug.classes.$id.roster", "parentId": "routes/studio.$slug.classes", "path": ":id/roster", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.classes._id.roster-C9kFjaz4.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/user-plus-BmnRfScZ.js", "/assets/createLucideIcon-DBCK0g1u.js", "/assets/file-text-6EQg0Dnf.js", "/assets/triangle-alert-CUUBkXBB.js", "/assets/check-DChhxz93.js", "/assets/x-L17Zvwxg.js", "/assets/trash-2-WnUCm0t9.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.profile": { "id": "routes/studio.$slug.profile", "parentId": "routes/studio.$slug", "path": "profile", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.profile-KIYEGPO8.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.waivers": { "id": "routes/studio.$slug.waivers", "parentId": "routes/studio.$slug", "path": "waivers", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.waivers-DWn66HYu.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.waivers.new": { "id": "routes/studio.$slug.waivers.new", "parentId": "routes/studio.$slug.waivers", "path": "new", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.waivers.new-r4CNcEWL.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/createLucideIcon-DBCK0g1u.js", "/assets/arrow-left-Da7CsRAp.js", "/assets/chunk-OT5FTIRN-DtMOiK0s.js", "/assets/index-B-TQESlZ.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug._index": { "id": "routes/studio.$slug._index", "parentId": "routes/studio.$slug", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug._index-Dqrj6XeT.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/activity-Diq9FunV.js", "/assets/users-q6ftcTmk.js", "/assets/createLucideIcon-DBCK0g1u.js", "/assets/calendar-CdZAn42y.js", "/assets/dollar-sign-bVP3i--W.js", "/assets/file-pen-line-CtUPpHrK.js", "/assets/ticket-BzV2cjp6.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.pos": { "id": "routes/studio.$slug.pos", "parentId": "routes/studio.$slug", "path": "pos", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.pos-_xgpiG-z.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/GiftCardInput-CA57ZPGS.js", "/assets/createLucideIcon-DBCK0g1u.js", "/assets/search-BrLvoFqk.js", "/assets/package-CbDZF-lV.js", "/assets/plus-Oa9IOj9y.js", "/assets/shopping-cart-BqixgRuK.js", "/assets/minus-vrG3UI0e.js", "/assets/credit-card-_D5TLMiK.js", "/assets/ticket-BzV2cjp6.js", "/assets/circle-check-Ct3joEXe.js", "/assets/circle-x-B7pAMd5Y.js", "/assets/loader-circle-COV7T8XM.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard": { "id": "routes/dashboard", "parentId": "root", "path": "dashboard", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard-BmGvJwol.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/index-B-TQESlZ.js", "/assets/chunk-OT5FTIRN-DtMOiK0s.js", "/assets/index-3zd-dFZh.js", "/assets/chunk-VMBS36YX-CVbuS9EW.js", "/assets/chunk-6WD75OPE-B3xNZhDb.js", "/assets/index-DR8BQXRl.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard.classes": { "id": "routes/dashboard.classes", "parentId": "routes/dashboard", "path": "classes", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard.classes-DpDHAC45.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/chunk-OT5FTIRN-DtMOiK0s.js", "/assets/index-B-TQESlZ.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard.classes.$id.roster": { "id": "routes/dashboard.classes.$id.roster", "parentId": "routes/dashboard.classes", "path": ":id/roster", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard.classes._id.roster-DmZLAzNx.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard.classes.$id.watch": { "id": "routes/dashboard.classes.$id.watch", "parentId": "routes/dashboard.classes", "path": ":id/watch", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard.classes._id.watch--GEaMjkV.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard.profile": { "id": "routes/dashboard.profile", "parentId": "routes/dashboard", "path": "profile", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard.profile-BLl8f2al.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard._index": { "id": "routes/dashboard._index", "parentId": "routes/dashboard", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard._index-JD7B_-4q.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/shield-check-DFfCLhMh.js", "/assets/plus-Oa9IOj9y.js", "/assets/createLucideIcon-DBCK0g1u.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/debug-ssr": { "id": "routes/debug-ssr", "parentId": "root", "path": "debug-ssr", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/debug-ssr-DMTSSGwR.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/sign-in.$": { "id": "routes/sign-in.$", "parentId": "root", "path": "sign-in/*", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/sign-in._-DWPZpo3B.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/uiComponents-ppLeW6oD.js", "/assets/index-3zd-dFZh.js", "/assets/chunk-VMBS36YX-CVbuS9EW.js", "/assets/chunk-OT5FTIRN-DtMOiK0s.js", "/assets/index-B-TQESlZ.js", "/assets/chunk-6WD75OPE-B3xNZhDb.js", "/assets/index-DR8BQXRl.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/sign-up.$": { "id": "routes/sign-up.$", "parentId": "root", "path": "sign-up/*", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/sign-up._-Bsshmnhc.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/uiComponents-ppLeW6oD.js", "/assets/index-3zd-dFZh.js", "/assets/chunk-VMBS36YX-CVbuS9EW.js", "/assets/chunk-OT5FTIRN-DtMOiK0s.js", "/assets/index-B-TQESlZ.js", "/assets/chunk-6WD75OPE-B3xNZhDb.js", "/assets/index-DR8BQXRl.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/_index": { "id": "routes/_index", "parentId": "root", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/_index-BBVodv1d.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/ThemeToggle-FZbkSFns.js", "/assets/index-B-TQESlZ.js", "/assets/chunk-VMBS36YX-CVbuS9EW.js", "/assets/chunk-6WD75OPE-B3xNZhDb.js", "/assets/ThemeProvider-gFI_lCoN.js", "/assets/createLucideIcon-DBCK0g1u.js", "/assets/chunk-OT5FTIRN-DtMOiK0s.js", "/assets/index-DR8BQXRl.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin": { "id": "routes/admin", "parentId": "root", "path": "admin", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin-CJOP503j.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/index-B-TQESlZ.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.users.$userId": { "id": "routes/admin.users.$userId", "parentId": "routes/admin", "path": "users/:userId", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.users._userId-2WeC8nHu.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/Modal-BDlUPslI.js", "/assets/Dialogs-FIM-VmKg.js", "/assets/chunk-OT5FTIRN-DtMOiK0s.js", "/assets/index-B-TQESlZ.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.users._index": { "id": "routes/admin.users._index", "parentId": "routes/admin", "path": "users", "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.users._index-8c9cr0D5.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/Modal-BDlUPslI.js", "/assets/Dialogs-FIM-VmKg.js", "/assets/chunk-OT5FTIRN-DtMOiK0s.js", "/assets/index-B-TQESlZ.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.tenants": { "id": "routes/admin.tenants", "parentId": "routes/admin", "path": "tenants", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.tenants-hACaZhMU.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/Modal-BDlUPslI.js", "/assets/Dialogs-FIM-VmKg.js", "/assets/chevron-right-ffDf0NnB.js", "/assets/activity-Diq9FunV.js", "/assets/credit-card-_D5TLMiK.js", "/assets/video-DaONPkNJ.js", "/assets/createLucideIcon-DBCK0g1u.js", "/assets/chunk-OT5FTIRN-DtMOiK0s.js", "/assets/index-B-TQESlZ.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin._index": { "id": "routes/admin._index", "parentId": "routes/admin", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin._index-L73-D38S.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.emails": { "id": "routes/admin.emails", "parentId": "routes/admin", "path": "emails", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.emails-BLF4525y.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/mail-Cx4vZ2DG.js", "/assets/createLucideIcon-DBCK0g1u.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.status": { "id": "routes/admin.status", "parentId": "routes/admin", "path": "status", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.status-MtqXcKdX.js", "imports": ["/assets/chunk-JMJ3UQ3L-DmAaMJDT.js", "/assets/jsx-runtime-u17CrQMm.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 } }, "url": "/assets/manifest-84c96df1.js", "version": "84c96df1", "sri": void 0 };
+const loader = async (args) => {
+  const {
+    getToken
+  } = await getAuth(args);
+  const token = await getToken();
+  try {
+    const logs = await apiRequest("/admin/logs", token);
+    return {
+      logs,
+      error: null
+    };
+  } catch (e) {
+    return {
+      logs: [],
+      error: e.message
+    };
+  }
+};
+const admin_logs = UNSAFE_withComponentProps(function AdminLogs() {
+  const {
+    logs
+  } = useLoaderData();
+  const [expandedLog, setExpandedLog] = useState(null);
+  const getActionBadge = (action2) => {
+    if (action2 === "tenant.created") return /* @__PURE__ */ jsx("span", {
+      className: "bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-bold uppercase",
+      children: "New Studio"
+    });
+    if (action2.includes("admin")) return /* @__PURE__ */ jsx("span", {
+      className: "bg-purple-100 text-purple-800 px-2 py-0.5 rounded text-xs font-bold uppercase",
+      children: "Admin"
+    });
+    return /* @__PURE__ */ jsx("span", {
+      className: "bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded text-xs font-bold uppercase",
+      children: action2.replace(/_/g, " ")
+    });
+  };
+  const getDetailsSummary = (log) => {
+    if (log.action === "tenant.created" && log.details) {
+      return /* @__PURE__ */ jsxs("span", {
+        className: "text-zinc-600",
+        children: ["Created ", /* @__PURE__ */ jsx("strong", {
+          children: log.details.name
+        }), " (", log.details.slug, ")", /* @__PURE__ */ jsx("span", {
+          className: "mx-1 text-zinc-400",
+          children: "•"
+        }), "Tier: ", log.details.tier]
+      });
+    }
+    return /* @__PURE__ */ jsx("span", {
+      className: "text-zinc-400 italic",
+      children: "View details..."
+    });
+  };
+  return /* @__PURE__ */ jsxs("div", {
+    children: [/* @__PURE__ */ jsxs("div", {
+      className: "flex justify-between items-center mb-6",
+      children: [/* @__PURE__ */ jsx("div", {
+        className: "flex items-center gap-4",
+        children: /* @__PURE__ */ jsxs("h2", {
+          className: "text-2xl font-bold flex items-center gap-2",
+          children: [/* @__PURE__ */ jsx(Activity, {
+            className: "text-blue-600"
+          }), "Activity Logs"]
+        })
+      }), /* @__PURE__ */ jsx("div", {
+        className: "text-sm text-zinc-500",
+        children: "Showing recent system events"
+      })]
+    }), /* @__PURE__ */ jsxs("div", {
+      className: "bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm",
+      children: [/* @__PURE__ */ jsxs("table", {
+        className: "w-full text-left",
+        children: [/* @__PURE__ */ jsx("thead", {
+          className: "bg-zinc-50 border-b border-zinc-200",
+          children: /* @__PURE__ */ jsxs("tr", {
+            children: [/* @__PURE__ */ jsx("th", {
+              className: "w-8"
+            }), /* @__PURE__ */ jsx("th", {
+              className: "px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider",
+              children: "Time"
+            }), /* @__PURE__ */ jsx("th", {
+              className: "px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider",
+              children: "Action"
+            }), /* @__PURE__ */ jsx("th", {
+              className: "px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider",
+              children: "Actor"
+            }), /* @__PURE__ */ jsx("th", {
+              className: "px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider",
+              children: "Summary"
+            })]
+          })
+        }), /* @__PURE__ */ jsx("tbody", {
+          className: "divide-y divide-zinc-100",
+          children: logs.map((log) => /* @__PURE__ */ jsxs(Fragment, {
+            children: [/* @__PURE__ */ jsxs("tr", {
+              className: "hover:bg-zinc-50 transition-colors cursor-pointer",
+              onClick: () => setExpandedLog(expandedLog === log.id ? null : log.id),
+              children: [/* @__PURE__ */ jsx("td", {
+                className: "pl-4",
+                children: expandedLog === log.id ? /* @__PURE__ */ jsx(ChevronDown, {
+                  size: 16,
+                  className: "text-zinc-400"
+                }) : /* @__PURE__ */ jsx(ChevronRight, {
+                  size: 16,
+                  className: "text-zinc-400"
+                })
+              }), /* @__PURE__ */ jsx("td", {
+                className: "px-6 py-4 whitespace-nowrap text-sm text-zinc-500",
+                children: format$1(new Date(log.createdAt), "MMM d, h:mm a")
+              }), /* @__PURE__ */ jsx("td", {
+                className: "px-6 py-4 whitespace-nowrap",
+                children: getActionBadge(log.action)
+              }), /* @__PURE__ */ jsx("td", {
+                className: "px-6 py-4 whitespace-nowrap",
+                children: /* @__PURE__ */ jsxs("div", {
+                  className: "flex flex-col",
+                  children: [/* @__PURE__ */ jsxs("span", {
+                    className: "text-sm font-medium text-zinc-900",
+                    children: [log.actorProfile?.firstName, " ", log.actorProfile?.lastName || "System"]
+                  }), /* @__PURE__ */ jsx("span", {
+                    className: "text-xs text-zinc-400",
+                    children: log.actorEmail
+                  })]
+                })
+              }), /* @__PURE__ */ jsx("td", {
+                className: "px-6 py-4 text-sm",
+                children: getDetailsSummary(log)
+              })]
+            }, log.id), expandedLog === log.id && /* @__PURE__ */ jsx("tr", {
+              className: "bg-zinc-50/50",
+              children: /* @__PURE__ */ jsx("td", {
+                colSpan: 5,
+                className: "px-6 pb-6 pt-2",
+                children: /* @__PURE__ */ jsxs("div", {
+                  className: "bg-white border border-zinc-200 rounded p-4 text-xs font-mono overflow-auto max-h-64",
+                  children: [/* @__PURE__ */ jsx("div", {
+                    className: "mb-2 text-zinc-500 font-sans font-bold uppercase tracking-wider",
+                    children: "Raw Details"
+                  }), /* @__PURE__ */ jsx("pre", {
+                    children: JSON.stringify(log.details, null, 2)
+                  }), /* @__PURE__ */ jsxs("div", {
+                    className: "mt-4 pt-4 border-t border-zinc-100 flex gap-4 text-zinc-400",
+                    children: [/* @__PURE__ */ jsxs("span", {
+                      children: ["Target ID: ", log.targetId || "N/A"]
+                    }), /* @__PURE__ */ jsxs("span", {
+                      children: ["Actor ID: ", log.actorId]
+                    })]
+                  })]
+                })
+              })
+            })]
+          }))
+        })]
+      }), logs.length === 0 && /* @__PURE__ */ jsx("div", {
+        className: "p-8 text-center text-zinc-500",
+        children: "No activity logs found."
+      })]
+    })]
+  });
+});
+const route55 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  default: admin_logs,
+  loader
+}, Symbol.toStringTag, { value: "Module" }));
+const serverManifest = { "entry": { "module": "/assets/entry.client-DivhDT3L.js", "imports": ["/assets/jsx-runtime-u17CrQMm.js", "/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/index-DTrQIeLC.js"], "css": [] }, "routes": { "root": { "id": "root", "parentId": void 0, "path": "", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": true, "module": "/assets/root-DzlkGqx-.js", "imports": ["/assets/jsx-runtime-u17CrQMm.js", "/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/index-DTrQIeLC.js", "/assets/ThemeProvider-Du2-P-BD.js", "/assets/index-D8vklD2f.js", "/assets/chunk-VMBS36YX-DF3pppAA.js", "/assets/chunk-OT5FTIRN-CCfezdiq.js", "/assets/index-oSEF-baE.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/chunk-6WD75OPE-CMncucru.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/pricing.compare": { "id": "routes/pricing.compare", "parentId": "root", "path": "pricing/compare", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/pricing.compare-DNC7MtYn.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/ThemeToggle-bUoAVbBS.js", "/assets/index-oSEF-baE.js", "/assets/chunk-OT5FTIRN-CCfezdiq.js", "/assets/index-D8vklD2f.js", "/assets/chunk-VMBS36YX-DF3pppAA.js", "/assets/chunk-6WD75OPE-CMncucru.js", "/assets/createLucideIcon-DiSUMwKo.js", "/assets/check-DWjL0oBW.js", "/assets/ThemeProvider-Du2-P-BD.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/index-DTrQIeLC.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/pricing._index": { "id": "routes/pricing._index", "parentId": "root", "path": "pricing", "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/pricing._index-BwnhrHln.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/ThemeToggle-bUoAVbBS.js", "/assets/check-DWjL0oBW.js", "/assets/index-oSEF-baE.js", "/assets/chunk-VMBS36YX-DF3pppAA.js", "/assets/chunk-6WD75OPE-CMncucru.js", "/assets/ThemeProvider-Du2-P-BD.js", "/assets/createLucideIcon-DiSUMwKo.js", "/assets/chunk-OT5FTIRN-CCfezdiq.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/index-DTrQIeLC.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/accept-invite": { "id": "routes/accept-invite", "parentId": "root", "path": "accept-invite", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/accept-invite--kI-TiMV.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/chunk-VMBS36YX-DF3pppAA.js", "/assets/index-D8vklD2f.js", "/assets/index-oSEF-baE.js", "/assets/chunk-OT5FTIRN-CCfezdiq.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/chunk-6WD75OPE-CMncucru.js", "/assets/index-DTrQIeLC.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/create-studio": { "id": "routes/create-studio", "parentId": "root", "path": "create-studio", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/create-studio-DY7FATA6.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/index-oSEF-baE.js", "/assets/chunk-VMBS36YX-DF3pppAA.js", "/assets/chunk-OT5FTIRN-CCfezdiq.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug": { "id": "routes/studio.$slug", "parentId": "root", "path": "studio/:slug", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug-BL4q_ovH.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/ThemeToggle-bUoAVbBS.js", "/assets/api-piI5qlNr.js", "/assets/search-DWKTImQn.js", "/assets/loader-circle-cSVxLnZV.js", "/assets/x-Dl-h9JB6.js", "/assets/user-BmVYmcJu.js", "/assets/createLucideIcon-DiSUMwKo.js", "/assets/shopping-cart-DVnUnXPP.js", "/assets/chevron-right-Bj76k7lQ.js", "/assets/users-CrhlCAZF.js", "/assets/index-DTrQIeLC.js", "/assets/portal-ZPUH8VNM.js", "/assets/check-DWjL0oBW.js", "/assets/calendar-BHSWivpg.js", "/assets/clock-DqjrEi5j.js", "/assets/circle-check-_ddXGzne.js", "/assets/refresh-cw-BYA79eK0.js", "/assets/file-pen-line-vBVZ9Ivo.js", "/assets/credit-card-BkTjC-rI.js", "/assets/package-CCJ15svA.js", "/assets/ticket-N3ByfB6W.js", "/assets/mail-BH-ldGQc.js", "/assets/dollar-sign-CjJQjaE9.js", "/assets/tag-Bh1HrtQL.js", "/assets/settings-DSZIHkA6.js", "/assets/triangle-alert-CBC9iQlW.js", "/assets/chunk-6WD75OPE-CMncucru.js", "/assets/ThemeProvider-Du2-P-BD.js", "/assets/chunk-OT5FTIRN-CCfezdiq.js", "/assets/index-oSEF-baE.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.commerce.gift-cards": { "id": "routes/studio.$slug.commerce.gift-cards", "parentId": "routes/studio.$slug", "path": "commerce/gift-cards", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.commerce.gift-cards-C2Jio5uG.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/createLucideIcon-DiSUMwKo.js", "/assets/plus-CFavzZjE.js", "/assets/search-DWKTImQn.js", "/assets/ticket-N3ByfB6W.js", "/assets/ellipsis-BXxUSEhP.js", "/assets/mail-BH-ldGQc.js", "/assets/loader-circle-cSVxLnZV.js", "/assets/credit-card-BkTjC-rI.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.financials.payroll": { "id": "routes/studio.$slug.financials.payroll", "parentId": "routes/studio.$slug", "path": "financials/payroll", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.financials.payroll-B70FANbq.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/Modal-Do3O0lli.js", "/assets/calendar-BHSWivpg.js", "/assets/settings-DSZIHkA6.js", "/assets/circle-check-big-DYqMMV6V.js", "/assets/plus-CFavzZjE.js", "/assets/dollar-sign-CjJQjaE9.js", "/assets/createLucideIcon-DiSUMwKo.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.commerce.coupons": { "id": "routes/studio.$slug.commerce.coupons", "parentId": "routes/studio.$slug", "path": "commerce/coupons", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.commerce.coupons-DvzdGp7E.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/chunk-OT5FTIRN-CCfezdiq.js", "/assets/index-D8vklD2f.js", "/assets/tag-Bh1HrtQL.js", "/assets/plus-CFavzZjE.js", "/assets/trash-2-DzzDfAkM.js", "/assets/index-oSEF-baE.js", "/assets/chunk-VMBS36YX-DF3pppAA.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/chunk-6WD75OPE-CMncucru.js", "/assets/index-DTrQIeLC.js", "/assets/createLucideIcon-DiSUMwKo.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.commerce.packs": { "id": "routes/studio.$slug.commerce.packs", "parentId": "routes/studio.$slug", "path": "commerce/packs", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.commerce.packs-BPMkNUAE.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/plus-CFavzZjE.js", "/assets/package-CCJ15svA.js", "/assets/dollar-sign-CjJQjaE9.js", "/assets/calendar-BHSWivpg.js", "/assets/createLucideIcon-DiSUMwKo.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.substitutions": { "id": "routes/studio.$slug.substitutions", "parentId": "routes/studio.$slug", "path": "substitutions", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.substitutions-66zy--3R.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/refresh-cw-BYA79eK0.js", "/assets/circle-alert-B1V5VnQn.js", "/assets/clock-DqjrEi5j.js", "/assets/circle-check-big-DYqMMV6V.js", "/assets/circle-x-0JztcufI.js", "/assets/chunk-OT5FTIRN-CCfezdiq.js", "/assets/createLucideIcon-DiSUMwKo.js", "/assets/index-oSEF-baE.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.appointments": { "id": "routes/studio.$slug.appointments", "parentId": "routes/studio.$slug", "path": "appointments", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.appointments-DfKbjk66.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/arrow-left-CwtibbMO.js", "/assets/clock-DqjrEi5j.js", "/assets/calendar-BHSWivpg.js", "/assets/createLucideIcon-DiSUMwKo.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.memberships": { "id": "routes/studio.$slug.memberships", "parentId": "routes/studio.$slug", "path": "memberships", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.memberships-C_544ThH.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/Modal-Do3O0lli.js", "/assets/tslib.es6-B_Z_Z_Y2.js", "/assets/chunk-OT5FTIRN-CCfezdiq.js", "/assets/index-oSEF-baE.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.dashboard": { "id": "routes/studio.$slug.dashboard", "parentId": "routes/studio.$slug", "path": "dashboard", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.dashboard-C0ZgOg9s.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.discounts": { "id": "routes/studio.$slug.discounts", "parentId": "routes/studio.$slug", "path": "discounts", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.discounts-CnkL3L_P.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/plus-CFavzZjE.js", "/assets/tag-Bh1HrtQL.js", "/assets/createLucideIcon-DiSUMwKo.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.marketing": { "id": "routes/studio.$slug.marketing", "parentId": "routes/studio.$slug", "path": "marketing", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.marketing-CxQdXQ7U.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/mail-BH-ldGQc.js", "/assets/createLucideIcon-DiSUMwKo.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.branding": { "id": "routes/studio.$slug.branding", "parentId": "routes/studio.$slug", "path": "branding", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.branding-2d7VLys7.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.checkout": { "id": "routes/studio.$slug.checkout", "parentId": "routes/studio.$slug", "path": "checkout", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.checkout-BEdIaQMU.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/index-CqTEeheE.js", "/assets/api-piI5qlNr.js", "/assets/circle-check-_ddXGzne.js", "/assets/circle-x-0JztcufI.js", "/assets/ticket-N3ByfB6W.js", "/assets/loader-circle-cSVxLnZV.js", "/assets/arrow-left-CwtibbMO.js", "/assets/createLucideIcon-DiSUMwKo.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.checkout.return": { "id": "routes/studio.$slug.checkout.return", "parentId": "routes/studio.$slug.checkout", "path": "return", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.checkout.return-BCx34NvW.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.finances": { "id": "routes/studio.$slug.finances", "parentId": "routes/studio.$slug", "path": "finances", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.finances-DW-x5KVU.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/chunk-OT5FTIRN-CCfezdiq.js", "/assets/index-oSEF-baE.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.schedule": { "id": "routes/studio.$slug.schedule", "parentId": "routes/studio.$slug", "path": "schedule", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.schedule-CHcyYscI.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/index-CqTEeheE.js", "/assets/index-DTrQIeLC.js", "/assets/format-CiP18559.js", "/assets/Modal-Do3O0lli.js", "/assets/api-piI5qlNr.js", "/assets/chunk-OT5FTIRN-CCfezdiq.js", "/assets/portal-ZPUH8VNM.js", "/assets/x-Dl-h9JB6.js", "/assets/video-CUkzMH-5.js", "/assets/loader-circle-cSVxLnZV.js", "/assets/plus-CFavzZjE.js", "/assets/index-oSEF-baE.js", "/assets/createLucideIcon-DiSUMwKo.js"], "css": ["/assets/studio._slug-BSwzzYnC.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings": { "id": "routes/studio.$slug.settings", "parentId": "routes/studio.$slug", "path": "settings", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings-BBGWGS4F.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/credit-card-BkTjC-rI.js", "/assets/circle-check-big-DYqMMV6V.js", "/assets/createLucideIcon-DiSUMwKo.js", "/assets/mail-BH-ldGQc.js", "/assets/message-square-BpuB2ccB.js", "/assets/video-CUkzMH-5.js", "/assets/plus-CFavzZjE.js", "/assets/trash-2-DzzDfAkM.js", "/assets/file-text-fS_yvdCU.js", "/assets/globe-B4obcF6E.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.hardware": { "id": "routes/studio.$slug.settings.hardware", "parentId": "routes/studio.$slug.settings", "path": "hardware", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.hardware-zAUW_mqx.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/chunk-OT5FTIRN-CCfezdiq.js", "/assets/index-oSEF-baE.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.billing": { "id": "routes/studio.$slug.settings.billing", "parentId": "routes/studio.$slug.settings", "path": "billing", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.billing-BrRCVIKZ.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/check-DWjL0oBW.js", "/assets/createLucideIcon-DiSUMwKo.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.addons": { "id": "routes/studio.$slug.settings.addons", "parentId": "routes/studio.$slug.settings", "path": "addons", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.addons-D3O3cj5S.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/message-square-BpuB2ccB.js", "/assets/check-DWjL0oBW.js", "/assets/createLucideIcon-DiSUMwKo.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.domain": { "id": "routes/studio.$slug.settings.domain", "parentId": "routes/studio.$slug.settings", "path": "domain", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.domain-CQXfocsx.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/globe-B4obcF6E.js", "/assets/triangle-alert-CBC9iQlW.js", "/assets/circle-check-big-DYqMMV6V.js", "/assets/refresh-cw-BYA79eK0.js", "/assets/trash-2-DzzDfAkM.js", "/assets/shield-check-mLJVRQNx.js", "/assets/createLucideIcon-DiSUMwKo.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.import": { "id": "routes/studio.$slug.settings.import", "parentId": "routes/studio.$slug.settings", "path": "import", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.import-CITOw0i2.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/createLucideIcon-DiSUMwKo.js", "/assets/file-text-fS_yvdCU.js", "/assets/circle-alert-B1V5VnQn.js", "/assets/circle-check-big-DYqMMV6V.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.students": { "id": "routes/studio.$slug.students", "parentId": "routes/studio.$slug", "path": "students", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.students-CTZVBPrN.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/chunk-OT5FTIRN-CCfezdiq.js", "/assets/index-oSEF-baE.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.students.$id": { "id": "routes/studio.$slug.students.$id", "parentId": "routes/studio.$slug.students", "path": ":id", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.students._id-LBpBy4ap.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/user-BmVYmcJu.js", "/assets/mail-BH-ldGQc.js", "/assets/format-CiP18559.js", "/assets/ellipsis-BXxUSEhP.js", "/assets/plus-CFavzZjE.js", "/assets/file-text-fS_yvdCU.js", "/assets/check-DWjL0oBW.js", "/assets/createLucideIcon-DiSUMwKo.js", "/assets/trash-2-DzzDfAkM.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.checkin": { "id": "routes/studio.$slug.checkin", "parentId": "routes/studio.$slug", "path": "checkin", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.checkin-k0PXkruf.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/arrow-left-CwtibbMO.js", "/assets/circle-check-_ddXGzne.js", "/assets/search-DWKTImQn.js", "/assets/loader-circle-cSVxLnZV.js", "/assets/createLucideIcon-DiSUMwKo.js", "/assets/users-CrhlCAZF.js", "/assets/user-plus-DqWTZ-lo.js", "/assets/calendar-BHSWivpg.js", "/assets/circle-alert-B1V5VnQn.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.classes": { "id": "routes/studio.$slug.classes", "parentId": "routes/studio.$slug", "path": "classes", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.classes-DjbnoZ_b.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.classes.$id.roster": { "id": "routes/studio.$slug.classes.$id.roster", "parentId": "routes/studio.$slug.classes", "path": ":id/roster", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.classes._id.roster-CQwxAhZm.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/user-plus-DqWTZ-lo.js", "/assets/createLucideIcon-DiSUMwKo.js", "/assets/file-text-fS_yvdCU.js", "/assets/triangle-alert-CBC9iQlW.js", "/assets/check-DWjL0oBW.js", "/assets/x-Dl-h9JB6.js", "/assets/trash-2-DzzDfAkM.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.profile": { "id": "routes/studio.$slug.profile", "parentId": "routes/studio.$slug", "path": "profile", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.profile-V3Y1nr9-.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.waivers": { "id": "routes/studio.$slug.waivers", "parentId": "routes/studio.$slug", "path": "waivers", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.waivers-PZcdggdJ.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.waivers.new": { "id": "routes/studio.$slug.waivers.new", "parentId": "routes/studio.$slug.waivers", "path": "new", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.waivers.new-CEPZ422D.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/createLucideIcon-DiSUMwKo.js", "/assets/arrow-left-CwtibbMO.js", "/assets/chunk-OT5FTIRN-CCfezdiq.js", "/assets/index-oSEF-baE.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug._index": { "id": "routes/studio.$slug._index", "parentId": "routes/studio.$slug", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug._index-C_dNMvy8.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/activity-DfqqzHbH.js", "/assets/users-CrhlCAZF.js", "/assets/createLucideIcon-DiSUMwKo.js", "/assets/calendar-BHSWivpg.js", "/assets/dollar-sign-CjJQjaE9.js", "/assets/file-pen-line-vBVZ9Ivo.js", "/assets/ticket-N3ByfB6W.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.leads": { "id": "routes/studio.$slug.leads", "parentId": "routes/studio.$slug", "path": "leads", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.leads-1q67v8Ol.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/Modal-Do3O0lli.js", "/assets/plus-CFavzZjE.js", "/assets/search-DWKTImQn.js", "/assets/mail-BH-ldGQc.js", "/assets/createLucideIcon-DiSUMwKo.js", "/assets/clock-DqjrEi5j.js", "/assets/circle-alert-B1V5VnQn.js", "/assets/format-CiP18559.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.pos": { "id": "routes/studio.$slug.pos", "parentId": "routes/studio.$slug", "path": "pos", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.pos-CvS-4beZ.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/createLucideIcon-DiSUMwKo.js", "/assets/plus-CFavzZjE.js", "/assets/x-Dl-h9JB6.js", "/assets/user-BmVYmcJu.js", "/assets/search-DWKTImQn.js", "/assets/trash-2-DzzDfAkM.js", "/assets/shopping-cart-DVnUnXPP.js", "/assets/credit-card-BkTjC-rI.js", "/assets/loader-circle-cSVxLnZV.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard": { "id": "routes/dashboard", "parentId": "root", "path": "dashboard", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard-CAU1gSlw.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/ThemeToggle-bUoAVbBS.js", "/assets/index-oSEF-baE.js", "/assets/chunk-OT5FTIRN-CCfezdiq.js", "/assets/index-D8vklD2f.js", "/assets/ThemeProvider-Du2-P-BD.js", "/assets/createLucideIcon-DiSUMwKo.js", "/assets/chunk-VMBS36YX-DF3pppAA.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/chunk-6WD75OPE-CMncucru.js", "/assets/index-DTrQIeLC.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard.classes": { "id": "routes/dashboard.classes", "parentId": "routes/dashboard", "path": "classes", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard.classes-C8d2X0Hg.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/chunk-OT5FTIRN-CCfezdiq.js", "/assets/index-oSEF-baE.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard.classes.$id.roster": { "id": "routes/dashboard.classes.$id.roster", "parentId": "routes/dashboard.classes", "path": ":id/roster", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard.classes._id.roster-CJtpK1mo.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard.classes.$id.watch": { "id": "routes/dashboard.classes.$id.watch", "parentId": "routes/dashboard.classes", "path": ":id/watch", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard.classes._id.watch-nYqxo2Iv.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard.profile": { "id": "routes/dashboard.profile", "parentId": "routes/dashboard", "path": "profile", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard.profile-Cuzv81e4.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard._index": { "id": "routes/dashboard._index", "parentId": "routes/dashboard", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard._index-CuxXs53L.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/shield-check-mLJVRQNx.js", "/assets/plus-CFavzZjE.js", "/assets/createLucideIcon-DiSUMwKo.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/debug-ssr": { "id": "routes/debug-ssr", "parentId": "root", "path": "debug-ssr", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/debug-ssr-B7i0bCIp.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/sign-in.$": { "id": "routes/sign-in.$", "parentId": "root", "path": "sign-in/*", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/sign-in._-BVVVgcHx.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/uiComponents-BsypQ-Y2.js", "/assets/index-D8vklD2f.js", "/assets/chunk-VMBS36YX-DF3pppAA.js", "/assets/chunk-OT5FTIRN-CCfezdiq.js", "/assets/index-oSEF-baE.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/chunk-6WD75OPE-CMncucru.js", "/assets/index-DTrQIeLC.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/sign-up.$": { "id": "routes/sign-up.$", "parentId": "root", "path": "sign-up/*", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/sign-up._-4Y3Kki3G.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/uiComponents-BsypQ-Y2.js", "/assets/index-D8vklD2f.js", "/assets/chunk-VMBS36YX-DF3pppAA.js", "/assets/chunk-OT5FTIRN-CCfezdiq.js", "/assets/index-oSEF-baE.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/chunk-6WD75OPE-CMncucru.js", "/assets/index-DTrQIeLC.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/_index": { "id": "routes/_index", "parentId": "root", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/_index-CjBKKtwB.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/ThemeToggle-bUoAVbBS.js", "/assets/index-oSEF-baE.js", "/assets/chunk-VMBS36YX-DF3pppAA.js", "/assets/chunk-6WD75OPE-CMncucru.js", "/assets/ThemeProvider-Du2-P-BD.js", "/assets/createLucideIcon-DiSUMwKo.js", "/assets/chunk-OT5FTIRN-CCfezdiq.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/index-DTrQIeLC.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin": { "id": "routes/admin", "parentId": "root", "path": "admin", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin-BKoBDR8T.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/index-oSEF-baE.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.users.$userId": { "id": "routes/admin.users.$userId", "parentId": "routes/admin", "path": "users/:userId", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.users._userId-SF3Egf3_.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/Modal-Do3O0lli.js", "/assets/Dialogs-D4RFAsbY.js", "/assets/chunk-OT5FTIRN-CCfezdiq.js", "/assets/index-oSEF-baE.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.users._index": { "id": "routes/admin.users._index", "parentId": "routes/admin", "path": "users", "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.users._index-fD8AvDgg.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/Modal-Do3O0lli.js", "/assets/Dialogs-D4RFAsbY.js", "/assets/chunk-OT5FTIRN-CCfezdiq.js", "/assets/index-oSEF-baE.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.tenants": { "id": "routes/admin.tenants", "parentId": "routes/admin", "path": "tenants", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.tenants-dB1R8mIA.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/api-piI5qlNr.js", "/assets/Modal-Do3O0lli.js", "/assets/Dialogs-D4RFAsbY.js", "/assets/chevron-right-Bj76k7lQ.js", "/assets/activity-DfqqzHbH.js", "/assets/credit-card-BkTjC-rI.js", "/assets/video-CUkzMH-5.js", "/assets/createLucideIcon-DiSUMwKo.js", "/assets/shopping-cart-DVnUnXPP.js", "/assets/mail-BH-ldGQc.js", "/assets/chunk-OT5FTIRN-CCfezdiq.js", "/assets/index-oSEF-baE.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin._index": { "id": "routes/admin._index", "parentId": "routes/admin", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin._index-BsWTFUkJ.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.emails": { "id": "routes/admin.emails", "parentId": "routes/admin", "path": "emails", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.emails-C4PIUCmc.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/mail-BH-ldGQc.js", "/assets/createLucideIcon-DiSUMwKo.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.status": { "id": "routes/admin.status", "parentId": "routes/admin", "path": "status", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.status-BaEvKltq.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.logs": { "id": "routes/admin.logs", "parentId": "routes/admin", "path": "logs", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.logs-DCQI3FDo.js", "imports": ["/assets/chunk-JMJ3UQ3L-BbiJBYoX.js", "/assets/jsx-runtime-u17CrQMm.js", "/assets/activity-DfqqzHbH.js", "/assets/chevron-right-Bj76k7lQ.js", "/assets/format-CiP18559.js", "/assets/createLucideIcon-DiSUMwKo.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 } }, "url": "/assets/manifest-c66b5ef0.js", "version": "c66b5ef0", "sri": void 0 };
 const assetsBuildDirectory = "build/client";
 const basename = "/";
 const future = { "unstable_optimizeDeps": false, "unstable_subResourceIntegrity": false, "v8_middleware": false, "v8_splitRouteModules": false, "v8_viteEnvironmentApi": false };
@@ -16282,13 +18671,21 @@ const routes = {
     caseSensitive: void 0,
     module: route2
   },
+  "routes/accept-invite": {
+    id: "routes/accept-invite",
+    parentId: "root",
+    path: "accept-invite",
+    index: void 0,
+    caseSensitive: void 0,
+    module: route3
+  },
   "routes/create-studio": {
     id: "routes/create-studio",
     parentId: "root",
     path: "create-studio",
     index: void 0,
     caseSensitive: void 0,
-    module: route3
+    module: route4
   },
   "routes/studio.$slug": {
     id: "routes/studio.$slug",
@@ -16296,7 +18693,7 @@ const routes = {
     path: "studio/:slug",
     index: void 0,
     caseSensitive: void 0,
-    module: route4
+    module: route5
   },
   "routes/studio.$slug.commerce.gift-cards": {
     id: "routes/studio.$slug.commerce.gift-cards",
@@ -16304,7 +18701,7 @@ const routes = {
     path: "commerce/gift-cards",
     index: void 0,
     caseSensitive: void 0,
-    module: route5
+    module: route6
   },
   "routes/studio.$slug.financials.payroll": {
     id: "routes/studio.$slug.financials.payroll",
@@ -16312,7 +18709,15 @@ const routes = {
     path: "financials/payroll",
     index: void 0,
     caseSensitive: void 0,
-    module: route6
+    module: route7
+  },
+  "routes/studio.$slug.commerce.coupons": {
+    id: "routes/studio.$slug.commerce.coupons",
+    parentId: "routes/studio.$slug",
+    path: "commerce/coupons",
+    index: void 0,
+    caseSensitive: void 0,
+    module: route8
   },
   "routes/studio.$slug.commerce.packs": {
     id: "routes/studio.$slug.commerce.packs",
@@ -16320,7 +18725,7 @@ const routes = {
     path: "commerce/packs",
     index: void 0,
     caseSensitive: void 0,
-    module: route7
+    module: route9
   },
   "routes/studio.$slug.substitutions": {
     id: "routes/studio.$slug.substitutions",
@@ -16328,7 +18733,7 @@ const routes = {
     path: "substitutions",
     index: void 0,
     caseSensitive: void 0,
-    module: route8
+    module: route10
   },
   "routes/studio.$slug.appointments": {
     id: "routes/studio.$slug.appointments",
@@ -16336,7 +18741,7 @@ const routes = {
     path: "appointments",
     index: void 0,
     caseSensitive: void 0,
-    module: route9
+    module: route11
   },
   "routes/studio.$slug.memberships": {
     id: "routes/studio.$slug.memberships",
@@ -16344,7 +18749,7 @@ const routes = {
     path: "memberships",
     index: void 0,
     caseSensitive: void 0,
-    module: route10
+    module: route12
   },
   "routes/studio.$slug.dashboard": {
     id: "routes/studio.$slug.dashboard",
@@ -16352,7 +18757,7 @@ const routes = {
     path: "dashboard",
     index: void 0,
     caseSensitive: void 0,
-    module: route11
+    module: route13
   },
   "routes/studio.$slug.discounts": {
     id: "routes/studio.$slug.discounts",
@@ -16360,7 +18765,7 @@ const routes = {
     path: "discounts",
     index: void 0,
     caseSensitive: void 0,
-    module: route12
+    module: route14
   },
   "routes/studio.$slug.marketing": {
     id: "routes/studio.$slug.marketing",
@@ -16368,7 +18773,7 @@ const routes = {
     path: "marketing",
     index: void 0,
     caseSensitive: void 0,
-    module: route13
+    module: route15
   },
   "routes/studio.$slug.branding": {
     id: "routes/studio.$slug.branding",
@@ -16376,7 +18781,7 @@ const routes = {
     path: "branding",
     index: void 0,
     caseSensitive: void 0,
-    module: route14
+    module: route16
   },
   "routes/studio.$slug.checkout": {
     id: "routes/studio.$slug.checkout",
@@ -16384,7 +18789,7 @@ const routes = {
     path: "checkout",
     index: void 0,
     caseSensitive: void 0,
-    module: route15
+    module: route17
   },
   "routes/studio.$slug.checkout.return": {
     id: "routes/studio.$slug.checkout.return",
@@ -16392,7 +18797,7 @@ const routes = {
     path: "return",
     index: void 0,
     caseSensitive: void 0,
-    module: route16
+    module: route18
   },
   "routes/studio.$slug.finances": {
     id: "routes/studio.$slug.finances",
@@ -16400,7 +18805,7 @@ const routes = {
     path: "finances",
     index: void 0,
     caseSensitive: void 0,
-    module: route17
+    module: route19
   },
   "routes/studio.$slug.schedule": {
     id: "routes/studio.$slug.schedule",
@@ -16408,7 +18813,7 @@ const routes = {
     path: "schedule",
     index: void 0,
     caseSensitive: void 0,
-    module: route18
+    module: route20
   },
   "routes/studio.$slug.settings": {
     id: "routes/studio.$slug.settings",
@@ -16416,7 +18821,15 @@ const routes = {
     path: "settings",
     index: void 0,
     caseSensitive: void 0,
-    module: route19
+    module: route21
+  },
+  "routes/studio.$slug.settings.hardware": {
+    id: "routes/studio.$slug.settings.hardware",
+    parentId: "routes/studio.$slug.settings",
+    path: "hardware",
+    index: void 0,
+    caseSensitive: void 0,
+    module: route22
   },
   "routes/studio.$slug.settings.billing": {
     id: "routes/studio.$slug.settings.billing",
@@ -16424,7 +18837,7 @@ const routes = {
     path: "billing",
     index: void 0,
     caseSensitive: void 0,
-    module: route20
+    module: route23
   },
   "routes/studio.$slug.settings.addons": {
     id: "routes/studio.$slug.settings.addons",
@@ -16432,7 +18845,7 @@ const routes = {
     path: "addons",
     index: void 0,
     caseSensitive: void 0,
-    module: route21
+    module: route24
   },
   "routes/studio.$slug.settings.domain": {
     id: "routes/studio.$slug.settings.domain",
@@ -16440,7 +18853,7 @@ const routes = {
     path: "domain",
     index: void 0,
     caseSensitive: void 0,
-    module: route22
+    module: route25
   },
   "routes/studio.$slug.settings.import": {
     id: "routes/studio.$slug.settings.import",
@@ -16448,7 +18861,7 @@ const routes = {
     path: "import",
     index: void 0,
     caseSensitive: void 0,
-    module: route23
+    module: route26
   },
   "routes/studio.$slug.students": {
     id: "routes/studio.$slug.students",
@@ -16456,7 +18869,7 @@ const routes = {
     path: "students",
     index: void 0,
     caseSensitive: void 0,
-    module: route24
+    module: route27
   },
   "routes/studio.$slug.students.$id": {
     id: "routes/studio.$slug.students.$id",
@@ -16464,7 +18877,7 @@ const routes = {
     path: ":id",
     index: void 0,
     caseSensitive: void 0,
-    module: route25
+    module: route28
   },
   "routes/studio.$slug.checkin": {
     id: "routes/studio.$slug.checkin",
@@ -16472,7 +18885,7 @@ const routes = {
     path: "checkin",
     index: void 0,
     caseSensitive: void 0,
-    module: route26
+    module: route29
   },
   "routes/studio.$slug.classes": {
     id: "routes/studio.$slug.classes",
@@ -16480,7 +18893,7 @@ const routes = {
     path: "classes",
     index: void 0,
     caseSensitive: void 0,
-    module: route27
+    module: route30
   },
   "routes/studio.$slug.classes.$id.roster": {
     id: "routes/studio.$slug.classes.$id.roster",
@@ -16488,7 +18901,7 @@ const routes = {
     path: ":id/roster",
     index: void 0,
     caseSensitive: void 0,
-    module: route28
+    module: route31
   },
   "routes/studio.$slug.profile": {
     id: "routes/studio.$slug.profile",
@@ -16496,7 +18909,7 @@ const routes = {
     path: "profile",
     index: void 0,
     caseSensitive: void 0,
-    module: route29
+    module: route32
   },
   "routes/studio.$slug.waivers": {
     id: "routes/studio.$slug.waivers",
@@ -16504,7 +18917,7 @@ const routes = {
     path: "waivers",
     index: void 0,
     caseSensitive: void 0,
-    module: route30
+    module: route33
   },
   "routes/studio.$slug.waivers.new": {
     id: "routes/studio.$slug.waivers.new",
@@ -16512,7 +18925,7 @@ const routes = {
     path: "new",
     index: void 0,
     caseSensitive: void 0,
-    module: route31
+    module: route34
   },
   "routes/studio.$slug._index": {
     id: "routes/studio.$slug._index",
@@ -16520,7 +18933,15 @@ const routes = {
     path: void 0,
     index: true,
     caseSensitive: void 0,
-    module: route32
+    module: route35
+  },
+  "routes/studio.$slug.leads": {
+    id: "routes/studio.$slug.leads",
+    parentId: "routes/studio.$slug",
+    path: "leads",
+    index: void 0,
+    caseSensitive: void 0,
+    module: route36
   },
   "routes/studio.$slug.pos": {
     id: "routes/studio.$slug.pos",
@@ -16528,7 +18949,7 @@ const routes = {
     path: "pos",
     index: void 0,
     caseSensitive: void 0,
-    module: route33
+    module: route37
   },
   "routes/dashboard": {
     id: "routes/dashboard",
@@ -16536,7 +18957,7 @@ const routes = {
     path: "dashboard",
     index: void 0,
     caseSensitive: void 0,
-    module: route34
+    module: route38
   },
   "routes/dashboard.classes": {
     id: "routes/dashboard.classes",
@@ -16544,7 +18965,7 @@ const routes = {
     path: "classes",
     index: void 0,
     caseSensitive: void 0,
-    module: route35
+    module: route39
   },
   "routes/dashboard.classes.$id.roster": {
     id: "routes/dashboard.classes.$id.roster",
@@ -16552,7 +18973,7 @@ const routes = {
     path: ":id/roster",
     index: void 0,
     caseSensitive: void 0,
-    module: route36
+    module: route40
   },
   "routes/dashboard.classes.$id.watch": {
     id: "routes/dashboard.classes.$id.watch",
@@ -16560,7 +18981,7 @@ const routes = {
     path: ":id/watch",
     index: void 0,
     caseSensitive: void 0,
-    module: route37
+    module: route41
   },
   "routes/dashboard.profile": {
     id: "routes/dashboard.profile",
@@ -16568,7 +18989,7 @@ const routes = {
     path: "profile",
     index: void 0,
     caseSensitive: void 0,
-    module: route38
+    module: route42
   },
   "routes/dashboard._index": {
     id: "routes/dashboard._index",
@@ -16576,7 +18997,7 @@ const routes = {
     path: void 0,
     index: true,
     caseSensitive: void 0,
-    module: route39
+    module: route43
   },
   "routes/debug-ssr": {
     id: "routes/debug-ssr",
@@ -16584,7 +19005,7 @@ const routes = {
     path: "debug-ssr",
     index: void 0,
     caseSensitive: void 0,
-    module: route40
+    module: route44
   },
   "routes/sign-in.$": {
     id: "routes/sign-in.$",
@@ -16592,7 +19013,7 @@ const routes = {
     path: "sign-in/*",
     index: void 0,
     caseSensitive: void 0,
-    module: route41
+    module: route45
   },
   "routes/sign-up.$": {
     id: "routes/sign-up.$",
@@ -16600,7 +19021,7 @@ const routes = {
     path: "sign-up/*",
     index: void 0,
     caseSensitive: void 0,
-    module: route42
+    module: route46
   },
   "routes/_index": {
     id: "routes/_index",
@@ -16608,7 +19029,7 @@ const routes = {
     path: void 0,
     index: true,
     caseSensitive: void 0,
-    module: route43
+    module: route47
   },
   "routes/admin": {
     id: "routes/admin",
@@ -16616,7 +19037,7 @@ const routes = {
     path: "admin",
     index: void 0,
     caseSensitive: void 0,
-    module: route44
+    module: route48
   },
   "routes/admin.users.$userId": {
     id: "routes/admin.users.$userId",
@@ -16624,7 +19045,7 @@ const routes = {
     path: "users/:userId",
     index: void 0,
     caseSensitive: void 0,
-    module: route45
+    module: route49
   },
   "routes/admin.users._index": {
     id: "routes/admin.users._index",
@@ -16632,7 +19053,7 @@ const routes = {
     path: "users",
     index: true,
     caseSensitive: void 0,
-    module: route46
+    module: route50
   },
   "routes/admin.tenants": {
     id: "routes/admin.tenants",
@@ -16640,7 +19061,7 @@ const routes = {
     path: "tenants",
     index: void 0,
     caseSensitive: void 0,
-    module: route47
+    module: route51
   },
   "routes/admin._index": {
     id: "routes/admin._index",
@@ -16648,7 +19069,7 @@ const routes = {
     path: void 0,
     index: true,
     caseSensitive: void 0,
-    module: route48
+    module: route52
   },
   "routes/admin.emails": {
     id: "routes/admin.emails",
@@ -16656,7 +19077,7 @@ const routes = {
     path: "emails",
     index: void 0,
     caseSensitive: void 0,
-    module: route49
+    module: route53
   },
   "routes/admin.status": {
     id: "routes/admin.status",
@@ -16664,7 +19085,15 @@ const routes = {
     path: "status",
     index: void 0,
     caseSensitive: void 0,
-    module: route50
+    module: route54
+  },
+  "routes/admin.logs": {
+    id: "routes/admin.logs",
+    parentId: "routes/admin",
+    path: "logs",
+    index: void 0,
+    caseSensitive: void 0,
+    module: route55
   }
 };
 export {

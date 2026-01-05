@@ -480,7 +480,7 @@ export default function POSTerminal() {
                                     <div className="p-4 bg-zinc-100 rounded-full"><Search size={24} className="text-zinc-400" /></div>
                                     <div>
                                         <p className="font-medium">No Readers Found</p>
-                                        <p className="text-sm text-zinc-500 max-w-xs mx-auto mt-1">Make sure your WisePOS E or Verifone P630 is on, connected to WiFi, and registered in your Stripe Dashboard > Terminal.</p>
+                                        <p className="text-sm text-zinc-500 max-w-xs mx-auto mt-1">Make sure your WisePOS E or Verifone P630 is on, connected to WiFi, and registered in your Stripe Dashboard &gt; Terminal.</p>
                                     </div>
                                     <button
                                         onClick={async () => {
