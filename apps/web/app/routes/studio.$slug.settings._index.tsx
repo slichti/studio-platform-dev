@@ -300,29 +300,53 @@ export default function StudioSettings() {
                         </div>
 
                         {tenant.settings?.noShowFeeEnabled && (
-                            <div className="mb-4">
-                                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Fee Amount ($)</label>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    className="w-full border-zinc-300 dark:border-zinc-700 rounded text-sm px-3 py-2 bg-white dark:bg-zinc-800"
-                                    placeholder="10.00"
-                                    defaultValue={tenant.settings?.noShowFeeAmount ? (tenant.settings.noShowFeeAmount / 100).toFixed(2) : '10.00'}
-                                    onBlur={async (e) => {
-                                        const val = parseFloat(e.target.value);
-                                        if (val > 0) {
-                                            const cents = Math.round(val * 100);
-                                            const token = await (window as any).Clerk?.session?.getToken();
-                                            await apiRequest(`/tenant/settings`, token, {
-                                                method: "PATCH",
-                                                headers: { 'X-Tenant-Slug': tenant.slug },
-                                                body: JSON.stringify({ settings: { noShowFeeAmount: cents } })
-                                            });
-                                        }
-                                    }}
-                                />
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Fee will be charged automatically when marking "No Show".</p>
-                            </div>
+                            <>
+                                <div className="mb-4">
+                                    <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Fee Amount ($)</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        className="w-full border-zinc-300 dark:border-zinc-700 rounded text-sm px-3 py-2 bg-white dark:bg-zinc-800"
+                                        placeholder="10.00"
+                                        defaultValue={tenant.settings?.noShowFeeAmount ? (tenant.settings.noShowFeeAmount / 100).toFixed(2) : '10.00'}
+                                        onBlur={async (e) => {
+                                            const val = parseFloat(e.target.value);
+                                            if (val > 0) {
+                                                const cents = Math.round(val * 100);
+                                                const token = await (window as any).Clerk?.session?.getToken();
+                                                await apiRequest(`/tenant/settings`, token, {
+                                                    method: "PATCH",
+                                                    headers: { 'X-Tenant-Slug': tenant.slug },
+                                                    body: JSON.stringify({ settings: { noShowFeeAmount: cents } })
+                                                });
+                                            }
+                                        }}
+                                    />
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Fee will be charged automatically when marking "No Show".</p>
+                                </div>
+
+                                <div className="mb-4 ml-1">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                                            checked={tenant.settings?.notificationSettings?.noShowSms !== false}
+                                            onChange={async (e) => {
+                                                const checked = e.target.checked;
+                                                const token = await (window as any).Clerk?.session?.getToken();
+                                                await apiRequest(`/tenant/settings`, token, {
+                                                    method: "PATCH",
+                                                    headers: { 'X-Tenant-Slug': tenant.slug },
+                                                    body: JSON.stringify({ settings: { notificationSettings: { ...tenant.settings?.notificationSettings, noShowSms: checked } } })
+                                                });
+                                                window.location.reload();
+                                            }}
+                                        />
+                                        <span className="text-sm text-zinc-700 dark:text-zinc-300">Send SMS Alert</span>
+                                    </label>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 ml-6 mt-1">Notify student via SMS when charged/marked.</p>
+                                </div>
+                            </>
                         )}
 
                         <div className="flex items-center justify-between pb-4">
@@ -432,6 +456,96 @@ export default function StudioSettings() {
                     </div>
 
                     <div className="md:col-span-2 border-t border-zinc-100 dark:border-zinc-800 pt-4">
+                        <div className="flex items-center justify-between pb-4 border-b border-zinc-100 dark:border-zinc-800 mb-4">
+                            <div>
+                                <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Booking Confirmations</span>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400">Notify students when they book a class.</p>
+                            </div>
+                            <div className="flex gap-4">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                                        checked={tenant.settings?.notificationSettings?.bookingEmail !== false}
+                                        onChange={async (e) => {
+                                            const checked = e.target.checked;
+                                            const token = await (window as any).Clerk?.session?.getToken();
+                                            await apiRequest(`/tenant/settings`, token, {
+                                                method: "PATCH",
+                                                headers: { 'X-Tenant-Slug': tenant.slug },
+                                                body: JSON.stringify({ settings: { notificationSettings: { ...tenant.settings?.notificationSettings, bookingEmail: checked } } })
+                                            });
+                                            window.location.reload();
+                                        }}
+                                    />
+                                    <span className="text-sm text-zinc-700 dark:text-zinc-300">Email</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                                        checked={tenant.settings?.notificationSettings?.bookingSms !== false}
+                                        onChange={async (e) => {
+                                            const checked = e.target.checked;
+                                            const token = await (window as any).Clerk?.session?.getToken();
+                                            await apiRequest(`/tenant/settings`, token, {
+                                                method: "PATCH",
+                                                headers: { 'X-Tenant-Slug': tenant.slug },
+                                                body: JSON.stringify({ settings: { notificationSettings: { ...tenant.settings?.notificationSettings, bookingSms: checked } } })
+                                            });
+                                            window.location.reload();
+                                        }}
+                                    />
+                                    <span className="text-sm text-zinc-700 dark:text-zinc-300">SMS</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pb-4 border-b border-zinc-100 dark:border-zinc-800 mb-4">
+                            <div>
+                                <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Waitlist Promotions</span>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400">Notify students when they come off the waitlist.</p>
+                            </div>
+                            <div className="flex gap-4">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                                        checked={tenant.settings?.notificationSettings?.waitlistEmail !== false}
+                                        onChange={async (e) => {
+                                            const checked = e.target.checked;
+                                            const token = await (window as any).Clerk?.session?.getToken();
+                                            await apiRequest(`/tenant/settings`, token, {
+                                                method: "PATCH",
+                                                headers: { 'X-Tenant-Slug': tenant.slug },
+                                                body: JSON.stringify({ settings: { notificationSettings: { ...tenant.settings?.notificationSettings, waitlistEmail: checked } } })
+                                            });
+                                            window.location.reload();
+                                        }}
+                                    />
+                                    <span className="text-sm text-zinc-700 dark:text-zinc-300">Email</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                                        checked={tenant.settings?.notificationSettings?.waitlistSms !== false}
+                                        onChange={async (e) => {
+                                            const checked = e.target.checked;
+                                            const token = await (window as any).Clerk?.session?.getToken();
+                                            await apiRequest(`/tenant/settings`, token, {
+                                                method: "PATCH",
+                                                headers: { 'X-Tenant-Slug': tenant.slug },
+                                                body: JSON.stringify({ settings: { notificationSettings: { ...tenant.settings?.notificationSettings, waitlistSms: checked } } })
+                                            });
+                                            window.location.reload();
+                                        }}
+                                    />
+                                    <span className="text-sm text-zinc-700 dark:text-zinc-300">SMS</span>
+                                </label>
+                            </div>
+                        </div>
+
                         <div className="flex items-center justify-between">
                             <div>
                                 <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Cancellation Notifications</span>

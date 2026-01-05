@@ -16,6 +16,9 @@ type Bindings = {
     CLOUDFLARE_STREAM_ACCOUNT_ID: string;
     CLOUDFLARE_STREAM_API_TOKEN: string;
     ENCRYPTION_SECRET: string;
+    TWILIO_ACCOUNT_SID: string;
+    TWILIO_AUTH_TOKEN: string;
+    TWILIO_FROM_NUMBER: string;
 };
 
 type Variables = {
@@ -537,6 +540,25 @@ app.post('/:id/book', async (c) => {
             usedPackId
         });
 
+        // SMS Notification
+        const notificationSettings = (tenant.settings as any)?.notificationSettings || {};
+        if (notificationSettings.bookingSms !== false && c.env.TWILIO_ACCOUNT_SID) {
+            const userForSms = await db.query.users.findFirst({
+                where: eq(users.id, memberWithPlans.userId)
+            });
+            if (userForSms?.phone) {
+                const { SmsService } = await import('../services/sms');
+                const smsService = new SmsService(c.env.TWILIO_ACCOUNT_SID, c.env.TWILIO_AUTH_TOKEN, c.env.TWILIO_FROM_NUMBER, db, tenant.id);
+                // Re-fetch class title if needed or assume we have it. We don't have it easily in scope except via another query or if we fetched it earlier
+                // We fetched classInfo earlier.
+
+                c.executionCtx.waitUntil(smsService.sendSms(
+                    userForSms.phone,
+                    `Booking Confirmed: ${classInfo.title}. See you there!`
+                ));
+            }
+        }
+
         return c.json({ id, status: 'confirmed' }, 201);
     } catch (e: any) {
         return c.json({ error: e.message }, 500);
@@ -644,7 +666,7 @@ app.post('/:id/bookings/:bookingId/promote', async (c) => {
         // Optional: Email Notification
         const tenant = c.get('tenant');
         if (c.env.RESEND_API_KEY && tenant) {
-            const user = await db.select({ email: users.email })
+            const user = await db.select({ email: users.email, phone: users.phone })
                 .from(tenantMembers)
                 .innerJoin(users, eq(tenantMembers.userId, users.id))
                 .where(eq(tenantMembers.id, booking.memberId))
@@ -664,6 +686,17 @@ app.post('/:id/bookings/:bookingId/promote', async (c) => {
                     `You're off the waitlist!`,
                     `<p>Good news! You've been promoted to the active roster for <strong>${classInfo?.title || 'Class'}</strong>.</p><p>Please note that payment may be due upon arrival if you do not have an active membership.</p><p>See you there!</p>`
                 ));
+
+                // SMS
+                const notificationSettings = (tenant.settings as any)?.notificationSettings || {};
+                if (notificationSettings.waitlistSms !== false && c.env.TWILIO_ACCOUNT_SID && user.phone) {
+                    const { SmsService } = await import('../services/sms');
+                    const smsService = new SmsService(c.env.TWILIO_ACCOUNT_SID, c.env.TWILIO_AUTH_TOKEN, c.env.TWILIO_FROM_NUMBER, db, tenant.id);
+                    c.executionCtx.waitUntil(smsService.sendSms(
+                        user.phone,
+                        `Good news! You're off the waitlist for ${classInfo?.title || 'Class'}!`
+                    ));
+                }
             }
         }
 
@@ -799,6 +832,16 @@ app.post('/:id/bookings/:bookingId/cancel', async (c) => {
                           <p>If this was a mistake, please book again via the studio app.</p>`
                     ));
                 }
+
+                // SMS
+                if (notificationSettings.cancellationSms !== false && c.env.TWILIO_ACCOUNT_SID && memberData.phone) {
+                    const { SmsService } = await import('../services/sms');
+                    const smsService = new SmsService(c.env.TWILIO_ACCOUNT_SID, c.env.TWILIO_AUTH_TOKEN, c.env.TWILIO_FROM_NUMBER, db, tenant.id);
+                    c.executionCtx.waitUntil(smsService.sendSms(
+                        memberData.phone,
+                        `Booking Cancelled: ${classInfo.title}.`
+                    ));
+                }
             }
         }
 
@@ -835,12 +878,14 @@ app.patch('/:id/bookings/:bookingId/status', async (c) => {
 
         if (status === 'no_show') {
             const tenant = c.get('tenant');
-            const settings = (tenant?.settings || {}) as any;
+            if (!tenant) return c.json({ error: "Tenant context missing" }, 500);
+            const settings = (tenant.settings || {}) as any;
 
             if (settings.noShowFeeEnabled && settings.noShowFeeAmount > 0) {
                 // Get Member Email
                 const memberUser = await db.select({
                     email: users.email,
+                    phone: users.phone,
                     stripeCustomerId: users.stripeCustomerId
                 })
                     .from(tenantMembers)
@@ -860,6 +905,17 @@ app.patch('/:id/bookings/:bookingId/status', async (c) => {
                         settings.noShowFeeAmount,
                         classInfo?.title || "Class"
                     ));
+
+                    // SMS for No Show
+                    const notificationSettings = settings.notificationSettings || {};
+                    if (notificationSettings.noShowSms !== false && c.env.TWILIO_ACCOUNT_SID && memberUser.phone) {
+                        const { SmsService } = await import('../services/sms');
+                        const smsService = new SmsService(c.env.TWILIO_ACCOUNT_SID, c.env.TWILIO_AUTH_TOKEN, c.env.TWILIO_FROM_NUMBER, db, tenant.id);
+                        c.executionCtx.waitUntil(smsService.sendSms(
+                            memberUser.phone,
+                            `You missed ${classInfo?.title || "Class"}. A no-show fee of $${(settings.noShowFeeAmount / 100).toFixed(2)} may apply.`
+                        ));
+                    }
                 }
 
                 // Attempt Charge
