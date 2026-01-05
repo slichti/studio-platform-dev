@@ -106,6 +106,19 @@ export default function StudioSchedule() {
         }));
     };
 
+    const handleRecordingDeleted = (classId: string) => {
+        setClasses(classes.map((c: any) => {
+            if (c.id === classId) {
+                return {
+                    ...c,
+                    cloudflareStreamId: null,
+                    recordingStatus: null
+                };
+            }
+            return c;
+        }));
+    };
+
     const handleSubRequested = (classId: string) => {
         // Since the current instructor requested a sub, we mark local state
         setClasses(classes.map((c: any) => {
@@ -181,6 +194,7 @@ export default function StudioSchedule() {
                 classEvent={selectedClass}
 
                 onRecordingAdded={handleRecordingAdded}
+                onRecordingDeleted={handleRecordingDeleted}
                 canAttachRecording={features?.has('vod')}
 
                 currentUserMemberId={me?.member?.id}

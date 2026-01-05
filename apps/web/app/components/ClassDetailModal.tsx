@@ -1,6 +1,6 @@
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment, useState, useEffect } from 'react';
-import { X, Video, Loader2 } from 'lucide-react';
+import { X, Video, Loader2, Trash2 } from 'lucide-react';
 import { apiRequest } from '../utils/api';
 import { useAuth } from '@clerk/react-router'; // Use Clerk hook or pass token
 
@@ -9,6 +9,7 @@ interface ClassDetailModalProps {
     onClose: () => void;
     classEvent: any | null; // The class object from calendar
     onRecordingAdded: (classId: string, videoId: string) => void;
+    onRecordingDeleted: (classId: string) => void;
     canAttachRecording?: boolean;
     currentUserMemberId?: string;
     userRoles?: string[];
@@ -21,6 +22,7 @@ export function ClassDetailModal({
     onClose,
     classEvent,
     onRecordingAdded,
+    onRecordingDeleted,
     canAttachRecording = false,
     currentUserMemberId,
     userRoles = [],
@@ -63,6 +65,26 @@ export function ClassDetailModal({
             onClose();
         } catch (err: any) {
             setError(err.message || "Failed to add recording");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleDeleteRecording = async () => {
+        if (!confirm("Are you sure you want to delete this recording? This cannot be undone.")) return;
+        setIsSubmitting(true);
+        try {
+            const token = await getToken();
+            const res = await apiRequest(`/classes/${classEvent.id}/recording`, token, {
+                method: 'DELETE'
+            }) as any;
+
+            if (res.error) throw new Error(res.error);
+
+            onRecordingDeleted(classEvent.id);
+            onClose();
+        } catch (err: any) {
+            alert(err.message || "Failed to delete recording");
         } finally {
             setIsSubmitting(false);
         }
@@ -290,6 +312,15 @@ export function ClassDetailModal({
                                                         <span>
                                                             Recording attached ({streamStatus || 'processed'})
                                                         </span>
+                                                        <button
+                                                            onClick={handleDeleteRecording}
+                                                            type="button"
+                                                            disabled={isSubmitting}
+                                                            className="ml-auto text-green-700 hover:text-red-600 p-1"
+                                                            title="Delete Recording"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
                                                     </div>
 
                                                     {/* Player */}

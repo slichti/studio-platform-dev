@@ -1001,11 +1001,91 @@ app.post('/:id/recording', async (c) => {
             .where(eq(classes.id, classId))
             .run();
 
+        // NOTIFICATIONS
+        // Send email/SMS to all 'confirmed' attendees
+        // Bookings are linked to tenantMembers, which link to users
+        const attendees = await db.select({
+            email: users.email,
+            phone: users.phone,
+            profile: users.profile
+        })
+            .from(bookings)
+            .innerJoin(tenantMembers, eq(bookings.memberId, tenantMembers.id))
+            .innerJoin(users, eq(tenantMembers.userId, users.id))
+            .where(and(eq(bookings.classId, classId), eq(bookings.status, 'confirmed')));
+
+        if (attendees.length > 0) {
+            const { EmailService } = await import('../services/email');
+            const { SmsService } = await import('../services/sms');
+            const emailService = new EmailService(c.env.RESEND_API_KEY);
+            const smsService = new SmsService(c.env.TWILIO_ACCOUNT_SID, c.env.TWILIO_AUTH_TOKEN, c.env.TWILIO_FROM_NUMBER, db, tenant.id);
+            const notificationSettings = (tenant.settings as any)?.notificationSettings || {};
+
+            // We can do this in background
+            c.executionCtx.waitUntil((async () => {
+                for (const attendee of attendees) {
+                    const firstName = (attendee.profile as any)?.firstName || 'Student';
+
+                    // Email
+                    if (notificationSettings.vodEmail !== false) {
+                        await emailService.sendGenericEmail(
+                            attendee.email,
+                            `Recording Available: ${name || 'Class Recording'}`,
+                            `<p>Hi ${firstName},</p><p>The recording for your class is now available to watch.</p><p><a href="https://${tenant.slug}.studioplatform.com/schedule">Watch Now</a></p>`
+                        );
+                    }
+                    // SMS
+                    if (notificationSettings.vodSms !== false && attendee.phone) {
+                        await smsService.sendSms(
+                            attendee.phone,
+                            `Recording ready: ${name || 'Class Recording'}. Watch in the app!`
+                        );
+                    }
+                }
+            })());
+        }
+
         return c.json({ success: true, videoId, status: 'processing' });
     } catch (e: any) {
         console.error("Stream Upload Info Error:", e);
         // Important: Don't start an upload if we can't save it, but here it's async copy.
         return c.json({ error: e.message || 'Failed to start video upload' }, 500);
+    }
+});
+
+// DELETE /classes/:id/recording
+// Remove a recording
+app.delete('/:id/recording', async (c) => {
+    const db = createDb(c.env.DB);
+    const classId = c.req.param('id');
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    // RBAC: Instructor or Owner
+    const roles = c.get('roles') || [];
+    if (!roles.includes('instructor') && !roles.includes('owner')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+
+    const classInfo = await db.select().from(classes).where(eq(classes.id, classId)).get();
+    if (!classInfo || !classInfo.cloudflareStreamId) {
+        return c.json({ error: 'No recording found' }, 404);
+    }
+
+    try {
+        if (c.env.CLOUDFLARE_STREAM_ACCOUNT_ID && c.env.CLOUDFLARE_STREAM_API_TOKEN) {
+            const stream = new StreamService(c.env.CLOUDFLARE_STREAM_ACCOUNT_ID, c.env.CLOUDFLARE_STREAM_API_TOKEN);
+            await stream.deleteVideo(classInfo.cloudflareStreamId);
+        }
+
+        await db.update(classes)
+            .set({ cloudflareStreamId: null, recordingStatus: null })
+            .where(eq(classes.id, classId))
+            .run();
+
+        return c.json({ success: true });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
     }
 });
 

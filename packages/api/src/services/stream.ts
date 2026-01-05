@@ -92,4 +92,23 @@ export class StreamService {
         const data = await response.json() as any;
         return data.result.token;
     }
+
+    /**
+     * Delete a video from Cloudflare Stream.
+     */
+    async deleteVideo(videoId: string) {
+        const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${this.accountId}/stream/${videoId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${this.apiToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to delete video from Cloudflare');
+        }
+
+        return true;
+    }
 }
