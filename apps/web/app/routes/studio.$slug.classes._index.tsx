@@ -18,6 +18,8 @@ type ClassEvent = {
     confirmedCount?: number;
     userBookingStatus?: string;
     zoomEnabled?: boolean;
+    virtualCount?: number;
+    inPersonCount?: number;
     userBooking?: {
         id: string; // Booking ID
         attendanceType: 'in_person' | 'zoom';
@@ -178,7 +180,7 @@ export default function StudioPublicClasses() {
                                 <div className="flex gap-4">
                                     <label className="flex items-center gap-2 cursor-pointer">
                                         <input type="radio" name="attendanceType_global" defaultChecked value="in_person" className="text-blue-600 focus:ring-blue-500"
-                                            onChange={(e) => {
+                                            onChange={(e: any) => {
                                                 (window as any)._tempAttendanceType = e.target.value;
                                             }}
                                         />
@@ -186,7 +188,7 @@ export default function StudioPublicClasses() {
                                     </label>
                                     <label className="flex items-center gap-2 cursor-pointer">
                                         <input type="radio" name="attendanceType_global" value="zoom" className="text-blue-600 focus:ring-blue-500"
-                                            onChange={(e) => { (window as any)._tempAttendanceType = e.target.value; }}
+                                            onChange={(e: any) => { (window as any)._tempAttendanceType = e.target.value; }}
                                         />
                                         <span>Virtual (Zoom)</span>
                                     </label>
@@ -198,17 +200,32 @@ export default function StudioPublicClasses() {
 
                         <div className="space-y-2">
                             {/* Self */}
-                            <fetcher.Form method="post" onSubmit={(e) => {
-                                const type = (window as any)._tempAttendanceType || 'in_person';
-                                const input = document.createElement('input');
-                                input.type = 'hidden';
-                                input.name = 'attendanceType';
-                                input.value = type;
-                                e.currentTarget.appendChild(input);
+                            <fetcher.Form method="post" onSubmit={(e: any) => {
+                                const attendanceType = (window as any)._tempAttendanceType || 'in_person';
+
+                                // Determine intent based on selection
+                                let intent = 'book';
+                                if (attendanceType === 'in_person') {
+                                    if ((selectedClass.inPersonCount || 0) >= (selectedClass.capacity || Infinity)) {
+                                        intent = 'waitlist';
+                                    }
+                                }
+
+                                const typeInput = document.createElement('input');
+                                typeInput.type = 'hidden';
+                                typeInput.name = 'attendanceType';
+                                typeInput.value = attendanceType;
+                                e.currentTarget.appendChild(typeInput);
+
+                                const intentInput = document.createElement('input');
+                                intentInput.type = 'hidden';
+                                intentInput.name = 'intent';
+                                intentInput.value = intent;
+                                e.currentTarget.appendChild(intentInput);
+
                                 setSelectedClass(null);
                             }}>
                                 <input type="hidden" name="classId" value={selectedClass.id} />
-                                <input type="hidden" name="intent" value={((selectedClass.confirmedCount || 0) >= (selectedClass.capacity || Infinity)) ? "waitlist" : "book"} />
                                 <button type="submit" className="w-full text-left px-4 py-3 rounded border hover:bg-zinc-50 flex justify-between items-center group">
                                     <span className="font-medium">Myself</span>
                                     <span className="text-zinc-400 group-hover:text-zinc-900">&rarr;</span>
@@ -217,17 +234,33 @@ export default function StudioPublicClasses() {
 
                             {/* Family Members */}
                             {family.map((f: FamilyMember) => (
-                                <fetcher.Form key={f.userId} method="post" onSubmit={(e) => {
-                                    const type = (window as any)._tempAttendanceType || 'in_person';
-                                    const input = document.createElement('input');
-                                    input.type = 'hidden';
-                                    input.name = 'attendanceType';
-                                    input.value = type;
-                                    e.currentTarget.appendChild(input);
-                                    setSelectedClass(null)
+                                <fetcher.Form key={f.userId} method="post" onSubmit={(e: any) => {
+                                    const attendanceType = (window as any)._tempAttendanceType || 'in_person';
+
+                                    // Determine intent based on selection
+                                    let intent = 'book';
+                                    if (attendanceType === 'in_person') {
+                                        if ((selectedClass.inPersonCount || 0) >= (selectedClass.capacity || Infinity)) {
+                                            intent = 'waitlist';
+                                        }
+                                    }
+                                    // Zoom is always book for now (unlimited)
+
+                                    const typeInput = document.createElement('input');
+                                    typeInput.type = 'hidden';
+                                    typeInput.name = 'attendanceType';
+                                    typeInput.value = attendanceType;
+                                    e.currentTarget.appendChild(typeInput);
+
+                                    const intentInput = document.createElement('input');
+                                    intentInput.type = 'hidden';
+                                    intentInput.name = 'intent';
+                                    intentInput.value = intent;
+                                    e.currentTarget.appendChild(intentInput);
+
+                                    setSelectedClass(null);
                                 }}>
                                     <input type="hidden" name="classId" value={selectedClass.id} />
-                                    <input type="hidden" name="intent" value={((selectedClass.confirmedCount || 0) >= (selectedClass.capacity || Infinity)) ? "waitlist" : "book"} />
                                     <input type="hidden" name="memberId" value={f.memberId || ''} />
 
                                     <button type="submit" className="w-full text-left px-4 py-3 rounded border hover:bg-zinc-50 flex justify-between items-center group">
@@ -268,9 +301,16 @@ export default function StudioPublicClasses() {
                                                     <span>with {(cls as any).instructor.user.profile.firstName}</span>
                                                 )}
                                                 {cls.capacity && (
-                                                    <span className={`text-xs px-1.5 py-0.5 rounded ${((cls.confirmedCount || 0) >= cls.capacity) ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'}`}>
-                                                        {(cls.confirmedCount || 0)} / {cls.capacity} filled
-                                                    </span>
+                                                    <div className="flex flex-wrap gap-2 text-xs">
+                                                        <span className={`px-1.5 py-0.5 rounded ${((cls.inPersonCount || 0) >= cls.capacity) ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'}`}>
+                                                            In-Person: {(cls.inPersonCount || 0)} / {cls.capacity}
+                                                        </span>
+                                                        {cls.zoomEnabled && (
+                                                            <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
+                                                                Virtual: {(cls.virtualCount || 0)}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
@@ -287,7 +327,9 @@ export default function StudioPublicClasses() {
                                                                 }`}
                                                         >
                                                             {(cls as any).userBookingStatus === 'confirmed' ? "Booked" :
-                                                                ((cls.confirmedCount || 0) >= (cls.capacity || Infinity) ? "Join Waitlist" : "Book")
+                                                                // If Zoom is enabled, allow "Book" (Modal will handle waitlist logic per type)
+                                                                // If In-Person only and full, show "Join Waitlist"
+                                                                (!cls.zoomEnabled && (cls.inPersonCount || 0) >= (cls.capacity || Infinity)) ? "Join Waitlist" : "Book"
                                                             }
                                                         </button>
                                                     ) : (
@@ -357,7 +399,7 @@ export default function StudioPublicClasses() {
                                                                                 ? "Booked"
                                                                                 : (cls as any).userBookingStatus === 'waitlisted'
                                                                                     ? "On Waitlist"
-                                                                                    : ((cls.confirmedCount || 0) >= (cls.capacity || Infinity) ? "Join Waitlist" : "Book")
+                                                                                    : (!cls.zoomEnabled && (cls.inPersonCount || 0) >= (cls.capacity || Infinity)) ? "Join Waitlist" : "Book"
                                                                         }
                                                                     </button>
                                                                 </fetcher.Form>

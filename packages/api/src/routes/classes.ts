@@ -126,20 +126,28 @@ app.get('/', async (c) => {
     const counts = await db.select({
         classId: bookings.classId,
         confirmedCount: sql<number>`sum(case when ${bookings.status} = 'confirmed' then 1 else 0 end)`,
-        waitlistCount: sql<number>`sum(case when ${bookings.status} = 'waitlisted' then 1 else 0 end)`
+        waitlistCount: sql<number>`sum(case when ${bookings.status} = 'waitlisted' then 1 else 0 end)`,
+        inPersonCount: sql<number>`sum(case when ${bookings.status} = 'confirmed' and ${bookings.attendanceType} = 'in_person' then 1 else 0 end)`,
+        virtualCount: sql<number>`sum(case when ${bookings.status} = 'confirmed' and ${bookings.attendanceType} = 'zoom' then 1 else 0 end)`
     })
         .from(bookings)
         .where(inArray(bookings.status, ['confirmed', 'waitlisted']))
         .groupBy(bookings.classId)
         .all();
 
-    const countsMap = new Map(counts.map(c => [c.classId, { confirmed: c.confirmedCount, waitlisted: c.waitlistCount }]));
+    const countsMap = new Map(counts.map(c => [c.classId, {
+        confirmed: c.confirmedCount,
+        waitlisted: c.waitlistCount,
+        inPerson: c.inPersonCount,
+        virtual: c.virtualCount
+    }]));
 
     const finalResults = results.map(cls => ({
         ...cls,
-        ...cls,
         confirmedCount: countsMap.get(cls.id)?.confirmed || 0,
         waitlistCount: countsMap.get(cls.id)?.waitlisted || 0,
+        inPersonCount: countsMap.get(cls.id)?.inPerson || 0,
+        virtualCount: countsMap.get(cls.id)?.virtual || 0,
         userBookingStatus: userBookings.get(cls.id) || null // 'confirmed', 'waitlisted', etc.
     }));
 
