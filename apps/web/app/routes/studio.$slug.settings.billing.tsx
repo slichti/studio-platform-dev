@@ -85,20 +85,23 @@ export default function StudioBilling() {
                         </div>
 
                         {/* VOD Minutes */}
-                        <div>
-                            <div className="flex justify-between text-sm mb-1">
-                                <span className="font-medium text-zinc-700">VOD Minutes (Stored)</span>
-                                <span className="text-zinc-500">
-                                    {usage.streamingUsage || 0} / {usage.streamingLimit === -1 ? 'Unlimited' : usage.streamingLimit}
-                                </span>
+                        {/* VOD Minutes (Only if included) */}
+                        {(usage.streamingLimit === -1 || usage.streamingLimit > 0) && (
+                            <div>
+                                <div className="flex justify-between text-sm mb-1">
+                                    <span className="font-medium text-zinc-700">VOD Minutes (Stored)</span>
+                                    <span className="text-zinc-500">
+                                        {usage.streamingUsage || 0} / {usage.streamingLimit === -1 ? 'Unlimited' : usage.streamingLimit}
+                                    </span>
+                                </div>
+                                <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
+                                    <div
+                                        className={`h-full rounded-full ${usage.streamingLimit !== -1 && usage.streamingUsage > usage.streamingLimit ? 'bg-red-500' : 'bg-pink-500'}`}
+                                        style={{ width: `${limitPercentage(usage.streamingUsage, usage.streamingLimit)}%` }}
+                                    />
+                                </div>
                             </div>
-                            <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
-                                <div
-                                    className={`h-full rounded-full ${usage.streamingLimit !== -1 && usage.streamingUsage > usage.streamingLimit ? 'bg-red-500' : 'bg-pink-500'}`}
-                                    style={{ width: `${limitPercentage(usage.streamingUsage, usage.streamingLimit)}%` }}
-                                />
-                            </div>
-                        </div>
+                        )}
 
                         {/* Emails */}
                         <div>
