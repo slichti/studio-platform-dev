@@ -745,84 +745,104 @@ app.patch('/:id/bookings/:bookingId/check-in', async (c) => {
                     .get();
 
                 if (member) {
-                    const activeChallenges = await db.select()
-                        .from(challenges)
-                        .where(and(
-                            eq(challenges.tenantId, member.tenantId),
-                            eq(challenges.active, true),
-                            eq(challenges.type, 'count') // Only counting classes for now
-                        ))
-                        .all();
+                    // Feature Gating: Check Tenant Tier/Features
+                    const tenant = await db.select().from(tenants).where(eq(tenants.id, member.tenantId)).get();
+                    // Assuming 'loyalty' feature flag or specific tiers
+                    const isLoyaltyEnabled = tenant && (['growth', 'scale'].includes(tenant.tier));
 
-                    for (const challenge of activeChallenges) {
-                        // Find or Create User Challenge progress
-                        let userProgress = await db.select()
-                            .from(userChallenges)
+                    if (isLoyaltyEnabled) {
+                        const activeChallenges = await db.select()
+                            .from(challenges)
                             .where(and(
-                                eq(userChallenges.userId, member.userId),
-                                eq(userChallenges.challengeId, challenge.id)
+                                eq(challenges.tenantId, member.tenantId),
+                                eq(challenges.active, true)
                             ))
-                            .get();
+                            .all();
 
-                        if (!userProgress) {
-                            // Initialize
-                            userProgress = await db.insert(userChallenges).values({
-                                id: crypto.randomUUID(),
-                                tenantId: member.tenantId,
-                                userId: member.userId,
-                                challengeId: challenge.id,
-                                progress: 0,
-                                status: 'active'
-                            }).returning().get();
-                        }
+                        for (const challenge of activeChallenges) {
+                            // Calculate Increment based on Type
+                            let increment = 0;
+                            if (challenge.type === 'count') {
+                                increment = 1;
+                            } else if (challenge.type === 'minutes') {
+                                const classInfo = await db.select({ durationMinutes: classes.durationMinutes })
+                                    .from(classes)
+                                    .where(eq(classes.id, classId))
+                                    .get();
+                                increment = classInfo?.durationMinutes || 0;
+                            }
 
-                        if (userProgress.status === 'active') {
-                            const newProgress = userProgress.progress + 1;
-                            const isCompleted = newProgress >= challenge.targetValue;
+                            if (increment > 0) {
+                                // Find or Create User Challenge progress
+                                let userProgress = await db.select()
+                                    .from(userChallenges)
+                                    .where(and(
+                                        eq(userChallenges.userId, member.userId),
+                                        eq(userChallenges.challengeId, challenge.id)
+                                    ))
+                                    .get();
 
-                            await db.update(userChallenges)
-                                .set({
-                                    progress: newProgress,
-                                    status: isCompleted ? 'completed' : 'active',
-                                    completedAt: isCompleted ? new Date() : null,
-                                    updatedAt: new Date()
-                                })
-                                .where(eq(userChallenges.id, userProgress.id))
-                                .run();
+                                if (!userProgress) {
+                                    // Initialize
+                                    userProgress = await db.insert(userChallenges).values({
+                                        id: crypto.randomUUID(),
+                                        tenantId: member.tenantId,
+                                        userId: member.userId,
+                                        challengeId: challenge.id,
+                                        progress: 0,
+                                        status: 'active'
+                                    }).returning().get();
+                                }
 
-                            if (isCompleted) {
-                                console.log(`User ${member.userId} completed challenge ${challenge.title}!`);
+                                if (userProgress.status === 'active') {
+                                    const newProgress = userProgress.progress + increment;
+                                    const isCompleted = newProgress >= challenge.targetValue;
 
-                                // Reward Fulfillment
-                                if (challenge.rewardType === 'retail_credit') {
-                                    const val = challenge.rewardValue as any;
-                                    const creditAmount = parseInt(val?.creditAmount || '0');
-                                    if (creditAmount > 0) {
-                                        const code = `REW-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-
-                                        const card = await db.insert(giftCards).values({
-                                            id: crypto.randomUUID(),
-                                            tenantId: member.tenantId,
-                                            code,
-                                            initialValue: creditAmount,
-                                            currentBalance: creditAmount,
-                                            status: 'active',
-                                            recipientMemberId: member.id, // Linking to Member ID
-                                            notes: `Reward for challenge: ${challenge.title}`,
-                                            createdAt: new Date(),
+                                    await db.update(userChallenges)
+                                        .set({
+                                            progress: newProgress,
+                                            status: isCompleted ? 'completed' : 'active',
+                                            completedAt: isCompleted ? new Date() : null,
                                             updatedAt: new Date()
-                                        }).returning().get();
+                                        })
+                                        .where(eq(userChallenges.id, userProgress.id))
+                                        .run();
 
-                                        await db.insert(giftCardTransactions).values({
-                                            id: crypto.randomUUID(),
-                                            giftCardId: card.id,
-                                            amount: creditAmount,
-                                            type: 'adjustment',
-                                            referenceId: userProgress.id, // Reference the User Challenge ID
-                                            createdAt: new Date()
-                                        });
+                                    if (isCompleted) {
+                                        console.log(`User ${member.userId} completed challenge ${challenge.title}!`);
 
-                                        console.log(`Issued Gift Card ${code} for $${creditAmount / 100}`);
+                                        // Reward Fulfillment
+                                        if (challenge.rewardType === 'retail_credit') {
+                                            const val = challenge.rewardValue as any;
+                                            const creditAmount = parseInt(val?.creditAmount || '0');
+                                            if (creditAmount > 0) {
+                                                const code = `REW-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+                                                const card = await db.insert(giftCards).values({
+                                                    id: crypto.randomUUID(),
+                                                    tenantId: member.tenantId,
+                                                    code,
+                                                    initialValue: creditAmount,
+                                                    currentBalance: creditAmount,
+                                                    status: 'active',
+                                                    recipientMemberId: member.id, // Linking to Member ID
+                                                    notes: `Reward for challenge: ${challenge.title}`,
+                                                    createdAt: new Date(),
+                                                    updatedAt: new Date()
+                                                }).returning().get();
+
+                                                await db.insert(giftCardTransactions).values({
+                                                    id: crypto.randomUUID(),
+                                                    giftCardId: card.id,
+                                                    amount: creditAmount,
+                                                    type: 'adjustment',
+                                                    referenceId: userProgress.id, // Reference the User Challenge ID
+                                                    createdAt: new Date()
+                                                });
+
+                                                console.log(`Issued Gift Card ${code} for $${creditAmount / 100}`);
+                                            }
+                                        }
                                     }
                                 }
                             }

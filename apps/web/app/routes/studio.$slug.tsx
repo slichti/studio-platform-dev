@@ -160,10 +160,10 @@ export default function StudioLayout() {
                         <NavItem to="leads" icon={<User size={18} />}>Leads</NavItem>
                         <NavItem to="tasks" icon={<ListTodo size={18} />}>Tasks</NavItem>
                         {(featureSet.has('marketing') || ['growth', 'scale'].includes(tenant.tier)) && (
-                            <>
-                                <NavItem to="marketing" icon={<Mail size={18} />}>Marketing</NavItem>
-                                <NavItem to="loyalty" icon={<Award size={18} />}>Loyalty</NavItem>
-                            </>
+                            <NavItem to="marketing" icon={<Mail size={18} />}>Marketing</NavItem>
+                        )}
+                        {(featureSet.has('loyalty') || ['growth', 'scale'].includes(tenant.tier)) && (
+                            <NavItem to="loyalty" icon={<Award size={18} />}>Loyalty</NavItem>
                         )}
                     </SidebarGroup>
 

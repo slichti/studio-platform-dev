@@ -2,7 +2,7 @@
 import { Hono } from 'hono';
 import { eq, and, desc } from 'drizzle-orm';
 import { createDb } from '../db';
-import { challenges, userChallenges } from 'db/src/schema'; // Updated import path
+import { challenges, userChallenges, tenants } from 'db/src/schema'; // Updated import path
 import { authMiddleware } from '../middleware/auth';
 import { tenantMiddleware } from '../middleware/tenant';
 
@@ -26,6 +26,13 @@ app.get('/', async (c) => {
 
     // Safety check for tenant context
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    // Feature Gate: Fetch full tenant to check tier
+    const tenantRecord = await db.select().from(tenants).where(eq(tenants.id, tenant.id)).get();
+    if (!tenantRecord) return c.json({ error: 'Tenant not found' }, 404);
+
+    const isLoyaltyEnabled = ['growth', 'scale'].includes(tenantRecord.tier);
+    if (!isLoyaltyEnabled) return c.json({ error: 'Loyalty feature not enabled' }, 403);
 
     const result = await db.select()
         .from(challenges)

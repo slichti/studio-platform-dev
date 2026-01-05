@@ -645,7 +645,7 @@ export const challenges = sqliteTable('challenges', {
     tenantId: text('tenant_id').notNull().references(() => tenants.id),
     title: text('title').notNull(), // e.g. "Summer Warrior"
     description: text('description'),
-    type: text('type', { enum: ['count', 'streak'] }).notNull(), // 'count' = total classes, 'streak' = consecutive days/weeks (Phase 2)
+    type: text('type', { enum: ['count', 'streak', 'minutes'] }).notNull(), // 'count' = total classes, 'streak' = consecutive days/weeks, 'minutes' = total duration
     targetValue: integer('target_value').notNull(), // e.g. 10 classes
     rewardType: text('reward_type', { enum: ['badge', 'coupon', 'retail_credit'] }).notNull(),
     rewardValue: text('reward_value', { mode: 'json' }), // { badgeUrl: '...', couponId: '...' }

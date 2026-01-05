@@ -122,7 +122,7 @@ export default function LoyaltyPage() {
                         <div className="space-y-3 pt-4 border-t border-zinc-100 dark:border-zinc-800 text-sm text-zinc-600 dark:text-zinc-300">
                             <div className="flex items-center gap-2">
                                 <Target size={14} className="text-zinc-400" />
-                                <span>Goal: <strong>{challenge.targetValue}</strong> {challenge.type === 'count' ? 'Classes' : 'Streak Days'}</span>
+                                <span>Goal: <strong>{challenge.targetValue}</strong> {challenge.type === 'count' ? 'Classes' : challenge.type === 'minutes' ? 'Minutes' : 'Streak Days'}</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <Gift size={14} className="text-zinc-400" />
@@ -178,6 +178,7 @@ export default function LoyaltyPage() {
                                     <div className="relative">
                                         <select name="type" className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
                                             <option value="count">Total Classes</option>
+                                            <option value="minutes">Total Minutes</option>
                                             <option value="streak">Streak (Days)</option>
                                         </select>
                                         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
