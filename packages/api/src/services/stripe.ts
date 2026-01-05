@@ -172,15 +172,7 @@ export class StripeService {
         }, options);
     }
 
-    /**
-     * Create Platform Customer (for SaaS Billing)
-     */
-    async createCustomer(email: string, name: string) {
-        return this.stripe.customers.create({
-            email,
-            name,
-        });
-    }
+
 
     /**
      * Create Subscription (SaaS)
@@ -291,6 +283,73 @@ export class StripeService {
         return client.customers.search({
             query: `name~"${query}" OR email~"${query}"`,
             limit: 10
+        }, options);
+    }
+
+    /**
+     * Refund a PaymentIntent or Charge
+     */
+    async refundPayment(
+        connectedAccountId: string,
+        params: {
+            paymentIntent?: string;
+            charge?: string;
+            amount?: number; // Optional partial refund amount in cents
+            reason?: 'duplicate' | 'fraudulent' | 'requested_by_customer';
+            metadata?: Record<string, string>;
+        }
+    ) {
+        const { client, options } = this.getClient(connectedAccountId);
+        return client.refunds.create({
+            payment_intent: params.paymentIntent,
+            charge: params.charge,
+            amount: params.amount,
+            reason: params.reason,
+            metadata: params.metadata,
+        }, options);
+    }
+    /**
+     * Terminal Hardware Orders
+     */
+    async listHardwareSkus(connectedAccountId?: string) {
+        // SKUs are usually platform-level or accessible via standard API?
+        // Actually, Stripe Terminal Hardware Orders are often for the platform to ship to users, 
+        // OR for the user to buy if they have full access. 
+        // But usually Connect Platforms buy hardware and ship it, or use dropshipping via Stripe.
+        // Let's assume we use the API to order ON BEHALF or FOR the connected account?
+        // Stripe docs say: "You can use the API to purchase readers..."
+        // The options: 
+        // 1. Platform buys, sends to Connect Account address.
+        // 2. Connect Account buys directly (if allowed).
+
+        // Let's assume Platform buys it (using Platform API keys) but ships to Tenant?
+        // Or simpler: Just list SKUs for now.
+
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        // Note: terminal.hardwareSkus might not be in the typed defs if too old, but should be there in recent versions.
+        // Using 'any' cast if needed.
+        return (client.terminal as any).hardwareSkus.list({}, options);
+    }
+
+    async createHardwareOrder(
+        params: {
+            skuId: string;
+            quantity: number;
+            shipping: {
+                name: string;
+                address: Stripe.Address; // { line1, city, country, postal_code, state }
+                phone?: string;
+            };
+        },
+        connectedAccountId?: string
+    ) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        return (client.terminal as any).hardwareOrders.create({
+            items: [{
+                sku: params.skuId,
+                quantity: params.quantity,
+            }],
+            shipping: params.shipping,
         }, options);
     }
 }

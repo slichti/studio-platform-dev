@@ -29,6 +29,8 @@ import webhookRoutes from './routes/webhooks';
 import uploadRoutes from './routes/uploads';
 import userRoutes from './routes/users';
 import commerce from './routes/commerce';
+import refunds from './routes/refunds';
+import platform from './routes/platform';
 
 type Bindings = {
   DB: D1Database;
@@ -115,7 +117,9 @@ const studioPaths = [
   '/tenant', '/tenant/*',
   '/classes', '/classes/*',
   '/commerce', '/commerce/*',
-  '/gift-cards', '/gift-cards/*'
+  '/gift-cards', '/gift-cards/*',
+  '/refunds', '/refunds/*',
+  '/platform', '/platform/*'
 ];
 
 const authenticatedPaths = [
@@ -130,6 +134,8 @@ const authenticatedPaths = [
   '/leads', '/leads/*',
   '/pos', '/pos/*',
   '/uploads', '/uploads/*',
+  '/refunds', '/refunds/*',
+  '/platform', '/platform/*',
   '/tenant', '/tenant/*'
 ];
 
@@ -370,6 +376,8 @@ app.route('/uploads', uploadRoutes);
 app.route('/classes', classRoutes);
 app.route('/commerce', commerce);
 app.route('/gift-cards', giftCards);
+app.route('/refunds', refunds);
+app.route('/platform', platform);
 
 app.route('/tenant', studioApp);
 

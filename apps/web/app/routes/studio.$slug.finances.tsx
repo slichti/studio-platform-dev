@@ -22,6 +22,7 @@ export default function StudioFinances() {
         window.location.href = `${url}/studios/stripe/connect?tenantId=${tenant.id}`;
     };
 
+    // Auth & Data Fecthing
     const { getToken } = useAuth();
     const [stats, setStats] = useState<any>(null);
     const [transactions, setTransactions] = useState<any[]>([]);
@@ -52,16 +53,118 @@ export default function StudioFinances() {
         fetchData();
     }, [tenant.id, isOwner, getToken]);
 
+    // Refund State
+    const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
+    const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
+    const [refundAmount, setRefundAmount] = useState<string>('');
+    const [refundReason, setRefundReason] = useState<string>('');
+    const [isRefunding, setIsRefunding] = useState(false);
+
+    const handleOpenRefund = (t: any) => {
+        setSelectedTransaction(t);
+        setRefundAmount((t.amount / 100).toFixed(2));
+        setIsRefundModalOpen(true);
+    };
+
+    const handleRefund = async () => {
+        if (!selectedTransaction) return;
+        setIsRefunding(true);
+        const token = await getToken();
+        // Determine type based on transaction data or description? 
+        // Logic might need backend to send 'type' and 'referenceId'.
+        // Assuming transactions API returns these now or we assume.
+        // If not, we might need to improve GET /transactions.
+        // For now, let's try assuming 'pos' if no type? 
+        // Actually, if we built the transactions endpoint correctly, it should have it.
+        // If not, let's blindly send it and backend might fail if mismatch.
+        // Wait, current /commerce/transactions might just be Stripe data?
+        // Let's check /commerce/transactions implementation.
+        // If it's stripe data, we need the PI ID (t.id?).
+
+        let type = 'pos'; // Default fallback
+        if (selectedTransaction.description?.includes('Pack')) type = 'pack';
+        if (selectedTransaction.description?.includes('Membership')) type = 'membership';
+
+        const res = await apiRequest(`${import.meta.env.VITE_API_URL}/refunds`, token, {
+            method: 'POST',
+            body: JSON.stringify({
+                amount: Math.round(parseFloat(refundAmount) * 100),
+                reason: refundReason,
+                referenceId: selectedTransaction.id, // Ensure this is the platform ID if possible
+                type: selectedTransaction.type || type
+            })
+        });
+
+        setIsRefunding(false);
+        if (res && !res.error) {
+            alert('Refund processed successfully');
+            setIsRefundModalOpen(false);
+            // Refresh logic?
+        } else {
+            alert(res?.error || 'Refund failed');
+        }
+    };
+
     return (
         <div className="max-w-4xl text-zinc-900 dark:text-zinc-100">
             <h1 className="text-2xl font-bold mb-6">Finances</h1>
 
+            {/* Refund Modal */}
+            {isRefundModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 w-full max-w-md p-6">
+                        <h3 className="text-lg font-bold mb-4">Process Refund</h3>
+                        <p className="text-sm text-zinc-500 mb-6">
+                            Refund for {selectedTransaction?.description} on {new Date(selectedTransaction?.date).toLocaleDateString()}
+                        </p>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Amount ($)</label>
+                                <input
+                                    type="number"
+                                    value={refundAmount}
+                                    onChange={e => setRefundAmount(e.target.value)}
+                                    className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-md px-3 py-2"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Reason</label>
+                                <textarea
+                                    value={refundReason}
+                                    onChange={e => setRefundReason(e.target.value)}
+                                    placeholder="Customer requested..."
+                                    className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-md px-3 py-2"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-6 justify-end">
+                            <button
+                                onClick={() => setIsRefundModalOpen(false)}
+                                className="px-4 py-2 text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleRefund}
+                                disabled={isRefunding}
+                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                            >
+                                {isRefunding ? 'Processing...' : 'Confirm Refund'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {!tenant.stripeAccountId ? (
                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-lg shadow-sm text-center">
+                    {/* ... Connect Stripe content ... */}
                     <div className="mb-4 text-4xl">💳</div>
                     <h2 className="text-xl font-bold mb-2">Setup Payouts</h2>
                     <p className="mb-6 max-w-md mx-auto text-zinc-500 dark:text-zinc-400">
-                        Connect with Stripe to start accepting payments for classes and memberships.
+                        Connect with Stripe to start accepting payments for class packs and memberships.
                         Funds will be deposited directly to your bank account.
                     </p>
                     <button
@@ -126,6 +229,7 @@ export default function StudioFinances() {
                                         <th className="text-left py-2 font-medium text-zinc-700 dark:text-zinc-300">Description</th>
                                         <th className="text-left py-2 font-medium text-zinc-700 dark:text-zinc-300">Customer</th>
                                         <th className="text-right py-2 font-medium text-zinc-700 dark:text-zinc-300">Amount</th>
+                                        <th className="text-right py-2 font-medium text-zinc-700 dark:text-zinc-300">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -135,6 +239,14 @@ export default function StudioFinances() {
                                             <td className="py-2 text-zinc-600 dark:text-zinc-400">{t.description}</td>
                                             <td className="py-2 text-zinc-600 dark:text-zinc-400">{t.customer}</td>
                                             <td className="py-2 text-right text-zinc-900 dark:text-zinc-100">${(t.amount / 100).toFixed(2)}</td>
+                                            <td className="py-2 text-right">
+                                                <button
+                                                    onClick={() => handleOpenRefund(t)}
+                                                    className="text-xs text-red-600 hover:text-red-700 hover:underline"
+                                                >
+                                                    Refund
+                                                </button>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>

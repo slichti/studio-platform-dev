@@ -824,3 +824,32 @@ export const waiverSignaturesRelations = relations(waiverSignatures, ({ one }) =
         references: [tenantMembers.id],
     }),
 }));
+
+// --- Refunds ---
+export const refunds = sqliteTable('refunds', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    amount: integer('amount').notNull(), // in cents
+    reason: text('reason'),
+    status: text('status', { enum: ['pending', 'succeeded', 'failed'] }).default('pending').notNull(),
+    type: text('type', { enum: ['pos', 'membership', 'pack', 'custom'] }).notNull(),
+    referenceId: text('reference_id').notNull(), // ID of the original order/subscription
+    stripeRefundId: text('stripe_refund_id'),
+    memberId: text('member_id').references(() => tenantMembers.id), // Recipient
+    performedBy: text('performed_by').references(() => users.id), // Admin
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('refund_tenant_idx').on(table.tenantId),
+    refIdx: index('refund_ref_idx').on(table.referenceId),
+}));
+
+export const refundsRelations = relations(refunds, ({ one }) => ({
+    tenant: one(tenants, {
+        fields: [refunds.tenantId],
+        references: [tenants.id],
+    }),
+    member: one(tenantMembers, {
+        fields: [refunds.memberId],
+        references: [tenantMembers.id],
+    }),
+}));
