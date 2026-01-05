@@ -32,7 +32,6 @@ import commerce from './routes/commerce';
 import refunds from './routes/refunds';
 import platform from './routes/platform';
 import reports from './routes/reports';
-import payroll from './routes/payroll';
 
 type Bindings = {
   DB: D1Database;
@@ -385,6 +384,8 @@ studioApp.post('/portal', async (c) => {
   }
 });
 
+import tasks from './routes/tasks';
+
 // Final Route Mounts
 app.route('/locations', locationRoutes);
 app.route('/members', members);
@@ -403,6 +404,7 @@ app.route('/payroll', payroll);
 app.route('/classes', classRoutes);
 app.route('/commerce', commerce);
 app.route('/gift-cards', giftCards);
+app.route('/tasks', tasks);
 app.route('/refunds', refunds);
 app.route('/platform', platform);
 

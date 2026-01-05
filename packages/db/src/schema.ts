@@ -638,6 +638,7 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
     waiverTemplates: many(waiverTemplates),
     classPackDefinitions: many(classPackDefinitions),
     leads: many(leads),
+    tasks: many(tasks),
 }));
 
 export const tenantMembersRelations = relations(tenantMembers, ({ one, many }) => ({
@@ -797,6 +798,57 @@ export const giftCardsRelations = relations(giftCards, ({ one, many }) => ({
         references: [tenantMembers.id],
     }),
     transactions: many(giftCardTransactions),
+}));
+
+// --- CRM: Tasks ---
+export const tasks = sqliteTable('tasks', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    description: text('description'),
+    status: text('status', { enum: ['todo', 'in_progress', 'done'] }).default('todo').notNull(),
+    priority: text('priority', { enum: ['low', 'medium', 'high'] }).default('medium').notNull(),
+    dueDate: integer('due_date', { mode: 'timestamp' }),
+
+    assignedToId: text('assigned_to_id').references(() => tenantMembers.id), // Staff
+    relatedLeadId: text('related_lead_id').references(() => leads.id), // Link to Lead
+    relatedMemberId: text('related_member_id').references(() => tenantMembers.id), // Link to Member
+
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('task_tenant_idx').on(table.tenantId),
+    assigneeIdx: index('task_assignee_idx').on(table.assignedToId),
+    leadIdx: index('task_lead_idx').on(table.relatedLeadId),
+    // compound index for dashboard?
+    tenantStatusIdx: index('task_tenant_status_idx').on(table.tenantId, table.status),
+}));
+
+export const leadsRelations = relations(leads, ({ one, many }) => ({
+    tenant: one(tenants, {
+        fields: [leads.tenantId],
+        references: [tenants.id],
+    }),
+    tasks: many(tasks),
+}));
+
+export const tasksRelations = relations(tasks, ({ one }) => ({
+    tenant: one(tenants, {
+        fields: [tasks.tenantId],
+        references: [tenants.id],
+    }),
+    assignedTo: one(tenantMembers, {
+        fields: [tasks.assignedToId],
+        references: [tenantMembers.id],
+    }),
+    lead: one(leads, {
+        fields: [tasks.relatedLeadId],
+        references: [leads.id],
+    }),
+    member: one(tenantMembers, {
+        fields: [tasks.relatedMemberId],
+        references: [tenantMembers.id],
+    }),
 }));
 
 export const giftCardTransactionsRelations = relations(giftCardTransactions, ({ one }) => ({

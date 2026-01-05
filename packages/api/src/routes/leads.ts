@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { leads, tenants } from 'db/src/schema';
+import { leads, tenants, tasks } from 'db/src/schema';
 import { eq, desc, and } from 'drizzle-orm';
 
 type Bindings = {
@@ -47,6 +47,18 @@ app.post('/', async (c) => {
             source,
             notes,
             status: 'new'
+        }).run();
+
+        // Auto-create Follow-up Task
+        await db.insert(tasks).values({
+            id: crypto.randomUUID(),
+            tenantId: tenant.id,
+            title: `Follow up with ${firstName || 'New Lead'}`,
+            description: `Generated automatically for new lead: ${email}`,
+            status: 'todo',
+            priority: 'medium',
+            dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // Due in 2 days
+            relatedLeadId: id,
         }).run();
 
         return c.json({ success: true, id }, 201);

@@ -8,6 +8,7 @@ import { UserButton } from "@clerk/react-router";
 import { PoweredBy } from "../components/PoweredBy";
 import {
     LayoutDashboard,
+    LayoutGrid,
     Calendar,
     User,
     Users,
@@ -24,7 +25,8 @@ import {
     Mail,
     ShoppingCart,
     CheckCircle2,
-    Ticket
+    Ticket,
+    ListTodo
 } from "lucide-react";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { CommandBar } from "../components/CommandBar";
@@ -152,12 +154,16 @@ export default function StudioLayout() {
                         )}
                     </SidebarGroup>
 
-                    <SidebarGroup title="Management">
+                    <SidebarGroup title="CRM">
                         <NavItem to="leads" icon={<User size={18} />}>Leads</NavItem>
-                        <NavItem to="students" icon={<Users size={18} />}>People</NavItem>
+                        <NavItem to="tasks" icon={<ListTodo size={18} />}>Tasks</NavItem>
                         {(featureSet.has('marketing') || ['growth', 'scale'].includes(tenant.tier)) && (
                             <NavItem to="marketing" icon={<Mail size={18} />}>Marketing</NavItem>
                         )}
+                    </SidebarGroup>
+
+                    <SidebarGroup title="Management">
+                        <NavItem to="students" icon={<Users size={18} />}>People</NavItem>
                         {(['scale'].includes(tenant.tier) || featureSet.has('payroll')) && (
                             <NavItem to="financials/payroll" icon={<CreditCard size={18} />}>Payroll Admin</NavItem>
                         )}

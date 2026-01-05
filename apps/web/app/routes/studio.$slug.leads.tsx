@@ -4,7 +4,7 @@ import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";
 import { Modal } from "~/components/Modal";
-import { Plus, Search, Phone, Mail, User, Clock, AlertCircle } from "lucide-react";
+import { Plus, Search, Phone, Mail, User, Clock, AlertCircle, CheckCircle, Calendar, Trash2, Pencil, Save, X } from "lucide-react";
 import { format } from "date-fns";
 
 export const loader = async (args: any) => {
@@ -27,6 +27,17 @@ export default function LeadsPage() {
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
 
+
+
+    const [selectedLead, setSelectedLead] = useState<any>(null);
+    const [leadTasks, setLeadTasks] = useState<any[]>([]);
+    const [isTaskLoading, setIsTaskLoading] = useState(false);
+    const [newTaskTitle, setNewTaskTitle] = useState("");
+
+    // Edit Lead State
+    const [isEditingLead, setIsEditingLead] = useState(false);
+    const [editFormData, setEditFormData] = useState<any>({});
+
     // Form State
     const [formData, setFormData] = useState({
         firstName: "",
@@ -36,6 +47,71 @@ export default function LeadsPage() {
         source: "",
         notes: ""
     });
+
+    const openLeadDetail = async (lead: any) => {
+        setSelectedLead(lead);
+        setIsEditingLead(false);
+        setEditFormData({ ...lead }); // Init edit form
+        setIsTaskLoading(true);
+        try {
+            const tasks = await apiRequest(`/tasks?leadId=${lead.id}`, token, { headers: { 'X-Tenant-Slug': slug } });
+            setLeadTasks(Array.isArray(tasks) ? tasks : []);
+        } catch (e) {
+            console.error("Failed to load tasks", e);
+        } finally {
+            setIsTaskLoading(false);
+        }
+    };
+
+    const handleUpdateLead = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            await apiRequest(`/leads/${selectedLead.id}`, token, {
+                method: "PATCH",
+                headers: { 'X-Tenant-Slug': slug },
+                body: JSON.stringify(editFormData)
+            });
+            // Update local state
+            setSelectedLead({ ...selectedLead, ...editFormData });
+            setLeads(leads.map((l: any) => l.id === selectedLead.id ? { ...l, ...editFormData } : l));
+            setIsEditingLead(false);
+        } catch (e: any) {
+            alert("Failed to update lead: " + e.message);
+        }
+    };
+
+    const handleCreateTask = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newTaskTitle) return;
+        try {
+            const newTask = await apiRequest("/tasks", token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': slug },
+                body: JSON.stringify({
+                    title: newTaskTitle,
+                    relatedLeadId: selectedLead.id,
+                    status: 'todo',
+                    priority: 'medium',
+                    dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000) // Tomorrow
+                })
+            });
+            // Update local state
+            setLeadTasks([newTask, ...leadTasks]);
+            setNewTaskTitle("");
+        } catch (e: any) {
+            alert("Failed to create task: " + e.message);
+        }
+    };
+
+    const toggleTaskStatus = async (taskId: string, currentStatus: string) => {
+        const newStatus = currentStatus === 'done' ? 'todo' : 'done';
+        setLeadTasks(leadTasks.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+        await apiRequest(`/tasks/${taskId}`, token, {
+            method: "PATCH",
+            headers: { 'X-Tenant-Slug': slug },
+            body: JSON.stringify({ status: newStatus })
+        });
+    };
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -96,7 +172,7 @@ export default function LeadsPage() {
     };
 
     return (
-        <div className="p-8 max-w-7xl mx-auto">
+        <div className="p-8 max-w-7xl mx-auto" >
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                 <div>
                     <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">Leads CRM</h1>
@@ -143,7 +219,11 @@ export default function LeadsPage() {
                         </thead>
                         <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                             {filteredLeads.map((lead: any) => (
-                                <tr key={lead.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                                <tr
+                                    key={lead.id}
+                                    onClick={() => openLeadDetail(lead)}
+                                    className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer"
+                                >
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
                                             <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs uppercase">
@@ -314,6 +394,155 @@ export default function LeadsPage() {
                     </div>
                 </form>
             </Modal>
-        </div>
+
+
+            {/* Lead Detail Modal */}
+            < Modal
+                isOpen={!!selectedLead
+                }
+                onClose={() => setSelectedLead(null)}
+                title={selectedLead ? `${selectedLead.firstName} ${selectedLead.lastName}` : "Lead Details"}
+            >
+                {selectedLead && (
+                    <div className="space-y-6">
+                        {/* Header / Info */}
+                        <div className="bg-zinc-50 dark:bg-zinc-800 p-4 rounded-lg flex flex-col gap-3 relative group">
+                            <div className="flex justify-between items-start">
+                                {isEditingLead ? (
+                                    <form onSubmit={handleUpdateLead} className="w-full space-y-3">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-xs font-bold text-zinc-500 uppercase">First Name</label>
+                                                <input className="w-full px-2 py-1 border rounded" value={editFormData.firstName} onChange={e => setEditFormData({ ...editFormData, firstName: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-zinc-500 uppercase">Last Name</label>
+                                                <input className="w-full px-2 py-1 border rounded" value={editFormData.lastName} onChange={e => setEditFormData({ ...editFormData, lastName: e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-xs font-bold text-zinc-500 uppercase">Email</label>
+                                                <input className="w-full px-2 py-1 border rounded" value={editFormData.email} onChange={e => setEditFormData({ ...editFormData, email: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-zinc-500 uppercase">Phone</label>
+                                                <input className="w-full px-2 py-1 border rounded" value={editFormData.phone} onChange={e => setEditFormData({ ...editFormData, phone: e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-zinc-500 uppercase">Notes</label>
+                                            <textarea className="w-full px-2 py-1 border rounded h-20" value={editFormData.notes} onChange={e => setEditFormData({ ...editFormData, notes: e.target.value })} />
+                                        </div>
+                                        <div className="flex gap-2 justify-end">
+                                            <button type="button" onClick={() => setIsEditingLead(false)} className="px-3 py-1 text-sm bg-zinc-200 rounded hover:bg-zinc-300">Cancel</button>
+                                            <button type="submit" className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Save</button>
+                                        </div>
+                                    </form>
+                                ) : (
+                                    <>
+                                        <div>
+                                            <h2 className="text-xl font-bold">{selectedLead.firstName} {selectedLead.lastName}</h2>
+                                            <div className="text-sm text-zinc-500 flex gap-4 mt-1">
+                                                <span className="flex items-center gap-1"><Mail size={14} /> {selectedLead.email}</span>
+                                                {selectedLead.phone && <span className="flex items-center gap-1"><Phone size={14} /> {selectedLead.phone}</span>}
+                                            </div>
+                                        </div>
+                                        <button onClick={() => setIsEditingLead(true)} className="p-2 text-zinc-400 hover:text-blue-600 rounded-full hover:bg-blue-50 transition-colors">
+                                            <Pencil size={18} />
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+
+                            {!isEditingLead && (
+                                <>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${getStatusColor(selectedLead.status)}`}>
+                                            {selectedLead.status}
+                                        </span>
+                                        <span className="text-xs text-zinc-400">Added {format(new Date(selectedLead.createdAt), "MMM d, yyyy")}</span>
+                                    </div>
+                                    {selectedLead.notes && (
+                                        <div className="mt-2 text-sm text-zinc-600 italic border-t border-zinc-200 dark:border-zinc-700 pt-3 relative pl-3">
+                                            <span className="absolute left-0 top-3 bottom-0 w-1 bg-zinc-300 rounded-full"></span>
+                                            "{selectedLead.notes}"
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+
+                        {/* Activity Timeline */}
+                        <div>
+                            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 mb-4">
+                                <Clock size={18} />
+                                Activity Timeline
+                            </h3>
+
+                            <form onSubmit={handleCreateTask} className="flex gap-2 mb-6">
+                                <div className="relative flex-1">
+                                    <input
+                                        className="w-full pl-9 pr-3 py-2 border rounded-lg bg-white dark:bg-zinc-800 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                        placeholder="Add a new task or note..."
+                                        value={newTaskTitle}
+                                        onChange={e => setNewTaskTitle(e.target.value)}
+                                    />
+                                    <Plus className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
+                                </div>
+                                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm">Add</button>
+                            </form>
+
+                            <div className="relative pl-4 border-l-2 border-zinc-100 dark:border-zinc-800 space-y-6">
+                                {leadTasks.map(task => (
+                                    <div key={task.id} className="relative">
+                                        {/* Dot */}
+                                        <div className={`absolute -left-[21px] top-1 w-3 h-3 rounded-full border-2 border-white dark:border-zinc-900 ${task.status === 'done' ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+
+                                        <div className="bg-white dark:bg-zinc-800 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-md transition-shadow group">
+                                            <div className="flex items-start gap-3">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); toggleTaskStatus(task.id, task.status); }}
+                                                    className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${task.status === 'done' ? 'bg-green-500 border-green-500 text-white' : 'border-zinc-300 dark:border-zinc-600 hover:border-green-500'}`}
+                                                >
+                                                    {task.status === 'done' && <CheckCircle size={12} />}
+                                                </button>
+                                                <div className="flex-1">
+                                                    <div className="flex justify-between items-start">
+                                                        <span className={`font-medium ${task.status === 'done' ? 'line-through text-zinc-400' : 'text-zinc-900 dark:text-zinc-100'}`}>
+                                                            {task.title}
+                                                        </span>
+                                                        <span className="text-[10px] text-zinc-400">
+                                                            {task.dueDate ? format(new Date(task.dueDate), "MMM d") : 'No date'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="mt-1 flex gap-2">
+                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded border uppercase ${task.priority === 'high' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-zinc-50 text-zinc-500 border-zinc-100'}`}>
+                                                            {task.priority}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                                {leadTasks.length === 0 && (
+                                    <div className="text-zinc-400 text-xs italic pl-2">No activity recorded yet.</div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end pt-2">
+                            <button
+                                onClick={() => setSelectedLead(null)}
+                                className="text-zinc-500 hover:text-zinc-700 text-sm"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </Modal >
+        </div >
     );
 }
