@@ -1,10 +1,81 @@
-// @ts-ignore
-import { Outlet, NavLink } from "react-router";
+import { type LoaderFunctionArgs, redirect, Outlet, NavLink, useLoaderData } from "react-router";
+import { getAuth } from "@clerk/react-router/server";
 import { useUser } from "@clerk/react-router";
 import { LogoutButton } from "../components/LogoutButton";
+import { apiRequest } from "../utils/api";
+
+// ----------------------------------------------------------------------
+// SECURITY CONFIGURATION
+// ----------------------------------------------------------------------
+// Explicit allowlist for Platform Admin access.
+// Even if a user has the 'admin' role, they must be in this list (or domain) to access the portal.
+const ALLOWED_ADMIN_EMAILS = [
+    "slichti@gmail.com",
+    "admin@studioplatform.com",
+    // Add other authorized emails here
+];
+
+const ALLOWED_DOMAINS = [
+    "studioplatform.com" // Example: Allow all corporate emails
+];
+
+export const loader = async (args: LoaderFunctionArgs) => {
+    const { getToken, userId } = await getAuth(args);
+    const token = await getToken();
+
+    // 1. Authentication Check
+    if (!userId || !token) {
+        return redirect("/sign-in?redirect_url=/admin");
+    }
+
+    // 2. Authorization Check (Fetch User Profile)
+    try {
+        const env = (args.context as any).cloudflare?.env || (args.context as any).env || {};
+        const apiUrl = env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev";
+
+        // Fetch /me to get email and system role
+        const user = (await apiRequest("/users/me", token, {}, apiUrl)) as any;
+
+        // A. Role Check (Must be System Admin)
+        if (!user.isSystemAdmin) {
+            console.warn(`Admin Access Denied: User ${user.email} (${user.id}) is not a System Admin.`);
+            throw new Response("Forbidden", { status: 403 });
+        }
+
+        // B. Strict Allowlist Check
+        const email = (user.email || "").toLowerCase();
+        const isAllowedEmail = ALLOWED_ADMIN_EMAILS.includes(email);
+        const isAllowedDomain = ALLOWED_DOMAINS.some(d => email.endsWith(`@${d}`));
+
+        if (!isAllowedEmail && !isAllowedDomain) {
+            console.warn(`Admin Access Denied: User ${user.email} is not in the Allowlist.`);
+            throw new Response("Access Denied: You are not authorized to view this portal.", { status: 403 });
+        }
+
+        return { user };
+    } catch (e: any) {
+        if (e.status === 403 || e.message?.includes("Forbidden")) {
+            throw new Response("Access Denied", { status: 403 });
+        }
+        // If API fails (e.g. 401), redirect to login
+        if (e.status === 401) {
+            return redirect("/sign-in?redirect_url=/admin");
+        }
+        console.error("Admin Loader Error:", e);
+        throw e;
+    }
+};
 
 export default function AdminLayout() {
-    const { user, isLoaded } = useUser();
+    const { user: clerkUser, isLoaded } = useUser();
+    const loaderData = useLoaderData<typeof loader>();
+    const dbUser = loaderData?.user;
+
+    // Use DB user profile if available (synced), fallback to Clerk
+    const displayName = dbUser?.firstName || clerkUser?.fullName || "Admin User";
+    const displayEmail = dbUser?.email || clerkUser?.primaryEmailAddress?.emailAddress || "admin@platform.com";
+    const displayImage = dbUser?.portraitUrl || clerkUser?.imageUrl;
+
     const navItems = [
         { label: "Overview", href: "/admin", end: true, icon: "📊" },
         { label: "Tenants", href: "/admin/tenants", icon: "🏢" },
@@ -34,7 +105,7 @@ export default function AdminLayout() {
                             key={item.href}
                             to={item.href}
                             end={item.end}
-                            className={({ isActive }) =>
+                            className={({ isActive }: { isActive: boolean }) =>
                                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
                                     ? "bg-zinc-800/80 text-white shadow-inner"
                                     : "hover:bg-zinc-900 hover:text-zinc-200"
@@ -64,17 +135,17 @@ export default function AdminLayout() {
                         <span className="text-xs font-mono text-zinc-400 bg-zinc-100 px-2 py-1 rounded">v1.0.0-dev</span>
                         <div className="h-4 w-px bg-zinc-200 mx-2" />
 
-                        {isLoaded && user ? (
+                        {isLoaded && (clerkUser || dbUser) ? (
                             <div className="flex items-center gap-3">
                                 <div className="flex flex-col items-end">
-                                    <span className="text-sm font-medium text-zinc-900 leading-none">{user.fullName || "Admin User"}</span>
+                                    <span className="text-sm font-medium text-zinc-900 leading-none">{displayName}</span>
                                     <span className="text-xs text-zinc-500">
-                                        {user.primaryEmailAddress?.emailAddress || "admin@platform.com"}
+                                        {displayEmail}
                                     </span>
                                 </div>
                                 <div className="w-8 h-8 rounded-full bg-zinc-100 border border-zinc-200 overflow-hidden">
                                     <img
-                                        src={user.imageUrl}
+                                        src={displayImage}
                                         alt="Profile"
                                         className="w-full h-full object-cover"
                                     />
