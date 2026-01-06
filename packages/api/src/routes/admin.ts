@@ -155,6 +155,54 @@ app.patch('/users/bulk', async (c) => {
         return c.json({ success: true, updated: userIds.length });
     }
 
+    if (action === 'delete') {
+        // Filter out self
+        const safeUserIds = userIds.filter((id: string) => id !== auth.userId);
+
+        if (safeUserIds.length === 0) {
+            return c.json({ error: "Cannot delete yourself or no valid users selected" }, 400);
+        }
+
+        const { tenantMembers, tenantRoles } = await import('db/src/schema');
+
+        // 1. Get all memberships for these users
+        const members = await db.select({ id: tenantMembers.id })
+            .from(tenantMembers)
+            .where(inArray(tenantMembers.userId, safeUserIds))
+            .all();
+
+        const memberIds = members.map(m => m.id);
+
+        if (memberIds.length > 0) {
+            // 2. Delete roles
+            await db.delete(tenantRoles)
+                .where(inArray(tenantRoles.memberId, memberIds))
+                .run();
+
+            // 3. Delete memberships
+            await db.delete(tenantMembers)
+                .where(inArray(tenantMembers.userId, safeUserIds))
+                .run();
+        }
+
+        // 4. Delete users
+        await db.delete(users)
+            .where(inArray(users.id, safeUserIds))
+            .run();
+
+        // Audit Log
+        await db.insert(auditLogs).values({
+            id: crypto.randomUUID(),
+            action: 'bulk_delete_users',
+            actorId: auth.userId,
+            targetId: safeUserIds.join(','),
+            details: { count: safeUserIds.length },
+            ipAddress: c.req.header('CF-Connecting-IP')
+        });
+
+        return c.json({ success: true, count: safeUserIds.length });
+    }
+
     return c.json({ error: "Invalid action" }, 400);
 });
 

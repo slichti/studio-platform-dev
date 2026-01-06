@@ -14,7 +14,7 @@
     "devDependencies": {
         "prettier": "latest",
         "turbo": "latest",
-        "wrangler": "^4.56.0"
+        "wrangler": "^4.54.0"
     },
     "packageManager": "npm@11.7.0",
     "dependencies": {

@@ -125,7 +125,7 @@ export default function AdminUsers() {
 
 
     // Auth hook for client-side API calls
-    const { getToken } = useAuth();
+    const { getToken, userId } = useAuth();
 
     const executeBulk = async (action: string, value: any) => {
         if (selectedUsers.size === 0) return;
@@ -138,7 +138,7 @@ export default function AdminUsers() {
                     action,
                     value
                 })
-            });
+            }) as any;
 
             if (res.error) throw new Error(res.error);
 
@@ -158,7 +158,7 @@ export default function AdminUsers() {
             const res = await apiRequest("/admin/users", token, {
                 method: "POST",
                 body: JSON.stringify(newUser)
-            });
+            }) as any;
 
             if (res.error) throw new Error(res.error);
 
@@ -178,7 +178,7 @@ export default function AdminUsers() {
             const res = await apiRequest("/admin/impersonate", token, {
                 method: "POST",
                 body: JSON.stringify({ targetUserId: userId })
-            });
+            }) as any;
 
             if (res.error) throw new Error(res.error);
 
@@ -266,6 +266,17 @@ export default function AdminUsers() {
                     <div className="flex gap-2">
                         <button onClick={() => executeBulk('set_system_admin', true)} className="hover:text-zinc-300 text-sm font-medium">Promote to Admin</button>
                         <button onClick={() => executeBulk('set_system_admin', false)} className="hover:text-zinc-300 text-sm font-medium">Demote</button>
+                        <div className="w-px h-4 bg-zinc-700 mx-2"></div>
+                        <button
+                            onClick={() => {
+                                if (confirm(`Are you sure you want to PERMANENTLY delete ${selectedUsers.size} users?`)) {
+                                    executeBulk('delete', true);
+                                }
+                            }}
+                            className="text-red-400 hover:text-red-300 text-sm font-medium"
+                        >
+                            Delete Selected
+                        </button>
                     </div>
                 </div>
             )}
@@ -279,7 +290,7 @@ export default function AdminUsers() {
                     <div className="col-span-3 flex items-center gap-1 cursor-pointer hover:text-zinc-700" onClick={() => {
                         const current = searchParams.get('sort');
                         const newSort = current === 'name_asc' ? 'name_desc' : 'name_asc';
-                        setSearchParams(prev => { prev.set('sort', newSort); return prev; });
+                        setSearchParams((prev: URLSearchParams) => { prev.set('sort', newSort); return prev; });
                     }}>
                         User {searchParams.get('sort')?.includes('name') && (searchParams.get('sort')?.includes('desc') ? '↓' : '↑')}
                     </div>
@@ -288,7 +299,7 @@ export default function AdminUsers() {
                     <div className="col-span-2 flex items-center gap-1 cursor-pointer hover:text-zinc-700" onClick={() => {
                         const current = searchParams.get('sort');
                         const newSort = current === 'joined_asc' ? 'joined_desc' : 'joined_asc';
-                        setSearchParams(prev => { prev.set('sort', newSort); return prev; });
+                        setSearchParams((prev: URLSearchParams) => { prev.set('sort', newSort); return prev; });
                     }}>
                         Joined {searchParams.get('sort')?.includes('joined') && (searchParams.get('sort')?.includes('desc') ? '↓' : '↑')}
                     </div>
@@ -318,6 +329,7 @@ export default function AdminUsers() {
                                             selected={selectedUsers.has(u.id)}
                                             toggle={() => toggleUser(u.id)}
                                             contextRole={u.contextRole}
+                                            currentUserId={userId}
                                             showCheckbox={false}
                                         />
                                     ))}
@@ -333,6 +345,7 @@ export default function AdminUsers() {
                             selected={selectedUsers.has(user.id)}
                             toggle={() => toggleUser(user.id)}
                             showCheckbox={true}
+                            currentUserId={userId}
                             onImpersonate={() => handleImpersonate(user.id)}
                             onDelete={() => handleDeleteUser(user)}
                         />
@@ -482,7 +495,7 @@ function ClientDateOnly({ date }: { date: string | Date }) {
     return <span>{formatted}</span>;
 }
 
-function UserRow({ user, selected, toggle, showCheckbox, contextRole, onImpersonate, onDelete }: { user: any, selected: boolean, toggle: () => void, showCheckbox: boolean, contextRole?: string, onImpersonate?: () => void, onDelete?: () => void }) {
+function UserRow({ user, selected, toggle, showCheckbox, currentUserId, contextRole, onImpersonate, onDelete }: { user: any, selected: boolean, toggle: () => void, showCheckbox: boolean, currentUserId?: string | null, contextRole?: string, onImpersonate?: () => void, onDelete?: () => void }) {
     // Correct display name for specific user as requested
     let displayName = `${user.profile?.firstName || ''} ${user.profile?.lastName || ''}`.trim();
     if (user.email === 'slichti@gmail.com' && displayName === 'System Admin') {
@@ -535,7 +548,7 @@ function UserRow({ user, selected, toggle, showCheckbox, contextRole, onImperson
 
                         </button>
                     )}
-                    {onDelete && !user.isSystemAdmin && (
+                    {onDelete && user.id !== currentUserId && (
                         <button onClick={onDelete} className="text-red-400 hover:text-red-700 text-sm font-medium flex items-center gap-1" title="Delete User">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                         </button>
