@@ -11,12 +11,11 @@ import { apiRequest } from "../utils/api";
 // Even if a user has the 'admin' role, they must be in this list (or domain) to access the portal.
 const ALLOWED_ADMIN_EMAILS = [
     "slichti@gmail.com",
-    "admin@studioplatform.com",
-    // Add other authorized emails here
+    // "admin@studioplatform.com", // Disabled until domain is active
 ];
 
 const ALLOWED_DOMAINS = [
-    "studioplatform.com" // Example: Allow all corporate emails
+    // "studioplatform.com" // Disabled until domain is active
 ];
 
 export const loader = async (args: LoaderFunctionArgs) => {
