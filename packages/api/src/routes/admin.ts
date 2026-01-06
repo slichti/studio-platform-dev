@@ -652,7 +652,12 @@ app.get('/stats/health', async (c) => {
         services: {
             resend: !!c.env.RESEND_API_KEY,
             twilio: !!c.env.TWILIO_ACCOUNT_SID,
-            database: true
+            database: true,
+            integrations: {
+                mailchimp: true,
+                zapier: true,
+                google: true
+            }
         }
     });
 });

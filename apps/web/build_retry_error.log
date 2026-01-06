@@ -1,0 +1,148 @@
+✗ Build failed in 4.14s
+app/routes/studio.$slug.settings.developers.tsx (4:28): "CardDescription" is not exported by "app/components/ui/Card.tsx", imported by "app/routes/studio.$slug.settings.developers.tsx".
+file: /Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings.developers.tsx:4:28
+
+2: import { useState, useEffect } from "react";
+3: import { useParams, Link } from "react-router";
+4: import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/Card";
+                               ^
+5: import { Trash2, Terminal, Loader2 } from "lucide-react";
+
+    at getRollupError (file:///Users/slichti/GitHub/studio-platform-dev/node_modules/rollup/dist/es/shared/parseAst.js:401:41)
+    at error (file:///Users/slichti/GitHub/studio-platform-dev/node_modules/rollup/dist/es/shared/parseAst.js:397:42)
+    at Module.error (file:///Users/slichti/GitHub/studio-platform-dev/node_modules/rollup/dist/es/shared/node-entry.js:17022:16)
+    at Module.traceVariable (file:///Users/slichti/GitHub/studio-platform-dev/node_modules/rollup/dist/es/shared/node-entry.js:17478:29)
+    at ModuleScope.findVariable (file:///Users/slichti/GitHub/studio-platform-dev/node_modules/rollup/dist/es/shared/node-entry.js:15141:39)
+    at ChildScope.findVariable (file:///Users/slichti/GitHub/studio-platform-dev/node_modules/rollup/dist/es/shared/node-entry.js:5688:38)
+    at FunctionScope.findVariable (file:///Users/slichti/GitHub/studio-platform-dev/node_modules/rollup/dist/es/shared/node-entry.js:5688:38)
+    at FunctionBodyScope.findVariable (file:///Users/slichti/GitHub/studio-platform-dev/node_modules/rollup/dist/es/shared/node-entry.js:5688:38)
+    at Identifier.bind (file:///Users/slichti/GitHub/studio-platform-dev/node_modules/rollup/dist/es/shared/node-entry.js:5462:40)
+    at CallExpression.bind (file:///Users/slichti/GitHub/studio-platform-dev/node_modules/rollup/dist/es/shared/node-entry.js:2825:28) {
+  binding: 'CardDescription',
+  code: 'MISSING_EXPORT',
+  exporter: '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/ui/Card.tsx',
+  id: '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings.developers.tsx',
+  url: 'https://rollupjs.org/troubleshooting/#error-name-is-not-exported-by-module',
+  pos: 250,
+  loc: {
+    column: 28,
+    file: '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings.developers.tsx',
+    line: 4
+  },
+  frame: '2: import { useState, useEffect } from "react";\n' +
+    '3: import { useParams, Link } from "react-router";\n' +
+    '4: import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/Card";\n' +
+    '                               ^\n' +
+    '5: import { Trash2, Terminal, Loader2 } from "lucide-react";',
+  watchFiles: [
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/root.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/pricing.compare.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/accept-invite.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/pricing._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.financials.my-payouts.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.commerce.gift-cards.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.financials.payroll.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.financials._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.commerce.packs.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/create-studio.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.appointments.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.memberships.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.dashboard.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.substitutions.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.commerce.coupons.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.discounts.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.marketing.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.branding.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.checkout.return.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.checkout.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.schedule.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.finances.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings.hardware.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings.developers.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings.billing.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings.addons.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings.domain.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings.embeds.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.students.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings.import.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.students._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.checkin.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.classes.$id.roster.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.classes._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.classes.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.profile.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.loyalty.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.waivers.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.reports.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.waivers._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.waivers.new.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.students.$id.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.leads.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/embed.$slug.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/dashboard.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.pos.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/dashboard.classes.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/dashboard.classes.$id.roster.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/dashboard.classes.$id.watch.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/embed.$slug.calendar.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/dashboard.profile.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/dashboard._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/sign-in.$.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.tasks.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/_index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/entry.client.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/sign-up.$.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.users.$userId.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.users._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.tenants.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.emails.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.status.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/dashboard.classes._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.logs.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/debug-ssr.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/package.json',
+    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react/jsx-runtime.js',
+    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react-dom/client.js',
+    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react/index.js',
+    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react-router-dom/dist/index.mjs',
+    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react-router/dist/development/index.mjs',
+    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react-router/dist/development/dom-export.mjs',
+    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react/cjs/react.production.js',
+    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react/cjs/react-jsx-runtime.production.js',
+    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react-router/dist/development/chunk-YNUBSHFH.mjs',
+    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react-router/dist/development/chunk-JMJ3UQ3L.mjs',
+    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react-dom/cjs/react-dom-client.production.js',
+    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react-dom/node_modules/scheduler/index.js',
+    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react-dom/index.js',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/utils/api.ts',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/ui/tabs.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/ui/dialog.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/ThemeToggle.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/CreateClassModal.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/ClassDetailModal.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/PoweredBy.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/SidebarGroup.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/ImpersonationBanner.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/CommandBar.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/node_modules/cookie/dist/index.js',
+    '/Users/slichti/GitHub/studio-platform-dev/node_modules/set-cookie-parser/lib/set-cookie.js',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/ui/Card.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/ui/Badge.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/ui/Table.tsx',
+    ... 3202 more items
+  ],
+  Symbol(augmented): true
+}
+npm error Lifecycle script `build` failed with error:
+npm error code 1
+npm error path /Users/slichti/GitHub/studio-platform-dev/apps/web
+npm error workspace web
+npm error location /Users/slichti/GitHub/studio-platform-dev/apps/web
+npm error command failed
+npm error command sh -c react-router build && rm -f build/client/index.html && cp build/server/index.js functions/_server.js

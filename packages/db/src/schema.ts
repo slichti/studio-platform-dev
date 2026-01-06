@@ -25,6 +25,10 @@ export const tenants = sqliteTable('tenants', {
 
     currency: text('currency').default('usd').notNull(), // Added currency
     zoomCredentials: text('zoom_credentials', { mode: 'json' }), // Encrypted
+    mailchimpCredentials: text('mailchimp_credentials', { mode: 'json' }), // JSON: { apiKey, serverPrefix, listId }
+    zapierCredentials: text('zapier_credentials', { mode: 'json' }), // JSON: { webhookUrl, apiKey }
+    googleCredentials: text('google_credentials', { mode: 'json' }), // JSON: { clientId, measurementId }
+    slackCredentials: text('slack_credentials', { mode: 'json' }), // JSON: { webhookUrl, botToken }
     status: text('status', { enum: ['active', 'paused', 'suspended'] }).default('active').notNull(),
     tier: text('tier', { enum: ['basic', 'growth', 'scale'] }).default('basic').notNull(),
     subscriptionStatus: text('subscription_status', { enum: ['active', 'past_due', 'canceled', 'trialing'] }).default('active').notNull(),

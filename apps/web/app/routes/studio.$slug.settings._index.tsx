@@ -775,7 +775,6 @@ export default function StudioSettings() {
                             const zoomClientSecret = formData.get("zoomClientSecret");
                             try {
                                 const token = await (window as any).Clerk?.session?.getToken();
-                                // Using unified endpoint now
                                 await apiRequest(`/studios/${tenant.id}/integrations`, token, {
                                     method: 'PUT',
                                     body: JSON.stringify({ zoomAccountId, zoomClientId, zoomClientSecret })
@@ -790,6 +789,132 @@ export default function StudioSettings() {
                             <div className="md:col-span-3">
                                 <button type="submit" className="text-xs bg-white border border-zinc-300 hover:bg-zinc-50 px-3 py-2 rounded font-medium">Save Zoom Config</button>
                             </div>
+                        </form>
+                    </div>
+
+                    {/* 5. Mailchimp */}
+                    <div className="pt-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                <Mail className="h-4 w-4" /> Mailchimp (Newsletter)
+                            </h3>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(tenant.mailchimpCredentials as any)?.apiKey ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
+                                {(tenant.mailchimpCredentials as any)?.apiKey ? 'Configured' : 'Not Configured'}
+                            </span>
+                        </div>
+                        <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            const formData = new FormData(e.currentTarget);
+                            const mailchimpApiKey = formData.get("mailchimpApiKey");
+                            const mailchimpServerPrefix = formData.get("mailchimpServerPrefix");
+                            const mailchimpListId = formData.get("mailchimpListId");
+                            try {
+                                const token = await (window as any).Clerk?.session?.getToken();
+                                await apiRequest(`/studios/${tenant.id}/integrations`, token, {
+                                    method: 'PUT',
+                                    body: JSON.stringify({ mailchimpApiKey, mailchimpServerPrefix, mailchimpListId })
+                                });
+                                alert("Mailchimp configuration saved.");
+                                window.location.reload();
+                            } catch (err: any) { alert(err.message); }
+                        }} className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <input name="mailchimpApiKey" type="password" placeholder="API Key" className="text-sm border-zinc-300 rounded px-3 py-2" />
+                            <input name="mailchimpServerPrefix" placeholder="Server (e.g. us1)" className="text-sm border-zinc-300 rounded px-3 py-2" defaultValue={(tenant.mailchimpCredentials as any)?.serverPrefix || ''} />
+                            <input name="mailchimpListId" placeholder="Audience ID" className="text-sm border-zinc-300 rounded px-3 py-2" defaultValue={(tenant.mailchimpCredentials as any)?.listId || ''} />
+                            <div className="md:col-span-3">
+                                <button type="submit" className="text-xs bg-white border border-zinc-300 hover:bg-zinc-50 px-3 py-2 rounded font-medium">Save Mailchimp</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    {/* 6. Zapier */}
+                    <div className="pt-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                <Code className="h-4 w-4" /> Zapier (Automation)
+                            </h3>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(tenant.zapierCredentials as any)?.webhookUrl ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
+                                {(tenant.zapierCredentials as any)?.webhookUrl ? 'Active' : 'Not Configured'}
+                            </span>
+                        </div>
+                        <p className="text-xs text-zinc-500 mb-2">Send events to a Zapier Webhook URL.</p>
+                        <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            const formData = new FormData(e.currentTarget);
+                            const zapierWebhookUrl = formData.get("zapierWebhookUrl");
+                            const zapierApiKey = formData.get("zapierApiKey");
+                            try {
+                                const token = await (window as any).Clerk?.session?.getToken();
+                                await apiRequest(`/studios/${tenant.id}/integrations`, token, {
+                                    method: 'PUT',
+                                    body: JSON.stringify({ zapierWebhookUrl, zapierApiKey })
+                                });
+                                alert("Zapier configuration saved.");
+                                window.location.reload();
+                            } catch (err: any) { alert(err.message); }
+                        }} className="space-y-3">
+                            <input name="zapierWebhookUrl" placeholder="Webhook URL (https://hooks.zapier.com/...)" className="w-full text-sm border-zinc-300 rounded px-3 py-2" defaultValue={(tenant.zapierCredentials as any)?.webhookUrl || ''} />
+                            <input name="zapierApiKey" type="password" placeholder="API Key (Optional authentication)" className="w-full text-sm border-zinc-300 rounded px-3 py-2" />
+                            <button type="submit" className="text-xs bg-white border border-zinc-300 hover:bg-zinc-50 px-3 py-2 rounded font-medium">Save Zapier Config</button>
+                        </form>
+                    </div>
+
+                    {/* 7. Google Analytics */}
+                    <div className="pt-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                <Globe className="h-4 w-4" /> Google Analytics
+                            </h3>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(tenant.googleCredentials as any)?.measurementId ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
+                                {(tenant.googleCredentials as any)?.measurementId ? 'Active' : 'Not Configured'}
+                            </span>
+                        </div>
+                        <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            const formData = new FormData(e.currentTarget);
+                            const googleMeasurementId = formData.get("googleMeasurementId");
+                            try {
+                                const token = await (window as any).Clerk?.session?.getToken();
+                                await apiRequest(`/studios/${tenant.id}/integrations`, token, {
+                                    method: 'PUT',
+                                    body: JSON.stringify({ googleMeasurementId })
+                                });
+                                alert("Google Analytics saved.");
+                                window.location.reload();
+                            } catch (err: any) { alert(err.message); }
+                        }} className="flex gap-2">
+                            <input name="googleMeasurementId" placeholder="Measurement ID (G-XXXXXXXXXX)" className="flex-1 text-sm border-zinc-300 rounded px-3 py-2" defaultValue={(tenant.googleCredentials as any)?.measurementId || ''} />
+                            <button type="submit" className="text-xs bg-white border border-zinc-300 hover:bg-zinc-50 px-3 py-2 rounded font-medium">Save ID</button>
+                        </form>
+                    </div>
+
+                    {/* 8. Slack */}
+                    <div className="pt-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                <MessageSquare className="h-4 w-4" /> Slack (Internal Team)
+                            </h3>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(tenant.slackCredentials as any)?.webhookUrl ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
+                                {(tenant.slackCredentials as any)?.webhookUrl ? 'Active' : 'Not Configured'}
+                            </span>
+                        </div>
+                        <p className="text-xs text-zinc-500 mb-2">Send staff notifications to a Slack Webhook.</p>
+                        <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            const formData = new FormData(e.currentTarget);
+                            const slackWebhookUrl = formData.get("slackWebhookUrl");
+                            try {
+                                const token = await (window as any).Clerk?.session?.getToken();
+                                await apiRequest(`/studios/${tenant.id}/integrations`, token, {
+                                    method: 'PUT',
+                                    body: JSON.stringify({ slackWebhookUrl })
+                                });
+                                alert("Slack configuration saved.");
+                                window.location.reload();
+                            } catch (err: any) { alert(err.message); }
+                        }} className="flex gap-2">
+                            <input name="slackWebhookUrl" placeholder="Webhook URL" className="flex-1 text-sm border-zinc-300 rounded px-3 py-2" defaultValue={(tenant.slackCredentials as any)?.webhookUrl || ''} />
+                            <button type="submit" className="text-xs bg-white border border-zinc-300 hover:bg-zinc-50 px-3 py-2 rounded font-medium">Save Slack</button>
                         </form>
                     </div>
 

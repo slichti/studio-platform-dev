@@ -63,9 +63,10 @@ export const loader = async (args: LoaderFunctionArgs) => {
     }
 
     try {
-        const tenantInfo: any = await apiRequest(`/tenant/info`, token, {
-            headers: { 'X-Tenant-Slug': slug }
-        });
+        const [tenantInfo, me] = await Promise.all([
+            apiRequest(`/tenant/info`, token, { headers: { 'X-Tenant-Slug': slug } }) as Promise<any>,
+            apiRequest(`/tenant/me`, token, { headers: { 'X-Tenant-Slug': slug } })
+        ]);
 
         // Fetch My Role in this specific tenant
         if (tenantInfo.error) {
@@ -78,10 +79,6 @@ export const loader = async (args: LoaderFunctionArgs) => {
         if (tenantInfo.status === 'suspended') {
             throw new Response("This studio has been suspended by the platform administrator.", { status: 403 });
         }
-
-        const me = await apiRequest(`/tenant/me`, token, {
-            headers: { 'X-Tenant-Slug': slug }
-        });
 
         return {
             slug: params.slug,
@@ -110,7 +107,7 @@ export default function StudioLayout() {
             {/* Sidebar */}
             <aside className="w-64 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col fixed inset-y-0 z-20 transition-colors duration-300">
                 <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-                    <Link to={`/studio/${slug}`} className="flex items-center gap-2 group">
+                    <Link to={`/studio/${slug}`} prefetch="intent" className="flex items-center gap-2 group">
                         <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold group-hover:scale-105 transition-transform">
                             {tenant.name.substring(0, 1)}
                         </div>
@@ -267,6 +264,7 @@ function NavItem({ to, children, icon, end }: { to: string, children: React.Reac
         <NavLink
             to={to}
             end={end}
+            prefetch="intent"
             className={({ isActive }: { isActive: boolean }) =>
                 `block px-3 py-2 rounded-lg text-sm transition-colors mb-0.5 flex items-center gap-3 ${isActive
                     ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium'

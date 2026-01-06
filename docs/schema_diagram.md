@@ -16,6 +16,10 @@ erDiagram
         string stripe_account_id
         string currency
         string status
+        json mailchimp_credentials
+        json zapier_credentials
+        json google_credentials
+        json slack_credentials
     }
     tenant_members {
         string id PK

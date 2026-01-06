@@ -161,6 +161,49 @@ app.put('/:id/integrations', async (c) => {
         };
     }
 
+    // 5. Mailchimp Configuration
+    const { mailchimpApiKey, mailchimpServerPrefix, mailchimpListId } = body;
+    if (mailchimpApiKey && mailchimpServerPrefix && mailchimpListId) {
+        const encryptedKey = await encryption.encrypt(mailchimpApiKey);
+        updateData.mailchimpCredentials = {
+            apiKey: encryptedKey,
+            serverPrefix: mailchimpServerPrefix,
+            listId: mailchimpListId
+        };
+    }
+
+    // 6. Zapier Configuration
+    const { zapierWebhookUrl, zapierApiKey } = body;
+    if (zapierWebhookUrl || zapierApiKey) {
+        // Encrypt API key if present
+        let encryptedKey;
+        if (zapierApiKey) encryptedKey = await encryption.encrypt(zapierApiKey);
+        updateData.zapierCredentials = {
+            webhookUrl: zapierWebhookUrl,
+            apiKey: encryptedKey
+        };
+    }
+
+    // 7. Google Configuration
+    const { googleClientId, googleMeasurementId } = body;
+    if (googleClientId || googleMeasurementId) {
+        updateData.googleCredentials = {
+            clientId: googleClientId,
+            measurementId: googleMeasurementId
+        };
+    }
+
+    // 8. Slack Configuration
+    const { slackWebhookUrl, slackBotToken } = body;
+    if (slackWebhookUrl || slackBotToken) {
+        let encryptedToken;
+        if (slackBotToken) encryptedToken = await encryption.encrypt(slackBotToken);
+        updateData.slackCredentials = {
+            webhookUrl: slackWebhookUrl,
+            botToken: encryptedToken
+        };
+    }
+
     if (Object.keys(updateData).length === 0) {
         return c.json({ message: "No changes detected" });
     }
