@@ -81,7 +81,10 @@ export default function Index() {
                     {[
                         { title: "Class Scheduling", desc: "Easy to use calendar for managing all your classes and recurring sessions." },
                         { title: "Member Management", desc: "Track attendance, memberships, and payments for all your students." },
-                        { title: "Instructor Portal", desc: "Give your instructors access to their schedules and rosters." }
+                        { title: "Instructor Portal", desc: "Give your instructors access to their schedules and rosters." },
+                        { title: "Point of Sale", desc: "Integrated retail checkout with support for credit card terminals and inventory management." },
+                        { title: "Family Accounts", desc: "Link family members, share payment methods, and manage bookings for children." },
+                        { title: "Marketing CRM", desc: "Automated email campaigns, lead tracking, and retention tools to grow your studio." }
                     ].map((feature, i) => (
                         <div key={i} className="bg-white dark:bg-zinc-950 p-8 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition-shadow">
                             <h3 className="text-xl font-bold mb-3 text-zinc-900 dark:text-zinc-100">{feature.title}</h3>

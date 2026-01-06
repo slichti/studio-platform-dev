@@ -13,12 +13,15 @@ type Bindings = {
 
 
 import { authMiddleware } from '../middleware/auth';
+import tenantFeaturesRouter from './admin.features';
 
 type Variables = {
     auth: { userId: string; claims: any };
 };
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
+
+app.route('/', tenantFeaturesRouter); // Mounts /tenants/:id/features endpoints (admin.features has /tenants/:id/features paths)
 
 // Protect all admin routes
 app.use('*', authMiddleware);
