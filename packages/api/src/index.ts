@@ -188,10 +188,7 @@ studioPaths.forEach(path => app.use(path, tenantMiddleware));
 const studioApp = new Hono<{ Bindings: Bindings, Variables: Variables }>()
 
 // 5. Setup Feature Route sub-apps (will be mounted in next step)
-const publicStudioApp = new Hono<{ Bindings: Bindings, Variables: Variables }>()
-publicStudioApp.route('/classes', classRoutes);
-publicStudioApp.route('/commerce', commerce);
-publicStudioApp.route('/gift-cards', giftCards);
+// 5. Setup Feature Route sub-apps (will be mounted in next step)
 app.route('/studios', studioRoutes);
 
 // 6. Base Studio Logic

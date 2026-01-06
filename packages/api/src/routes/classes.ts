@@ -80,10 +80,12 @@ app.get('/', async (c) => {
                     }
                 }
             },
+            /*
             substitutions: {
                 orderBy: (substitutions, { desc }) => [desc(substitutions.createdAt)],
                 limit: 1
             }
+            */
         },
         orderBy: (classes, { asc }) => [asc(classes.startTime)]
     });
