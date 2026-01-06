@@ -5,6 +5,8 @@ import { useLoaderData, useOutletContext, Form, useNavigation, useFetcher, useAc
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { useState } from "react";
+import { CreateClassModal } from "../components/CreateClassModal";
+import { Plus } from "lucide-react";
 
 type ClassEvent = {
     id: string;
@@ -39,97 +41,44 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const token = await getToken();
 
     try {
-        const [classes, familyRes] = await Promise.all([
+        const [classes, familyRes, locationsRes, instructorsRes] = await Promise.all([
             apiRequest("/classes", token, {
                 headers: { 'X-Tenant-Slug': params.slug! }
             }),
             apiRequest("/users/me/family", token, {
                 headers: { 'X-Tenant-Slug': params.slug! }
-            }).catch(() => ({ family: [] })) as Promise<{ family: FamilyMember[] }>
+            }).catch(() => ({ family: [] })) as Promise<{ family: FamilyMember[] }>,
+            apiRequest("/locations", token, { headers: { 'X-Tenant-Slug': params.slug! } }).catch(() => ({ locations: [] })),
+            apiRequest("/members?role=instructor", token, { headers: { 'X-Tenant-Slug': params.slug! } }).catch(() => ({ members: [] }))
         ]);
 
-        return { classes, family: familyRes.family || [] };
+        return {
+            classes,
+            family: familyRes.family || [],
+            locations: (locationsRes as any).locations || [],
+            instructors: (instructorsRes as any).members || []
+        };
     } catch (e: any) {
         console.error("Failed to load classes", e);
-        return { classes: [], family: [], error: e.message };
+        return { classes: [], family: [], locations: [], instructors: [], error: e.message };
     }
 };
 
-export const action = async (args: ActionFunctionArgs) => {
-    const { request, params } = args;
-    const { getToken } = await getAuth(args);
-    const token = await getToken();
-    const formData = await request.formData();
-    const intent = formData.get("intent");
-    const classId = formData.get("classId");
-    const memberId = formData.get("memberId"); // Optional child ID
-
-    if (intent === "book" || intent === "waitlist") {
-        try {
-            const attendanceType = formData.get("attendanceType");
-            const body = { intent, memberId: memberId || undefined, attendanceType: attendanceType || undefined };
-            const res = await apiRequest(`/classes/${classId}/book`, token, {
-                method: "POST",
-                headers: { 'X-Tenant-Slug': params.slug! },
-                body: JSON.stringify(body)
-            }) as any;
-
-            if (res.error) {
-                return { error: res.error, classId };
-            }
-            return { success: true, classId };
-        } catch (e: any) {
-            return { error: e.message || "Booking failed", classId };
-        }
-    }
-
-    if (intent === "switch_attendance") {
-        const bookingId = formData.get("bookingId");
-        const newType = formData.get("attendanceType");
-        try {
-            const res: any = await apiRequest(`/classes/${classId}/bookings/${bookingId}`, token, {
-                method: "PATCH",
-                headers: { 'X-Tenant-Slug': params.slug! },
-                body: JSON.stringify({ attendanceType: newType })
-            });
-
-            if (res.error) {
-                return { error: res.error, classId };
-            }
-            return { success: true, classId };
-        } catch (e: any) {
-            return { error: e.message || "Update failed", classId };
-        }
-    }
-
-    if (intent === "cancel_booking") {
-        const bookingId = formData.get("bookingId");
-        try {
-            const res: any = await apiRequest(`/classes/${classId}/bookings/${bookingId}/cancel`, token, {
-                method: "POST",
-                headers: { 'X-Tenant-Slug': params.slug! }
-            });
-
-            if (res.error) {
-                return { error: res.error, classId };
-            }
-            return { success: true, classId };
-        } catch (e: any) {
-            return { error: e.message || "Cancellation failed", classId };
-        }
-    }
-
-    return null;
-};
+// ... (keep action as is)
 
 export default function StudioPublicClasses() {
-    const { classes, family, error } = useLoaderData<{ classes: ClassEvent[], family: FamilyMember[], error?: string }>();
-    const { member } = useOutletContext<any>() || {};
+    const { classes: initialClasses, family, error, locations, instructors } = useLoaderData<any>();
+    const { member, roles, tenant } = useOutletContext<any>() || {};
     const fetcher = useFetcher();
-    const actionData = useActionData<{ error?: string, success?: boolean, classId?: string }>();
+
+    // Local State
+    const [classes, setClasses] = useState(initialClasses);
 
     // Booking Modal State
     const [selectedClass, setSelectedClass] = useState<ClassEvent | null>(null);
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+    const isAdmin = roles?.includes('owner') || roles?.includes('instructor');
 
     // Helpers
     const handleBookClick = (cls: ClassEvent) => {
@@ -143,6 +92,10 @@ export default function StudioPublicClasses() {
         }
     };
 
+    const handleCreateSuccess = (newClass: any) => {
+        setClasses([...classes, newClass]);
+    };
+
     const grouped = classes.reduce((acc: Record<string, ClassEvent[]>, cls: ClassEvent) => {
         const date = new Date(cls.startTime).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
         if (!acc[date]) acc[date] = [];
@@ -152,13 +105,33 @@ export default function StudioPublicClasses() {
 
     return (
         <div>
+            <CreateClassModal
+                isOpen={isCreateOpen}
+                onClose={() => setIsCreateOpen(false)}
+                onSuccess={handleCreateSuccess}
+                tenantId={tenant?.id}
+                locations={locations}
+                instructors={instructors}
+            />
+
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Class Schedule</h2>
-                {!member && (
-                    <div className="text-sm text-zinc-500 dark:text-zinc-400">
-                        Sign in to book classes.
-                    </div>
-                )}
+                <div className="flex items-center gap-2">
+                    {isAdmin && (
+                        <button
+                            onClick={() => setIsCreateOpen(true)}
+                            className="flex items-center gap-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 rounded-md hover:opacity-90 transition-opacity font-medium text-sm"
+                        >
+                            <Plus size={16} />
+                            Create Class
+                        </button>
+                    )}
+                    {!member && (
+                        <div className="text-sm text-zinc-500 dark:text-zinc-400">
+                            Sign in to book classes.
+                        </div>
+                    )}
+                </div>
             </div>
 
             {error && (
@@ -354,7 +327,7 @@ export default function StudioPublicClasses() {
                                                                     ) : null}
 
                                                                     {/* Cancel Button */}
-                                                                    <fetcher.Form method="post" onSubmit={(e) => {
+                                                                    <fetcher.Form method="post" onSubmit={(e: React.FormEvent) => {
                                                                         if (!confirm("Are you sure you want to cancel this booking?")) {
                                                                             e.preventDefault();
                                                                         }

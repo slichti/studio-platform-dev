@@ -292,4 +292,43 @@ app.patch('/:id', async (c) => {
     return c.json({ success: true });
 });
 
+// POST /:id/resend - Resend gift card email
+app.post('/:id/resend', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    const id = c.req.param('id');
+
+    // Only owners/instructors can resend, OR the buyer? simpler to restrict to admin for now.
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
+
+    const card = await db.query.giftCards.findFirst({
+        where: and(eq(giftCards.id, id), eq(giftCards.tenantId, tenant.id))
+    });
+
+    if (!card) return c.json({ error: 'Gift card not found' }, 404);
+    if (!card.recipientEmail) return c.json({ error: 'No recipient email on file' }, 400);
+
+    try {
+        const emailService = new EmailService(c.env.RESEND_API_KEY, tenant as any);
+        await emailService.sendGenericEmail(
+            card.recipientEmail,
+            `Resent: You've received a Gift Card from ${tenant.name}!`,
+            `
+                <h1>You've got credit!</h1>
+                <p>Here is a $${(card.initialValue / 100).toFixed(2)} gift card for <strong>${tenant.name}</strong>.</p>
+                <p>Use this code at checkout:</p>
+                <h2 style="background: #f4f4f5; padding: 10px; border-radius: 8px; display: inline-block;">${card.code}</h2>
+                ${card.notes ? `<p><strong>Note:</strong> ${card.notes}</p>` : ''}
+                <p><a href="https://${tenant.slug}.studio.platform/shop">Visit Store</a></p>
+            `
+        );
+        return c.json({ success: true });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
 export default app;

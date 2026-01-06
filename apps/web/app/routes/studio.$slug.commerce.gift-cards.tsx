@@ -103,6 +103,23 @@ export default function GiftCardsPage() {
         } catch (e: any) { alert(e.message); } finally { setLoading(false); }
     };
 
+    const handleResend = async (cardId: string) => {
+        if (!confirm("Resend the gift card email to the recipient?")) return;
+        setLoading(true);
+        try {
+            const res: any = await apiRequest(`/gift-cards/${cardId}/resend`, token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': slug! }
+            });
+            if (res.error) throw new Error(res.error);
+            alert("Email resent successfully!");
+        } catch (e: any) {
+            alert(e.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleLinkCard = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -164,7 +181,7 @@ export default function GiftCardsPage() {
         if (claimCode) {
             setLinkCode(claimCode.toUpperCase());
             setShowLinkModal(true);
-            setSearchParams(params => {
+            setSearchParams((params: URLSearchParams) => {
                 params.delete('claimCode');
                 return params;
             });
@@ -297,8 +314,8 @@ export default function GiftCardsPage() {
                                                                         <button onClick={() => { setActiveMenuId(null); toggleHistory(card.id); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2">
                                                                             <History size={14} /> View History
                                                                         </button>
-                                                                        <button onClick={() => { setActiveMenuId(null); /* Implement Resend Logic */ alert("Resend feature coming soon"); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2">
-                                                                            <Mail size={14} /> Resend Email
+                                                                        <button onClick={() => { setActiveMenuId(null); handleResend(card.id); }} disabled={loading} className="w-full text-left px-4 py-2.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2">
+                                                                            <Mail size={14} /> {loading ? "Sending..." : "Resend Email"}
                                                                         </button>
                                                                         <button onClick={() => { setActiveMenuId(null); /* Implement Void Logic */ alert("Void feature coming soon"); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 text-red-600 flex items-center gap-2 border-t border-zinc-100 dark:border-zinc-800">
                                                                             <Ban size={14} /> Void Card
