@@ -156,6 +156,24 @@ app.post('/orders', async (c) => {
             await db.run(sql`UPDATE products SET stock_quantity = stock_quantity - ${item.quantity} WHERE id = ${item.productId} AND tenant_id = ${tenant.id}`);
         }
 
+        // --- Webhook Dispatch ---
+        try {
+            const { WebhookService } = await import('../services/webhooks');
+            const hook = new WebhookService(db);
+            c.executionCtx.waitUntil(hook.dispatch(tenant.id, 'order.completed', {
+                orderId: orderId,
+                total: totalAmount,
+                memberId: staff?.id,
+                items: items.map((i: any) => ({
+                    productId: i.productId,
+                    quantity: i.quantity,
+                    price: i.unitPrice
+                }))
+            }));
+        } catch (e) {
+            console.error("Webhook dispatch failed", e);
+        }
+
         return c.json({ success: true, orderId });
     } catch (e: any) {
         console.error("POS Order Failed:", e);

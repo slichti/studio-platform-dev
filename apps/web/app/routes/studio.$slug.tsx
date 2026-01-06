@@ -29,7 +29,8 @@ import {
     BarChart3,
     Search,
     Award,
-    Code
+    Code,
+    Terminal
 } from "lucide-react";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { CommandBar } from "../components/CommandBar";
@@ -180,6 +181,7 @@ export default function StudioLayout() {
                         <NavItem to="finances" end icon={<DollarSign size={18} />}>Finances</NavItem>
                         <NavItem to="discounts" icon={<Tag size={18} />}>Discounts</NavItem>
                         <NavItem to="settings/embeds" icon={<Code size={18} />}>Website Widgets</NavItem>
+                        <NavItem to="settings/developers" icon={<Terminal size={18} />}>Developers</NavItem>
                         <NavItem to="settings" end icon={<Settings size={18} />}>Settings</NavItem>
                     </SidebarGroup>
 

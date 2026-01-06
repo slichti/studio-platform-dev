@@ -263,4 +263,121 @@ app.post('/projection', async (c) => {
     });
 });
 
+
+// --- Accounting Exports ---
+// GET /accounting/journal (Daily Sales Journal)
+app.get('/accounting/journal', async (c) => {
+    const tenant = c.get('tenant');
+    const db = createDb(c.env.DB);
+    const { startDate, endDate, format } = c.req.query();
+
+    // Default to current month
+    const now = new Date();
+    const start = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = endDate ? new Date(endDate) : now;
+
+    const { posOrders, purchasedPacks, classPackDefinitions } = await import('db/src/schema');
+    const { and, eq, gte, lte } = await import('drizzle-orm');
+
+    // 1. Fetch POS Orders (Goods/Services)
+    const orders = await db.select({
+        id: posOrders.id,
+        date: posOrders.createdAt,
+        total: posOrders.totalAmount,
+        tax: posOrders.taxAmount,
+    }).from(posOrders)
+        .where(and(
+            eq(posOrders.tenantId, tenant.id),
+            gte(posOrders.createdAt, start),
+            lte(posOrders.createdAt, end),
+            eq(posOrders.status, 'completed')
+        )).all();
+
+    // 2. Fetch Pack Purchases (Credits)
+    const packs = await db.select({
+        id: purchasedPacks.id,
+        date: purchasedPacks.createdAt,
+        name: classPackDefinitions.name,
+        total: purchasedPacks.price
+    }).from(purchasedPacks)
+        .innerJoin(classPackDefinitions, eq(purchasedPacks.packDefinitionId, classPackDefinitions.id))
+        .where(and(
+            eq(purchasedPacks.tenantId, tenant.id),
+            gte(purchasedPacks.createdAt, start),
+            lte(purchasedPacks.createdAt, end)
+        )).all();
+
+    // 3. Transform to Journal Entries
+    const journal: any[] = [];
+
+    // POS Revenue
+    for (const o of orders) {
+        // Credit Sales (Revenue)
+        journal.push({
+            date: o.date ? new Date(o.date).toISOString().split('T')[0] : '',
+            description: `POS Order #${o.id.slice(0, 8)}`,
+            account: 'Revenue: Sales',
+            debit: 0,
+            credit: (o.total - (o.tax || 0)) / 100, // Net Sales
+            currency: tenant.currency
+        });
+
+        // Credit Tax (Liability)
+        if (o.tax && o.tax > 0) {
+            journal.push({
+                date: o.date ? new Date(o.date).toISOString().split('T')[0] : '',
+                description: `Tax on Order #${o.id.slice(0, 8)}`,
+                account: 'Liability: Sales Tax',
+                debit: 0,
+                credit: o.tax / 100,
+                currency: tenant.currency
+            });
+        }
+
+        // Debit Cash/Bank (Asset)
+        journal.push({
+            date: o.date ? new Date(o.date).toISOString().split('T')[0] : '',
+            description: `Payment for Order #${o.id.slice(0, 8)}`,
+            account: 'Assets: Stripe Clearing', // Assuming generic
+            debit: o.total / 100,
+            credit: 0,
+            currency: tenant.currency
+        });
+    }
+
+    // Pack Revenue
+    for (const p of packs) {
+        journal.push({
+            date: p.date ? new Date(p.date).toISOString().split('T')[0] : '',
+            description: `Class Pack: ${p.name}`,
+            account: 'Revenue: Class Packs',
+            debit: 0,
+            credit: (p.total || 0) / 100,
+            currency: tenant.currency
+        });
+
+        journal.push({
+            date: p.date ? new Date(p.date).toISOString().split('T')[0] : '',
+            description: `Payment for Pack ${p.name}`,
+            account: 'Assets: Stripe Clearing',
+            debit: (p.total || 0) / 100,
+            credit: 0,
+            currency: tenant.currency
+        });
+    }
+
+    if (format === 'csv') {
+        const headers = "Date,Description,Account,Debit,Credit,Currency\n";
+        const rows = journal.map(j =>
+            `${j.date},"${j.description}","${j.account}",${j.debit},${j.credit},${j.currency}`
+        ).join("\n");
+        return c.text(headers + rows);
+    }
+
+    return c.json({
+        period: { start, end },
+        journal
+    });
+});
+
 export default app;

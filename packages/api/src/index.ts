@@ -34,6 +34,7 @@ import platform from './routes/platform';
 import reports from './routes/reports';
 import challenges from './routes/challenges';
 import jobs from './routes/jobs';
+import tenantIntegrations from './routes/tenant-integrations';
 
 type Bindings = {
   DB: D1Database;
@@ -145,7 +146,9 @@ const studioPaths = [
   '/commerce', '/commerce/*',
   '/gift-cards', '/gift-cards/*',
   '/refunds', '/refunds/*',
-  '/platform', '/platform/*'
+  '/refunds', '/refunds/*',
+  '/platform', '/platform/*',
+  '/integrations', '/integrations/*'
 ];
 
 const authenticatedPaths = [
@@ -162,7 +165,8 @@ const authenticatedPaths = [
   '/uploads', '/uploads/*',
   '/refunds', '/refunds/*',
   '/platform', '/platform/*',
-  '/tenant', '/tenant/*'
+  '/tenant', '/tenant/*',
+  '/integrations', '/integrations/*'
 ];
 
 const publicStudioPaths = [
@@ -442,6 +446,7 @@ app.route('/admin', admin);
 app.route('/onboarding', onboarding);
 app.route('/import', dataImport);
 app.route('/webhooks', webhookRoutes);
+app.route('/integrations', tenantIntegrations);
 
 import { scheduled } from './cron';
 

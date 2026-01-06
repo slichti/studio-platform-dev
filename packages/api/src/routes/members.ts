@@ -206,6 +206,25 @@ app.post('/', async (c) => {
         }
     }
 
+    // --- Webhook Dispatch ---
+    try {
+        if (newMember) {
+            const { WebhookService } = await import('../services/webhooks');
+            const hook = new WebhookService(db);
+            const userProfile = newMember.user?.profile as any || {};
+            c.executionCtx.waitUntil(hook.dispatch(tenant.id, 'student.created', {
+                memberId: newMember.id,
+                userId: newMember.user?.id,
+                email: newMember.user?.email,
+                firstName: userProfile.firstName,
+                lastName: userProfile.lastName,
+                joinedAt: newMember.joinedAt
+            }));
+        }
+    } catch (e) {
+        console.error("Webhook dispatch failed", e);
+    }
+
     return c.json({ success: true, member: newMember });
 });
 

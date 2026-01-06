@@ -1005,3 +1005,18 @@ export const refundsRelations = relations(refunds, ({ one }) => ({
         references: [tenantMembers.id],
     }),
 }));
+
+// --- Integrations: Webhooks ---
+export const webhookEndpoints = sqliteTable('webhook_endpoints', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    url: text('url').notNull(),
+    secret: text('secret').notNull(), // Shared secret for HMAC signing
+    events: text('events', { mode: 'json' }).notNull(), // Array of event strings
+    isActive: integer('is_active', { mode: 'boolean' }).default(true).notNull(),
+    description: text('description'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('webhook_tenant_idx').on(table.tenantId),
+}));
