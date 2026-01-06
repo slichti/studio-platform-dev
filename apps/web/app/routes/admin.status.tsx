@@ -1,4 +1,28 @@
+// @ts-ignore
+import { useLoaderData } from "react-router";
+// @ts-ignore
+import type { LoaderFunctionArgs } from "react-router";
+import { getAuth } from "@clerk/react-router/server";
+import { apiRequest } from "../utils/api";
+
+export const loader = async (args: LoaderFunctionArgs) => {
+    const { getToken } = await getAuth(args);
+    const token = await getToken();
+    const env = (args.context as any).cloudflare?.env || (args.context as any).env || {};
+    const apiUrl = env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev";
+
+    try {
+        const stats = await apiRequest("/stats/health", token, {}, apiUrl);
+        return { stats, error: null };
+    } catch (e: any) {
+        return { stats: null, error: e.message || "Failed to load status" };
+    }
+};
+
 export default function AdminStatus() {
+    const { stats } = useLoaderData<any>();
+    const services = stats?.services || {};
+
     return (
         <div>
             <h2 className="text-2xl font-bold mb-6">System Status</h2>
@@ -7,10 +31,20 @@ export default function AdminStatus() {
                 <div className="bg-white p-6 rounded-lg border border-zinc-200 shadow-sm">
                     <h3 className="font-semibold text-lg mb-4">Core Services</h3>
                     <div className="space-y-4">
-                        <StatusItem name="Database (D1)" status="operational" />
+                        <StatusItem name="Database (D1)" status={services.database ? 'operational' : 'degraded'} />
                         <StatusItem name="Authentication (Clerk)" status="operational" />
                         <StatusItem name="Storage (R2)" status="operational" />
                         <StatusItem name="CDN (Cloudflare)" status="operational" />
+                        <StatusItem
+                            name="Emails (Resend)"
+                            status={services.resend ? 'operational' : 'pending_config'}
+                            label={services.resend ? 'Operational' : 'Missing API Key'}
+                        />
+                        <StatusItem
+                            name="SMS (Twilio)"
+                            status={services.twilio ? 'operational' : 'pending_config'}
+                            label={services.twilio ? 'Operational' : 'Missing Credentials'}
+                        />
                         <StatusItem name="Payments (Stripe)" status="pending_config" label="Not Configured" />
                     </div>
                 </div>
@@ -45,7 +79,7 @@ function StatusItem({ name, status, label }: { name: string, status: 'operationa
         pending_config: 'bg-zinc-300'
     };
 
-    const labels = {
+    const labels: any = {
         operational: 'Operational',
         degraded: 'Degraded',
         down: 'Down',

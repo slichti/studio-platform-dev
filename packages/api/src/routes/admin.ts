@@ -6,6 +6,8 @@ import { eq, sql, desc, count } from 'drizzle-orm';
 type Bindings = {
     DB: D1Database;
     CLERK_SECRET_KEY?: string; // Optional
+    RESEND_API_KEY?: string;
+    TWILIO_ACCOUNT_SID?: string;
 };
 
 
@@ -252,6 +254,51 @@ app.put('/users/:id', async (c) => {
         actorId: auth.userId,
         targetId: userId,
         details: { isSystemAdmin: !!isSystemAdmin },
+        ipAddress: c.req.header('CF-Connecting-IP')
+    });
+
+    return c.json({ success: true });
+});
+
+// DELETE /users/:id - Delete user (Hard Delete)
+app.delete('/users/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const { users, tenantMembers, tenantRoles, auditLogs } = await import('db/src/schema');
+    const { eq } = await import('drizzle-orm');
+    const auth = c.get('auth');
+    const userId = c.req.param('id');
+
+    // Prevent self-deletion
+    if (userId === auth.userId) {
+        return c.json({ error: "Cannot delete yourself" }, 400);
+    }
+
+    // Manual cleanup of related constraints
+    // 1. Get all memberships
+    const members = await db.select({ id: tenantMembers.id }).from(tenantMembers).where(eq(tenantMembers.userId, userId)).all();
+
+    // 2. Delete roles for those members
+    for (const m of members) {
+        await db.delete(tenantRoles).where(eq(tenantRoles.memberId, m.id)).run();
+    }
+
+    // 3. Delete memberships
+    await db.delete(tenantMembers).where(eq(tenantMembers.userId, userId)).run();
+
+    // 4. Delete user
+    const res = await db.delete(users).where(eq(users.id, userId)).run();
+
+    if (!res.meta.changes) {
+        return c.json({ error: "User not found" }, 404);
+    }
+
+    // Audit Log
+    await db.insert(auditLogs).values({
+        id: crypto.randomUUID(),
+        action: 'delete_user_admin',
+        actorId: auth.userId,
+        targetId: userId,
+        details: { deleted: true },
         ipAddress: c.req.header('CF-Connecting-IP')
     });
 
@@ -590,7 +637,12 @@ app.get('/stats/health', async (c) => {
         totalUsers: uCount?.count || 0,
         recentErrors: 0,
         dbLatencyMs: 0, // dbLatency,
-        status: 'healthy' // dbLatency < 300 ? 'healthy' : 'degraded'
+        status: 'healthy', // dbLatency < 300 ? 'healthy' : 'degraded'
+        services: {
+            resend: !!c.env.RESEND_API_KEY,
+            twilio: !!c.env.TWILIO_ACCOUNT_SID,
+            database: true
+        }
     });
 });
 

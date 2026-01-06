@@ -390,7 +390,7 @@ export default function AdminTenants() {
                                     <td className="px-6 py-4">
                                         <div className="flex gap-4 justify-center">
                                             <div className="flex flex-col items-center" title="Storage GB">
-                                                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">Sto</span>
+                                                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">Storage</span>
                                                 <span className="text-xs font-bold text-zinc-700">{(t.storageUsage / (1024 * 1024 * 1024)).toFixed(1)}G</span>
                                             </div>
                                             <div className="flex flex-col items-center" title="VOD Minutes">
@@ -398,7 +398,7 @@ export default function AdminTenants() {
                                                 <span className="text-xs font-bold text-zinc-700">{t.streamingUsage || 0}m</span>
                                             </div>
                                             <div className="flex flex-col items-center" title="Emails">
-                                                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">Eml</span>
+                                                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">Email</span>
                                                 <span className="text-xs font-bold text-zinc-700">{t.emailUsage || 0}</span>
                                             </div>
                                         </div>

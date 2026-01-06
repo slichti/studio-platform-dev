@@ -197,6 +197,21 @@ export default function AdminUsers() {
         }
     };
 
+    const handleDeleteUser = async (user: any) => {
+        if (!confirm(`Are you sure you want to PERMANENTLY delete user ${user.email}? This cannot be undone.`)) return;
+
+        try {
+            const token = await getToken();
+            const res = await apiRequest(`/admin/users/${user.id}`, token, {
+                method: "DELETE"
+            }) as any;
+            if (res.error) throw new Error(res.error);
+            submit(searchParams);
+        } catch (e: any) {
+            setStatusDialog({ isOpen: true, type: 'error', message: e.message });
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -319,6 +334,7 @@ export default function AdminUsers() {
                             toggle={() => toggleUser(user.id)}
                             showCheckbox={true}
                             onImpersonate={() => handleImpersonate(user.id)}
+                            onDelete={() => handleDeleteUser(user)}
                         />
                     ))
                 )}
@@ -466,7 +482,7 @@ function ClientDateOnly({ date }: { date: string | Date }) {
     return <span>{formatted}</span>;
 }
 
-function UserRow({ user, selected, toggle, showCheckbox, contextRole, onImpersonate }: { user: any, selected: boolean, toggle: () => void, showCheckbox: boolean, contextRole?: string, onImpersonate?: () => void }) {
+function UserRow({ user, selected, toggle, showCheckbox, contextRole, onImpersonate, onDelete }: { user: any, selected: boolean, toggle: () => void, showCheckbox: boolean, contextRole?: string, onImpersonate?: () => void, onDelete?: () => void }) {
     // Correct display name for specific user as requested
     let displayName = `${user.profile?.firstName || ''} ${user.profile?.lastName || ''}`.trim();
     if (user.email === 'slichti@gmail.com' && displayName === 'System Admin') {
@@ -516,11 +532,17 @@ function UserRow({ user, selected, toggle, showCheckbox, contextRole, onImperson
                     {onImpersonate && !user.isSystemAdmin && (
                         <button onClick={onImpersonate} className="text-zinc-500 hover:text-zinc-900 text-sm font-medium flex items-center gap-1" title="Login As">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+
+                        </button>
+                    )}
+                    {onDelete && !user.isSystemAdmin && (
+                        <button onClick={onDelete} className="text-red-400 hover:text-red-700 text-sm font-medium flex items-center gap-1" title="Delete User">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                         </button>
                     )}
                     <Link to={`/admin/users/${user.id}`} className="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit</Link>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
