@@ -24,6 +24,14 @@ export function CardTitle({ children, className = "" }: { children: React.ReactN
     );
 }
 
+export function CardDescription({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+    return (
+        <p className={`text-sm text-zinc-500 ${className}`}>
+            {children}
+        </p>
+    );
+}
+
 export function CardContent({ children, className = "" }: { children: React.ReactNode; className?: string }) {
     return (
         <div className={`p-6 ${className}`}>
