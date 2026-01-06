@@ -165,6 +165,14 @@ app.post('/users', async (c) => {
 
     if (!email) return c.json({ error: "Email is required" }, 400);
 
+    const existingUser = await db.query.users.findFirst({
+        where: eq(users.email, email)
+    });
+
+    if (existingUser) {
+        return c.json({ error: "User with this email already exists" }, 409);
+    }
+
     const userId = crypto.randomUUID(); // In production, this would likely be a Clerk ID if syncing
 
     try {
