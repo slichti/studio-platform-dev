@@ -1,8 +1,11 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { marketingCampaigns, marketingAutomations, emailLogs, tenants, tenantMembers, users } from 'db/src/schema'; // Ensure these are exported from schema
+import { marketingCampaigns, marketingAutomations, emailLogs, tenants, tenantMembers, users, userRelationships } from 'db/src/schema'; // Ensure these are exported from schema
 import { eq, desc, and } from 'drizzle-orm';
 import { UsageService } from '../services/pricing';
+import { EmailService } from '../services/email';
+import { isFeatureEnabled } from '../utils/features';
+import { AutomationsService } from '../services/automations';
 
 type Bindings = {
     DB: D1Database;
@@ -98,7 +101,6 @@ app.post('/', async (c) => {
     // Optional: Logic for "Parents" (requires joining userRelationships)
     // If we wanted to target parents of little children...
     if (activeFilters.targetType === 'parents_of_minors') {
-        const { userRelationships } = await import('db/src/schema');
         const relations = await db.select().from(userRelationships).all();
         const parentIdsWithMinors = new Set(relations
             .filter(rel => rel.type === 'parent_child') // assuming childUserId is minor, or check profile
@@ -121,7 +123,6 @@ app.post('/', async (c) => {
     }
 
     // 3. "Send" Emails (Create Logs)
-    const { EmailService } = await import('../services/email');
     const emailService = new EmailService(c.env.RESEND_API_KEY, {
         branding: tenant.branding as any,
         settings: tenant.settings as any
@@ -211,7 +212,10 @@ app.get('/automations', async (c) => {
                 triggerType: type as any,
                 subject: defaultSubject,
                 content: defaultContent,
-                isEnabled: false
+                isEnabled: false,
+                delayHours: 0,
+                channels: ['email'],
+                couponConfig: null
             }).returning();
             existing.push(newAuto);
         }
@@ -227,11 +231,24 @@ app.patch('/automations/:id', async (c) => {
     const id = c.req.param('id');
     const body = await c.req.json();
 
-    const allowed = ['subject', 'content', 'isEnabled'];
+    const allowed = ['subject', 'content', 'isEnabled', 'delayHours', 'channels', 'couponConfig'];
     const updateData: any = {};
     for (const k of allowed) {
         if (body[k] !== undefined) updateData[k] = body[k];
     }
+
+    // Sanitize coupon config
+    if (body.couponConfig) {
+        if (!body.couponConfig.enabled) {
+            updateData.couponConfig = null;
+        } else {
+            // Keep the config but maybe remove 'enabled' key if schema doesn't care, 
+            // or just save it all. Drizzle json mode saves it all. 
+            // Let's strip 'enabled' to keep DB clean if we want, or keep it. Keeping it is fine.
+            updateData.couponConfig = body.couponConfig;
+        }
+    }
+
     updateData.updatedAt = new Date();
 
     const [updated] = await db.update(marketingAutomations)
@@ -257,7 +274,8 @@ app.post('/automations/:id/test', async (c) => {
 
     if (!automation) return c.json({ error: "Automation not found" }, 404);
 
-    const { EmailService } = await import('../services/email');
+    if (!automation) return c.json({ error: "Automation not found" }, 404);
+
     const emailService = new EmailService(c.env.RESEND_API_KEY, {
         branding: tenant.branding as any,
         settings: tenant.settings as any
@@ -279,7 +297,6 @@ app.post('/automations/:id/test', async (c) => {
 // POST /content/generate - AI Content Assistant
 app.post('/content/generate', async (c) => {
     const tenant = c.get('tenant');
-    const { isFeatureEnabled } = await import('../utils/features');
     if (!isFeatureEnabled(tenant, 'ai_content')) {
         return c.json({ error: "AI Content feature not enabled" }, 403);
     }
@@ -312,6 +329,25 @@ app.post('/content/generate', async (c) => {
     } catch (e: any) {
         return c.json({ error: "AI Generation failed: " + e.message }, 500);
     }
+
+
+});
+
+// Debug Endpoint: Trigger Automations Now
+app.post('/automations/trigger-debug', async (c) => {
+    const tenant = c.get('tenant');
+
+    // EmailService imported at top
+    const emailService = new EmailService(c.env.RESEND_API_KEY, {
+        branding: tenant.branding,
+        settings: tenant.settings
+    });
+
+    const service = new AutomationsService(createDb(c.env.DB), tenant.id, emailService);
+
+    await service.processTrialAutomations();
+
+    return c.json({ success: true, message: "Triggered automations check" });
 });
 
 export default app;

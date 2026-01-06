@@ -47,7 +47,14 @@ export default function MarketingPage() {
     // Automation State
     const [automations, setAutomations] = useState(initialAutomations || []);
     const [editingAuto, setEditingAuto] = useState<any>(null);
-    const [editForm, setEditForm] = useState({ subject: "", content: "", isEnabled: false });
+    const [editForm, setEditForm] = useState({
+        subject: "",
+        content: "",
+        isEnabled: false,
+        delayHours: 0,
+        channels: ['email'],
+        couponConfig: { enabled: false, type: 'percent', value: 20, validityDays: 7 }
+    });
     const [testEmail, setTestEmail] = useState("");
 
     async function handleSendBroadcast(e: React.FormEvent) {
@@ -316,6 +323,7 @@ export default function MarketingPage() {
                                                 )}
                                             </div>
                                             <p className="text-sm text-zinc-500 line-clamp-1 relative top-[-2px]">
+                                                {auto.delayHours > 0 ? `Delay: ${auto.delayHours}h • ` : 'Immediate • '}
                                                 Subject: {auto.subject}
                                             </p>
                                         </div>
@@ -334,7 +342,10 @@ export default function MarketingPage() {
                                                 setEditForm({
                                                     subject: auto.subject,
                                                     content: auto.content,
-                                                    isEnabled: auto.isEnabled
+                                                    isEnabled: auto.isEnabled,
+                                                    delayHours: auto.delayHours || 0,
+                                                    channels: auto.channels || ['email'],
+                                                    couponConfig: auto.couponConfig ? { ...auto.couponConfig, enabled: true } : { enabled: false, type: 'percent', value: 20, validityDays: 7 }
                                                 });
                                             }}
                                             className="text-xs bg-white text-zinc-700 border border-zinc-300 px-3 py-1.5 rounded hover:bg-zinc-50 flex items-center gap-1.5"
@@ -369,6 +380,103 @@ export default function MarketingPage() {
                                 <span className="text-sm font-medium text-zinc-900">Enable this automation</span>
                             </label>
 
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 mb-1">Delay (Hours)</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={editForm.delayHours}
+                                        onChange={e => setEditForm({ ...editForm, delayHours: parseInt(e.target.value) || 0 })}
+                                        className="w-full border border-zinc-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                    <p className="text-xs text-zinc-500 mt-1">0 = Immediate trigger</p>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 mb-1">Channels</label>
+                                    <div className="flex gap-4 mt-2">
+                                        <label className="flex items-center gap-2 text-sm">
+                                            <input
+                                                type="checkbox"
+                                                checked={(editForm.channels as string[]).includes('email')}
+                                                onChange={e => {
+                                                    const current = editForm.channels as string[];
+                                                    const next = e.target.checked
+                                                        ? [...current, 'email']
+                                                        : current.filter(c => c !== 'email');
+                                                    setEditForm({ ...editForm, channels: next });
+                                                }}
+                                                className="rounded text-blue-600 focus:ring-blue-500"
+                                            />
+                                            Email
+                                        </label>
+                                        <label className="flex items-center gap-2 text-sm text-zinc-400 cursor-not-allowed">
+                                            <input type="checkbox" disabled className="rounded text-zinc-400" />
+                                            SMS (Coming Soon)
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Coupon Config Section */}
+                            <div className="bg-zinc-50 p-3 rounded-lg border border-zinc-200 mb-4">
+                                <label className="flex items-center gap-2 mb-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={(editForm.couponConfig as any).enabled}
+                                        onChange={e => setEditForm({
+                                            ...editForm,
+                                            couponConfig: { ...(editForm.couponConfig as any), enabled: e.target.checked }
+                                        })}
+                                        className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                                    />
+                                    <span className="text-sm font-medium text-zinc-900">Include Discount Coupon</span>
+                                </label>
+
+                                {(editForm.couponConfig as any).enabled && (
+                                    <div className="grid grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-1">
+                                        <div>
+                                            <label className="block text-xs font-medium text-zinc-500 mb-1">Type</label>
+                                            <select
+                                                value={(editForm.couponConfig as any).type}
+                                                onChange={e => setEditForm({
+                                                    ...editForm,
+                                                    couponConfig: { ...(editForm.couponConfig as any), type: e.target.value }
+                                                })}
+                                                className="w-full border border-zinc-300 rounded px-2 py-1.5 text-sm"
+                                            >
+                                                <option value="percent">Percent (%)</option>
+                                                <option value="amount">Amount ($)</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-zinc-500 mb-1">Value</label>
+                                            <input
+                                                type="number"
+                                                value={(editForm.couponConfig as any).value}
+                                                onChange={e => setEditForm({
+                                                    ...editForm,
+                                                    couponConfig: { ...(editForm.couponConfig as any), value: parseInt(e.target.value) || 0 }
+                                                })}
+                                                className="w-full border border-zinc-300 rounded px-2 py-1.5 text-sm"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-zinc-500 mb-1">Validity (Days)</label>
+                                            <input
+                                                type="number"
+                                                value={(editForm.couponConfig as any).validityDays}
+                                                onChange={e => setEditForm({
+                                                    ...editForm,
+                                                    couponConfig: { ...(editForm.couponConfig as any), validityDays: parseInt(e.target.value) || 7 }
+                                                })}
+                                                className="w-full border border-zinc-300 rounded px-2 py-1.5 text-sm"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
                             <label className="block text-sm font-medium text-zinc-700 mb-1">Subject Line</label>
                             <input
                                 type="text"
@@ -388,6 +496,7 @@ export default function MarketingPage() {
                                 <span>Variables:</span>
                                 <code className="bg-zinc-100 px-1 rounded">{"{{firstName}}"}</code>
                                 <code className="bg-zinc-100 px-1 rounded">{"{{studioName}}"}</code>
+                                {(editForm.couponConfig as any).enabled && <code className="bg-yellow-100 text-yellow-800 px-1 rounded">{"{{coupon_code}}"}</code>}
                             </div>
                         </div>
 

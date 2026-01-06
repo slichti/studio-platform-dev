@@ -1,7 +1,11 @@
 import { createDb } from './db';
-import { tenants, classes, bookings, tenantMembers, marketingAutomations, users, emailLogs } from 'db/src/schema'; // Ensure imports
+import { tenants, classes, bookings, tenantMembers, marketingAutomations, users, emailLogs, purchasedPacks } from 'db/src/schema'; // Ensure imports
 import { and, eq, lte, gt, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 import { BookingService } from './services/bookings';
+
+import { AutomationsService } from './services/automations';
+import { EmailService } from './services/email';
+import { NotificationService } from './services/notifications';
 
 export const scheduled = async (event: any, env: any, ctx: any) => {
     console.log("Cron trigger fired:", event.cron);
@@ -137,7 +141,6 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
                     .run();
 
                 // 2. Notify students
-                const { NotificationService } = await import('./services/notifications');
                 const notifService = new NotificationService(db, cls.tenantId, env);
 
                 for (const booking of cls.bookings) {
@@ -158,7 +161,6 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
 
                         // Return credits if applicable
                         if (booking.paymentMethod === 'credit' && booking.usedPackId) {
-                            const { purchasedPacks } = await import('db/src/schema');
                             await db.update(purchasedPacks)
                                 .set({ remainingCredits: sql`${purchasedPacks.remainingCredits} + 1` })
                                 .where(eq(purchasedPacks.id, booking.usedPackId))
@@ -242,7 +244,7 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
             });
             if (!tenant) continue;
 
-            const { EmailService } = await import('./services/email');
+            // EmailService imported at top
             const emailService = new EmailService(env.RESEND_API_KEY, {
                 branding: tenant.branding as any,
                 settings: tenant.settings as any
@@ -298,5 +300,29 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
                 }
             }
         }
+        // 4. Automated Workflows (Trial / Flows)
+        // Runs on every tick (e.g. 15 mins)
+        // It iterates all active tenants and processes triggers.
+        // Optimization: We could query only tenants with enabled automations first.
+        // For now, let's iterate known active tenants from previous steps or query distinct tenants.
+        // Or just query ALL active tenants.
+        // AutomationsService does query by tenantId.
+        // Let's loop all Active tenants.
+
+        const allTenants = await db.select({ id: tenants.id, branding: tenants.branding, settings: tenants.settings }).from(tenants).where(eq(tenants.status, 'active')).all();
+
+        for (const tenant of allTenants) {
+            const emailService = new EmailService(env.RESEND_API_KEY, {
+                branding: tenant.branding as any,
+                settings: tenant.settings as any
+            });
+            const autoService = new AutomationsService(db, tenant.id, emailService);
+
+            try {
+                await autoService.processTrialAutomations();
+            } catch (e) {
+                console.error(`Failed to process automations for tenant ${tenant.id}`, e);
+            }
+        }
     }
-}
+};

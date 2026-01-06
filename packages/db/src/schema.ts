@@ -396,10 +396,39 @@ export const marketingAutomations = sqliteTable('marketing_automations', {
     isEnabled: integer('is_enabled', { mode: 'boolean' }).default(false).notNull(),
     metadata: text('metadata', { mode: 'json' }), // Extra config
 
+    // Automation Config
+    delayHours: integer('delay_hours').default(0), // 0 = immediate, 24 = 1 day, etc.
+    channels: text('channels', { mode: 'json' }).default(sql`('["email"]')`), // ['email', 'sms']
+    couponConfig: text('coupon_config', { mode: 'json' }), // { type: 'percent', value: 20, validityDays: 7 }
+
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
-    tenantTriggerIdx: uniqueIndex('automation_tenant_trigger_idx').on(table.tenantId, table.triggerType),
+    tenantTriggerIdx: uniqueIndex('automation_tenant_trigger_idx').on(table.tenantId, table.triggerType), // Warning: Unique constraint might prevent multiple "new_student" flows with different delays. 
+    // Actually, for "Trial Nudges", we might want multiple. 
+    // Let's drop the unique index on TriggerType if we want multiple steps.
+    // Ideally, triggerType becomes "trial_welcome", "trial_nudge_1", etc? Or triggerType="trial" + filtering.
+    // For now, let's keep unique but maybe the USER wants: Welcome (immediate), Nudge (Day 7), Convert (Day 12).
+    // Those are DISTINCT automations.
+    // So distinct records. Unique index by triggerType prevents this. 
+    // Decision: REMOVE Unique Index to allow multiple automations of same trigger type, OR expect distinct trigger types. 
+    // The previous code had uniqueIndex. 
+    // Let's Change triggerType enum to support distinct phases OR remove unique index.
+    // Removing unique index is more flexible.
+    tenantIdx: index('automation_tenant_idx').on(table.tenantId),
+}));
+
+export const automationLogs = sqliteTable('automation_logs', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    automationId: text('automation_id').notNull().references(() => marketingAutomations.id),
+    userId: text('user_id').notNull().references(() => users.id),
+    channel: text('channel').notNull(), // 'email' or 'sms'
+    triggeredAt: integer('triggered_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    metadata: text('metadata', { mode: 'json' }), // { generatedCouponId: '...' }
+}, (table) => ({
+    uniqueLog: uniqueIndex('automation_log_unique_idx').on(table.automationId, table.userId, table.channel), // Prevent duplicate send of SAME automation to SAME user
+    tenantIdx: index('automation_log_tenant_idx').on(table.tenantId),
 }));
 
 export const emailLogs = sqliteTable('email_logs', {
