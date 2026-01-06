@@ -1,7 +1,9 @@
 import { Hono } from 'hono'
 import { createDb } from './db';
-import { tenants, tenantMembers } from 'db/src/schema';
-import { eq } from 'drizzle-orm';
+import { tenants, tenantMembers, tenantFeatures, users, classes, bookings, posOrders, purchasedPacks, waiverTemplates, waiverSignatures } from 'db/src/schema';
+import { eq, and, count, sum, gte, like, or } from 'drizzle-orm';
+import { UsageService } from './services/pricing';
+import { StripeService } from './services/stripe';
 import { authMiddleware } from './middleware/auth';
 import { optionalAuthMiddleware } from './middleware/optionalAuth';
 import { tenantMiddleware } from './middleware/tenant';
@@ -102,8 +104,6 @@ app.get('/', (c) => {
 app.get('/public/tenant/:slug', async (c) => {
   const slug = c.req.param('slug');
   const db = createDb(c.env.DB);
-  const { tenants, tenantFeatures } = await import('db/src/schema');
-  const { eq, and } = await import('drizzle-orm');
 
   const tenant = await db.select().from(tenants).where(eq(tenants.slug, slug)).get();
   if (!tenant) return c.json({ error: "Tenant not found" }, 404);
@@ -210,8 +210,6 @@ studioApp.get('/info', (c) => {
 studioApp.get('/stats', async (c) => {
   const tenant = c.get('tenant');
   const db = createDb(c.env.DB);
-  const { count, sum, and, eq, gte } = await import('drizzle-orm');
-  const { tenantMembers, tenantRoles, classes, bookings, posOrders, purchasedPacks, waiverTemplates, waiverSignatures } = await import('db/src/schema');
 
   const now = new Date();
   const firstOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -286,9 +284,6 @@ studioApp.get('/search', async (c) => {
   const db = createDb(c.env.DB);
   const q = c.req.query('q')?.toLowerCase();
   if (!q) return c.json({ students: [], classes: [], orders: [] });
-
-  const { like, or, and, eq } = await import('drizzle-orm');
-  const { tenantMembers, users, classes, posOrders } = await import('db/src/schema');
 
   const [students, upcomingClasses, recentOrders] = await Promise.all([
     db.select({
@@ -381,7 +376,6 @@ studioApp.get('/me', (c) => {
 studioApp.get('/usage', async (c) => {
   const tenant = c.get('tenant');
   const db = createDb(c.env.DB);
-  const { UsageService } = await import('./services/pricing');
   const usageService = new UsageService(db, tenant.id);
   const usage = await usageService.getUsage();
   return c.json(usage);
@@ -395,7 +389,6 @@ studioApp.post('/portal', async (c) => {
     return c.json({ error: "No billing account found" }, 400);
   }
 
-  const { StripeService } = await import('./services/stripe');
   const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
 
   try {

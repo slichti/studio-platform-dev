@@ -1,6 +1,6 @@
 import { createDb } from '../db';
 import { eq, count, and, sql, sum } from 'drizzle-orm';
-import { tenants, tenantMembers, classes, purchasedPacks, tenantRoles, uploads } from 'db/src/schema';
+import { tenants, tenantMembers, classes, purchasedPacks, tenantRoles, uploads, locations } from 'db/src/schema';
 
 export type Tier = 'basic' | 'growth' | 'scale';
 
@@ -97,7 +97,7 @@ export class UsageService {
             .get();
 
         // 2. Count Locations
-        const { locations, tenantRoles } = await import('db/src/schema');
+        // const { locations, tenantRoles } = await import('db/src/schema'); // Moved to top-level
         const locationCount = await this.db.select({ count: count() })
             .from(locations)
             .where(eq(locations.tenantId, this.tenantId))

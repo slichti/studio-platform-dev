@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { emailLogs, marketingCampaigns, tenants, tenantFeatures } from 'db/src/schema'; // Ensure imports
-import { eq, sql, desc, count } from 'drizzle-orm';
+import { emailLogs, marketingCampaigns, tenants, tenantFeatures, users, tenantMembers, tenantRoles, subscriptions, auditLogs } from 'db/src/schema';
+import { eq, sql, desc, count, or, like, asc, and, inArray } from 'drizzle-orm';
+import { UsageService } from '../services/pricing';
 
 type Bindings = {
     DB: D1Database;
@@ -27,9 +28,6 @@ app.route('/', tenantFeaturesRouter); // Mounts /tenants/:id/features endpoints 
 app.use('*', authMiddleware);
 app.use('*', async (c, next) => {
     const auth = c.get('auth');
-    const { createDb } = await import('../db');
-    const { users } = await import('db/src/schema');
-    const { eq } = await import('drizzle-orm');
     const db = createDb(c.env.DB);
 
     const user = await db.query.users.findFirst({
@@ -45,8 +43,7 @@ app.use('*', async (c, next) => {
 // GET /logs - Recent Audit Logs
 app.get('/logs', async (c) => {
     const db = createDb(c.env.DB);
-    const { auditLogs, users } = await import('db/src/schema');
-    const { desc, eq } = await import('drizzle-orm');
+
 
     const logs = await db.select({
         id: auditLogs.id,
@@ -70,8 +67,7 @@ app.get('/logs', async (c) => {
 // GET /users - List all users across the platform
 app.get('/users', async (c) => {
     const db = createDb(c.env.DB);
-    const { users, tenantMembers, tenants, tenantRoles } = await import('db/src/schema');
-    const { eq, or, like, desc, asc, and } = await import('drizzle-orm');
+
 
     const search = c.req.query('search');
     const tenantId = c.req.query('tenantId');
@@ -125,8 +121,6 @@ app.get('/users', async (c) => {
 // PATCH /users/bulk - Bulk actions on users
 app.patch('/users/bulk', async (c) => {
     const db = createDb(c.env.DB);
-    const { users, auditLogs } = await import('db/src/schema');
-    const { inArray } = await import('drizzle-orm');
     const auth = c.get('auth');
 
     const { userIds, action, value } = await c.req.json();
@@ -163,7 +157,7 @@ app.patch('/users/bulk', async (c) => {
             return c.json({ error: "Cannot delete yourself or no valid users selected" }, 400);
         }
 
-        const { tenantMembers, tenantRoles } = await import('db/src/schema');
+
 
         // 1. Get all memberships for these users
         const members = await db.select({ id: tenantMembers.id })
@@ -209,7 +203,6 @@ app.patch('/users/bulk', async (c) => {
 // POST /users - Create a user manually (Admin only)
 app.post('/users', async (c) => {
     const db = createDb(c.env.DB);
-    const { users, tenantMembers, tenantRoles, auditLogs } = await import('db/src/schema');
     const auth = c.get('auth');
 
     const { firstName, lastName, email, isSystemAdmin, initialTenantId, initialRole } = await c.req.json();
@@ -271,8 +264,7 @@ app.post('/users', async (c) => {
 // GET /users/:id - Get single user with details
 app.get('/users/:id', async (c) => {
     const db = createDb(c.env.DB);
-    const { users } = await import('db/src/schema');
-    const { eq } = await import('drizzle-orm');
+
     const userId = c.req.param('id');
 
     const user = await db.query.users.findFirst({
@@ -295,8 +287,7 @@ app.get('/users/:id', async (c) => {
 // PUT /users/:id - Update user (Admins only)
 app.put('/users/:id', async (c) => {
     const db = createDb(c.env.DB);
-    const { users, auditLogs } = await import('db/src/schema');
-    const { eq } = await import('drizzle-orm');
+
     const auth = c.get('auth');
     const userId = c.req.param('id');
     const { isSystemAdmin } = await c.req.json();
@@ -322,8 +313,6 @@ app.put('/users/:id', async (c) => {
 // DELETE /users/:id - Delete user (Hard Delete)
 app.delete('/users/:id', async (c) => {
     const db = createDb(c.env.DB);
-    const { users, tenantMembers, tenantRoles, auditLogs } = await import('db/src/schema');
-    const { eq } = await import('drizzle-orm');
     const auth = c.get('auth');
     const userId = c.req.param('id');
 
@@ -367,7 +356,6 @@ app.delete('/users/:id', async (c) => {
 // POST /users/:id/memberships - Grant studio access
 app.post('/users/:id/memberships', async (c) => {
     const db = createDb(c.env.DB);
-    const { tenantMembers, tenantRoles, auditLogs } = await import('db/src/schema');
     const auth = c.get('auth');
     const userId = c.req.param('id');
     const { tenantId, role } = await c.req.json();
@@ -404,8 +392,6 @@ app.post('/users/:id/memberships', async (c) => {
 // DELETE /users/:id/memberships - Revoke studio access
 app.delete('/users/:id/memberships', async (c) => {
     const db = createDb(c.env.DB);
-    const { tenantMembers, tenantRoles, auditLogs } = await import('db/src/schema');
-    const { eq, and } = await import('drizzle-orm');
     const auth = c.get('auth');
     const userId = c.req.param('id');
     const { tenantId } = await c.req.json();
@@ -527,7 +513,7 @@ app.patch('/tenants/:id/quotas', async (c) => {
 // PATCH /tenants/:id/subscription - Admin Update Subscription (Edit Trial)
 app.patch('/tenants/:id/subscription', async (c) => {
     const db = createDb(c.env.DB);
-    const { tenants } = await import('db/src/schema');
+
     const tenantId = c.req.param('id');
     const { status, trialDays, currentPeriodEnd } = await c.req.json();
 
@@ -557,8 +543,7 @@ app.patch('/tenants/:id/subscription', async (c) => {
 // GET /tenants - Full list for management
 app.get('/tenants', async (c) => {
     const db = createDb(c.env.DB);
-    const { tenants, tenantMembers, tenantRoles, subscriptions } = await import('db/src/schema');
-    const { eq, count, and } = await import('drizzle-orm');
+
 
     const allTenants = await db.select().from(tenants).all();
 
@@ -601,8 +586,7 @@ app.get('/tenants', async (c) => {
 // POST /impersonate - Generate a token for another user
 app.post('/impersonate', async (c) => {
     const db = createDb(c.env.DB);
-    const { users, auditLogs } = await import('db/src/schema');
-    const { eq } = await import('drizzle-orm');
+
     const auth = c.get('auth');
 
     try {
@@ -664,8 +648,7 @@ app.post('/impersonate', async (c) => {
 // GET /stats/health - System Health Dashboard
 app.get('/stats/health', async (c) => {
     const db = createDb(c.env.DB);
-    const { tenants, users, auditLogs } = await import('db/src/schema');
-    const { sql, count, eq } = await import('drizzle-orm');
+
 
     // Counts
     let tCount: any, uCount: any, errorCount: any;
@@ -713,7 +696,6 @@ app.get('/stats/health', async (c) => {
 // POST /tenants - Admin Create Tenant (Bypass Billing)
 app.post('/tenants', async (c) => {
     const db = createDb(c.env.DB);
-    const { tenants, tenantMembers, tenantRoles } = await import('db/src/schema');
     const auth = c.get('auth');
 
     // Only System Admins (already protected by middleware)
@@ -766,8 +748,7 @@ app.post('/tenants', async (c) => {
 // POST /sync-stats - Force Recalculate usage for all tenants
 app.post('/sync-stats', async (c) => {
     const db = createDb(c.env.DB);
-    const { tenants } = await import('db/src/schema');
-    const { UsageService } = await import('../services/pricing');
+
 
     const allTenants = await db.select().from(tenants).all();
     let updated = 0;

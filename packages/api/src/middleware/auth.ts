@@ -1,5 +1,9 @@
 import { createMiddleware } from 'hono/factory';
 import { verifyToken } from '@clerk/backend';
+import { verify } from 'hono/jwt';
+import { createDb } from '../db';
+import { users } from 'db/src/schema'; // Only used in waitUntil
+import { eq, sql } from 'drizzle-orm';
 
 type AuthVariables = {
     auth: {
@@ -26,7 +30,6 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables, Bindi
     try {
         // 1. Check for Impersonation Token (Custom JWT, HS256)
         // We use dynamic import or assume hono/jwt is available
-        const { verify } = await import('hono/jwt');
         try {
             const payload = await verify(token, (c.env as any).CLERK_SECRET_KEY);
             if (payload.impersonatorId) {
@@ -89,10 +92,6 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables, Bindi
             // Using waitUntil to not block response
             c.executionCtx.waitUntil((async () => {
                 try {
-                    const { createDb } = await import('../db');
-                    const { users } = await import('db/src/schema');
-                    const { eq, sql } = await import('drizzle-orm');
-
                     const db = createDb(c.env.DB);
 
                     // Throttle: Only update if older than 5 minutes or null
