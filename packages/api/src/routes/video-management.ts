@@ -1,21 +1,31 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { videos, brandingAssets, tenants, tenantMembers } from 'db/src/schema';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { videos, brandingAssets, tenants, tenantMembers, videoCollections, videoCollectionItems } from 'db/src/schema'; // Updated imports
+import { eq, and, desc, sql, like } from 'drizzle-orm'; // Added like
 
 const app = new Hono<{ Bindings: any, Variables: any }>();
 
-// List Studio Videos
+// List Studio Videos (with Search & Filter)
 app.get('/', async (c) => {
     try {
         const db = createDb(c.env.DB);
         const tenant = c.get('tenant');
+        const query = c.req.query('q');
+        const status = c.req.query('status'); // processing, ready, error
 
         if (!tenant) return c.json({ error: "No tenant context" }, 401);
 
+        let conditions = eq(videos.tenantId, tenant.id);
+        if (query) {
+            conditions = and(conditions, like(videos.title, `%${query}%`));
+        }
+        if (status) {
+            conditions = and(conditions, eq(videos.status, status as any));
+        }
+
         const results = await db.select()
             .from(videos)
-            .where(eq(videos.tenantId, tenant.id))
+            .where(conditions)
             .orderBy(desc(videos.createdAt))
             .all();
 
@@ -70,6 +80,8 @@ app.patch('/:id', async (c) => {
             const body = await c.req.json().catch(() => ({}));
             if (body.description !== undefined) updateData.description = body.description;
             if (body.tags !== undefined) updateData.tags = body.tags;
+            if (body.posterUrl !== undefined) updateData.posterUrl = body.posterUrl;
+            if (body.accessLevel !== undefined) updateData.accessLevel = body.accessLevel;
         } catch (e) {
             // ignore
         }
@@ -281,6 +293,135 @@ app.post('/', async (c) => {
         status: 'processing', // Video might still be processing in Stream
         sizeBytes: 0,
     }).run();
+
+    return c.json({ success: true });
+});
+
+// --- Collections ---
+
+// List Collections
+app.get('/collections', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+
+    const cols = await db.select()
+        .from(videoCollections)
+        .where(eq(videoCollections.tenantId, tenant.id))
+        .orderBy(desc(videoCollections.updatedAt))
+        .all();
+
+    // Get items count for each (optional optimization later)
+    return c.json(cols);
+});
+
+// Create Collection
+app.post('/collections', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const { title, description, slug } = await c.req.json();
+
+    if (!title || !slug) return c.json({ error: "Missing required fields" }, 400);
+
+    const id = crypto.randomUUID();
+    await db.insert(videoCollections).values({
+        id,
+        tenantId: tenant.id,
+        title,
+        description,
+        slug
+    }).run();
+
+    return c.json({ id, success: true });
+});
+
+// Get Collection Details (with items)
+app.get('/collections/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const id = c.req.param('id');
+
+    const collection = await db.select().from(videoCollections)
+        .where(and(eq(videoCollections.id, id), eq(videoCollections.tenantId, tenant.id)))
+        .get();
+
+    if (!collection) return c.json({ error: "Collection not found" }, 404);
+
+    // Get Items
+    const items = await db.select({
+        id: videoCollectionItems.id,
+        videoId: videoCollectionItems.videoId,
+        order: videoCollectionItems.order,
+        video: videos
+    })
+        .from(videoCollectionItems)
+        .leftJoin(videos, eq(videoCollectionItems.videoId, videos.id))
+        .where(eq(videoCollectionItems.collectionId, id))
+        .orderBy(videoCollectionItems.order)
+        .all();
+
+    return c.json({ ...collection, items });
+});
+
+// Update Collection
+app.patch('/collections/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const id = c.req.param('id');
+    const { title, description, slug } = await c.req.json();
+
+    await db.update(videoCollections)
+        .set({ title, description, slug, updatedAt: new Date() })
+        .where(and(eq(videoCollections.id, id), eq(videoCollections.tenantId, tenant.id)))
+        .run();
+
+    return c.json({ success: true });
+});
+
+// Delete Collection
+app.delete('/collections/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const id = c.req.param('id');
+
+    await db.delete(videoCollections)
+        .where(and(eq(videoCollections.id, id), eq(videoCollections.tenantId, tenant.id)))
+        .run();
+
+    return c.json({ success: true });
+});
+
+// Manage Collection Items (Add/Remove/Reorder)
+app.post('/collections/:id/items', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const collectionId = c.req.param('id');
+    const { action, videoId, order, itemId } = await c.req.json(); // action: 'add', 'remove', 'reorder'
+
+    // Verify ownership
+    const collection = await db.select().from(videoCollections)
+        .where(and(eq(videoCollections.id, collectionId), eq(videoCollections.tenantId, tenant.id)))
+        .get();
+
+    if (!collection) return c.json({ error: "Collection not found" }, 404);
+
+    if (action === 'add') {
+        await db.insert(videoCollectionItems).values({
+            id: crypto.randomUUID(),
+            collectionId,
+            videoId,
+            order: order || 0
+        }).run();
+    } else if (action === 'remove') {
+        await db.delete(videoCollectionItems)
+            .where(eq(videoCollectionItems.id, itemId))
+            .run();
+    } else if (action === 'reorder') {
+        // Expecting valid itemId
+        await db.update(videoCollectionItems)
+            .set({ order })
+            .where(eq(videoCollectionItems.id, itemId))
+            .run();
+    }
 
     return c.json({ success: true });
 });

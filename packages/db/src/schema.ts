@@ -757,9 +757,36 @@ export const videos = sqliteTable('videos', {
     classId: text('class_id').references(() => classes.id), // Optional link to source class
     tags: text('tags', { mode: 'json' }), // Added tags
 
+    // Phase 12+: Enhanced Video Management
+    posterUrl: text('poster_url'), // Custom thumbnail
+    accessLevel: text('access_level', { enum: ['public', 'members', 'private'] }).default('members'), // Public=All, Members=Tenant Users, Private=Admins
+
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     tenantIdx: index('video_tenant_idx').on(table.tenantId),
+}));
+
+export const videoCollections = sqliteTable('video_collections', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    title: text('title').notNull(),
+    description: text('description'),
+    slug: text('slug').notNull(), // for public URLs
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('collection_tenant_idx').on(table.tenantId),
+    tenantSlugIdx: uniqueIndex('collection_tenant_slug_idx').on(table.tenantId, table.slug),
+}));
+
+export const videoCollectionItems = sqliteTable('video_collection_items', {
+    id: text('id').primaryKey(),
+    collectionId: text('collection_id').notNull().references(() => videoCollections.id, { onDelete: 'cascade' }),
+    videoId: text('video_id').notNull().references(() => videos.id, { onDelete: 'cascade' }),
+    order: integer('order').notNull().default(0),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    collectionIdx: index('collection_item_idx').on(table.collectionId),
 }));
 
 export const brandingAssets = sqliteTable('branding_assets', {

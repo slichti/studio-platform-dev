@@ -1,66 +1,74 @@
 // @ts-ignore
 import { LoaderFunctionArgs } from "react-router";
 // @ts-ignore
-import { useLoaderData, Link, useRevalidator, useSearchParams } from "react-router";
+import { useLoaderData, Link, useRevalidator, useSearchParams, redirect } from "react-router";
 import { apiRequest } from "~/utils/api";
 import { getAuth } from "@clerk/react-router/server";
 import { formatBytes } from "~/utils/format";
-import { FileVideo, Scissors, Trash2, Upload, X, Image as ImageIcon, Tag, Film, Info, Check, Plus, Save } from "lucide-react";
+import { FileVideo, Scissors, Trash2, Upload, X, Image as ImageIcon, Tag, Film, Info, Check, Plus, Save, Folder, Globe, Lock, Users, RefreshCw } from "lucide-react";
 import { useState, useEffect } from "react";
 
 export const loader = async (args: LoaderFunctionArgs) => {
-    const { getToken } = await getAuth(args);
+    const { getToken, userId } = await getAuth(args);
+    const { slug } = args.params;
+    if (!userId) return redirect("/sign-in");
+
     const token = await getToken();
-    const slug = args.params.slug!;
 
     // Parallel fetch: Videos and Images
     try {
-        const [videoData, imageData] = await Promise.all([
+        const [videoData, imageData, collectionsData] = await Promise.all([
             apiRequest(`/video-management/`, token, { headers: { 'X-Tenant-Slug': slug } }),
-            apiRequest(`/uploads/images`, token, { headers: { 'X-Tenant-Slug': slug } })
-        ]);
+            apiRequest(`/uploads/images`, token, { headers: { 'X-Tenant-Slug': slug } }),
+            apiRequest(`/video-management/collections`, token, { headers: { 'X-Tenant-Slug': slug } })
+        ]) as [any, any, any];
 
         return {
             videos: videoData?.videos || [],
             storageUsage: videoData?.storageUsage || 0,
-            images: imageData || []
+            images: imageData || [],
+            collections: collectionsData || []
         };
     } catch (e) {
         console.error("Loader Failed", e);
-        return {
-            videos: [],
-            storageUsage: 0,
-            images: []
-        };
+        return { videos: [], storageUsage: 0, images: [], collections: [] };
     }
 };
 
 export default function StudioMediaLibrary() {
-    const { videos, storageUsage, images } = useLoaderData<typeof loader>();
+    const { videos, storageUsage, images, collections } = useLoaderData<typeof loader>();
     const revalidator = useRevalidator();
     const [searchParams, setSearchParams] = useSearchParams();
 
     // Tab State
     const currentTab = searchParams.get('tab') || 'videos';
 
-    // Upload State
+    // Search & Filter
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [selectedItem, setSelectedItem] = useState<any | null>(null);
+
+    // Upload
+    const [isUploadOpen, setIsUploadOpen] = useState(false);
+    const [uploadType, setUploadType] = useState<'video' | 'image'>('video');
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     // Selection State (for Details Drawer)
-    const [selectedItem, setSelectedItem] = useState<any | null>(null);
+    // const [selectedItem, setSelectedItem] = useState<any | null>(null);
 
     const handleVideoUpload = async (file: File) => {
         setUploading(true);
-        setError(null);
+        // setError(null); // Removed as per instruction
         try {
             const token = await (window as any).Clerk?.session?.getToken();
 
             // 1. Get One-Time Upload URL for VOD
-            const { uploadUrl, uid } = await apiRequest('/video-management/upload-url', token, {
+            const response = await apiRequest('/video-management/upload-url', token, {
                 method: 'POST',
-                body: JSON.stringify({ type: 'vod' })
+                body: JSON.stringify({ type: 'vod' }),
+                headers: { 'X-Tenant-Slug': (window as any).tenantSlug || '' } // Ideally use params or context
             });
+            const { uploadUrl, uid } = response as any;
 
             // 2. Upload to Cloudflare
             const formData = new FormData();
@@ -169,6 +177,12 @@ export default function StudioMediaLibrary() {
                             <Film size={16} /> Videos ({videos.length})
                         </button>
                         <button
+                            onClick={() => setSearchParams({ tab: 'collections' })}
+                            className={`pb-3 text-sm font-medium flex items-center gap-2 border-b-2 transition ${currentTab === 'collections' ? 'border-zinc-900 text-zinc-900' : 'border-transparent text-zinc-500 hover:text-zinc-700'}`}
+                        >
+                            <Folder size={16} /> Collections ({collections.length})
+                        </button>
+                        <button
                             onClick={() => setSearchParams({ tab: 'images' })}
                             className={`pb-3 text-sm font-medium flex items-center gap-2 border-b-2 transition ${currentTab === 'images' ? 'border-zinc-900 text-zinc-900' : 'border-transparent text-zinc-500 hover:text-zinc-700'}`}
                         >
@@ -187,6 +201,8 @@ export default function StudioMediaLibrary() {
 
                     {currentTab === 'videos' ? (
                         <VideoList videos={videos} onSelect={setSelectedItem} selectedId={selectedItem?.id} />
+                    ) : currentTab === 'collections' ? (
+                        <CollectionList collections={collections} />
                     ) : (
                         <ImageList images={images} onSelect={setSelectedItem} selectedId={selectedItem?.id} />
                     )}
@@ -250,6 +266,38 @@ function VideoList({ videos, onSelect, selectedId }: any) {
     )
 }
 
+function CollectionList({ collections, onCreate }: any) {
+    if (collections.length === 0 && !onCreate) return <div className="text-gray-400 text-center py-20">No collections found.</div>;
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {collections.map((col: any) => (
+                <Link to={`collections/${col.id}`} key={col.id} className="block group">
+                    <div className="bg-white rounded-lg border border-zinc-200 p-6 hover:border-black transition shadow-sm h-full flex flex-col">
+                        <div className="flex items-start justify-between mb-4">
+                            <div className="p-3 bg-zinc-100 rounded-lg group-hover:bg-zinc-900 group-hover:text-white transition">
+                                <Folder size={24} />
+                            </div>
+                            <span className="text-xs text-zinc-400 font-mono">#{col.slug}</span>
+                        </div>
+                        <h3 className="font-bold text-lg mb-1">{col.title}</h3>
+                        <p className="text-sm text-zinc-500 line-clamp-2 mb-4 flex-1">{col.description || "No description"}</p>
+                        <div className="text-xs text-zinc-400 font-medium">Click to manage items &rarr;</div>
+                    </div>
+                </Link>
+            ))}
+
+            {/* Create New Card */}
+            <div
+                className="border-2 border-dashed border-zinc-200 rounded-lg p-6 flex flex-col items-center justify-center text-zinc-400 hover:bg-zinc-50 hover:border-zinc-300 transition cursor-pointer min-h-[200px]"
+                onClick={onCreate}
+            >
+                <Plus size={32} />
+                <span className="mt-2 text-sm font-medium">Create Collection</span>
+            </div>
+        </div>
+    )
+}
+
 function ImageList({ images, onSelect, selectedId }: any) {
     if (images.length === 0) return <div className="text-gray-400 text-center py-20">No images found.</div>;
     return (
@@ -280,13 +328,22 @@ function DetailsSidebar({ item, type, onClose, onUpdate }: any) {
     const [tagInput, setTagInput] = useState("");
     const [saving, setSaving] = useState(false);
 
+    // Video Specific
+    const [accessLevel, setAccessLevel] = useState(item.accessLevel || 'members');
+    const [posterUrl, setPosterUrl] = useState(item.posterUrl || "");
+    const [uploadingPoster, setUploadingPoster] = useState(false);
+
     // Sync when item changes
     useEffect(() => {
         setTitle(item.title || item.originalName || "");
         setDescription(item.description || "");
         setTags(item.tags || []);
+        if (type === 'video') {
+            setAccessLevel(item.accessLevel || 'members');
+            setPosterUrl(item.posterUrl || "");
+        }
         setTagInput("");
-    }, [item]);
+    }, [item, type]);
 
     const handleAddTag = (e: any) => {
         if (e.key === 'Enter' && tagInput.trim()) {
@@ -302,19 +359,51 @@ function DetailsSidebar({ item, type, onClose, onUpdate }: any) {
         setTags(tags.filter(t => t !== tag));
     }
 
+    const handlePosterUpload = async (file: File) => {
+        setUploadingPoster(true);
+        try {
+            // Reuse generic R2 image upload or specific route? generic R2 image return URL is fine
+            const token = await (window as any).Clerk?.session?.getToken();
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch('/api/r2-image', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+
+            if (!response.ok) throw new Error("Upload failed");
+            const data = await response.json() as any;
+            setPosterUrl(data.url); // Assuming API returns { url: ... }
+        } catch (e) {
+            console.error(e);
+            alert("Poster upload failed");
+        } finally {
+            setUploadingPoster(false);
+        }
+    }
+
     const handleSave = async () => {
         setSaving(true);
         try {
             const token = await (window as any).Clerk?.session?.getToken();
             const endpoint = type === 'video' ? `/video-management/${item.id}` : `/uploads/images/${item.id}`;
 
+            const payload: any = {
+                title,
+                description,
+                tags
+            };
+
+            if (type === 'video') {
+                payload.accessLevel = accessLevel;
+                payload.posterUrl = posterUrl;
+            }
+
             await apiRequest(endpoint, token, {
                 method: 'PATCH',
-                body: JSON.stringify({
-                    title,
-                    description,
-                    tags
-                })
+                body: JSON.stringify(payload)
             });
             onUpdate();
         } catch (e) {
@@ -337,14 +426,27 @@ function DetailsSidebar({ item, type, onClose, onUpdate }: any) {
             <div className="flex-1 overflow-y-auto p-4 space-y-6">
 
                 {/* Preview */}
-                <div className="aspect-video bg-zinc-100 rounded-lg overflow-hidden border border-zinc-200 flex items-center justify-center">
+                <div className="aspect-video bg-zinc-100 rounded-lg overflow-hidden border border-zinc-200 flex items-center justify-center relative group">
                     {type === 'image' ? (
                         <img src={item.fileUrl} className="w-full h-full object-contain" />
+                    ) : posterUrl ? (
+                        <img src={posterUrl} className="w-full h-full object-cover" />
                     ) : (
                         <div className="flex flex-col items-center gap-2 text-zinc-400">
                             <Film size={24} />
                             <span className="text-xs">No preview available</span>
                         </div>
+                    )}
+
+                    {/* Poster Overlay for Video */}
+                    {type === 'video' && (
+                        <label className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition">
+                            <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handlePosterUpload(e.target.files[0])} disabled={uploadingPoster} />
+                            <span className="text-white text-xs font-medium flex items-center gap-2">
+                                {uploadingPoster ? <RefreshCw className="animate-spin" size={16} /> : <ImageIcon size={16} />}
+                                Change Poster
+                            </span>
+                        </label>
                     )}
                 </div>
 
@@ -402,6 +504,21 @@ function DetailsSidebar({ item, type, onClose, onUpdate }: any) {
                         </div>
                         <p className="text-xs text-zinc-400 mt-1">Press Enter to add tag</p>
                     </div>
+
+                    {type === 'video' && (
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-700 mb-1">Access Level</label>
+                            <select
+                                value={accessLevel}
+                                onChange={(e) => setAccessLevel(e.target.value)}
+                                className="w-full px-2 py-2 border border-zinc-200 rounded-lg text-sm outline-none"
+                            >
+                                <option value="public">Public (Everyone)</option>
+                                <option value="members">Members Only (Logged In)</option>
+                                <option value="private">Private (Admin Only)</option>
+                            </select>
+                        </div>
+                    )}
                 </div>
 
             </div>

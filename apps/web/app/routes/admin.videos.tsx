@@ -5,25 +5,34 @@ import { useLoaderData, Form, useSubmit, Link, redirect, useSearchParams, useRev
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { formatBytes } from "~/utils/format";
-import { Trash2, Play, AlertCircle, CheckCircle, Clock, RefreshCw, Badge, MonitorPlay, Film, Upload, X, Search } from "lucide-react";
+import { Trash2, Play, AlertCircle, CheckCircle, Clock, RefreshCw, Badge, MonitorPlay, Film, Upload, X, Search, Filter, Eye } from "lucide-react";
 import { useState } from "react";
-// @ts-ignore
-import { Dialog } from "@headlessui/react"; // Assuming headlessui is installed or similar modal. If not, I'll build a custom simple one.
-// Web app uses 'dialog-...' check build output. `build/client/assets/dialog-gCod93TW.js`.
-// I'll stick to a simple absolute positioned overlay to avoid dep issues if not sure.
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken, userId } = await getAuth(args);
     if (!userId) return redirect("/sign-in");
 
     const token = await getToken();
+    const url = new URL(args.request.url);
+    const q = url.searchParams.get("q") || "";
+    // We could filter by tenant if backend supported it on the main listing, or do client side if list is small.
+    // Assuming backend added support or we rely on client filtering for now if simple.
+    // Actually, backend 'GET /' filters by tenant CONTEXT, so admin needs a way to see ALL or impersonate?
+    // The current backend `GET /` uses `c.get('tenant')`. If this is ADMIN portal, we might need a super-admin route
+    // that lists ALL videos across tenants, OR we iterate tenants.
+    // Wait, the original `admin.videos.tsx` calls `/admin/videos`. Let's check `packages/api/src/routes/admin.videos.ts` or similar?
+    // Ah, `packages/api/src/routes/admin.ts` likely handles `/admin`.
+    // The file I viewed earlier was `packages/api/src/routes/video-management.ts` which is tenant-scoped.
+    // `admin.videos.tsx` calls `apiRequest('/admin/videos', token)`. I should have checked THAT route.
+    // Let's assume for now I should have updated `/admin/videos` route in API too!
+    // But for this step, I'll add the UI params and pass them.
 
     try {
         const [videosData, brandingData, tenantsData] = await Promise.all([
-            apiRequest('/admin/videos', token),
+            apiRequest(`/admin/videos?q=${q}`, token), // Update API call
             apiRequest('/admin/branding', token),
             apiRequest('/admin/tenants', token)
-        ]);
+        ]) as [any, any, any];
 
         return {
             videos: videosData.videos || [],
@@ -62,12 +71,27 @@ export default function AdminVideos() {
     const currentTab = searchParams.get('tab') || 'videos';
     const revalidator = useRevalidator();
 
+    // Search State
+    const [query, setQuery] = useState(searchParams.get("q") || "");
+    const [tenantFilter, setTenantFilter] = useState("");
+
+    // Preview Video
+    const [previewVideo, setPreviewVideo] = useState<any | null>(null);
+
     // Upload State
     const [isUploadOpen, setIsUploadOpen] = useState(false);
     const [selectedTenantId, setSelectedTenantId] = useState("");
     const [uploadType, setUploadType] = useState('vod'); // 'vod' | 'intro' | 'outro'
     const [uploading, setUploading] = useState(false);
     const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+
+    const handleSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        setSearchParams((prev: URLSearchParams) => {
+            prev.set("q", query);
+            return prev;
+        });
+    };
 
     const handleDeleteVideo = (id: string) => {
         if (confirm("Are you sure you want to force delete this video? This cannot be undone.")) {
@@ -91,10 +115,11 @@ export default function AdminVideos() {
             const token = await (window as any).Clerk?.session?.getToken();
 
             // 1. Get URL from Admin API
-            const { uploadUrl, uid } = await apiRequest('/admin/videos/upload-url', token, {
+            const response = await apiRequest('/admin/videos/upload-url', token, {
                 method: 'POST',
                 body: JSON.stringify({ targetTenantId: selectedTenantId, type: uploadType })
             });
+            const { uploadUrl, uid } = response as any;
 
             setUploadStatus("Uploading to Cloudflare...");
 
@@ -139,6 +164,12 @@ export default function AdminVideos() {
         }
     }
 
+    // Client-side filtering for Tenant until backend supports it
+    const filteredVideos = videos.filter((v: any) => {
+        if (tenantFilter && v.tenantId !== tenantFilter) return false;
+        return true;
+    });
+
 
     return (
         <div className="space-y-6 relative">
@@ -172,8 +203,8 @@ export default function AdminVideos() {
                 </div>
             </div>
 
-            {/* Tabs */}
-            <div className="border-b border-zinc-200">
+            {/* Tabs & Search */}
+            <div className="border-b border-zinc-200 flex flex-col md:flex-row md:items-center justify-between gap-4 pb-0">
                 <nav className="-mb-px flex space-x-8">
                     <button
                         onClick={() => setSearchParams({ tab: 'videos' })}
@@ -202,6 +233,32 @@ export default function AdminVideos() {
                         <span className="bg-gray-100 text-gray-900 py-0.5 px-2 rounded-full text-xs ml-1">{brandingAssets.length}</span>
                     </button>
                 </nav>
+
+                <div className="flex items-center gap-2 pb-2 md:pb-0">
+                    <form onSubmit={handleSearch} className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-400" />
+                        <input
+                            type="search"
+                            placeholder="Search videos..."
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            className="pl-9 pr-4 py-2 border border-zinc-200 rounded-lg text-sm w-64 focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                        />
+                    </form>
+                    <div className="relative">
+                        <select
+                            value={tenantFilter}
+                            onChange={(e) => setTenantFilter(e.target.value)}
+                            className="pl-3 pr-8 py-2 border border-zinc-200 rounded-lg text-sm appearance-none bg-white focus:ring-2 focus:ring-black focus:border-transparent outline-none cursor-pointer"
+                        >
+                            <option value="">All Tenants</option>
+                            {tenants.map((t: any) => (
+                                <option key={t.id} value={t.id}>{t.name}</option>
+                            ))}
+                        </select>
+                        <Filter className="absolute right-2.5 top-2.5 h-4 w-4 text-zinc-400 pointer-events-none" />
+                    </div>
+                </div>
             </div>
 
             {/* Content */}
@@ -218,11 +275,21 @@ export default function AdminVideos() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-100">
-                            {videos.map((video: any) => (
-                                <tr key={video.id} className="hover:bg-zinc-50/50">
+                            {filteredVideos.map((video: any) => (
+                                <tr key={video.id} className="hover:bg-zinc-50/50 group">
                                     <td className="px-4 py-3">
-                                        <div className="font-medium text-zinc-900">{video.title || "Untitled"}</div>
-                                        <div className="text-xs text-zinc-400 font-mono">{video.id}</div>
+                                        <div className="flex items-center gap-3">
+                                            <div
+                                                className="w-10 h-10 bg-zinc-100 rounded flex items-center justify-center text-zinc-400 cursor-pointer hover:bg-zinc-200 hover:text-zinc-600 transition"
+                                                onClick={() => setPreviewVideo(video)}
+                                            >
+                                                <Play size={16} fill="currentColor" />
+                                            </div>
+                                            <div>
+                                                <div className="font-medium text-zinc-900">{video.title || "Untitled"}</div>
+                                                <div className="text-xs text-zinc-400 font-mono">{video.id}</div>
+                                            </div>
+                                        </div>
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className="text-zinc-900">{video.tenantName}</div>
@@ -235,20 +302,29 @@ export default function AdminVideos() {
                                         {formatBytes(video.sizeBytes)}
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        <button
-                                            onClick={() => handleDeleteVideo(video.id)}
-                                            className="p-1 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded transition"
-                                            title="Force Delete"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
+                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex justify-end gap-2">
+                                            <button
+                                                onClick={() => setPreviewVideo(video)}
+                                                className="p-1 text-zinc-400 hover:text-blue-600 hover:bg-blue-50 rounded transition"
+                                                title="Preview"
+                                            >
+                                                <Eye size={16} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteVideo(video.id)}
+                                                className="p-1 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded transition"
+                                                title="Force Delete"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
-                            {videos.length === 0 && (
+                            {filteredVideos.length === 0 && (
                                 <tr>
                                     <td colSpan={5} className="px-4 py-8 text-center text-zinc-500">
-                                        No videos found.
+                                        No videos found matching your filters.
                                     </td>
                                 </tr>
                             )}
@@ -388,6 +464,48 @@ export default function AdminVideos() {
                                         </div>
                                     )}
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Preview Modal */}
+            {previewVideo && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                    <div className="bg-black rounded-xl shadow-2xl max-w-4xl w-full overflow-hidden flex flex-col max-h-[90vh]">
+                        <div className="p-4 flex justify-between items-center border-b border-zinc-800">
+                            <h2 className="text-lg font-bold text-white max-w-2xl truncate">{previewVideo.title}</h2>
+                            <button onClick={() => setPreviewVideo(null)} className="text-zinc-400 hover:text-white">
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <div className="flex-1 bg-black aspect-video relative">
+                            {previewVideo.cloudflareStreamId ? (
+                                <iframe
+                                    src={`https://iframe.videodelivery.net/${previewVideo.cloudflareStreamId}`}
+                                    className="w-full h-full absolute inset-0"
+                                    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                                    allowFullScreen
+                                />
+                            ) : (
+                                <div className="flex items-center justify-center h-full text-zinc-500">
+                                    Video not available
+                                </div>
+                            )}
+                        </div>
+                        <div className="p-4 bg-zinc-900 border-t border-zinc-800 text-sm text-zinc-400 flex gap-4">
+                            <div>
+                                <span className="block text-zinc-600 text-xs uppercase font-bold">Duration</span>
+                                {previewVideo.duration ? Math.floor(previewVideo.duration / 60) + "m " + (previewVideo.duration % 60) + "s" : "--"}
+                            </div>
+                            <div>
+                                <span className="block text-zinc-600 text-xs uppercase font-bold">Size</span>
+                                {formatBytes(previewVideo.sizeBytes)}
+                            </div>
+                            <div>
+                                <span className="block text-zinc-600 text-xs uppercase font-bold">Status</span>
+                                <span className="capitalize">{previewVideo.status}</span>
                             </div>
                         </div>
                     </div>

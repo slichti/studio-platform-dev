@@ -176,6 +176,13 @@
       "when": 1767792219942,
       "tag": "0024_free_satana",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1767795894744,
+      "tag": "0025_right_expediter",
+      "breakpoints": true
     }
   ]
 }
