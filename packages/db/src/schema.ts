@@ -61,6 +61,9 @@ export const uploads = sqliteTable('uploads', {
     mimeType: text('mime_type').notNull(),
     originalName: text('original_name'),
     uploadedBy: text('uploaded_by'), // User ID
+    title: text('title'), // User-friendly title
+    description: text('description'), // Description
+    tags: text('tags', { mode: 'json' }), // Tags
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     tenantIdx: index('upload_tenant_idx').on(table.tenantId),
@@ -752,6 +755,7 @@ export const videos = sqliteTable('videos', {
 
     // Linking
     classId: text('class_id').references(() => classes.id), // Optional link to source class
+    tags: text('tags', { mode: 'json' }), // Added tags
 
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
@@ -763,9 +767,11 @@ export const brandingAssets = sqliteTable('branding_assets', {
     tenantId: text('tenant_id').notNull().references(() => tenants.id),
     type: text('type', { enum: ['intro', 'outro'] }).notNull(),
     title: text('title').notNull(),
+    description: text('description'), // Added description
 
     cloudflareStreamId: text('cloudflare_stream_id').notNull(),
     active: integer('active', { mode: 'boolean' }).default(false),
+    tags: text('tags', { mode: 'json' }), // Added tags
 
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({

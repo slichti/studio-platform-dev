@@ -30,7 +30,9 @@ import {
     Search,
     Award,
     Code,
-    Terminal
+    Terminal,
+    Film,
+    Image as ImageIcon
 } from "lucide-react";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { CommandBar } from "../components/CommandBar";
@@ -130,6 +132,7 @@ export default function StudioLayout() {
                         <NavItem to="checkin" icon={<CheckCircle2 size={18} />}>Check-in</NavItem>
                         <NavItem to="substitutions" icon={<RefreshCw size={18} />}>Substitutions</NavItem>
                         <NavItem to="waivers" icon={<FileSignature size={18} />}>Waivers</NavItem>
+                        <NavItem to="videos" icon={<ImageIcon size={18} />}>Media Library</NavItem>
                     </SidebarGroup>
 
                     <SidebarGroup title="Commerce">

@@ -1,9 +1,8 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 
-import { tenants, tenantMembers } from 'db/src/schema'; // Assuming db package access
-// Actually better to use the types defined in index.ts or re-define locally if simpler
-// But we need the Types for c.get('tenant')
+import { tenants, tenantMembers, uploads } from 'db/src/schema';
+import { sql, eq, desc, like, and } from 'drizzle-orm';
 
 type Bindings = {
     CLOUDFLARE_ACCOUNT_ID: string;
@@ -26,38 +25,35 @@ const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 
 // Cloudflare Images
 app.post('/image', async (c) => {
-    // ... existing ... (lines 10-40)
-    // Note: I will keep existing logic but just add new route below it. 
-    // Wait, the replacement chunk replaces the whole block.
-    // I need to be careful not to delete existing code if I use replace_file_content on a block.
-    // The previous tool usage `view_file` showed lines 10-40 contain the `/image` handler.
-    // I will append `/file` handler after it.
-    // RE-READING: I should just add the new handler.
-    const accountId = c.env.CLOUDFLARE_ACCOUNT_ID;
-    const token = c.env.CLOUDFLARE_API_TOKEN;
+    try {
+        const accountId = c.env.CLOUDFLARE_ACCOUNT_ID;
+        const token = c.env.CLOUDFLARE_API_TOKEN;
 
-    if (!accountId || !token) {
-        return c.json({ error: 'Missing Cloudflare credentials' }, 500);
+        if (!accountId || !token) {
+            return c.json({ error: 'Missing Cloudflare credentials' }, 500);
+        }
+
+        const formData = new FormData();
+        formData.append('requireSignedURLs', 'false');
+
+        const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/images/v2/direct_upload`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.text();
+            return c.json({ error: `Failed to get upload URL: ${error}` }, 500);
+        }
+
+        const data = await response.json() as any;
+        return c.json(data.result);
+    } catch (e: any) {
+        return c.json({ error: e.message, stack: e.stack }, 500);
     }
-
-    const formData = new FormData();
-    formData.append('requireSignedURLs', 'false');
-
-    const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/images/v2/direct_upload`, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${token}`
-        },
-        body: formData
-    });
-
-    if (!response.ok) {
-        const error = await response.text();
-        return c.json({ error: `Failed to get upload URL: ${error}` }, 500);
-    }
-
-    const data = await response.json() as any;
-    return c.json(data.result);
 });
 
 // R2 File Upload (Presigned URL)
@@ -69,27 +65,6 @@ app.post('/file', async (c) => {
     const { filename, contentType } = await c.req.json();
     if (!filename || !contentType) return c.json({ error: 'Filename and content type required' }, 400);
 
-    // Key Strategy: tenants/<slug>/<uuid>-<filename>
-    const objectKey = `tenants/${tenant.slug}/waivers/${crypto.randomUUID()}-${filename}`;
-
-    // R2 Presigned URL
-    // Hono doesn't have R2 presign built-in for the binding directly (it's standard S3 compatible usually, but Workers R2 binding has specific API).
-    // WORKERS R2 BINDING does NOT support presigning directly easily without `aws-sdk`.
-    // BUT we can use `put` directly if we proxy? No, we want direct upload.
-    // Actually, Workers R2 Binding `put` method is for backend upload.
-    // To upload from Client, we need S3 compatibility + presigned URL.
-    // OR we use a worker endpoint to proxy the upload. "Proxying" is easier with binding.
-    // "Presigned" required AWS SDK V3 R2.
-    // Given I don't want to install new packages if possible...
-    // Let's implement a PROXY endpoint: PUT /uploads/file/:key
-    // Client POSTs file to API, API puts to R2.
-    // LIMIT: Workers size limit (100MB). PDFs are usually small.
-    // Let's stick to Proxy for simplicity unless `aws-sdk` is present.
-    // I don't see `aws-sdk` in package.json (I haven't checked).
-    // I will use PROXY upload for now.
-
-    // WAIT. If I use proxy, I don't need `POST /file` to get a URL.
-    // I just need `POST /uploads/file` with FormData.
     return c.json({ error: "Use POST /uploads/pdf with FormData" }, 400);
 });
 
@@ -117,8 +92,6 @@ app.post('/pdf', async (c) => {
 
     // DB Tracking
     const db = createDb(c.env.DB);
-    const { uploads } = await import('db/src/schema');
-    const { sql, eq } = await import('drizzle-orm');
 
     // 1. Record Upload
     await db.insert(uploads).values({
@@ -139,14 +112,6 @@ app.post('/pdf', async (c) => {
         .where(eq(tenants.id, tenant.id))
         .run();
 
-    // We can assume a public domain or just return the key.
-    // If bucket is public, we can construct URL.
-    // If not, we need a "GET /file/:key" proxy.
-    // Let's assume we want to serve it publicly.
-    // I don't know the R2 public domain.
-    // I will return the KEY and a helper URL construction?
-    // Let's just return the key and assume we serve it via a GET endpoint.
-
     return c.json({ key: objectKey, url: `/uploads/${objectKey}` });
 });
 
@@ -158,15 +123,10 @@ app.get('/:key{.+}', async (c) => {
         return c.json({ error: 'File not found' }, 404);
     }
 
-    // Security Check: Ensure tenant isolation for files in tenant-specific paths
     const tenant = c.get('tenant');
-    const isSystemAdmin = c.get('roles')?.includes('owner'); // Placeholder for system admin check if available via roles
+    // const isSystemAdmin = c.get('roles')?.includes('owner'); 
 
-    // Better: We should check if the user is a system admin via isSystemAdmin flag in context if we set it in auth.
-    // For now, let's at least enforce that if it starts with 'tenants/', it must match current tenant.
     if (key.startsWith('tenants/') && !key.startsWith(`tenants/${tenant.slug}/`)) {
-        // Allow if user is a system admin (we can check c.get('auth').claims.isSystemAdmin or similar)
-        // Since we don't have a clean 'isSystemAdmin' variable here yet, let's be strict.
         return c.json({ error: 'Access Denied: Tenant Isolation Violation' }, 403);
     }
 
@@ -181,28 +141,105 @@ app.get('/:key{.+}', async (c) => {
 
 // Generic Image Upload to R2 (e.g. for membership cards)
 app.post('/r2-image', async (c) => {
-    const tenant = c.get('tenant');
-    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+    try {
+        const tenant = c.get('tenant');
+        if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
-    const body = await c.req.parseBody();
-    const file = body['file'] as File;
+        const body = await c.req.parseBody();
+        const file = body['file'] as File;
 
-    if (!file) return c.json({ error: 'File required' }, 400);
+        if (!file) return c.json({ error: 'File required' }, 400);
 
-    if (!file.type.startsWith('image/')) {
-        return c.json({ error: 'Only images allowed' }, 400);
-    }
-
-    const extension = file.type.split('/')[1];
-    const objectKey = `tenants/${tenant.slug}/images/${crypto.randomUUID()}.${extension}`;
-
-    await c.env.R2.put(objectKey, await file.arrayBuffer(), {
-        httpMetadata: {
-            contentType: file.type,
+        if (!file.type.startsWith('image/')) {
+            return c.json({ error: 'Only images allowed' }, 400);
         }
-    });
 
-    return c.json({ key: objectKey, url: `/uploads/${objectKey}` });
+        const extension = file.type.split('/')[1];
+        const objectKey = `tenants/${tenant.slug}/images/${crypto.randomUUID()}.${extension}`;
+
+        await c.env.R2.put(objectKey, await file.arrayBuffer(), {
+            httpMetadata: {
+                contentType: file.type,
+            }
+        });
+
+        // DB Insert
+        const db = createDb(c.env.DB);
+
+        // Typecast body value to string safely or default to filename
+        const titleVal = body['title'];
+        const title = typeof titleVal === 'string' ? titleVal : file.name;
+
+        await db.insert(uploads).values({
+            id: crypto.randomUUID(),
+            tenantId: tenant.id,
+            fileKey: objectKey,
+            fileUrl: `/uploads/${objectKey}`,
+            sizeBytes: file.size,
+            mimeType: file.type,
+            originalName: file.name,
+            uploadedBy: c.get('auth')?.userId,
+            title: title,
+            createdAt: new Date()
+        }).run();
+
+        // Update storage usage
+        await db.update(tenants)
+            .set({ storageUsage: sql`${tenants.storageUsage} + ${file.size}` })
+            .where(eq(tenants.id, tenant.id))
+            .run();
+
+        return c.json({ key: objectKey, url: `/uploads/${objectKey}` });
+    } catch (e: any) {
+        return c.json({ error: e.message, stack: e.stack }, 500);
+    }
+});
+
+// List Images
+app.get('/images', async (c) => {
+    try {
+        const db = createDb(c.env.DB);
+        const tenant = c.get('tenant');
+
+        const results = await db.select()
+            .from(uploads)
+            .where(and(
+                eq(uploads.tenantId, tenant.id),
+                like(uploads.mimeType, 'image/%')
+            ))
+            .orderBy(desc(uploads.createdAt))
+            .all();
+
+        return c.json(results);
+    } catch (e: any) {
+        console.error("GET /uploads/images error", e);
+        // SAFETY: Return empty list on crash
+        return c.json([]);
+    }
+});
+
+// Update Image Metadata
+app.patch('/images/:id', async (c) => {
+    try {
+        const db = createDb(c.env.DB);
+        const tenant = c.get('tenant');
+        const id = c.req.param('id');
+        const { title, description, tags } = await c.req.json();
+
+        const updateData: any = {};
+        if (title !== undefined) updateData.title = title;
+        if (description !== undefined) updateData.description = description;
+        if (tags !== undefined) updateData.tags = tags;
+
+        await db.update(uploads)
+            .set(updateData)
+            .where(and(eq(uploads.id, id), eq(uploads.tenantId, tenant.id)))
+            .run();
+
+        return c.json({ success: true });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
 });
 
 export default app;

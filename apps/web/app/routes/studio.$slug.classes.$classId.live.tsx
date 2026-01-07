@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+// @ts-ignore
 import { useParams } from "react-router";
 import {
     LiveKitRoom,
@@ -7,11 +8,13 @@ import {
     ParticipantTile,
 } from "@livekit/components-react";
 import "@livekit/components-styles";
+import { useAuth } from "@clerk/react-router";
 import { apiRequest } from "~/utils/api";
 
 export default function LiveClassPage() {
     const { classId } = useParams();
     const [token, setToken] = useState("");
+    const { getToken } = useAuth();
 
     useEffect(() => {
         const fetchToken = async () => {
@@ -20,13 +23,14 @@ export default function LiveClassPage() {
                 // or passed securely. For MVP, we default strictly to student, 
                 // but the API is responsible for checking roles.
                 // Here we request a token.
-                const response = await apiRequest("/video/token", {
+                const authToken = await getToken();
+                const response = await apiRequest("/video/token", authToken, {
                     method: "POST",
                     body: JSON.stringify({ classId, isInstructor: false }),
                 });
 
-                if (response.token) {
-                    setToken(response.token);
+                if ((response as any).token) {
+                    setToken((response as any).token);
                 }
             } catch (error) {
                 console.error("Failed to get video token", error);

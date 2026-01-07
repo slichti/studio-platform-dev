@@ -150,9 +150,9 @@ const studioPaths = [
   '/commerce', '/commerce/*',
   '/gift-cards', '/gift-cards/*',
   '/refunds', '/refunds/*',
-  '/refunds', '/refunds/*',
   '/platform', '/platform/*',
-  '/integrations', '/integrations/*'
+  '/integrations', '/integrations/*',
+  '/video-management', '/video-management/*'
 ];
 
 const authenticatedPaths = [
@@ -170,7 +170,8 @@ const authenticatedPaths = [
   '/refunds', '/refunds/*',
   '/platform', '/platform/*',
   '/tenant', '/tenant/*',
-  '/integrations', '/integrations/*'
+  '/integrations', '/integrations/*',
+  '/video-management', '/video-management/*'
 ];
 
 const publicStudioPaths = [

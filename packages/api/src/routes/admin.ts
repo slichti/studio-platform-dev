@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { emailLogs, marketingCampaigns, tenants, tenantFeatures, users, tenantMembers, tenantRoles, subscriptions, auditLogs, smsLogs } from 'db/src/schema'; // Added smsLogs
+import { emailLogs, marketingCampaigns, tenants, tenantFeatures, users, tenantMembers, tenantRoles, subscriptions, auditLogs, smsLogs, videos, brandingAssets } from 'db/src/schema'; // Added smsLogs and videos and brandingAssets
 import { eq, sql, desc, count, or, like, asc, and, inArray } from 'drizzle-orm';
 import { UsageService } from '../services/pricing';
 
@@ -9,6 +9,8 @@ type Bindings = {
     CLERK_SECRET_KEY?: string; // Optional
     RESEND_API_KEY?: string;
     TWILIO_ACCOUNT_SID?: string;
+    CLOUDFLARE_ACCOUNT_ID: string;
+    CLOUDFLARE_API_TOKEN: string;
 };
 
 
@@ -849,6 +851,189 @@ app.post('/projections', async (c) => {
         projectedMonthlyRevenue: totalRevenue,
         avgRevenuePerTenant: totalTenants > 0 ? (totalRevenue / totalTenants) : 0
     });
+});
+
+// GET /videos - Platform Video Dashboard
+app.get('/videos', async (c) => {
+    const db = createDb(c.env.DB);
+    const limit = 100;
+
+    const results = await db.select({
+        id: videos.id,
+        title: videos.title,
+        status: videos.status,
+        sizeBytes: videos.sizeBytes,
+        duration: videos.duration,
+        createdAt: videos.createdAt,
+        tenantName: tenants.name,
+        tenantSlug: tenants.slug,
+        r2Key: videos.r2Key,
+        cloudflareStreamId: videos.cloudflareStreamId,
+        source: videos.source
+    })
+        .from(videos)
+        .leftJoin(tenants, eq(videos.tenantId, tenants.id))
+        .orderBy(desc(videos.createdAt))
+        .limit(limit)
+        .all();
+
+    // Calculate total storage usage
+    const totalUsage = await db.select({ total: sql<number>`sum(${videos.sizeBytes})` }).from(videos).get();
+
+    return c.json({
+        videos: results,
+        stats: {
+            totalVideos: results.length, // approximation of limit or total
+            totalStorageBytes: totalUsage?.total || 0,
+            processingCount: 0 // Mock for now, or count by status 'processing'
+        }
+    });
+});
+
+// DELETE /videos/:id - Admin Force Delete
+app.delete('/videos/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const videoId = c.req.param('id');
+    const auth = c.get('auth');
+
+    // TODO: Verify R2 deletion logic (usually handled by R2 bucket lifecycle or explicit delete from backend)
+    // For now, we delete the metadata.
+
+    await db.delete(videos).where(eq(videos.id, videoId)).run();
+
+    // Audit Log
+    await db.insert(auditLogs).values({
+        id: crypto.randomUUID(),
+        action: 'admin_delete_video',
+        actorId: auth.userId,
+        targetId: videoId,
+        details: {},
+        ipAddress: c.req.header('CF-Connecting-IP')
+    });
+
+    return c.json({ success: true });
+});
+
+// GET /branding - Platform Branding Assets
+app.get('/branding', async (c) => {
+    const db = createDb(c.env.DB);
+    const limit = 100;
+
+    const results = await db.select({
+        id: brandingAssets.id,
+        title: brandingAssets.title,
+        type: brandingAssets.type,
+        cloudflareStreamId: brandingAssets.cloudflareStreamId,
+        active: brandingAssets.active,
+        createdAt: brandingAssets.createdAt,
+        tenantName: tenants.name,
+        tenantSlug: tenants.slug
+    })
+        .from(brandingAssets)
+        .leftJoin(tenants, eq(brandingAssets.tenantId, tenants.id))
+        .orderBy(desc(brandingAssets.createdAt))
+        .limit(limit)
+        .all();
+
+    return c.json({ assets: results });
+});
+
+// DELETE /branding/:id - Admin Force Delete Branding
+app.delete('/branding/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const assetId = c.req.param('id');
+    const auth = c.get('auth');
+
+    await db.delete(brandingAssets).where(eq(brandingAssets.id, assetId)).run();
+
+    // Audit Log
+    await db.insert(auditLogs).values({
+        id: crypto.randomUUID(),
+        action: 'admin_delete_branding',
+        actorId: auth.userId,
+        targetId: assetId,
+        details: {},
+        ipAddress: c.req.header('CF-Connecting-IP')
+    });
+
+    return c.json({ success: true });
+});
+
+// POST /videos/upload-url - Admin Video Upload (Proxy for Tenant)
+app.post('/videos/upload-url', async (c) => {
+    const { targetTenantId, type } = await c.req.json();
+
+    if (!targetTenantId) {
+        return c.json({ error: "Target Tenant ID required" }, 400);
+    }
+
+    const accountId = c.env.CLOUDFLARE_ACCOUNT_ID;
+    const apiToken = c.env.CLOUDFLARE_API_TOKEN;
+
+    const meta = {
+        tenantId: targetTenantId,
+        type: type || 'vod'
+    };
+
+    const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/direct_upload`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiToken}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            creator: `tenant:${targetTenantId}`,
+            meta
+        })
+    });
+
+    const data: any = await response.json();
+
+    if (!data.success) {
+        return c.json({ error: "Failed to generate upload URL", details: data.errors }, 500);
+    }
+
+    return c.json({
+        uploadUrl: data.result.uploadURL,
+        uid: data.result.uid
+    });
+});
+
+// POST /videos - Admin Register Video
+app.post('/videos', async (c) => {
+    const db = createDb(c.env.DB);
+    const { targetTenantId, cloudflareStreamId, title, description, type } = await c.req.json();
+
+    if (!targetTenantId || !cloudflareStreamId || !title) {
+        return c.json({ error: "Missing required fields" }, 400);
+    }
+
+    if (type === 'intro' || type === 'outro') {
+        // Register as Branding Asset
+        await db.insert(brandingAssets).values({
+            id: crypto.randomUUID(),
+            tenantId: targetTenantId,
+            type: type,
+            title,
+            cloudflareStreamId,
+            active: false
+        }).run();
+    } else {
+        // Register as VOD
+        await db.insert(videos).values({
+            id: crypto.randomUUID(),
+            tenantId: targetTenantId,
+            title,
+            description,
+            cloudflareStreamId,
+            r2Key: 'stream-direct-upload',
+            source: 'upload',
+            status: 'processing',
+            sizeBytes: 0,
+        }).run();
+    }
+
+    return c.json({ success: true });
 });
 
 export default app;

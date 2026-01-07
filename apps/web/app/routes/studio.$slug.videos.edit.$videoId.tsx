@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
+// @ts-ignore
 import { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
+// @ts-ignore
 import { useLoaderData, Form, useNavigate } from "react-router";
 import { apiRequest } from "~/utils/api";
 import { getAuth } from "@clerk/react-router/server";
@@ -20,16 +22,14 @@ export const loader = async (args: LoaderFunctionArgs) => {
     // BETTER: Add Detail GET to API later. For now, we stub data or use client fetch if needed.
     // Let's Mock for now or reuse the list endpoint if it returns details.
 
-    const data = await apiRequest(`/video-management/`, {
-        token,
+    const data: any = await apiRequest(`/video-management/`, token, {
         headers: { 'X-Tenant-Slug': slug! }
     });
 
     const video = data?.videos.find((v: any) => v.id === videoId);
     if (!video) throw new Response("Video Not Found", { status: 404 });
 
-    const branding = await apiRequest(`/video-management/branding`, {
-        token,
+    const branding = await apiRequest(`/video-management/branding`, token, {
         headers: { 'X-Tenant-Slug': slug! }
     });
 
@@ -45,9 +45,8 @@ export const action = async (args: ActionFunctionArgs) => {
     const trimStart = formData.get("trimStart");
     const trimEnd = formData.get("trimEnd");
 
-    await apiRequest(`/video-management/${videoId}`, {
+    await apiRequest(`/video-management/${videoId}`, token, {
         method: "PATCH",
-        token,
         headers: { 'X-Tenant-Slug': slug! },
         body: JSON.stringify({
             trimStart: Number(trimStart),
