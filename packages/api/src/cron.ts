@@ -1,5 +1,5 @@
 import { createDb } from './db';
-import { tenants, classes, bookings, tenantMembers, marketingAutomations, users, emailLogs, purchasedPacks } from 'db/src/schema'; // Ensure imports
+import { tenants, classes, bookings, tenantMembers, marketingAutomations, users, emailLogs, purchasedPacks, tenantRoles } from 'db/src/schema'; // Ensure imports
 import { and, eq, lte, gt, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 import { BookingService } from './services/bookings';
 
@@ -184,6 +184,32 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
                         `<p>Hi ${profile.firstName || 'Instructor'}, your class <strong>${cls.title}</strong> on ${cls.startTime.toLocaleString()} has been automatically cancelled as it did not reach the minimum of ${minEnrollment} students by the cutoff time.</p>`
                     );
                 }
+
+                // 4. Notify Owner(s)
+                // Find owners for this tenant
+                const owners = await db.select()
+                    .from(tenantMembers)
+                    .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
+                    .innerJoin(users, eq(tenantMembers.userId, users.id))
+                    .where(and(
+                        eq(tenantMembers.tenantId, cls.tenantId),
+                        eq(tenantRoles.role, 'owner')
+                    )).all();
+
+                for (const owner of owners) {
+                    if (owner.users.email) {
+                        await notifService.sendEmail(
+                            owner.users.email,
+                            `ALERT: Class Auto-Cancelled - ${cls.title}`,
+                            `<p>The class <strong>${cls.title}</strong> scheduled for ${cls.startTime.toLocaleString()} was automatically cancelled due to low enrollment.</p>
+                             <ul>
+                                <li>Current Signups: ${currentEnrollment}</li>
+                                <li>Min Required: ${minEnrollment}</li>
+                             </ul>
+                             <p>Students and the Instructor have been notified.</p>`
+                        );
+                    }
+                }
             }
         }
     }
@@ -193,7 +219,7 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
     // Find all enabled birthday automations
     const birthdayAutos = await db.select().from(marketingAutomations)
         .where(and(
-            eq(marketingAutomations.triggerType, 'birthday'),
+            eq(marketingAutomations.triggerEvent, 'birthday'),
             eq(marketingAutomations.isEnabled, true)
         ));
 
@@ -319,7 +345,7 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
             const autoService = new AutomationsService(db, tenant.id, emailService);
 
             try {
-                await autoService.processTrialAutomations();
+                await autoService.processTimeBasedAutomations();
             } catch (e) {
                 console.error(`Failed to process automations for tenant ${tenant.id}`, e);
             }
