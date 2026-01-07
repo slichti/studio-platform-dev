@@ -1,0 +1,104 @@
+
+> typecheck
+> tsc
+
+app/components/FamilyManager.tsx(26,21): error TS18046: 'data' is of type 'unknown'.
+app/components/FamilyManager.tsx(26,44): error TS18046: 'data' is of type 'unknown'.
+app/components/RichTextEditor.tsx(2,42): error TS2307: Cannot find module '@tiptap/react' or its corresponding type declarations.
+app/components/RichTextEditor.tsx(3,24): error TS2307: Cannot find module '@tiptap/starter-kit' or its corresponding type declarations.
+app/components/RichTextEditor.tsx(4,18): error TS2307: Cannot find module '@tiptap/extension-link' or its corresponding type declarations.
+app/components/RichTextEditor.tsx(5,19): error TS2307: Cannot find module '@tiptap/extension-image' or its corresponding type declarations.
+app/components/RichTextEditor.tsx(6,25): error TS2307: Cannot find module '@tiptap/extension-placeholder' or its corresponding type declarations.
+app/components/RichTextEditor.tsx(149,22): error TS7031: Binding element 'editor' implicitly has an 'any' type.
+app/components/SidebarGroup.tsx(3,10): error TS2305: Module '"react-router"' has no exported member 'NavLink'.
+app/entry.server.tsx(51,70): error TS2339: Property 'context' does not exist on type 'AppLoadContext'.
+app/root.tsx(3,5): error TS2305: Module '"react-router"' has no exported member 'Links'.
+app/root.tsx(4,5): error TS2305: Module '"react-router"' has no exported member 'Meta'.
+app/root.tsx(5,5): error TS2305: Module '"react-router"' has no exported member 'Outlet'.
+app/root.tsx(6,5): error TS2305: Module '"react-router"' has no exported member 'Scripts'.
+app/root.tsx(7,5): error TS2305: Module '"react-router"' has no exported member 'ScrollRestoration'.
+app/root.tsx(8,5): error TS2305: Module '"react-router"' has no exported member 'useLoaderData'.
+app/root.tsx(9,5): error TS2305: Module '"react-router"' has no exported member 'useRouteError'.
+app/root.tsx(10,10): error TS2305: Module '"react-router"' has no exported member 'LinksFunction'.
+app/root.tsx(11,10): error TS2305: Module '"react-router"' has no exported member 'LoaderFunctionArgs'.
+app/root.tsx(12,10): error TS2305: Module '"react-router"' has no exported member 'MetaFunction'.
+app/routes/admin.emails.tsx(17,14): error TS18046: 'res' is of type 'unknown'.
+app/routes/admin.emails.tsx(17,25): error TS2322: Type 'unknown' is not assignable to type '{ totalSent: number; byTenant: never[]; recentLogs: never[]; }'.
+app/routes/admin.users.$userId.tsx(104,17): error TS18046: 'res' is of type 'unknown'.
+app/routes/admin.users.$userId.tsx(116,61): error TS18046: 'res' is of type 'unknown'.
+app/routes/admin.users.$userId.tsx(118,58): error TS18046: 'res' is of type 'unknown'.
+app/routes/dashboard.classes.$id.roster.tsx(19,46): error TS7006: Parameter 'args' implicitly has an 'any' type.
+app/routes/dashboard.classes.$id.roster.tsx(47,40): error TS7006: Parameter 'booking' implicitly has an 'any' type.
+app/routes/dashboard.classes.$id.watch.tsx(9,46): error TS7006: Parameter 'args' implicitly has an 'any' type.
+app/routes/dashboard.classes._index.tsx(17,46): error TS7006: Parameter 'args' implicitly has an 'any' type.
+app/routes/dashboard.classes._index.tsx(24,46): error TS7006: Parameter 'args' implicitly has an 'any' type.
+app/routes/dashboard.classes._index.tsx(107,31): error TS7006: Parameter 'cls' implicitly has an 'any' type.
+app/routes/dashboard.classes.tsx(1,10): error TS2305: Module '"react-router"' has no exported member 'Outlet'.
+app/routes/dashboard.classes.tsx(1,18): error TS2305: Module '"react-router"' has no exported member 'useOutletContext'.
+app/routes/dashboard.profile.tsx(23,46): error TS7006: Parameter 'args' implicitly has an 'any' type.
+app/routes/dashboard.profile.tsx(35,46): error TS7006: Parameter 'args' implicitly has an 'any' type.
+app/routes/dashboard.tsx(10,46): error TS7006: Parameter 'args' implicitly has an 'any' type.
+app/routes/dashboard.tsx(26,22): error TS2339: Property 'isSystemAdmin' does not exist on type '{}'.
+app/routes/dashboard.tsx(29,28): error TS2339: Property 'tenants' does not exist on type '{}'.
+app/routes/dashboard.tsx(53,27): error TS7031: Binding element 'isActive' implicitly has an 'any' type.
+app/routes/debug-ssr.tsx(2,15): error TS2305: Module '"react-router"' has no exported member 'LoaderFunctionArgs'.
+app/routes/embed.$slug.pricing.tsx(22,20): error TS18046: 'packsData' is of type 'unknown'.
+app/routes/embed.$slug.pricing.tsx(23,26): error TS18046: 'membershipsData' is of type 'unknown'.
+app/routes/studio.$slug.classes.$classId.live.tsx(9,8): error TS2307: Cannot find module '@livekit/components-react' or its corresponding type declarations.
+app/routes/studio.$slug.classes.tsx(1,10): error TS2305: Module '"react-router"' has no exported member 'Outlet'.
+app/routes/studio.$slug.classes.tsx(1,18): error TS2305: Module '"react-router"' has no exported member 'useOutletContext'.
+app/routes/studio.$slug.dashboard.tsx(2,15): error TS2305: Module '"react-router"' has no exported member 'LoaderFunctionArgs'.
+app/routes/studio.$slug.dashboard.tsx(2,35): error TS2305: Module '"react-router"' has no exported member 'redirect'.
+app/routes/studio.$slug.discounts.tsx(18,19): error TS18046: 'res' is of type 'unknown'.
+app/routes/studio.$slug.discounts.tsx(50,17): error TS18046: 'res' is of type 'unknown'.
+app/routes/studio.$slug.discounts.tsx(51,23): error TS18046: 'res' is of type 'unknown'.
+app/routes/studio.$slug.discounts.tsx(55,28): error TS18046: 'refreshed' is of type 'unknown'.
+app/routes/studio.$slug.finances.tsx(99,25): error TS2339: Property 'error' does not exist on type '{}'.
+app/routes/studio.$slug.finances.tsx(104,24): error TS2339: Property 'error' does not exist on type '{}'.
+app/routes/studio.$slug.financials._index.tsx(1,10): error TS2305: Module '"react-router"' has no exported member 'redirect'.
+app/routes/studio.$slug.financials._index.tsx(2,15): error TS2305: Module '"react-router"' has no exported member 'LoaderFunctionArgs'.
+app/routes/studio.$slug.financials.my-payouts.tsx(1,10): error TS2305: Module '"react-router"' has no exported member 'useOutletContext'.
+app/routes/studio.$slug.financials.payroll.tsx(1,10): error TS2305: Module '"react-router"' has no exported member 'useOutletContext'.
+app/routes/studio.$slug.pos.tsx(90,17): error TS18046: 'res' is of type 'unknown'.
+app/routes/studio.$slug.pos.tsx(91,29): error TS18046: 'res' is of type 'unknown'.
+app/routes/studio.$slug.pos.tsx(112,25): error TS18046: 'res' is of type 'unknown'.
+app/routes/studio.$slug.pos.tsx(112,52): error TS18046: 'res' is of type 'unknown'.
+app/routes/studio.$slug.pos.tsx(113,28): error TS18046: 'res' is of type 'unknown'.
+app/routes/studio.$slug.pos.tsx(202,21): error TS18046: 'piRes' is of type 'unknown'.
+app/routes/studio.$slug.pos.tsx(202,50): error TS18046: 'piRes' is of type 'unknown'.
+app/routes/studio.$slug.pos.tsx(203,38): error TS18046: 'piRes' is of type 'unknown'.
+app/routes/studio.$slug.pos.tsx(258,36): error TS18046: 'res' is of type 'unknown'.
+app/routes/studio.$slug.pos.tsx(621,17): error TS18046: 'res' is of type 'unknown'.
+app/routes/studio.$slug.pos.tsx(621,41): error TS18046: 'res' is of type 'unknown'.
+app/routes/studio.$slug.profile.tsx(74,21): error TS18046: 'res' is of type 'unknown'.
+app/routes/studio.$slug.profile.tsx(75,33): error TS18046: 'res' is of type 'unknown'.
+app/routes/studio.$slug.profile.tsx(98,17): error TS18046: 'res' is of type 'unknown'.
+app/routes/studio.$slug.profile.tsx(99,29): error TS18046: 'res' is of type 'unknown'.
+app/routes/studio.$slug.settings._index.tsx(834,34): error TS2304: Cannot find name 'Code'.
+app/routes/studio.$slug.settings.addons.tsx(37,20): error TS18046: 'tenantRes' is of type 'unknown'.
+app/routes/studio.$slug.settings.addons.tsx(41,13): error TS2740: Type '{}' is missing the following properties from type 'any[]': length, pop, push, concat, and 29 more.
+app/routes/studio.$slug.settings.branding.tsx(125,24): error TS18046: 'data' is of type 'unknown'.
+app/routes/studio.$slug.settings.branding.tsx(143,21): error TS2339: Property 'uploadUrl' does not exist on type 'unknown'.
+app/routes/studio.$slug.settings.branding.tsx(143,32): error TS2339: Property 'uid' does not exist on type 'unknown'.
+app/routes/studio.$slug.settings.developers.tsx(3,10): error TS2305: Module '"react-router"' has no exported member 'useParams'.
+app/routes/studio.$slug.settings.developers.tsx(3,21): error TS2305: Module '"react-router"' has no exported member 'Link'.
+app/routes/studio.$slug.settings.developers.tsx(49,33): error TS18046: 'data' is of type 'unknown'.
+app/routes/studio.$slug.settings.developers.tsx(51,33): error TS18046: 'data' is of type 'unknown'.
+app/routes/studio.$slug.settings.developers.tsx(54,29): error TS18046: 'data' is of type 'unknown'.
+app/routes/studio.$slug.settings.hardware.tsx(76,25): error TS2339: Property 'error' does not exist on type '{}'.
+app/routes/studio.$slug.settings.hardware.tsx(80,41): error TS2339: Property 'error' does not exist on type '{}'.
+app/routes/studio.$slug.settings.tsx(1,10): error TS2305: Module '"react-router"' has no exported member 'Outlet'.
+app/routes/studio.$slug.settings.tsx(1,18): error TS2305: Module '"react-router"' has no exported member 'useOutletContext'.
+app/routes/studio.$slug.students.tsx(1,10): error TS2305: Module '"react-router"' has no exported member 'Outlet'.
+app/routes/studio.$slug.students.tsx(1,18): error TS2305: Module '"react-router"' has no exported member 'useOutletContext'.
+app/routes/studio.$slug.videos.collections.$id.tsx(9,10): error TS2305: Module '"~/utils/format"' has no exported member 'formatDuration'.
+app/routes/studio.$slug.waivers.new.tsx(136,66): error TS18046: 'data' is of type 'unknown'.
+app/routes/studio.$slug.waivers.tsx(1,10): error TS2305: Module '"react-router"' has no exported member 'Outlet'.
+app/routes/studio.$slug.waivers.tsx(1,18): error TS2305: Module '"react-router"' has no exported member 'useOutletContext'.
+npm error Lifecycle script `typecheck` failed with error:
+npm error code 2
+npm error path /Users/slichti/GitHub/studio-platform-dev/apps/web
+npm error workspace web
+npm error location /Users/slichti/GitHub/studio-platform-dev/apps/web
+npm error command failed
+npm error command sh -c tsc
