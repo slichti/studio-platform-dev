@@ -8,6 +8,7 @@ import { apiRequest } from "~/utils/api";
 import { useState } from "react";
 import { Send, Mail, CheckCircle, AlertTriangle, Sparkles, Pencil, X, Zap, Clock, Calendar, Plus, Trash2 } from "lucide-react"; // Added Plus, Trash2
 import { Modal } from "~/components/Modal";
+import { RichTextEditor } from "~/components/RichTextEditor";
 
 export const loader: LoaderFunction = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -314,16 +315,15 @@ export default function MarketingPage() {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-zinc-700 mb-1">Message Content</label>
-                                    <textarea
+                                    <RichTextEditor
                                         value={content}
-                                        onChange={e => setContent(e.target.value)}
-                                        className="w-full border border-zinc-300 rounded-lg px-3 py-2 h-48 focus:ring-2 focus:ring-blue-500 outline-none"
-                                        placeholder="Write your message..."
-                                        required
-                                    ></textarea>
-                                    <div className="flex justify-between items-center mt-1">
-                                        <p className="text-xs text-zinc-400">Plain text only for MVP.</p>
-                                        <div className="text-xs text-zinc-500">
+                                        onChange={setContent}
+                                        placeholder="Write your beautiful email content..."
+                                        className="min-h-[300px]"
+                                    />
+                                    <div className="flex justify-between items-start mt-1">
+                                        <p className="text-xs text-zinc-400">Rich text enabled. Use the toolbar to format.</p>
+                                        <div className="text-xs text-zinc-500 text-right">
                                             Variables: <span className="font-mono bg-zinc-100 px-1 rounded">{"{{firstName}}"}</span> <span className="font-mono bg-zinc-100 px-1 rounded">{"{{studioName}}"}</span>
                                         </div>
                                     </div>
@@ -743,11 +743,12 @@ export default function MarketingPage() {
                             </div>
                             <div>
                                 <label className="block text-xs font-medium text-zinc-500 mb-1">Content</label>
-                                <textarea
+                                <RichTextEditor
                                     value={editForm.content}
-                                    onChange={e => setEditForm({ ...editForm, content: e.target.value })}
-                                    className="w-full border border-zinc-300 rounded px-3 py-2 h-32 outline-none focus:ring-2 focus:ring-blue-500 font-mono text-xs"
-                                ></textarea>
+                                    onChange={(html) => setEditForm({ ...editForm, content: html })}
+                                    placeholder="Write your automation content..."
+                                    className="min-h-[200px]"
+                                />
                                 <div className="flex gap-2 mt-1 text-[10px] text-zinc-500 flex-wrap">
                                     <span>Variables:</span>
                                     <code className="bg-zinc-100 px-1 rounded">{"{{firstName}}"}</code>

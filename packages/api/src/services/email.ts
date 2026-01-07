@@ -82,6 +82,11 @@ export class EmailService {
     }
 
     private wrapHtml(content: string, title?: string): string {
+        // If already full HTML, don't wrap
+        if (content.trim().toLowerCase().startsWith('<!doctype') || content.trim().toLowerCase().startsWith('<html')) {
+            return content;
+        }
+
         const footerText = this.config?.branding?.emailFooterText;
         const footerHtml = footerText
             ? `<div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eaeaea; font-size: 12px; color: #666; white-space: pre-wrap;">${footerText}</div>`
@@ -91,11 +96,17 @@ export class EmailService {
             <!DOCTYPE html>
             <html>
             <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                 <style>
-                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; color: #333; }
+                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
                     .container { max-width: 600px; margin: 0 auto; padding: 20px; }
                     .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eaeaea; font-size: 12px; color: #666; }
                     .button { display: inline-block; padding: 10px 20px; background-color: #000; color: #fff; text-decoration: none; border-radius: 5px; margin-top: 15px; }
+                    img { max-width: 100%; height: auto; border-radius: 8px; margin: 10px 0; }
+                    a { color: #2563eb; text-decoration: underline; }
+                    h1, h2, h3 { color: #111; margin-top: 24px; margin-bottom: 16px; }
+                    p { margin-bottom: 16px; }
+                    blockquote { border-left: 4px solid #e5e7eb; padding-left: 16px; color: #4b5563; font-style: italic; }
                 </style>
             </head>
             <body>
