@@ -183,6 +183,13 @@
       "when": 1767795894744,
       "tag": "0025_right_expediter",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1767801053237,
+      "tag": "0026_amazing_santa_claus",
+      "breakpoints": true
     }
   ]
 }

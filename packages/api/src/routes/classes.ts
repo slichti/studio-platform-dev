@@ -978,11 +978,12 @@ app.post('/:id/bookings/:bookingId/promote', async (c) => {
         if (booking.status !== 'waitlisted') return c.json({ error: 'Booking is not waitlisted' }, 400);
 
         // Promote
-        // TODO: Handle Payment Capture here? For now assuming Drop-in/Pay Later
         await db.update(bookings)
             .set({
                 status: 'confirmed',
-                paymentMethod: 'drop_in' // Default to pay later/at door for promoted users if not charged
+                paymentMethod: 'drop_in',
+                waitlistPosition: null,
+                waitlistNotifiedAt: new Date()
             })
             .where(eq(bookings.id, bookingId))
             .run();
@@ -997,7 +998,6 @@ app.post('/:id/bookings/:bookingId/promote', async (c) => {
 
             if (user) {
                 const { EmailService } = await import('../services/email');
-                // Pass tenant config for branding
                 const emailService = new EmailService(c.env.RESEND_API_KEY, {
                     branding: tenant.branding as any,
                     settings: tenant.settings as any
@@ -1031,6 +1031,172 @@ app.post('/:id/bookings/:bookingId/promote', async (c) => {
         return c.json({ error: e.message }, 500);
     }
 });
+
+// POST /classes/:id/waitlist - Join waitlist
+app.post('/:id/waitlist', async (c) => {
+    const db = createDb(c.env.DB);
+    const classId = c.req.param('id');
+    const auth = c.get('auth');
+    if (!auth?.userId) return c.json({ error: 'Authentication required' }, 401);
+
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const member = c.get('member');
+    if (!member) return c.json({ error: 'Member context required' }, 403);
+
+    // Check if class exists
+    const classInfo = await db.select().from(classes).where(and(eq(classes.id, classId), eq(classes.tenantId, tenant.id))).get();
+    if (!classInfo) return c.json({ error: 'Class not found' }, 404);
+
+    // Check if already booked or waitlisted
+    const existing = await db.select({ id: bookings.id, status: bookings.status })
+        .from(bookings)
+        .where(and(
+            eq(bookings.classId, classId),
+            eq(bookings.memberId, member.id),
+            ne(bookings.status, 'cancelled')
+        ))
+        .get();
+
+    if (existing) {
+        return c.json({ error: `Already ${existing.status} for this class`, code: 'ALREADY_REGISTERED' }, 409);
+    }
+
+    // Get next waitlist position
+    const maxPos = await db.select({ max: sql<number>`coalesce(max(${bookings.waitlistPosition}), 0)` })
+        .from(bookings)
+        .where(and(eq(bookings.classId, classId), eq(bookings.status, 'waitlisted')))
+        .get();
+
+    const nextPosition = (maxPos?.max || 0) + 1;
+
+    const id = crypto.randomUUID();
+    await db.insert(bookings).values({
+        id,
+        classId,
+        memberId: member.id,
+        status: 'waitlisted',
+        waitlistPosition: nextPosition
+    });
+
+    return c.json({ id, status: 'waitlisted', position: nextPosition }, 201);
+});
+
+// DELETE /classes/:id/waitlist - Leave waitlist
+app.delete('/:id/waitlist', async (c) => {
+    const db = createDb(c.env.DB);
+    const classId = c.req.param('id');
+    const auth = c.get('auth');
+    if (!auth?.userId) return c.json({ error: 'Authentication required' }, 401);
+
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const member = c.get('member');
+    if (!member) return c.json({ error: 'Member context required' }, 403);
+
+    // Find waitlist booking
+    const booking = await db.select()
+        .from(bookings)
+        .where(and(
+            eq(bookings.classId, classId),
+            eq(bookings.memberId, member.id),
+            eq(bookings.status, 'waitlisted')
+        ))
+        .get();
+
+    if (!booking) return c.json({ error: 'Not on waitlist' }, 404);
+
+    // Cancel booking
+    await db.update(bookings)
+        .set({ status: 'cancelled', waitlistPosition: null })
+        .where(eq(bookings.id, booking.id))
+        .run();
+
+    // Reorder remaining waitlist positions
+    const remaining = await db.select({ id: bookings.id, waitlistPosition: bookings.waitlistPosition })
+        .from(bookings)
+        .where(and(
+            eq(bookings.classId, classId),
+            eq(bookings.status, 'waitlisted'),
+            gt(bookings.waitlistPosition, booking.waitlistPosition || 0)
+        ))
+        .orderBy(bookings.waitlistPosition);
+
+    for (const item of remaining) {
+        await db.update(bookings)
+            .set({ waitlistPosition: (item.waitlistPosition || 1) - 1 })
+            .where(eq(bookings.id, item.id))
+            .run();
+    }
+
+    return c.json({ success: true });
+});
+
+// Helper: Auto-promote first waitlisted person when a spot opens
+async function autoPromoteFromWaitlist(db: any, classId: string, tenant: any, env: any) {
+    const classInfo = await db.select().from(classes).where(eq(classes.id, classId)).get();
+    if (!classInfo?.capacity) return;
+
+    const confirmedCount = await db.select({ count: sql<number>`count(*)` })
+        .from(bookings)
+        .where(and(eq(bookings.classId, classId), eq(bookings.status, 'confirmed')))
+        .get();
+
+    if ((confirmedCount?.count || 0) >= classInfo.capacity) return;
+
+    // Find first waitlisted
+    const firstWaitlisted = await db.select()
+        .from(bookings)
+        .where(and(eq(bookings.classId, classId), eq(bookings.status, 'waitlisted')))
+        .orderBy(bookings.waitlistPosition)
+        .limit(1)
+        .get();
+
+    if (!firstWaitlisted) return;
+
+    // Promote
+    await db.update(bookings)
+        .set({
+            status: 'confirmed',
+            paymentMethod: 'drop_in',
+            waitlistPosition: null,
+            waitlistNotifiedAt: new Date()
+        })
+        .where(eq(bookings.id, firstWaitlisted.id))
+        .run();
+
+    // Reorder remaining
+    await db.execute(sql`
+        UPDATE bookings 
+        SET waitlist_position = waitlist_position - 1 
+        WHERE class_id = ${classId} AND status = 'waitlisted'
+    `);
+
+    // Notify promoted user
+    if (env.RESEND_API_KEY && tenant) {
+        const user = await db.select({ email: users.email, phone: users.phone })
+            .from(tenantMembers)
+            .innerJoin(users, eq(tenantMembers.userId, users.id))
+            .where(eq(tenantMembers.id, firstWaitlisted.memberId))
+            .get();
+
+        if (user) {
+            const { EmailService } = await import('../services/email');
+            const emailService = new EmailService(env.RESEND_API_KEY, {
+                branding: tenant.branding,
+                settings: tenant.settings
+            });
+
+            await emailService.sendGenericEmail(
+                user.email,
+                `You're off the waitlist for ${classInfo.title}!`,
+                `<p>A spot opened up and you've been automatically promoted. See you in class!</p>`
+            );
+        }
+    }
+}
 
 export default app;
 

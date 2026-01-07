@@ -266,6 +266,10 @@ export const bookings = sqliteTable('bookings', {
     // Spot Booking Logic
     spotNumber: text('spot_number'), // e.g. "A1" or "10"
 
+    // Waitlist Management
+    waitlistPosition: integer('waitlist_position'), // Position in waitlist (1 = first in line)
+    waitlistNotifiedAt: integer('waitlist_notified_at', { mode: 'timestamp' }), // When promotion notification was sent
+
     // Payment Tracking
     paymentMethod: text('payment_method', { enum: ['credit', 'subscription', 'drop_in', 'free'] }),
     usedPackId: text('used_pack_id').references(() => purchasedPacks.id), // If credit, which pack?
@@ -273,6 +277,7 @@ export const bookings = sqliteTable('bookings', {
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     memberClassIdx: index('member_class_idx').on(table.memberId, table.classId),
+    waitlistIdx: index('booking_waitlist_idx').on(table.classId, table.waitlistPosition),
 }));
 
 // --- Appointments (Private Sessions) ---
