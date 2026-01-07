@@ -189,6 +189,24 @@ export default function MarketingPage() {
         return 'Immediate';
     };
 
+    async function toggleAutomation(auto: any) {
+        try {
+            const newState = !auto.isEnabled;
+            // Optimistic update
+            setAutomations(automations.map((a: any) => a.id === auto.id ? { ...a, isEnabled: newState } : a));
+
+            await apiRequest(`/marketing/automations/${auto.id}`, token, {
+                method: "PATCH",
+                headers: { 'X-Tenant-Slug': slug },
+                body: JSON.stringify({ isEnabled: newState })
+            });
+        } catch (e: any) {
+            alert("Failed to toggle: " + e.message);
+            // Revert
+            setAutomations(automations.map((a: any) => a.id === auto.id ? { ...a, isEnabled: !auto.isEnabled } : a));
+        }
+    }
+
     return (
         <div className="max-w-6xl mx-auto py-8 px-4">
             <div className="mb-8">
@@ -378,39 +396,46 @@ export default function MarketingPage() {
                             </button>
                         </div>
 
-                        <div className="grid gap-4">
+                        <div className="flex flex-col gap-2">
                             {automations.map((auto: any) => (
-                                <div key={auto.id} className="group border border-zinc-200 rounded-lg p-4 flex items-center justify-between hover:border-blue-300 transition-colors bg-white">
-                                    <div className="flex items-start gap-4">
-                                        <div className={`p-2 rounded-full ${auto.isEnabled ? 'bg-blue-100 text-blue-600' : 'bg-zinc-100 text-zinc-400'}`}>
-                                            <Sparkles className="h-5 w-5" />
+                                <div key={auto.id} className="group border border-zinc-200 rounded-lg px-4 py-3 flex items-center justify-between hover:border-blue-300 transition-colors bg-white">
+                                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                                        <div className={`p-1.5 rounded-full shrink-0 ${auto.isEnabled ? 'bg-blue-100 text-blue-600' : 'bg-zinc-100 text-zinc-400'}`}>
+                                            <Sparkles className="h-4 w-4" />
                                         </div>
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <h3 className="font-medium text-zinc-900">{triggerLabels[auto.triggerEvent] || auto.triggerEvent || auto.triggerType}</h3>
-                                                {auto.isEnabled ? (
-                                                    <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-bold uppercase">Active</span>
-                                                ) : (
-                                                    <span className="text-[10px] bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded font-bold uppercase">Disabled</span>
-                                                )}
-                                            </div>
-                                            <p className="text-sm text-zinc-500 line-clamp-1 flex items-center gap-2">
-                                                <span className="flex items-center gap-1 bg-zinc-100 px-1.5 py-0.5 rounded text-xs text-zinc-600">
-                                                    <Clock className="w-3 h-3" />
-                                                    {getTimingLabel(auto)}
-                                                </span>
-                                                <span className="text-zinc-400">•</span>
-                                                <span>Subject: {auto.subject}</span>
-                                            </p>
+                                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                                            <h3 className="font-medium text-zinc-900 whitespace-nowrap shrink-0">{triggerLabels[auto.triggerEvent] || auto.triggerEvent || auto.triggerType}</h3>
+
+                                            <span className="flex items-center gap-1 bg-zinc-50 px-2 py-0.5 rounded text-xs text-zinc-500 whitespace-nowrap shrink-0 border border-zinc-100">
+                                                <Clock className="w-3 h-3" />
+                                                {getTimingLabel(auto)}
+                                            </span>
+
+                                            <span className="text-sm text-zinc-500 truncate min-w-0">
+                                                {auto.subject}
+                                            </span>
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-4 shrink-0 ml-4">
+                                        {/* Toggle Switch */}
+                                        <button
+                                            onClick={() => toggleAutomation(auto)}
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${auto.isEnabled ? 'bg-blue-600' : 'bg-zinc-200'
+                                                }`}
+                                        >
+                                            <span
+                                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${auto.isEnabled ? 'translate-x-6' : 'translate-x-1'
+                                                    }`}
+                                            />
+                                        </button>
+
                                         <button
                                             onClick={() => handleSendTest(auto.id)}
-                                            className="text-xs text-zinc-500 hover:text-zinc-800 px-3 py-1.5 border border-zinc-200 rounded hover:bg-zinc-50"
+                                            className="text-xs text-zinc-500 hover:text-zinc-800 p-2 hover:bg-zinc-100 rounded"
+                                            title="Send Test"
                                         >
-                                            Send Test
+                                            <Send className="h-4 w-4" />
                                         </button>
                                         <button
                                             onClick={() => {
@@ -427,10 +452,10 @@ export default function MarketingPage() {
                                                     couponConfig: auto.couponConfig ? { ...auto.couponConfig, enabled: true } : { enabled: false, type: 'percent', value: 20, validityDays: 7 }
                                                 });
                                             }}
-                                            className="text-xs bg-white text-zinc-700 border border-zinc-300 px-3 py-1.5 rounded hover:bg-zinc-50 flex items-center gap-1.5"
+                                            className="text-xs text-zinc-500 hover:text-blue-600 p-2 hover:bg-blue-50 rounded"
+                                            title="Edit"
                                         >
-                                            <Pencil className="h-3 w-3" />
-                                            Edit
+                                            <Pencil className="h-4 w-4" />
                                         </button>
                                     </div>
                                 </div>
