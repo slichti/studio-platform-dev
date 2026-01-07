@@ -16,6 +16,8 @@
     "dependencies": {
         "@clerk/react-router": "^2.3.7",
         "@headlessui/react": "^2.2.9",
+        "@livekit/components-react": "^2.9.17",
+        "@livekit/components-styles": "^1.2.0",
         "@react-router/dev": "^7.11.0",
         "@stripe/react-stripe-js": "^5.4.1",
         "@stripe/stripe-js": "^8.6.0",
@@ -28,6 +30,7 @@
         "@types/react-big-calendar": "^1.16.3",
         "date-fns": "^4.1.0",
         "isbot": "^5.1.32",
+        "livekit-client": "^2.16.1",
         "lucide-react": "^0.562.0",
         "react": "^19.2.3",
         "react-big-calendar": "^1.19.4",

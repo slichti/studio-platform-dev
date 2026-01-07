@@ -200,6 +200,12 @@ export const classes = sqliteTable('classes', {
     thumbnailUrl: text('thumbnail_url'),
     cloudflareStreamId: text('cloudflare_stream_id'),
     recordingStatus: text('recording_status', { enum: ['processing', 'ready', 'error'] }),
+
+    // Hybrid Video
+    videoProvider: text('video_provider', { enum: ['zoom', 'livekit', 'offline'] }).default('offline').notNull(),
+    livekitRoomName: text('livekit_room_name'),
+    livekitRoomSid: text('livekit_room_sid'),
+
     status: text('status', { enum: ['active', 'cancelled'] }).default('active').notNull(),
 
     // Cancellation Logic
@@ -721,6 +727,49 @@ export const userChallenges = sqliteTable('user_challenges', {
 }, (table) => ({
     userChallengeIdx: uniqueIndex('user_challenge_idx').on(table.userId, table.challengeId),
     tenantIdx: index('user_challenge_tenant_idx').on(table.tenantId),
+}));
+
+// --- Phase 4b: Video Management ---
+export const videos = sqliteTable('videos', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    title: text('title').notNull(),
+    description: text('description'),
+
+    // Storage
+    r2Key: text('r2_key').notNull(),
+    cloudflareStreamId: text('cloudflare_stream_id'),
+
+    // Metadata
+    duration: integer('duration').default(0), // Seconds
+    sizeBytes: integer('size_bytes').default(0),
+    status: text('status', { enum: ['processing', 'ready', 'error'] }).default('processing'),
+    source: text('source', { enum: ['zoom', 'livekit', 'upload'] }).default('upload'),
+
+    // Non-Destructive Editing
+    trimStart: integer('trim_start').default(0), // Seconds
+    trimEnd: integer('trim_end').default(0), // Seconds (0 means end of file)
+
+    // Linking
+    classId: text('class_id').references(() => classes.id), // Optional link to source class
+
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('video_tenant_idx').on(table.tenantId),
+}));
+
+export const brandingAssets = sqliteTable('branding_assets', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    type: text('type', { enum: ['intro', 'outro'] }).notNull(),
+    title: text('title').notNull(),
+
+    cloudflareStreamId: text('cloudflare_stream_id').notNull(),
+    active: integer('active', { mode: 'boolean' }).default(false),
+
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantTypeIdx: index('branding_tenant_type_idx').on(table.tenantId, table.type),
 }));
 
 // --- Relations ---

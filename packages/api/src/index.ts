@@ -36,6 +36,8 @@ import platform from './routes/platform';
 import reports from './routes/reports';
 import challenges from './routes/challenges';
 import jobs from './routes/jobs';
+import video from './routes/video';
+import videoManagement from './routes/video-management';
 import tenantIntegrations from './routes/tenant-integrations';
 
 type Bindings = {
@@ -55,6 +57,8 @@ type Bindings = {
   CLERK_WEBHOOK_SECRET: string;
   R2: R2Bucket;
   ENCRYPTION_SECRET: string;
+  LIVEKIT_API_KEY: string;
+  LIVEKIT_API_SECRET: string;
 };
 
 type Variables = {
@@ -428,6 +432,8 @@ app.route('/refunds', refunds);
 app.route('/challenges', challenges);
 app.route('/platform', platform);
 app.route('/jobs', jobs);
+app.route('/video', video);
+app.route('/video-management', videoManagement);
 
 app.route('/tenant', studioApp);
 

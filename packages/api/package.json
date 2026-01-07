@@ -11,6 +11,7 @@
         "drizzle-orm": "^0.45.1",
         "hono": "^4.11.3",
         "jspdf": "^3.0.4",
+        "livekit-server-sdk": "^2.15.0",
         "papaparse": "^5.5.3",
         "resend": "^6.6.0",
         "rrule": "^2.8.1",
