@@ -197,21 +197,27 @@ app.get('/automations', async (c) => {
     const missing = defaults.filter(d => !existing.find(e => e.triggerEvent === d.type));
 
     if (missing.length > 0) {
-        // Create defaults
-        for (const def of missing) {
-            const [newAuto] = await db.insert(marketingAutomations).values({
-                id: crypto.randomUUID(),
-                tenantId: tenant.id,
-                triggerEvent: def.type,
-                subject: def.subject,
-                content: def.content,
-                isEnabled: false,
-                timingType: def.timingType as any,
-                timingValue: def.timingValue || 0,
-                channels: ['email'],
-                couponConfig: null
-            }).returning();
-            existing.push(newAuto);
+        try {
+            // Create defaults
+            for (const def of missing) {
+                console.log(`Seeding automation: ${def.type}`);
+                const [newAuto] = await db.insert(marketingAutomations).values({
+                    id: crypto.randomUUID(),
+                    tenantId: tenant.id,
+                    triggerEvent: def.type,
+                    subject: def.subject,
+                    content: def.content,
+                    isEnabled: false,
+                    timingType: def.timingType as any,
+                    timingValue: def.timingValue || 0,
+                    channels: ['email'],
+                    couponConfig: null
+                }).returning();
+                existing.push(newAuto);
+            }
+        } catch (err) {
+            console.error("Failed to seed default automations:", err);
+            // Swallowed to ensure listing still works
         }
     }
 
