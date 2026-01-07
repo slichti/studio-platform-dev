@@ -1,11 +1,16 @@
-// @ts-ignore
 import { LoaderFunctionArgs } from "react-router";
-// @ts-ignore
 import { useLoaderData, useSearchParams, redirect } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";
 import { BarChart3, TrendingUp, TrendingDown, Users, Calendar, DollarSign, Target, Activity, ChevronDown, Download, RefreshCw, Percent } from "lucide-react";
+import type { ReportsRevenueResponse, ReportsAttendanceResponse } from "api/src/types";
+
+interface LoaderData {
+    revenue: ReportsRevenueResponse | null;
+    attendance: ReportsAttendanceResponse | null;
+    days: number;
+}
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken, userId } = await getAuth(args);
@@ -18,9 +23,9 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
     try {
         const [revenueData, attendanceData] = await Promise.all([
-            apiRequest(`/reports/revenue?days=${days}`, token, { headers: { 'X-Tenant-Slug': slug } }),
-            apiRequest(`/reports/attendance?days=${days}`, token, { headers: { 'X-Tenant-Slug': slug } })
-        ]) as any[];
+            apiRequest<ReportsRevenueResponse>(`/reports/revenue?days=${days}`, token, { headers: { 'X-Tenant-Slug': slug as string } }),
+            apiRequest<ReportsAttendanceResponse>(`/reports/attendance?days=${days}`, token, { headers: { 'X-Tenant-Slug': slug as string } })
+        ]);
 
         return {
             revenue: revenueData,
@@ -34,7 +39,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 };
 
 export default function AdvancedReports() {
-    const { revenue, attendance, days } = useLoaderData<typeof loader>();
+    const { revenue, attendance, days } = useLoaderData<LoaderData>();
     const [searchParams, setSearchParams] = useSearchParams();
 
     const formatCurrency = (cents: number) => `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
@@ -45,7 +50,7 @@ export default function AdvancedReports() {
     };
 
     // Simple bar chart rendering
-    const maxValue = Math.max(...(revenue?.chartData?.map((d: any) => d.value) || [1]));
+    const maxValue = Math.max(...(revenue?.chartData?.map((d) => d.value) || [1]));
 
     return (
         <div className="flex flex-col h-full bg-zinc-50">
@@ -110,7 +115,7 @@ export default function AdvancedReports() {
                         <TrendingUp size={18} className="text-emerald-500" /> Revenue Over Time
                     </h2>
                     <div className="h-48 flex items-end gap-1">
-                        {revenue?.chartData?.slice(-30).map((d: any, i: number) => (
+                        {revenue?.chartData?.slice(-30).map((d, i) => (
                             <div
                                 key={i}
                                 className="flex-1 bg-emerald-500 rounded-t hover:bg-emerald-600 transition relative group"
@@ -133,13 +138,13 @@ export default function AdvancedReports() {
                     <div className="bg-white rounded-xl border border-zinc-200 p-6">
                         <h2 className="font-bold text-zinc-900 mb-4">Revenue Sources</h2>
                         <div className="space-y-3">
-                            {revenue?.breakdown?.map((item: any, i: number) => (
+                            {revenue?.breakdown && Object.entries(revenue.breakdown).map(([key, value], i: number) => (
                                 <div key={i} className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b'][i % 4] }} />
-                                        <span className="text-sm text-zinc-700">{item.name}</span>
+                                        <span className="text-sm text-zinc-700 capitalize">{key}</span>
                                     </div>
-                                    <span className="font-medium">{formatCurrency(item.value)}</span>
+                                    <span className="font-medium">{formatCurrency(value as number)}</span>
                                 </div>
                             )) || <p className="text-zinc-400 text-sm">No breakdown available</p>}
                         </div>
@@ -149,7 +154,7 @@ export default function AdvancedReports() {
                     <div className="bg-white rounded-xl border border-zinc-200 p-6">
                         <h2 className="font-bold text-zinc-900 mb-4">Top Classes</h2>
                         <div className="space-y-3">
-                            {attendance?.topClasses?.slice(0, 5).map((cls: any, i: number) => (
+                            {attendance?.topClasses?.slice(0, 5).map((cls, i) => (
                                 <div key={i} className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <span className="w-6 h-6 bg-zinc-100 rounded-full flex items-center justify-center text-xs font-medium">{i + 1}</span>
@@ -168,8 +173,8 @@ export default function AdvancedReports() {
                         <Calendar size={18} className="text-purple-500" /> Attendance Over Time
                     </h2>
                     <div className="h-32 flex items-end gap-1">
-                        {attendance?.chartData?.slice(-30).map((d: any, i: number) => {
-                            const max = Math.max(...(attendance?.chartData?.map((x: any) => x.value) || [1]));
+                        {attendance?.chartData?.slice(-30).map((d, i) => {
+                            const max = Math.max(...(attendance?.chartData?.map((x) => x.value) || [1]));
                             return (
                                 <div
                                     key={i}

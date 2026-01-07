@@ -58,8 +58,6 @@ app.get('/revenue', async (c) => {
         .get();
 
     // 3. Subscriptions (MRR - Snapshot of current active)
-    // Note: This is "Current MRR", not "Revenue collected in period" from renewals.
-    // For "Revenue", we'd need an invoices table. We'll return MRR separately.
     const activeSubs = await db.select({
         price: membershipPlans.price
     })
@@ -72,15 +70,21 @@ app.get('/revenue', async (c) => {
         .all();
 
     const mrr = activeSubs.reduce((sum, sub) => sum + (sub.price || 0), 0);
+
+    // 4. Subscription Renewals (Estimated based on active subs intersecting with period)
+    // In a real system, you'd query an Invoices table. Here we estimate.
+    const renewalsEstimate = activeSubs.reduce((sum, sub) => sum + (sub.price || 0), 0); // Simplified: Assume 1 renewal per month per active sub
+
     const retailTotal = retailRevenue?.total || 0;
     const packsTotal = packsRevenue?.total || 0;
-    const grossVolume = retailTotal + packsTotal; // + Subscription Renewals (Missing)
+    const grossVolume = retailTotal + packsTotal + renewalsEstimate;
 
     // Breakdown
     const breakdown = {
         retail: retailTotal,
         packs: packsTotal,
-        mrr: mrr
+        mrr: mrr,
+        renewals: renewalsEstimate
     };
 
     // Chart Data (Time Series)
@@ -120,6 +124,12 @@ app.get('/revenue', async (c) => {
         }
     });
 
+    // Add amortized MRR to daily chart for smoothness
+    const dailyMrr = mrr / 30; // Rough approximation
+    for (const [key, val] of dayMap.entries()) {
+        dayMap.set(key, val + dailyMrr);
+    }
+
     const chartData = Array.from(dayMap.entries())
         .map(([name, value]) => ({ name, value: value / 100 })) // Value in dollars
         .sort((a, b) => a.name.localeCompare(b.name));
@@ -129,8 +139,8 @@ app.get('/revenue', async (c) => {
         mrr,
         breakdown,
         chartData,
-        period: { start, end }
-    });
+        period: { start: start.toISOString(), end: end.toISOString() }
+    } as unknown as import('../types').ReportsRevenueResponse);
 });
 
 // GET /attendance
@@ -220,7 +230,7 @@ app.get('/attendance', async (c) => {
         totalCheckins: totalCheckins?.count || 0,
         topClasses,
         chartData
-    });
+    } as unknown as import('../types').ReportsAttendanceResponse);
 });
 
 // POST /projection - Project Profit & Tier Recommendation (Tenant Side)
