@@ -128,8 +128,13 @@ export const tenantMembers = sqliteTable('tenant_members', {
     churnScore: integer('churn_score').default(100), // 0-100 (100 = Safe)
     churnStatus: text('churn_status', { enum: ['safe', 'at_risk', 'churned'] }).default('safe'),
     lastChurnCheck: integer('last_churn_check', { mode: 'timestamp' }),
+
+    // Member Engagement Scoring
+    engagementScore: integer('engagement_score').default(50), // 0-100 (higher = more engaged)
+    lastEngagementCalc: integer('last_engagement_calc', { mode: 'timestamp' }),
 }, (table) => ({
     tenantUserIdx: index('tenant_user_idx').on(table.tenantId, table.userId),
+    engagementIdx: index('member_engagement_idx').on(table.engagementScore),
 }));
 
 // --- Tenant Roles ---
