@@ -834,6 +834,41 @@ export const referrals = sqliteTable('referrals', {
     referrerIdx: index('referral_referrer_idx').on(table.referrerId),
 }));
 
+// --- Community Feed ---
+export const communityPosts = sqliteTable('community_posts', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    authorId: text('author_id').notNull().references(() => tenantMembers.id),
+    content: text('content').notNull(),
+    type: text('type', { enum: ['post', 'announcement', 'event', 'photo'] }).default('post').notNull(),
+    imageUrl: text('image_url'),
+    likesCount: integer('likes_count').default(0),
+    commentsCount: integer('comments_count').default(0),
+    isPinned: integer('is_pinned', { mode: 'boolean' }).default(false),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('community_post_tenant_idx').on(table.tenantId),
+    pinnedIdx: index('community_post_pinned_idx').on(table.tenantId, table.isPinned),
+}));
+
+export const communityComments = sqliteTable('community_comments', {
+    id: text('id').primaryKey(),
+    postId: text('post_id').notNull().references(() => communityPosts.id, { onDelete: 'cascade' }),
+    authorId: text('author_id').notNull().references(() => tenantMembers.id),
+    content: text('content').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    postIdx: index('community_comment_post_idx').on(table.postId),
+}));
+
+export const communityLikes = sqliteTable('community_likes', {
+    postId: text('post_id').notNull().references(() => communityPosts.id, { onDelete: 'cascade' }),
+    memberId: text('member_id').notNull().references(() => tenantMembers.id),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    pk: primaryKey({ columns: [table.postId, table.memberId] }),
+}));
+
 // --- Relations ---
 import { relations } from 'drizzle-orm';
 

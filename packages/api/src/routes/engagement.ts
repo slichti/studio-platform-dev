@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { createDb } from 'db/src/client';
+import { createDb } from '../db';
 import { tenantMembers, bookings, classes, subscriptions, users, purchasedPacks } from 'db/src/schema';
 import { eq, and, gte, sql, desc } from 'drizzle-orm';
 
