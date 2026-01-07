@@ -143,6 +143,66 @@ export default function StudioSettings() {
                         </button>
                     </div>
                 </form>
+
+                {/* Logo Upload Section */}
+                <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800">
+                    <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">
+                        Studio Logo
+                    </label>
+                    <p className="text-xs text-zinc-400 mb-3">Upload a logo that will appear in the sidebar header. Recommended: 200x200px or larger.</p>
+                    <div className="flex items-start gap-4">
+                        {/* Current Logo Preview */}
+                        <div className="w-20 h-20 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center overflow-hidden">
+                            {(tenant.branding as any)?.logoUrl ? (
+                                <img src={(tenant.branding as any).logoUrl} alt="Studio logo" className="w-full h-full object-contain" />
+                            ) : (
+                                <span className="text-zinc-400 text-xs text-center px-2">No logo</span>
+                            )}
+                        </div>
+                        {/* Upload Button */}
+                        <div className="flex-1">
+                            <input
+                                type="file"
+                                id="logo-upload"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    try {
+                                        setLoading(true);
+                                        const token = await (window as any).Clerk?.session?.getToken();
+                                        const formData = new FormData();
+                                        formData.append('file', file);
+                                        const response = await fetch(`${API_URL}/uploads/logo`, {
+                                            method: 'POST',
+                                            headers: {
+                                                'Authorization': `Bearer ${token}`,
+                                                'X-Tenant-Slug': tenant.slug
+                                            },
+                                            body: formData
+                                        });
+                                        const result = await response.json();
+                                        if (result.error) throw new Error(result.error);
+                                        setSuccess('Logo uploaded successfully');
+                                        window.location.reload();
+                                    } catch (err: any) {
+                                        setError(err.message || 'Failed to upload logo');
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }}
+                            />
+                            <label
+                                htmlFor="logo-upload"
+                                className="inline-flex items-center gap-2 px-4 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer transition-colors"
+                            >
+                                {loading ? 'Uploading...' : 'Upload Logo'}
+                            </label>
+                            <p className="text-xs text-zinc-400 mt-1">PNG, JPG or WebP. Max 5MB.</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Registration Controls */}

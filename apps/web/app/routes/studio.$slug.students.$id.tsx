@@ -3,13 +3,13 @@ import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 // @ts-ignore
 import { useLoaderData, useOutletContext, Form, useNavigation, Link } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
-import { apiRequest } from "../utils/api";
+import { apiRequest, API_URL } from "../utils/api";
 import { useState } from "react";
 import { useAuth } from "@clerk/react-router";
 import { format } from "date-fns";
 import {
     User, Mail, Calendar, CreditCard, FileText,
-    MoreHorizontal, Check, X, Plus, Pencil, Trash2
+    MoreHorizontal, Check, X, Plus, Pencil, Trash2, Camera
 } from "lucide-react";
 
 type Member = {
@@ -265,6 +265,7 @@ export const action = async (args: ActionFunctionArgs) => {
 
 export default function StudentProfile() {
     const { member, notes, availablePacks, coupons } = useLoaderData() as any as { member: Member, notes: Note[], availablePacks: PackDefinition[], coupons: any[] };
+    const { tenant } = useOutletContext<any>();
     const navigation = useNavigation();
     const userProfile = member.user.profile || {};
     const [activeTab, setActiveTab] = useState("overview");
@@ -274,6 +275,7 @@ export default function StudentProfile() {
     const [showActions, setShowActions] = useState(false);
     const [isSendingEmail, setIsSendingEmail] = useState(false);
     const [isDeactivating, setIsDeactivating] = useState(false);
+    const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
     const fullName = [userProfile.firstName, userProfile.lastName].filter(Boolean).join(" ") || member.user.email;
     const rolesStr = member.roles.map(r => r.role).join(", ") || "Student";
@@ -295,18 +297,61 @@ export default function StudentProfile() {
     const hasActiveMembership = member.memberships.some(m => m.status === 'active');
     const membershipStatus = hasActiveMembership ? 'Active' : 'Inactive';
 
+    const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+            setIsUploadingPhoto(true);
+            const token = await (window as any).Clerk?.session?.getToken();
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('memberId', member.id);
+            const response = await fetch(`${API_URL}/uploads/portrait`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'X-Tenant-Slug': tenant.slug
+                },
+                body: formData
+            });
+            const result = await response.json() as any;
+            if (result.error) throw new Error(result.error);
+            window.location.reload();
+        } catch (err: any) {
+            alert(err.message || 'Failed to upload photo');
+        } finally {
+            setIsUploadingPhoto(false);
+        }
+    };
+
     return (
         <div className="max-w-5xl mx-auto pb-10">
             {/* Header */}
             <div className="flex items-start justify-between mb-8">
                 <div className="flex items-center gap-4">
-                    <div className="h-20 w-20 bg-zinc-100 rounded-full flex items-center justify-center border border-zinc-200 overflow-hidden relative">
+                    {/* Clickable Avatar with Photo Upload */}
+                    <label className="relative h-20 w-20 bg-zinc-100 rounded-full flex items-center justify-center border border-zinc-200 overflow-hidden cursor-pointer group">
                         {userProfile.portraitUrl ? (
                             <img src={userProfile.portraitUrl} alt={fullName} className="h-full w-full object-cover" />
                         ) : (
                             <User className="h-8 w-8 text-zinc-400" />
                         )}
-                    </div>
+                        {/* Hover overlay */}
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            {isUploadingPhoto ? (
+                                <span className="text-white text-xs">Uploading...</span>
+                            ) : (
+                                <Camera className="h-6 w-6 text-white" />
+                            )}
+                        </div>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handlePhotoUpload}
+                            disabled={isUploadingPhoto}
+                        />
+                    </label>
                     <div>
                         <div className="flex items-center gap-3">
                             <h1 className="text-3xl font-bold text-zinc-900">{fullName}</h1>

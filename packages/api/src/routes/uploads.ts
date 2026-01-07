@@ -242,4 +242,140 @@ app.patch('/images/:id', async (c) => {
     }
 });
 
+// --- Logo Upload (Owner/Admin only) ---
+// Uploads to Cloudflare Images and saves URL to tenant branding
+app.post('/logo', async (c) => {
+    try {
+        const tenant = c.get('tenant');
+        const roles = c.get('roles') || [];
+        const db = createDb(c.env.DB);
+
+        if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+        if (!roles.includes('owner')) return c.json({ error: 'Owner access required' }, 403);
+
+        const body = await c.req.parseBody();
+        const file = body['file'] as File;
+        if (!file) return c.json({ error: 'File required' }, 400);
+        if (!file.type.startsWith('image/')) return c.json({ error: 'Only images allowed' }, 400);
+
+        // Upload to Cloudflare Images
+        const accountId = c.env.CLOUDFLARE_ACCOUNT_ID;
+        const token = c.env.CLOUDFLARE_API_TOKEN;
+
+        const formData = new FormData();
+        formData.append('file', file);
+        // Add metadata for resizing - logo max 200x200
+        formData.append('metadata', JSON.stringify({ type: 'logo', tenantId: tenant.id }));
+
+        const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/images/v1`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.text();
+            return c.json({ error: `Upload failed: ${error}` }, 500);
+        }
+
+        const data = await response.json() as any;
+        const imageId = data.result?.id;
+        // Use public variant URL (Cloudflare Images auto-generates variants)
+        const logoUrl = `https://imagedelivery.net/${accountId}/${imageId}/logo`;
+
+        // Update tenant branding
+        const currentBranding = (tenant.branding as any) || {};
+        await db.update(tenants)
+            .set({
+                branding: { ...currentBranding, logoUrl }
+            })
+            .where(eq(tenants.id, tenant.id))
+            .run();
+
+        return c.json({ logoUrl, imageId });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
+// --- Portrait Upload (Instructor/Member photos) ---
+// Uploads to Cloudflare Images and saves URL to member profile
+import { users } from 'db/src/schema';
+
+app.post('/portrait', async (c) => {
+    try {
+        const tenant = c.get('tenant');
+        const member = c.get('member');
+        const roles = c.get('roles') || [];
+        const db = createDb(c.env.DB);
+
+        if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+        if (!member) return c.json({ error: 'Member context required' }, 403);
+
+        const body = await c.req.parseBody();
+        const file = body['file'] as File;
+        const targetMemberId = body['memberId'] as string || member.id;
+
+        if (!file) return c.json({ error: 'File required' }, 400);
+        if (!file.type.startsWith('image/')) return c.json({ error: 'Only images allowed' }, 400);
+
+        // Permission check: own profile OR owner/instructor can upload for others
+        const isOwn = targetMemberId === member.id;
+        const canUploadForOthers = roles.includes('owner') || roles.includes('instructor');
+        if (!isOwn && !canUploadForOthers) {
+            return c.json({ error: 'Permission denied' }, 403);
+        }
+
+        // Upload to Cloudflare Images
+        const accountId = c.env.CLOUDFLARE_ACCOUNT_ID;
+        const token = c.env.CLOUDFLARE_API_TOKEN;
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('metadata', JSON.stringify({ type: 'portrait', memberId: targetMemberId }));
+
+        const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/images/v1`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.text();
+            return c.json({ error: `Upload failed: ${error}` }, 500);
+        }
+
+        const data = await response.json() as any;
+        const imageId = data.result?.id;
+        // Portrait variant - 400x400 fit cover
+        const portraitUrl = `https://imagedelivery.net/${accountId}/${imageId}/portrait`;
+
+        // Get target member's userId to update user profile
+        const targetMember = await db.select({ userId: tenantMembers.userId })
+            .from(tenantMembers)
+            .where(and(eq(tenantMembers.id, targetMemberId), eq(tenantMembers.tenantId, tenant.id)))
+            .get();
+
+        if (!targetMember) return c.json({ error: 'Target member not found' }, 404);
+
+        // Update user's global profile with portrait
+        const user = await db.select({ profile: users.profile })
+            .from(users)
+            .where(eq(users.id, targetMember.userId))
+            .get();
+
+        const currentProfile = (user?.profile as any) || {};
+        await db.update(users)
+            .set({
+                profile: { ...currentProfile, portraitUrl }
+            })
+            .where(eq(users.id, targetMember.userId))
+            .run();
+
+        return c.json({ portraitUrl, imageId });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
 export default app;

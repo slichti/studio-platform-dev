@@ -21,3 +21,9 @@ npm run build
 cd apps/web
 npx wrangler pages deploy ./build/client --project-name studio-platform-web
 ```
+
+3. Push commits to remote
+// turbo
+```bash
+git push origin main
+```
