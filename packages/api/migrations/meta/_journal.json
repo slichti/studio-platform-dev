@@ -211,6 +211,13 @@
       "when": 1767801827227,
       "tag": "0029_conscious_morg",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1767801989867,
+      "tag": "0030_green_angel",
+      "breakpoints": true
     }
   ]
 }

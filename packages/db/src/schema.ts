@@ -869,6 +869,25 @@ export const communityLikes = sqliteTable('community_likes', {
     pk: primaryKey({ columns: [table.postId, table.memberId] }),
 }));
 
+// --- Reviews & Testimonials ---
+export const reviews = sqliteTable('reviews', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    memberId: text('member_id').notNull().references(() => tenantMembers.id),
+    targetType: text('target_type', { enum: ['studio', 'class', 'instructor'] }).default('studio').notNull(),
+    targetId: text('target_id'), // classId or instructorId
+    rating: integer('rating').notNull(), // 1-5 stars
+    content: text('content'),
+    isTestimonial: integer('is_testimonial', { mode: 'boolean' }).default(false),
+    isApproved: integer('is_approved', { mode: 'boolean' }).default(false),
+    isPublic: integer('is_public', { mode: 'boolean' }).default(true),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('review_tenant_idx').on(table.tenantId),
+    memberIdx: index('review_member_idx').on(table.memberId),
+    approvedIdx: index('review_approved_idx').on(table.tenantId, table.isApproved),
+}));
+
 // --- Relations ---
 import { relations } from 'drizzle-orm';
 
