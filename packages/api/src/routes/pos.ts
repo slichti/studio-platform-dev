@@ -174,11 +174,13 @@ app.post('/orders', async (c) => {
             // --- Marketing Automation ---
             const { AutomationsService } = await import('../services/automations');
             const { EmailService } = await import('../services/email');
+            const { SmsService } = await import('../services/sms');
+            const { UsageService } = await import('../services/pricing');
 
             // Background Fetch Member for Automation context
             c.executionCtx.waitUntil((async () => {
                 try {
-                    let userContext = { userId: memberId ? 'guest_placeholder_' + orderId : 'guest', email: '', firstName: 'Guest' };
+                    let userContext = { userId: memberId ? 'guest_placeholder_' + orderId : 'guest', email: '', firstName: 'Guest', phone: undefined as string | undefined };
 
                     if (memberId) {
                         const memberData = await db.query.tenantMembers.findFirst({
@@ -189,17 +191,28 @@ app.post('/orders', async (c) => {
                             userContext = {
                                 userId: memberData.user.id,
                                 email: memberData.user.email,
-                                firstName: (memberData.user.profile as any)?.firstName
+                                firstName: (memberData.user.profile as any)?.firstName,
+                                phone: memberData.user.phone || undefined
                             };
                         }
                     }
 
-                    // We also support Guests if we captured email in metadata? 
-                    // For POS, maybe guest email isn't captured easily yet.
-
                     if (userContext.userId !== 'guest') {
-                        const emailService = new EmailService(c.env.RESEND_API_KEY, { branding: tenant.branding as any, settings: tenant.settings as any });
-                        const autoService = new AutomationsService(db, tenant.id, emailService);
+                        const usageService = new UsageService(db, tenant.id);
+                        const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
+                        const isByokEmail = !!(tenant.resendCredentials as any)?.apiKey;
+
+                        const emailService = new EmailService(
+                            resendKey,
+                            { branding: tenant.branding as any, settings: tenant.settings as any },
+                            { slug: tenant.slug },
+                            usageService,
+                            isByokEmail
+                        );
+
+                        const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
+                        const autoService = new AutomationsService(db, tenant.id, emailService, smsService);
+
                         await autoService.dispatchTrigger('order_completed', {
                             ...userContext,
                             data: { orderId, amount: totalAmount }

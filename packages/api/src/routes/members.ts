@@ -123,13 +123,19 @@ app.post('/', async (c) => {
     if (c.env.RESEND_API_KEY) {
         try {
             const { EmailService } = await import('../services/email');
-            const emailService = new EmailService(c.env.RESEND_API_KEY, {
-                settings: tenant.settings as any,
-                branding: tenant.branding as any
-            }, {
-                slug: tenant.slug,
-                customDomain: tenant.customDomain
-            });
+            const { UsageService } = await import('../services/pricing');
+
+            const usageService = new UsageService(db, tenant.id);
+            const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
+            const isByok = !!(tenant.resendCredentials as any)?.apiKey;
+
+            const emailService = new EmailService(
+                resendKey,
+                { settings: tenant.settings as any, branding: tenant.branding as any },
+                { slug: tenant.slug, customDomain: tenant.customDomain },
+                usageService,
+                isByok
+            );
 
             // Determine URL (Use custom domain if available, else platform subdomain)
             const baseUrl = tenant.customDomain
@@ -297,11 +303,23 @@ app.post('/', async (c) => {
         if (newMember && newMember.user) {
             const { AutomationsService } = await import('../services/automations');
             const { EmailService } = await import('../services/email');
-            const emailService = new EmailService(c.env.RESEND_API_KEY, {
-                branding: tenant.branding as any,
-                settings: tenant.settings as any
-            });
-            const autoService = new AutomationsService(db, tenant.id, emailService);
+            const { SmsService } = await import('../services/sms');
+            const { UsageService } = await import('../services/pricing');
+
+            const usageService = new UsageService(db, tenant.id);
+            const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
+            const isByok = !!(tenant.resendCredentials as any)?.apiKey;
+
+            const emailService = new EmailService(
+                resendKey,
+                { branding: tenant.branding as any, settings: tenant.settings as any },
+                { slug: tenant.slug },
+                usageService,
+                isByok
+            );
+
+            const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
+            const autoService = new AutomationsService(db, tenant.id, emailService, smsService);
 
             const userProfile = newMember.user.profile as any || {};
 
@@ -739,6 +757,7 @@ app.post('/:id/email', async (c) => {
     const memberId = c.req.param('id');
     const { subject, body } = await c.req.json();
     const { EmailService } = await import('../services/email');
+    const { UsageService } = await import('../services/pricing');
 
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
     if (!roles.includes('owner') && !roles.includes('instructor')) {
@@ -754,10 +773,17 @@ app.post('/:id/email', async (c) => {
 
     if (!member || !member.user) return c.json({ error: 'Member or User not found' }, 404);
 
-    const emailService = new EmailService(c.env.RESEND_API_KEY, {
-        settings: tenant.settings as any,
-        branding: tenant.branding as any
-    });
+    const usageService = new UsageService(db, tenant.id);
+    const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
+    const isByok = !!(tenant.resendCredentials as any)?.apiKey;
+
+    const emailService = new EmailService(
+        resendKey,
+        { settings: tenant.settings as any, branding: tenant.branding as any },
+        { slug: tenant.slug },
+        usageService,
+        isByok
+    );
 
     // Wrap body in simple template
     const html = `

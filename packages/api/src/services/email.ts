@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { UsageService } from './pricing';
 
 export interface TenantEmailConfig {
     branding?: {
@@ -20,10 +21,20 @@ export class EmailService {
     private resend: Resend;
     private fromEmail: string;
     private config?: TenantEmailConfig;
+    private usageService?: UsageService;
+    private isByok: boolean = false;
 
-    constructor(apiKey: string, config?: TenantEmailConfig, domainConfig?: { slug: string, customDomain?: string | null }) {
+    constructor(
+        apiKey: string, // Platform Key OR Tenant Key
+        config?: TenantEmailConfig,
+        domainConfig?: { slug: string, customDomain?: string | null },
+        usageService?: UsageService,
+        isByok = false
+    ) {
         this.resend = new Resend(apiKey);
         this.config = config;
+        this.usageService = usageService;
+        this.isByok = isByok;
 
         // Dynamic Sender Logic
         if (domainConfig?.customDomain) {
@@ -33,7 +44,7 @@ export class EmailService {
             this.fromEmail = `no-reply@${domainConfig.slug}.studio-platform.com`;
         } else {
             // Default Fallback
-            this.fromEmail = 'noreply@studio-platform.com';
+            this.fromEmail = 'noreply@studio-platform.com'; // TODO: Update to real domain
         }
     }
 
@@ -48,6 +59,26 @@ export class EmailService {
         }
 
         return options;
+    }
+
+    private async checkAndTrackUsage() {
+        if (!this.usageService) return true;
+
+        // Don't limit BYOK
+        if (!this.isByok) {
+            const canSend = await this.usageService.canSend('email');
+            if (!canSend) {
+                console.warn("Email blocked by usage limit");
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private async incrementUsage() {
+        if (this.usageService && !this.isByok) {
+            await this.usageService.incrementUsage('email');
+        }
     }
 
     private wrapHtml(content: string, title?: string): string {
@@ -78,6 +109,8 @@ export class EmailService {
     }
 
     async sendInvitation(to: string, studioName: string, inviteUrl: string) {
+        if (!await this.checkAndTrackUsage()) return;
+
         const htmlContent = `
             <h1>You've been invited to ${studioName}</h1>
             <p>Hello,</p>
@@ -98,6 +131,7 @@ export class EmailService {
                 subject: `Invitation to ${studioName}`,
                 html: this.wrapHtml(htmlContent)
             });
+            await this.incrementUsage();
             console.log(`Invitation email sent to ${to} from ${this.fromEmail}`);
         } catch (e) {
             console.error("Failed to send invitation email", e);
@@ -124,6 +158,8 @@ export class EmailService {
         locationName?: string;
         zoomUrl?: string;
     }) {
+        if (!await this.checkAndTrackUsage()) return;
+
         const date = new Date(classDetails.startTime).toLocaleString();
 
         const htmlContent = `
@@ -147,6 +183,7 @@ export class EmailService {
                 subject: `Booking Confirmed: ${classDetails.title}`,
                 html: this.wrapHtml(htmlContent, "Booking Confirmed")
             });
+            await this.incrementUsage();
             console.log(`Booking email sent to ${to}`);
         } catch (e) {
             console.error("Failed to send booking email", e);
@@ -154,6 +191,7 @@ export class EmailService {
     }
 
     async sendWaiverCopy(to: string, waiverTitle: string, pdfBuffer: ArrayBuffer) {
+        if (!await this.checkAndTrackUsage()) return;
         try {
             const buffer = Buffer.from(pdfBuffer);
             // Waivers are transactional, but maybe don't BCC the PDF to admin? 
@@ -174,6 +212,7 @@ export class EmailService {
                     }
                 ]
             });
+            await this.incrementUsage();
             console.log(`Waiver email sent to ${to}`);
         } catch (e) {
             console.error("Failed to send waiver email", e);
@@ -181,6 +220,8 @@ export class EmailService {
     }
 
     async sendWelcome(to: string, name: string) {
+        if (!await this.checkAndTrackUsage()) return;
+
         const htmlContent = `
             <h1>Welcome, ${name}!</h1>
             <p>We are thrilled to have you join us.</p>
@@ -198,6 +239,7 @@ export class EmailService {
                 subject: `Welcome to Studio Platform!`,
                 html: this.wrapHtml(htmlContent)
             });
+            await this.incrementUsage();
             console.log(`Welcome email sent to ${to}`);
         } catch (e) {
             console.error("Failed to send welcome email", e);
@@ -206,6 +248,8 @@ export class EmailService {
 
 
     async sendGenericEmail(to: string, subject: string, html: string, isNotification = false) {
+        if (!await this.checkAndTrackUsage()) return;
+
         const { bcc } = this.getRecipients(to, isNotification ? 'notification' : 'transactional');
         const options = this.getEmailOptions();
 
@@ -217,6 +261,7 @@ export class EmailService {
                 subject,
                 html: this.wrapHtml(html)
             });
+            await this.incrementUsage();
             console.log(`Generic email sent to ${to}`);
         } catch (e) {
             console.error("Failed to send generic email", e);

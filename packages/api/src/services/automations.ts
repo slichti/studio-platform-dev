@@ -1,27 +1,29 @@
 import { createDb } from '../db';
 import { eq, and, lt, gt, or, isNull, sql } from 'drizzle-orm';
-import { marketingAutomations, automationLogs, subscriptions, tenantMembers, users, tenants, coupons, bookings, posOrders, classes } from 'db/src/schema'; // Added bookings, posOrders
+import { marketingAutomations, automationLogs, subscriptions, tenantMembers, users, tenants, coupons, bookings, posOrders, classes, locations } from 'db/src/schema'; // Added bookings, posOrders, locations
 import { EmailService } from './email';
-// import { SmsService } from './sms'; // Future
+import { SmsService } from './sms'; // Active
 import { UsageService } from './pricing';
 
 export class AutomationsService {
     private db: any;
     private tenantId: string;
     private emailService: EmailService;
+    private smsService: SmsService | undefined;
 
-    constructor(db: any, tenantId: string, emailService: EmailService) {
+    constructor(db: any, tenantId: string, emailService: EmailService, smsService?: SmsService) {
         this.db = db;
         this.tenantId = tenantId;
         this.emailService = emailService;
+        this.smsService = smsService;
     }
 
     /**
      * Dispatch an event immediately (e.g. from API Webhook or Route)
      * Handles "Immediate" timing automations.
      */
-    async dispatchTrigger(triggerEvent: string, context: { userId: string, memberId?: string, email?: string, firstName?: string, data?: any }) {
-        // 1. Find ACTIVE automations for this trigger + Immediate Timing
+    async dispatchTrigger(triggerEvent: string, context: { userId: string, memberId?: string, email?: string, phone?: string, firstName?: string, lastName?: string, data?: any }) {
+        // ... (unchanged select) ...
         const automations = await this.db.select().from(marketingAutomations)
             .where(and(
                 eq(marketingAutomations.tenantId, this.tenantId),
@@ -38,6 +40,14 @@ export class AutomationsService {
             await this.executeAutomation(auto, context);
         }
     }
+
+    // ... (omitting cron methods for brevity, assuming they work or I'll patch fetches later? I should patch fetches now) ...
+    // Wait, replacing the whole file is safer or targeted? Targeted is better. 
+    // I'll update the constructor and imports first. Then I'll update executeAutomation.
+
+    // ...
+
+
 
     /**
      * Cron Job Entry Point: Checks for Time-Based Triggers

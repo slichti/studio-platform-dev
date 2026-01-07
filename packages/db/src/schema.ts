@@ -41,6 +41,7 @@ export const tenants = sqliteTable('tenants', {
     smsLimit: integer('sms_limit'), // null = use tier default
     emailLimit: integer('email_limit'), // null = use tier default
     streamingLimit: integer('streaming_limit'), // null = use tier default
+    billingExempt: integer('billing_exempt', { mode: 'boolean' }).default(false).notNull(), // Bypass limits/charges
 
     // Usage Stats (Updated via triggers/logic)
     storageUsage: integer('storage_usage').default(0).notNull(), // in bytes

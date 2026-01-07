@@ -492,11 +492,13 @@ app.get('/tenants/:id/stats', async (c) => {
 app.patch('/tenants/:id/quotas', async (c) => {
     const db = createDb(c.env.DB);
     const tenantId = c.req.param('id');
-    const { smsLimit, emailLimit } = await c.req.json();
+    const { smsLimit, emailLimit, billingExempt } = await c.req.json();
 
     const updateData: any = {};
     if (smsLimit !== undefined) updateData.smsLimit = smsLimit;
     if (emailLimit !== undefined) updateData.emailLimit = emailLimit;
+    if (billingExempt !== undefined) updateData.billingExempt = billingExempt;
+
 
     if (Object.keys(updateData).length === 0) {
         return c.json({ error: "Missing limits" }, 400);

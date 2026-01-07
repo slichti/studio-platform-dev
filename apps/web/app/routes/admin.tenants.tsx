@@ -195,6 +195,24 @@ export default function AdminTenants() {
         }
     };
 
+    const handleLimitUpdate = async (tenantId: string, key: string, value: any) => {
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/admin/tenants/${tenantId}/quotas`, token, {
+                method: "PATCH",
+                body: JSON.stringify({ [key]: value })
+            });
+            if (res.error) throw new Error(res.error);
+            // Optimistic update or reload
+            setTenants(tenants.map((t: any) =>
+                t.id === tenantId ? { ...t, [key]: value } : t
+            ));
+            setSuccessDialog({ isOpen: true, message: "Limits updated." });
+        } catch (e: any) {
+            setErrorDialog({ isOpen: true, message: e.message });
+        }
+    };
+
 
     const toggleTenantExpand = async (tenantId: string) => {
         // ... (keep existing)
@@ -499,6 +517,39 @@ export default function AdminTenants() {
                                                             >
                                                                 infinite
                                                             </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Limits & Billing */}
+                                                    <div className="text-right bg-zinc-50 p-3 rounded border border-zinc-200 mt-2">
+                                                        <div className="text-xs text-zinc-500 font-bold mb-2">Usage Limits</div>
+
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            <div>
+                                                                <label className="text-[10px] uppercase text-zinc-400 font-bold block">SMS</label>
+                                                                <input type="number"
+                                                                    className="w-full text-xs border rounded px-1 py-0.5 text-right"
+                                                                    defaultValue={t.smsLimit || 0}
+                                                                    onBlur={(e) => handleLimitUpdate(t.id, 'smsLimit', parseInt(e.target.value))}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-[10px] uppercase text-zinc-400 font-bold block">Email</label>
+                                                                <input type="number"
+                                                                    className="w-full text-xs border rounded px-1 py-0.5 text-right"
+                                                                    defaultValue={t.emailLimit || 0}
+                                                                    onBlur={(e) => handleLimitUpdate(t.id, 'emailLimit', parseInt(e.target.value))}
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="mt-3 flex items-center justify-end gap-2 px-1">
+                                                            <label className="text-xs text-zinc-700 cursor-pointer select-none" htmlFor={`exempt-${t.id}`}>Billing Exempt</label>
+                                                            <input type="checkbox"
+                                                                id={`exempt-${t.id}`}
+                                                                defaultChecked={!!t.billingExempt}
+                                                                onChange={(e) => handleLimitUpdate(t.id, 'billingExempt', e.target.checked)}
+                                                            />
                                                         </div>
                                                     </div>
                                                 </div>

@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/Card";
-import { Trash2, Terminal, Loader2 } from "lucide-react";
+import { Trash2, Terminal, Loader2, Key, MessageSquare, Mail, Save } from "lucide-react";
 
 export default function DevelopersSettings() {
     const { slug } = useParams();
@@ -12,29 +12,86 @@ export default function DevelopersSettings() {
     const [createEvents, setCreateEvents] = useState("booking.created, order.completed");
     const [isCreating, setIsCreating] = useState(false);
 
+    const [credentials, setCredentials] = useState<any>(null);
+    const [saving, setSaving] = useState(false);
+    const [twilioForm, setTwilioForm] = useState({ accountSid: '', authToken: '', fromNumber: '' });
+    const [resendForm, setResendForm] = useState({ apiKey: '' });
+
     const API_URL = (import.meta as any).env.VITE_API_URL || "http://localhost:8787";
 
     useEffect(() => {
-        fetchEndpoints();
+        loadData();
     }, [slug]);
 
-    const fetchEndpoints = async () => {
+    const loadData = async () => {
+        setLoading(true);
         try {
-            const token = localStorage.getItem('token'); // Simplistic auth
-            const res = await fetch(`${API_URL}/integrations/webhooks`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'X-Tenant-Slug': slug || ''
-                }
-            });
-            if (res.ok) {
-                const data = await res.json() as { endpoints: any[] };
+            const token = localStorage.getItem('token');
+            const headers = {
+                'Authorization': `Bearer ${token}`,
+                'X-Tenant-Slug': slug || ''
+            };
+
+            const [webhooksRes, credsRes] = await Promise.all([
+                fetch(`${API_URL}/integrations/webhooks`, { headers }),
+                fetch(`${API_URL}/integrations/credentials`, { headers })
+            ]);
+
+            if (webhooksRes.ok) {
+                const data = await webhooksRes.json() as { endpoints: any[] };
                 setEndpoints(data.endpoints);
             }
+            if (credsRes.ok) {
+                const data = await credsRes.json();
+                setCredentials(data);
+                // Pre-fill forms (only public parts)
+                setTwilioForm({
+                    accountSid: data.twilio?.accountSid || '',
+                    authToken: '', // Never return auth token
+                    fromNumber: data.twilio?.fromNumber || ''
+                });
+                setResendForm({
+                    apiKey: data.resend?.apiKey || ''
+                });
+            }
         } catch (e: any) {
-            console.error("Failed to fetch webhooks", e);
+            console.error("Failed to load data", e);
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Alias for compatibility if needed, but we use loadData now locally
+    const fetchEndpoints = loadData;
+
+    const handleSaveCredentials = async (type: 'twilio' | 'resend') => {
+        setSaving(true);
+        try {
+            const token = localStorage.getItem('token');
+            const body: any = {};
+            if (type === 'twilio') body.twilio = twilioForm;
+            if (type === 'resend') body.resend = resendForm;
+
+            const res = await fetch(`${API_URL}/integrations/credentials`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    'X-Tenant-Slug': slug || ''
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (res.ok) {
+                alert("Credentials saved.");
+                loadData();
+            } else {
+                alert("Failed to save credentials.");
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -181,6 +238,118 @@ export default function DevelopersSettings() {
                 </CardContent>
             </Card>
 
+
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Key className="h-5 w-5" />
+                        Integrations (BYOK)
+                    </CardTitle>
+                    <CardDescription>
+                        Bring Your Own Keys to bypass platform limits and use your own accounts.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-8">
+                    {/* Twilio */}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <MessageSquare className="h-5 w-5 text-blue-500" />
+                                <div>
+                                    <h4 className="font-medium">Twilio (SMS)</h4>
+                                    <p className="text-xs text-muted-foreground">Required for custom SMS notifications.</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${credentials?.twilio?.configured ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
+                                    {credentials?.twilio?.configured ? 'Active' : 'Not Configured'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2 p-4 border rounded-md bg-zinc-50/50">
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium uppercase text-zinc-500">Account SID</label>
+                                <input className="w-full border rounded px-3 py-2 text-sm"
+                                    placeholder="AC..."
+                                    value={twilioForm.accountSid}
+                                    onChange={e => setTwilioForm({ ...twilioForm, accountSid: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium uppercase text-zinc-500">From Number</label>
+                                <input className="w-full border rounded px-3 py-2 text-sm"
+                                    placeholder="+15550000000"
+                                    value={twilioForm.fromNumber}
+                                    onChange={e => setTwilioForm({ ...twilioForm, fromNumber: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-2 md:col-span-2">
+                                <label className="text-xs font-medium uppercase text-zinc-500">Auth Token</label>
+                                <input className="w-full border rounded px-3 py-2 text-sm"
+                                    type="password"
+                                    placeholder={credentials?.twilio?.configured ? "• • • • • • (Unchanged)" : "Enter Auth Token"}
+                                    value={twilioForm.authToken}
+                                    onChange={e => setTwilioForm({ ...twilioForm, authToken: e.target.value })}
+                                />
+                                <p className="text-[10px] text-zinc-400">Hidden after saving.</p>
+                            </div>
+                            <div className="md:col-span-2 flex justify-end">
+                                <button
+                                    onClick={() => handleSaveCredentials('twilio')}
+                                    disabled={saving}
+                                    className="text-xs bg-zinc-900 text-white px-3 py-2 rounded hover:bg-zinc-800 disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    {saving && <Loader2 className="h-3 w-3 animate-spin" />} Save Twilio
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="h-px bg-zinc-100"></div>
+
+                    {/* Resend */}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Mail className="h-5 w-5 text-indigo-500" />
+                                <div>
+                                    <h4 className="font-medium">Resend (Email)</h4>
+                                    <p className="text-xs text-muted-foreground">For high-volume or custom domain emails.</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${credentials?.resend?.configured ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
+                                    {credentials?.resend?.configured ? 'Active' : 'Not Configured'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="grid gap-4 p-4 border rounded-md bg-zinc-50/50">
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium uppercase text-zinc-500">API Key</label>
+                                <input className="w-full border rounded px-3 py-2 text-sm font-mono"
+                                    type="password"
+                                    placeholder={credentials?.resend?.configured ? "re_... (Unchanged)" : "re_123..."}
+                                    value={resendForm.apiKey}
+                                    onChange={e => setResendForm({ ...resendForm, apiKey: e.target.value })}
+                                />
+                            </div>
+                            <div className="flex justify-end">
+                                <button
+                                    onClick={() => handleSaveCredentials('resend')}
+                                    disabled={saving}
+                                    className="text-xs bg-zinc-900 text-white px-3 py-2 rounded hover:bg-zinc-800 disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    {saving && <Loader2 className="h-3 w-3 animate-spin" />} Save Resend
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
             <Card>
                 <CardHeader>
                     <CardTitle>Studio API Credentials</CardTitle>
@@ -204,6 +373,6 @@ export default function DevelopersSettings() {
                     </div>
                 </CardContent>
             </Card>
-        </div>
+        </div >
     );
 }

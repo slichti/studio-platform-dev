@@ -224,6 +224,28 @@ export class UsageService {
         return (usage[limitKey as 'students' | 'instructors' | 'locations'] as number) < limit;
     }
 
+    async canSend(service: 'sms' | 'email'): Promise<boolean> {
+        // 1. Fetch Tenant Status
+        const tenant = await this.db.select({
+            billingExempt: tenants.billingExempt,
+            smsUsage: tenants.smsUsage,
+            emailUsage: tenants.emailUsage,
+            smsLimit: tenants.smsLimit,
+            emailLimit: tenants.emailLimit,
+            tier: tenants.tier
+        }).from(tenants).where(eq(tenants.id, this.tenantId)).get();
+
+        if (!tenant) return false;
+        if (tenant.billingExempt) return true; // Unlimited for friends/VIPs
+
+        // 2. Check Limits
+        const limit = tenant[`${service}Limit`] ?? PricingService.getTierConfig(tenant.tier).limits[service];
+
+        if (limit === -1) return true; // Unlimited Tier
+
+        return (tenant[`${service}Usage`] || 0) < limit;
+    }
+
     async incrementUsage(service: 'sms' | 'email', amount = 1) {
         const column = service === 'sms' ? tenants.smsUsage : tenants.emailUsage;
         await this.db.update(tenants)

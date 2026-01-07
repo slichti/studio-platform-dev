@@ -71,4 +71,65 @@ app.delete('/webhooks/:id', async (c) => {
     return c.json({ success: true });
 });
 
+// GET /credentials - Get integration status
+app.get('/credentials', async (c) => {
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context required" }, 400);
+
+    return c.json({
+        twilio: {
+            configured: !!(tenant.twilioCredentials as any)?.accountSid,
+            accountSid: (tenant.twilioCredentials as any)?.accountSid ?
+                `...${(tenant.twilioCredentials as any).accountSid.slice(-4)}` : null,
+            fromNumber: (tenant.twilioCredentials as any)?.fromNumber
+        },
+        resend: {
+            configured: !!(tenant.resendCredentials as any)?.apiKey,
+            apiKey: (tenant.resendCredentials as any)?.apiKey ?
+                `...${(tenant.resendCredentials as any).apiKey.slice(-4)}` : null
+        }
+    });
+});
+
+// PATCH /credentials - Update credentials
+app.patch('/credentials', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+
+    if (!tenant) return c.json({ error: "Tenant context required" }, 400);
+
+    const { twilio, resend } = await c.req.json();
+
+    const updateData: any = {};
+
+    if (twilio) {
+        // Merge with existing logic if partial updates needed, but simpler to replace for security fields
+        // But if user sends ONLY fromNumber, we should keep SID? 
+        // Let's implement MERGE logic.
+        const existing = (tenant.twilioCredentials as any) || {};
+        // Filter out empty strings/nulls from input
+        const cleanTwilio = Object.fromEntries(
+            Object.entries(twilio).filter(([_, v]) => v !== undefined && v !== '')
+        );
+        updateData.twilioCredentials = { ...existing, ...cleanTwilio };
+    }
+
+    if (resend) {
+        const existing = (tenant.resendCredentials as any) || {};
+        const cleanResend = Object.fromEntries(
+            Object.entries(resend).filter(([_, v]) => v !== undefined && v !== '')
+        );
+        updateData.resendCredentials = { ...existing, ...cleanResend };
+    }
+
+    if (Object.keys(updateData).length > 0) {
+        await db.update(tenants)
+            .set(updateData)
+            .where(eq(tenants.id, tenant.id))
+            .run();
+    }
+
+    return c.json({ success: true });
+});
+
 export default app;

@@ -4,6 +4,7 @@ import { marketingCampaigns, marketingAutomations, emailLogs, tenants, tenantMem
 import { eq, desc, and } from 'drizzle-orm';
 import { UsageService } from '../services/pricing';
 import { EmailService } from '../services/email';
+import { SmsService } from '../services/sms';
 import { isFeatureEnabled } from '../utils/features';
 import { AutomationsService } from '../services/automations';
 
@@ -123,10 +124,17 @@ app.post('/', async (c) => {
     }
 
     // 3. "Send" Emails (Create Logs)
-    const emailService = new EmailService(c.env.RESEND_API_KEY, {
-        branding: tenant.branding as any,
-        settings: tenant.settings as any
-    });
+    // 3. "Send" Emails (Create Logs)
+    const resendKey = tenant.resendCredentials?.apiKey || c.env.RESEND_API_KEY;
+    const isByokEmail = !!tenant.resendCredentials?.apiKey;
+
+    const emailService = new EmailService(
+        resendKey,
+        { branding: tenant.branding as any, settings: tenant.settings as any },
+        { slug: tenant.slug },
+        usageService,
+        isByokEmail
+    );
 
     const logs: any[] = [];
     const errors: any[] = [];
@@ -281,6 +289,19 @@ app.patch('/automations/:id', async (c) => {
     return c.json(updated);
 });
 
+// DELETE /automations/:id
+app.delete('/automations/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const id = c.req.param('id');
+
+    await db.delete(marketingAutomations)
+        .where(and(eq(marketingAutomations.id, id), eq(marketingAutomations.tenantId, tenant.id)))
+        .run();
+
+    return c.json({ success: true });
+});
+
 // POST /automations/:id/test
 app.post('/automations/:id/test', async (c) => {
     const db = createDb(c.env.DB);
@@ -296,10 +317,21 @@ app.post('/automations/:id/test', async (c) => {
 
     if (!automation) return c.json({ error: "Automation not found" }, 404);
 
-    const emailService = new EmailService(c.env.RESEND_API_KEY, {
-        branding: tenant.branding as any,
-        settings: tenant.settings as any
-    });
+    const usageService = new UsageService(db, tenant.id);
+    const resendKey = tenant.resendCredentials?.apiKey || c.env.RESEND_API_KEY;
+    const isByokEmail = !!tenant.resendCredentials?.apiKey;
+
+    const emailService = new EmailService(
+        resendKey,
+        { branding: tenant.branding as any, settings: tenant.settings as any },
+        { slug: tenant.slug },
+        usageService,
+        isByokEmail
+    );
+
+    // TODO: SMS Test support? Currently body only has { email }. 
+    // If they want to test SMS, they might need to send phone.
+    // For now, retaining Email test logic.
 
     try {
         await emailService.sendGenericEmail(
@@ -358,12 +390,22 @@ app.post('/automations/trigger-debug', async (c) => {
     const tenant = c.get('tenant');
 
     // EmailService imported at top
-    const emailService = new EmailService(c.env.RESEND_API_KEY, {
-        branding: tenant.branding,
-        settings: tenant.settings
-    });
+    const usageService = new UsageService(createDb(c.env.DB), tenant.id);
 
-    const service = new AutomationsService(createDb(c.env.DB), tenant.id, emailService);
+    const resendKey = tenant.resendCredentials?.apiKey || c.env.RESEND_API_KEY;
+    const isByokEmail = !!tenant.resendCredentials?.apiKey;
+
+    const emailService = new EmailService(
+        resendKey,
+        { branding: tenant.branding, settings: tenant.settings },
+        { slug: tenant.slug },
+        usageService,
+        isByokEmail
+    );
+
+    const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, createDb(c.env.DB), tenant.id);
+
+    const service = new AutomationsService(createDb(c.env.DB), tenant.id, emailService, smsService);
 
     await service.processTimeBasedAutomations();
 

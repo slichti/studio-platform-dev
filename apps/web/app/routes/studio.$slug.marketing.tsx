@@ -175,6 +175,21 @@ export default function MarketingPage() {
         }
     }
 
+    async function handleDeleteAutomation(id: string) {
+        if (!confirm("Are you sure you want to delete this automation? This cannot be undone.")) return;
+        try {
+            const token = await getToken();
+            await apiRequest(`/marketing/automations/${id}`, token, {
+                method: "DELETE",
+                headers: { 'X-Tenant-Slug': slug }
+            });
+            setAutomations(automations.filter((a: any) => a.id !== id));
+            showNotification("Automation deleted.");
+        } catch (e: any) {
+            showNotification("Failed to delete: " + e.message, 'error');
+        }
+    }
+
     function openTestModal(id: string) {
         setTestModal({ isOpen: true, automationId: id, email: testModal.email });
     }
@@ -498,6 +513,13 @@ export default function MarketingPage() {
                                             title="Edit"
                                         >
                                             <Pencil className="h-4 w-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeleteAutomation(auto.id)}
+                                            className="text-xs text-zinc-500 hover:text-red-600 p-2 hover:bg-red-50 rounded"
+                                            title="Delete"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
                                         </button>
                                     </div>
                                 </div>

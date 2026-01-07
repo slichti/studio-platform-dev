@@ -458,8 +458,21 @@ app.patch('/:id', async (c) => {
         c.executionCtx.waitUntil((async () => {
             const { EmailService } = await import('../services/email');
             const { SmsService } = await import('../services/sms');
-            const emailService = new EmailService(c.env.RESEND_API_KEY);
-            const smsService = new SmsService(c.env.TWILIO_ACCOUNT_SID, c.env.TWILIO_AUTH_TOKEN, c.env.TWILIO_FROM_NUMBER, db, tenant.id);
+            const { UsageService } = await import('../services/pricing');
+
+            const usageService = new UsageService(db, tenant.id);
+            const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
+            const isByokEmail = !!(tenant.resendCredentials as any)?.apiKey;
+
+            const emailService = new EmailService(
+                resendKey,
+                { branding: tenant.branding as any, settings: tenant.settings as any },
+                { slug: tenant.slug },
+                usageService,
+                isByokEmail
+            );
+
+            const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
 
             const attendees = await db.select({
                 email: users.email,
@@ -512,8 +525,21 @@ app.delete('/:id', async (c) => {
     c.executionCtx.waitUntil((async () => {
         const { EmailService } = await import('../services/email');
         const { SmsService } = await import('../services/sms');
-        const emailService = new EmailService(c.env.RESEND_API_KEY);
-        const smsService = new SmsService(c.env.TWILIO_ACCOUNT_SID, c.env.TWILIO_AUTH_TOKEN, c.env.TWILIO_FROM_NUMBER, db, tenant.id);
+        const { UsageService } = await import('../services/pricing');
+
+        const usageService = new UsageService(db, tenant.id);
+        const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
+        const isByokEmail = !!(tenant.resendCredentials as any)?.apiKey;
+
+        const emailService = new EmailService(
+            resendKey,
+            { branding: tenant.branding as any, settings: tenant.settings as any },
+            { slug: tenant.slug },
+            usageService,
+            isByokEmail
+        );
+
+        const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
 
         const attendees = await db.select({
             email: users.email,
@@ -806,13 +832,15 @@ app.post('/:id/book', async (c) => {
 
         // SMS Notification
         const notificationSettings = (tenant.settings as any)?.notificationSettings || {};
-        if (notificationSettings.bookingSms !== false && c.env.TWILIO_ACCOUNT_SID) {
+        if (notificationSettings.bookingSms !== false) {
             const userForSms = await db.query.users.findFirst({
                 where: eq(users.id, memberWithPlans.userId)
             });
             if (userForSms?.phone) {
                 const { SmsService } = await import('../services/sms');
-                const smsService = new SmsService(c.env.TWILIO_ACCOUNT_SID, c.env.TWILIO_AUTH_TOKEN, c.env.TWILIO_FROM_NUMBER, db, tenant.id);
+                const { UsageService } = await import('../services/pricing');
+                const usageService = new UsageService(db, tenant.id);
+                const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
 
                 c.executionCtx.waitUntil(smsService.sendSms(
                     userForSms.phone,
@@ -965,9 +993,12 @@ app.post('/:id/bookings/:bookingId/promote', async (c) => {
 
                 // SMS
                 const notificationSettings = (tenant.settings as any)?.notificationSettings || {};
-                if (notificationSettings.waitlistSms !== false && c.env.TWILIO_ACCOUNT_SID && user.phone) {
+                if (notificationSettings.waitlistSms !== false && user.phone) {
                     const { SmsService } = await import('../services/sms');
-                    const smsService = new SmsService(c.env.TWILIO_ACCOUNT_SID, c.env.TWILIO_AUTH_TOKEN, c.env.TWILIO_FROM_NUMBER, db, tenant.id);
+                    const { UsageService } = await import('../services/pricing');
+                    const usageService = new UsageService(db, tenant.id);
+
+                    const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
                     c.executionCtx.waitUntil(smsService.sendSms(
                         user.phone,
                         `Good news! You're off the waitlist for ${classInfo?.title || 'Class'}!`
@@ -1014,6 +1045,9 @@ app.patch('/:id/bookings/:bookingId/check-in', async (c) => {
                     try {
                         const { AutomationsService } = await import('../services/automations');
                         const { EmailService } = await import('../services/email');
+                        const { SmsService } = await import('../services/sms');
+                        const { UsageService } = await import('../services/pricing');
+
                         const memberData = await db.query.tenantMembers.findFirst({
                             where: eq(tenantMembers.id, booking.memberId),
                             with: { user: true }
@@ -1025,12 +1059,26 @@ app.patch('/:id/bookings/:bookingId/check-in', async (c) => {
                             });
 
                             if (tenantData) {
-                                const emailService = new EmailService(c.env.RESEND_API_KEY, { branding: tenantData.branding as any, settings: tenantData.settings as any });
-                                const autoService = new AutomationsService(db, tenantData.id, emailService);
+                                const usageService = new UsageService(db, tenantData.id);
+                                const resendKey = (tenantData.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
+                                const isByokEmail = !!(tenantData.resendCredentials as any)?.apiKey;
+
+                                const emailService = new EmailService(
+                                    resendKey,
+                                    { branding: tenantData.branding as any, settings: tenantData.settings as any },
+                                    { slug: tenantData.slug },
+                                    usageService,
+                                    isByokEmail
+                                );
+
+                                const smsService = new SmsService(tenantData.twilioCredentials as any, c.env, usageService, db, tenantData.id);
+                                const autoService = new AutomationsService(db, tenantData.id, emailService, smsService);
+
                                 await autoService.dispatchTrigger('class_attended', {
                                     userId: memberData.user.id,
                                     email: memberData.user.email,
                                     firstName: (memberData.user.profile as any)?.firstName,
+                                    phone: memberData.user.phone || undefined,
                                     data: { classId }
                                 });
                             }
@@ -1343,9 +1391,11 @@ app.post('/:id/bookings/:bookingId/cancel', async (c) => {
                 }
 
                 // SMS
-                if (notificationSettings.cancellationSms !== false && c.env.TWILIO_ACCOUNT_SID && memberData.phone) {
+                if (notificationSettings.cancellationSms !== false && memberData.phone) {
                     const { SmsService } = await import('../services/sms');
-                    const smsService = new SmsService(c.env.TWILIO_ACCOUNT_SID, c.env.TWILIO_AUTH_TOKEN, c.env.TWILIO_FROM_NUMBER, db, tenant.id);
+                    const { UsageService } = await import('../services/pricing');
+                    const usageService = new UsageService(db, tenant.id);
+                    const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
                     c.executionCtx.waitUntil(smsService.sendSms(
                         memberData.phone,
                         `Booking Cancelled: ${classInfo.title}.`
@@ -1405,9 +1455,22 @@ app.patch('/:id/bookings/:bookingId/status', async (c) => {
                 const classInfo = await db.select({ title: classes.title }).from(classes).where(eq(classes.id, classId)).get();
 
                 // Trigger Notification
-                if (c.env.RESEND_API_KEY && memberUser) {
+                if (memberUser) {
                     const { EmailService } = await import('../services/email');
-                    const emailService = new EmailService(c.env.RESEND_API_KEY);
+                    const { SmsService } = await import('../services/sms');
+                    const { UsageService } = await import('../services/pricing');
+
+                    const usageService = new UsageService(db, tenant.id);
+                    const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
+                    const isByokEmail = !!(tenant.resendCredentials as any)?.apiKey;
+
+                    const emailService = new EmailService(
+                        resendKey,
+                        { branding: tenant.branding as any, settings: tenant.settings as any },
+                        { slug: tenant.slug },
+                        usageService,
+                        isByokEmail
+                    );
 
                     c.executionCtx.waitUntil(emailService.notifyNoShow(
                         memberUser.email,
@@ -1417,9 +1480,8 @@ app.patch('/:id/bookings/:bookingId/status', async (c) => {
 
                     // SMS for No Show
                     const notificationSettings = settings.notificationSettings || {};
-                    if (notificationSettings.noShowSms !== false && c.env.TWILIO_ACCOUNT_SID && memberUser.phone) {
-                        const { SmsService } = await import('../services/sms');
-                        const smsService = new SmsService(c.env.TWILIO_ACCOUNT_SID, c.env.TWILIO_AUTH_TOKEN, c.env.TWILIO_FROM_NUMBER, db, tenant.id);
+                    if (notificationSettings.noShowSms !== false && memberUser.phone) {
+                        const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
                         c.executionCtx.waitUntil(smsService.sendSms(
                             memberUser.phone,
                             `You missed ${classInfo?.title || "Class"}. A no-show fee of $${(settings.noShowFeeAmount / 100).toFixed(2)} may apply.`
@@ -1526,8 +1588,22 @@ app.post('/:id/recording', async (c) => {
         if (attendees.length > 0) {
             const { EmailService } = await import('../services/email');
             const { SmsService } = await import('../services/sms');
-            const emailService = new EmailService(c.env.RESEND_API_KEY);
-            const smsService = new SmsService(c.env.TWILIO_ACCOUNT_SID, c.env.TWILIO_AUTH_TOKEN, c.env.TWILIO_FROM_NUMBER, db, tenant.id);
+            // UsageService already imported at top-ish of this route handler? Line 1488.
+            // If so, `const usageService = new UsageService(db, tenant.id);` exists at line 1489.
+            // Reuse `usageService` from line 1489.
+
+            const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
+            const isByokEmail = !!(tenant.resendCredentials as any)?.apiKey;
+
+            const emailService = new EmailService(
+                resendKey,
+                { branding: tenant.branding as any, settings: tenant.settings as any },
+                { slug: tenant.slug },
+                usageService,
+                isByokEmail
+            );
+
+            const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
             const notificationSettings = (tenant.settings as any)?.notificationSettings || {};
 
             // We can do this in background
