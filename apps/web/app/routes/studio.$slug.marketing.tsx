@@ -176,8 +176,19 @@ export default function MarketingPage() {
         }
     }
 
-    async function handleDeleteAutomation(id: string) {
-        if (!confirm("Are you sure you want to delete this automation? This cannot be undone.")) return;
+    const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean, automationId: string | null }>({
+        isOpen: false,
+        automationId: null
+    });
+
+    function handleDeleteAutomation(id: string) {
+        setDeleteModal({ isOpen: true, automationId: id });
+    }
+
+    async function confirmDeleteAutomation() {
+        if (!deleteModal.automationId) return;
+
+        const id = deleteModal.automationId;
         try {
             const token = await getToken();
             await apiRequest(`/marketing/automations/${id}`, token, {
@@ -188,6 +199,8 @@ export default function MarketingPage() {
             showNotification("Automation deleted.");
         } catch (e: any) {
             showNotification("Failed to delete: " + e.message, 'error');
+        } finally {
+            setDeleteModal({ isOpen: false, automationId: null });
         }
     }
 
@@ -779,6 +792,34 @@ export default function MarketingPage() {
                         </div>
                     </form>
                 )}
+            </Modal>
+
+            {/* Delete Confirmation Modal */}
+            <Modal
+                isOpen={deleteModal.isOpen}
+                onClose={() => setDeleteModal({ isOpen: false, automationId: null })}
+                title="Delete Automation"
+            >
+                <div className="space-y-4">
+                    <p className="text-zinc-600">
+                        Are you sure you want to delete this automation? This action cannot be undone.
+                    </p>
+                    <div className="flex justify-end gap-3">
+                        <button
+                            onClick={() => setDeleteModal({ isOpen: false, automationId: null })}
+                            className="px-4 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={confirmDeleteAutomation}
+                            className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 shadow-sm flex items-center gap-2"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            Delete Forever
+                        </button>
+                    </div>
+                </div>
             </Modal>
         </div>
     );
