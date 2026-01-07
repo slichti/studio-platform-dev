@@ -810,6 +810,25 @@ export const brandingAssets = sqliteTable('branding_assets', {
     tenantTypeIdx: index('branding_tenant_type_idx').on(table.tenantId, table.type),
 }));
 
+// --- Referral Program ---
+export const referrals = sqliteTable('referrals', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    referrerId: text('referrer_id').notNull().references(() => tenantMembers.id), // Member who referred
+    refereeId: text('referee_id').references(() => tenantMembers.id), // Member who joined (nullable until they sign up)
+    code: text('code').notNull(), // Unique referral code
+    status: text('status', { enum: ['pending', 'completed', 'rewarded', 'expired'] }).default('pending').notNull(),
+    rewardType: text('reward_type', { enum: ['credit', 'discount', 'free_class', 'cash'] }),
+    rewardValue: integer('reward_value'), // In cents or credits
+    rewardedAt: integer('rewarded_at', { mode: 'timestamp' }),
+    expiresAt: integer('expires_at', { mode: 'timestamp' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('referral_tenant_idx').on(table.tenantId),
+    codeIdx: uniqueIndex('referral_code_idx').on(table.tenantId, table.code),
+    referrerIdx: index('referral_referrer_idx').on(table.referrerId),
+}));
+
 // --- Relations ---
 import { relations } from 'drizzle-orm';
 
