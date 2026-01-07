@@ -272,16 +272,9 @@ export class AutomationsService {
         return true;
     }
 
-    private async executeAutomation(automation: any, context: { userId: string, email?: string, firstName?: string }) {
+    private async executeAutomation(automation: any, context: { userId: string, email?: string, firstName?: string, lastName?: string, data?: any }) {
         // 1. Idempotency Check
         const channel = automation.channels?.[0] || 'email'; // MVP Single Channel
-
-        // Logic: 
-        // If trigger is "Once per User" (e.g. Welcome), check if EVER sent.
-        // If trigger is "Recurring" (e.g. Birthday), check if sent THIS CYCLE (Year).
-        // If trigger is "Transactional" (e.g. Order), check if sent for THIS TRANSACTION (need refId).
-        // For MVP, we use simple duplication check.
-        // If Birthday -> Check if sent in last 300 days?
 
         let timeWindow = 0; // Forever
         if (automation.triggerEvent === 'birthday') timeWindow = 300 * 24; // ~1 year
@@ -306,16 +299,35 @@ export class AutomationsService {
             if (existing) return;
         }
 
+        // Fetch User Details if missing (lastName)
+        if (!context.lastName || !context.firstName) {
+            const user = await this.db.query.users.findFirst({ where: eq(users.id, context.userId) });
+            if (user) {
+                context.firstName = context.firstName || (user.profile as any)?.firstName;
+                context.lastName = context.lastName || (user.profile as any)?.lastName;
+                context.email = context.email || user.email;
+            }
+        }
+
+        // Fetch Tenant Details (Title, Address)
+        const tenant = await this.db.query.tenants.findFirst({ where: eq(tenants.id, this.tenantId) });
+        // Fetch First Location for Address
+        const location = await this.db.query.locations.findFirst({ where: eq(locations.tenantId, this.tenantId) });
+
+        const extendedContext = {
+            ...context,
+            title: tenant?.name || 'Studio',
+            address: location?.address || ''
+        };
+
         // 2. Coupon Generation
         let couponCode = null;
         if (automation.couponConfig) {
-            // ... Existing logic ...
             const prefix = automation.couponConfig.prefix || 'AUTO';
             const userPart = context.firstName ? context.firstName.substring(0, 3).toUpperCase() : 'MEM';
             const rand = Math.floor(1000 + Math.random() * 9000);
             couponCode = `${prefix}-${userPart}-${rand}`;
 
-            // TODO: Save Coupon to DB (omitted for brevity, assume similar to before)
             const expiresAt = new Date();
             expiresAt.setDate(expiresAt.getDate() + (automation.couponConfig.validityDays || 7));
             try {
@@ -335,8 +347,8 @@ export class AutomationsService {
         }
 
         // 3. Send
-        const content = this.processTemplate(automation.content, context, couponCode);
-        const subject = this.processTemplate(automation.subject, context, couponCode);
+        const content = this.processTemplate(automation.content, extendedContext, couponCode);
+        const subject = this.processTemplate(automation.subject, extendedContext, couponCode);
 
         try {
             if (channel === 'email' && context.email) {
@@ -358,10 +370,16 @@ export class AutomationsService {
         }
     }
 
-    private processTemplate(text: string, user: any, couponCode: string | null) {
+    private processTemplate(text: string, context: any, couponCode: string | null) {
         let processed = text
-            .replace(/{{first_name}}/g, user.firstName || 'Friend')
-            .replace(/{{email}}/g, user.email || '');
+            .replace(/{{first_name}}/g, context.firstName || 'Friend')
+            .replace(/{{firstName}}/g, context.firstName || 'Friend') // Support both
+            .replace(/{{last_name}}/g, context.lastName || '')
+            .replace(/{{lastName}}/g, context.lastName || '')
+            .replace(/{{email}}/g, context.email || '')
+            .replace(/{{title}}/g, context.title || '')
+            .replace(/{{studioName}}/g, context.title || '') // Alias
+            .replace(/{{address}}/g, context.address || '');
 
         if (couponCode) {
             processed = processed.replace(/{{coupon_code}}/g, couponCode);

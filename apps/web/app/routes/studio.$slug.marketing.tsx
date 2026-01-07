@@ -551,6 +551,7 @@ export default function MarketingPage() {
                 isOpen={!!editingAuto}
                 onClose={() => setEditingAuto(null)}
                 title={`Edit Automation`}
+                maxWidth="max-w-2xl"
             >
                 {editingAuto && (
                     <form onSubmit={handleUpdateAutomation} className="flex flex-col h-full">
@@ -725,10 +726,13 @@ export default function MarketingPage() {
                                     onChange={e => setEditForm({ ...editForm, content: e.target.value })}
                                     className="w-full border border-zinc-300 rounded px-3 py-2 h-32 outline-none focus:ring-2 focus:ring-blue-500 font-mono text-xs"
                                 ></textarea>
-                                <div className="flex gap-2 mt-1 text-[10px] text-zinc-500">
+                                <div className="flex gap-2 mt-1 text-[10px] text-zinc-500 flex-wrap">
                                     <span>Variables:</span>
                                     <code className="bg-zinc-100 px-1 rounded">{"{{firstName}}"}</code>
-                                    <code className="bg-zinc-100 px-1 rounded">{"{{studioName}}"}</code>
+                                    <code className="bg-zinc-100 px-1 rounded">{"{{lastName}}"}</code>
+                                    <code className="bg-zinc-100 px-1 rounded">{"{{email}}"}</code>
+                                    <code className="bg-zinc-100 px-1 rounded">{"{{title}}"}</code>
+                                    <code className="bg-zinc-100 px-1 rounded">{"{{address}}"}</code>
                                     {(editForm.couponConfig as any).enabled && <code className="bg-yellow-100 text-yellow-800 px-1 rounded">{"{{coupon_code}}"}</code>}
                                 </div>
                             </div>
