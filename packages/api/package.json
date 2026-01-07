@@ -3,7 +3,8 @@
     "version": "0.0.0",
     "scripts": {
         "dev": "wrangler dev src/index.ts",
-        "deploy": "wrangler deploy --minify src/index.ts"
+        "deploy": "wrangler deploy --minify src/index.ts",
+        "test": "vitest"
     },
     "dependencies": {
         "@clerk/backend": "^2.29.0",
@@ -24,6 +25,7 @@
         "@cloudflare/workers-types": "^4.20251231.0",
         "@types/papaparse": "^5.5.2",
         "typescript": "^5.9.3",
+        "vitest": "^4.0.16",
         "wrangler": "^4.57.0"
     }
 }
