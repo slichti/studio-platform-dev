@@ -3,6 +3,7 @@ import { useLoaderData, useFetcher } from "react-router";
 // @ts-ignore
 import { LoaderFunction } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
+import { useAuth } from "@clerk/react-router";
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";
 import { Send, Mail, CheckCircle, AlertTriangle, Sparkles, Pencil, X, Zap, Clock, Calendar, Plus, Trash2 } from "lucide-react"; // Added Plus, Trash2
@@ -26,12 +27,16 @@ export const loader: LoaderFunction = async (args: any) => {
         console.error("Failed to load marketing data", e);
     }
 
-    return { campaigns, automations, token, slug };
+    return { campaigns, automations, slug };
 };
 
 export default function MarketingPage() {
-    const { campaigns: initialCampaigns, automations: initialAutomations, token, slug } = useLoaderData<any>();
+    const { campaigns: initialCampaigns, automations: initialAutomations, slug } = useLoaderData<any>();
+    const { getToken } = useAuth();
     const [tab, setTab] = useState<'broadcast' | 'automation'>('broadcast');
+
+    // UI Feedback State
+    const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
     // Broadcast State
     const [campaigns, setCampaigns] = useState(initialCampaigns);
@@ -58,12 +63,27 @@ export default function MarketingPage() {
         channels: ['email'],
         couponConfig: { enabled: false, type: 'percent', value: 20, validityDays: 7 }
     });
+
+    // Test Email Modal State
+    const [testModal, setTestModal] = useState<{ isOpen: boolean, automationId: string | null, email: string }>({
+        isOpen: false,
+        automationId: null,
+        email: ""
+    });
+    const [isSendingTest, setIsSendingTest] = useState(false);
+
+    // Helper for notifications
+    const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+        setNotification({ message, type });
+        setTimeout(() => setNotification(null), 3000);
+    };
     const [testEmail, setTestEmail] = useState("");
 
     async function handleSendBroadcast(e: React.FormEvent) {
         e.preventDefault();
         setSending(true);
         try {
+            const token = await getToken();
             const res: any = await apiRequest("/marketing", token, {
                 method: "POST",
                 headers: { 'X-Tenant-Slug': slug },
@@ -75,16 +95,16 @@ export default function MarketingPage() {
             });
 
             if (res.error) {
-                alert(res.error);
+                showNotification(res.error, 'error');
             } else {
-                alert(`Campaign Sent to ${res.count} recipients!`);
+                showNotification(`Campaign Sent to ${res.count} recipients!`);
                 setSubject("");
                 setContent("");
                 const refreshed: any = await apiRequest("/marketing", token, { headers: { 'X-Tenant-Slug': slug } });
                 setCampaigns(refreshed.campaigns || []);
             }
         } catch (e: any) {
-            alert("Failed to send: " + e.message);
+            showNotification("Failed to send: " + e.message, 'error');
         } finally {
             setSending(false);
         }
@@ -92,6 +112,7 @@ export default function MarketingPage() {
 
     async function handleCreateAutomation() {
         try {
+            const token = await getToken();
             const res: any = await apiRequest("/marketing/automations", token, {
                 method: "POST",
                 headers: { 'X-Tenant-Slug': slug },
@@ -116,7 +137,7 @@ export default function MarketingPage() {
                 couponConfig: res.couponConfig ? { ...res.couponConfig, enabled: true } : { enabled: false, type: 'percent', value: 20, validityDays: 7 }
             });
         } catch (e: any) {
-            alert("Failed to create: " + e.message);
+            showNotification("Failed to create: " + e.message, 'error');
         }
     }
 
@@ -129,10 +150,11 @@ export default function MarketingPage() {
             try {
                 parsedCondition = editForm.triggerCondition ? JSON.parse(editForm.triggerCondition) : null;
             } catch (err) {
-                alert("Invalid JSON in Condition field");
+                showNotification("Invalid JSON in Condition field", 'error');
                 return;
             }
 
+            const token = await getToken();
             const payload = {
                 ...editForm,
                 triggerCondition: parsedCondition
@@ -147,25 +169,34 @@ export default function MarketingPage() {
             // Update local state
             setAutomations(automations.map((a: any) => a.id === editingAuto.id ? res : a));
             setEditingAuto(null);
+            showNotification("Automation updated successfully");
         } catch (e: any) {
-            alert("Failed to update: " + e.message);
+            showNotification("Failed to update: " + e.message, 'error');
         }
     }
 
-    async function handleSendTest(id: string) {
-        const email = prompt("Enter email to send test to:", testEmail);
-        if (email) {
-            setTestEmail(email);
-            try {
-                await apiRequest(`/marketing/automations/${id}/test`, token, {
-                    method: "POST",
-                    headers: { 'X-Tenant-Slug': slug },
-                    body: JSON.stringify({ email })
-                });
-                alert("Test email sent!");
-            } catch (e: any) {
-                alert("Failed to test: " + e.message);
-            }
+    function openTestModal(id: string) {
+        setTestModal({ isOpen: true, automationId: id, email: testModal.email });
+    }
+
+    async function handleSendTestSubmit(e: React.FormEvent) {
+        e.preventDefault();
+        if (!testModal.automationId || !testModal.email) return;
+
+        setIsSendingTest(true);
+        try {
+            const token = await getToken();
+            await apiRequest(`/marketing/automations/${testModal.automationId}/test`, token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': slug },
+                body: JSON.stringify({ email: testModal.email })
+            });
+            showNotification("Test email sent!");
+            setTestModal({ ...testModal, isOpen: false });
+        } catch (e: any) {
+            showNotification("Failed to test: " + e.message, 'error');
+        } finally {
+            setIsSendingTest(false);
         }
     }
 
@@ -195,20 +226,31 @@ export default function MarketingPage() {
             // Optimistic update
             setAutomations(automations.map((a: any) => a.id === auto.id ? { ...a, isEnabled: newState } : a));
 
+            const token = await getToken();
             await apiRequest(`/marketing/automations/${auto.id}`, token, {
                 method: "PATCH",
                 headers: { 'X-Tenant-Slug': slug },
                 body: JSON.stringify({ isEnabled: newState })
             });
         } catch (e: any) {
-            alert("Failed to toggle: " + e.message);
+            showNotification("Failed to toggle: " + e.message, 'error');
             // Revert
             setAutomations(automations.map((a: any) => a.id === auto.id ? { ...a, isEnabled: !auto.isEnabled } : a));
         }
     }
 
     return (
-        <div className="max-w-6xl mx-auto py-8 px-4">
+        <div className="max-w-6xl mx-auto py-8 px-4 relative">
+            {/* Notification Toast */}
+            {notification && (
+                <div className={`fixed top-4 right-4 z-[100] px-4 py-3 rounded-lg shadow-lg border flex items-center gap-3 animate-in slide-in-from-right fade-in duration-300 ${notification.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                    }`}>
+                    {notification.type === 'error' ? <AlertTriangle className="h-5 w-5" /> : <CheckCircle className="h-5 w-5" />}
+                    <span className="font-medium text-sm">{notification.message}</span>
+                    <button onClick={() => setNotification(null)} className="ml-2 hover:opacity-70"><X className="h-4 w-4" /></button>
+                </div>
+            )}
+
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-zinc-900">Marketing</h1>
                 <p className="text-zinc-500">Engage your students with broadcasts and automations.</p>
@@ -431,7 +473,7 @@ export default function MarketingPage() {
                                         </button>
 
                                         <button
-                                            onClick={() => handleSendTest(auto.id)}
+                                            onClick={() => openTestModal(auto.id)}
                                             className="text-xs text-zinc-500 hover:text-zinc-800 p-2 hover:bg-zinc-100 rounded"
                                             title="Send Test"
                                         >
@@ -464,6 +506,45 @@ export default function MarketingPage() {
                     </div>
                 </div>
             )}
+
+            {/* Test Email Modal */}
+            <Modal
+                isOpen={testModal.isOpen}
+                onClose={() => setTestModal({ ...testModal, isOpen: false })}
+                title="Send Test Email"
+            >
+                <form onSubmit={handleSendTestSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 mb-1">To Email Address</label>
+                        <input
+                            type="email"
+                            value={testModal.email}
+                            onChange={e => setTestModal({ ...testModal, email: e.target.value })}
+                            className="w-full border border-zinc-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                            placeholder="you@example.com"
+                            autoFocus
+                            required
+                        />
+                        <p className="text-xs text-zinc-500 mt-1">This will send a real email to the address above.</p>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setTestModal({ ...testModal, isOpen: false })}
+                            className="px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={isSendingTest}
+                            className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-50"
+                        >
+                            {isSendingTest ? 'Sending...' : 'Send Test'}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
 
             {/* Edit Automation Modal */}
             <Modal
