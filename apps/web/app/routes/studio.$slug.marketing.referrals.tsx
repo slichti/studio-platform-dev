@@ -1,11 +1,17 @@
-// @ts-ignore
 import { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
-// @ts-ignore
 import { useLoaderData, useSubmit, Form, redirect, useRevalidator } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";
 import { Gift, Copy, Share2, Users, Check, DollarSign, Award, Clock, ChevronRight, Sparkles } from "lucide-react";
+import type { Referral, ReferralStat } from "api/src/types";
+
+interface LoaderData {
+    myCode: string;
+    referrals: Referral[];
+    stats: ReferralStat | null;
+    slug: string;
+}
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken, userId } = await getAuth(args);
@@ -16,12 +22,12 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
     try {
         const [myCode, referralsData, statsData] = await Promise.all([
-            apiRequest('/referrals/my-code', token, { headers: { 'X-Tenant-Slug': slug } }),
-            apiRequest('/referrals', token, { headers: { 'X-Tenant-Slug': slug } }),
-            apiRequest('/referrals/stats', token, { headers: { 'X-Tenant-Slug': slug } }).catch(() => null)
-        ]) as any[];
+            apiRequest<{ code: string }>('/referrals/my-code', token, { headers: { 'X-Tenant-Slug': slug as string } }),
+            apiRequest<Referral[]>('/referrals', token, { headers: { 'X-Tenant-Slug': slug as string } }),
+            apiRequest<ReferralStat>('/referrals/stats', token, { headers: { 'X-Tenant-Slug': slug as string } }).catch(() => null)
+        ]);
 
-        return { myCode: (myCode as any)?.code || '', referrals: referralsData || [], stats: statsData, slug };
+        return { myCode: myCode?.code || '', referrals: referralsData || [], stats: statsData, slug };
     } catch (e) {
         console.error("Referrals Loader Error", e);
         return { myCode: '', referrals: [], stats: null, slug };
@@ -51,7 +57,7 @@ export const action = async (args: ActionFunctionArgs) => {
 };
 
 export default function ReferralProgram() {
-    const { myCode, referrals, stats, slug } = useLoaderData<typeof loader>();
+    const { myCode, referrals, stats, slug } = useLoaderData<LoaderData>();
     const submit = useSubmit();
     const [copied, setCopied] = useState(false);
 
@@ -164,7 +170,7 @@ export default function ReferralProgram() {
                         </div>
                     ) : (
                         <div className="divide-y divide-zinc-100">
-                            {referrals.map((ref: any) => (
+                            {referrals.map((ref) => (
                                 <div key={ref.id} className="p-4 flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 bg-zinc-100 rounded-full flex items-center justify-center">

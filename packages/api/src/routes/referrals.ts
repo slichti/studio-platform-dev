@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
-import { createDb } from 'db/src/client';
-import { referrals, tenantMembers, users } from 'db/src/schema';
+import { createDb } from '../db';
+import { referrals, tenantMembers, users, tenants } from 'db/src/schema';
 import { eq, and, desc } from 'drizzle-orm';
 
 interface Bindings {
@@ -9,8 +9,8 @@ interface Bindings {
 
 interface Variables {
     auth: { userId: string; };
-    tenant?: any;
-    member?: any;
+    tenant: typeof tenants.$inferSelect;
+    member: typeof tenantMembers.$inferSelect;
     roles?: string[];
 }
 
