@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { eq, and, desc, sql } from 'drizzle-orm';
-import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings, tenants, marketingAutomations, emailLogs } from 'db/src/schema';
+import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings, tenants, marketingAutomations, emailLogs, coupons, automationLogs } from 'db/src/schema';
 
 type Bindings = {
     DB: D1Database;
@@ -799,8 +799,45 @@ app.post('/:id/email', async (c) => {
     } catch (e: any) {
         return c.json({ error: 'Failed to send email: ' + e.message }, 500);
     }
-
     return c.json({ success: true });
 });
+
+// GET /members/:id/coupons: List Automation Coupons
+app.get('/:id/coupons', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const memberId = c.req.param('id');
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.id, memberId), eq(tenantMembers.tenantId, tenant.id))
+    });
+
+    if (!member) return c.json({ error: 'Member not found' }, 404);
+
+    // 1. Find Automation Logs for this user that have metadata.couponCode
+    const logs = await db.select().from(automationLogs) // Ensure imported
+        .where(and(
+            eq(automationLogs.userId, member.userId),
+            eq(automationLogs.tenantId, tenant.id)
+        )).all();
+
+    const couponCodes = logs
+        .map(l => (l.metadata as any)?.couponCode)
+        .filter(Boolean);
+
+    if (couponCodes.length === 0) return c.json({ coupons: [] });
+
+    // 2. Fetch Coupons
+    const list = await db.select().from(coupons)
+        .where(and(
+            eq(coupons.tenantId, tenant.id),
+            sql`${coupons.code} IN ${couponCodes}`
+        ))
+        .orderBy(desc(coupons.createdAt))
+        .all();
+
+    return c.json({ coupons: list });
+});
+
+
 
 export default app;

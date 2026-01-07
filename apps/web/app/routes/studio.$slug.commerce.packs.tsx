@@ -44,12 +44,13 @@ export const action = async (args: ActionFunctionArgs) => {
         const credits = parseInt(formData.get("credits") as string);
         const price = parseFloat(formData.get("price") as string) * 100; // Convert to cents
         const expirationDays = formData.get("expirationDays") ? parseInt(formData.get("expirationDays") as string) : null;
+        const imageUrl = formData.get("imageUrl") as string;
         const vodEnabled = formData.get("vodEnabled") === "on";
 
         const res: any = await apiRequest(`/commerce/packs`, token, {
             method: "POST",
             headers: { 'X-Tenant-Slug': params.slug! },
-            body: JSON.stringify({ name, credits, price, expirationDays, vodEnabled })
+            body: JSON.stringify({ name, credits, price, expirationDays, imageUrl, vodEnabled })
         });
 
         if (res.error) return { error: res.error };
@@ -133,6 +134,28 @@ export default function ClassPacksPage() {
                                     className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                                 />
                                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Leave blank for no expiration.</p>
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Cover Image</label>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        name="imageUrl"
+                                        placeholder="Paste image URL here..."
+                                        className="flex-1 px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => window.open('https://www.canva.com/create/social-media-graphics/', '_blank')}
+                                        className="px-3 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-md text-sm font-medium hover:from-purple-600 hover:to-indigo-700 flex items-center gap-2"
+                                    >
+                                        <span className="font-bold font-serif italic text-lg leading-none transform -translate-y-[1px]">C</span>
+                                        Design in Canva
+                                    </button>
+                                </div>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                                    Design your cover in Canva, then copy and paste the image link here.
+                                </p>
                             </div>
                         </div>
 

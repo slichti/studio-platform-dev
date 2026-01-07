@@ -99,15 +99,19 @@ export const loader = async (args: LoaderFunctionArgs) => {
             }),
             apiRequest(`/commerce/packs`, token, {
                 headers: { 'X-Tenant-Slug': params.slug! }
+            }),
+            apiRequest(`/members/${memberId}/coupons`, token, {
+                headers: { 'X-Tenant-Slug': params.slug! }
             })
-        ]) as [any, any, any];
+        ]) as [any, any, any, any];
 
         if (memberRes.error) throw new Error(memberRes.error);
 
         return {
             member: memberRes.member as Member,
             notes: (notesRes.notes || []) as Note[],
-            availablePacks: (packsRes.packs || []) as PackDefinition[]
+            availablePacks: (packsRes.packs || []) as PackDefinition[],
+            coupons: (args[3]?.coupons || []) as any[] // result is at index 3
         };
     } catch (e: any) {
         console.error("Failed to load student", e);
@@ -241,11 +245,26 @@ export const action = async (args: ActionFunctionArgs) => {
         }
     }
 
+    if (intent === "reactivate_coupon") {
+        const couponId = formData.get("couponId") as string;
+        try {
+            const res: any = await apiRequest(`/commerce/coupons/${couponId}/reactivate`, token, {
+                method: "PATCH",
+                headers: { 'X-Tenant-Slug': params.slug! },
+                body: JSON.stringify({ days: 7 })
+            });
+            if (res.error) return { error: res.error };
+            return { success: true };
+        } catch (e: any) {
+            return { error: e.message };
+        }
+    }
+
     return null;
 };
 
 export default function StudentProfile() {
-    const { member, notes, availablePacks } = useLoaderData() as any as { member: Member, notes: Note[], availablePacks: PackDefinition[] };
+    const { member, notes, availablePacks, coupons } = useLoaderData() as any as { member: Member, notes: Note[], availablePacks: PackDefinition[], coupons: any[] };
     const navigation = useNavigation();
     const userProfile = member.user.profile || {};
     const [activeTab, setActiveTab] = useState("overview");
@@ -489,6 +508,7 @@ export default function StudentProfile() {
                 {[
                     { id: "overview", label: "Overview" },
                     { id: "memberships", label: "Memberships & Credits" },
+                    { id: "coupons", label: "Generated Coupons" },
                     { id: "attendance", label: "Attendance" },
                     { id: "documents", label: "Documents" },
                     { id: "notes", label: "Staff Notes" },
@@ -649,6 +669,64 @@ export default function StudentProfile() {
                                 <div className="text-sm text-zinc-500 italic">No packs purchased.</div>
                             )}
                         </div>
+                    </div>
+                )}
+
+
+
+                {activeTab === "coupons" && (
+                    <div className="space-y-4">
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                            <p className="text-sm text-blue-800">
+                                These are coupons automatically generated for this student by marketing automations.
+                                If a student missed their window, you can manually reactivate a coupon for 7 days.
+                            </p>
+                        </div>
+                        {coupons && coupons.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {coupons.map((coupon: any) => {
+                                    const isExpired = new Date(coupon.expiresAt) < new Date();
+                                    const canReactivate = !coupon.active || isExpired;
+
+                                    return (
+                                        <div key={coupon.id} className="bg-white border border-zinc-200 rounded-lg p-4 shadow-sm relative">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div className="font-mono text-lg font-bold text-zinc-900 bg-zinc-100 px-2 py-1 rounded">
+                                                    {coupon.code}
+                                                </div>
+                                                <span className={`text-xs px-2 py-1 rounded-full font-medium ${!coupon.active ? 'bg-zinc-100 text-zinc-500' :
+                                                    isExpired ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                                                    }`}>
+                                                    {!coupon.active ? 'Inactive' : isExpired ? 'Expired' : 'Active'}
+                                                </span>
+                                            </div>
+                                            <div className="text-sm text-zinc-600 mb-4">
+                                                {coupon.type === 'percent' ? `${coupon.value}% Off` : `$${coupon.value} Off`}
+                                                <div className="text-xs text-zinc-400 mt-1">
+                                                    Expires: {format(new Date(coupon.expiresAt), "MMM d, yyyy")}
+                                                </div>
+                                            </div>
+                                            {canReactivate && (
+                                                <Form method="post">
+                                                    <input type="hidden" name="intent" value="reactivate_coupon" />
+                                                    <input type="hidden" name="couponId" value={coupon.id} />
+                                                    <button
+                                                        type="submit"
+                                                        className="w-full py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 transition-colors"
+                                                    >
+                                                        Reactivate for 7 Days
+                                                    </button>
+                                                </Form>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="text-center py-10 bg-zinc-50 rounded-lg border border-zinc-200 text-zinc-500">
+                                No coupons have been generated for this student.
+                            </div>
+                        )}
                     </div>
                 )}
 
