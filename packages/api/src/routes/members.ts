@@ -289,52 +289,31 @@ app.post('/', async (c) => {
         }
     });
 
-    // --- Marketing Automation: New Student ---
-    const newStudentAuto = await db.query.marketingAutomations.findFirst({
-        where: and(
-            eq(marketingAutomations.tenantId, tenant.id),
-            eq(marketingAutomations.triggerType, 'new_student'),
-            eq(marketingAutomations.isEnabled, true)
-        )
-    });
+    // --- Marketing Automation: New Student (Handled by dispatchTrigger below) ---
 
-    if (newStudentAuto) {
-        const { EmailService } = await import('../services/email');
-        const emailService = new EmailService(c.env.RESEND_API_KEY, {
-            branding: tenant.branding as any,
-            settings: tenant.settings as any
-        });
 
-        // Simple variable replacement
-        // e.g. {{firstName}} -> user.firstName
-        let content = newStudentAuto.content;
-        content = content.replace(/{{firstName}}/g, firstName || 'Student');
-        content = content.replace(/{{lastName}}/g, lastName || '');
-        content = content.replace(/{{studioName}}/g, tenant.name);
+    // --- Automation Dispatch (New Student) ---
+    try {
+        if (newMember && newMember.user) {
+            const { AutomationsService } = await import('../services/automations');
+            const { EmailService } = await import('../services/email');
+            const emailService = new EmailService(c.env.RESEND_API_KEY, {
+                branding: tenant.branding as any,
+                settings: tenant.settings as any
+            });
+            const autoService = new AutomationsService(db, tenant.id, emailService);
 
-        const subject = newStudentAuto.subject.replace(/{{firstName}}/g, firstName || 'Student');
+            const userProfile = newMember.user.profile as any || {};
 
-        try {
-            await emailService.sendGenericEmail(
-                email,
-                subject,
-                content,
-                true
-            );
-
-            // Log it
-            await db.insert(emailLogs).values({
-                id: crypto.randomUUID(),
-                tenantId: tenant.id,
-                recipientEmail: email,
-                subject: subject,
-                status: 'sent',
-                metadata: { trigger: 'new_student', automationId: newStudentAuto.id }
-            } as any).run();
-
-        } catch (e) {
-            console.error("Failed to send New Student automation", e);
+            c.executionCtx.waitUntil(autoService.dispatchTrigger('new_student', {
+                userId: newMember.userId,
+                email: newMember.user.email,
+                firstName: userProfile.firstName,
+                data: { memberId: newMember.id }
+            }));
         }
+    } catch (e) {
+        console.error("Automation dispatch failed", e);
     }
 
     // --- Webhook Dispatch ---

@@ -1003,9 +1003,44 @@ app.patch('/:id/bookings/:bookingId/check-in', async (c) => {
             .where(eq(bookings.id, bookingId))
             .run();
 
+
         if (checkedIn) {
             // Loyalty Logic: Increment Progress
             const booking = await db.select({ memberId: bookings.memberId }).from(bookings).where(eq(bookings.id, bookingId)).get();
+
+            if (booking) {
+                // --- Marketing Automation (Check-in) ---
+                c.executionCtx.waitUntil((async () => {
+                    try {
+                        const { AutomationsService } = await import('../services/automations');
+                        const { EmailService } = await import('../services/email');
+                        const memberData = await db.query.tenantMembers.findFirst({
+                            where: eq(tenantMembers.id, booking.memberId),
+                            with: { user: true }
+                        });
+
+                        if (memberData && memberData.user) {
+                            const tenantData = await db.query.tenants.findFirst({
+                                where: eq(tenants.id, memberData.tenantId)
+                            });
+
+                            if (tenantData) {
+                                const emailService = new EmailService(c.env.RESEND_API_KEY, { branding: tenantData.branding as any, settings: tenantData.settings as any });
+                                const autoService = new AutomationsService(db, tenantData.id, emailService);
+                                await autoService.dispatchTrigger('class_attended', {
+                                    userId: memberData.user.id,
+                                    email: memberData.user.email,
+                                    firstName: (memberData.user.profile as any)?.firstName,
+                                    data: { classId }
+                                });
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Automation Checkin Trigger Failed", err);
+                    }
+                })());
+            }
+
             if (booking) {
                 const member = await db.select({ id: tenantMembers.id, userId: tenantMembers.userId, tenantId: tenantMembers.tenantId })
                     .from(tenantMembers)

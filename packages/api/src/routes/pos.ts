@@ -170,6 +170,46 @@ app.post('/orders', async (c) => {
                     price: i.unitPrice
                 }))
             }));
+
+            // --- Marketing Automation ---
+            const { AutomationsService } = await import('../services/automations');
+            const { EmailService } = await import('../services/email');
+
+            // Background Fetch Member for Automation context
+            c.executionCtx.waitUntil((async () => {
+                try {
+                    let userContext = { userId: memberId ? 'guest_placeholder_' + orderId : 'guest', email: '', firstName: 'Guest' };
+
+                    if (memberId) {
+                        const memberData = await db.query.tenantMembers.findFirst({
+                            where: eq(tenantMembers.id, memberId),
+                            with: { user: true }
+                        });
+                        if (memberData && memberData.user) {
+                            userContext = {
+                                userId: memberData.user.id,
+                                email: memberData.user.email,
+                                firstName: (memberData.user.profile as any)?.firstName
+                            };
+                        }
+                    }
+
+                    // We also support Guests if we captured email in metadata? 
+                    // For POS, maybe guest email isn't captured easily yet.
+
+                    if (userContext.userId !== 'guest') {
+                        const emailService = new EmailService(c.env.RESEND_API_KEY, { branding: tenant.branding as any, settings: tenant.settings as any });
+                        const autoService = new AutomationsService(db, tenant.id, emailService);
+                        await autoService.dispatchTrigger('order_completed', {
+                            ...userContext,
+                            data: { orderId, amount: totalAmount }
+                        });
+                    }
+                } catch (err) {
+                    console.error("Automation Trigger Failed", err);
+                }
+            })());
+
         } catch (e) {
             console.error("Webhook dispatch failed", e);
         }

@@ -389,32 +389,29 @@ export const marketingAutomations = sqliteTable('marketing_automations', {
     id: text('id').primaryKey(),
     tenantId: text('tenant_id').notNull().references(() => tenants.id),
 
-    triggerType: text('trigger_type', { enum: ['new_student', 'birthday', 'absent_30_days'] }).notNull(),
+    // Expanded Trigger Logic
+    triggerEvent: text('trigger_event').notNull(), // e.g. 'new_student', 'class_attended', 'order_completed', 'absent'
+    triggerCondition: text('trigger_condition', { mode: 'json' }), // Filter: { planId: '...', minAmount: 1000 }
+
     subject: text('subject').notNull(),
     content: text('content').notNull(), // HTML or Text
 
     isEnabled: integer('is_enabled', { mode: 'boolean' }).default(false).notNull(),
-    metadata: text('metadata', { mode: 'json' }), // Extra config
+    metadata: text('metadata', { mode: 'json' }), // Extra UI config
 
-    // Automation Config
-    delayHours: integer('delay_hours').default(0), // 0 = immediate, 24 = 1 day, etc.
+    // Timing Logic
+    timingType: text('timing_type', { enum: ['immediate', 'delay', 'before', 'after'] }).default('immediate').notNull(),
+    timingValue: integer('timing_value').default(0), // Hours. e.g. 24 for "1 day after". 48 for "2 days before" (if timingType=before)
+
+    // Legacy/Convenience (keep for migration or map to timingType='delay')
+    delayHours: integer('delay_hours').default(0),
+
     channels: text('channels', { mode: 'json' }).default(sql`('["email"]')`), // ['email', 'sms']
     couponConfig: text('coupon_config', { mode: 'json' }), // { type: 'percent', value: 20, validityDays: 7 }
 
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
-    tenantTriggerIdx: uniqueIndex('automation_tenant_trigger_idx').on(table.tenantId, table.triggerType), // Warning: Unique constraint might prevent multiple "new_student" flows with different delays. 
-    // Actually, for "Trial Nudges", we might want multiple. 
-    // Let's drop the unique index on TriggerType if we want multiple steps.
-    // Ideally, triggerType becomes "trial_welcome", "trial_nudge_1", etc? Or triggerType="trial" + filtering.
-    // For now, let's keep unique but maybe the USER wants: Welcome (immediate), Nudge (Day 7), Convert (Day 12).
-    // Those are DISTINCT automations.
-    // So distinct records. Unique index by triggerType prevents this. 
-    // Decision: REMOVE Unique Index to allow multiple automations of same trigger type, OR expect distinct trigger types. 
-    // The previous code had uniqueIndex. 
-    // Let's Change triggerType enum to support distinct phases OR remove unique index.
-    // Removing unique index is more flexible.
     tenantIdx: index('automation_tenant_idx').on(table.tenantId),
 }));
 

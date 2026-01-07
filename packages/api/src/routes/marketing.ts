@@ -186,34 +186,28 @@ app.get('/automations', async (c) => {
         .where(eq(marketingAutomations.tenantId, tenant.id))
         .all();
 
-    const requiredTypes = ['new_student', 'birthday', 'absent_30_days'];
-    const missing = requiredTypes.filter(t => !existing.find(e => e.triggerType === t));
+    const defaults = [
+        { type: 'new_student', subject: `Welcome to ${tenant.name}!`, content: "Welcome to the studio! We're excited to have you.", timingType: 'immediate', timingValue: 0 },
+        { type: 'birthday', subject: `Happy Birthday from ${tenant.name}!`, content: "Wishing you a fantastic birthday!", timingType: 'immediate', timingValue: 0 },
+        { type: 'absent', subject: `We miss you at ${tenant.name}`, content: "It's been a while! Come back and join us for a class.", timingType: 'delay', timingValue: 720 }, // 30 days
+        { type: 'trial_ending', subject: `Your Trial at ${tenant.name} is ending soon`, content: "Hope you're enjoying your trial! It ends in 2 days. Sign up for a membership to keep your momentum going.", timingType: 'before', timingValue: 48 }, // 2 days before
+        { type: 'subscription_renewing', subject: `Subscription Renewal`, content: "Your subscription is set to renew tomorrow.", timingType: 'before', timingValue: 24 }
+    ];
+
+    const missing = defaults.filter(d => !existing.find(e => e.triggerEvent === d.type));
 
     if (missing.length > 0) {
         // Create defaults
-        for (const type of missing) {
-            let defaultSubject = "";
-            let defaultContent = "";
-
-            if (type === 'new_student') {
-                defaultSubject = "Welcome to " + tenant.name + "!";
-                defaultContent = "Welcome to the studio! We're excited to have you.";
-            } else if (type === 'birthday') {
-                defaultSubject = "Happy Birthday from " + tenant.name + "!";
-                defaultContent = "Wishing you a fantastic birthday!";
-            } else if (type === 'absent_30_days') {
-                defaultSubject = "We miss you at " + tenant.name;
-                defaultContent = "It's been a while! Come back and join us for a class.";
-            }
-
+        for (const def of missing) {
             const [newAuto] = await db.insert(marketingAutomations).values({
                 id: crypto.randomUUID(),
                 tenantId: tenant.id,
-                triggerType: type as any,
-                subject: defaultSubject,
-                content: defaultContent,
+                triggerEvent: def.type,
+                subject: def.subject,
+                content: def.content,
                 isEnabled: false,
-                delayHours: 0,
+                timingType: def.timingType as any,
+                timingValue: def.timingValue || 0,
                 channels: ['email'],
                 couponConfig: null
             }).returning();
@@ -224,6 +218,28 @@ app.get('/automations', async (c) => {
     return c.json({ automations: existing });
 });
 
+// POST /automations - Create new
+app.post('/automations', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const { triggerEvent, subject, content } = await c.req.json();
+
+    const [newAuto] = await db.insert(marketingAutomations).values({
+        id: crypto.randomUUID(),
+        tenantId: tenant.id,
+        triggerEvent: triggerEvent || 'new_student',
+        subject: subject || 'New Automation',
+        content: content || '',
+        isEnabled: false,
+        timingType: 'immediate',
+        timingValue: 0,
+        channels: ['email'],
+        couponConfig: null
+    }).returning();
+
+    return c.json(newAuto);
+});
+
 // PATCH /automations/:id
 app.patch('/automations/:id', async (c) => {
     const db = createDb(c.env.DB);
@@ -231,7 +247,7 @@ app.patch('/automations/:id', async (c) => {
     const id = c.req.param('id');
     const body = await c.req.json();
 
-    const allowed = ['subject', 'content', 'isEnabled', 'delayHours', 'channels', 'couponConfig'];
+    const allowed = ['subject', 'content', 'isEnabled', 'timingType', 'timingValue', 'triggerEvent', 'triggerCondition', 'channels', 'couponConfig'];
     const updateData: any = {};
     for (const k of allowed) {
         if (body[k] !== undefined) updateData[k] = body[k];
@@ -239,12 +255,12 @@ app.patch('/automations/:id', async (c) => {
 
     // Sanitize coupon config
     if (body.couponConfig) {
-        if (!body.couponConfig.enabled) {
-            updateData.couponConfig = null;
+        if (!body.couponConfig.enabled && body.couponConfig.enabled !== undefined) {
+            // If expressly disabled, nullify? Or just save state?
+            // UI might send { enabled: false ... }.
+            // Let's verify schema. DB schema adds JSON.
+            updateData.couponConfig = body.couponConfig;
         } else {
-            // Keep the config but maybe remove 'enabled' key if schema doesn't care, 
-            // or just save it all. Drizzle json mode saves it all. 
-            // Let's strip 'enabled' to keep DB clean if we want, or keep it. Keeping it is fine.
             updateData.couponConfig = body.couponConfig;
         }
     }
@@ -271,8 +287,6 @@ app.post('/automations/:id/test', async (c) => {
     const [automation] = await db.select().from(marketingAutomations)
         .where(and(eq(marketingAutomations.id, id), eq(marketingAutomations.tenantId, tenant.id)))
         .all();
-
-    if (!automation) return c.json({ error: "Automation not found" }, 404);
 
     if (!automation) return c.json({ error: "Automation not found" }, 404);
 
@@ -345,7 +359,7 @@ app.post('/automations/trigger-debug', async (c) => {
 
     const service = new AutomationsService(createDb(c.env.DB), tenant.id, emailService);
 
-    await service.processTrialAutomations();
+    await service.processTimeBasedAutomations();
 
     return c.json({ success: true, message: "Triggered automations check" });
 });

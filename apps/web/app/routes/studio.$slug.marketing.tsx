@@ -5,7 +5,7 @@ import { LoaderFunction } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";
-import { Send, Mail, CheckCircle, AlertTriangle, Sparkles, Pencil, X, Zap } from "lucide-react";
+import { Send, Mail, CheckCircle, AlertTriangle, Sparkles, Pencil, X, Zap, Clock, Calendar, Plus, Trash2 } from "lucide-react"; // Added Plus, Trash2
 import { Modal } from "~/components/Modal";
 
 export const loader: LoaderFunction = async (args: any) => {
@@ -51,7 +51,10 @@ export default function MarketingPage() {
         subject: "",
         content: "",
         isEnabled: false,
-        delayHours: 0,
+        timingType: 'immediate',
+        timingValue: 0,
+        triggerEvent: '',
+        triggerCondition: '{}', // Display as string
         channels: ['email'],
         couponConfig: { enabled: false, type: 'percent', value: 20, validityDays: 7 }
     });
@@ -87,14 +90,58 @@ export default function MarketingPage() {
         }
     }
 
+    async function handleCreateAutomation() {
+        try {
+            const res: any = await apiRequest("/marketing/automations", token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': slug },
+                body: JSON.stringify({
+                    triggerEvent: 'new_student',
+                    subject: 'New Automation'
+                })
+            });
+            if (res.error) throw new Error(res.error);
+            setAutomations([...automations, res]);
+            // Open edit immediately
+            setEditingAuto(res);
+            setEditForm({
+                subject: res.subject,
+                content: res.content,
+                isEnabled: res.isEnabled,
+                timingType: res.timingType || 'immediate',
+                timingValue: res.timingValue || 0,
+                triggerEvent: res.triggerEvent,
+                triggerCondition: JSON.stringify(res.triggerCondition || {}, null, 2),
+                channels: res.channels || ['email'],
+                couponConfig: res.couponConfig ? { ...res.couponConfig, enabled: true } : { enabled: false, type: 'percent', value: 20, validityDays: 7 }
+            });
+        } catch (e: any) {
+            alert("Failed to create: " + e.message);
+        }
+    }
+
     async function handleUpdateAutomation(e: React.FormEvent) {
         e.preventDefault();
         if (!editingAuto) return;
         try {
+            // Parse condition if we allow editing (JSON)
+            let parsedCondition = null;
+            try {
+                parsedCondition = editForm.triggerCondition ? JSON.parse(editForm.triggerCondition) : null;
+            } catch (err) {
+                alert("Invalid JSON in Condition field");
+                return;
+            }
+
+            const payload = {
+                ...editForm,
+                triggerCondition: parsedCondition
+            };
+
             const res: any = await apiRequest(`/marketing/automations/${editingAuto.id}`, token, {
                 method: "PATCH",
                 headers: { 'X-Tenant-Slug': slug },
-                body: JSON.stringify(editForm)
+                body: JSON.stringify(payload)
             });
 
             // Update local state
@@ -125,7 +172,21 @@ export default function MarketingPage() {
     const triggerLabels: any = {
         'new_student': 'New Student Welcome',
         'birthday': 'Birthday Greeting',
-        'absent_30_days': 'Win-back (Absent 30+ Days)'
+        'absent': 'Win-back (Absent)',
+        'class_attended': 'Class Follow-up',
+        'order_completed': 'Order Follow-up',
+        'trial_ending': 'Trial Ending',
+        'subscription_renewing': 'Subscription Renewing'
+    };
+
+    const getTimingLabel = (auto: any) => {
+        if (auto.timingType === 'immediate') return 'Immediate';
+        if (auto.timingType === 'delay') return `Delay: ${auto.timingValue} hours`;
+        if (auto.timingType === 'before') return `${auto.timingValue} hours Before`;
+        if (auto.timingType === 'after') return `${auto.timingValue} hours After`;
+        // Fallback for legacy delayHours
+        if (auto.delayHours > 0) return `Delay: ${auto.delayHours} hours`;
+        return 'Immediate';
     };
 
     return (
@@ -298,13 +359,24 @@ export default function MarketingPage() {
             {tab === 'automation' && (
                 <div className="space-y-6">
                     <div className="bg-white p-6 rounded-lg border border-zinc-200">
-                        <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                            <Zap className="h-5 w-5 text-amber-500" />
-                            Active Automations
-                        </h2>
-                        <p className="text-sm text-zinc-500 mb-6">
-                            These emails are sent automatically based on student activity.
-                        </p>
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h2 className="font-semibold text-lg flex items-center gap-2">
+                                    <Zap className="h-5 w-5 text-amber-500" />
+                                    Active Automations
+                                </h2>
+                                <p className="text-sm text-zinc-500">
+                                    These emails are sent automatically based on student activity.
+                                </p>
+                            </div>
+                            <button
+                                onClick={handleCreateAutomation}
+                                className="flex items-center gap-2 bg-zinc-900 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-zinc-800"
+                            >
+                                <Plus className="h-4 w-4" />
+                                New Automation
+                            </button>
+                        </div>
 
                         <div className="grid gap-4">
                             {automations.map((auto: any) => (
@@ -315,16 +387,20 @@ export default function MarketingPage() {
                                         </div>
                                         <div>
                                             <div className="flex items-center gap-2 mb-1">
-                                                <h3 className="font-medium text-zinc-900">{triggerLabels[auto.triggerType] || auto.triggerType}</h3>
+                                                <h3 className="font-medium text-zinc-900">{triggerLabels[auto.triggerEvent] || auto.triggerEvent || auto.triggerType}</h3>
                                                 {auto.isEnabled ? (
                                                     <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-bold uppercase">Active</span>
                                                 ) : (
                                                     <span className="text-[10px] bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded font-bold uppercase">Disabled</span>
                                                 )}
                                             </div>
-                                            <p className="text-sm text-zinc-500 line-clamp-1 relative top-[-2px]">
-                                                {auto.delayHours > 0 ? `Delay: ${auto.delayHours}h • ` : 'Immediate • '}
-                                                Subject: {auto.subject}
+                                            <p className="text-sm text-zinc-500 line-clamp-1 flex items-center gap-2">
+                                                <span className="flex items-center gap-1 bg-zinc-100 px-1.5 py-0.5 rounded text-xs text-zinc-600">
+                                                    <Clock className="w-3 h-3" />
+                                                    {getTimingLabel(auto)}
+                                                </span>
+                                                <span className="text-zinc-400">•</span>
+                                                <span>Subject: {auto.subject}</span>
                                             </p>
                                         </div>
                                     </div>
@@ -343,7 +419,10 @@ export default function MarketingPage() {
                                                     subject: auto.subject,
                                                     content: auto.content,
                                                     isEnabled: auto.isEnabled,
-                                                    delayHours: auto.delayHours || 0,
+                                                    timingType: auto.timingType || (auto.delayHours > 0 ? 'delay' : 'immediate'),
+                                                    timingValue: auto.timingValue || auto.delayHours || 0,
+                                                    triggerEvent: auto.triggerEvent || auto.triggerType,
+                                                    triggerCondition: JSON.stringify(auto.triggerCondition || {}, null, 2),
                                                     channels: auto.channels || ['email'],
                                                     couponConfig: auto.couponConfig ? { ...auto.couponConfig, enabled: true } : { enabled: false, type: 'percent', value: 20, validityDays: 7 }
                                                 });
@@ -365,56 +444,106 @@ export default function MarketingPage() {
             <Modal
                 isOpen={!!editingAuto}
                 onClose={() => setEditingAuto(null)}
-                title={`Edit: ${editingAuto ? triggerLabels[editingAuto.triggerType] : ''}`}
+                title={`Edit Automation`}
             >
                 {editingAuto && (
                     <form onSubmit={handleUpdateAutomation} className="space-y-4">
                         <div>
-                            <label className="flex items-center gap-2 mb-4 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={editForm.isEnabled}
-                                    onChange={e => setEditForm({ ...editForm, isEnabled: e.target.checked })}
-                                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                                />
-                                <span className="text-sm font-medium text-zinc-900">Enable this automation</span>
-                            </label>
-
-                            <div className="grid grid-cols-2 gap-4 mb-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-zinc-700 mb-1">Delay (Hours)</label>
+                            <div className="flex items-center justify-between mb-4">
+                                <label className="flex items-center gap-2 cursor-pointer">
                                     <input
-                                        type="number"
-                                        min="0"
-                                        value={editForm.delayHours}
-                                        onChange={e => setEditForm({ ...editForm, delayHours: parseInt(e.target.value) || 0 })}
-                                        className="w-full border border-zinc-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                                        type="checkbox"
+                                        checked={editForm.isEnabled}
+                                        onChange={e => setEditForm({ ...editForm, isEnabled: e.target.checked })}
+                                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                                     />
-                                    <p className="text-xs text-zinc-500 mt-1">0 = Immediate trigger</p>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-zinc-700 mb-1">Channels</label>
-                                    <div className="flex gap-4 mt-2">
-                                        <label className="flex items-center gap-2 text-sm">
-                                            <input
-                                                type="checkbox"
-                                                checked={(editForm.channels as string[]).includes('email')}
-                                                onChange={e => {
-                                                    const current = editForm.channels as string[];
-                                                    const next = e.target.checked
-                                                        ? [...current, 'email']
-                                                        : current.filter(c => c !== 'email');
-                                                    setEditForm({ ...editForm, channels: next });
-                                                }}
-                                                className="rounded text-blue-600 focus:ring-blue-500"
-                                            />
-                                            Email
-                                        </label>
-                                        <label className="flex items-center gap-2 text-sm text-zinc-400 cursor-not-allowed">
-                                            <input type="checkbox" disabled className="rounded text-zinc-400" />
-                                            SMS (Coming Soon)
-                                        </label>
+                                    <span className="text-sm font-medium text-zinc-900">Enable this automation</span>
+                                </label>
+                            </div>
+
+                            <div className="bg-zinc-50 p-4 rounded-lg border border-zinc-200 mb-4">
+                                <label className="block text-xs font-medium text-zinc-500 mb-1">Trigger Event</label>
+                                <select
+                                    value={editForm.triggerEvent}
+                                    onChange={e => setEditForm({ ...editForm, triggerEvent: e.target.value })}
+                                    className="w-full border border-zinc-300 rounded px-2 py-1.5 text-sm bg-white mb-2"
+                                >
+                                    {Object.entries(triggerLabels).map(([key, label]: any) => (
+                                        <option key={key} value={key}>{label}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Timing Configuration */}
+                            <div className="bg-zinc-50 p-4 rounded-lg border border-zinc-200 mb-4">
+                                <h4 className="text-sm font-semibold text-zinc-800 mb-3 flex items-center gap-2">
+                                    <Clock className="w-4 h-4 text-zinc-500" />
+                                    Timing Rules
+                                </h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-medium text-zinc-500 mb-1">When to send</label>
+                                        <select
+                                            value={editForm.timingType}
+                                            onChange={e => setEditForm({ ...editForm, timingType: e.target.value })}
+                                            className="w-full border border-zinc-300 rounded px-2 py-1.5 text-sm bg-white"
+                                        >
+                                            <option value="immediate">Immediately</option>
+                                            <option value="delay">Delay (Wait)</option>
+                                            <option value="before">Before Event</option>
+                                            <option value="after">After Event</option>
+                                        </select>
                                     </div>
+
+                                    {editForm.timingType !== 'immediate' && (
+                                        <div>
+                                            <label className="block text-xs font-medium text-zinc-500 mb-1">Hours Offset</label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={editForm.timingValue}
+                                                onChange={e => setEditForm({ ...editForm, timingValue: parseInt(e.target.value) || 0 })}
+                                                className="w-full border border-zinc-300 rounded px-2 py-1.5 text-sm bg-white"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Advanced Condition (Collapsible or just small text) */}
+                            <div className="mb-4">
+                                <label className="block text-xs font-medium text-zinc-500 mb-1">Trigger Conditions (JSON)</label>
+                                <textarea
+                                    value={editForm.triggerCondition}
+                                    onChange={e => setEditForm({ ...editForm, triggerCondition: e.target.value })}
+                                    className="w-full border border-zinc-300 rounded px-2 py-1 text-xs font-mono h-16 bg-zinc-50"
+                                    placeholder='{ "planId": "..." }'
+                                ></textarea>
+                            </div>
+
+
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-zinc-700 mb-1">Channels</label>
+                                <div className="flex gap-4">
+                                    <label className="flex items-center gap-2 text-sm">
+                                        <input
+                                            type="checkbox"
+                                            checked={(editForm.channels as string[]).includes('email')}
+                                            onChange={e => {
+                                                const current = editForm.channels as string[];
+                                                const next = e.target.checked
+                                                    ? [...current, 'email']
+                                                    : current.filter(c => c !== 'email');
+                                                setEditForm({ ...editForm, channels: next });
+                                            }}
+                                            className="rounded text-blue-600 focus:ring-blue-500"
+                                        />
+                                        Email
+                                    </label>
+                                    <label className="flex items-center gap-2 text-sm text-zinc-400 cursor-not-allowed">
+                                        <input type="checkbox" disabled className="rounded text-zinc-400" />
+                                        SMS (Coming Soon)
+                                    </label>
                                 </div>
                             </div>
 
