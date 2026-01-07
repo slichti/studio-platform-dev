@@ -15,6 +15,7 @@ interface ClassDetailModalProps {
     userRoles?: string[];
     tenantSlug?: string;
     onSubRequested?: (classId: string) => void;
+    onBookRequested?: () => void;
 }
 
 export function ClassDetailModal({
@@ -27,7 +28,8 @@ export function ClassDetailModal({
     currentUserMemberId,
     userRoles = [],
     tenantSlug,
-    onSubRequested
+    onSubRequested,
+    onBookRequested
 }: ClassDetailModalProps) {
     const [recordingUrl, setRecordingUrl] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -249,6 +251,19 @@ export function ClassDetailModal({
                                                     Zoom link is being generated or not available.
                                                 </div>
                                             )}
+                                        </div>
+                                    )}
+
+
+                                    {/* Student Booking Section */}
+                                    {onBookRequested && !userRoles.includes('instructor') && (
+                                        <div className="border-t pt-4">
+                                            <button
+                                                onClick={onBookRequested}
+                                                className="w-full bg-zinc-900 text-white py-3 rounded-md font-medium text-sm hover:bg-zinc-800 shadow-sm"
+                                            >
+                                                Book This Class
+                                            </button>
                                         </div>
                                     )}
 

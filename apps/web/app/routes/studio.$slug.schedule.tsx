@@ -14,6 +14,7 @@ import { enUS } from "date-fns/locale/en-US";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { CreateClassModal } from "../components/CreateClassModal";
 import { ClassDetailModal } from "../components/ClassDetailModal";
+import { BookingModal } from "../components/BookingModal";
 import { Plus } from "lucide-react";
 
 // Setup Localizer
@@ -39,16 +40,18 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
     // Fetch classes, locations, and instructors parallel
     try {
-        const [classes, locationsRes, instructorsRes] = await Promise.all([
+        const [classes, locationsRes, instructorsRes, familyRes] = await Promise.all([
             apiRequest("/classes", token, { headers: { 'X-Tenant-Slug': params.slug! } }),
             apiRequest("/locations", token, { headers: { 'X-Tenant-Slug': params.slug! } }),
-            apiRequest("/members?role=instructor", token, { headers: { 'X-Tenant-Slug': params.slug! } })
+            apiRequest("/members?role=instructor", token, { headers: { 'X-Tenant-Slug': params.slug! } }),
+            apiRequest("/users/me/family", token, { headers: { 'X-Tenant-Slug': params.slug! } }).catch(() => ({ family: [] }))
         ]);
 
         return {
             classes: classes || [],
             locations: (locationsRes as any).locations || [],
             instructors: (instructorsRes as any).members || [],
+            family: (familyRes as any).family || [],
             error: null
         };
     } catch (e: any) {
@@ -58,11 +61,12 @@ export const loader = async (args: LoaderFunctionArgs) => {
 };
 
 export default function StudioSchedule() {
-    const { classes: initialClasses, locations, instructors, error } = useLoaderData<any>();
+    const { classes: initialClasses, locations, instructors, family, error } = useLoaderData<any>();
     const { tenant, me, features } = useOutletContext<any>() || {};
     const [classes, setClasses] = useState(initialClasses || []);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
+    const [isBookingOpen, setIsBookingOpen] = useState(false); // New state for booking modal
     const [selectedClass, setSelectedClass] = useState<any>(null);
 
     // Map API classes to Calendar events
@@ -201,6 +205,17 @@ export default function StudioSchedule() {
                 userRoles={me?.roles}
                 tenantSlug={tenant?.slug}
                 onSubRequested={handleSubRequested}
+                onBookRequested={() => {
+                    setIsDetailOpen(false);
+                    setIsBookingOpen(true);
+                }}
+            />
+
+            <BookingModal
+                isOpen={isBookingOpen}
+                onClose={() => setIsBookingOpen(false)}
+                classEvent={selectedClass}
+                family={family || []}
             />
         </div>
     );

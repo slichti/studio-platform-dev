@@ -1,3 +1,4 @@
+// @ts-ignore
 import { type LoaderFunctionArgs, redirect, Outlet, NavLink, useLoaderData } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { useUser } from "@clerk/react-router";
@@ -14,7 +15,7 @@ const ALLOWED_ADMIN_EMAILS = [
     // "admin@studioplatform.com", // Disabled until domain is active
 ];
 
-const ALLOWED_DOMAINS = [
+const ALLOWED_DOMAINS: string[] = [
     // "studioplatform.com" // Disabled until domain is active
 ];
 
@@ -79,7 +80,7 @@ export default function AdminLayout() {
         { label: "Overview", href: "/admin", end: true, icon: "📊" },
         { label: "Tenants", href: "/admin/tenants", icon: "🏢" },
         { label: "Projections", href: "/admin/projections", icon: "📈" },
-        { label: "Emails", href: "/admin/emails", icon: "📧" },
+        { label: "Communications", href: "/admin/comms", icon: "📡" },
         { label: "Activity Logs", href: "/admin/logs", icon: "📋" },
         { label: "System Users", href: "/admin/users", icon: "👥" },
         { label: "System Status", href: "/admin/status", icon: "🟢" },

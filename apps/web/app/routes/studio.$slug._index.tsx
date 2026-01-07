@@ -4,7 +4,7 @@ import { useLoaderData, useOutletContext, Link } from "react-router";
 import type { LoaderFunctionArgs } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
-import { Users, Calendar, DollarSign, ArrowRight, Activity, TrendingUp, FileSignature, Ticket, Award, Target } from "lucide-react";
+import { Users, Calendar, DollarSign, ArrowRight, Activity, TrendingUp, FileSignature, Ticket, Award, Target, Flame } from "lucide-react";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken } = await getAuth(args);
@@ -169,7 +169,14 @@ export default function StudioDashboardIndex() {
                                                     />
                                                 </div>
                                                 <div className="text-xs text-zinc-500 flex justify-between">
-                                                    <span>{challenge.userProgress.progress} / {challenge.targetValue} classes</span>
+                                                    {challenge.type === 'streak' ? (
+                                                        <span className="flex items-center gap-1 font-medium text-amber-600">
+                                                            <Flame size={12} className={challenge.userProgress.status === 'completed' ? "" : "animate-pulse"} />
+                                                            {challenge.userProgress.progress} / {challenge.targetValue} {challenge.period || 'streak'}s
+                                                        </span>
+                                                    ) : (
+                                                        <span>{challenge.userProgress.progress} / {challenge.targetValue} {challenge.type === 'minutes' ? 'mins' : 'classes'}</span>
+                                                    )}
                                                     <span>{Math.round((challenge.userProgress.progress / challenge.targetValue) * 100)}%</span>
                                                 </div>
                                             </div>

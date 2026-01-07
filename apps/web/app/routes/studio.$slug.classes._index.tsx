@@ -7,6 +7,7 @@ import { apiRequest } from "../utils/api";
 import { useState } from "react";
 import { CreateClassModal } from "../components/CreateClassModal";
 import { Plus } from "lucide-react";
+import { BookingModal } from "../components/BookingModal";
 
 type ClassEvent = {
     id: string;
@@ -141,118 +142,12 @@ export default function StudioPublicClasses() {
             )}
 
             {/* Booking Modal */}
-            {selectedClass && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="bg-white dark:bg-zinc-900 rounded-lg max-w-sm w-full p-6 shadow-xl border border-zinc-200 dark:border-zinc-800">
-                        <h3 className="text-lg font-bold mb-4">Book {selectedClass.title}</h3>
-
-                        {/* Attendance Type Selector (only if Zoom enabled) */}
-                        {selectedClass.zoomEnabled && (
-                            <div className="mb-4 bg-zinc-50 p-3 rounded text-sm">
-                                <p className="font-semibold text-zinc-700 mb-2">Attendance Preference</p>
-                                <div className="flex gap-4">
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input type="radio" name="attendanceType_global" defaultChecked value="in_person" className="text-blue-600 focus:ring-blue-500"
-                                            onChange={(e: any) => {
-                                                (window as any)._tempAttendanceType = e.target.value;
-                                            }}
-                                        />
-                                        <span>In-Person</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input type="radio" name="attendanceType_global" value="zoom" className="text-blue-600 focus:ring-blue-500"
-                                            onChange={(e: any) => { (window as any)._tempAttendanceType = e.target.value; }}
-                                        />
-                                        <span>Virtual (Zoom)</span>
-                                    </label>
-                                </div>
-                            </div>
-                        )}
-
-                        <p className="text-sm text-zinc-500 mb-4">Who would you like to book for?</p>
-
-                        <div className="space-y-2">
-                            {/* Self */}
-                            <fetcher.Form method="post" onSubmit={(e: any) => {
-                                const attendanceType = (window as any)._tempAttendanceType || 'in_person';
-
-                                // Determine intent based on selection
-                                let intent = 'book';
-                                if (attendanceType === 'in_person') {
-                                    if ((selectedClass.inPersonCount || 0) >= (selectedClass.capacity || Infinity)) {
-                                        intent = 'waitlist';
-                                    }
-                                }
-
-                                const typeInput = document.createElement('input');
-                                typeInput.type = 'hidden';
-                                typeInput.name = 'attendanceType';
-                                typeInput.value = attendanceType;
-                                e.currentTarget.appendChild(typeInput);
-
-                                const intentInput = document.createElement('input');
-                                intentInput.type = 'hidden';
-                                intentInput.name = 'intent';
-                                intentInput.value = intent;
-                                e.currentTarget.appendChild(intentInput);
-
-                                setSelectedClass(null);
-                            }}>
-                                <input type="hidden" name="classId" value={selectedClass.id} />
-                                <button type="submit" className="w-full text-left px-4 py-3 rounded border hover:bg-zinc-50 flex justify-between items-center group">
-                                    <span className="font-medium">Myself</span>
-                                    <span className="text-zinc-400 group-hover:text-zinc-900">&rarr;</span>
-                                </button>
-                            </fetcher.Form>
-
-                            {/* Family Members */}
-                            {family.map((f: FamilyMember) => (
-                                <fetcher.Form key={f.userId} method="post" onSubmit={(e: any) => {
-                                    const attendanceType = (window as any)._tempAttendanceType || 'in_person';
-
-                                    // Determine intent based on selection
-                                    let intent = 'book';
-                                    if (attendanceType === 'in_person') {
-                                        if ((selectedClass.inPersonCount || 0) >= (selectedClass.capacity || Infinity)) {
-                                            intent = 'waitlist';
-                                        }
-                                    }
-                                    // Zoom is always book for now (unlimited)
-
-                                    const typeInput = document.createElement('input');
-                                    typeInput.type = 'hidden';
-                                    typeInput.name = 'attendanceType';
-                                    typeInput.value = attendanceType;
-                                    e.currentTarget.appendChild(typeInput);
-
-                                    const intentInput = document.createElement('input');
-                                    intentInput.type = 'hidden';
-                                    intentInput.name = 'intent';
-                                    intentInput.value = intent;
-                                    e.currentTarget.appendChild(intentInput);
-
-                                    setSelectedClass(null);
-                                }}>
-                                    <input type="hidden" name="classId" value={selectedClass.id} />
-                                    <input type="hidden" name="memberId" value={f.memberId || ''} />
-
-                                    <button type="submit" className="w-full text-left px-4 py-3 rounded border hover:bg-zinc-50 flex justify-between items-center group">
-                                        <span className="font-medium">{f.firstName} {f.lastName}</span>
-                                        <span className="text-zinc-400 group-hover:text-zinc-900">&rarr;</span>
-                                    </button>
-                                </fetcher.Form>
-                            ))}
-                        </div>
-
-                        <button
-                            onClick={() => setSelectedClass(null)}
-                            className="mt-4 w-full py-2 text-zinc-500 hover:text-zinc-800 text-sm"
-                        >
-                            Cancel
-                        </button>
-                    </div>
-                </div>
-            )}
+            <BookingModal
+                isOpen={!!selectedClass}
+                onClose={() => setSelectedClass(null)}
+                classEvent={selectedClass}
+                family={family}
+            />
 
             <div className="space-y-8">
                 {Object.keys(grouped).length === 0 ? (

@@ -10,15 +10,24 @@ import {
 export default function AdminProjections() {
     // --- 1. Revenue Drivers ---
     const [tenants, setTenants] = useState(50);
-    const [monthlyFee, setMonthlyFee] = useState(49); // SaaS Fee per tenant
-    const [avgVol, setAvgVol] = useState(5000); // Transaction Volume per tenant
-    const [platformFee, setPlatformFee] = useState(1.0); // % Platform Fee (formerly Take Rate)
     const [growthRate, setGrowthRate] = useState(5); // % Monthly Growth
+
+    // Tiers
+    const [tierBasicPrice, setTierBasicPrice] = useState(29);
+    const [tierGrowthPrice, setTierGrowthPrice] = useState(79);
+    const [tierScalePrice, setTierScalePrice] = useState(149);
+
+    const [mixBasic, setMixBasic] = useState(60); // %
+    const [mixGrowth, setMixGrowth] = useState(30); // %
+    // Scale is remaining 100 - Basic - Growth
+
+    const [avgVol, setAvgVol] = useState(5000); // Transaction Volume per tenant (GMV)
+    const [platformFee, setPlatformFee] = useState(1.0); // % Platform Fee
 
     // --- 2. Instructor Pay Assumptions ---
     const [avgClassesPerMonth, setAvgClassesPerMonth] = useState(60);
-    const [ownerMix, setOwnerMix] = useState(40); // % of classes taught by Owner (User Pay)
-    const [instructorRate, setInstructorRate] = useState(30); // Hourly rate for hired instructors
+    const [ownerMix, setOwnerMix] = useState(40); // % of classes taught by Owner
+    const [instructorRate, setInstructorRate] = useState(30); // Hourly rate
 
     // --- 3. Infra Assumptions (Per Tenant) ---
     // Workers
@@ -26,8 +35,8 @@ export default function AdminProjections() {
     // Storage
     const [storageGB, setStorageGB] = useState(10);
     // Streaming
-    const [streamMinutes, setStreamMinutes] = useState(100); // Minutes of CONTENT stored
-    const [avgViewers, setAvgViewers] = useState(3); // Avg viewers per minute of content (multiplier)
+    const [streamMinutes, setStreamMinutes] = useState(100);
+    const [avgViewers, setAvgViewers] = useState(3);
     // Communications
     const [emailVol, setEmailVol] = useState(2500);
     const [smsVol, setSmsVol] = useState(200);
@@ -53,6 +62,13 @@ export default function AdminProjections() {
     };
 
     // --- 5. Simulation Logic ---
+    const mixScale = Math.max(0, 100 - mixBasic - mixGrowth);
+    const weightedAvgFee = (
+        (tierBasicPrice * mixBasic) +
+        (tierGrowthPrice * mixGrowth) +
+        (tierScalePrice * mixScale)
+    ) / 100;
+
     const projectionData = useMemo(() => {
         const data = [];
         let currentTenants = tenants;
@@ -62,25 +78,19 @@ export default function AdminProjections() {
 
         for (let month = 0; month < 12; month++) {
             // Revenue
-            const saasRevenue = currentTenants * monthlyFee;
+            const saasRevenue = currentTenants * weightedAvgFee;
             const tranxRevenue = currentTenants * avgVol * (platformFee / 100);
             const totalRevenue = saasRevenue + tranxRevenue;
 
             // Costs
-            // 1. Infrastructure (App)
             const workerCost = useWorkers ?
                 Math.max(COSTS.WORKERS_BASE, (currentTenants * requestsPerMonth * COSTS.WORKERS_REQ_PRICE)) : 0;
             const r2Cost = useR2 ? (currentTenants * storageGB * COSTS.R2_STORAGE_GB) : 0;
-
-            // 2. Streaming (Storage + Delivery)
-            // Delivery = StoredMins * Viewers
             const streamCost = useStream ?
                 (currentTenants * (
                     (streamMinutes * COSTS.STREAM_STORAGE_MIN) +
                     (streamMinutes * avgViewers * COSTS.STREAM_DELIVERY_MIN)
                 )) : 0;
-
-            // 3. Communications (Email + SMS)
             const commsCost = useComms ?
                 (currentTenants * (
                     (emailVol * COSTS.EMAIL_COST) +
@@ -88,22 +98,15 @@ export default function AdminProjections() {
                 )) : 0;
 
             const totalInfraCost = workerCost + r2Cost + streamCost + commsCost;
-
-            // Platform Profit
             const platformProfit = totalRevenue - totalInfraCost;
             const margin = totalRevenue > 0 ? (platformProfit / totalRevenue) * 100 : 0;
 
             // Tenant Economics (Avg Single Studio)
-            // Revenue: MonthlyFee (Actually they PAY this) + TransactionVolume (Gross)
-            // Expenses: SaaS Fee + CreditCardFees (2.9%) + InstructorPay
             const tenantGross = avgVol;
             const tenantStripeFee = avgVol * 0.029;
-            const tenantSaasCost = monthlyFee; // + infra usage if billed back? Assuming flat fee.
-
-            // Instructor Pay Logic
+            const tenantSaasCost = weightedAvgFee;
             const hiredClasses = avgClassesPerMonth * ((100 - ownerMix) / 100);
             const tenantInstructorCost = hiredClasses * instructorRate;
-
             const tenantExpenses = tenantStripeFee + tenantSaasCost + tenantInstructorCost;
             const tenantNet = tenantGross - tenantExpenses;
 
@@ -118,33 +121,31 @@ export default function AdminProjections() {
                 streamCost,
                 commsCost,
                 margin,
-                // Tenant Metrics for reference
                 tenantNet
             });
 
-            // Grow
             currentTenants = currentTenants * (1 + effectiveGrowth / 100);
         }
         return data;
-    }, [tenants, monthlyFee, avgVol, platformFee, growthRate, storageGB, streamMinutes, avgViewers, requestsPerMonth, emailVol, smsVol, useR2, useStream, useWorkers, useComms, viralMode, avgClassesPerMonth, ownerMix, instructorRate]);
+    }, [tenants, avgVol, platformFee, growthRate, tierBasicPrice, tierGrowthPrice, tierScalePrice, mixBasic, mixGrowth, storageGB, streamMinutes, avgViewers, requestsPerMonth, emailVol, smsVol, useR2, useStream, useWorkers, useComms, viralMode, avgClassesPerMonth, ownerMix, instructorRate]);
 
-    // Summary Stats (Month 12)
+    // Summary Stats
     const finalMonth = projectionData[11];
     const totalARR = finalMonth.revenue * 12;
     const breakEvenMonth = projectionData.find(d => d.profit > 0)?.name || "N/A";
 
     const costBreakdown = [
-        { name: 'Workers', value: finalMonth.workerCost, color: '#F59E0B' }, // Amber
-        { name: 'R2 Storage', value: finalMonth.r2Cost, color: '#3B82F6' }, // Blue
-        { name: 'Stream', value: finalMonth.streamCost, color: '#EF4444' }, // Red
-        { name: 'Comms (Email/SMS)', value: finalMonth.commsCost, color: '#10B981' }, // Green
+        { name: 'Workers', value: finalMonth.workerCost, color: '#F59E0B' },
+        { name: 'R2 Storage', value: finalMonth.r2Cost, color: '#3B82F6' },
+        { name: 'Stream', value: finalMonth.streamCost, color: '#EF4444' },
+        { name: 'Comms', value: finalMonth.commsCost, color: '#10B981' },
     ].filter(i => i.value > 0);
 
     const formatCurrency = (val: number) =>
         new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
+        <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -173,7 +174,7 @@ export default function AdminProjections() {
                 <MetricCard
                     label="Proj. Annual Revenue (ARR)"
                     value={formatCurrency(totalARR)}
-                    sub={`End of Year 1 (${finalMonth.tenants} Tenants)`}
+                    sub={`End of Year 1 (${Math.round(finalMonth.tenants)} Tenants)`}
                     color="text-emerald-600"
                 />
                 <MetricCard
@@ -183,15 +184,15 @@ export default function AdminProjections() {
                     color={finalMonth.profit > 0 ? "text-indigo-600" : "text-red-600"}
                 />
                 <MetricCard
-                    label="Break Even Point"
-                    value={breakEvenMonth}
-                    sub="First profitable month"
+                    label="Avg Revenue Per Tenant"
+                    value={formatCurrency(weightedAvgFee)}
+                    sub={`Weighted Avg (Mix)`}
                     color="text-zinc-900"
                 />
                 <MetricCard
                     label="Avg Tenant Net (Monthly)"
                     value={formatCurrency(finalMonth.tenantNet)}
-                    sub="After Fees & Teacher Pay"
+                    sub="After Fees & Expenses"
                     color="text-amber-600"
                 />
             </div>
@@ -199,35 +200,41 @@ export default function AdminProjections() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Left: Input Controls */}
                 <div className="space-y-6">
-                    <Card title="Revenue Drivers">
-                        <EditableControl label="Starting Tenants" val={tenants} set={setTenants} />
-                        <EditableControl label="Monthly Fee ($)" val={monthlyFee} set={setMonthlyFee} />
-                        <EditableControl label="Growth Rate (%)" val={growthRate} set={setGrowthRate} disabled={viralMode} />
-                        <EditableControl label="Platform Fee (%)" val={platformFee} set={setPlatformFee} step={0.1} />
-                        <EditableControl label="Avg Trans. Vol ($)" val={avgVol} set={setAvgVol} />
+                    <Card title="Growth & Revenue">
+                        <Control label="Starting Tenants" val={tenants} set={setTenants} min={0} max={1000} step={10} />
+                        <Control label="Growth Rate (%)" val={growthRate} set={setGrowthRate} min={0} max={100} disabled={viralMode} />
+                        <Control label="Avg Monthly GMV ($)" val={avgVol} set={setAvgVol} min={0} max={50000} step={500} />
+                        <Control label="Platform Fee (%)" val={platformFee} set={setPlatformFee} min={0} max={10} step={0.1} />
                     </Card>
 
-                    <Card title="Tenant Economics (Avg)">
-                        <EditableControl label="Classes / Month" val={avgClassesPerMonth} set={setAvgClassesPerMonth} />
-                        <EditableControl label="Instructor Hourly ($)" val={instructorRate} set={setInstructorRate} />
-                        <div className="pt-2 border-t border-zinc-100 mt-2">
-                            <label className="block text-sm font-medium text-zinc-700 mb-1">Owner Taught Mix</label>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="range" min="0" max="100" value={ownerMix}
-                                    onChange={e => setOwnerMix(Number(e.target.value))}
-                                    className="flex-1 accent-indigo-600"
-                                />
-                                <span className="text-sm font-mono w-12 text-right">{ownerMix}%</span>
-                            </div>
-                            <p className="text-xs text-zinc-400 mt-1">
-                                {Math.round(avgClassesPerMonth * (ownerMix / 100))} classes by Owner (Free/Profit)<br />
-                                {Math.round(avgClassesPerMonth * ((100 - ownerMix) / 100))} classes by Instructors (Paid)
-                            </p>
+                    <Card title="Pricing Strategy">
+                        <div className="grid grid-cols-3 gap-2 mb-4 text-center text-xs font-medium text-zinc-500">
+                            <div>Basic</div>
+                            <div>Growth</div>
+                            <div>Scale</div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 mb-6">
+                            <input type="number" value={tierBasicPrice} onChange={e => setTierBasicPrice(Number(e.target.value))} className="w-full text-center border rounded py-1" data-lpignore="true" />
+                            <input type="number" value={tierGrowthPrice} onChange={e => setTierGrowthPrice(Number(e.target.value))} className="w-full text-center border rounded py-1" data-lpignore="true" />
+                            <input type="number" value={tierScalePrice} onChange={e => setTierScalePrice(Number(e.target.value))} className="w-full text-center border rounded py-1" data-lpignore="true" />
+                        </div>
+
+                        <label className="text-xs font-bold text-zinc-900 uppercase">Tier Mix</label>
+                        <Control label="Basic %" val={mixBasic} set={setMixBasic} min={0} max={100} />
+                        <Control label="Growth %" val={mixGrowth} set={setMixGrowth} min={0} max={100} />
+                        <div className="flex justify-between items-center text-sm py-2 px-3 bg-zinc-50 rounded border border-zinc-100 mt-2">
+                            <span className="text-zinc-500">Scale % (Remainder)</span>
+                            <span className="font-mono font-bold">{mixScale}%</span>
                         </div>
                     </Card>
 
-                    <Card title="Infra Costs (Per Tenant)">
+                    <Card title="Tenant Economics">
+                        <Control label="Classes / Month" val={avgClassesPerMonth} set={setAvgClassesPerMonth} min={0} max={300} />
+                        <Control label="Instructor Hourly ($)" val={instructorRate} set={setInstructorRate} min={15} max={100} />
+                        <Control label="Owner Taught %" val={ownerMix} set={setOwnerMix} min={0} max={100} />
+                    </Card>
+
+                    <Card title="Infrastructure Costs">
                         <div className="grid grid-cols-2 gap-2 mb-4">
                             <Toggle label="Workers" checked={useWorkers} set={setUseWorkers} />
                             <Toggle label="R2 Storage" checked={useR2} set={setUseR2} />
@@ -235,19 +242,19 @@ export default function AdminProjections() {
                             <Toggle label="Email/SMS" checked={useComms} set={setUseComms} />
                         </div>
 
-                        <EditableControl label="Storage (GB)" val={storageGB} set={setStorageGB} disabled={!useR2} />
-                        <EditableControl label="Requests (M)" val={requestsPerMonth / 1_000_000} set={(v: number) => setRequestsPerMonth(v * 1_000_000)} step={0.1} disabled={!useWorkers} />
+                        <Control label="Requests (M)" val={requestsPerMonth / 1_000_000} set={(v: number) => setRequestsPerMonth(v * 1_000_000)} step={0.1} min={0} max={50} disabled={!useWorkers} />
+                        <Control label="Storage (GB)" val={storageGB} set={setStorageGB} min={0} max={1000} disabled={!useR2} />
 
-                        <div className="pt-4 border-t border-zinc-100 mt-4">
+                        <div className="my-4 pt-4 border-t border-zinc-100 space-y-4">
                             <h4 className="text-xs font-bold text-zinc-900 uppercase tracking-wide mb-2">Streaming</h4>
-                            <EditableControl label="Mins Stored" val={streamMinutes} set={setStreamMinutes} disabled={!useStream} />
-                            <EditableControl label="Avg Viewers/Min" val={avgViewers} set={setAvgViewers} disabled={!useStream} />
+                            <Control label="Mins Stored" val={streamMinutes} set={setStreamMinutes} min={0} max={5000} disabled={!useStream} />
+                            <Control label="Viewers/Min" val={avgViewers} set={setAvgViewers} min={1} max={50} disabled={!useStream} />
                         </div>
 
-                        <div className="pt-4 border-t border-zinc-100 mt-4">
+                        <div className="my-4 pt-4 border-t border-zinc-100 space-y-4">
                             <h4 className="text-xs font-bold text-zinc-900 uppercase tracking-wide mb-2">Communications</h4>
-                            <EditableControl label="Emails / Mo" val={emailVol} set={setEmailVol} disabled={!useComms} />
-                            <EditableControl label="SMS / Mo" val={smsVol} set={setSmsVol} disabled={!useComms} />
+                            <Control label="Emails / Mo" val={emailVol} set={setEmailVol} min={0} max={50000} step={100} disabled={!useComms} />
+                            <Control label="SMS / Mo" val={smsVol} set={setSmsVol} min={0} max={5000} step={50} disabled={!useComms} />
                         </div>
                     </Card>
 
@@ -346,7 +353,7 @@ export default function AdminProjections() {
                                 </AreaChart>
                             </ResponsiveContainer>
                             <p className="text-xs text-zinc-400 text-center mt-2">
-                                * Simulates single studio profit after fees & payroll (assuming constant volume)
+                                * Simulates single studio profit after fees & payroll
                             </p>
                         </div>
                     </div>
@@ -382,16 +389,34 @@ function Card({ title, children }: any) {
     );
 }
 
-function EditableControl({ label, val, set, step = 1, disabled }: any) {
+// Rewritten Control with Slider + Input + data-lpignore
+function Control({ label, val, set, step = 1, min = 0, max = 100, disabled }: any) {
     return (
-        <div className={`flex items-center justify-between gap-4 ${disabled ? "opacity-40 pointer-events-none" : ""}`}>
-            <label className="text-sm font-medium text-zinc-700 flex-1">{label}</label>
+        <div className={`space-y-2 ${disabled ? "opacity-50 pointer-events-none" : ""}`}>
+            <div className="flex justify-between items-center">
+                <label className="text-sm font-medium text-zinc-700">{label}</label>
+                <input
+                    type="number"
+                    step={step}
+                    value={val}
+                    onChange={(e) => set(parseFloat(e.target.value) || 0)}
+                    className="w-24 text-right px-2 py-1 border border-zinc-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
+                    data-lpignore="true"
+                    data-1p-ignore="true"
+                    data-bwignore="true"
+                    autoComplete="off"
+                    name={`field_stat_${Math.floor(Math.random() * 10000)}`}
+                    id={`field_stat_${Math.floor(Math.random() * 10000)}`}
+                />
+            </div>
             <input
-                type="number"
+                type="range"
+                min={min}
+                max={max}
                 step={step}
                 value={val}
                 onChange={(e) => set(parseFloat(e.target.value) || 0)}
-                className="w-24 text-right px-2 py-1 border border-zinc-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
+                className="w-full accent-indigo-600 h-1.5 bg-zinc-200 rounded-lg appearance-none cursor-pointer"
             />
         </div>
     );

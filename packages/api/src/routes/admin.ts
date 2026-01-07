@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { emailLogs, marketingCampaigns, tenants, tenantFeatures, users, tenantMembers, tenantRoles, subscriptions, auditLogs } from 'db/src/schema';
+import { emailLogs, marketingCampaigns, tenants, tenantFeatures, users, tenantMembers, tenantRoles, subscriptions, auditLogs, smsLogs } from 'db/src/schema'; // Added smsLogs
 import { eq, sql, desc, count, or, like, asc, and, inArray } from 'drizzle-orm';
 import { UsageService } from '../services/pricing';
 
@@ -454,6 +454,50 @@ app.get('/stats/email', async (c) => {
         .from(emailLogs)
         .leftJoin(tenants, eq(emailLogs.tenantId, tenants.id))
         .orderBy(desc(emailLogs.sentAt))
+        .limit(50)
+        .all();
+
+    return c.json({
+        totalSent,
+        byTenant,
+        recentLogs
+    });
+});
+
+// GET /stats/sms - Global SMS Stats
+app.get('/stats/sms', async (c) => {
+    const db = createDb(c.env.DB);
+
+    // Total SMS sent (approx)
+    // Counting big tables in D1/SQLite can be slow, but for MVP < 1M rows it's instant.
+    const totalResult = await db.select({ count: count() }).from(smsLogs).get();
+    const totalSent = totalResult?.count || 0;
+
+    // By Tenant
+    const byTenant = await db.select({
+        tenantName: tenants.name,
+        slug: tenants.slug,
+        count: count(smsLogs.id)
+    })
+        .from(smsLogs)
+        .leftJoin(tenants, eq(smsLogs.tenantId, tenants.id))
+        .groupBy(smsLogs.tenantId)
+        .orderBy(desc(count(smsLogs.id)))
+        .limit(20)
+        .all();
+
+    // Recent Logs
+    const recentLogs = await db.select({
+        id: smsLogs.id,
+        body: smsLogs.body,
+        recipient: smsLogs.recipientPhone,
+        sentAt: smsLogs.sentAt,
+        status: smsLogs.status,
+        tenantName: tenants.name
+    })
+        .from(smsLogs)
+        .leftJoin(tenants, eq(smsLogs.tenantId, tenants.id))
+        .orderBy(desc(smsLogs.sentAt))
         .limit(50)
         .all();
 

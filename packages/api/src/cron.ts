@@ -159,6 +159,13 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
                             `<p>Sorry! The class <strong>${cls.title}</strong> on ${cls.startTime.toLocaleString()} has been cancelled due to low enrollment. Any credits used have been returned to your account.</p>`
                         );
 
+                        // SMS Notification
+                        await notifService.sendSMS(
+                            member.user.phone || '',
+                            `Class Cancelled: ${cls.title} on ${cls.startTime.toLocaleString()} due to low enrollment.`,
+                            { memberId: booking.memberId, eventType: 'class_cancellation' }
+                        );
+
                         // Return credits if applicable
                         if (booking.paymentMethod === 'credit' && booking.usedPackId) {
                             await db.update(purchasedPacks)
@@ -182,6 +189,13 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
                         cls.instructor.user.email,
                         `Class Cancelled: ${cls.title}`,
                         `<p>Hi ${profile.firstName || 'Instructor'}, your class <strong>${cls.title}</strong> on ${cls.startTime.toLocaleString()} has been automatically cancelled as it did not reach the minimum of ${minEnrollment} students by the cutoff time.</p>`
+                    );
+
+                    // SMS Notification (Instructor)
+                    await notifService.sendSMS(
+                        cls.instructor.user.phone || '',
+                        `Class Cancelled: ${cls.title} on ${cls.startTime.toLocaleString()} (Low Enrollment).`,
+                        { memberId: cls.instructorId, eventType: 'class_cancellation_instructor' }
                     );
                 }
 
@@ -207,6 +221,13 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
                                 <li>Min Required: ${minEnrollment}</li>
                              </ul>
                              <p>Students and the Instructor have been notified.</p>`
+                        );
+
+                        // SMS Notification (Owner)
+                        await notifService.sendSMS(
+                            owner.users.phone || '',
+                            `ALERT: Auto-Cancelled ${cls.title} (${currentEnrollment}/${minEnrollment} students).`,
+                            { memberId: owner.tenant_members.id, eventType: 'class_cancellation_alert' }
                         );
                     }
                 }
