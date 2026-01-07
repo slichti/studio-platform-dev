@@ -6,7 +6,7 @@ import { useOutletContext, useLoaderData, Form, useNavigation, useSubmit, Link }
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router"; // Add types
 import { apiRequest, API_URL } from "../utils/api";
 import { getAuth } from "@clerk/react-router/server";
-import { Plus, Trash2, MapPin, CreditCard, FileText, Mail, MessageSquare, Video, Globe, CheckCircle, Smartphone, ShoppingBag } from "lucide-react";
+import { Plus, Trash2, MapPin, CreditCard, FileText, Mail, MessageSquare, Video, Globe, CheckCircle, Smartphone, ShoppingBag, Code } from "lucide-react";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { params } = args;
