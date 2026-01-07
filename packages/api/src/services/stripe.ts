@@ -105,13 +105,14 @@ export class StripeService {
     async createEmbeddedCheckoutSession(
         connectedAccountId: string,
         params: {
-            title: string;
-            amount: number;
+            title?: string; // Optional if lineItems used
+            amount?: number; // Optional if lineItems used
             currency: string;
             returnUrl: string;
             metadata: Record<string, string>;
             customerEmail?: string;
             customer?: string;
+            lineItems?: Stripe.Checkout.SessionCreateParams.LineItem[];
         }
     ) {
         const { client, options } = this.getClient(connectedAccountId);
@@ -126,7 +127,15 @@ export class StripeService {
                     },
                 },
             },
-            line_items: [{
+            mode: 'payment',
+            return_url: params.returnUrl,
+            metadata: params.metadata,
+        };
+
+        if (params.lineItems && params.lineItems.length > 0) {
+            sessionParams.line_items = params.lineItems;
+        } else if (params.amount && params.title) {
+            sessionParams.line_items = [{
                 price_data: {
                     currency: params.currency,
                     product_data: {
@@ -135,11 +144,10 @@ export class StripeService {
                     unit_amount: params.amount,
                 },
                 quantity: 1,
-            }],
-            mode: 'payment',
-            return_url: params.returnUrl,
-            metadata: params.metadata,
-        };
+            }];
+        } else {
+            throw new Error("Either lineItems or (amount + title) must be provided");
+        }
 
         if (params.customer) {
             sessionParams.customer = params.customer;

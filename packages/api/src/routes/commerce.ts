@@ -245,9 +245,19 @@ app.post('/checkout/session', async (c) => {
         }
     }
 
-    // 3. Apply Gift Card
+    // 4a. Calculate Tax (MI 6%)
+    const taxableAmount = Math.max(0, basePrice - discountAmount);
+    const taxRate = 0.06; // Michigan
+    const taxAmount = Math.round(taxableAmount * taxRate);
+
+    // 4b. Apply Gift Card to the Total (Item + Tax)
+    let amountToPay = taxableAmount + taxAmount;
     let creditApplied = 0;
-    if (giftCardCode && finalAmount > 0) {
+
+    // Use the variable declared at top of function
+    appliedGiftCardId = undefined;
+
+    if (giftCardCode && amountToPay > 0) {
         const card = await db.select().from(giftCards)
             .where(and(
                 eq(giftCards.tenantId, tenant.id),
@@ -256,20 +266,19 @@ app.post('/checkout/session', async (c) => {
             )).get();
 
         if (card) {
-            creditApplied = Math.min(card.currentBalance, finalAmount);
-            finalAmount -= creditApplied;
+            creditApplied = Math.min(card.currentBalance, amountToPay);
+            amountToPay -= creditApplied;
             appliedGiftCardId = card.id;
         }
     }
 
-    // 4. Handle Zero Amount (Direct Fulfillment)
-    if (finalAmount === 0) {
+    // 4c. Handle Zero Amount
+    if (amountToPay === 0) {
         // Direct Fulfillment
         const { FulfillmentService } = await import('../services/fulfillment');
         const fulfillment = new FulfillmentService(createDb(c.env.DB), c.env.RESEND_API_KEY);
         const mockPaymentId = `direct_${crypto.randomUUID()}`;
 
-        // Handle Pack Logic
         if (pack) {
             await fulfillment.fulfillPackPurchase({
                 packId: pack.id,
@@ -280,35 +289,27 @@ app.post('/checkout/session', async (c) => {
             }, mockPaymentId, 0);
         }
 
-        // Handle Gift Card Purchase Logic
         if (giftCardAmount) {
             await fulfillment.fulfillGiftCardPurchase({
                 type: 'gift_card_purchase',
                 tenantId: tenant.id,
                 userId: user?.userId,
                 recipientEmail, recipientName, senderName, message,
-                amount: parseInt(giftCardAmount) // Use original intended amount
+                amount: parseInt(giftCardAmount)
             }, mockPaymentId, parseInt(giftCardAmount));
         }
 
-        // Redeem Used Gift Card
         if (appliedGiftCardId && creditApplied > 0) {
             await fulfillment.redeemGiftCard(appliedGiftCardId, creditApplied, mockPaymentId);
         }
-
         return c.json({ complete: true, returnUrl: `${new URL(c.req.url).origin}/studio/${tenant.slug}/return?session_id=${mockPaymentId}` });
     }
 
-    // 5. Create Stripe Session
-    const { StripeService } = await import('../services/stripe');
-    const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY || '');
+    // 5. Calculate Stripe Fee Surcharge
+    const amountWithFee = Math.round((amountToPay + 30) / (1 - 0.029));
+    const stripeFee = amountWithFee - amountToPay;
 
-    // Stripe requires amount >= $0.50 usually.
-    if (finalAmount > 0 && finalAmount < 50) {
-        return c.json({ error: "Discounted total is too low for online payment." }, 400);
-    }
-
-    // Fetch user email if logged in
+    // 6. Fetch Customer Details for Stripe
     let customerEmail = undefined;
     let stripeCustomerId = undefined;
 
@@ -320,16 +321,13 @@ app.post('/checkout/session', async (c) => {
             customerEmail = userRecord.email;
             stripeCustomerId = userRecord.stripeCustomerId;
 
-            // Family Logic: If user has no Stripe ID, check if they are a child of someone who does
+            // Family Logic
             if (!stripeCustomerId) {
                 const parents = await db.query.userRelationships.findMany({
                     where: eq(userRelationships.childUserId, user.userId)
                 });
 
                 if (parents.length > 0) {
-                    // Try to find a parent with a Stripe ID
-                    // Optimization: just check the first one or iterate? 
-                    // Let's check all parents (usually 1 or 2)
                     const parentIds = parents.map(p => p.parentUserId);
                     const parentUsers = await db.query.users.findMany({
                         where: (users, { inArray }) => inArray(users.id, parentIds),
@@ -339,8 +337,6 @@ app.post('/checkout/session', async (c) => {
                     const parentWithStripe = parentUsers.find(p => p.stripeCustomerId);
                     if (parentWithStripe) {
                         stripeCustomerId = parentWithStripe.stripeCustomerId;
-                        // Optional: Use parent email for billing? Or keep child email (which might be dummy)?
-                        // If child email is dummy, usage of parent email is better for receipt.
                         if (customerEmail?.endsWith('@placeholder.studio')) {
                             customerEmail = parentWithStripe.email;
                         }
@@ -350,46 +346,114 @@ app.post('/checkout/session', async (c) => {
         }
     }
 
-    try {
-        const session = await stripeService.createEmbeddedCheckoutSession(
-            tenant.stripeAccountId,
-            {
-                title: pack ? pack.name : `Gift Card ($${(basePrice / 100).toFixed(2)})`,
-                amount: finalAmount,
+    // 7. Create Stripe Session with Line Items
+    const { StripeService } = await import('../services/stripe');
+    const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY || '');
+
+    // Construct Line Items
+    const lineItems = [];
+    const itemName = pack ? pack.name : 'Gift Card Credit';
+
+    // Item Details
+    // If Gift Card was applied, we show the remaining balance as the item cost?
+    // Or clearer: Show Item Cost, then Tax, then "Gift Card Credit"? (Negative?)
+    // Stripe requires positive line items.
+    // We will list the "Net Payable for Item" + "Tax" + "Fee".
+
+    // Distribute Credit?
+    // Simplest: 
+    // 1. "Item Name (Net)" - Price: taxableAmount - creditPart?
+    // Let's just create line items summing to `amountWithFee`.
+    // We know `amountWithFee` = `amountToPay` + `stripeFee`.
+    // `amountToPay` = `taxableAmount` + `taxAmount` - `creditApplied`.
+
+    // Strategy:
+    // Item: (taxableAmount - creditApplied_allocated_to_item)
+    // Tax: taxAmount
+    // Fee: stripeFee
+
+    // We allocate credit to item first.
+    const creditData = { remaining: creditApplied };
+
+    const itemNet = Math.max(0, taxableAmount - creditData.remaining);
+    creditData.remaining = Math.max(0, creditData.remaining - taxableAmount);
+
+    const taxNet = Math.max(0, taxAmount - creditData.remaining);
+
+    if (itemNet > 0) {
+        lineItems.push({
+            price_data: {
                 currency: tenant.currency || 'usd',
-                returnUrl: `${new URL(c.req.url).origin}/studio/${tenant.slug}/return?session_id={CHECKOUT_SESSION_ID}`,
-                customerEmail,
-                customer: stripeCustomerId || undefined,
-                metadata: {
-                    type: pack ? 'pack_purchase' : 'gift_card_purchase',
-                    packId: pack?.id || '',
-                    tenantId: tenant.id,
-                    userId: user?.userId || 'guest',
-                    couponId: appliedCouponId || '',
-                    recipientEmail: recipientEmail || '',
-                    recipientName: recipientName || '',
-                    senderName: senderName || '',
-                    message: message || '',
-
-                    // Financial Breakdown
-                    vendorName: tenant.name,
-                    productName: pack ? pack.name : 'Gift Card Credit',
-                    basePrice: String(basePrice),
-                    discountAmount: String(discountAmount),
-                    creditApplied: String(creditApplied),
-                    finalChargeAmount: String(finalAmount),
-                    couponCode: couponCode || '',
-                    usedGiftCardId: appliedGiftCardId || '',
-                    giftCardCode: giftCardCode || ''
-                }
-            }
-        );
-
-        return c.json({ clientSecret: session.client_secret });
-    } catch (e: any) {
-        console.error("Stripe Error:", e);
-        return c.json({ error: "Payment init failed: " + e.message }, 500);
+                product_data: { name: itemName },
+                unit_amount: itemNet
+            },
+            quantity: 1
+        });
     }
+
+    if (taxNet > 0) {
+        lineItems.push({
+            price_data: {
+                currency: tenant.currency || 'usd',
+                product_data: { name: 'Sales Tax (MI 6%)' },
+                unit_amount: taxNet
+            },
+            quantity: 1
+        });
+    }
+
+    if (stripeFee > 0) {
+        lineItems.push({
+            price_data: {
+                currency: tenant.currency || 'usd',
+                product_data: { name: 'Processing Fee' },
+                unit_amount: stripeFee
+            },
+            quantity: 1
+        });
+    }
+
+    const session = await stripeService.createEmbeddedCheckoutSession(
+        tenant.stripeAccountId,
+        {
+            currency: tenant.currency || 'usd',
+            returnUrl: `${new URL(c.req.url).origin}/studio/${tenant.slug}/return?session_id={CHECKOUT_SESSION_ID}`,
+            customerEmail,
+            customer: stripeCustomerId || undefined,
+            lineItems,
+            metadata: {
+                type: pack ? 'pack_purchase' : 'gift_card_purchase',
+                packId: pack?.id || '',
+                tenantId: tenant.id,
+                userId: user?.userId || 'guest',
+                couponId: appliedCouponId || '',
+                recipientEmail: recipientEmail || '',
+                recipientName: recipientName || '',
+                senderName: senderName || '',
+                message: message || '',
+
+                // Detailed Financial Metadata
+                vendorName: tenant.name,
+                productName: itemName,
+                basePrice: String(basePrice),
+                discountAmount: String(discountAmount),
+                taxAmount: String(taxAmount),
+                creditApplied: String(creditApplied),
+                subtotal: String(taxableAmount), // net of coupon
+                processingFee: String(stripeFee),
+                totalCharge: String(amountWithFee),
+                couponCode: couponCode || '',
+                usedGiftCardId: appliedGiftCardId || '',
+                giftCardCode: giftCardCode || ''
+            }
+        }
+    );
+
+    return c.json({ clientSecret: session.client_secret });
+} catch (e: any) {
+    console.error("Stripe Error:", e);
+    return c.json({ error: "Payment init failed: " + e.message }, 500);
+}
 });
 
 
