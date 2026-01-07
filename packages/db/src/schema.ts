@@ -167,6 +167,9 @@ export const locations = sqliteTable('locations', {
     address: text('address'),
     layout: text('layout', { mode: 'json' }), // JSON: { rows: 5, cols: 5, spots: [{ id: 'A1', type: 'standard', x: 0, y: 0 }] }
     timezone: text('timezone').default('UTC'),
+    isPrimary: integer('is_primary', { mode: 'boolean' }).default(false),
+    settings: text('settings', { mode: 'json' }), // Location-specific settings (hours, contact, etc)
+    isActive: integer('is_active', { mode: 'boolean' }).default(true),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 

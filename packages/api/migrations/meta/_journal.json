@@ -218,6 +218,13 @@
       "when": 1767801989867,
       "tag": "0030_green_angel",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1767802088996,
+      "tag": "0031_small_blob",
+      "breakpoints": true
     }
   ]
 }
