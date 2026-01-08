@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { createDb } from '../db';
 import { ZoomService } from '../services/zoom';
 import { StreamService } from '../services/stream';
-import { classes, users, classPackDefinitions, purchasedPacks, giftCards, giftCardTransactions, tenantMembers, tenants, tenantFeatures } from 'db/src/schema'; // Added tenantFeatures
+import { classes, users, classPackDefinitions, purchasedPacks, giftCards, giftCardTransactions, tenantMembers, tenants, tenantFeatures, tenantRoles } from 'db/src/schema'; // Added tenantFeatures, tenantRoles
 import { eq, and, sql } from 'drizzle-orm';
 // import { verifyWebhookSignature } from '../services/zoom'; 
 
@@ -160,6 +160,29 @@ app.post('/clerk', async (c) => {
                 const emailService = new EmailService(c.env.RESEND_API_KEY, { branding: ownerData.tenant.branding as any, settings: ownerData.tenant.settings as any });
                 c.executionCtx.waitUntil(emailService.notifyOwnerNewStudent(ownerData.email, `${first_name} ${last_name}`));
             }
+        }
+    }
+
+    if (eventType === 'user.deleted') {
+        const { id } = evt.data;
+        if (id) {
+            // Manual Cascade Delete (cleaning up local references)
+            // 1. Find all memberships
+            const members = await db.select({ id: tenantMembers.id }).from(tenantMembers).where(eq(tenantMembers.userId, id)).all();
+
+            // 2. Delete roles for those memberships
+            if (members.length > 0) {
+                const memberIds = members.map(m => m.id);
+                const { inArray } = await import('drizzle-orm');
+                await db.delete(tenantRoles).where(inArray(tenantRoles.memberId, memberIds)).run();
+            }
+
+            // 3. Delete memberships
+            await db.delete(tenantMembers).where(eq(tenantMembers.userId, id)).run();
+
+            // 4. Delete user record
+            await db.delete(users).where(eq(users.id, id)).run();
+            console.log(`User deleted via webhook: ${id}`);
         }
     }
     return c.json({ received: true });

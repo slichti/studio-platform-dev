@@ -3,8 +3,8 @@ import { type LoaderFunctionArgs } from "react-router";
 // @ts-ignore
 import { useLoaderData, useFetcher } from "react-router";
 import { ShieldCheck, Database, CheckCircle, XCircle, Activity, Server, Clock } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
-import { Badge } from "~/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/Card";
+import { Badge } from "~/components/ui/Badge";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
     const env = (context as any).cloudflare?.env || (context as any).env || {};

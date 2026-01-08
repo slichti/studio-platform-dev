@@ -1,9 +1,8 @@
 import { Hono } from 'hono';
-import Stripe from 'stripe';
 import { createDb } from '../db';
-import { products, posOrders, posOrderItems, tenantMembers, giftCards, users } from 'db/src/schema';
-import { eq, and, desc, sql, like, or } from 'drizzle-orm';
 import type { HonoContext } from '../types';
+import { PosService } from '../services/pos';
+import { StripeService } from '../services/stripe';
 
 interface CartItem {
     productId: string;
@@ -19,10 +18,9 @@ app.get('/products', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
-    const list = await db.select().from(products)
-        .where(eq(products.tenantId, tenant.id))
-        .orderBy(desc(products.createdAt))
-        .all();
+    const service = new PosService(db, tenant.id, c.env, null); // Stripe service not needed for reading local DB only?
+    // Actually, constructor expects it optional.
+    const list = await service.listProducts();
 
     return c.json({ products: list });
 });
@@ -39,7 +37,6 @@ app.post('/products', async (c) => {
     }
 
     const body = await c.req.json();
-
     const { z } = await import('zod');
     const productSchema = z.object({
         name: z.string().min(1),
@@ -58,56 +55,13 @@ app.post('/products', async (c) => {
     }
     const data = parseResult.data;
 
-    const id = crypto.randomUUID();
-    let stripeProductId = null;
-    let stripePriceId = null;
-
-    // Create in Stripe
-    if (c.env.STRIPE_SECRET_KEY && tenant.stripeAccountId) {
-        const { StripeService } = await import('../services/stripe');
-        const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
-        try {
-            // 1. Create Product
-            const prod = await stripe.createProduct({
-                name: data.name,
-                description: data.description,
-                images: data.imageUrl ? [data.imageUrl] : [],
-                metadata: { tenantId: tenant.id, localId: id }
-            }, tenant.stripeAccountId);
-            stripeProductId = prod.id;
-
-            // 2. Create Price
-            if (data.price > 0) {
-                const price = await stripe.createPrice({
-                    productId: prod.id,
-                    unitAmount: data.price,
-                    currency: tenant.currency || 'usd'
-                }, tenant.stripeAccountId);
-                stripePriceId = price.id;
-            }
-        } catch (e) {
-            console.error("Stripe Product Sync Failed", e);
-            // Proceed to create local anyway? Yes, graceful degradation.
-        }
+    let stripeService: StripeService | undefined;
+    if (c.env.STRIPE_SECRET_KEY) {
+        stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
     }
 
-    await db.insert(products).values({
-        id,
-        tenantId: tenant.id,
-        name: data.name,
-        description: data.description,
-        category: data.category,
-        sku: data.sku,
-        price: data.price,
-        currency: tenant.currency || 'usd',
-        stockQuantity: data.stockQuantity,
-        imageUrl: data.imageUrl,
-        isActive: data.isActive,
-        stripeProductId: stripeProductId || undefined,
-        stripePriceId: stripePriceId || undefined,
-        createdAt: new Date(),
-        updatedAt: new Date()
-    }).run();
+    const service = new PosService(db, tenant.id, c.env, stripeService);
+    const id = await service.createProduct(data, tenant.stripeAccountId, tenant.currency || 'usd');
 
     return c.json({ success: true, id });
 });
@@ -117,7 +71,6 @@ app.post('/orders', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
-
 
     const roles = c.get('roles') || [];
     if (!roles.includes('owner') && !roles.includes('instructor')) {
@@ -134,142 +87,29 @@ app.post('/orders', async (c) => {
         redeemAmount?: number
     }>();
 
-    if (!items || items.length === 0) return c.json({ error: "No items in order" }, 400);
-
-    const orderId = crypto.randomUUID();
+    const service = new PosService(db, tenant.id, c.env); // No stripe service needed for local order Create atm? 
+    // Except automations might need stuff, but they are inside service.
 
     try {
-        // --- 1. Validate & Redeem Gift Card (Integrated) ---
-        if (redeemGiftCardCode && redeemAmount && redeemAmount > 0) {
-            const { FulfillmentService } = await import('../services/fulfillment');
-            const fulfillment = new FulfillmentService(db, c.env.RESEND_API_KEY);
+        const result = await service.createOrder(
+            items,
+            totalAmount,
+            memberId,
+            staff?.id,
+            paymentMethod,
+            redeemGiftCardCode,
+            redeemAmount,
+            tenant // pass tenant for context
+        );
 
-            // Check card
-            const card = await db.select().from(giftCards).where(and(
-                eq(giftCards.tenantId, tenant.id),
-                eq(giftCards.code, redeemGiftCardCode),
-                eq(giftCards.status, 'active')
-            )).get();
-
-            if (!card) return c.json({ error: "Invalid Gift Card Code" }, 400);
-            if (card.currentBalance < redeemAmount) return c.json({ error: "Insufficient Gift Card Balance" }, 400);
-
-            // Redeem logic
-            await fulfillment.redeemGiftCard(card.id, redeemAmount, orderId);
-            // We don't have the transaction ID returned easily from fulfillment service helper, 
-            // but the service logs the transaction linked to this orderId.
+        // Async tasks
+        if (result.asyncTask) {
+            c.executionCtx.waitUntil(result.asyncTask());
         }
 
-        // --- 2. Create Order ---
-        const orderValues = {
-            id: orderId,
-            tenantId: tenant.id,
-            memberId: memberId || null,
-            staffId: staff?.id || null,
-            totalAmount: totalAmount,
-            status: 'completed' as const,
-            paymentMethod: (paymentMethod || 'card') as "card" | "cash" | "account" | "other",
-            createdAt: new Date(),
-            updatedAt: new Date()
-        };
-
-        const itemInserts = items.map((it) => ({
-            id: crypto.randomUUID(),
-            orderId: orderId,
-            productId: it.productId,
-            quantity: it.quantity,
-            unitPrice: it.unitPrice,
-            totalPrice: it.unitPrice * it.quantity
-        }));
-
-        await db.insert(posOrders).values(orderValues).run();
-
-        for (const item of itemInserts) {
-            await db.insert(posOrderItems).values(item).run();
-        }
-
-        // --- 3. Atomic Stock Deduction (Raw SQL) ---
-        for (const item of items) {
-            // Using sql template tag for safe parameter injection
-            await db.run(sql`UPDATE products SET stock_quantity = stock_quantity - ${item.quantity} WHERE id = ${item.productId} AND tenant_id = ${tenant.id}`);
-        }
-
-        // --- Webhook Dispatch ---
-        try {
-            const { WebhookService } = await import('../services/webhooks');
-            const hook = new WebhookService(db);
-            c.executionCtx.waitUntil(hook.dispatch(tenant.id, 'order.completed', {
-                orderId: orderId,
-                total: totalAmount,
-                memberId: staff?.id,
-                items: items.map((i) => ({
-                    productId: i.productId,
-                    quantity: i.quantity,
-                    price: i.unitPrice
-                }))
-            }));
-
-            // --- Marketing Automation ---
-            const { AutomationsService } = await import('../services/automations');
-            const { EmailService } = await import('../services/email');
-            const { SmsService } = await import('../services/sms');
-            const { UsageService } = await import('../services/pricing');
-
-            // Background Fetch Member for Automation context
-            c.executionCtx.waitUntil((async () => {
-                try {
-                    let userContext = { userId: memberId ? 'guest_placeholder_' + orderId : 'guest', email: '', firstName: 'Guest', phone: undefined as string | undefined };
-
-                    if (memberId) {
-                        const memberData = await db.query.tenantMembers.findFirst({
-                            where: eq(tenantMembers.id, memberId),
-                            with: { user: true }
-                        });
-                        if (memberData && memberData.user) {
-                            userContext = {
-                                userId: memberData.user.id,
-                                email: memberData.user.email,
-                                firstName: (memberData.user.profile as any)?.firstName,
-                                phone: memberData.user.phone || undefined
-                            };
-                        }
-                    }
-
-                    if (userContext.userId !== 'guest') {
-                        const usageService = new UsageService(db, tenant.id);
-                        const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
-                        const isByokEmail = !!(tenant.resendCredentials as any)?.apiKey;
-
-                        const emailService = new EmailService(
-                            resendKey,
-                            { branding: tenant.branding as any, settings: tenant.settings as any },
-                            { slug: tenant.slug },
-                            usageService,
-                            isByokEmail
-                        );
-
-                        const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
-                        const autoService = new AutomationsService(db, tenant.id, emailService, smsService);
-
-                        await autoService.dispatchTrigger('order_completed', {
-                            ...userContext,
-                            data: { orderId, amount: totalAmount }
-                        });
-                    }
-                } catch (err) {
-                    console.error("Automation Trigger Failed", err);
-                }
-            })());
-
-        } catch (e) {
-            console.error("Webhook dispatch failed", e);
-        }
-
-        return c.json({ success: true, orderId });
+        return c.json({ success: true, orderId: result.orderId });
     } catch (e: any) {
         console.error("POS Order Failed:", e);
-        // Simple rollback attempt? D1 doesn't support full rollback easily across requests yet.
-        // In real non-MVP, we'd want robust transaction handling.
         return c.json({ error: e.message }, 500);
     }
 });
@@ -280,24 +120,13 @@ app.get('/orders', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
-
     const roles = c.get('roles') || [];
     if (!roles.includes('owner') && !roles.includes('instructor')) {
         return c.json({ error: "Access Denied" }, 403);
     }
 
-    const orders = await db.query.posOrders.findMany({
-        where: eq(posOrders.tenantId, tenant.id),
-        with: {
-            items: {
-                with: { product: true }
-            },
-            member: {
-                with: { user: { columns: { profile: true } } }
-            }
-        },
-        orderBy: [desc(posOrders.createdAt)]
-    });
+    const service = new PosService(db, tenant.id, c.env);
+    const orders = await service.getOrderHistory();
 
     return c.json({ orders });
 });
@@ -312,51 +141,52 @@ app.post('/process-payment', async (c) => {
 
     if (!items || items.length === 0) return c.json({ error: "No items" }, 400);
 
-    // 1. Calculate Total Server-Side
-    let totalAmount = 0;
-    const itemDetails = [];
-
-    for (const item of items) {
-        const product = await db.select().from(products)
-            .where(and(eq(products.id, item.productId), eq(products.tenantId, tenant.id)))
-            .get();
-
-        if (!product) continue;
-
-        totalAmount += (product.price * item.quantity);
-        itemDetails.push({
-            id: product.id,
-            name: product.name,
-            price: product.price,
-            quantity: item.quantity
-        });
-    }
+    const service = new PosService(db, tenant.id, c.env);
+    const { totalAmount, itemDetails } = await service.validatePaymentItems(items);
 
     if (totalAmount === 0) return c.json({ error: "Total amount is 0" }, 400);
 
-    // 2. Create PaymentIntent
     if (!c.env.STRIPE_SECRET_KEY) return c.json({ error: "Server misconfiguration" }, 500);
 
-    const stripe = new Stripe(c.env.STRIPE_SECRET_KEY, { apiVersion: '2025-10-16' as any }); // Updated API version? Defaulting
+    // Using Stripe directly here or via Service? 
+    // Usually payments are better abstracted, but this route handler logic was specific to intent creation.
+    // Let's keep the PaymentIntent creation here for now but use the Service for calc. 
+    // Or move `createPaymentIntent` to StripeService.
+    const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
 
-    const params: Stripe.PaymentIntentCreateParams = {
+    // Construct params
+    const params = {
         amount: totalAmount,
         currency: tenant.currency || 'usd',
         automatic_payment_methods: { enabled: true },
         metadata: {
             tenantId: tenant.id,
-            items: JSON.stringify(itemDetails.map(i => `${i.quantity}x ${i.name}`).join(', ')) // simplified metadata
+            items: JSON.stringify(itemDetails.map(i => `${i.quantity}x ${i.name}`).join(', '))
         }
     };
 
-    // If tenant has own Stripe Account, use it
-    const options: Stripe.RequestOptions = {};
-    if (tenant.stripeAccountId) {
-        options.stripeAccount = tenant.stripeAccountId;
-    }
-
     try {
-        const pi = await stripe.paymentIntents.create(params, options);
+        // Use Stripe Service if it exposes createPaymentIntent? 
+        // It does expose the raw client property or wrappers. 
+        // Let's assume we can use the raw client from service or just instantiate.
+        // The StripeService wrapper we have might not have `paymentIntents.create` exposed directly.
+        // Let's stick to using the `stripe` instance from `StripeService` getter or similar? 
+        // Checking `stripe.ts` (implied): it usually has `stripe` property.
+        // Assuming public property `stripe` on `StripeService` or just use import.
+
+        // Actually, let's just use the stripe instance from the service if available.
+        // Or import Stripe. 
+        // For cleaner refactor, let's assume we use the helper logic or direct stripe calls here.
+        // Re-using the logic from before is fine.
+        const { default: Stripe } = await import('stripe'); // Dynamic import
+        const stripe = new Stripe(c.env.STRIPE_SECRET_KEY, { apiVersion: '2025-10-16' as any });
+
+        const options: any = {};
+        if (tenant.stripeAccountId) {
+            options.stripeAccount = tenant.stripeAccountId;
+        }
+
+        const pi = await stripe.paymentIntents.create(params as any, options);
         return c.json({
             clientSecret: pi.client_secret,
             id: pi.id
@@ -371,14 +201,12 @@ app.post('/connection-token', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
-
     const roles = c.get('roles') || [];
     if (!roles.includes('owner') && !roles.includes('instructor')) {
         return c.json({ error: "Access Denied" }, 403);
     }
     if (!c.env.STRIPE_SECRET_KEY) return c.json({ error: "Server misconfiguration" }, 500);
 
-    const { StripeService } = await import('../services/stripe');
     const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
 
     try {
@@ -400,49 +228,15 @@ app.get('/customers', async (c) => {
 
     if (!query || query.length < 2) return c.json({ customers: [] });
 
-    // 1. Search Local Members (Global Users linked to Tenant)
-    const { users } = await import('db/src/schema');
-    // Simple mock search if sql.like not fully supported in D1 or requires raw. 
-    // Drizzle like() is good.
-    const { like, or } = await import('drizzle-orm');
-
-    // Note: Search on user profile JSON is hard in SQL. 
-    // We'll search by email in Users table for now + join TenantMembers
-    const localMatches = await db.select({
-        id: tenantMembers.id,
-        userId: users.id,
-        email: users.email,
-        profile: users.profile,
-        stripeCustomerId: users.stripeCustomerId // Platform ID
-    })
-        .from(tenantMembers)
-        .innerJoin(users, eq(tenantMembers.userId, users.id))
-        .where(and(
-            eq(tenantMembers.tenantId, tenant.id),
-            or(like(users.email, `%${query}%`)) // Basic email search
-        ))
-        .limit(5)
-        .all();
-
-    // 2. Search Stripe Customers (if connected)
-    let stripeMatches: any[] = [];
-    if (c.env.STRIPE_SECRET_KEY && tenant.stripeAccountId) {
-        const { StripeService } = await import('../services/stripe');
-        const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
-        try {
-            // Search on the Connected Account
-            const result = await stripe.searchCustomers(query, tenant.stripeAccountId);
-            stripeMatches = result.data.map((cus) => ({
-                id: 'stripe_guest', // No local ID
-                stripeCustomerId: cus.id, // The ID on the connected account
-                email: cus.email,
-                profile: { firstName: cus.name || 'Guest', lastName: '' },
-                isStripeGuest: true
-            }));
-        } catch (e) { console.error("Stripe Search Error", e); }
+    let stripeService: StripeService | undefined;
+    if (c.env.STRIPE_SECRET_KEY) {
+        stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
     }
 
-    return c.json({ customers: [...localMatches, ...stripeMatches] });
+    const service = new PosService(db, tenant.id, c.env, stripeService);
+    const customers = await service.searchCustomers(query, tenant.stripeAccountId);
+
+    return c.json({ customers });
 });
 
 
@@ -452,14 +246,12 @@ app.post('/customers', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
-
     const roles = c.get('roles') || [];
     if (!roles.includes('owner') && !roles.includes('instructor')) {
         return c.json({ error: "Access Denied" }, 403);
     }
 
     const body = await c.req.json();
-
     const { z } = await import('zod');
     const customerSchema = z.object({
         email: z.string().email(),
@@ -473,22 +265,14 @@ app.post('/customers', async (c) => {
     }
     const { email, name, phone } = parseResult.data;
 
-    // 1. Create in Stripe (Connected Account)
     let stripeCustomerId = null;
     if (c.env.STRIPE_SECRET_KEY && tenant.stripeAccountId) {
-        const { StripeService } = await import('../services/stripe');
         const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
         try {
             const cus = await stripe.createCustomer({ email, name, phone, metadata: { tenantId: tenant.id } }, tenant.stripeAccountId);
             stripeCustomerId = cus.id;
         } catch (e) { console.error('Stripe Customer Create Error', e); }
     }
-
-    // 2. Create Local Record? 
-    // If we want to store them as a "Lead" or "Member"?
-    // For POS, maybe we just return the Stripe ID if they don't want to register fully?
-    // User request: "select a customer... add a new customer in stripe"
-    // So we assume primarily Stripe customer for now. 
 
     return c.json({ success: true, customer: { id: stripeCustomerId, email, name, isStripeGuest: true } });
 });
@@ -498,7 +282,6 @@ app.put('/products/:id', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
-
 
     const roles = c.get('roles') || [];
     if (!roles.includes('owner') && !roles.includes('instructor')) {
@@ -525,37 +308,16 @@ app.put('/products/:id', async (c) => {
     }
     const data = parseResult.data;
 
-    const product = await db.select().from(products).where(and(eq(products.id, id), eq(products.tenantId, tenant.id))).get();
-    if (!product) return c.json({ error: 'Product not found' }, 404);
+    let stripeService: StripeService | undefined;
+    if (c.env.STRIPE_SECRET_KEY) {
+        stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+    }
 
-    // Update DB
-    await db.update(products).set({
-        name: data.name ?? product.name,
-        description: data.description ?? product.description,
-        price: data.price ?? product.price,
-        stockQuantity: data.stockQuantity ?? product.stockQuantity,
-        imageUrl: data.imageUrl ?? product.imageUrl,
-        category: data.category ?? product.category,
-        sku: data.sku ?? product.sku,
-        isActive: data.isActive ?? product.isActive,
-        updatedAt: new Date()
-    }).where(eq(products.id, id)).run();
-
-    // Sync Stripe
-    if (c.env.STRIPE_SECRET_KEY && tenant.stripeAccountId && product.stripeProductId) {
-        const { StripeService } = await import('../services/stripe');
-        const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
-        try {
-            await stripe.updateProduct(product.stripeProductId, {
-                name: body.name,
-                description: body.description,
-                active: body.isActive,
-                images: body.imageUrl ? [body.imageUrl] : []
-            }, tenant.stripeAccountId);
-
-            // Price updates in Stripe are immutable mostly, we'd create new price and make default? 
-            // Skipping price update complexity for MVP, usually requires creating new Price object.
-        } catch (e) { console.error("Stripe Sync Error", e); }
+    const service = new PosService(db, tenant.id, c.env, stripeService);
+    try {
+        await service.updateProduct(id, data, tenant.stripeAccountId);
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
     }
 
     return c.json({ success: true });
@@ -567,24 +329,22 @@ app.post('/products/:id/archive', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
-
     const roles = c.get('roles') || [];
     if (!roles.includes('owner') && !roles.includes('instructor')) {
         return c.json({ error: "Access Denied" }, 403);
     }
     const id = c.req.param('id');
 
-    const product = await db.select().from(products).where(and(eq(products.id, id), eq(products.tenantId, tenant.id))).get();
-    if (!product) return c.json({ error: 'Product not found' }, 404);
+    let stripeService: StripeService | undefined;
+    if (c.env.STRIPE_SECRET_KEY) {
+        stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+    }
 
-    await db.update(products).set({ isActive: false }).where(eq(products.id, id)).run();
-
-    if (c.env.STRIPE_SECRET_KEY && tenant.stripeAccountId && product.stripeProductId) {
-        const { StripeService } = await import('../services/stripe');
-        const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
-        try {
-            await stripe.archiveProduct(product.stripeProductId, tenant.stripeAccountId);
-        } catch (e) { console.error("Stripe Archive Error", e); }
+    const service = new PosService(db, tenant.id, c.env, stripeService);
+    try {
+        await service.archiveProduct(id, tenant.stripeAccountId);
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
     }
 
     return c.json({ success: true });
