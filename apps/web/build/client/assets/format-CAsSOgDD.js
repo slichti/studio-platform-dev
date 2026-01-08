@@ -1,0 +1,1 @@
+function B(t,o=2){if(!+t)return"0 Bytes";const r=1024,a=o<0?0:o,i=["Bytes","KB","MB","GB","TB","PB","EB","ZB","YB"],n=Math.floor(Math.log(t)/Math.log(r));return`${parseFloat((t/Math.pow(r,n)).toFixed(a))} ${i[n]}`}function f(t){if(!t)return"0:00";const o=Math.floor(t/60),r=Math.floor(t%60);return`${o}:${r.toString().padStart(2,"0")}`}export{B as a,f};

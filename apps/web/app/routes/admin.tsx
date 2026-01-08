@@ -85,6 +85,7 @@ export default function AdminLayout() {
         { label: "System Users", href: "/admin/users", icon: "👥" },
         { label: "Video Manager", href: "/admin/videos", icon: "🎬" },
         { label: "System Status", href: "/admin/status", icon: "🟢" },
+        { label: "Diagnostics", href: "/admin/diagnostics", icon: "🩺" },
     ];
 
     return (
