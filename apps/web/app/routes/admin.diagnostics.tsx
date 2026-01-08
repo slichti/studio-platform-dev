@@ -1,14 +1,16 @@
-import { json, type LoaderFunctionArgs } from "@remix-run/cloudflare";
-import { useLoaderData, useFetcher } from "@remix-run/react";
+// @ts-ignore
+import { type LoaderFunctionArgs } from "react-router";
+// @ts-ignore
+import { useLoaderData, useFetcher } from "react-router";
 import { ShieldCheck, Database, CheckCircle, XCircle, Activity, Server, Clock } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
-    return json({
+    return {
         env: context.env.ENVIRONMENT || 'production'
-    });
+    };
 };
 
 export default function AdminDiagnostics() {
@@ -47,14 +49,18 @@ export default function AdminDiagnostics() {
                         Real-time health checks and integration status.
                     </p>
                 </div>
-                <Button onClick={handleRun} disabled={isLoading} size="lg">
+                <button
+                    onClick={handleRun}
+                    disabled={isLoading}
+                    className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-zinc-900 text-white hover:bg-zinc-900/90 h-11 px-8"
+                >
                     {isLoading ? (
                         <Activity className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
                         <Activity className="mr-2 h-4 w-4" />
                     )}
                     Run Diagnostics
-                </Button>
+                </button>
             </div>
 
             <div className="grid gap-6 md:grid-cols-3">
@@ -104,7 +110,7 @@ export default function AdminDiagnostics() {
                                 {data.status === 'ok' ? (
                                     <Badge variant="default" className="bg-green-600 hover:bg-green-700">Operational</Badge>
                                 ) : (
-                                    <Badge variant="destructive">Degraded</Badge>
+                                    <Badge variant="error">Degraded</Badge>
                                 )}
                             </div>
                         ) : (

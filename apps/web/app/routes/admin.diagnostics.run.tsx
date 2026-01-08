@@ -1,9 +1,10 @@
-import { json, type LoaderFunctionArgs } from "@remix-run/cloudflare";
-import { getAuth } from "@clerk/remix/ssr.server";
+// @ts-ignore
+import { type LoaderFunctionArgs } from "react-router";
+import { getAuth } from "@clerk/react-router/server";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { userId, getToken } = await getAuth(args);
-    if (!userId) return json({ error: "Unauthorized" }, { status: 401 });
+    if (!userId) return { error: "Unauthorized", status: 401 };
 
     const token = await getToken();
     const API_URL = args.context.env.API_URL || 'https://studio-platform-api.slichti.workers.dev';
@@ -23,13 +24,13 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
         if (!res.ok) {
             const text = await res.text();
-            return json({ error: `API Error: ${res.status}`, details: text }, { status: res.status });
+            return { error: `API Error: ${res.status}`, details: text, status: res.status };
         }
 
         const data = await res.json();
-        return json(data);
+        return data;
 
     } catch (error: any) {
-        return json({ error: "Failed to fetch diagnostics", message: error.message }, 500);
+        return { error: "Failed to fetch diagnostics", message: error.message, status: 500 };
     }
 };
