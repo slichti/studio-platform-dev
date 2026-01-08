@@ -7,7 +7,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
     if (!userId) return { error: "Unauthorized", status: 401 };
 
     const token = await getToken();
-    const API_URL = args.context.env.API_URL || 'https://studio-platform-api.slichti.workers.dev';
+    const env = (args.context as any).cloudflare?.env || (args.context as any).env || {};
+    const API_URL = env.VITE_API_URL || env.API_URL || 'https://studio-platform-api.slichti.workers.dev';
 
     try {
         // 1. Get Tenant ID (Assuming system admin context or general check)

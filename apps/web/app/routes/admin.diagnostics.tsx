@@ -3,13 +3,13 @@ import { type LoaderFunctionArgs } from "react-router";
 // @ts-ignore
 import { useLoaderData, useFetcher } from "react-router";
 import { ShieldCheck, Database, CheckCircle, XCircle, Activity, Server, Clock } from "lucide-react";
-import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
+    const env = (context as any).cloudflare?.env || (context as any).env || {};
     return {
-        env: context.env.ENVIRONMENT || 'production'
+        env: env.ENVIRONMENT || 'production'
     };
 };
 
