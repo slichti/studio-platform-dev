@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { eq, and } from 'drizzle-orm';
-import { tenants, tenantMembers, membershipPlans, subscriptions, users } from 'db/src/schema'; // Ensure exported in schema
+import { tenants, tenantMembers, membershipPlans, subscriptions, users } from 'db'; // Ensure exported in schema
 
 type Bindings = {
     DB: D1Database;

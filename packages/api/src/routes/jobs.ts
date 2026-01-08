@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantMembers, bookings, users } from 'db/src/schema';
+import { tenants, tenantMembers, bookings, users } from 'db';
 import { eq, and, desc, lt, inArray } from 'drizzle-orm';
 import { isFeatureEnabled } from '../utils/features';
 import { EmailService } from '../services/email';

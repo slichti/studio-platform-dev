@@ -1,8 +1,9 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { emailLogs, marketingCampaigns, tenants, tenantFeatures, users, tenantMembers, tenantRoles, subscriptions, auditLogs, smsLogs, videos, brandingAssets } from 'db/src/schema'; // Added smsLogs and videos and brandingAssets
+import { users, tenantMembers, tenantRoles, tenants, subscriptions, auditLogs, emailLogs, smsLogs, brandingAssets, videos, waiverTemplates, waiverSignatures } from 'db'; // Ensure all imports
 import { eq, sql, desc, count, or, like, asc, and, inArray } from 'drizzle-orm';
 import { UsageService } from '../services/pricing';
+import type { HonoContext } from '../types';
 
 type Bindings = {
     DB: D1Database;
@@ -18,11 +19,8 @@ type Bindings = {
 import { authMiddleware } from '../middleware/auth';
 import tenantFeaturesRouter from './admin.features';
 
-type Variables = {
-    auth: { userId: string; claims: any };
-};
 
-const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
+const app = new Hono<HonoContext>();
 
 app.route('/', tenantFeaturesRouter); // Mounts /tenants/:id/features endpoints (admin.features has /tenants/:id/features paths)
 
@@ -592,39 +590,42 @@ app.patch('/tenants/:id/subscription', async (c) => {
 app.get('/tenants', async (c) => {
     const db = createDb(c.env.DB);
 
+    const [allTenants, ownerCounts, instructorCounts, subscriberCounts] = await Promise.all([
+        db.select().from(tenants).all(),
+        // Owners Grouped
+        db.select({ tenantId: tenantMembers.tenantId, count: count(tenantMembers.id) })
+            .from(tenantMembers)
+            .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
+            .where(eq(tenantRoles.role, 'owner'))
+            .groupBy(tenantMembers.tenantId)
+            .all(),
+        // Instructors Grouped
+        db.select({ tenantId: tenantMembers.tenantId, count: count(tenantMembers.id) })
+            .from(tenantMembers)
+            .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
+            .where(eq(tenantRoles.role, 'instructor'))
+            .groupBy(tenantMembers.tenantId)
+            .all(),
+        // Subscribers Grouped
+        db.select({ tenantId: subscriptions.tenantId, count: count(subscriptions.id) })
+            .from(subscriptions)
+            .where(eq(subscriptions.status, 'active'))
+            .groupBy(subscriptions.tenantId)
+            .all()
+    ]);
 
-    const allTenants = await db.select().from(tenants).all();
+    // Create lookup maps
+    const ownerMap = new Map(ownerCounts.map(o => [o.tenantId, o.count]));
+    const instructorMap = new Map(instructorCounts.map(i => [i.tenantId, i.count]));
+    const subscriberMap = new Map(subscriberCounts.map(s => [s.tenantId, s.count]));
 
-    const enriched = await Promise.all(allTenants.map(async (t) => {
-        // Stats in parallel for speed
-        const [oCount, iCount, sCount] = await Promise.all([
-            // Owners
-            db.select({ count: count() })
-                .from(tenantMembers)
-                .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
-                .where(and(eq(tenantMembers.tenantId, t.id), eq(tenantRoles.role, 'owner')))
-                .get(),
-            // Instructors
-            db.select({ count: count() })
-                .from(tenantMembers)
-                .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
-                .where(and(eq(tenantMembers.tenantId, t.id), eq(tenantRoles.role, 'instructor')))
-                .get(),
-            // Active Subscribers
-            db.select({ count: count() })
-                .from(subscriptions)
-                .where(and(eq(subscriptions.tenantId, t.id), eq(subscriptions.status, 'active')))
-                .get()
-        ]);
-
-        return {
-            ...t,
-            stats: {
-                owners: oCount?.count || 0,
-                instructors: iCount?.count || 0,
-                subscribers: sCount?.count || 0
-            }
-        };
+    const enriched = allTenants.map(t => ({
+        ...t,
+        stats: {
+            owners: ownerMap.get(t.id) || 0,
+            instructors: instructorMap.get(t.id) || 0,
+            subscribers: subscriberMap.get(t.id) || 0
+        }
     }));
 
     return c.json(enriched);

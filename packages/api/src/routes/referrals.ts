@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { referrals, tenantMembers, users, tenants } from 'db/src/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { referrals, tenantMembers, users, tenants } from 'db';
+import { eq, and, desc, sql } from 'drizzle-orm';
 
 interface Bindings {
     DB: D1Database;
@@ -26,6 +26,23 @@ function generateCode(): string {
     return code;
 }
 
+async function getReferralStats(db: ReturnType<typeof createDb>, tenantId: string, code: string) {
+    // Count how many times this code has been converted (if reusable) or just return 1 if completed
+    const completedCount = await db.select({ count: sql<number>`count(*)` })
+        .from(referrals)
+        .where(and(
+            eq(referrals.tenantId, tenantId),
+            eq(referrals.code, code),
+            eq(referrals.status, 'completed')
+        ))
+        .get();
+
+    return {
+        conversions: completedCount?.count || 0,
+        clicks: 0 // Placeholder
+    };
+}
+
 // GET /referrals - List referrals for current member or all (if owner)
 app.get('/', async (c) => {
     const db = createDb(c.env.DB);
@@ -38,7 +55,7 @@ app.get('/', async (c) => {
 
     const isOwner = roles.includes('owner');
 
-    const results = await db.select({
+    const rawResults = await db.select({
         id: referrals.id,
         code: referrals.code,
         status: referrals.status,
@@ -46,13 +63,9 @@ app.get('/', async (c) => {
         rewardValue: referrals.rewardValue,
         rewardedAt: referrals.rewardedAt,
         createdAt: referrals.createdAt,
-        referrer: {
-            id: tenantMembers.id,
-            user: {
-                email: users.email,
-                profile: users.profile
-            }
-        }
+        referrerId: tenantMembers.id,
+        referrerEmail: users.email,
+        referrerProfile: users.profile
     })
         .from(referrals)
         .innerJoin(tenantMembers, eq(referrals.referrerId, tenantMembers.id))
@@ -64,6 +77,27 @@ app.get('/', async (c) => {
         )
         .orderBy(desc(referrals.createdAt))
         .all();
+
+    const results = await Promise.all(rawResults.map(async (r) => {
+        const stats = await getReferralStats(db, tenant.id, r.code);
+        return {
+            id: r.id,
+            code: r.code,
+            status: r.status,
+            rewardType: r.rewardType,
+            rewardValue: r.rewardValue,
+            rewardedAt: r.rewardedAt,
+            createdAt: r.createdAt,
+            referrer: {
+                id: r.referrerId,
+                user: {
+                    email: r.referrerEmail,
+                    profile: r.referrerProfile
+                }
+            },
+            stats
+        };
+    }));
 
     return c.json(results);
 });

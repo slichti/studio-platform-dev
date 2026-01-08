@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { giftCards, giftCardTransactions, tenants, tenantMembers, users } from 'db/src/schema';
+import { giftCards, giftCardTransactions, tenants, tenantMembers, users } from 'db';
 import { EmailService } from '../services/email';
 import { createDb } from '../db';
 import { eq, and, sql } from 'drizzle-orm';

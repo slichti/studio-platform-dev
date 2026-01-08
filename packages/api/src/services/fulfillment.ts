@@ -1,5 +1,5 @@
 
-import { classes, users, classPackDefinitions, purchasedPacks, giftCards, giftCardTransactions, tenantMembers, tenants, couponRedemptions } from 'db/src/schema'; // Ensure these are exported from schema
+import { classes, users, classPackDefinitions, purchasedPacks, giftCards, giftCardTransactions, tenantMembers, tenants, couponRedemptions } from 'db'; // Ensure these are exported from schema
 import { eq, and } from 'drizzle-orm';
 import { EmailService } from './email';
 

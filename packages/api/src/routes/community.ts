@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { communityPosts, communityComments, communityLikes, tenantMembers, users } from 'db/src/schema';
+import { communityPosts, communityComments, communityLikes, tenantMembers, users } from 'db';
 import { eq, and, desc, sql } from 'drizzle-orm';
 
 interface Bindings {
@@ -33,13 +33,9 @@ app.get('/', async (c) => {
         commentsCount: communityPosts.commentsCount,
         isPinned: communityPosts.isPinned,
         createdAt: communityPosts.createdAt,
-        author: {
-            id: tenantMembers.id,
-            user: {
-                email: users.email,
-                profile: users.profile
-            }
-        }
+        authorId: tenantMembers.id,
+        authorEmail: users.email,
+        authorProfile: users.profile
     })
         .from(communityPosts)
         .innerJoin(tenantMembers, eq(communityPosts.authorId, tenantMembers.id))
@@ -59,7 +55,24 @@ app.get('/', async (c) => {
         likedPostIds = new Set(likes.map(l => l.postId));
     }
 
-    return c.json(posts.map(p => ({ ...p, isLiked: likedPostIds.has(p.id) })));
+    return c.json(posts.map(p => ({
+        id: p.id,
+        content: p.content,
+        type: p.type,
+        imageUrl: p.imageUrl,
+        likesCount: p.likesCount,
+        commentsCount: p.commentsCount,
+        isPinned: p.isPinned,
+        createdAt: p.createdAt,
+        author: {
+            id: p.authorId,
+            user: {
+                email: p.authorEmail,
+                profile: p.authorProfile
+            }
+        },
+        isLiked: likedPostIds.has(p.id)
+    })));
 });
 
 // POST /community - Create post
@@ -132,13 +145,9 @@ app.get('/:id/comments', async (c) => {
         id: communityComments.id,
         content: communityComments.content,
         createdAt: communityComments.createdAt,
-        author: {
-            id: tenantMembers.id,
-            user: {
-                email: users.email,
-                profile: users.profile
-            }
-        }
+        authorId: tenantMembers.id,
+        authorEmail: users.email,
+        authorProfile: users.profile
     })
         .from(communityComments)
         .innerJoin(tenantMembers, eq(communityComments.authorId, tenantMembers.id))
@@ -147,7 +156,18 @@ app.get('/:id/comments', async (c) => {
         .orderBy(communityComments.createdAt)
         .all();
 
-    return c.json(comments);
+    return c.json(comments.map(c => ({
+        id: c.id,
+        content: c.content,
+        createdAt: c.createdAt,
+        author: {
+            id: c.authorId,
+            user: {
+                email: c.authorEmail,
+                profile: c.authorProfile
+            }
+        }
+    })));
 });
 
 // POST /community/:id/comments - Add comment

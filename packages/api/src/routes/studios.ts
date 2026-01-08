@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { tenants } from 'db/src/schema'; // Ensure proper export from db/src/index.ts
+import { tenants } from 'db'; // Ensure proper export from db/src/index.ts
 import { createDb } from '../db';
 import { eq } from 'drizzle-orm';
 import { tenantMiddleware } from '../middleware/tenant';

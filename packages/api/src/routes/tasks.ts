@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { eq, and, desc, asc } from 'drizzle-orm';
 import { createDb } from '../db';
-import { tasks, tenantMembers, leads, users } from 'db/src/schema'; // Ensure correct import path matching leads.ts
+import { tasks, tenantMembers, leads, users } from 'db'; // Ensure correct import path matching leads.ts
 
 // Manual types for request body
 type TaskCreate = {

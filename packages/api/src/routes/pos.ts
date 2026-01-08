@@ -1,28 +1,23 @@
 import { Hono } from 'hono';
 import Stripe from 'stripe';
 import { createDb } from '../db';
-import { products, posOrders, posOrderItems, tenantMembers, giftCards, users } from 'db/src/schema';
+import { products, posOrders, posOrderItems, tenantMembers, giftCards, users } from 'db';
 import { eq, and, desc, sql, like, or } from 'drizzle-orm';
+import type { HonoContext } from '../types';
 
-type Bindings = {
-    DB: D1Database;
-    STRIPE_SECRET_KEY: string;
-    RESEND_API_KEY: string;
-};
+interface CartItem {
+    productId: string;
+    quantity: number;
+    unitPrice: number;
+}
 
-type Variables = {
-    auth: { userId: string };
-    tenant: any;
-    member?: any;
-    roles?: string[];
-};
-
-const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
+const app = new Hono<HonoContext>();
 
 // GET /products - List available inventory
 app.get('/products', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
     const list = await db.select().from(products)
         .where(eq(products.tenantId, tenant.id))
@@ -36,7 +31,32 @@ app.get('/products', async (c) => {
 app.post('/products', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: "Access Denied" }, 403);
+    }
+
     const body = await c.req.json();
+
+    const { z } = await import('zod');
+    const productSchema = z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+        category: z.string().optional(),
+        sku: z.string().optional(),
+        price: z.number().nonnegative(),
+        stockQuantity: z.number().int().nonnegative().optional().default(0),
+        imageUrl: z.string().url().optional(),
+        isActive: z.boolean().optional().default(true)
+    });
+
+    const parseResult = productSchema.safeParse(body);
+    if (!parseResult.success) {
+        return c.json({ error: 'Invalid input', details: parseResult.error.format() }, 400);
+    }
+    const data = parseResult.data;
 
     const id = crypto.randomUUID();
     let stripeProductId = null;
@@ -49,18 +69,18 @@ app.post('/products', async (c) => {
         try {
             // 1. Create Product
             const prod = await stripe.createProduct({
-                name: body.name,
-                description: body.description,
-                images: body.imageUrl ? [body.imageUrl] : [],
+                name: data.name,
+                description: data.description,
+                images: data.imageUrl ? [data.imageUrl] : [],
                 metadata: { tenantId: tenant.id, localId: id }
             }, tenant.stripeAccountId);
             stripeProductId = prod.id;
 
             // 2. Create Price
-            if (body.price > 0) {
+            if (data.price > 0) {
                 const price = await stripe.createPrice({
                     productId: prod.id,
-                    unitAmount: body.price,
+                    unitAmount: data.price,
                     currency: tenant.currency || 'usd'
                 }, tenant.stripeAccountId);
                 stripePriceId = price.id;
@@ -74,17 +94,19 @@ app.post('/products', async (c) => {
     await db.insert(products).values({
         id,
         tenantId: tenant.id,
-        name: body.name,
-        description: body.description,
-        category: body.category,
-        sku: body.sku,
-        price: body.price,
+        name: data.name,
+        description: data.description,
+        category: data.category,
+        sku: data.sku,
+        price: data.price,
         currency: tenant.currency || 'usd',
-        stockQuantity: body.stockQuantity || 0,
-        imageUrl: body.imageUrl,
-        isActive: true,
+        stockQuantity: data.stockQuantity,
+        imageUrl: data.imageUrl,
+        isActive: data.isActive,
         stripeProductId: stripeProductId || undefined,
-        stripePriceId: stripePriceId || undefined
+        stripePriceId: stripePriceId || undefined,
+        createdAt: new Date(),
+        updatedAt: new Date()
     }).run();
 
     return c.json({ success: true, id });
@@ -94,8 +116,23 @@ app.post('/products', async (c) => {
 app.post('/orders', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+
+
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: "Access Denied" }, 403);
+    }
     const staff = c.get('member');
-    const { items, memberId, paymentMethod, totalAmount, redeemGiftCardCode, redeemAmount } = await c.req.json();
+
+    const { items, memberId, paymentMethod, totalAmount, redeemGiftCardCode, redeemAmount } = await c.req.json<{
+        items: CartItem[];
+        memberId?: string;
+        paymentMethod?: string;
+        totalAmount: number;
+        redeemGiftCardCode?: string;
+        redeemAmount?: number
+    }>();
 
     if (!items || items.length === 0) return c.json({ error: "No items in order" }, 400);
 
@@ -103,8 +140,7 @@ app.post('/orders', async (c) => {
 
     try {
         // --- 1. Validate & Redeem Gift Card (Integrated) ---
-        let giftCardRedemptionId: string | null = null;
-        if (redeemGiftCardCode && redeemAmount > 0) {
+        if (redeemGiftCardCode && redeemAmount && redeemAmount > 0) {
             const { FulfillmentService } = await import('../services/fulfillment');
             const fulfillment = new FulfillmentService(db, c.env.RESEND_API_KEY);
 
@@ -132,10 +168,12 @@ app.post('/orders', async (c) => {
             staffId: staff?.id || null,
             totalAmount: totalAmount,
             status: 'completed' as const,
-            paymentMethod: paymentMethod || 'card'
+            paymentMethod: (paymentMethod || 'card') as "card" | "cash" | "account" | "other",
+            createdAt: new Date(),
+            updatedAt: new Date()
         };
 
-        const itemInserts = items.map((it: any) => ({
+        const itemInserts = items.map((it) => ({
             id: crypto.randomUUID(),
             orderId: orderId,
             productId: it.productId,
@@ -164,7 +202,7 @@ app.post('/orders', async (c) => {
                 orderId: orderId,
                 total: totalAmount,
                 memberId: staff?.id,
-                items: items.map((i: any) => ({
+                items: items.map((i) => ({
                     productId: i.productId,
                     quantity: i.quantity,
                     price: i.unitPrice
@@ -240,6 +278,13 @@ app.post('/orders', async (c) => {
 app.get('/orders', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+
+
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: "Access Denied" }, 403);
+    }
 
     const orders = await db.query.posOrders.findMany({
         where: eq(posOrders.tenantId, tenant.id),
@@ -261,7 +306,9 @@ app.get('/orders', async (c) => {
 app.post('/process-payment', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const { items, customerId } = await c.req.json();
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+
+    const { items, customerId } = await c.req.json<{ items: { productId: string; quantity: number }[], customerId?: string }>();
 
     if (!items || items.length === 0) return c.json({ error: "No items" }, 400);
 
@@ -290,7 +337,7 @@ app.post('/process-payment', async (c) => {
     // 2. Create PaymentIntent
     if (!c.env.STRIPE_SECRET_KEY) return c.json({ error: "Server misconfiguration" }, 500);
 
-    const stripe = new Stripe(c.env.STRIPE_SECRET_KEY, { apiVersion: '2025-12-15.clover' as any }); // Use latest or available
+    const stripe = new Stripe(c.env.STRIPE_SECRET_KEY, { apiVersion: '2025-10-16' as any }); // Updated API version? Defaulting
 
     const params: Stripe.PaymentIntentCreateParams = {
         amount: totalAmount,
@@ -322,12 +369,20 @@ app.post('/process-payment', async (c) => {
 // POST /connection-token - Generate Terminal Connection Token
 app.post('/connection-token', async (c) => {
     const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+
+
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: "Access Denied" }, 403);
+    }
     if (!c.env.STRIPE_SECRET_KEY) return c.json({ error: "Server misconfiguration" }, 500);
 
     const { StripeService } = await import('../services/stripe');
     const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
 
     try {
+        if (!tenant.stripeAccountId) return c.json({ error: "Stripe not connected" }, 400);
         const token = await stripe.createTerminalConnectionToken(tenant.stripeAccountId);
         return c.json({ secret: token.secret });
     } catch (e: any) {
@@ -340,6 +395,7 @@ app.post('/connection-token', async (c) => {
 app.get('/customers', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
     const { query } = c.req.query();
 
     if (!query || query.length < 2) return c.json({ customers: [] });
@@ -376,7 +432,7 @@ app.get('/customers', async (c) => {
         try {
             // Search on the Connected Account
             const result = await stripe.searchCustomers(query, tenant.stripeAccountId);
-            stripeMatches = result.data.map((cus: any) => ({
+            stripeMatches = result.data.map((cus) => ({
                 id: 'stripe_guest', // No local ID
                 stripeCustomerId: cus.id, // The ID on the connected account
                 email: cus.email,
@@ -394,9 +450,28 @@ app.get('/customers', async (c) => {
 app.post('/customers', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const { email, name, phone } = await c.req.json();
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
-    if (!email || !name) return c.json({ error: "Email and Name required" }, 400);
+
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: "Access Denied" }, 403);
+    }
+
+    const body = await c.req.json();
+
+    const { z } = await import('zod');
+    const customerSchema = z.object({
+        email: z.string().email(),
+        name: z.string().min(1),
+        phone: z.string().optional()
+    });
+
+    const parseResult = customerSchema.safeParse(body);
+    if (!parseResult.success) {
+        return c.json({ error: 'Invalid input', details: parseResult.error.format() }, 400);
+    }
+    const { email, name, phone } = parseResult.data;
 
     // 1. Create in Stripe (Connected Account)
     let stripeCustomerId = null;
@@ -422,22 +497,47 @@ app.post('/customers', async (c) => {
 app.put('/products/:id', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+
+
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: "Access Denied" }, 403);
+    }
     const id = c.req.param('id');
     const body = await c.req.json();
+
+    const { z } = await import('zod');
+    const updateProductSchema = z.object({
+        name: z.string().min(1).optional(),
+        description: z.string().optional(),
+        price: z.number().nonnegative().optional(),
+        stockQuantity: z.number().int().nonnegative().optional(),
+        imageUrl: z.string().url().optional(),
+        category: z.string().optional(),
+        sku: z.string().optional(),
+        isActive: z.boolean().optional()
+    });
+
+    const parseResult = updateProductSchema.safeParse(body);
+    if (!parseResult.success) {
+        return c.json({ error: 'Invalid input', details: parseResult.error.format() }, 400);
+    }
+    const data = parseResult.data;
 
     const product = await db.select().from(products).where(and(eq(products.id, id), eq(products.tenantId, tenant.id))).get();
     if (!product) return c.json({ error: 'Product not found' }, 404);
 
     // Update DB
     await db.update(products).set({
-        name: body.name,
-        description: body.description,
-        price: body.price,
-        stockQuantity: body.stockQuantity,
-        imageUrl: body.imageUrl,
-        category: body.category,
-        sku: body.sku,
-        isActive: body.isActive,
+        name: data.name ?? product.name,
+        description: data.description ?? product.description,
+        price: data.price ?? product.price,
+        stockQuantity: data.stockQuantity ?? product.stockQuantity,
+        imageUrl: data.imageUrl ?? product.imageUrl,
+        category: data.category ?? product.category,
+        sku: data.sku ?? product.sku,
+        isActive: data.isActive ?? product.isActive,
         updatedAt: new Date()
     }).where(eq(products.id, id)).run();
 
@@ -465,6 +565,13 @@ app.put('/products/:id', async (c) => {
 app.post('/products/:id/archive', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+
+
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: "Access Denied" }, 403);
+    }
     const id = c.req.param('id');
 
     const product = await db.select().from(products).where(and(eq(products.id, id), eq(products.tenantId, tenant.id))).get();

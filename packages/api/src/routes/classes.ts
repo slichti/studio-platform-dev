@@ -1,10 +1,11 @@
 import { Hono } from 'hono';
-import { classes, tenants, bookings, tenantMembers, users, tenantRoles, classSeries, subscriptions, purchasedPacks, userRelationships, waiverTemplates, waiverSignatures, membershipPlans, classPackDefinitions, challenges, userChallenges, giftCards, giftCardTransactions } from 'db/src/schema';
 import { createDb } from '../db';
-import { eq, and, gte, lte, gt, ne, sql, inArray } from 'drizzle-orm';
+import { classes, bookings, tenantMembers, users, tenantRoles, subscriptions, purchasedPacks, userRelationships, challenges, userChallenges, tenants, classSeries, waiverTemplates, waiverSignatures, membershipPlans, classPackDefinitions, giftCards, giftCardTransactions, studentNotes } from 'db'; // Ensure imports
+import { eq, and, sql, lt, ne, gt, inArray, desc, gte, lte } from 'drizzle-orm'; // Added inArray, desc
 import { ZoomService } from '../services/zoom';
 import { EncryptionUtils } from '../utils/encryption';
 import { StreamService } from '../services/stream';
+import type { HonoContext } from '../types';
 
 type Bindings = {
     DB: D1Database;
@@ -875,6 +876,7 @@ app.post('/:id/book', async (c) => {
     }
 });
 
+// GET /classes/:id/bookings - Get bookings for a class
 app.get('/:id/bookings', async (c) => {
     const db = createDb(c.env.DB);
     const classId = c.req.param('id');
@@ -887,7 +889,7 @@ app.get('/:id/bookings', async (c) => {
 
     try {
         // 1. Get Active Waiver Template
-        const { waiverTemplates, waiverSignatures } = await import('db/src/schema');
+        const { waiverTemplates, waiverSignatures, studentNotes } = await import('db/src/schema');
         const tenant = c.get('tenant');
         if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
@@ -916,29 +918,29 @@ app.get('/:id/bookings', async (c) => {
             .orderBy(bookings.createdAt)
             .all();
 
-        // 2. If active waiver exists, check signatures for these members
-        // 3. Check for Student Notes
-        const { studentNotes } = await import('db/src/schema');
+        const memberIds = results.map(r => r.memberId);
 
-        const finalResults = await Promise.all(results.map(async (b: any) => {
-            const waiverSigned = activeWaiver ? (await db.select({ id: waiverSignatures.id })
-                .from(waiverSignatures)
-                .where(and(
-                    eq(waiverSignatures.memberId, b.memberId),
-                    eq(waiverSignatures.templateId, activeWaiver.id)
-                )).get()) : true;
+        // Batch fetch waivers if active waiver exists
+        const signatures = (activeWaiver && memberIds.length > 0) ? await db.select({ memberId: waiverSignatures.memberId })
+            .from(waiverSignatures)
+            .where(and(
+                inArray(waiverSignatures.memberId, memberIds),
+                eq(waiverSignatures.templateId, activeWaiver.id)
+            )).all() : [];
 
-            const existingNote = await db.select({ id: studentNotes.id })
-                .from(studentNotes)
-                .where(eq(studentNotes.studentId, b.memberId))
-                .limit(1)
-                .get();
+        // Batch fetch notes
+        const notes = memberIds.length > 0 ? await db.select({ studentId: studentNotes.studentId })
+            .from(studentNotes)
+            .where(inArray(studentNotes.studentId, memberIds))
+            .all() : [];
 
-            return {
-                ...b,
-                waiverSigned: !!waiverSigned,
-                hasNotes: !!existingNote
-            };
+        const signatureSet = new Set(signatures.map(s => s.memberId));
+        const noteSet = new Set(notes.map(n => n.studentId));
+
+        const finalResults = results.map(b => ({
+            ...b,
+            waiverSigned: activeWaiver ? signatureSet.has(b.memberId) : true,
+            hasNotes: noteSet.has(b.memberId)
         }));
 
         return c.json(finalResults);

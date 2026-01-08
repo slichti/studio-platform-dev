@@ -2,7 +2,7 @@ import { createMiddleware } from 'hono/factory';
 import { verifyToken } from '@clerk/backend';
 import { verify } from 'hono/jwt';
 import { createDb } from '../db';
-import { users } from 'db/src/schema'; // Only used in waitUntil
+import { users } from 'db'; // Only used in waitUntil
 import { eq, sql } from 'drizzle-orm';
 
 type AuthVariables = {

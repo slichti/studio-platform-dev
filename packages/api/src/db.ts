@@ -1,5 +1,5 @@
 import { drizzle } from 'drizzle-orm/d1';
-import * as schema from 'db/src/schema';
+import * as schema from 'db';
 
 export const createDb = (d1: D1Database) => {
     return drizzle(d1, { schema });

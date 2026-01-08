@@ -1,5 +1,5 @@
 import { eq, and } from 'drizzle-orm';
-import { bookings, users, tenantMembers, classes, tenants } from 'db/src/schema'; // adjustments needed for imports
+import { bookings, users, tenantMembers, classes, tenants } from 'db'; // adjustments needed for imports
 import { EmailService } from './email';
 
 export class BookingService {

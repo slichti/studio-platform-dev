@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantMembers, coupons, couponRedemptions, classPackDefinitions, giftCards } from 'db/src/schema'; // Ensure exported
+import { tenants, tenantMembers, coupons, couponRedemptions, classPackDefinitions, giftCards } from 'db'; // Ensure exported
 import { eq, and, gt, sql } from 'drizzle-orm';
 
 type Bindings = {

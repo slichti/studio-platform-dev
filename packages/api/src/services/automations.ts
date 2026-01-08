@@ -1,6 +1,6 @@
 import { createDb } from '../db';
 import { eq, and, lt, gt, or, isNull, sql } from 'drizzle-orm';
-import { marketingAutomations, automationLogs, subscriptions, tenantMembers, users, tenants, coupons, bookings, posOrders, classes, locations } from 'db/src/schema'; // Added bookings, posOrders, locations
+import { marketingAutomations, automationLogs, subscriptions, tenantMembers, users, tenants, coupons, bookings, posOrders, classes, locations } from 'db'; // Added bookings, posOrders, locations
 import { EmailService } from './email';
 import { SmsService } from './sms'; // Active
 import { UsageService } from './pricing';

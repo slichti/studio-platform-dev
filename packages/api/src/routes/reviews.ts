@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { reviews, tenantMembers, users, classes } from 'db/src/schema';
+import { reviews, tenantMembers, users, classes } from 'db';
 import { eq, and, desc, sql } from 'drizzle-orm';
 
 interface Bindings {
@@ -36,12 +36,8 @@ app.get('/', async (c) => {
         isApproved: reviews.isApproved,
         isPublic: reviews.isPublic,
         createdAt: reviews.createdAt,
-        member: {
-            id: tenantMembers.id,
-            user: {
-                profile: users.profile
-            }
-        }
+        memberId: tenantMembers.id,
+        memberProfile: users.profile
     })
         .from(reviews)
         .innerJoin(tenantMembers, eq(reviews.memberId, tenantMembers.id))
@@ -54,7 +50,21 @@ app.get('/', async (c) => {
         .orderBy(desc(reviews.createdAt))
         .all();
 
-    return c.json(results);
+    return c.json(results.map(r => ({
+        id: r.id,
+        rating: r.rating,
+        content: r.content,
+        targetType: r.targetType,
+        targetId: r.targetId,
+        isTestimonial: r.isTestimonial,
+        isApproved: r.isApproved,
+        isPublic: r.isPublic,
+        createdAt: r.createdAt,
+        member: {
+            id: r.memberId,
+            user: { profile: r.memberProfile }
+        }
+    })));
 });
 
 // GET /reviews/testimonials - Get approved testimonials for public display
@@ -69,11 +79,7 @@ app.get('/testimonials', async (c) => {
         rating: reviews.rating,
         content: reviews.content,
         createdAt: reviews.createdAt,
-        member: {
-            user: {
-                profile: users.profile
-            }
-        }
+        memberProfile: users.profile
     })
         .from(reviews)
         .innerJoin(tenantMembers, eq(reviews.memberId, tenantMembers.id))
@@ -87,7 +93,15 @@ app.get('/testimonials', async (c) => {
         .limit(10)
         .all();
 
-    return c.json(results);
+    return c.json(results.map(r => ({
+        id: r.id,
+        rating: r.rating,
+        content: r.content,
+        createdAt: r.createdAt,
+        member: {
+            user: { profile: r.memberProfile }
+        }
+    })));
 });
 
 // GET /reviews/stats - Get review statistics

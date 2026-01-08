@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { marketingCampaigns, marketingAutomations, emailLogs, tenants, tenantMembers, users, userRelationships } from 'db/src/schema'; // Ensure these are exported from schema
+import { marketingCampaigns, marketingAutomations, emailLogs, tenants, tenantMembers, users, userRelationships } from 'db'; // Ensure these are exported from schema
 import { eq, desc, and } from 'drizzle-orm';
 import { UsageService } from '../services/pricing';
 import { EmailService } from '../services/email';

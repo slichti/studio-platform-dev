@@ -1,7 +1,7 @@
 import { Context, Next } from 'hono';
 import { createDb } from '../db';
 import { eq, and } from 'drizzle-orm';
-import { tenants, tenantMembers, tenantRoles, users, tenantFeatures } from 'db/src/schema';
+import { tenants, tenantMembers, tenantRoles, users, tenantFeatures } from 'db';
 import { EncryptionUtils } from '../utils/encryption';
 
 // Extend Hono Context to include tenant

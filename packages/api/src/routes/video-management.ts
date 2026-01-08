@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { videos, brandingAssets, tenants, tenantMembers, videoCollections, videoCollectionItems } from 'db/src/schema'; // Updated imports
+import { videos, brandingAssets, tenants, tenantMembers, videoCollections, videoCollectionItems } from 'db'; // Updated imports
 import { eq, and, desc, sql, like } from 'drizzle-orm'; // Added like
 
 const app = new Hono<{ Bindings: any, Variables: any }>();
@@ -15,17 +15,17 @@ app.get('/', async (c) => {
 
         if (!tenant) return c.json({ error: "No tenant context" }, 401);
 
-        let conditions = eq(videos.tenantId, tenant.id);
+        const conditions = [eq(videos.tenantId, tenant.id)];
         if (query) {
-            conditions = and(conditions, like(videos.title, `%${query}%`));
+            conditions.push(like(videos.title, `%${query}%`));
         }
-        if (status) {
-            conditions = and(conditions, eq(videos.status, status as any));
+        if (status && status !== 'all') {
+            conditions.push(eq(videos.status, status as "processing" | "ready" | "error"));
         }
 
         const results = await db.select()
             .from(videos)
-            .where(conditions)
+            .where(and(...conditions))
             .orderBy(desc(videos.createdAt))
             .all();
 

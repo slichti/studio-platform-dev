@@ -2,7 +2,7 @@
 import { Hono } from 'hono';
 import { eq, and, desc } from 'drizzle-orm';
 import { createDb } from '../db';
-import { challenges, userChallenges, tenants } from 'db/src/schema'; // Updated import path
+import { challenges, userChallenges, tenants } from 'db'; // Updated import path
 import { authMiddleware } from '../middleware/auth';
 import { tenantMiddleware } from '../middleware/tenant';
 
