@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { referrals, tenantMembers, users, tenants } from 'db';
+import { referrals, tenantMembers, users, tenants } from 'db/src/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 
 interface Bindings {

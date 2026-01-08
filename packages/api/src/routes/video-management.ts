@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { videos, brandingAssets, tenants, tenantMembers, videoCollections, videoCollectionItems } from 'db'; // Updated imports
+import { videos, brandingAssets, tenants, tenantMembers, videoCollections, videoCollectionItems } from 'db/src/schema'; // Updated imports
 import { eq, and, desc, sql, like } from 'drizzle-orm'; // Added like
 
 const app = new Hono<{ Bindings: any, Variables: any }>();

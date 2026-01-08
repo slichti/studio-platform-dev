@@ -1,6 +1,6 @@
 // Shared API Response Types
 
-import { tenants, tenantMembers, users } from 'db';
+import { tenants, tenantMembers, users } from 'db/src/schema';
 
 export interface Bindings {
     DB: D1Database;

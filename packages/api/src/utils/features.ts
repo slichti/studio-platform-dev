@@ -1,4 +1,4 @@
-import { tenants } from 'db';
+import { tenants } from 'db/src/schema';
 
 export type FeatureKey =
     | 'loyalty'

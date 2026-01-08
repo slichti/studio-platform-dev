@@ -9,10 +9,10 @@ import {
     subscriptions,
     tenantMembers,
     users
-} from 'db'; // Static import
+} from 'db/src/schema'; // Static import
 import { and, between, eq, sql, desc, count } from 'drizzle-orm';
 
-import { tenants } from 'db';
+import { tenants } from 'db/src/schema';
 
 type Bindings = {
     DB: D1Database;

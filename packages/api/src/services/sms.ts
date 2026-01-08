@@ -1,6 +1,6 @@
 import { Twilio } from 'twilio';
 import { UsageService } from './pricing';
-import { smsLogs } from 'db';
+import { smsLogs } from 'db/src/schema';
 
 interface TwilioCredentials {
     accountSid: string;

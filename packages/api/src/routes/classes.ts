@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { classes, bookings, tenantMembers, users, tenantRoles, subscriptions, purchasedPacks, userRelationships, challenges, userChallenges, tenants, classSeries, waiverTemplates, waiverSignatures, membershipPlans, classPackDefinitions, giftCards, giftCardTransactions, studentNotes } from 'db'; // Ensure imports
+import { classes, bookings, tenantMembers, users, tenantRoles, subscriptions, purchasedPacks, userRelationships, challenges, userChallenges, tenants, classSeries, waiverTemplates, waiverSignatures, membershipPlans, classPackDefinitions, giftCards, giftCardTransactions, studentNotes } from 'db/src/schema'; // Ensure imports
 import { eq, and, sql, lt, ne, gt, inArray, desc, gte, lte } from 'drizzle-orm'; // Added inArray, desc
 import { ZoomService } from '../services/zoom';
 import { EncryptionUtils } from '../utils/encryption';

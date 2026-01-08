@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { communityPosts, communityComments, communityLikes, tenantMembers, users } from 'db';
+import { communityPosts, communityComments, communityLikes, tenantMembers, users } from 'db/src/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 
 interface Bindings {

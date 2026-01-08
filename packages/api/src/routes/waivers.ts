@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { waiverTemplates, waiverSignatures, tenants, tenantMembers, users } from 'db'; // Added users
+import { waiverTemplates, waiverSignatures, tenants, tenantMembers, users } from 'db/src/schema'; // Added users
 import { createDb } from '../db';
 import { eq, and } from 'drizzle-orm';
 

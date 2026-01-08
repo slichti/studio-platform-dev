@@ -1,6 +1,6 @@
 
 import { Hono } from 'hono';
-import { users, userRelationships, tenantMembers, tenantRoles, subscriptions } from 'db'; // Ensure these are exported from db/src/schema
+import { users, userRelationships, tenantMembers, tenantRoles, subscriptions } from 'db/src/schema'; // Ensure these are exported from db/src/schema
 import { createDb } from '../db';
 import { eq, and, inArray } from 'drizzle-orm';
 

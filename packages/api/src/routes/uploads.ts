@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 
-import { tenants, tenantMembers, uploads } from 'db';
+import { tenants, tenantMembers, uploads } from 'db/src/schema';
 import { sql, eq, desc, like, and } from 'drizzle-orm';
 
 type Bindings = {
@@ -300,7 +300,7 @@ app.post('/logo', async (c) => {
 
 // --- Portrait Upload (Instructor/Member photos) ---
 // Uploads to Cloudflare Images and saves URL to member profile
-import { users } from 'db';
+import { users } from 'db/src/schema';
 
 app.post('/portrait', async (c) => {
     try {

@@ -10,11 +10,11 @@ import {
     users,
     appointments,
     appointmentServices
-} from 'db';
+} from 'db/src/schema';
 import { and, eq, between, sql, desc, inArray } from 'drizzle-orm';
 
 // Type definitions for context
-import { tenants } from 'db'; // We need this for the generic type logic if used, or just rely on runtime injection if typical
+import { tenants } from 'db/src/schema'; // We need this for the generic type logic if used, or just rely on runtime injection if typical
 // Re-using the pattern from reports.ts for Bindings/Variables
 type Bindings = {
     DB: D1Database;

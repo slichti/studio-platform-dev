@@ -1,6 +1,6 @@
 import { createDb } from '../db';
 import { eq, count, and, sql, sum } from 'drizzle-orm';
-import { tenants, tenantMembers, classes, purchasedPacks, tenantRoles, uploads, locations } from 'db';
+import { tenants, tenantMembers, classes, purchasedPacks, tenantRoles, uploads, locations } from 'db/src/schema';
 
 export type Tier = 'basic' | 'growth' | 'scale';
 

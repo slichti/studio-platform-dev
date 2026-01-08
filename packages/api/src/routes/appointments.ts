@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { appointmentServices, availabilities, appointments, tenantMembers, users, tenants } from 'db';
+import { appointmentServices, availabilities, appointments, tenantMembers, users, tenants } from 'db/src/schema';
 import { eq, and, gte, lte, or, lt, gt } from 'drizzle-orm';
 
 type Bindings = {

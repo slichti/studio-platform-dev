@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { createDb } from '../db';
 import { ZoomService } from '../services/zoom';
 import { StreamService } from '../services/stream';
-import { classes, users, classPackDefinitions, purchasedPacks, giftCards, giftCardTransactions, tenantMembers, tenants, tenantFeatures } from 'db'; // Added tenantFeatures
+import { classes, users, classPackDefinitions, purchasedPacks, giftCards, giftCardTransactions, tenantMembers, tenants, tenantFeatures } from 'db/src/schema'; // Added tenantFeatures
 import { eq, and, sql } from 'drizzle-orm';
 // import { verifyWebhookSignature } from '../services/zoom'; 
 

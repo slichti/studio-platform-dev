@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { users, tenantMembers, tenantRoles, tenants, subscriptions, auditLogs, emailLogs, smsLogs, brandingAssets, videos, waiverTemplates, waiverSignatures } from 'db'; // Ensure all imports
+import { users, tenantMembers, tenantRoles, tenants, subscriptions, auditLogs, emailLogs, smsLogs, brandingAssets, videos, waiverTemplates, waiverSignatures } from 'db/src/schema'; // Ensure all imports
 import { eq, sql, desc, count, or, like, asc, and, inArray } from 'drizzle-orm';
 import { UsageService } from '../services/pricing';
 import type { HonoContext } from '../types';

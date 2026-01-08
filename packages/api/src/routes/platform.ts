@@ -1,7 +1,7 @@
 
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants } from 'db'; // Ensure imports
+import { tenants } from 'db/src/schema'; // Ensure imports
 import { StripeService } from '../services/stripe';
 
 type Bindings = {

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import Stripe from 'stripe';
 import { createDb } from '../db';
-import { products, posOrders, posOrderItems, tenantMembers, giftCards, users } from 'db';
+import { products, posOrders, posOrderItems, tenantMembers, giftCards, users } from 'db/src/schema';
 import { eq, and, desc, sql, like, or } from 'drizzle-orm';
 import type { HonoContext } from '../types';
 
