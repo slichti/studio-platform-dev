@@ -39,6 +39,7 @@ import jobs from './routes/jobs';
 import video from './routes/video';
 import videoManagement from './routes/video-management';
 import tenantIntegrations from './routes/tenant-integrations';
+import diagnosticsRoutes from './routes/diagnostics';
 
 type Bindings = {
   DB: D1Database;
@@ -444,6 +445,7 @@ app.route('/onboarding', onboarding);
 app.route('/import', dataImport);
 app.route('/webhooks', webhookRoutes);
 app.route('/integrations', tenantIntegrations);
+app.route('/diagnostics', diagnosticsRoutes);
 
 import { scheduled } from './cron';
 

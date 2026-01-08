@@ -1,6 +1,6 @@
 // Shared API Response Types
 
-import { tenants, tenantMembers, users } from 'db/src/schema';
+import { tenants, tenantMembers, users } from 'db/src/schema'; // Ensure consistent import
 
 export interface Bindings {
     DB: D1Database;
@@ -12,6 +12,8 @@ export interface Bindings {
     CLOUDFLARE_API_TOKEN?: string;
     CLERK_SECRET_KEY?: string;
     STRIPE_SECRET_KEY?: string;
+    ZOOM_ACCOUNT_ID?: string;
+    ENVIRONMENT?: string;
 }
 
 export interface Variables {
