@@ -24,6 +24,11 @@ export async function apiRequest(path: string, token: string | null | undefined,
         headers.set("Content-Type", "application/json");
     }
 
+    // Trace ID
+    if (!headers.has("x-request-id")) {
+        headers.set("x-request-id", crypto.randomUUID());
+    }
+
     const res = await fetch(`${url}${path}`, {
         ...options,
         headers

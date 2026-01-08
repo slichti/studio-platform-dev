@@ -4,7 +4,8 @@
     "scripts": {
         "dev": "wrangler dev src/index.ts",
         "deploy": "wrangler deploy --minify src/index.ts",
-        "test": "vitest"
+        "test": "vitest",
+        "test:integration": "vitest --config vitest.config.integration.ts"
     },
     "dependencies": {
         "@clerk/backend": "^2.29.0",
@@ -22,10 +23,11 @@
         "zod": "^4.3.4"
     },
     "devDependencies": {
+        "@cloudflare/vitest-pool-workers": "^0.12.1",
         "@cloudflare/workers-types": "^4.20251231.0",
         "@types/papaparse": "^5.5.2",
         "typescript": "^5.9.3",
-        "vitest": "^4.0.16",
+        "vitest": "2.0.5",
         "wrangler": "^4.57.0"
     }
 }

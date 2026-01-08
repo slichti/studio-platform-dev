@@ -9,6 +9,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const token = await getToken();
     const env = (args.context as any).cloudflare?.env || (args.context as any).env || {};
     const API_URL = env.VITE_API_URL || env.API_URL || 'https://studio-platform-api.slichti.workers.dev';
+    const traceId = args.request.headers.get("x-request-id") || crypto.randomUUID();
 
     try {
         // 1. Get Tenant ID (Assuming system admin context or general check)
@@ -19,7 +20,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
         const res = await fetch(`${API_URL}/diagnostics`, {
             headers: {
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${token}`,
+                'x-request-id': traceId
             }
         });
 

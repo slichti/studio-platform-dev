@@ -74,9 +74,18 @@ type Variables = {
   isImpersonating?: boolean;
 };
 
+import { traceMiddleware } from './middleware/trace';
+
+// ...
+
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>()
 
-app.use('*', logger());
+app.use('*', traceMiddleware);
+app.use('*', logger((str, ...rest) => {
+  // Custom logger wrapper could go here, but Hono logger is simple.
+  // For now we rely on the header being set by traceMiddleware for standard logs
+  console.log(str, ...rest);
+}));
 app.use('*', cors({
   origin: (origin) => {
     if (!origin) return 'https://studio-platform-web.pages.dev';
