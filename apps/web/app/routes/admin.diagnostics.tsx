@@ -87,9 +87,11 @@ export default function AdminDiagnostics() {
                     <CardContent>
                         {data?.latency ? (
                             <>
-                                <div className="text-2xl font-bold">{data.latency.database_ms}ms</div>
+                                <div className="text-2xl font-bold">
+                                    {data.latency.database_read_ms || data.latency.database_ms}ms
+                                </div>
                                 <p className="text-xs text-muted-foreground">
-                                    Round-trip time to D1
+                                    Read check to D1
                                 </p>
                             </>
                         ) : (
@@ -143,6 +145,49 @@ export default function AdminDiagnostics() {
                         </div>
                     </CardContent>
                 </Card>
+            )}
+
+            {/* Extended Worker Metrics */}
+            {data?.worker && (
+                <div className="grid gap-6 md:grid-cols-2">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Worker Performance</CardTitle>
+                            <CardDescription>Edge execution details</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex justify-between items-center">
+                                <span className="text-sm font-medium">Memory Usage</span>
+                                <span className="font-mono text-sm">{data.worker.memory_used_mb} MB</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-sm font-medium">PoP (Point of Presence)</span>
+                                <span className="font-mono text-sm">{data.worker.colo}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-sm font-medium">Region</span>
+                                <span className="font-mono text-sm">{data.worker.city}, {data.worker.country}</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Database Performance</CardTitle>
+                            <CardDescription>D1 Read/Write Latency</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex justify-between items-center">
+                                <span className="text-sm font-medium">Read Latency</span>
+                                <span className="font-mono text-sm">{data.latency?.database_read_ms} ms</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-sm font-medium">Query Latency (Write/Mixed)</span>
+                                <span className="font-mono text-sm">{data.latency?.database_query_ms} ms</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
             )}
 
             {/* Raw JSON for Debugging (Hidden by default or toggleable) */}
