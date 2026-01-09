@@ -94,10 +94,10 @@ app.use('*', cors({
     }
     return 'https://studio-platform-web.pages.dev';
   },
-  allowHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Slug', 'X-Tenant-Id'],
+  allowHeaders: ['*'], // Allow all headers to prevent preflight failures
   allowMethods: ['POST', 'GET', 'OPTIONS', 'DELETE', 'PUT', 'PATCH'],
-  exposeHeaders: ['Content-Length'],
-  maxAge: 600,
+  exposeHeaders: ['Content-Length', 'X-Request-Id'],
+  maxAge: 86400,
   credentials: true,
 }));
 

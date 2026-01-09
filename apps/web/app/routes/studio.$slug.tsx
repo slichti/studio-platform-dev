@@ -120,73 +120,67 @@ export default function StudioLayout() {
                     </Link>
                 </div>
 
-                <nav className="flex-1 overflow-y-auto p-4 space-y-4">
+                <nav className="flex-1 overflow-auto p-4 space-y-4">
                     <div className="space-y-1">
                         <NavItem to={`/studio/${slug}`} end icon={<LayoutDashboard size={18} />}>Dashboard</NavItem>
                     </div>
 
                     <SidebarGroup title="Operations">
-                        <NavItem to="schedule" icon={<Calendar size={18} />}>Schedule</NavItem>
-                        <NavItem to="classes" icon={<Dumbbell size={18} />}>Classes</NavItem>
-                        <NavItem to="appointments" icon={<Clock size={18} />}>Appointments</NavItem>
-                        <NavItem to="checkin" icon={<CheckCircle2 size={18} />}>Check-in</NavItem>
-                        <NavItem to="substitutions" icon={<RefreshCw size={18} />}>Substitutions</NavItem>
-                        <NavItem to="waivers" icon={<FileSignature size={18} />}>Waivers</NavItem>
-                        <NavItem to="videos" icon={<ImageIcon size={18} />}>Media Library</NavItem>
+                        <NavItem to={`/studio/${slug}/schedule`} icon={<Calendar size={18} />}>Schedule</NavItem>
+                        <NavItem to={`/studio/${slug}/classes`} icon={<Dumbbell size={18} />}>Classes</NavItem>
+                        <NavItem to={`/studio/${slug}/appointments`} icon={<Clock size={18} />}>Appointments</NavItem>
+                        <NavItem to={`/studio/${slug}/checkin`} icon={<CheckCircle2 size={18} />}>Check-in</NavItem>
+                        <NavItem to={`/studio/${slug}/substitutions`} icon={<RefreshCw size={18} />}>Substitutions</NavItem>
+                        <NavItem to={`/studio/${slug}/waivers`} icon={<FileSignature size={18} />}>Waivers</NavItem>
+                        <NavItem to={`/studio/${slug}/videos`} icon={<ImageIcon size={18} />}>Media Library</NavItem>
                     </SidebarGroup>
 
                     <SidebarGroup title="Commerce">
                         {(featureSet.has('pos') || ['growth', 'scale'].includes(tenant.tier)) && (
                             <>
-                                <NavItem to="pos" icon={<ShoppingCart size={18} />}>POS & Retail</NavItem>
-                                {/* Only show coupons/gift cards if POS/Retail is enabled? Or treat them as general commerce? 
-                                    Let's group them with POS for now as requested by user implication of "Commerce module". 
-                                    Or maybe keep them separate. The prompt says "POS/Retail section will add a cost".
-                                    Let's wrap the whole Commerce group or just POS? 
-                                    "sections like POS/Retail are modules".
-                                */}
+                                <NavItem to={`/studio/${slug}/pos`} icon={<ShoppingCart size={18} />}>POS & Retail</NavItem>
                             </>
                         )}
-                        <NavItem to="memberships" icon={<CreditCard size={18} />}>Memberships</NavItem>
-                        <NavItem to="commerce/packs" icon={<Package size={18} />}>Class Packs</NavItem>
+                        <NavItem to={`/studio/${slug}/memberships`} icon={<CreditCard size={18} />}>Memberships</NavItem>
+                        <NavItem to={`/studio/${slug}/commerce/packs`} icon={<Package size={18} />}>Class Packs</NavItem>
 
                         {(featureSet.has('pos') || ['growth', 'scale'].includes(tenant.tier)) && (
                             <>
-                                <NavItem to="commerce/coupons" icon={<Ticket size={18} />}>Coupons</NavItem>
-                                <NavItem to="commerce/gift-cards" icon={<Ticket size={18} />}>Gift Cards</NavItem>
+                                <NavItem to={`/studio/${slug}/commerce/coupons`} icon={<Ticket size={18} />}>Coupons</NavItem>
+                                <NavItem to={`/studio/${slug}/commerce/gift-cards`} icon={<Ticket size={18} />}>Gift Cards</NavItem>
                             </>
                         )}
                     </SidebarGroup>
 
                     <SidebarGroup title="CRM">
-                        <NavItem to="leads" icon={<User size={18} />}>Leads</NavItem>
-                        <NavItem to="tasks" icon={<ListTodo size={18} />}>Tasks</NavItem>
+                        <NavItem to={`/studio/${slug}/leads`} icon={<User size={18} />}>Leads</NavItem>
+                        <NavItem to={`/studio/${slug}/tasks`} icon={<ListTodo size={18} />}>Tasks</NavItem>
                         {(featureSet.has('marketing') || ['growth', 'scale'].includes(tenant.tier)) && (
-                            <NavItem to="marketing" icon={<Mail size={18} />}>Marketing</NavItem>
+                            <NavItem to={`/studio/${slug}/marketing`} icon={<Mail size={18} />}>Marketing</NavItem>
                         )}
                         {(featureSet.has('loyalty') || ['growth', 'scale'].includes(tenant.tier)) && (
-                            <NavItem to="loyalty" icon={<Award size={18} />}>Loyalty</NavItem>
+                            <NavItem to={`/studio/${slug}/loyalty`} icon={<Award size={18} />}>Loyalty</NavItem>
                         )}
                     </SidebarGroup>
 
                     <SidebarGroup title="Management">
-                        <NavItem to="students" icon={<Users size={18} />}>People</NavItem>
+                        <NavItem to={`/studio/${slug}/students`} icon={<Users size={18} />}>People</NavItem>
                         {(['scale'].includes(tenant.tier) || featureSet.has('payroll')) && (
-                            <NavItem to="financials/payroll" icon={<CreditCard size={18} />}>Payroll Admin</NavItem>
+                            <NavItem to={`/studio/${slug}/financials/payroll`} icon={<CreditCard size={18} />}>Payroll Admin</NavItem>
                         )}
                         {(me.roles && me.roles.some((r: string) => ['instructor', 'admin', 'owner'].includes(r))) && (
-                            <NavItem to="financials/my-payouts" icon={<DollarSign size={18} />}>My Payouts</NavItem>
+                            <NavItem to={`/studio/${slug}/financials/my-payouts`} icon={<DollarSign size={18} />}>My Payouts</NavItem>
                         )}
 
-                        <NavItem to="finances" end icon={<DollarSign size={18} />}>Finances</NavItem>
-                        <NavItem to="discounts" icon={<Tag size={18} />}>Discounts</NavItem>
-                        <NavItem to="settings/embeds" icon={<Code size={18} />}>Website Widgets</NavItem>
-                        <NavItem to="settings/developers" icon={<Terminal size={18} />}>Developers</NavItem>
-                        <NavItem to="settings" end icon={<Settings size={18} />}>Settings</NavItem>
+                        <NavItem to={`/studio/${slug}/finances`} end icon={<DollarSign size={18} />}>Finances</NavItem>
+                        <NavItem to={`/studio/${slug}/discounts`} icon={<Tag size={18} />}>Discounts</NavItem>
+                        <NavItem to={`/studio/${slug}/settings/embeds`} icon={<Code size={18} />}>Website Widgets</NavItem>
+                        <NavItem to={`/studio/${slug}/settings/developers`} icon={<Terminal size={18} />}>Developers</NavItem>
+                        <NavItem to={`/studio/${slug}/settings`} end icon={<Settings size={18} />}>Settings</NavItem>
                     </SidebarGroup>
 
                     <SidebarGroup title="Analytics">
-                        <NavItem to="reports" icon={<BarChart3 size={18} />}>Reports</NavItem>
+                        <NavItem to={`/studio/${slug}/reports`} icon={<BarChart3 size={18} />}>Reports</NavItem>
                     </SidebarGroup>
                 </nav>
 
