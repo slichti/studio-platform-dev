@@ -190,6 +190,45 @@ export default function AdminDiagnostics() {
                 </div>
             )}
 
+            {/* Client Errors */}
+            {data?.clientErrors && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Clock className="h-4 w-4" />
+                            Recent Client Errors (Telemetry)
+                        </CardTitle>
+                        <CardDescription>Errors reported by user browsers</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-4">
+                            {data.clientErrors.length > 0 ? (
+                                data.clientErrors.map((err: any) => (
+                                    <div key={err.id} className="flex flex-col gap-1 border-b pb-3 last:border-0 last:pb-0">
+                                        <div className="flex justify-between items-start">
+                                            <span className="text-sm font-medium text-red-600 truncate max-w-[60%]">
+                                                {err.details?.message || "Unknown Error"}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                                {new Date(err.createdAt).toLocaleString()}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-xs text-muted-foreground">
+                                            <span className="truncate max-w-[70%]">{err.details?.url || "Unknown URL"}</span>
+                                            <span>{err.ip || "Unknown IP"}</span>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="text-sm text-muted-foreground text-center py-4">
+                                    No recent client-side errors reported.
+                                </div>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
             {/* Raw JSON for Debugging (Hidden by default or toggleable) */}
             {/* <pre>{JSON.stringify(data, null, 2)}</pre> */}
         </div>

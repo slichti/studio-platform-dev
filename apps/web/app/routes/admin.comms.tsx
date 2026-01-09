@@ -1,32 +1,59 @@
-// @ts-ignore
-import { useLoaderData, Link, useSearchParams } from "react-router";
-// @ts-ignore
-import { LoaderFunction } from "react-router";
+
+import { useLoaderData, Link, useSearchParams, isRouteErrorResponse, useRouteError } from "react-router";
+import type { LoaderFunctionArgs } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
-import { Mail, MessageSquare, MonitorSmartphone } from "lucide-react";
-import { useState } from "react";
-// import { cn } from "~/utils/cn";
+import { Mail, MessageSquare, AlertTriangle } from "lucide-react";
+
+interface LogEntry {
+    id: string;
+    sentAt: string; // ISO string
+    tenantName?: string;
+    // Email specific
+    subject?: string;
+    recipientEmail?: string;
+    // SMS specific
+    body?: string;
+    recipientPhone?: string;
+    status?: string;
+}
+
+interface TenantVolume {
+    tenantName: string;
+    slug: string;
+    count: number;
+}
+
+interface CommsStats {
+    totalSent: number;
+    byTenant: TenantVolume[];
+    recentLogs: LogEntry[];
+}
+
+interface LoaderData {
+    emailStats: CommsStats;
+    smsStats: CommsStats;
+}
 
 function cn(...classes: (string | undefined | null | false)[]) {
     return classes.filter(Boolean).join(" ");
 }
 
-export const loader: LoaderFunction = async (args: any) => {
+export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken } = await getAuth(args);
     const token = await getToken();
 
-    let emailStats: any = { totalSent: 0, byTenant: [], recentLogs: [] };
-    let smsStats: any = { totalSent: 0, byTenant: [], recentLogs: [] };
+    let emailStats: CommsStats = { totalSent: 0, byTenant: [], recentLogs: [] };
+    let smsStats: CommsStats = { totalSent: 0, byTenant: [], recentLogs: [] };
 
     try {
         const [emailRes, smsRes] = await Promise.all([
-            apiRequest("/admin-api/stats/email", token) as Promise<any>,
-            apiRequest("/admin-api/stats/sms", token) as Promise<any>
+            apiRequest<CommsStats>("/admin-api/stats/email", token),
+            apiRequest<CommsStats>("/admin-api/stats/sms", token)
         ]);
 
-        if (emailRes && !emailRes.error) emailStats = emailRes;
-        if (smsRes && !smsRes.error) smsStats = smsRes;
+        if (emailRes && !(emailRes as any).error) emailStats = emailRes;
+        if (smsRes && !(smsRes as any).error) smsStats = smsRes;
     } catch (e) {
         console.error("Failed to load comms stats", e);
     }
@@ -35,7 +62,7 @@ export const loader: LoaderFunction = async (args: any) => {
 };
 
 export default function AdminCommsPage() {
-    const { emailStats, smsStats } = useLoaderData<any>();
+    const { emailStats, smsStats } = useLoaderData<LoaderData>();
     const [searchParams, setSearchParams] = useSearchParams();
     const activeTab = searchParams.get("tab") || "email";
 
@@ -89,7 +116,7 @@ export default function AdminCommsPage() {
                     </div>
                     <div>
                         <p className="text-sm font-medium text-zinc-500">Total {isEmail ? "Emails" : "SMS"} Sent</p>
-                        <p className="text-3xl font-bold text-zinc-900">{stats.totalSent}</p>
+                        <p className="text-3xl font-bold text-zinc-900">{stats.totalSent.toLocaleString()}</p>
                     </div>
                 </div>
                 {/* Additional KPI cards could go here */}
@@ -109,13 +136,13 @@ export default function AdminCommsPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-200">
-                            {stats.byTenant.map((t: any, i: number) => (
+                            {stats.byTenant.map((t, i) => (
                                 <tr key={i}>
                                     <td className="px-6 py-3 text-sm font-medium text-zinc-900">
                                         <Link to={`/admin/tenants`} className="hover:underline">{t.tenantName}</Link>
                                     </td>
                                     <td className="px-6 py-3 text-sm text-right text-zinc-600 font-mono">
-                                        {t.count}
+                                        {t.count.toLocaleString()}
                                     </td>
                                 </tr>
                             ))}
@@ -129,11 +156,11 @@ export default function AdminCommsPage() {
                 </div>
 
                 {/* Recent Logs */}
-                <div className="bg-white rounded-lg border border-zinc-200 shadow-sm overflow-hidden">
+                <div className="bg-white rounded-lg border border-zinc-200 shadow-sm overflow-hidden h-fit">
                     <div className="bg-zinc-50 px-6 py-4 border-b border-zinc-200">
                         <h3 className="font-semibold text-zinc-800">Recent Logs</h3>
                     </div>
-                    <div className="max-h-[500px] overflow-y-auto">
+                    <div className="max-h-[600px] overflow-y-auto">
                         <table className="min-w-full divide-y divide-zinc-200">
                             <thead>
                                 <tr className="bg-zinc-50">
@@ -144,13 +171,13 @@ export default function AdminCommsPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-zinc-200">
-                                {stats.recentLogs.map((log: any) => (
+                                {stats.recentLogs.map((log) => (
                                     <tr key={log.id}>
                                         <td className="px-4 py-2 text-xs text-zinc-500 whitespace-nowrap">
                                             {new Date(log.sentAt).toLocaleString()}
                                         </td>
                                         <td className="px-4 py-2 text-xs font-medium text-zinc-900">
-                                            {log.tenantName}
+                                            {log.tenantName || 'Unknown'}
                                         </td>
                                         <td className="px-4 py-2 text-xs text-zinc-600 truncate max-w-[200px]" title={isEmail ? log.subject : log.body}>
                                             {isEmail ? log.subject : log.body}
@@ -179,6 +206,24 @@ export default function AdminCommsPage() {
                     </div>
                 </div>
             </div>
+        </div>
+    );
+}
+
+export function ErrorBoundary() {
+    const error = useRouteError();
+    return (
+        <div className="flex flex-col items-center justify-center min-h-[50vh] text-red-600 p-4">
+            <AlertTriangle size={48} className="mb-4" />
+            <h1 className="text-xl font-bold mb-2">Failed to load Communications Dashboard</h1>
+            <p className="text-sm text-zinc-600 mb-4">
+                {isRouteErrorResponse(error)
+                    ? `${error.status} ${error.statusText}`
+                    : error instanceof Error
+                        ? error.message
+                        : "Unknown Error"}
+            </p>
+            <Link to="/admin" className="text-blue-600 hover:underline">Return to Admin Dashboard</Link>
         </div>
     );
 }

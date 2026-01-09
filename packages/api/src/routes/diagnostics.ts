@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { sql } from 'drizzle-orm';
+import { sql, eq, desc } from 'drizzle-orm';
+import { auditLogs } from 'db/src/schema';
 import type { HonoContext } from '../types';
 
 const diagnostics = new Hono<HonoContext>();
@@ -48,6 +49,19 @@ diagnostics.get('/', async (c) => {
         cloudflare_images: !!c.env.CLOUDFLARE_ACCOUNT_ID
     };
 
+    // 5. Recent Client Errors
+    const clientErrors = await db.select({
+        id: auditLogs.id,
+        details: auditLogs.details,
+        createdAt: auditLogs.createdAt,
+        ip: auditLogs.ipAddress
+    })
+        .from(auditLogs)
+        .where(eq(auditLogs.action, 'client_error'))
+        .orderBy(desc(auditLogs.createdAt))
+        .limit(5)
+        .all();
+
     return c.json({
         status: 'ok',
         latency: {
@@ -62,6 +76,7 @@ diagnostics.get('/', async (c) => {
             memory_used_mb: Math.round(memory.heapUsed / 1024 / 1024 * 100) / 100,
         },
         integrations: integrations_status,
+        clientErrors,
         environment: c.env.ENVIRONMENT || 'unknown',
         timestamp: new Date().toISOString()
     });
