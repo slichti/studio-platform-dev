@@ -165,7 +165,11 @@ export default function AdminIndex() {
                                         {new Date(log.createdAt).toISOString().replace('T', ' ').substring(0, 16)}
                                     </TableCell>
                                     <TableCell>
-                                        <Badge variant="outline">{log.action}</Badge>
+                                        <Badge variant={
+                                            log.action === 'USER_LOGIN' ? 'success' :
+                                                log.action === 'USER_LOGOUT' ? 'outline' :
+                                                    'outline'
+                                        }>{log.action}</Badge>
                                     </TableCell>
                                     <TableCell className="font-mono text-xs">
                                         {log.targetId || "-"}

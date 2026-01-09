@@ -185,6 +185,29 @@ app.post('/clerk', async (c) => {
             console.log(`User deleted via webhook: ${id}`);
         }
     }
+
+    // Session Events (Audit Logging)
+    if (eventType === 'session.created' || eventType === 'session.ended' || eventType === 'session.removed') {
+        const { user_id } = evt.data;
+        // Try to get headers from request for context (IP/UA), though webhook request context is Clerk's, not User's.
+        // Clerk payload might have context? Usually not deep. We just log the event.
+
+        const action = eventType === 'session.created' ? 'USER_LOGIN' : 'USER_LOGOUT';
+        const { auditLogs } = await import('db/src/schema');
+
+        await db.insert(auditLogs).values({
+            id: crypto.randomUUID(),
+            actorId: user_id,
+            action: action,
+            details: {
+                message: `User ${action === 'USER_LOGIN' ? 'logged in' : 'logged out'}`,
+                sessionId: evt.data.id,
+                timestamp: new Date().toISOString()
+            },
+            createdAt: new Date()
+        }).run();
+    }
+
     return c.json({ received: true });
 });
 
