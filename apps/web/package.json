@@ -11,6 +11,7 @@
     "dev": "react-router dev",
     "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
     "start": "wrangler pages dev ./build/client",
+    "test:e2e": "playwright test",
     "typecheck": "tsc"
   },
   "dependencies": {
