@@ -218,6 +218,26 @@ export default function AdminTenants() {
         }
     };
 
+    const handleTierChange = async (tenantId: string, newTier: string) => {
+        if (!confirm(`Are you sure you want to change this tenant to ${newTier}?`)) return;
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/admin/tenants/${tenantId}/tier`, token, {
+                method: "PATCH",
+                body: JSON.stringify({ tier: newTier })
+            });
+
+            if (res.error) {
+                setErrorDialog({ isOpen: true, message: res.error });
+            } else {
+                setTenants(tenants.map((t: any) => t.id === tenantId ? { ...t, tier: newTier } : t));
+                setSuccessDialog({ isOpen: true, message: `Tenant tier updated to ${newTier}.` });
+            }
+        } catch (e: any) {
+            setErrorDialog({ isOpen: true, message: e.message || "Failed to update tier." });
+        }
+    };
+
     const handleSubscriptionUpdate = async (tenantId: string, daysToAdd: number) => {
         try {
             const token = await getToken();
@@ -435,13 +455,22 @@ export default function AdminTenants() {
                                         <div className="font-medium text-zinc-900">{t.name}</div>
                                         <div className="text-zinc-500 text-xs font-mono mt-0.5 bg-zinc-100 inline-block px-1 rounded">{t.slug}</div>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium uppercase tracking-wide border ${t.tier === 'scale' ? 'bg-purple-100 text-purple-800 border-purple-200' :
-                                            t.tier === 'growth' ? 'bg-blue-100 text-blue-800 border-blue-200' :
-                                                'bg-zinc-100 text-zinc-600 border-zinc-200'
-                                            }`}>
-                                            {t.tier || 'basic'}
-                                        </span>
+                                    <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                                        <div className="relative">
+                                            <select
+                                                value={t.tier || 'basic'}
+                                                onChange={(e) => handleTierChange(t.id, e.target.value)}
+                                                className={`appearance-none cursor-pointer inline-flex items-center pl-2 pr-6 py-0.5 rounded text-xs font-medium uppercase tracking-wide border outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 ${t.tier === 'scale' ? 'bg-purple-100 text-purple-800 border-purple-200' :
+                                                    t.tier === 'growth' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                                                        'bg-zinc-100 text-zinc-600 border-zinc-200'
+                                                    }`}
+                                            >
+                                                <option value="basic">Launch</option>
+                                                <option value="growth">Growth</option>
+                                                <option value="scale">Scale</option>
+                                            </select>
+                                            {/* Dropdown Arrow Overlay (optional as select has its own on some OS, but customizing looks better if we hide default) */}
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex gap-4 justify-center">

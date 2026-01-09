@@ -653,10 +653,10 @@ export default function StudioSettings() {
                     <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Connect third-party services to power your studio.</p>
                 </div>
 
-                <div className="space-y-8 divide-y divide-zinc-100 dark:divide-zinc-800">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
                     {/* 1. Payment Processing (Stripe) */}
-                    <div className="pt-4 first:pt-0">
+                    <div className="col-span-1 lg:col-span-2 border border-zinc-200 dark:border-zinc-700 rounded-lg p-5">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                                 <CreditCard className="h-4 w-4" /> Payment Processing
@@ -743,7 +743,7 @@ export default function StudioSettings() {
                     </div>
 
                     {/* 2. Email (Resend) */}
-                    <div className="pt-4">
+                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-5">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                                 <Mail className="h-4 w-4" /> Email Service (Resend)
@@ -773,7 +773,7 @@ export default function StudioSettings() {
                     </div>
 
                     {/* 3. SMS (Twilio) */}
-                    <div className="pt-4">
+                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-5">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                                 <MessageSquare className="h-4 w-4" /> SMS Service (Twilio)
@@ -809,7 +809,7 @@ export default function StudioSettings() {
                     </div>
 
                     {/* 4. Video (Zoom) */}
-                    <div className="pt-4">
+                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-5">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                                 <Video className="h-4 w-4" /> Video Conferencing (Zoom)
@@ -845,7 +845,7 @@ export default function StudioSettings() {
                     </div>
 
                     {/* 5. Mailchimp */}
-                    <div className="pt-4">
+                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-5">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                                 <Mail className="h-4 w-4" /> Mailchimp (Newsletter)
@@ -880,7 +880,7 @@ export default function StudioSettings() {
                     </div>
 
                     {/* 6. Zapier */}
-                    <div className="pt-4">
+                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-5">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                                 <Code className="h-4 w-4" /> Zapier (Automation)
@@ -912,7 +912,7 @@ export default function StudioSettings() {
                     </div>
 
                     {/* 7. Google Analytics */}
-                    <div className="pt-4">
+                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-5">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                                 <Globe className="h-4 w-4" /> Google Analytics
@@ -941,7 +941,7 @@ export default function StudioSettings() {
                     </div>
 
                     {/* 8. Slack */}
-                    <div className="pt-4">
+                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-5">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                                 <MessageSquare className="h-4 w-4" /> Slack (Internal Team)

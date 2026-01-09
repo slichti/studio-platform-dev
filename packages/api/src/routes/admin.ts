@@ -612,6 +612,35 @@ app.put('/tenants/:id/credentials/zoom', async (c) => {
     return c.json({ success: true });
 });
 
+// PATCH /tenants/:id/tier - Update Tenant Tier
+app.patch('/tenants/:id/tier', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+    const { tier } = await c.req.json();
+    const auth = c.get('auth');
+
+    if (!tier || !['basic', 'growth', 'scale'].includes(tier)) {
+        return c.json({ error: "Invalid tier. Must be 'basic', 'growth', or 'scale'." }, 400);
+    }
+
+    await db.update(tenants)
+        .set({ tier })
+        .where(eq(tenants.id, tenantId))
+        .run();
+
+    // Audit Log
+    await db.insert(auditLogs).values({
+        id: crypto.randomUUID(),
+        action: 'update_tenant_tier',
+        actorId: auth.userId,
+        targetId: tenantId,
+        details: { tier },
+        ipAddress: c.req.header('CF-Connecting-IP')
+    });
+
+    return c.json({ success: true });
+});
+
 // GET /tenants - Full list for management
 
 // GET /tenants - Full list for management

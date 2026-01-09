@@ -222,7 +222,7 @@ export default function StudioLayout() {
                     )}
 
                     {/* View as Student Toggle */}
-                    {!isStudentView && (me?.roles?.includes('owner') || me?.roles?.includes('admin')) && (
+                    {!isStudentView && (me?.roles?.includes('owner') || me?.roles?.includes('admin') || (useLoaderData() as any).me?.user?.isSystemAdmin || (useLoaderData() as any).isImpersonating) && (
                         <button
                             onClick={toggleStudentView}
                             className="flex items-center gap-2 text-zinc-500 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 text-xs font-medium transition mb-1"
