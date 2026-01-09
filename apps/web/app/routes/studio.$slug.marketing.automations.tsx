@@ -13,11 +13,12 @@ export const loader = async (args: LoaderFunctionArgs) => {
     if (!userId) return redirect("/sign-in");
 
     const token = await getToken();
+    const tenantSlug = slug || '';
 
     try {
         const [automationsData, statsData] = await Promise.all([
-            apiRequest('/marketing/automations', token, { headers: { 'X-Tenant-Slug': slug } }),
-            apiRequest('/marketing/automations/stats', token, { headers: { 'X-Tenant-Slug': slug } }).catch(() => null)
+            apiRequest('/marketing/automations', token, { headers: { 'X-Tenant-Slug': tenantSlug } }),
+            apiRequest('/marketing/automations/stats', token, { headers: { 'X-Tenant-Slug': tenantSlug } }).catch(() => null)
         ]) as any[];
 
         return { automations: automationsData || [], stats: statsData };
@@ -33,35 +34,42 @@ export const action = async (args: ActionFunctionArgs) => {
     const token = await getToken();
     const formData = await args.request.formData();
     const intent = formData.get("intent");
+    const tenantSlug = slug || '';
 
     if (intent === 'create') {
+        const data: any = {};
+        for (const [key, val] of formData.entries()) {
+            if (key === 'intent') continue;
+            try {
+                data[key] = JSON.parse(val as string);
+            } catch (e) {
+                data[key] = val;
+            }
+        }
         await apiRequest('/marketing/automations', token, {
             method: 'POST',
-            headers: { 'X-Tenant-Slug': slug },
-            body: JSON.stringify({
-                name: formData.get("name"),
-                trigger: formData.get("trigger"),
-                triggerConfig: JSON.parse(formData.get("triggerConfig") as string || "{}"),
-                actions: JSON.parse(formData.get("actions") as string || "[]"),
-                isActive: formData.get("isActive") === "true"
-            })
+            headers: { 'X-Tenant-Slug': tenantSlug },
+            body: JSON.stringify(data)
         });
+        return { success: true };
     }
 
     if (intent === 'toggle') {
         const id = formData.get("id");
         await apiRequest(`/marketing/automations/${id}/toggle`, token, {
             method: 'POST',
-            headers: { 'X-Tenant-Slug': slug }
+            headers: { 'X-Tenant-Slug': tenantSlug }
         });
+        return { success: true };
     }
 
     if (intent === 'delete') {
         const id = formData.get("id");
         await apiRequest(`/marketing/automations/${id}`, token, {
             method: 'DELETE',
-            headers: { 'X-Tenant-Slug': slug }
+            headers: { 'X-Tenant-Slug': tenantSlug }
         });
+        return { success: true };
     }
 
     return { success: true };
@@ -74,6 +82,11 @@ const TRIGGERS = [
     { id: 'inactive_days', label: 'Inactive for X Days', icon: Clock },
     { id: 'birthday', label: 'Member Birthday', icon: Bell },
     { id: 'membership_expiring', label: 'Membership Expiring', icon: Clock },
+    // New Events
+    { id: 'product_purchase', label: 'Product Purchased', icon: Zap },
+    { id: 'subscription_canceled', label: 'Subscription Canceled (Period End)', icon: X },
+    { id: 'subscription_terminated', label: 'Subscription Terminated', icon: Trash2 },
+    { id: 'student_updated', label: 'Student Profile Updated', icon: Users },
 ];
 
 const ACTIONS = [
@@ -201,11 +214,13 @@ export default function AutomatedCampaigns() {
                     onSave={(data: any) => {
                         const formData = new FormData();
                         formData.append("intent", "create");
-                        formData.append("name", data.name);
-                        formData.append("trigger", data.trigger);
-                        formData.append("triggerConfig", JSON.stringify(data.triggerConfig || {}));
-                        formData.append("actions", JSON.stringify(data.actions || []));
-                        formData.append("isActive", "true");
+                        for (const key of Object.keys(data)) {
+                            if (typeof data[key] === 'object') {
+                                formData.append(key, JSON.stringify(data[key]));
+                            } else {
+                                formData.append(key, data[key]);
+                            }
+                        }
                         submit(formData, { method: "post" });
                         setIsCreating(false);
                     }}
@@ -218,15 +233,47 @@ export default function AutomatedCampaigns() {
 function CreateAutomationModal({ onClose, onSave }: { onClose: () => void; onSave: (data: any) => void }) {
     const [step, setStep] = useState(1);
     const [name, setName] = useState("");
-    const [trigger, setTrigger] = useState("");
-    const [actions, setActions] = useState<{ type: string; config: any }[]>([]);
+    const [trigger, setTrigger] = useState("new_student");
 
-    const addAction = (type: string) => {
-        setActions([...actions, { type, config: {} }]);
-    };
+    // Audience
+    const [audienceType, setAudienceType] = useState("all"); // all, filter
+    const [ageMin, setAgeMin] = useState("");
+    const [ageMax, setAgeMax] = useState("");
+
+    // Content
+    const [contentType, setContentType] = useState("simple"); // simple, template
+    const [subject, setSubject] = useState("");
+    const [content, setContent] = useState("");
+    const [templateId, setTemplateId] = useState("");
 
     const handleSubmit = () => {
-        onSave({ name, trigger, actions });
+        const payload: any = {
+            name,
+            trigger,
+            triggerConfig: {}, // Default
+            actions: [], // Legacy/Unused
+            isActive: true
+        };
+
+        // Audience
+        if (audienceType === 'filter') {
+            payload.audienceFilter = {};
+            if (ageMin) payload.audienceFilter.ageMin = parseInt(ageMin);
+            if (ageMax) payload.audienceFilter.ageMax = parseInt(ageMax);
+        }
+
+        // Content
+        if (contentType === 'template') {
+            payload.templateId = templateId;
+            // Subject might be optional if template overrides, but good to have fallback
+            payload.subject = subject || "Notification";
+            payload.content = "Template: " + templateId;
+        } else {
+            payload.subject = subject;
+            payload.content = content;
+        }
+
+        onSave(payload);
     };
 
     return (
@@ -246,7 +293,7 @@ function CreateAutomationModal({ onClose, onSave }: { onClose: () => void; onSav
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-zinc-700 mb-2">Trigger</label>
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-2 gap-2 h-64 overflow-y-auto">
                                     {TRIGGERS.map((t) => (
                                         <button
                                             key={t.id}
@@ -264,37 +311,73 @@ function CreateAutomationModal({ onClose, onSave }: { onClose: () => void; onSav
 
                     {step === 2 && (
                         <div className="space-y-4">
-                            <label className="block text-sm font-medium text-zinc-700 mb-2">Actions</label>
-                            {actions.map((action, i) => {
-                                const actionDef = ACTIONS.find(a => a.id === action.type);
-                                return (
-                                    <div key={i} className="flex items-center gap-2 p-3 bg-zinc-50 rounded-lg">
-                                        <span className="text-sm font-medium">{i + 1}. {actionDef?.label}</span>
-                                        <button onClick={() => setActions(actions.filter((_, j) => j !== i))} className="ml-auto text-red-500 text-xs">Remove</button>
-                                    </div>
-                                );
-                            })}
-                            <div className="grid grid-cols-2 gap-2">
-                                {ACTIONS.map((a) => (
-                                    <button
-                                        key={a.id}
-                                        onClick={() => addAction(a.id)}
-                                        className="p-2 rounded-lg border border-dashed border-zinc-300 hover:border-purple-500 hover:bg-purple-50 flex items-center gap-2 text-sm"
-                                    >
-                                        <Plus size={14} /> {a.label}
-                                    </button>
-                                ))}
+                            <h3 className="font-medium text-zinc-900">Audience Targeting</h3>
+                            <div className="flex gap-4">
+                                <label className="flex items-center gap-2">
+                                    <input type="radio" name="aud" checked={audienceType === 'all'} onChange={() => setAudienceType('all')} />
+                                    <span>All Members</span>
+                                </label>
+                                <label className="flex items-center gap-2">
+                                    <input type="radio" name="aud" checked={audienceType === 'filter'} onChange={() => setAudienceType('filter')} />
+                                    <span>Filtered</span>
+                                </label>
                             </div>
+
+                            {audienceType === 'filter' && (
+                                <div className="grid grid-cols-2 gap-4 p-4 bg-zinc-50 rounded-lg">
+                                    <div>
+                                        <label className="block text-xs font-medium text-zinc-500 mb-1">Min Age</label>
+                                        <input type="number" value={ageMin} onChange={(e) => setAgeMin(e.target.value)} className="w-full px-3 py-2 border border-zinc-200 rounded-lg" placeholder="18" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-zinc-500 mb-1">Max Age</label>
+                                        <input type="number" value={ageMax} onChange={(e) => setAgeMax(e.target.value)} className="w-full px-3 py-2 border border-zinc-200 rounded-lg" placeholder="65" />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {step === 3 && (
+                        <div className="space-y-4">
+                            <h3 className="font-medium text-zinc-900">Email Content</h3>
+
+                            {/* Subject is always needed (at least as fallback/title) */}
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 mb-1">Subject Line</label>
+                                <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full px-3 py-2 border border-zinc-200 rounded-lg" placeholder="Welcome!" />
+                            </div>
+
+                            <div className="flex gap-4 border-b border-zinc-100 pb-2">
+                                <button onClick={() => setContentType('simple')} className={`pb-2 text-sm font-medium ${contentType === 'simple' ? 'text-purple-600 border-b-2 border-purple-600' : 'text-zinc-500'}`}>Simple Text</button>
+                                <button onClick={() => setContentType('template')} className={`pb-2 text-sm font-medium ${contentType === 'template' ? 'text-purple-600 border-b-2 border-purple-600' : 'text-zinc-500'}`}>Resend Template</button>
+                            </div>
+
+                            {contentType === 'simple' ? (
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 mb-1">Message Body</label>
+                                    <textarea value={content} onChange={(e) => setContent(e.target.value)} className="w-full px-3 py-2 border border-zinc-200 rounded-lg h-32" placeholder="Start typing... Use {{firstName}} for variables." />
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 mb-1">Template ID</label>
+                                    <input type="text" value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="w-full px-3 py-2 border border-zinc-200 rounded-lg" placeholder="re_123456789" />
+                                    <p className="text-xs text-zinc-500 mt-1">
+                                        Variables sent: generic data + <code>title</code>, <code>address</code>, <code>firstName</code>, <code>couponCode</code>.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
 
                 <div className="p-4 border-t border-zinc-200 flex justify-between">
                     {step > 1 && <button onClick={() => setStep(step - 1)} className="px-4 py-2 text-sm text-zinc-500">Back</button>}
-                    {step < 2 ? (
-                        <button onClick={() => setStep(2)} disabled={!name || !trigger} className="ml-auto px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm disabled:opacity-50">Next</button>
+
+                    {step < 3 ? (
+                        <button onClick={() => setStep(step + 1)} disabled={!name && step === 1} className="ml-auto px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm disabled:opacity-50">Next</button>
                     ) : (
-                        <button onClick={handleSubmit} disabled={actions.length === 0} className="ml-auto px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm disabled:opacity-50">Create</button>
+                        <button onClick={handleSubmit} disabled={contentType === 'simple' ? !content : !templateId} className="ml-auto px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm disabled:opacity-50">Create Automation</button>
                     )}
                 </div>
             </div>

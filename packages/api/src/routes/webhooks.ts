@@ -145,6 +145,52 @@ app.post('/clerk', async (c) => {
             await db.update(users).set({ email, profile }).where(eq(users.id, id)).run();
         }
 
+        if (eventType === 'user.updated') {
+            const meta = evt.data.unsafe_metadata || evt.data.public_metadata;
+            // Trigger 'student.updated' for ALL tenants this user is a member of
+            // We need to find all tenants for this user.
+            const userMemberships = await db.query.tenantMembers.findMany({
+                where: eq(tenantMembers.userId, id),
+                with: { tenant: true }
+            });
+
+            if (userMemberships.length > 0) {
+                const { AutomationsService } = await import('../services/automations');
+                const { EmailService } = await import('../services/email');
+                const { SmsService } = await import('../services/sms');
+                const { UsageService } = await import('../services/pricing');
+
+                for (const member of userMemberships) {
+                    try {
+                        const usageService = new UsageService(db, member.tenantId);
+                        const resendKey = (member.tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
+                        const isByok = !!(member.tenant.resendCredentials as any)?.apiKey;
+
+                        const emailService = new EmailService(
+                            resendKey,
+                            { branding: member.tenant.branding as any, settings: member.tenant.settings as any },
+                            { slug: member.tenant.slug },
+                            usageService,
+                            isByok
+                        );
+
+                        const smsService = new SmsService(member.tenant.twilioCredentials as any, c.env, usageService, db, member.tenantId);
+                        const autoService = new AutomationsService(db, member.tenantId, emailService, smsService);
+
+                        c.executionCtx.waitUntil(autoService.dispatchTrigger('student_updated', {
+                            userId: id,
+                            email: email,
+                            firstName: first_name,
+                            lastName: last_name,
+                            data: { memberId: member.id, changes: evt.data }
+                        }));
+                    } catch (e) {
+                        console.error(`Failed to dispatch student.updated for tenant ${member.tenantId}`, e);
+                    }
+                }
+            }
+        }
+
         const meta = evt.data.unsafe_metadata || evt.data.public_metadata;
         if (meta && meta.tenantId) {
             const { tenantRoles, tenantMembers, tenants } = await import('db/src/schema');
@@ -257,6 +303,131 @@ app.post('/stripe', async (c) => {
                     await fulfillment.redeemGiftCard(metadata.usedGiftCardId, creditUsed, session.payment_intent as string);
                 }
             }
+
+            // 4. General Product Purchase Logic (Trigger Automation)
+            // If items are present in metadata (passed from POS or Checkout)
+            // Trigger 'product_purchase'
+            // We need to resolve User ID. `session.customer` is Stripe Customer ID.
+            // We need to find the local user linked to this Stripe Customer or Email.
+            if (metadata.tenantId) {
+                const { AutomationsService } = await import('../services/automations');
+                const { EmailService } = await import('../services/email');
+                const { SmsService } = await import('../services/sms');
+                const { UsageService } = await import('../services/pricing');
+
+                try {
+                    const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, metadata.tenantId) });
+                    if (tenant) {
+                        const usageService = new UsageService(db, tenant.id);
+                        const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
+                        const isByok = !!(tenant.resendCredentials as any)?.apiKey;
+                        const emailService = new EmailService(resendKey, { branding: tenant.branding as any, settings: tenant.settings as any }, { slug: tenant.slug }, usageService, isByok);
+                        const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
+                        const autoService = new AutomationsService(db, tenant.id, emailService, smsService);
+
+                        // Resolve User
+                        let userId = null;
+                        const stripeCustomerId = session.customer as string;
+                        const email = session.customer_details?.email;
+
+                        if (stripeCustomerId) {
+                            const u = await db.query.users.findFirst({ where: eq(users.stripeCustomerId, stripeCustomerId) });
+                            if (!u && email) {
+                                userId = (await db.query.users.findFirst({ where: eq(users.email, email) }))?.id;
+                            } else {
+                                userId = u?.id;
+                            }
+                        } else if (email) {
+                            userId = (await db.query.users.findFirst({ where: eq(users.email, email) }))?.id;
+                        }
+
+                        if (userId) {
+                            c.executionCtx.waitUntil(autoService.dispatchTrigger('product_purchase', {
+                                userId,
+                                email: email || '',
+                                firstName: session.customer_details?.name?.split(' ')[0] || 'Friend',
+                                data: { amount: amount_total, metadata: metadata }
+                            }));
+                        }
+                    }
+                } catch (e) { console.error('Failed to trigger product_purchase', e); }
+            }
+        }
+    }
+
+    if (event.type === 'customer.subscription.updated') {
+        const subscription = event.data.object as any;
+        const tenantId = subscription.metadata?.tenantId;
+
+        // Check for Cancellation
+        if (subscription.cancel_at_period_end && tenantId) {
+            const db = createDb(c.env.DB);
+            const { AutomationsService } = await import('../services/automations');
+            const { EmailService } = await import('../services/email');
+            const { SmsService } = await import('../services/sms');
+            const { UsageService } = await import('../services/pricing');
+
+            try {
+                const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
+                if (tenant) {
+                    const usageService = new UsageService(db, tenant.id);
+                    const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
+                    const isByok = !!(tenant.resendCredentials as any)?.apiKey;
+                    const emailService = new EmailService(resendKey, { branding: tenant.branding as any, settings: tenant.settings as any }, { slug: tenant.slug }, usageService, isByok);
+                    const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
+                    const autoService = new AutomationsService(db, tenant.id, emailService, smsService);
+
+                    // Resolve User
+                    const stripeCustomerId = subscription.customer as string;
+                    const user = await db.query.users.findFirst({ where: eq(users.stripeCustomerId, stripeCustomerId) });
+
+                    if (user) {
+                        c.executionCtx.waitUntil(autoService.dispatchTrigger('subscription_canceled', {
+                            userId: user.id,
+                            email: user.email,
+                            firstName: (user.profile as any)?.firstName,
+                            data: { planId: subscription.metadata?.planId, subscriptionId: subscription.id }
+                        }));
+                    }
+                }
+            } catch (e) { console.error('Failed to trigger subscription_canceled', e); }
+        }
+    }
+
+    if (event.type === 'customer.subscription.deleted') {
+        const subscription = event.data.object as any;
+        const tenantId = subscription.metadata?.tenantId;
+        if (tenantId) {
+            const db = createDb(c.env.DB);
+            const { AutomationsService } = await import('../services/automations');
+            const { EmailService } = await import('../services/email');
+            const { SmsService } = await import('../services/sms');
+            const { UsageService } = await import('../services/pricing');
+
+            try {
+                const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
+                if (tenant) {
+                    const usageService = new UsageService(db, tenant.id);
+                    const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
+                    const isByok = !!(tenant.resendCredentials as any)?.apiKey;
+                    const emailService = new EmailService(resendKey, { branding: tenant.branding as any, settings: tenant.settings as any }, { slug: tenant.slug }, usageService, isByok);
+                    const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
+                    const autoService = new AutomationsService(db, tenant.id, emailService, smsService);
+
+                    // Resolve User
+                    const stripeCustomerId = subscription.customer as string;
+                    const user = await db.query.users.findFirst({ where: eq(users.stripeCustomerId, stripeCustomerId) });
+
+                    if (user) {
+                        c.executionCtx.waitUntil(autoService.dispatchTrigger('subscription_terminated', {
+                            userId: user.id,
+                            email: user.email,
+                            firstName: (user.profile as any)?.firstName,
+                            data: { planId: subscription.metadata?.planId }
+                        }));
+                    }
+                }
+            } catch (e) { console.error('Failed to trigger subscription_terminated', e); }
         }
     }
 

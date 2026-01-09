@@ -236,7 +236,7 @@ app.get('/automations', async (c) => {
 app.post('/automations', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const { triggerEvent, subject, content } = await c.req.json();
+    const { triggerEvent, subject, content, templateId, audienceFilter, triggerCondition } = await c.req.json();
 
     const [newAuto] = await db.insert(marketingAutomations).values({
         id: crypto.randomUUID(),
@@ -244,6 +244,9 @@ app.post('/automations', async (c) => {
         triggerEvent: triggerEvent || 'new_student',
         subject: subject || 'New Automation',
         content: content || '',
+        templateId: templateId || null,
+        audienceFilter: audienceFilter || null,
+        triggerCondition: triggerCondition || null,
         isEnabled: false,
         timingType: 'immediate',
         timingValue: 0,
@@ -261,7 +264,7 @@ app.patch('/automations/:id', async (c) => {
     const id = c.req.param('id');
     const body = await c.req.json();
 
-    const allowed = ['subject', 'content', 'isEnabled', 'timingType', 'timingValue', 'triggerEvent', 'triggerCondition', 'channels', 'couponConfig'];
+    const allowed = ['subject', 'content', 'isEnabled', 'timingType', 'timingValue', 'triggerEvent', 'triggerCondition', 'channels', 'couponConfig', 'templateId', 'audienceFilter'];
     const updateData: any = {};
     for (const k of allowed) {
         if (body[k] !== undefined) updateData[k] = body[k];

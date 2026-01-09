@@ -257,7 +257,6 @@ export class EmailService {
         }
     }
 
-
     async sendGenericEmail(to: string, subject: string, html: string, isNotification = false) {
         if (!await this.checkAndTrackUsage()) return;
 
@@ -320,5 +319,31 @@ export class EmailService {
             <p>We hope to see you next time!</p>
             `
         );
+    }
+
+    async sendTemplate(to: string, templateId: string, data: any) {
+        if (!await this.checkAndTrackUsage()) return;
+
+        const { bcc } = this.getRecipients(to, 'transactional');
+        const options = this.getEmailOptions();
+
+        try {
+            await this.resend.emails.send({
+                from: options.from,
+                reply_to: options.reply_to,
+                to,
+                bcc,
+                subject: ' ', // Placeholder
+                template: {
+                    id: templateId,
+                    variables: data
+                }
+            } as any);
+
+            await this.incrementUsage();
+            console.log(`Template email sent to ${to}`);
+        } catch (e) {
+            console.error("Template Send Error", e);
+        }
     }
 }

@@ -416,6 +416,10 @@ export const marketingAutomations = sqliteTable('marketing_automations', {
     triggerEvent: text('trigger_event').notNull(), // e.g. 'new_student', 'class_attended', 'order_completed', 'absent'
     triggerCondition: text('trigger_condition', { mode: 'json' }), // Filter: { planId: '...', minAmount: 1000 }
 
+    // Template & Targeting
+    templateId: text('template_id'), // Resend Template ID (optional, overrides content)
+    audienceFilter: text('audience_filter', { mode: 'json' }), // { ageMin: 18, ageMax: 65, tags: ['vip'] }
+
     subject: text('subject').notNull(),
     content: text('content').notNull(), // HTML or Text
 

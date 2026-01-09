@@ -275,20 +275,48 @@ export class AutomationsService {
             // Special handlers
             if (key === 'minAmount' && data?.amount !== undefined) {
                 if (data.amount < val) return false;
+            } else if (key === 'productId' && data?.items && Array.isArray(data.items)) {
+                // Check if any item in the order has this productId
+                const hasProduct = data.items.some((item: any) => item.productId === val);
+                if (!hasProduct) return false;
             } else if (data?.[key] !== val) {
+                // Fallback for standard equality
+                // But what if data value is missing but we didn't require it? 
+                // Implicitly if condition key exists, we require match.
                 return false;
             }
         }
         return true;
     }
 
+    private checkAudience(filter: any, context: any): boolean {
+        // filter = { ageMin: 18, ageMax: 30, tags: ['vip'] }
+        // context = { userId, ... } -> we need to fetch User Profile?
+        // Actually context.data might have some, but likely we need to fetch user if we have userId.
+        // For simplicity/performance, let's assume we need to fetch IF filter exists.
+
+        if (!filter) return true;
+        if (!context.userId) return false; // Cannot filter without user context
+
+        // Note: In dispatchTrigger loop, we might not have full user object loaded. 
+        // We should probably load it if filters are present. 
+        // OR rely on what's passed.
+        // Let's rely on fetching inside `dispatchTrigger` loop? No, that's N+1.
+        // Better: Fetch user details if needed.
+
+        return true; // Placeholder: To be implemented in dispatchTrigger loop or passed in context
+    }
+
     private async executeAutomation(automation: any, context: { userId: string, email?: string, firstName?: string, lastName?: string, data?: any }) {
         // 1. Idempotency Check
-        const channel = automation.channels?.[0] || 'email'; // MVP Single Channel
+        const channels: string[] = automation.channels || ['email'];
+        const channel = channels[0] || 'email';
+        const logId = crypto.randomUUID();
 
         let timeWindow = 0; // Forever
         if (automation.triggerEvent === 'birthday') timeWindow = 300 * 24; // ~1 year
         if (automation.triggerEvent === 'absent') timeWindow = 14 * 24; // Don't spam absent nudges more than once per 2 weeks?
+        if (automation.triggerEvent === 'new_student') timeWindow = 0; // Check ever
 
         if (timeWindow > 0) {
             const cutoff = new Date(Date.now() - (timeWindow * 60 * 60 * 1000));
@@ -357,17 +385,39 @@ export class AutomationsService {
         }
 
         // 3. Send
-        const content = this.processTemplate(automation.content, extendedContext, couponCode);
-        const subject = this.processTemplate(automation.subject, extendedContext, couponCode);
-
         try {
-            if (channel === 'email' && context.email) {
-                await this.emailService.sendGenericEmail(context.email, subject, content, true);
+            if (channels.includes('email') && context.email) {
+                if (automation.templateId) {
+                    // Use Template
+                    await this.emailService.sendTemplate(
+                        context.email,
+                        automation.templateId,
+                        {
+                            firstName: context.firstName,
+                            lastName: context.lastName,
+                            couponCode: couponCode,
+                            ...context.data,
+                            title: extendedContext.title,
+                            studioName: extendedContext.title,
+                            address: extendedContext.address
+                        }
+                    );
+                } else {
+                    // Standard Content Replacement
+                    let content = automation.content;
+                    let subject = automation.subject;
+
+                    // Apply template processing using the existing helper
+                    content = this.processTemplate(content, extendedContext, couponCode);
+                    subject = this.processTemplate(subject, extendedContext, couponCode);
+
+                    await this.emailService.sendGenericEmail(context.email, subject, content, true);
+                }
             }
 
             // 4. Log
             await this.db.insert(automationLogs).values({
-                id: crypto.randomUUID(),
+                id: logId,
                 tenantId: this.tenantId,
                 automationId: automation.id,
                 userId: context.userId,

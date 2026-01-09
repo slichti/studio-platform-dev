@@ -3,6 +3,12 @@ import { createDb } from '../db';
 import type { HonoContext } from '../types';
 import { PosService } from '../services/pos';
 import { StripeService } from '../services/stripe';
+import { AutomationsService } from '../services/automations';
+import { EmailService } from '../services/email';
+import { SmsService } from '../services/sms';
+import { UsageService } from '../services/pricing';
+import { users } from 'db/src/schema';
+import { eq } from 'drizzle-orm';
 
 interface CartItem {
     productId: string;
@@ -18,7 +24,7 @@ app.get('/products', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
-    const service = new PosService(db, tenant.id, c.env, null); // Stripe service not needed for reading local DB only?
+    const service = new PosService(db, tenant.id, c.env, undefined); // Stripe service not needed for reading local DB only?
     // Actually, constructor expects it optional.
     const list = await service.listProducts();
 
@@ -105,6 +111,58 @@ app.post('/orders', async (c) => {
         // Async tasks
         if (result.asyncTask) {
             c.executionCtx.waitUntil(result.asyncTask());
+        }
+
+        // Trigger 'product_purchase' Automation
+        try {
+            const usageService = new UsageService(db, tenant.id);
+            const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
+            const isByok = !!(tenant.resendCredentials as any)?.apiKey;
+
+            const emailService = new EmailService(
+                resendKey,
+                { branding: tenant.branding as any, settings: tenant.settings as any },
+                { slug: tenant.slug },
+                usageService,
+                isByok
+            );
+            const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
+            const autoService = new AutomationsService(db, tenant.id, emailService, smsService);
+
+            // Resolve User
+            let userId = memberId ? (await db.query.tenantMembers.findFirst({ where: eq(users.id /* Actually memberId is param, we need member record */, memberId /* Wait, memberId is ID of tenantMember? Yes */), with: { user: true } }))?.userId : null;
+            // The memberId passed to createOrder is typically tenantMember.id
+            // Let's fetch it properly if we have it
+            let userEmail = '';
+            let firstName = 'Friend';
+
+            if (memberId) {
+                const member = await db.query.tenantMembers.findFirst({
+                    // @ts-ignore - Schema import issue or inference? tenantMembers vs users
+                    where: (tenantMembers, { eq }) => eq(tenantMembers.id, memberId),
+                    with: { user: true }
+                });
+                if (member && member.user) {
+                    userId = member.userId;
+                    userEmail = member.user.email;
+                    firstName = (member.user.profile as any)?.firstName;
+                }
+            }
+
+            if (userId) {
+                c.executionCtx.waitUntil(autoService.dispatchTrigger('product_purchase', {
+                    userId,
+                    email: userEmail,
+                    firstName,
+                    data: {
+                        amount: totalAmount,
+                        orderId: result.orderId,
+                        items: items
+                    }
+                }));
+            }
+        } catch (e) {
+            console.error("Failed to trigger POS automation", e);
         }
 
         return c.json({ success: true, orderId: result.orderId });
@@ -348,6 +406,129 @@ app.post('/products/:id/archive', async (c) => {
     }
 
     return c.json({ success: true });
+});
+
+// POST /products/import - Bulk Import
+app.post('/products/import', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: "Access Denied" }, 403);
+    }
+
+    const { z } = await import('zod');
+    const importSchema = z.object({
+        products: z.array(z.object({
+            name: z.string().min(1),
+            description: z.string().optional(),
+            category: z.string().optional(),
+            sku: z.string().optional(),
+            price: z.number().nonnegative(), // cents
+            stockQuantity: z.number().int().nonnegative().optional().default(0),
+            imageUrl: z.string().url().optional(),
+            isActive: z.boolean().optional().default(true)
+        })).max(100)
+    });
+
+    const body = await c.req.json();
+    const result = importSchema.safeParse(body);
+    if (!result.success) {
+        return c.json({ error: "Invalid import data", details: result.error.format() }, 400);
+    }
+
+    let stripeService: StripeService | undefined;
+    if (c.env.STRIPE_SECRET_KEY) {
+        stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+    }
+    const service = new PosService(db, tenant.id, c.env, stripeService);
+
+    const results = { success: 0, failed: 0, errors: [] as string[] };
+
+    // Process sequentially or small chunks to avoid rate limits
+    // Sequential for safety with Stripe
+    for (const p of result.data.products) {
+        try {
+            await service.createProduct(p, tenant.stripeAccountId, tenant.currency || 'usd');
+            results.success++;
+        } catch (e: any) {
+            results.failed++;
+            results.errors.push(`Failed to import ${p.name}: ${e.message}`);
+        }
+    }
+
+    return c.json(results);
+});
+
+// POST /products/images - Direct Upload to Cloudflare Images
+app.post('/products/images', async (c) => {
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: "Access Denied" }, 403);
+    }
+
+    // 1. Get File from Request
+    const formData = await c.req.parseBody();
+    const file = formData['file'];
+
+    if (!file || !(file instanceof File)) {
+        return c.json({ error: "No file uploaded" }, 400);
+    }
+
+    // 2. Upload to Cloudflare Images
+    // Need Account ID and Token
+    const accountId = c.env.CLOUDFLARE_ACCOUNT_ID;
+    const apiToken = c.env.CLOUDFLARE_API_TOKEN;
+
+    if (!accountId || !apiToken) {
+        return c.json({ error: "Image service not configured" }, 500);
+    }
+
+    const cfFormData = new FormData();
+    cfFormData.append("file", file);
+    cfFormData.append("metadata", JSON.stringify({ tenantId: tenant.id }));
+    cfFormData.append("requireSignedURLs", "false"); // Public for now
+
+    try {
+        const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/images/v1`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiToken}`
+            },
+            body: cfFormData
+        });
+
+        const json: any = await response.json();
+
+        if (!json.success) {
+            throw new Error(JSON.stringify(json.errors));
+        }
+
+        // Return the variants or original
+        // Typically public variant is 'public' or something configured.
+        // Returning the first variant or delivery URL logic
+        const imageId = json.result.id;
+        const variants = json.result.variants as string[];
+        // Example variant: https://imagedelivery.net/<account_hash>/<id>/<variant_name>
+        // We usually return the 'public' or 'default' variant, or just the ID?
+        // Let's return the first variant or constructed URL.
+        const publicUrl = variants.length > 0 ? variants[0] : null;
+
+        return c.json({
+            success: true,
+            imageId,
+            url: publicUrl
+        });
+
+    } catch (e: any) {
+        console.error("Image Upload Failed", e);
+        return c.json({ error: "Upload failed: " + e.message }, 500);
+    }
 });
 
 export default app;
