@@ -31,6 +31,9 @@
         "paths": {
             "~/*": [
                 "./app/*"
+            ],
+            "@api/*": [
+                "../../packages/api/src/*"
             ]
         },
         "noEmit": true

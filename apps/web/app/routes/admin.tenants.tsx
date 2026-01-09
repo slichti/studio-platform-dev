@@ -1,4 +1,3 @@
-// @ts-ignore
 import { Link, useLoaderData, useNavigate } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
@@ -6,14 +5,38 @@ import { useState, Fragment } from "react";
 import { useAuth } from "@clerk/react-router";
 import { Modal } from "../components/Modal";
 import { ErrorDialog, ConfirmationDialog } from "../components/Dialogs";
-import { ChevronDown, ChevronRight, Activity, CreditCard, Video, Monitor, ShoppingCart, Mail } from "lucide-react";
+import { ChevronDown, ChevronRight, Activity, CreditCard, Video, Monitor, ShoppingCart, Mail, Settings } from "lucide-react";
 import { PrivacyBlur } from "../components/PrivacyBlur";
+
+interface TenantStats {
+    owners: number;
+    instructors: number;
+    subscribers: number;
+}
+
+interface Tenant {
+    id: string;
+    name: string;
+    slug: string;
+    tier: string;
+    status: string;
+    subscriptionStatus?: string;
+    currentPeriodEnd?: string;
+    billingExempt?: boolean;
+    smsLimit?: number;
+    emailLimit?: number;
+    storageUsage: number;
+    streamingUsage?: number;
+    emailUsage?: number;
+    stats?: TenantStats;
+    zoomCredentials?: { clientId: string; accountId: string }; // Minimal type
+}
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
     const token = await getToken();
     try {
-        const tenants = await apiRequest("/admin/tenants", token);
+        const tenants = await apiRequest<Tenant[]>("/admin/tenants", token);
         return { tenants, error: null };
     } catch (e: any) {
         console.error("Loader failed", e);
@@ -71,6 +94,39 @@ export default function AdminTenants() {
         if (typeof window !== 'undefined') return localStorage.getItem('admin_show_financials') === 'true';
         return false;
     });
+
+    // Zoom Config State
+    const [zoomModalOpen, setZoomModalOpen] = useState(false);
+    const [zoomTenantId, setZoomTenantId] = useState<string | null>(null);
+    const [zoomData, setZoomData] = useState({ accountId: '', clientId: '', clientSecret: '' });
+
+    const openZoomConfig = (tenantId: string) => {
+        setZoomTenantId(tenantId);
+        setZoomData({ accountId: '', clientId: '', clientSecret: '' }); // Reset or fetch? Ideally fetch, but secrets are hidden.
+        setZoomModalOpen(true);
+    };
+
+    const saveZoomCredentials = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!zoomTenantId) return;
+        setLoading(true);
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/admin/tenants/${zoomTenantId}/credentials/zoom`, token, {
+                method: 'PUT',
+                body: JSON.stringify(zoomData)
+            });
+
+            if (res.error) throw new Error(res.error);
+
+            setSuccessDialog({ isOpen: true, message: 'Zoom credentials updated successfully.' });
+            setZoomModalOpen(false);
+        } catch (e: any) {
+            setErrorDialog({ isOpen: true, message: e.message });
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const toggleFinancials = () => {
         const newValue = !showFinancials;
@@ -570,19 +626,30 @@ export default function AdminTenants() {
                                                                                 <div className="text-xs text-zinc-500">Source: {state.source}</div>
                                                                             </div>
                                                                         </div>
-                                                                        <button
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                handleFeatureToggle(t.id, f.key, state.enabled);
-                                                                            }}
-                                                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${state.enabled ? 'bg-blue-600' : 'bg-gray-200'
-                                                                                }`}
-                                                                        >
-                                                                            <span
-                                                                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${state.enabled ? 'translate-x-6' : 'translate-x-1'
+                                                                        <div className="flex items-center gap-2">
+                                                                            {f.key === 'zoom' && state.enabled && (
+                                                                                <button
+                                                                                    onClick={(e) => { e.stopPropagation(); openZoomConfig(t.id); }}
+                                                                                    className="p-1 text-zinc-500 hover:text-blue-600 hover:bg-zinc-200 rounded"
+                                                                                    title="Configure Zoom Credentials"
+                                                                                >
+                                                                                    <Settings size={16} />
+                                                                                </button>
+                                                                            )}
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    handleFeatureToggle(t.id, f.key, state.enabled);
+                                                                                }}
+                                                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${state.enabled ? 'bg-blue-600' : 'bg-gray-200'
                                                                                     }`}
-                                                                            />
-                                                                        </button>
+                                                                            >
+                                                                                <span
+                                                                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${state.enabled ? 'translate-x-6' : 'translate-x-1'
+                                                                                        }`}
+                                                                                />
+                                                                            </button>
+                                                                        </div>
                                                                     </div>
                                                                 );
                                                             })}
@@ -605,6 +672,56 @@ export default function AdminTenants() {
                 )
                 }
             </div >
+
+            {/* Zoom Configuration Modal */}
+            <Modal
+                isOpen={zoomModalOpen}
+                onClose={() => setZoomModalOpen(false)}
+                title="Configure Zoom Integration"
+            >
+                <div className="mb-4 text-sm text-zinc-500">
+                    Provide the Server-to-Server OAuth credentials from the Zoom App Marketplace.
+                    This allows the platform to create meetings on behalf of this tenant.
+                </div>
+                <form onSubmit={saveZoomCredentials} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 mb-1">Account ID</label>
+                        <input
+                            type="text"
+                            required
+                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
+                            value={zoomData.accountId}
+                            onChange={(e) => setZoomData({ ...zoomData, accountId: e.target.value })}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 mb-1">Client ID</label>
+                        <input
+                            type="text"
+                            required
+                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
+                            value={zoomData.clientId}
+                            onChange={(e) => setZoomData({ ...zoomData, clientId: e.target.value })}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 mb-1">Client Secret</label>
+                        <input
+                            type="password"
+                            required
+                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
+                            value={zoomData.clientSecret}
+                            onChange={(e) => setZoomData({ ...zoomData, clientSecret: e.target.value })}
+                        />
+                    </div>
+                    <div className="pt-4 flex gap-3">
+                        <button type="button" onClick={() => setZoomModalOpen(false)} className="flex-1 px-4 py-2 border border-zinc-300 text-zinc-700 rounded-md hover:bg-zinc-50 font-medium">Cancel</button>
+                        <button type="submit" disabled={loading} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium disabled:opacity-50">
+                            {loading ? "Saving..." : "Save Credentials"}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
 
             {/* Create Tenant Modal */}
             < Modal

@@ -1,6 +1,4 @@
-// @ts-ignore
 import { useState, useEffect, useRef } from "react";
-// @ts-ignore
 import { useLoaderData, useOutletContext, Link } from "react-router";
 import { apiRequest } from "~/utils/api";
 import {

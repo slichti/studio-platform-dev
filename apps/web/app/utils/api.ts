@@ -3,7 +3,7 @@ import { useAuth } from "@clerk/react-router";
 const DEFAULT_API_URL = "http://localhost:8787";
 export const API_URL = import.meta.env.VITE_API_URL || DEFAULT_API_URL;
 
-export async function apiRequest(path: string, token: string | null | undefined, options: RequestInit = {}, baseUrl?: string) {
+export async function apiRequest<T = any>(path: string, token: string | null | undefined, options: RequestInit = {}, baseUrl?: string): Promise<T> {
     const url = baseUrl || API_URL;
     const headers = new Headers(options.headers);
 

@@ -1,4 +1,3 @@
-// @ts-ignore
 import { type LoaderFunctionArgs, redirect, Outlet, NavLink, useLoaderData } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { useUser } from "@clerk/react-router";

@@ -4,7 +4,7 @@ import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";
 import { BarChart3, TrendingUp, TrendingDown, Users, Calendar, DollarSign, Target, Activity, ChevronDown, Download, RefreshCw, Percent } from "lucide-react";
-import type { ReportsRevenueResponse, ReportsAttendanceResponse } from "api/src/types";
+import type { ReportsRevenueResponse, ReportsAttendanceResponse } from "@api/types";
 
 interface LoaderData {
     revenue: ReportsRevenueResponse | null;

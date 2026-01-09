@@ -584,6 +584,38 @@ app.patch('/tenants/:id/subscription', async (c) => {
     return c.json({ success: true });
 });
 
+// PUT /tenants/:id/credentials/zoom - Update Zoom Credentials
+app.put('/tenants/:id/credentials/zoom', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+    const { accountId, clientId, clientSecret } = await c.req.json();
+
+    // Basic validation
+    if (!accountId || !clientId || !clientSecret) {
+        return c.json({ error: "Missing required Zoom credentials" }, 400);
+    }
+
+    await db.update(tenants)
+        .set({
+            zoomCredentials: { accountId, clientId, clientSecret }
+        })
+        .where(eq(tenants.id, tenantId))
+        .run();
+
+    // Audit Log
+    const auth = c.get('auth');
+    await db.insert(auditLogs).values({
+        id: crypto.randomUUID(),
+        action: 'update_zoom_credentials',
+        actorId: auth.userId,
+        targetId: tenantId,
+        details: { accountId }, // Don't log secrets
+        ipAddress: c.req.header('CF-Connecting-IP')
+    });
+
+    return c.json({ success: true });
+});
+
 // GET /tenants - Full list for management
 
 // GET /tenants - Full list for management
