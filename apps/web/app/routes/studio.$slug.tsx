@@ -2,6 +2,7 @@
 import { Outlet, useLoaderData, useParams, NavLink, redirect, Link } from "react-router";
 // @ts-ignore
 import type { LoaderFunctionArgs } from "react-router";
+import { useState } from "react"; // Added useState
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { UserButton } from "@clerk/react-router";
@@ -104,6 +105,27 @@ export default function StudioLayout() {
     const { slug, tenant, me, isPaused, features } = useLoaderData<typeof loader>();
     const featureSet = new Set(features);
 
+    // Student View State
+    // Initialize from localStorage if client-side, otherwise false
+    const [isStudentView, setIsStudentView] = useState(() => {
+        if (typeof window !== 'undefined') return localStorage.getItem('studio_student_view') === 'true';
+        return false;
+    });
+
+    const toggleStudentView = () => {
+        const newState = !isStudentView;
+        setIsStudentView(newState);
+        localStorage.setItem('studio_student_view', String(newState));
+
+        // Force a soft reload/re-render might be needed if side effects depend on roles,
+        // but passing new roles to Outlet context should propagate to children.
+    };
+
+    // Effective Roles: If in student view, force role to just 'student'
+    const effectiveRoles = isStudentView ? ['student'] : (me?.roles || []);
+    // Also override 'me' slightly to reflect restricted permissions if needed downstream
+    // But 'roles' is the main gatekeeper for the Sidebar and children.
+
     return (
         <div className="flex h-screen bg-zinc-50 dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100 transition-colors duration-300">
             {/* Sidebar */}
@@ -152,46 +174,62 @@ export default function StudioLayout() {
                         )}
                     </SidebarGroup>
 
-                    <SidebarGroup title="CRM">
-                        <NavItem to={`/studio/${slug}/leads`} icon={<User size={18} />}>Leads</NavItem>
-                        <NavItem to={`/studio/${slug}/tasks`} icon={<ListTodo size={18} />}>Tasks</NavItem>
-                        {(featureSet.has('marketing') || ['growth', 'scale'].includes(tenant.tier)) && (
-                            <NavItem to={`/studio/${slug}/marketing`} icon={<Mail size={18} />}>Marketing</NavItem>
-                        )}
-                        {(featureSet.has('loyalty') || ['growth', 'scale'].includes(tenant.tier)) && (
-                            <NavItem to={`/studio/${slug}/loyalty`} icon={<Award size={18} />}>Loyalty</NavItem>
-                        )}
-                    </SidebarGroup>
+                    {/* HIDE CRM and Management when in Student View */}
+                    {!isStudentView && (
+                        <>
+                            <SidebarGroup title="CRM">
+                                <NavItem to={`/studio/${slug}/leads`} icon={<User size={18} />}>Leads</NavItem>
+                                <NavItem to={`/studio/${slug}/tasks`} icon={<ListTodo size={18} />}>Tasks</NavItem>
+                                {(featureSet.has('marketing') || ['growth', 'scale'].includes(tenant.tier)) && (
+                                    <NavItem to={`/studio/${slug}/marketing`} icon={<Mail size={18} />}>Marketing</NavItem>
+                                )}
+                                {(featureSet.has('loyalty') || ['growth', 'scale'].includes(tenant.tier)) && (
+                                    <NavItem to={`/studio/${slug}/loyalty`} icon={<Award size={18} />}>Loyalty</NavItem>
+                                )}
+                            </SidebarGroup>
 
-                    <SidebarGroup title="Management">
-                        <NavItem to={`/studio/${slug}/students`} icon={<Users size={18} />}>People</NavItem>
-                        {(['scale'].includes(tenant.tier) || featureSet.has('payroll')) && (
-                            <NavItem to={`/studio/${slug}/financials/payroll`} icon={<CreditCard size={18} />}>Payroll Admin</NavItem>
-                        )}
-                        {(me.roles && me.roles.some((r: string) => ['instructor', 'admin', 'owner'].includes(r))) && (
-                            <NavItem to={`/studio/${slug}/financials/my-payouts`} icon={<DollarSign size={18} />}>My Payouts</NavItem>
-                        )}
+                            <SidebarGroup title="Management">
+                                <NavItem to={`/studio/${slug}/students`} icon={<Users size={18} />}>People</NavItem>
+                                {(['scale'].includes(tenant.tier) || featureSet.has('payroll')) && (
+                                    <NavItem to={`/studio/${slug}/financials/payroll`} icon={<CreditCard size={18} />}>Payroll Admin</NavItem>
+                                )}
+                                {(effectiveRoles.some((r: string) => ['instructor', 'admin', 'owner'].includes(r))) && (
+                                    <NavItem to={`/studio/${slug}/financials/my-payouts`} icon={<DollarSign size={18} />}>My Payouts</NavItem>
+                                )}
 
-                        <NavItem to={`/studio/${slug}/finances`} end icon={<DollarSign size={18} />}>Finances</NavItem>
-                        <NavItem to={`/studio/${slug}/discounts`} icon={<Tag size={18} />}>Discounts</NavItem>
-                        <NavItem to={`/studio/${slug}/settings/embeds`} icon={<Code size={18} />}>Website Widgets</NavItem>
-                        <NavItem to={`/studio/${slug}/settings/developers`} icon={<Terminal size={18} />}>Developers</NavItem>
-                        <NavItem to={`/studio/${slug}/settings`} end icon={<Settings size={18} />}>Settings</NavItem>
-                    </SidebarGroup>
+                                <NavItem to={`/studio/${slug}/finances`} end icon={<DollarSign size={18} />}>Finances</NavItem>
+                                <NavItem to={`/studio/${slug}/discounts`} icon={<Tag size={18} />}>Discounts</NavItem>
+                                <NavItem to={`/studio/${slug}/settings/embeds`} icon={<Code size={18} />}>Website Widgets</NavItem>
+                                <NavItem to={`/studio/${slug}/settings/developers`} icon={<Terminal size={18} />}>Developers</NavItem>
+                                <NavItem to={`/studio/${slug}/settings`} end icon={<Settings size={18} />}>Settings</NavItem>
+                            </SidebarGroup>
 
-                    <SidebarGroup title="Analytics">
-                        <NavItem to={`/studio/${slug}/reports`} icon={<BarChart3 size={18} />}>Reports</NavItem>
-                    </SidebarGroup>
+                            <SidebarGroup title="Analytics">
+                                <NavItem to={`/studio/${slug}/reports`} icon={<BarChart3 size={18} />}>Reports</NavItem>
+                            </SidebarGroup>
+                        </>
+                    )}
                 </nav>
 
 
                 <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex flex-col gap-3">
                     {/* System Admin Escape Hatch */}
-                    {((useLoaderData() as any).me?.user?.isSystemAdmin || (useLoaderData() as any).isImpersonating) && (
+                    {((useLoaderData() as any).me?.user?.isSystemAdmin || (useLoaderData() as any).isImpersonating) && !isStudentView && (
                         <a href="/admin" className="flex items-center gap-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 text-xs font-medium transition mb-1">
                             <Users size={14} />
                             <span>Return to Admin</span>
                         </a>
+                    )}
+
+                    {/* View as Student Toggle */}
+                    {!isStudentView && (me?.roles?.includes('owner') || me?.roles?.includes('admin')) && (
+                        <button
+                            onClick={toggleStudentView}
+                            className="flex items-center gap-2 text-zinc-500 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 text-xs font-medium transition mb-1"
+                        >
+                            <Users size={14} />
+                            <span>View as Student</span>
+                        </button>
                     )}
 
                     <div className="flex items-center justify-between">
@@ -206,10 +244,7 @@ export default function StudioLayout() {
                         </div>
                         <ThemeToggle />
                     </div>
-                    {/* DEBUG INFO */}
-                    <div className="text-[10px] text-zinc-400 font-mono truncate">
-                        UI: v1.0.2-DEBUG | U:{(useLoaderData() as any).me?.user ? 'Load' : 'Miss'} | A:{(useLoaderData() as any).me?.user?.isSystemAdmin ? 'Y' : 'N'}
-                    </div>
+
                     <div className="pt-4 mt-auto">
                         <PoweredBy tier={tenant.tier} branding={tenant.branding} />
                     </div>
@@ -217,7 +252,7 @@ export default function StudioLayout() {
             </aside >
 
             {/* Main Content */}
-            <main className="flex-1 ml-64 flex flex-col min-w-0">
+            <main className="flex-1 ml-64 flex flex-col min-w-0 relative">
 
                 {/* Impersonation Banner */}
                 {(useLoaderData() as any).isImpersonating && (
@@ -226,6 +261,22 @@ export default function StudioLayout() {
                         userName={`${me.firstName} ${me.lastName}`}
                         currentRole={me.roles && me.roles.length > 0 ? me.roles[0] : 'student'}
                     />
+                )}
+
+                {/* Student View Banner */}
+                {isStudentView && (
+                    <div className="bg-blue-600 text-white px-6 py-2 text-sm font-medium flex items-center justify-between shadow-md z-30">
+                        <div className="flex items-center gap-2">
+                            <Users size={16} />
+                            <span>You are viewing as a Student.</span>
+                        </div>
+                        <button
+                            onClick={toggleStudentView}
+                            className="bg-white text-blue-600 px-3 py-1 rounded text-xs font-bold hover:bg-zinc-100 transition"
+                        >
+                            Exit View
+                        </button>
+                    </div>
                 )}
 
                 {isPaused && (
@@ -248,9 +299,11 @@ export default function StudioLayout() {
                 </div>
 
                 <div className="flex-1 overflow-auto">
-                    <Outlet context={{ tenant, me, features: featureSet, roles: me?.roles || [] }} />
+                    <Outlet context={{ tenant, me, features: featureSet, roles: effectiveRoles }} />
                 </div>
-                <CommandBar token={(useLoaderData() as any).token} />
+                {!isStudentView && (
+                    <CommandBar token={(useLoaderData() as any).token} />
+                )}
             </main>
         </div>
     );
