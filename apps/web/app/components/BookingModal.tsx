@@ -9,9 +9,10 @@ interface BookingModalProps {
     onClose: () => void;
     classEvent: any;
     family: any[];
+    member?: any;
 }
 
-export function BookingModal({ isOpen, onClose, classEvent, family }: BookingModalProps) {
+export function BookingModal({ isOpen, onClose, classEvent, family, member }: BookingModalProps) {
     const fetcher = useFetcher();
     const [attendanceType, setAttendanceType] = useState<'in_person' | 'zoom'>('in_person');
 
@@ -84,6 +85,41 @@ export function BookingModal({ isOpen, onClose, classEvent, family }: BookingMod
                                             </div>
                                         </div>
                                     )}
+
+                                    {/* Price / Payment Info */}
+                                    <div className="bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-lg text-sm border border-zinc-200 dark:border-zinc-700">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="font-semibold text-zinc-900 dark:text-zinc-100">Price</span>
+                                            <span className="font-bold text-zinc-900 dark:text-zinc-100">
+                                                {(() => {
+                                                    // 1. Check Included Plans
+                                                    if (member?.memberships?.some((m: any) =>
+                                                        m.status === 'active' &&
+                                                        classEvent.includedPlanIds?.includes(m.planId)
+                                                    )) {
+                                                        return <span className="text-green-600">Free (Included)</span>;
+                                                    }
+
+                                                    // 2. Check Credits
+                                                    if (classEvent.allowCredits && member?.purchasedPacks?.some((p: any) => p.remainingCredits > 0)) {
+                                                        return <span className="text-blue-600">1 Credit</span>;
+                                                    }
+
+                                                    // 3. Member Price
+                                                    if (member && classEvent.memberPrice !== undefined && classEvent.memberPrice !== null) {
+                                                        return <span>${(classEvent.memberPrice).toFixed(2)} <span className="text-xs font-normal text-zinc-500 line-through">${classEvent.price}</span></span>;
+                                                    }
+
+                                                    // 4. Public Price
+                                                    return classEvent.price ? `$${classEvent.price.toFixed(2)}` : "Free";
+                                                })()}
+                                            </span>
+                                        </div>
+                                        {/* Optional: Show why */}
+                                        <div className="text-xs text-zinc-500">
+                                            {classEvent.type === 'workshop' ? "Workshop" : "Class"} • {classEvent.durationMinutes} min
+                                        </div>
+                                    </div>
 
                                     <div className="text-sm">
                                         {isFull && attendanceType === 'in_person' ? (

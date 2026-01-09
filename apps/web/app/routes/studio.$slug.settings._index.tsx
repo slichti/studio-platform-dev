@@ -507,6 +507,54 @@ export default function StudioSettings() {
                         <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2">Latest time a student can cancel without penalty.</p>
                     </div>
 
+                    <div className="md:col-span-2 border-t border-zinc-100 dark:border-zinc-800 pt-4 mt-2">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Auto-Cancel Low Enrollment</span>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400">Automatically cancel classes that don't meet minimum enrollment.</p>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                                        checked={tenant.settings?.classSettings?.defaultAutoCancelEnabled !== false}
+                                        onChange={async (e) => {
+                                            const checked = e.target.checked;
+                                            const token = await (window as any).Clerk?.session?.getToken();
+                                            await apiRequest(`/tenant/settings`, token, {
+                                                method: "PATCH",
+                                                headers: { 'X-Tenant-Slug': tenant.slug },
+                                                body: JSON.stringify({ settings: { classSettings: { ...tenant.settings?.classSettings, defaultAutoCancelEnabled: checked } } })
+                                            });
+                                            window.location.reload();
+                                        }}
+                                    />
+                                    <span className="text-sm text-zinc-700 dark:text-zinc-300">Enable by Default</span>
+                                </label>
+
+                                {tenant.settings?.classSettings?.defaultAutoCancelEnabled !== false && (
+                                    <div className="flex items-center gap-2">
+                                        <NumberStepper
+                                            value={tenant.settings?.classSettings?.defaultAutoCancelThresholdHours || 2}
+                                            min={1}
+                                            step={1}
+                                            suffix="hours pre-class"
+                                            onChange={async (val) => {
+                                                const token = await (window as any).Clerk?.session?.getToken();
+                                                await apiRequest(`/tenant/settings`, token, {
+                                                    method: "PATCH",
+                                                    headers: { 'X-Tenant-Slug': tenant.slug },
+                                                    body: JSON.stringify({ settings: { classSettings: { ...tenant.settings?.classSettings, defaultAutoCancelThresholdHours: val } } })
+                                                });
+                                            }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="md:col-span-2 border-t border-zinc-100 dark:border-zinc-800 pt-4">
                         <div className="flex items-center justify-between pb-4 border-b border-zinc-100 dark:border-zinc-800 mb-4">
                             <div>
@@ -646,367 +694,7 @@ export default function StudioSettings() {
                 </div>
             </div>
 
-            {/* Integrations Section */}
-            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm mb-8">
-                <div className="mb-6">
-                    <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Integrations & Connections</h2>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Connect third-party services to power your studio.</p>
-                </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-                    {/* 1. Payment Processing (Stripe) */}
-                    <div className="col-span-1 lg:col-span-2 border border-zinc-200 dark:border-zinc-700 rounded-lg p-5">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                                <CreditCard className="h-4 w-4" /> Payment Processing
-                            </h3>
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${tenant.paymentProvider === 'connect' && tenant.stripeAccountId ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                                {tenant.paymentProvider === 'connect' && tenant.stripeAccountId ? 'Connected' : tenant.paymentProvider === 'custom' ? 'Custom Keys' : 'Not Configured'}
-                            </span>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                            <div
-                                onClick={async () => {
-                                    if (tenant.paymentProvider !== 'connect') {
-                                        if (confirm("Switch to Platform Managed?")) {
-                                            const token = await (window as any).Clerk?.session?.getToken();
-                                            await apiRequest(`/studios/${tenant.id}/integrations`, token, {
-                                                method: 'PUT',
-                                                body: JSON.stringify({ paymentProvider: 'connect' })
-                                            });
-                                            window.location.reload();
-                                        }
-                                    }
-                                }}
-                                className={`relative cursor-pointer border rounded-lg p-4 transition-all ${tenant.paymentProvider === 'connect' ? 'border-blue-500 ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300'}`}
-                            >
-                                {tenant.paymentProvider === 'connect' && <div className="absolute top-2 right-2 text-blue-600"><CheckCircle size={20} className="fill-blue-100" /></div>}
-                                <div className="font-bold text-sm text-zinc-900 dark:text-zinc-100 mb-1">Platform Managed</div>
-                                <div className="text-xs text-zinc-500">We handle billing complexity. Standard fees. Recommended for most studios.</div>
-                                {tenant.paymentProvider === 'connect' && !tenant.stripeAccountId && (
-                                    <a href={`${API_URL}/studios/stripe/connect?tenantId=${tenant.id}`} className="mt-4 block w-full py-2 text-center bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700">Connect Stripe Account &rarr;</a>
-                                )}
-                                {tenant.paymentProvider === 'connect' && tenant.stripeAccountId && (
-                                    <div className="mt-4 pt-4 border-t border-blue-200 dark:border-blue-800">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <span className="text-[10px] uppercase font-bold text-blue-700">Hardware</span>
-                                        </div>
-                                        <button onClick={() => setShowOrderReader(true)} className="w-full flex items-center justify-center gap-2 py-2 border border-blue-300 text-blue-700 rounded text-xs font-bold hover:bg-blue-100 transition-colors">
-                                            <Smartphone size={14} /> Order Terminal Reader
-                                        </button>
-                                        <p className="text-[10px] text-blue-600/70 mt-1 text-center">BBPOS WisePOS E available</p>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div
-                                onClick={async () => {
-                                    if (tenant.paymentProvider !== 'custom') {
-                                        const token = await (window as any).Clerk?.session?.getToken();
-                                        await apiRequest(`/studios/${tenant.id}/integrations`, token, {
-                                            method: 'PUT',
-                                            body: JSON.stringify({ paymentProvider: 'custom' })
-                                        });
-                                        window.location.reload();
-                                    }
-                                }}
-                                className={`relative cursor-pointer border rounded-lg p-4 transition-all ${tenant.paymentProvider === 'custom' ? 'border-blue-500 ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300'}`}
-                            >
-                                {tenant.paymentProvider === 'custom' && <div className="absolute top-2 right-2 text-blue-600"><CheckCircle size={20} className="fill-blue-100" /></div>}
-                                <div className="font-bold text-sm text-zinc-900 dark:text-zinc-100 mb-1">Self Managed (BYOK)</div>
-                                <div className="text-xs text-zinc-500">Use your own Stripe keys. No platform fees. You handle compliance.</div>
-                            </div>
-                        </div>
-
-                        {tenant.paymentProvider === 'custom' && (
-                            <form onSubmit={async (e) => {
-                                e.preventDefault();
-                                const formData = new FormData(e.currentTarget);
-                                const stripePublishableKey = formData.get("stripePublishableKey");
-                                const stripeSecretKey = formData.get("stripeSecretKey");
-                                try {
-                                    const token = await (window as any).Clerk?.session?.getToken();
-                                    await apiRequest(`/studios/${tenant.id}/integrations`, token, {
-                                        method: 'PUT',
-                                        body: JSON.stringify({ paymentProvider: 'custom', stripePublishableKey, stripeSecretKey })
-                                    });
-                                    alert("Stripe keys saved.");
-                                } catch (err: any) { alert(err.message); }
-                            }} className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded border border-zinc-200 dark:border-zinc-700 space-y-3 animate-in slide-in-from-top-2">
-                                <input name="stripePublishableKey" placeholder="Publishable Key (pk_...)" className="w-full text-sm border-zinc-300 rounded px-3 py-2" />
-                                <input name="stripeSecretKey" type="password" placeholder="Secret Key (sk_...)" className="w-full text-sm border-zinc-300 rounded px-3 py-2" />
-                                <button type="submit" className="text-xs bg-zinc-900 text-white px-3 py-1.5 rounded">Save Stripe Keys</button>
-                            </form>
-                        )}
-                    </div>
-
-                    {/* 2. Email (Resend) */}
-                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-5">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                                <Mail className="h-4 w-4" /> Email Service (Resend)
-                            </h3>
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(tenant.resendCredentials as any)?.apiKey ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                                {(tenant.resendCredentials as any)?.apiKey ? 'Configured' : 'Using Platform Default'}
-                            </span>
-                        </div>
-                        <p className="text-xs text-zinc-500 mb-3">Provide your own Resend API Key to send emails from your own domain.</p>
-                        <form onSubmit={async (e) => {
-                            e.preventDefault();
-                            const formData = new FormData(e.currentTarget);
-                            const resendApiKey = formData.get("resendApiKey");
-                            try {
-                                const token = await (window as any).Clerk?.session?.getToken();
-                                await apiRequest(`/studios/${tenant.id}/integrations`, token, {
-                                    method: 'PUT',
-                                    body: JSON.stringify({ resendApiKey })
-                                });
-                                alert("Email configuration saved.");
-                                window.location.reload();
-                            } catch (err: any) { alert(err.message); }
-                        }} className="flex gap-2">
-                            <input name="resendApiKey" type="password" placeholder="re_123..." className="flex-1 text-sm border-zinc-300 rounded px-3 py-2" />
-                            <button type="submit" className="text-xs bg-white border border-zinc-300 hover:bg-zinc-50 px-3 py-2 rounded font-medium">Save Key</button>
-                        </form>
-                    </div>
-
-                    {/* 3. SMS (Twilio) */}
-                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-5">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                                <MessageSquare className="h-4 w-4" /> SMS Service (Twilio)
-                            </h3>
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(tenant.twilioCredentials as any)?.accountSid ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                                {(tenant.twilioCredentials as any)?.accountSid ? 'Configured' : 'Using Platform Default'}
-                            </span>
-                        </div>
-                        <p className="text-xs text-zinc-500 mb-3">Connect your Twilio account for custom SMS notifications.</p>
-                        <form onSubmit={async (e) => {
-                            e.preventDefault();
-                            const formData = new FormData(e.currentTarget);
-                            const twilioAccountSid = formData.get("twilioAccountSid");
-                            const twilioAuthToken = formData.get("twilioAuthToken");
-                            const twilioFromNumber = formData.get("twilioFromNumber");
-                            try {
-                                const token = await (window as any).Clerk?.session?.getToken();
-                                await apiRequest(`/studios/${tenant.id}/integrations`, token, {
-                                    method: 'PUT',
-                                    body: JSON.stringify({ twilioAccountSid, twilioAuthToken, twilioFromNumber })
-                                });
-                                alert("SMS configuration saved.");
-                                window.location.reload();
-                            } catch (err: any) { alert(err.message); }
-                        }} className="space-y-3">
-                            <input name="twilioAccountSid" placeholder="Account SID (AC...)" className="w-full text-sm border-zinc-300 rounded px-3 py-2" />
-                            <div className="flex gap-2">
-                                <input name="twilioAuthToken" type="password" placeholder="Auth Token" className="flex-1 text-sm border-zinc-300 rounded px-3 py-2" />
-                                <input name="twilioFromNumber" placeholder="From (+1...)" className="flex-1 text-sm border-zinc-300 rounded px-3 py-2" />
-                            </div>
-                            <button type="submit" className="w-full text-xs bg-white border border-zinc-300 hover:bg-zinc-50 px-3 py-2 rounded font-medium">Save Twilio Config</button>
-                        </form>
-                    </div>
-
-                    {/* 4. Google Analytics */}
-                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-5">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                                <BarChart3 className="h-4 w-4" /> Google Analytics
-                            </h3>
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(tenant.googleCredentials as any)?.measurementId ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                                {(tenant.googleCredentials as any)?.measurementId ? 'Active' : 'Not Configured'}
-                            </span>
-                        </div>
-                        <p className="text-xs text-zinc-500 mb-3">Track visitor traffic to your studio pages.</p>
-                        <form onSubmit={async (e) => {
-                            e.preventDefault();
-                            const formData = new FormData(e.currentTarget);
-                            const googleMeasurementId = formData.get("googleMeasurementId");
-                            try {
-                                const token = await (window as any).Clerk?.session?.getToken();
-                                await apiRequest(`/studios/${tenant.id}/integrations`, token, {
-                                    method: 'PUT',
-                                    body: JSON.stringify({ googleMeasurementId })
-                                });
-                                alert("Google Analytics configuration saved.");
-                                window.location.reload();
-                            } catch (err: any) { alert(err.message); }
-                        }} className="flex gap-2">
-                            <input
-                                name="googleMeasurementId"
-                                placeholder="G-XXXXXXXXXX"
-                                defaultValue={(tenant.googleCredentials as any)?.measurementId || ''}
-                                className="flex-1 text-sm border-zinc-300 rounded px-3 py-2 uppercase"
-                            />
-                            <button type="submit" className="text-xs bg-white border border-zinc-300 hover:bg-zinc-50 px-3 py-2 rounded font-medium">Save ID</button>
-                        </form>
-                    </div>
-
-                    {/* 4. Video (Zoom) */}
-                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-5">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                                <Video className="h-4 w-4" /> Video Conferencing (Zoom)
-                            </h3>
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(tenant.zoomCredentials as any)?.accountId ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                                {(tenant.zoomCredentials as any)?.accountId ? 'Configured' : 'Not Configured'}
-                            </span>
-                        </div>
-                        <p className="text-xs text-zinc-500 mb-3">Server-to-Server OAuth credentials for creating meetings.</p>
-                        <form onSubmit={async (e) => {
-                            e.preventDefault();
-                            const formData = new FormData(e.currentTarget);
-                            const zoomAccountId = formData.get("zoomAccountId");
-                            const zoomClientId = formData.get("zoomClientId");
-                            const zoomClientSecret = formData.get("zoomClientSecret");
-                            try {
-                                const token = await (window as any).Clerk?.session?.getToken();
-                                await apiRequest(`/studios/${tenant.id}/integrations`, token, {
-                                    method: 'PUT',
-                                    body: JSON.stringify({ zoomAccountId, zoomClientId, zoomClientSecret })
-                                });
-                                alert("Zoom configuration saved.");
-                                window.location.reload();
-                            } catch (err: any) { alert(err.message); }
-                        }} className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <input name="zoomAccountId" placeholder="Account ID" className="text-sm border-zinc-300 rounded px-3 py-2" defaultValue={(tenant.zoomCredentials as any)?.accountId || ''} />
-                            <input name="zoomClientId" placeholder="Client ID" className="text-sm border-zinc-300 rounded px-3 py-2" defaultValue={(tenant.zoomCredentials as any)?.clientId || ''} />
-                            <input name="zoomClientSecret" type="password" placeholder="Client Secret" className="text-sm border-zinc-300 rounded px-3 py-2" />
-                            <div className="md:col-span-3">
-                                <button type="submit" className="text-xs bg-white border border-zinc-300 hover:bg-zinc-50 px-3 py-2 rounded font-medium">Save Zoom Config</button>
-                            </div>
-                        </form>
-                    </div>
-
-                    {/* 5. Mailchimp */}
-                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-5">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                                <Mail className="h-4 w-4" /> Mailchimp (Newsletter)
-                            </h3>
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(tenant.mailchimpCredentials as any)?.apiKey ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                                {(tenant.mailchimpCredentials as any)?.apiKey ? 'Configured' : 'Not Configured'}
-                            </span>
-                        </div>
-                        <form onSubmit={async (e) => {
-                            e.preventDefault();
-                            const formData = new FormData(e.currentTarget);
-                            const mailchimpApiKey = formData.get("mailchimpApiKey");
-                            const mailchimpServerPrefix = formData.get("mailchimpServerPrefix");
-                            const mailchimpListId = formData.get("mailchimpListId");
-                            try {
-                                const token = await (window as any).Clerk?.session?.getToken();
-                                await apiRequest(`/studios/${tenant.id}/integrations`, token, {
-                                    method: 'PUT',
-                                    body: JSON.stringify({ mailchimpApiKey, mailchimpServerPrefix, mailchimpListId })
-                                });
-                                alert("Mailchimp configuration saved.");
-                                window.location.reload();
-                            } catch (err: any) { alert(err.message); }
-                        }} className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <input name="mailchimpApiKey" type="password" placeholder="API Key" className="text-sm border-zinc-300 rounded px-3 py-2" />
-                            <input name="mailchimpServerPrefix" placeholder="Server (e.g. us1)" className="text-sm border-zinc-300 rounded px-3 py-2" defaultValue={(tenant.mailchimpCredentials as any)?.serverPrefix || ''} />
-                            <input name="mailchimpListId" placeholder="Audience ID" className="text-sm border-zinc-300 rounded px-3 py-2" defaultValue={(tenant.mailchimpCredentials as any)?.listId || ''} />
-                            <div className="md:col-span-3">
-                                <button type="submit" className="text-xs bg-white border border-zinc-300 hover:bg-zinc-50 px-3 py-2 rounded font-medium">Save Mailchimp</button>
-                            </div>
-                        </form>
-                    </div>
-
-                    {/* 6. Zapier */}
-                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-5">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                                <Code className="h-4 w-4" /> Zapier (Automation)
-                            </h3>
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(tenant.zapierCredentials as any)?.webhookUrl ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                                {(tenant.zapierCredentials as any)?.webhookUrl ? 'Active' : 'Not Configured'}
-                            </span>
-                        </div>
-                        <p className="text-xs text-zinc-500 mb-2">Send events to a Zapier Webhook URL.</p>
-                        <form onSubmit={async (e) => {
-                            e.preventDefault();
-                            const formData = new FormData(e.currentTarget);
-                            const zapierWebhookUrl = formData.get("zapierWebhookUrl");
-                            const zapierApiKey = formData.get("zapierApiKey");
-                            try {
-                                const token = await (window as any).Clerk?.session?.getToken();
-                                await apiRequest(`/studios/${tenant.id}/integrations`, token, {
-                                    method: 'PUT',
-                                    body: JSON.stringify({ zapierWebhookUrl, zapierApiKey })
-                                });
-                                alert("Zapier configuration saved.");
-                                window.location.reload();
-                            } catch (err: any) { alert(err.message); }
-                        }} className="space-y-3">
-                            <input name="zapierWebhookUrl" placeholder="Webhook URL (https://hooks.zapier.com/...)" className="w-full text-sm border-zinc-300 rounded px-3 py-2" defaultValue={(tenant.zapierCredentials as any)?.webhookUrl || ''} />
-                            <input name="zapierApiKey" type="password" placeholder="API Key (Optional authentication)" className="w-full text-sm border-zinc-300 rounded px-3 py-2" />
-                            <button type="submit" className="text-xs bg-white border border-zinc-300 hover:bg-zinc-50 px-3 py-2 rounded font-medium">Save Zapier Config</button>
-                        </form>
-                    </div>
-
-                    {/* 7. Google Analytics */}
-                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-5">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                                <Globe className="h-4 w-4" /> Google Analytics
-                            </h3>
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(tenant.googleCredentials as any)?.measurementId ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                                {(tenant.googleCredentials as any)?.measurementId ? 'Active' : 'Not Configured'}
-                            </span>
-                        </div>
-                        <form onSubmit={async (e) => {
-                            e.preventDefault();
-                            const formData = new FormData(e.currentTarget);
-                            const googleMeasurementId = formData.get("googleMeasurementId");
-                            try {
-                                const token = await (window as any).Clerk?.session?.getToken();
-                                await apiRequest(`/studios/${tenant.id}/integrations`, token, {
-                                    method: 'PUT',
-                                    body: JSON.stringify({ googleMeasurementId })
-                                });
-                                alert("Google Analytics saved.");
-                                window.location.reload();
-                            } catch (err: any) { alert(err.message); }
-                        }} className="flex gap-2">
-                            <input name="googleMeasurementId" placeholder="Measurement ID (G-XXXXXXXXXX)" className="flex-1 text-sm border-zinc-300 rounded px-3 py-2" defaultValue={(tenant.googleCredentials as any)?.measurementId || ''} />
-                            <button type="submit" className="text-xs bg-white border border-zinc-300 hover:bg-zinc-50 px-3 py-2 rounded font-medium">Save ID</button>
-                        </form>
-                    </div>
-
-                    {/* 8. Slack */}
-                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-5">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                                <MessageSquare className="h-4 w-4" /> Slack (Internal Team)
-                            </h3>
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(tenant.slackCredentials as any)?.webhookUrl ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                                {(tenant.slackCredentials as any)?.webhookUrl ? 'Active' : 'Not Configured'}
-                            </span>
-                        </div>
-                        <p className="text-xs text-zinc-500 mb-2">Send staff notifications to a Slack Webhook.</p>
-                        <form onSubmit={async (e) => {
-                            e.preventDefault();
-                            const formData = new FormData(e.currentTarget);
-                            const slackWebhookUrl = formData.get("slackWebhookUrl");
-                            try {
-                                const token = await (window as any).Clerk?.session?.getToken();
-                                await apiRequest(`/studios/${tenant.id}/integrations`, token, {
-                                    method: 'PUT',
-                                    body: JSON.stringify({ slackWebhookUrl })
-                                });
-                                alert("Slack configuration saved.");
-                                window.location.reload();
-                            } catch (err: any) { alert(err.message); }
-                        }} className="flex gap-2">
-                            <input name="slackWebhookUrl" placeholder="Webhook URL" className="flex-1 text-sm border-zinc-300 rounded px-3 py-2" defaultValue={(tenant.slackCredentials as any)?.webhookUrl || ''} />
-                            <button type="submit" className="text-xs bg-white border border-zinc-300 hover:bg-zinc-50 px-3 py-2 rounded font-medium">Save Slack</button>
-                        </form>
-                    </div>
-
-                </div>
-            </div >
 
             {/* Billing & Subscription */}
             < Link to={`/studio/${tenant.slug}/settings/billing`

@@ -36,6 +36,9 @@ app.get('/config', async (c) => {
     const { isFeatureEnabled } = await import('../utils/features');
     if (!isFeatureEnabled(tenant, 'payroll')) return c.json({ error: 'Payroll feature not enabled' }, 403);
 
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner')) return c.json({ error: 'Unauthorized' }, 403);
+
 
     // Get all instructors
     // We need to join with potential payrollConfig
@@ -76,6 +79,9 @@ app.get('/config', async (c) => {
 app.post('/config', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner')) return c.json({ error: 'Unauthorized' }, 403);
+
     const body = await c.req.json();
     const { memberId, payModel, rate } = body; // rate in cents (flat/hourly) or basis points (%)
 
@@ -115,6 +121,9 @@ app.post('/config', async (c) => {
 app.post('/generate', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner')) return c.json({ error: 'Unauthorized' }, 403);
+
     const { startDate, endDate, commit } = await c.req.json();
 
     if (!startDate || !endDate) return c.json({ error: "Date range required" }, 400);
@@ -281,6 +290,7 @@ app.get('/history', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     const member = c.get('member');
+    const roles = c.get('roles') || [];
     const isMine = c.req.query('mine') === 'true';
 
     // If requesting own history, filter by memberId.
@@ -289,6 +299,8 @@ app.get('/history', async (c) => {
     let whereClause = eq(payouts.tenantId, tenant.id);
     if (isMine) {
         whereClause = and(whereClause, eq(payouts.instructorId, member.id))!;
+    } else {
+        if (!roles.includes('owner')) return c.json({ error: 'Unauthorized' }, 403);
     }
 
     const list = await db.select({
@@ -314,6 +326,9 @@ app.get('/history', async (c) => {
 app.post('/:id/approve', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner')) return c.json({ error: 'Unauthorized' }, 403);
+
     const id = c.req.param('id');
 
     await db.update(payouts)

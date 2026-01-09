@@ -1,7 +1,7 @@
 // @ts-ignore
 import { LoaderFunctionArgs } from "react-router";
 // @ts-ignore
-import { useLoaderData, Link, useRevalidator, useSearchParams, redirect } from "react-router";
+import { useLoaderData, Link, useRevalidator, useSearchParams, redirect, useOutletContext } from "react-router";
 import { apiRequest } from "~/utils/api";
 import { getAuth } from "@clerk/react-router/server";
 import { formatBytes } from "~/utils/format";
@@ -18,9 +18,9 @@ export const loader = async (args: LoaderFunctionArgs) => {
     // Parallel fetch: Videos and Images
     try {
         const [videoData, imageData, collectionsData] = await Promise.all([
-            apiRequest(`/video-management/`, token, { headers: { 'X-Tenant-Slug': slug } }),
-            apiRequest(`/uploads/images`, token, { headers: { 'X-Tenant-Slug': slug } }),
-            apiRequest(`/video-management/collections`, token, { headers: { 'X-Tenant-Slug': slug } })
+            apiRequest(`/video-management/`, token, { headers: { 'X-Tenant-Slug': slug as string } }),
+            apiRequest(`/uploads/images`, token, { headers: { 'X-Tenant-Slug': slug as string } }),
+            apiRequest(`/video-management/collections`, token, { headers: { 'X-Tenant-Slug': slug as string } })
         ]) as [any, any, any];
 
         return {
@@ -39,6 +39,7 @@ export default function StudioMediaLibrary() {
     const { videos, storageUsage, images, collections } = useLoaderData<typeof loader>();
     const revalidator = useRevalidator();
     const [searchParams, setSearchParams] = useSearchParams();
+    const { isStudentView } = useOutletContext<any>();
 
     // Tab State
     const currentTab = searchParams.get('tab') || 'videos';
@@ -140,30 +141,32 @@ export default function StudioMediaLibrary() {
                                 <span className="font-bold">{formatBytes(storageUsage)}</span>
                             </div>
 
-                            {currentTab === 'videos' ? (
-                                <label className={`bg-black text-white px-4 py-2 rounded-lg font-medium cursor-pointer hover:bg-zinc-800 transition flex items-center gap-2 ${uploading ? 'opacity-70 cursor-not-allowed' : ''}`}>
-                                    <Upload size={18} />
-                                    {uploading ? 'Uploading...' : 'Upload Video'}
-                                    <input
-                                        type="file"
-                                        accept="video/*"
-                                        className="hidden"
-                                        onChange={(e) => e.target.files?.[0] && handleVideoUpload(e.target.files[0])}
-                                        disabled={uploading}
-                                    />
-                                </label>
-                            ) : (
-                                <label className={`bg-black text-white px-4 py-2 rounded-lg font-medium cursor-pointer hover:bg-zinc-800 transition flex items-center gap-2 ${uploading ? 'opacity-70 cursor-not-allowed' : ''}`}>
-                                    <ImageIcon size={18} />
-                                    {uploading ? 'Uploading...' : 'Upload Image'}
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
-                                        disabled={uploading}
-                                    />
-                                </label>
+                            {!isStudentView && (
+                                currentTab === 'videos' ? (
+                                    <label className={`bg-black text-white px-4 py-2 rounded-lg font-medium cursor-pointer hover:bg-zinc-800 transition flex items-center gap-2 ${uploading ? 'opacity-70 cursor-not-allowed' : ''}`}>
+                                        <Upload size={18} />
+                                        {uploading ? 'Uploading...' : 'Upload Video'}
+                                        <input
+                                            type="file"
+                                            accept="video/*"
+                                            className="hidden"
+                                            onChange={(e) => e.target.files?.[0] && handleVideoUpload(e.target.files[0])}
+                                            disabled={uploading}
+                                        />
+                                    </label>
+                                ) : (
+                                    <label className={`bg-black text-white px-4 py-2 rounded-lg font-medium cursor-pointer hover:bg-zinc-800 transition flex items-center gap-2 ${uploading ? 'opacity-70 cursor-not-allowed' : ''}`}>
+                                        <ImageIcon size={18} />
+                                        {uploading ? 'Uploading...' : 'Upload Image'}
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
+                                            disabled={uploading}
+                                        />
+                                    </label>
+                                )
                             )}
                         </div>
                     </div>

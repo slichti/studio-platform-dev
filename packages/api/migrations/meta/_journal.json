@@ -225,6 +225,27 @@
       "when": 1767802088996,
       "tag": "0031_small_blob",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1767989728537,
+      "tag": "0032_pink_swordsman",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1768000911844,
+      "tag": "0033_outstanding_scourge",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1768000967047,
+      "tag": "0034_volatile_boom_boom",
+      "breakpoints": true
     }
   ]
 }

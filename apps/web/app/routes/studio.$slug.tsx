@@ -151,14 +151,19 @@ export default function StudioLayout() {
                         <NavItem to={`/studio/${slug}/schedule`} icon={<Calendar size={18} />}>Schedule</NavItem>
                         <NavItem to={`/studio/${slug}/classes`} icon={<Dumbbell size={18} />}>Classes</NavItem>
                         <NavItem to={`/studio/${slug}/appointments`} icon={<Clock size={18} />}>Appointments</NavItem>
-                        <NavItem to={`/studio/${slug}/checkin`} icon={<CheckCircle2 size={18} />}>Check-in</NavItem>
-                        <NavItem to={`/studio/${slug}/substitutions`} icon={<RefreshCw size={18} />}>Substitutions</NavItem>
+                        <NavItem to={`/studio/${slug}/checkin`} icon={<CheckCircle2 size={18} />}>
+                            {isStudentView ? "Attendance History" : "Check-in"}
+                        </NavItem>
+                        {/* Only show Substitutions to Instructors/Admins */}
+                        {!isStudentView && (
+                            <NavItem to={`/studio/${slug}/substitutions`} icon={<RefreshCw size={18} />}>Substitutions</NavItem>
+                        )}
                         <NavItem to={`/studio/${slug}/waivers`} icon={<FileSignature size={18} />}>Waivers</NavItem>
                         <NavItem to={`/studio/${slug}/videos`} icon={<ImageIcon size={18} />}>Media Library</NavItem>
                     </SidebarGroup>
 
                     <SidebarGroup title="Commerce">
-                        {(featureSet.has('pos') || ['growth', 'scale'].includes(tenant.tier)) && (
+                        {(featureSet.has('pos') || ['growth', 'scale'].includes(tenant.tier)) && !isStudentView && (
                             <>
                                 <NavItem to={`/studio/${slug}/pos`} icon={<ShoppingCart size={18} />}>POS & Retail</NavItem>
                             </>
@@ -168,7 +173,9 @@ export default function StudioLayout() {
 
                         {(featureSet.has('pos') || ['growth', 'scale'].includes(tenant.tier)) && (
                             <>
-                                <NavItem to={`/studio/${slug}/commerce/coupons`} icon={<Ticket size={18} />}>Coupons</NavItem>
+                                <NavItem to={`/studio/${slug}/commerce/coupons`} icon={<Ticket size={18} />}>
+                                    {isStudentView ? "My Coupons" : "Coupons"}
+                                </NavItem>
                                 <NavItem to={`/studio/${slug}/commerce/gift-cards`} icon={<Ticket size={18} />}>Gift Cards</NavItem>
                             </>
                         )}
@@ -200,7 +207,7 @@ export default function StudioLayout() {
                                 <NavItem to={`/studio/${slug}/finances`} end icon={<DollarSign size={18} />}>Finances</NavItem>
                                 <NavItem to={`/studio/${slug}/discounts`} icon={<Tag size={18} />}>Discounts</NavItem>
                                 <NavItem to={`/studio/${slug}/settings/embeds`} icon={<Code size={18} />}>Website Widgets</NavItem>
-                                <NavItem to={`/studio/${slug}/settings/developers`} icon={<Terminal size={18} />}>Developers</NavItem>
+                                <NavItem to={`/studio/${slug}/settings/integrations`} icon={<Terminal size={18} />}>Integrations</NavItem>
                                 <NavItem to={`/studio/${slug}/settings`} end icon={<Settings size={18} />}>Settings</NavItem>
                             </SidebarGroup>
 
@@ -300,7 +307,7 @@ export default function StudioLayout() {
                 </div>
 
                 <div className="flex-1 overflow-auto">
-                    <Outlet context={{ tenant, me, features: featureSet, roles: effectiveRoles }} />
+                    <Outlet context={{ tenant, me, features: featureSet, roles: effectiveRoles, isStudentView }} />
                 </div>
                 {!isStudentView && (
                     <CommandBar token={(useLoaderData() as any).token} />

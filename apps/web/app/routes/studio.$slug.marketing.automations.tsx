@@ -21,7 +21,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
             apiRequest('/marketing/automations/stats', token, { headers: { 'X-Tenant-Slug': tenantSlug } }).catch(() => null)
         ]) as any[];
 
-        return { automations: automationsData || [], stats: statsData };
+        return { automations: automationsData?.automations || [], stats: statsData };
     } catch (e) {
         console.error("Automations Loader Error", e);
         return { automations: [], stats: null };

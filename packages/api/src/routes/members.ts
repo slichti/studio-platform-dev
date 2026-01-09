@@ -432,6 +432,40 @@ app.post('/accept-invite', async (c) => {
     return c.json({ success: true, tenantId: pendingMember.tenantId });
 });
 
+// GET /me/bookings: Current Member Bookings
+app.get('/me/bookings', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const auth = c.get('auth');
+
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.userId, auth.userId!), eq(tenantMembers.tenantId, tenant.id))
+    });
+
+    if (!member) return c.json({ error: 'Not a member of this studio' }, 404);
+
+    const myBookings = await db.query.bookings.findMany({
+        where: eq(bookings.memberId, member.id),
+        with: {
+            class: {
+                with: {
+                    location: true,
+                    instructor: {
+                        with: {
+                            user: true
+                        }
+                    }
+                }
+            }
+        },
+        orderBy: (bookings, { desc }) => [desc(bookings.createdAt)]
+    });
+
+    return c.json({ bookings: myBookings });
+});
+
 // GET /me: Current Member Details
 app.get('/me', async (c) => {
     const db = createDb(c.env.DB);

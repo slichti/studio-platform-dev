@@ -1,12 +1,12 @@
 // @ts-ignore
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 // @ts-ignore
-import { useLoaderData, useOutletContext, Form, useNavigation, useFetcher, useActionData } from "react-router";
+import { useLoaderData, useOutletContext, Form, useNavigation, useFetcher, useActionData, useSearchParams } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CreateClassModal } from "../components/CreateClassModal";
-import { Plus } from "lucide-react";
+import { Plus, Archive, ArchiveRestore } from "lucide-react";
 import { BookingModal } from "../components/BookingModal";
 
 type ClassEvent = {
@@ -27,6 +27,7 @@ type ClassEvent = {
         id: string; // Booking ID
         attendanceType: 'in_person' | 'zoom';
     };
+    status: 'active' | 'cancelled' | 'archived';
 };
 
 type FamilyMember = {
@@ -37,27 +38,31 @@ type FamilyMember = {
 };
 
 export const loader = async (args: LoaderFunctionArgs) => {
-    const { params } = args;
+    const { params, request } = args;
     const { getToken } = await getAuth(args);
     const token = await getToken();
+    const url = new URL(request.url);
+    const includeArchived = url.searchParams.get("includeArchived") === "true";
 
     try {
-        const [classes, familyRes, locationsRes, instructorsRes] = await Promise.all([
-            apiRequest("/classes", token, {
+        const [classes, familyRes, locationsRes, instructorsRes, plansRes] = await Promise.all([
+            apiRequest(`/classes${includeArchived ? '?includeArchived=true' : ''}`, token, {
                 headers: { 'X-Tenant-Slug': params.slug! }
             }),
             apiRequest("/users/me/family", token, {
                 headers: { 'X-Tenant-Slug': params.slug! }
             }).catch(() => ({ family: [] })) as Promise<{ family: FamilyMember[] }>,
             apiRequest("/locations", token, { headers: { 'X-Tenant-Slug': params.slug! } }).catch(() => ({ locations: [] })),
-            apiRequest("/members?role=instructor", token, { headers: { 'X-Tenant-Slug': params.slug! } }).catch(() => ({ members: [] }))
+            apiRequest("/members?role=instructor", token, { headers: { 'X-Tenant-Slug': params.slug! } }).catch(() => ({ members: [] })),
+            apiRequest("/memberships/plans", token, { headers: { 'X-Tenant-Slug': params.slug! } }).catch(() => [])
         ]);
 
         return {
             classes,
             family: familyRes.family || [],
             locations: (locationsRes as any).locations || [],
-            instructors: (instructorsRes as any).members || []
+            instructors: (instructorsRes as any).members || [],
+            plans: plansRes || []
         };
     } catch (e: any) {
         console.error("Failed to load classes", e);
@@ -68,12 +73,17 @@ export const loader = async (args: LoaderFunctionArgs) => {
 // ... (keep action as is)
 
 export default function StudioPublicClasses() {
-    const { classes: initialClasses, family, error, locations, instructors } = useLoaderData<any>();
-    const { member, roles, tenant } = useOutletContext<any>() || {};
+    const { classes: initialClasses, family, error, locations, instructors, plans } = useLoaderData<any>();
+    const { member, roles, tenant, me } = useOutletContext<any>() || {};
     const fetcher = useFetcher();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     // Local State
     const [classes, setClasses] = useState(initialClasses);
+
+    useEffect(() => {
+        setClasses(initialClasses);
+    }, [initialClasses]);
 
     // Booking Modal State
     const [selectedClass, setSelectedClass] = useState<ClassEvent | null>(null);
@@ -97,6 +107,25 @@ export default function StudioPublicClasses() {
         setClasses([...classes, newClass]);
     };
 
+    const handleArchive = async (classId: string, archive: boolean) => {
+        if (!confirm(`Are you sure you want to ${archive ? 'archive' : 'unarchive'} this class?`)) return;
+        try {
+            const token = await (window as any).Clerk?.session?.getToken();
+            await apiRequest(`/classes/${classId}`, token, {
+                method: 'PATCH',
+                headers: { 'X-Tenant-Slug': tenant.slug },
+                body: JSON.stringify({ status: archive ? 'archived' : 'active' })
+            });
+            // Update local state or reload
+            // Reloading via fetcher or window might be safer, but local update is faster
+            setClasses(classes.map((c: ClassEvent) => c.id === classId ? { ...c, status: archive ? 'archived' : 'active' } : c));
+            // Trigger loader reload to respect filters
+            // fetcher.load(location.pathname + location.search);
+        } catch (e) {
+            alert("Failed to update class status");
+        }
+    };
+
     const grouped = classes.reduce((acc: Record<string, ClassEvent[]>, cls: ClassEvent) => {
         const date = new Date(cls.startTime).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
         if (!acc[date]) acc[date] = [];
@@ -113,21 +142,38 @@ export default function StudioPublicClasses() {
                 tenantId={tenant?.id}
                 locations={locations}
                 instructors={instructors}
+                plans={plans}
             />
 
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Class Schedule</h2>
                 <div className="flex items-center gap-2">
                     {isAdmin && (
-                        <button
-                            onClick={() => setIsCreateOpen(true)}
-                            className="flex items-center gap-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 rounded-md hover:opacity-90 transition-opacity font-medium text-sm"
-                        >
-                            <Plus size={16} />
-                            Create Class
-                        </button>
+                        <>
+                            <label className="flex items-center gap-1.5 text-sm cursor-pointer mr-2">
+                                <input
+                                    type="checkbox"
+                                    className="rounded border-zinc-300"
+                                    checked={searchParams.get("includeArchived") === "true"}
+                                    onChange={(e) => {
+                                        const newParams = new URLSearchParams(searchParams);
+                                        if (e.target.checked) newParams.set("includeArchived", "true");
+                                        else newParams.delete("includeArchived");
+                                        setSearchParams(newParams);
+                                    }}
+                                />
+                                <span className="text-zinc-600 dark:text-zinc-400">Show Archived</span>
+                            </label>
+                            <button
+                                onClick={() => setIsCreateOpen(true)}
+                                className="flex items-center gap-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 rounded-md hover:opacity-90 transition-opacity font-medium text-sm"
+                            >
+                                <Plus size={16} />
+                                Create Class
+                            </button>
+                        </>
                     )}
-                    {!member && (
+                    {!me && (
                         <div className="text-sm text-zinc-500 dark:text-zinc-400">
                             Sign in to book classes.
                         </div>
@@ -147,6 +193,7 @@ export default function StudioPublicClasses() {
                 onClose={() => setSelectedClass(null)}
                 classEvent={selectedClass}
                 family={family}
+                member={member}
             />
 
             <div className="space-y-8">
@@ -160,9 +207,12 @@ export default function StudioPublicClasses() {
                             <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-3 sticky top-0 bg-zinc-50/95 dark:bg-zinc-950/95 py-2 backdrop-blur">{date}</h3>
                             <div className="space-y-3">
                                 {events.map((cls: ClassEvent) => (
-                                    <div key={cls.id} className="bg-white dark:bg-zinc-900 p-4 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors flex justify-between items-center">
+                                    <div key={cls.id} className={`p-4 rounded-lg border shadow-sm transition-colors flex justify-between items-center ${cls.status === 'archived' ? 'bg-zinc-50 dark:bg-zinc-900/50 border-zinc-100 dark:border-zinc-800 opacity-60' : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300'}`}>
                                         <div>
-                                            <div className="font-bold text-zinc-900 dark:text-zinc-100">{cls.title}</div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="font-bold text-zinc-900 dark:text-zinc-100">{cls.title}</div>
+                                                {cls.status === 'archived' && <span className="text-[10px] uppercase bg-zinc-200 text-zinc-600 px-1.5 py-0.5 rounded">Archived</span>}
+                                            </div>
                                             <div className="text-sm text-zinc-500 dark:text-zinc-400 flex flex-wrap gap-x-3">
                                                 <span>{new Date(cls.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {cls.durationMinutes} min</span>
                                                 {(cls as any).instructor?.user?.profile && (
@@ -182,103 +232,116 @@ export default function StudioPublicClasses() {
                                                 )}
                                             </div>
                                         </div>
-                                        <div>
-                                            {member ? (
-                                                <>
-                                                    {family.length > 0 ? (
-                                                        <button
-                                                            onClick={() => handleBookClick(cls)}
-                                                            disabled={(cls as any).userBookingStatus === 'confirmed'}
-                                                            className={`px-4 py-2 text-sm font-medium rounded transition-colors disabled:opacity-50 ${((cls as any).userBookingStatus === 'confirmed')
-                                                                ? 'bg-zinc-100 text-zinc-500 cursor-default'
-                                                                : 'bg-zinc-900 text-white hover:bg-zinc-800'
-                                                                }`}
-                                                        >
-                                                            {(cls as any).userBookingStatus === 'confirmed' ? "Booked" :
-                                                                // If Zoom is enabled, allow "Book" (Modal will handle waitlist logic per type)
-                                                                // If In-Person only and full, show "Join Waitlist"
-                                                                (!cls.zoomEnabled && (cls.inPersonCount || 0) >= (cls.capacity || Infinity)) ? "Join Waitlist" : "Book"
-                                                            }
-                                                        </button>
-                                                    ) : (
-                                                        <div className="flex flex-col gap-2 items-end">
-                                                            {(cls as any).userBookingStatus === 'confirmed' ? (
-                                                                <div className="flex items-center gap-2">
-                                                                    {cls.zoomEnabled && cls.userBooking ? (
+                                        <div className="flex items-center gap-4">
+                                            {/* Admin Actions */}
+                                            {isAdmin && (
+                                                <button
+                                                    onClick={() => handleArchive(cls.id, cls.status !== 'archived')}
+                                                    className="p-1.5 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded"
+                                                    title={cls.status === 'archived' ? 'Restore Class' : 'Archive Class'}
+                                                >
+                                                    {cls.status === 'archived' ? <ArchiveRestore size={16} /> : <Archive size={16} />}
+                                                </button>
+                                            )}
+
+                                            {/* Booking Actions */}
+                                            {cls.status !== 'archived' && (
+                                                <div>
+                                                    {member ? (
+                                                        <>
+                                                            {family.length > 0 ? (
+                                                                <button
+                                                                    onClick={() => handleBookClick(cls)}
+                                                                    disabled={(cls as any).userBookingStatus === 'confirmed'}
+                                                                    className={`px-4 py-2 text-sm font-medium rounded transition-colors disabled:opacity-50 ${((cls as any).userBookingStatus === 'confirmed')
+                                                                        ? 'bg-zinc-100 text-zinc-500 cursor-default'
+                                                                        : 'bg-zinc-900 text-white hover:bg-zinc-800'
+                                                                        }`}
+                                                                >
+                                                                    {(cls as any).userBookingStatus === 'confirmed' ? "Booked" :
+                                                                        (!cls.zoomEnabled && (cls.inPersonCount || 0) >= (cls.capacity || Infinity)) ? "Join Waitlist" : "Book"
+                                                                    }
+                                                                </button>
+                                                            ) : (
+                                                                <div className="flex flex-col gap-2 items-end">
+                                                                    {(cls as any).userBookingStatus === 'confirmed' ? (
+                                                                        <div className="flex items-center gap-2">
+                                                                            {cls.zoomEnabled && cls.userBooking ? (
+                                                                                <fetcher.Form method="post">
+                                                                                    <input type="hidden" name="intent" value="switch_attendance" />
+                                                                                    <input type="hidden" name="classId" value={cls.id} />
+                                                                                    <input type="hidden" name="bookingId" value={cls.userBooking.id} />
+                                                                                    <input type="hidden" name="attendanceType" value={cls.userBooking.attendanceType === 'zoom' ? 'in_person' : 'zoom'} />
+                                                                                    <button
+                                                                                        type="submit"
+                                                                                        title="Switch Attendance Type"
+                                                                                        disabled={fetcher.state !== "idle"}
+                                                                                        className="text-xs text-blue-600 hover:underline disabled:opacity-50"
+                                                                                    >
+                                                                                        Switch to {cls.userBooking.attendanceType === 'zoom' ? 'In-Person' : 'Zoom'}
+                                                                                    </button>
+                                                                                </fetcher.Form>
+                                                                            ) : null}
+
+                                                                            <fetcher.Form method="post" onSubmit={(e: React.FormEvent) => {
+                                                                                if (!confirm("Are you sure you want to cancel this booking?")) {
+                                                                                    e.preventDefault();
+                                                                                }
+                                                                            }}>
+                                                                                <input type="hidden" name="intent" value="cancel_booking" />
+                                                                                <input type="hidden" name="classId" value={cls.id} />
+                                                                                <input type="hidden" name="bookingId" value={cls.userBooking!.id} />
+                                                                                <button
+                                                                                    type="submit"
+                                                                                    disabled={fetcher.state !== "idle"}
+                                                                                    className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                                                                                >
+                                                                                    Cancel
+                                                                                </button>
+                                                                            </fetcher.Form>
+
+                                                                            <span className="px-4 py-2 text-sm font-medium rounded bg-zinc-100 text-zinc-500 cursor-default">
+                                                                                Booked {cls.userBooking?.attendanceType === 'zoom' ? '(Virtual)' : '(In-Person)'}
+                                                                            </span>
+                                                                        </div>
+                                                                    ) : (
                                                                         <fetcher.Form method="post">
-                                                                            <input type="hidden" name="intent" value="switch_attendance" />
+                                                                            <input type="hidden" name="intent" value={((cls.confirmedCount || 0) >= (cls.capacity || Infinity)) ? "waitlist" : "book"} />
                                                                             <input type="hidden" name="classId" value={cls.id} />
-                                                                            <input type="hidden" name="bookingId" value={cls.userBooking.id} />
-                                                                            <input type="hidden" name="attendanceType" value={cls.userBooking.attendanceType === 'zoom' ? 'in_person' : 'zoom'} />
                                                                             <button
                                                                                 type="submit"
-                                                                                title="Switch Attendance Type"
-                                                                                disabled={fetcher.state !== "idle"}
-                                                                                className="text-xs text-blue-600 hover:underline disabled:opacity-50"
+                                                                                onClick={(e) => {
+                                                                                    if (cls.zoomEnabled) {
+                                                                                        e.preventDefault();
+                                                                                        setSelectedClass(cls);
+                                                                                    }
+                                                                                }}
+                                                                                disabled={(fetcher.state !== "idle" && fetcher.formData?.get("classId") === cls.id) || (cls as any).userBookingStatus === 'confirmed' || (cls as any).userBookingStatus === 'waitlisted'}
+                                                                                className={`px-4 py-2 text-sm font-medium rounded transition-colors disabled:opacity-50 ${((cls as any).userBookingStatus === 'confirmed' || (cls as any).userBookingStatus === 'waitlisted')
+                                                                                    ? 'bg-zinc-100 text-zinc-500 cursor-default'
+                                                                                    : 'bg-zinc-900 text-white hover:bg-zinc-800'
+                                                                                    }`}
                                                                             >
-                                                                                Switch to {cls.userBooking.attendanceType === 'zoom' ? 'In-Person' : 'Zoom'}
+                                                                                {(fetcher.state !== "idle" && fetcher.formData?.get("classId") === cls.id)
+                                                                                    ? "Processing..."
+                                                                                    : (cls as any).userBookingStatus === 'confirmed'
+                                                                                        ? "Booked"
+                                                                                        : (cls as any).userBookingStatus === 'waitlisted'
+                                                                                            ? "On Waitlist"
+                                                                                            : (!cls.zoomEnabled && (cls.inPersonCount || 0) >= (cls.capacity || Infinity)) ? "Join Waitlist" : "Book"
+                                                                                }
                                                                             </button>
                                                                         </fetcher.Form>
-                                                                    ) : null}
-
-                                                                    {/* Cancel Button */}
-                                                                    <fetcher.Form method="post" onSubmit={(e: React.FormEvent) => {
-                                                                        if (!confirm("Are you sure you want to cancel this booking?")) {
-                                                                            e.preventDefault();
-                                                                        }
-                                                                    }}>
-                                                                        <input type="hidden" name="intent" value="cancel_booking" />
-                                                                        <input type="hidden" name="classId" value={cls.id} />
-                                                                        <input type="hidden" name="bookingId" value={cls.userBooking!.id} />
-                                                                        <button
-                                                                            type="submit"
-                                                                            disabled={fetcher.state !== "idle"}
-                                                                            className="text-xs text-red-600 hover:underline disabled:opacity-50"
-                                                                        >
-                                                                            Cancel
-                                                                        </button>
-                                                                    </fetcher.Form>
-
-                                                                    <span className="px-4 py-2 text-sm font-medium rounded bg-zinc-100 text-zinc-500 cursor-default">
-                                                                        Booked {cls.userBooking?.attendanceType === 'zoom' ? '(Virtual)' : '(In-Person)'}
-                                                                    </span>
+                                                                    )}
                                                                 </div>
-                                                            ) : (
-                                                                <fetcher.Form method="post">
-                                                                    <input type="hidden" name="intent" value={((cls.confirmedCount || 0) >= (cls.capacity || Infinity)) ? "waitlist" : "book"} />
-                                                                    <input type="hidden" name="classId" value={cls.id} />
-                                                                    <button
-                                                                        type="submit"
-                                                                        onClick={(e) => {
-                                                                            if (cls.zoomEnabled) {
-                                                                                e.preventDefault();
-                                                                                setSelectedClass(cls);
-                                                                            }
-                                                                        }}
-                                                                        disabled={(fetcher.state !== "idle" && fetcher.formData?.get("classId") === cls.id) || (cls as any).userBookingStatus === 'confirmed' || (cls as any).userBookingStatus === 'waitlisted'}
-                                                                        className={`px-4 py-2 text-sm font-medium rounded transition-colors disabled:opacity-50 ${((cls as any).userBookingStatus === 'confirmed' || (cls as any).userBookingStatus === 'waitlisted')
-                                                                            ? 'bg-zinc-100 text-zinc-500 cursor-default'
-                                                                            : 'bg-zinc-900 text-white hover:bg-zinc-800'
-                                                                            }`}
-                                                                    >
-                                                                        {(fetcher.state !== "idle" && fetcher.formData?.get("classId") === cls.id)
-                                                                            ? "Processing..."
-                                                                            : (cls as any).userBookingStatus === 'confirmed'
-                                                                                ? "Booked"
-                                                                                : (cls as any).userBookingStatus === 'waitlisted'
-                                                                                    ? "On Waitlist"
-                                                                                    : (!cls.zoomEnabled && (cls.inPersonCount || 0) >= (cls.capacity || Infinity)) ? "Join Waitlist" : "Book"
-                                                                        }
-                                                                    </button>
-                                                                </fetcher.Form>
                                                             )}
-                                                        </div>
+                                                        </>
+                                                    ) : (
+                                                        <a href="/sign-in" className="px-4 py-2 border border-zinc-300 text-zinc-700 text-sm font-medium rounded hover:bg-zinc-50">
+                                                            Login to Book
+                                                        </a>
                                                     )}
-                                                </>
-                                            ) : (
-                                                <a href="/sign-in" className="px-4 py-2 border border-zinc-300 text-zinc-700 text-sm font-medium rounded hover:bg-zinc-50">
-                                                    Login to Book
-                                                </a>
+                                                </div>
                                             )}
                                         </div>
                                     </div>

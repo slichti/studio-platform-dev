@@ -24,7 +24,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 }
 
 export default function StudioDashboardIndex() {
-    const { tenant, roles, me } = useOutletContext<any>();
+    const { tenant, roles, me, isStudentView } = useOutletContext<any>();
     const { stats } = useLoaderData<typeof loader>();
     const names = me?.firstName ? `${me.firstName} ${me.lastName || ''}` : me?.email?.split('@')[0];
     const isOwner = roles.includes('owner');
@@ -123,104 +123,140 @@ export default function StudioDashboardIndex() {
 
             )}
 
+            {/* Dashboard Actions */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-8">
-                    <h3 className="text-lg font-bold mb-1 text-zinc-900 dark:text-zinc-100">Getting Started</h3>
-                    <p className="mb-6 text-sm text-zinc-500 dark:text-zinc-400">Your studio is live! Use these shortcuts to manage your operations.</p>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {isOwner && (
-                            <DashboardAction
-                                to="branding"
-                                title="Customize Branding"
-                                description="Update your colors, logo and style."
-                            />
-                        )}
-                        <DashboardAction
-                            to="schedule"
-                            title="Manage Schedule"
-                            description="Add classes and view bookings."
-                        />
-
-                        {/* Student Achievements Section */}
-                        {!isOwner && (
-                            <div className="md:col-span-2 mt-4">
-                                <h3 className="text-lg font-bold mb-4 text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                                    <Award className="text-yellow-500" />
-                                    Your Achievements
-                                </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {((useLoaderData() as any).myProgress || []).map((challenge: any) => (
-                                        <div key={challenge.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-4 rounded-xl flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-yellow-600 dark:text-yellow-400 shrink-0">
-                                                {challenge.userProgress.status === 'completed' ? <Award size={24} /> : <Target size={24} />}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex justify-between items-center mb-1">
-                                                    <h4 className="font-bold text-sm text-zinc-900 dark:text-zinc-100 truncate">{challenge.title}</h4>
-                                                    {challenge.userProgress.status === 'completed' && (
-                                                        <span className="text-[10px] font-bold bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">EARNED</span>
-                                                    )}
-                                                </div>
-                                                <div className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-full h-2 mb-1">
-                                                    <div
-                                                        className="bg-yellow-500 h-2 rounded-full transition-all"
-                                                        style={{ width: `${Math.min(100, (challenge.userProgress.progress / challenge.targetValue) * 100)}%` }}
-                                                    />
-                                                </div>
-                                                <div className="text-xs text-zinc-500 flex justify-between">
-                                                    {challenge.type === 'streak' ? (
-                                                        <span className="flex items-center gap-1 font-medium text-amber-600">
-                                                            <Flame size={12} className={challenge.userProgress.status === 'completed' ? "" : "animate-pulse"} />
-                                                            {challenge.userProgress.progress} / {challenge.targetValue} {challenge.period || 'streak'}s
-                                                        </span>
-                                                    ) : (
-                                                        <span>{challenge.userProgress.progress} / {challenge.targetValue} {challenge.type === 'minutes' ? 'mins' : 'classes'}</span>
-                                                    )}
-                                                    <span>{Math.round((challenge.userProgress.progress / challenge.targetValue) * 100)}%</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {(!((useLoaderData() as any).myProgress) || (useLoaderData() as any).myProgress.length === 0) && (
-                                        <div className="col-span-2 text-center py-4 text-zinc-500 dark:text-zinc-400 text-sm italic">
-                                            Join active challenges to earn rewards!
-                                        </div>
-                                    )}
-                                </div>
+                    {!isStudentView ? (
+                        <>
+                            <h3 className="text-lg font-bold mb-1 text-zinc-900 dark:text-zinc-100">Getting Started</h3>
+                            <p className="mb-6 text-sm text-zinc-500 dark:text-zinc-400">Your studio is live! Use these shortcuts to manage your operations.</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {isOwner && (
+                                    <DashboardAction
+                                        to="branding"
+                                        title="Customize Branding"
+                                        description="Update your colors, logo and style."
+                                    />
+                                )}
+                                <DashboardAction
+                                    to="schedule"
+                                    title="Manage Schedule"
+                                    description="Add classes and view bookings."
+                                />
+                                {isOwner && (
+                                    <DashboardAction
+                                        to="memberships"
+                                        title="Setup Memberships"
+                                        description="Create recurring revenue plans."
+                                    />
+                                )}
+                                <DashboardAction
+                                    to="students"
+                                    title="Add Students"
+                                    description="Grow your community today."
+                                />
                             </div>
-                        )}
-                        {isOwner && (
-                            <DashboardAction
-                                to="memberships"
-                                title="Setup Memberships"
-                                description="Create recurring revenue plans."
-                            />
-                        )}
-                        <DashboardAction
-                            to="students"
-                            title="Add Students"
-                            description="Grow your community today."
-                        />
-                    </div>
+                        </>
+                    ) : (
+                        <>
+                            <h3 className="text-lg font-bold mb-4 text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                <Award className="text-yellow-500" />
+                                Your Achievements
+                            </h3>
+                            {/* Student Achievements Section */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {((useLoaderData() as any).myProgress || []).map((challenge: any) => (
+                                    <div key={challenge.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-4 rounded-xl flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-yellow-600 dark:text-yellow-400 shrink-0">
+                                            {challenge.userProgress.status === 'completed' ? <Award size={24} /> : <Target size={24} />}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <h4 className="font-bold text-sm text-zinc-900 dark:text-zinc-100 truncate">{challenge.title}</h4>
+                                                {challenge.userProgress.status === 'completed' && (
+                                                    <span className="text-[10px] font-bold bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">EARNED</span>
+                                                )}
+                                            </div>
+                                            <div className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-full h-2 mb-1">
+                                                <div
+                                                    className="bg-yellow-500 h-2 rounded-full transition-all"
+                                                    style={{ width: `${Math.min(100, (challenge.userProgress.progress / challenge.targetValue) * 100)}%` }}
+                                                />
+                                            </div>
+                                            <div className="text-xs text-zinc-500 flex justify-between">
+                                                {challenge.type === 'streak' ? (
+                                                    <span className="flex items-center gap-1 font-medium text-amber-600">
+                                                        <Flame size={12} className={challenge.userProgress.status === 'completed' ? "" : "animate-pulse"} />
+                                                        {challenge.userProgress.progress} / {challenge.targetValue} {challenge.period || 'streak'}s
+                                                    </span>
+                                                ) : (
+                                                    <span>{challenge.userProgress.progress} / {challenge.targetValue} {challenge.type === 'minutes' ? 'mins' : 'classes'}</span>
+                                                )}
+                                                <span>{Math.round((challenge.userProgress.progress / challenge.targetValue) * 100)}%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                                {(!((useLoaderData() as any).myProgress) || (useLoaderData() as any).myProgress.length === 0) && (
+                                    <div className="col-span-2 text-center py-4 text-zinc-500 dark:text-zinc-400 text-sm italic">
+                                        Join active challenges to earn rewards!
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm">
-                    <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
-                        <Activity size={18} className="text-blue-500" />
-                        Quick Tips
-                    </h3>
-                    <div className="space-y-4">
-                        <div className="p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
-                            <strong>Did you know?</strong> You can now use the <Link to="pos" className="text-blue-600 font-bold hover:underline">POS System</Link> to sell drinks and gear directly at your front desk.
-                        </div>
-                        <div className="p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
-                            Enable <Link to="settings" className="text-blue-600 font-bold hover:underline">SMS Notifications</Link> to reduce no-shows by up to 30%.
-                        </div>
-                    </div>
+                    {isStudentView ? (
+                        <>
+                            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
+                                <Activity size={18} className="text-blue-500" />
+                                Announcements & Updates
+                            </h3>
+                            <div className="space-y-4">
+                                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 rounded-lg">
+                                    <div className="flex justify-between items-start mb-1">
+                                        <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">New</span>
+                                        <span className="text-[10px] text-zinc-400">Today</span>
+                                    </div>
+                                    <p className="text-sm text-zinc-700 dark:text-zinc-300 font-medium">Summer schedule is live! Check out our new morning flow classes.</p>
+                                </div>
+
+                                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mt-6 mb-2 flex items-center gap-2 text-sm">
+                                    <Flame size={16} className="text-orange-500" />
+                                    Quick Discounts
+                                </h3>
+                                <div className="p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-900 rounded-lg">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="text-xs font-bold text-orange-700 dark:text-orange-400">3 Spots Left!</span>
+                                        <span className="text-[10px] bg-orange-200 dark:bg-orange-800 text-orange-800 dark:text-orange-200 px-1.5 py-0.5 rounded">20% OFF</span>
+                                    </div>
+                                    <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">Power Yoga @ 6:00 PM</p>
+                                    <Link to="classes" className="text-xs text-blue-600 hover:underline mt-1 block">Book Now &rarr;</Link>
+                                </div>
+                            </div>
+                        </>
+
+                    ) : (
+                        <>
+                            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
+                                <Activity size={18} className="text-blue-500" />
+                                Quick Tips
+                            </h3>
+                            <div className="space-y-4">
+                                <div className="p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+                                    <strong>Did you know?</strong> You can now use the <Link to="pos" className="text-blue-600 font-bold hover:underline">POS System</Link> to sell drinks and gear directly at your front desk.
+                                </div>
+                                <div className="p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+                                    Enable <Link to="settings" className="text-blue-600 font-bold hover:underline">SMS Notifications</Link> to reduce no-shows by up to 30%.
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
-            </div>
-        </div >
+            </div >
+        </div>
     );
 }
 

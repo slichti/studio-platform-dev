@@ -12,9 +12,10 @@ interface CreateClassModalProps {
     tenantId?: string;
     locations?: any[];
     instructors?: any[];
+    plans?: any[];
 }
 
-export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], instructors = [] }: CreateClassModalProps) {
+export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], instructors = [], plans = [] }: CreateClassModalProps) {
     const { getToken } = useAuth();
     const { slug } = useParams();
     const [loading, setLoading] = useState(false);
@@ -35,7 +36,15 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
         createZoom: false,
         minEnrollment: 1,
         autoCancelThreshold: 2,
-        autoCancelEnabled: false
+        autoCancelEnabled: false,
+        type: 'class',
+        memberPrice: "",
+        allowCredits: true,
+        type: 'class',
+        memberPrice: "",
+        allowCredits: true,
+        includedPlanIds: [] as string[],
+        recurringDays: [] as string[]
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -48,8 +57,12 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
 
             let recurrenceRule = undefined;
             if (formData.isRecurring) {
-                const { RRule } = await import("rrule");
+                // const { RRule } = await import("rrule"); // Not strictly needed if we build string manually
                 recurrenceRule = formData.recurrencePattern === "weekly" ? "FREQ=WEEKLY" : "FREQ=DAILY";
+
+                if (formData.recurrencePattern === "weekly" && formData.recurringDays.length > 0) {
+                    recurrenceRule += `;BYDAY=${formData.recurringDays.join(',')}`;
+                }
             }
 
             const res: any = await apiRequest("/classes", token, {
@@ -70,7 +83,11 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                     recurrenceEnd: formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate).toISOString() : undefined,
                     minStudents: Number(formData.minEnrollment),
                     autoCancelThreshold: Number(formData.autoCancelThreshold),
-                    autoCancelEnabled: formData.autoCancelEnabled
+                    autoCancelEnabled: formData.autoCancelEnabled,
+                    type: formData.type,
+                    memberPrice: formData.memberPrice ? Number(formData.memberPrice) : null,
+                    allowCredits: formData.allowCredits,
+                    includedPlanIds: formData.includedPlanIds
                 })
             });
 
@@ -94,7 +111,14 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                     createZoom: false,
                     minEnrollment: 1,
                     autoCancelThreshold: 2,
-                    autoCancelEnabled: false
+                    autoCancelEnabled: false,
+                    type: 'class',
+                    memberPrice: "",
+                    allowCredits: true,
+                    memberPrice: "",
+                    allowCredits: true,
+                    includedPlanIds: [],
+                    recurringDays: []
                 });
             }
         } catch (e: any) {
@@ -140,6 +164,20 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                 </div>
 
                 <div>
+                    <label className="block text-sm font-medium text-zinc-700 mb-1">Class Type</label>
+                    <select
+                        className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                        value={formData.type}
+                        onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                    >
+                        <option value="class">Regular Class</option>
+                        <option value="workshop">Workshop</option>
+                        <option value="event">Event</option>
+                        <option value="appointment">Appointment (Private)</option>
+                    </select>
+                </div>
+
+                <div>
                     <label className="block text-sm font-medium text-zinc-700 mb-1">Location</label>
                     <select
                         className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white"
@@ -174,6 +212,7 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                         <input
                             type="datetime-local"
                             required
+                            step="600"
                             className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
                             value={formData.startTime}
                             onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
@@ -215,6 +254,58 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                             value={formData.price}
                             onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
                         />
+                    </div>
+                </div>
+
+                <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-lg space-y-4">
+                    <h3 className="text-sm font-semibold text-zinc-900 border-b border-zinc-200 pb-2">Access & Pricing Rules</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-medium text-zinc-700 mb-1">Member Price ($)</label>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                                value={formData.memberPrice}
+                                onChange={(e) => setFormData({ ...formData, memberPrice: e.target.value })}
+                                placeholder="Optional"
+                            />
+                        </div>
+                        <div className="flex items-center">
+                            <label className="flex items-center gap-2 text-sm text-zinc-700 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={formData.allowCredits}
+                                    onChange={(e) => setFormData({ ...formData, allowCredits: e.target.checked })}
+                                    className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span>Accept Class Packs/Credits?</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-medium text-zinc-700 mb-1">Included Free in Plans:</label>
+                        <div className="max-h-24 overflow-y-auto border border-zinc-300 rounded bg-white p-2 space-y-1">
+                            {plans.map((plan: any) => (
+                                <label key={plan.id} className="flex items-center gap-2 text-xs hover:bg-zinc-50 p-1 rounded cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={formData.includedPlanIds.includes(plan.id)}
+                                        onChange={(e) => {
+                                            const newIds = e.target.checked
+                                                ? [...formData.includedPlanIds, plan.id]
+                                                : formData.includedPlanIds.filter(id => id !== plan.id);
+                                            setFormData({ ...formData, includedPlanIds: newIds });
+                                        }}
+                                        className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <span>{plan.name}</span>
+                                </label>
+                            ))}
+                            {plans.length === 0 && <span className="text-zinc-400 italic">No plans found.</span>}
+                        </div>
                     </div>
                 </div>
 
@@ -291,6 +382,44 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                                     />
                                 </div>
                             </div>
+
+                            {formData.recurrencePattern === 'weekly' && (
+                                <div>
+                                    <label className="block text-xs font-medium text-zinc-600 mb-2">Repeat On</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {[
+                                            { label: 'Mon', value: 'MO' },
+                                            { label: 'Tue', value: 'TU' },
+                                            { label: 'Wed', value: 'WE' },
+                                            { label: 'Thu', value: 'TH' },
+                                            { label: 'Fri', value: 'FR' },
+                                            { label: 'Sat', value: 'SA' },
+                                            { label: 'Sun', value: 'SU' }
+                                        ].map((day) => (
+                                            <label key={day.value} className={`
+                                                flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium cursor-pointer transition-colors border
+                                                ${formData.recurringDays.includes(day.value)
+                                                    ? 'bg-blue-600 text-white border-blue-600'
+                                                    : 'bg-white text-zinc-600 border-zinc-200 hover:border-blue-300'
+                                                }
+                                            `}>
+                                                <input
+                                                    type="checkbox"
+                                                    className="hidden"
+                                                    checked={formData.recurringDays.includes(day.value)}
+                                                    onChange={(e) => {
+                                                        const newDays = e.target.checked
+                                                            ? [...formData.recurringDays, day.value]
+                                                            : formData.recurringDays.filter(d => d !== day.value);
+                                                        setFormData({ ...formData, recurringDays: newDays });
+                                                    }}
+                                                />
+                                                {day.label[0]}
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -312,6 +441,6 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                     </button>
                 </div>
             </form>
-        </Modal>
+        </Modal >
     );
 }

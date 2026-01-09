@@ -1,4 +1,3 @@
-
 import { sqliteTable, text, integer, uniqueIndex, index, primaryKey } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
@@ -22,6 +21,7 @@ export const tenants = sqliteTable('tenants', {
     // Phase 16: Secure BYOK (Email/SMS)
     resendCredentials: text('resend_credentials', { mode: 'json' }), // Encrypted JSON: { apiKey }
     twilioCredentials: text('twilio_credentials', { mode: 'json' }), // Encrypted JSON: { accountSid, authToken, fromNumber }
+    flodeskCredentials: text('flodesk_credentials', { mode: 'json' }), // Encrypted JSON: { apiKey }
 
     currency: text('currency').default('usd').notNull(), // Added currency
     zoomCredentials: text('zoom_credentials', { mode: 'json' }), // Encrypted
@@ -80,8 +80,6 @@ export const tenantFeatures = sqliteTable('tenant_features', {
 }, (table) => ({
     uniqueFeature: uniqueIndex('unique_feature_idx').on(table.tenantId, table.featureKey),
 }));
-
-
 
 // --- Global Users (Clerk-linked) ---
 export const users = sqliteTable('users', {
@@ -203,7 +201,11 @@ export const classes = sqliteTable('classes', {
     durationMinutes: integer('duration_minutes').notNull(),
     capacity: integer('capacity'),
     price: integer('price').default(0), // In cents
+    memberPrice: integer('member_price'), // Discounted price for members (nullable)
     currency: text('currency').default('usd'),
+    type: text('type', { enum: ['class', 'workshop', 'event', 'appointment'] }).default('class').notNull(),
+    allowCredits: integer('allow_credits', { mode: 'boolean' }).default(true).notNull(), // Can pay with credits?
+    includedPlanIds: text('included_plan_ids', { mode: 'json' }), // JSON Array of Plan IDs that get this free
     zoomMeetingUrl: text('zoom_meeting_url'),
     zoomMeetingId: text('zoom_meeting_id'),
     zoomPassword: text('zoom_password'),
@@ -217,9 +219,9 @@ export const classes = sqliteTable('classes', {
     livekitRoomName: text('livekit_room_name'),
     livekitRoomSid: text('livekit_room_sid'),
 
-    status: text('status', { enum: ['active', 'cancelled'] }).default('active').notNull(),
+    status: text('status', { enum: ['active', 'cancelled', 'archived'] }).default('active').notNull(),
 
-    // Cancellation Logic
+    // Cancellation & Archive Logic
     minStudents: integer('min_students').default(1),
     autoCancelThreshold: integer('auto_cancel_threshold'), // Hours before start
     autoCancelEnabled: integer('auto_cancel_enabled', { mode: 'boolean' }).default(false),

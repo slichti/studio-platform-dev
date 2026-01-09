@@ -87,6 +87,11 @@ app.get('/credentials', async (c) => {
             configured: !!(tenant.resendCredentials as any)?.apiKey,
             apiKey: (tenant.resendCredentials as any)?.apiKey ?
                 `...${(tenant.resendCredentials as any).apiKey.slice(-4)}` : null
+        },
+        flodesk: {
+            configured: !!(tenant.flodeskCredentials as any)?.apiKey,
+            apiKey: (tenant.flodeskCredentials as any)?.apiKey ?
+                `...${(tenant.flodeskCredentials as any).apiKey.slice(-4)}` : null
         }
     });
 });
@@ -98,7 +103,7 @@ app.patch('/credentials', async (c) => {
 
     if (!tenant) return c.json({ error: "Tenant context required" }, 400);
 
-    const { twilio, resend } = await c.req.json();
+    const { twilio, resend, flodesk } = await c.req.json();
 
     const updateData: any = {};
 
@@ -120,6 +125,14 @@ app.patch('/credentials', async (c) => {
             Object.entries(resend).filter(([_, v]) => v !== undefined && v !== '')
         );
         updateData.resendCredentials = { ...existing, ...cleanResend };
+    }
+
+    if (flodesk) {
+        const existing = (tenant.flodeskCredentials as any) || {};
+        const cleanFlodesk = Object.fromEntries(
+            Object.entries(flodesk).filter(([_, v]) => v !== undefined && v !== '')
+        );
+        updateData.flodeskCredentials = { ...existing, ...cleanFlodesk };
     }
 
     if (Object.keys(updateData).length > 0) {

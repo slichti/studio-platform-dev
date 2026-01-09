@@ -43,7 +43,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 export default function StaffCheckInPage() {
     const { classes: initialClasses, token } = useLoaderData<typeof loader>();
     const { slug } = useParams();
-    const { roles } = useOutletContext<any>();
+    const { roles, isStudentView } = useOutletContext<any>();
 
     const [selectedClass, setSelectedClass] = useState<any>(null);
     const [roster, setRoster] = useState<any[]>([]);
@@ -117,8 +117,117 @@ export default function StaffCheckInPage() {
         // const audio = new Audio('/success.mp3'); audio.play().catch(() => {});
     };
 
-    if (!roles.includes('instructor') && !roles.includes('owner')) {
-        return <div className="p-8 text-center">Access Denied: Instructor portal only.</div>;
+    // Student View: Attendance History
+    if (isStudentView || (!roles.includes('instructor') && !roles.includes('owner'))) {
+        const [history, setHistory] = useState<any[]>([]);
+        const [loadingHistory, setLoadingHistory] = useState(true);
+
+        useEffect(() => {
+            const fetchHistory = async () => {
+                setLoadingHistory(true);
+                try {
+                    const res: any = await apiRequest('/members/me/bookings', token, {
+                        headers: { 'X-Tenant-Slug': slug! }
+                    });
+                    setHistory(res.bookings || []);
+                } catch (e) {
+                    console.error("Failed into fetch history", e);
+                } finally {
+                    setLoadingHistory(false);
+                }
+            };
+            fetchHistory();
+        }, [token, slug]);
+
+        // Calculate Stats
+        const completed = history.filter(b => b.status === 'confirmed' && b.checkedInAt).length; // "Attended" only if checked in? Or just confirmed past class?
+        // Usually confirmed + past time = attended for simplistic UI, but 'checkedInAt' is better if we enforce checkin.
+        // Let's use 'checkedInAt' for "Attended" count.
+        const upcoming = history.filter(b => b.status === 'confirmed' && new Date(b.class.startTime) > new Date()).length;
+
+        return (
+            <div className="max-w-4xl mx-auto p-6">
+                <div className="mb-8">
+                    <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-3">
+                        <CheckCircle2 className="text-emerald-500" size={32} />
+                        Attendance History
+                    </h1>
+                    <p className="text-zinc-500 mt-2">Track your class attendance and upcoming sessions.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                        <div className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-1">Classes Attended</div>
+                        <div className="text-4xl font-black text-emerald-600">{completed}</div>
+                    </div>
+                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                        <div className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-1">Upcoming Classes</div>
+                        <div className="text-4xl font-black text-blue-600">{upcoming}</div>
+                    </div>
+                </div>
+
+                <h2 className="text-xl font-bold mb-4 text-zinc-900 dark:text-zinc-100">Your Classes</h2>
+                {loadingHistory ? (
+                    <div className="p-12 text-center text-zinc-400">
+                        <Loader2 className="animate-spin mx-auto h-8 w-8 mb-2" />
+                        Loading history...
+                    </div>
+                ) : history.length === 0 ? (
+                    <div className="p-12 text-center bg-zinc-50 dark:bg-zinc-900 rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800">
+                        <Calendar className="mx-auto h-12 w-12 text-zinc-300 mb-4" />
+                        <h3 className="text-zinc-900 dark:text-zinc-100 font-bold mb-1">No classes yet</h3>
+                        <p className="text-sm text-zinc-500 mb-4">You haven't booked any classes yet.</p>
+                        <Link to={`/studio/${slug}/classes`} className="inline-block px-6 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-bold rounded-lg hover:opacity-90 transition-opacity">
+                            Book a Class
+                        </Link>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {history.map((booking) => {
+                            const isPast = new Date(booking.class.startTime) < new Date();
+                            const isCancelled = booking.status === 'cancelled';
+                            return (
+                                <div key={booking.id} className={`bg-white dark:bg-zinc-900 p-6 rounded-2xl border ${isCancelled ? 'border-red-200 bg-red-50/50 opacity-75' : 'border-zinc-200 dark:border-zinc-800'} shadow-sm flex flex-col md:flex-row md:items-center gap-6`}>
+                                    <div className="flex-shrink-0 flex flex-col items-center justify-center w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-2xl">
+                                        <span className="text-xs font-bold text-zinc-500 uppercase">{new Date(booking.class.startTime).toLocaleDateString([], { month: 'short' })}</span>
+                                        <span className="text-2xl font-black text-zinc-900 dark:text-zinc-100">{new Date(booking.class.startTime).getDate()}</span>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-1">{booking.class.title}</h3>
+                                        <div className="flex flex-wrap gap-4 text-sm text-zinc-500">
+                                            <span className="flex items-center gap-1.5">
+                                                <Calendar size={14} />
+                                                {new Date(booking.class.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                            {booking.class.location && (
+                                                <span className="flex items-center gap-1.5">
+                                                    <Circle size={8} className="fill-current text-zinc-300" />
+                                                    {booking.class.location.name}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex-shrink-0 text-right">
+                                        {isCancelled ? (
+                                            <span className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-sm font-bold uppercase tracking-wider">Cancelled</span>
+                                        ) : booking.checkedInAt ? (
+                                            <span className="flex items-center gap-2 text-emerald-600 font-bold">
+                                                <CheckCircle2 size={18} />
+                                                Checked In
+                                            </span>
+                                        ) : isPast ? (
+                                            <span className="text-zinc-400 font-medium text-sm">Completed</span>
+                                        ) : (
+                                            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm font-bold uppercase tracking-wider">Upcoming</span>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        );
     }
 
     // View Roster View

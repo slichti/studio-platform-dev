@@ -113,6 +113,20 @@ app.get('/availability', async (c) => {
 
     if (availableWindows.length === 0) return c.json({ slots: [] });
 
+    // Fetch Instructor Details
+    const instructorIds = [...new Set(availableWindows.map(w => w.instructorId))];
+    const instructors = await db.select({
+        id: tenantMembers.id,
+        firstName: sql<string>`json_extract(${users.profile}, '$.firstName')`,
+        lastName: sql<string>`json_extract(${users.profile}, '$.lastName')`
+    })
+        .from(tenantMembers)
+        .innerJoin(users, eq(tenantMembers.userId, users.id))
+        .where(inArray(tenantMembers.id, instructorIds))
+        .all();
+
+    const instructorMap = new Map(instructors.map(i => [i.id, `${i.firstName} ${i.lastName || ''}`.trim()]));
+
     // 3. Calculate Slots
     const slots: any[] = [];
 
@@ -162,7 +176,8 @@ app.get('/availability', async (c) => {
                 slots.push({
                     startTime: curr.toISOString(),
                     endTime: slotEnd.toISOString(),
-                    instructorId: win.instructorId
+                    instructorId: win.instructorId,
+                    instructorName: instructorMap.get(win.instructorId) || 'Instructor'
                 });
             }
 

@@ -14,7 +14,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
     const token = await getToken();
     try {
-        const res: any = await apiRequest("/coupons", token, {
+        const res: any = await apiRequest("/commerce/coupons", token, {
             headers: { 'X-Tenant-Slug': params.slug! }
         });
         return { coupons: res.coupons || [], error: null };
@@ -25,14 +25,14 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
 export default function CouponsPage() {
     const { coupons: initialCoupons, error } = useLoaderData<typeof loader>();
-    const { tenant } = useOutletContext<any>() || {};
+    const { tenant, isStudentView } = useOutletContext<any>() || {};
 
-    return <CouponsView initialCoupons={initialCoupons} tenant={tenant} />;
+    return <CouponsView initialCoupons={initialCoupons} tenant={tenant} isStudentView={isStudentView} />;
 }
 
 import { useAuth } from "@clerk/react-router";
 
-function CouponsView({ initialCoupons, tenant }: any) {
+function CouponsView({ initialCoupons, tenant, isStudentView }: any) {
     const [coupons, setCoupons] = useState(initialCoupons || []);
     const [loading, setLoading] = useState(false);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -41,7 +41,9 @@ function CouponsView({ initialCoupons, tenant }: any) {
 
     const fetchCoupons = async () => {
         const token = await getToken();
-        const res: any = await apiRequest("/coupons", token, {
+        // If student, this might need a different endpoint or the API handles it. 
+        // For now using the same endpoint but filtered by UI permissions.
+        const res: any = await apiRequest("/commerce/coupons", token, {
             headers: { 'X-Tenant-Slug': tenant.slug }
         });
         setCoupons(res.coupons || []);
@@ -52,7 +54,7 @@ function CouponsView({ initialCoupons, tenant }: any) {
         setLoading(true);
         try {
             const token = await getToken();
-            const res: any = await apiRequest("/coupons", token, {
+            const res: any = await apiRequest("/commerce/coupons", token, {
                 method: 'POST',
                 headers: { 'X-Tenant-Slug': tenant.slug },
                 body: JSON.stringify(form)
@@ -75,7 +77,7 @@ function CouponsView({ initialCoupons, tenant }: any) {
         setLoading(true);
         try {
             const token = await getToken();
-            await apiRequest(`/coupons/${id}`, token, {
+            await apiRequest(`/commerce/coupons/${id}`, token, {
                 method: 'DELETE',
                 headers: { 'X-Tenant-Slug': tenant.slug }
             });
@@ -95,16 +97,20 @@ function CouponsView({ initialCoupons, tenant }: any) {
                         <Tag className="text-pink-600 dark:text-pink-400" size={24} />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">Coupons</h1>
-                        <p className="text-zinc-500 dark:text-zinc-400 text-sm">Manage discounts and promotional codes.</p>
+                        <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">{isStudentView ? "My Coupons" : "Coupons"}</h1>
+                        <p className="text-zinc-500 dark:text-zinc-400 text-sm">
+                            {isStudentView ? "View available discount codes." : "Manage discounts and promotional codes."}
+                        </p>
                     </div>
                 </div>
-                <button
-                    onClick={() => setIsCreateOpen(true)}
-                    className="bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-2 rounded-lg text-sm font-bold hover:bg-zinc-800 transition-colors shadow-lg shadow-zinc-500/10 flex items-center gap-2"
-                >
-                    <Plus size={16} /> New Coupon
-                </button>
+                {!isStudentView && (
+                    <button
+                        onClick={() => setIsCreateOpen(true)}
+                        className="bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-2 rounded-lg text-sm font-bold hover:bg-zinc-800 transition-colors shadow-lg shadow-zinc-500/10 flex items-center gap-2"
+                    >
+                        <Plus size={16} /> New Coupon
+                    </button>
+                )}
             </div>
 
             {/* Create Modal */}
@@ -234,7 +240,7 @@ function CouponsView({ initialCoupons, tenant }: any) {
                                         )}
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        {coupon.active && (
+                                        {coupon.active && !isStudentView && (
                                             <button
                                                 onClick={() => handleDeactivate(coupon.id)}
                                                 disabled={loading}

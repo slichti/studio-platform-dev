@@ -91,6 +91,7 @@ export default function StudioMemberships() {
     const actionData = useActionData();
     const navigation = useNavigation();
     const isSubmitting = navigation.state === "submitting";
+    const { isStudentView } = useOutletContext<any>();
 
     // Modal State: Create or Edit
     const [modalState, setModalState] = useState<{ type: 'closed' } | { type: 'create' } | { type: 'edit', plan: any }>({ type: 'closed' });
@@ -184,12 +185,14 @@ export default function StudioMemberships() {
         <div className="text-zinc-900 dark:text-zinc-100">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Memberships</h2>
-                <button
-                    onClick={() => setModalState({ type: 'create' })}
-                    className="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors text-sm font-medium"
-                >
-                    + New Plan
-                </button>
+                {!isStudentView && (
+                    <button
+                        onClick={() => setModalState({ type: 'create' })}
+                        className="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors text-sm font-medium"
+                    >
+                        + New Plan
+                    </button>
+                )}
             </div>
 
             {error && (
@@ -236,21 +239,34 @@ export default function StudioMemberships() {
                                     <span className="text-sm font-normal text-zinc-500 dark:text-zinc-400">/{plan.interval}</span>
                                 </div>
                                 <p className="text-sm mb-6 min-h-[40px] text-zinc-500 dark:text-zinc-400">{plan.description || "No description provided."}</p>
-                                <button
-                                    onClick={() => setModalState({ type: 'edit', plan })}
-                                    className="w-full py-2 rounded hover:bg-zinc-50 dark:hover:bg-zinc-800 font-medium text-sm border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 transition-colors"
-                                >
-                                    Edit Plan
-                                </button>
-                                <Form method="post" onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
-                                    if (!confirm("Are you sure? This cannot be undone.")) e.preventDefault();
-                                }}>
-                                    <input type="hidden" name="intent" value="delete_plan" />
-                                    <input type="hidden" name="planId" value={plan.id} />
-                                    <button type="submit" className="w-full mt-2 text-red-600 hover:text-red-800 dark:hover:text-red-400 text-xs font-medium">
-                                        Delete Plan
+                                {isStudentView ? (
+                                    <button
+                                        onClick={() => {
+                                            alert("Membership checkout coming soon!")
+                                        }}
+                                        className="w-full py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-colors shadow-sm"
+                                    >
+                                        Subscribe Now
                                     </button>
-                                </Form>
+                                ) : (
+                                    <>
+                                        <button
+                                            onClick={() => setModalState({ type: 'edit', plan })}
+                                            className="w-full py-2 rounded hover:bg-zinc-50 dark:hover:bg-zinc-800 font-medium text-sm border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 transition-colors"
+                                        >
+                                            Edit Plan
+                                        </button>
+                                        <Form method="post" onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
+                                            if (!confirm("Are you sure? This cannot be undone.")) e.preventDefault();
+                                        }}>
+                                            <input type="hidden" name="intent" value="delete_plan" />
+                                            <input type="hidden" name="planId" value={plan.id} />
+                                            <button type="submit" className="w-full mt-2 text-red-600 hover:text-red-800 dark:hover:text-red-400 text-xs font-medium">
+                                                Delete Plan
+                                            </button>
+                                        </Form>
+                                    </>
+                                )}
                             </div>
                         </div>
                     ))

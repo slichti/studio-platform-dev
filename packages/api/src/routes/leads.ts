@@ -10,6 +10,7 @@ type Bindings = {
 type Variables = {
     auth: { userId: string };
     tenant: any;
+    roles?: string[];
 };
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
@@ -18,6 +19,10 @@ const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 app.get('/', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
 
     const list = await db.select().from(leads)
         .where(eq(leads.tenantId, tenant.id))
@@ -31,6 +36,11 @@ app.get('/', async (c) => {
 app.post('/', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
+
     const { email, firstName, lastName, phone, source, notes } = await c.req.json();
 
     if (!email) return c.json({ error: "Email is required" }, 400);
@@ -74,6 +84,11 @@ app.post('/', async (c) => {
 app.patch('/:id', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
+
     const id = c.req.param('id');
     const body = await c.req.json();
 

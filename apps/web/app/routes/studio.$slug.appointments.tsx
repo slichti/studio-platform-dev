@@ -209,7 +209,7 @@ export default function AppointmentsPage() {
                             </div>
                             <div>
                                 <h3 className="font-semibold text-lg">{selectedService.title}</h3>
-                                <p className="text-zinc-500">with (Instructor ID: {selectedSlot.instructorId.substring(0, 8)}...)</p>
+                                <p className="text-zinc-500">with {selectedSlot.instructorName}</p>
                             </div>
                         </div>
 
