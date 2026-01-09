@@ -237,9 +237,29 @@ export default function StudioReports() {
                                 {attendanceData.topClasses.length === 0 && <div className="text-center text-sm text-zinc-500 py-8">No data available</div>}
                             </div>
                         )}
-                        {activeTab === 'financials' && (
-                            <div className="text-sm text-zinc-500 italic text-center py-10">
-                                Sales breakdown coming soon.
+                        {activeTab === 'financials' && revenueData?.breakdown && (
+                            <div className="space-y-4">
+                                {Object.entries(revenueData.breakdown).map(([key, value]: [string, any]) => {
+                                    const val = Number(value);
+                                    if (val === 0) return null; // Skip empty
+                                    const total = revenueData.grossVolume || 1;
+                                    const percent = (val / total) * 100;
+
+                                    return (
+                                        <div key={key} className="flex items-center justify-between">
+                                            <span className="text-sm font-medium capitalize text-zinc-700 dark:text-zinc-300">{key}</span>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-24 h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-emerald-500" style={{ width: `${percent}%` }} />
+                                                </div>
+                                                <span className="text-xs font-mono text-zinc-500 w-16 text-right">${(val / 100).toFixed(2)}</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                {Object.values(revenueData.breakdown).every(v => v === 0) && (
+                                    <div className="text-center text-sm text-zinc-500 py-8">No specific sales data recorded.</div>
+                                )}
                             </div>
                         )}
                     </div>
