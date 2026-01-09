@@ -83,29 +83,41 @@ function StatCard({ title, value, status, trend }: { title: string, value: strin
     );
 }
 
-function AuditDetails({ details }: { details: any }) {
-    if (!details) return <span className="text-zinc-400">-</span>;
+function formatLogDetails(log: any) {
+    const details = typeof log.details === 'string' ? JSON.parse(log.details) : log.details || {};
+    const target = log.targetId ? <span className="font-mono text-xs bg-zinc-100 px-1 rounded">{log.targetId.substring(0, 8)}...</span> : null;
 
-    try {
-        const parsed = typeof details === 'string' ? JSON.parse(details) : details;
-        const keys = Object.keys(parsed);
-
-        if (keys.length === 0) return <span className="text-zinc-400">-</span>;
-
-        return (
-            <div className="flex flex-wrap gap-1">
-                {keys.map((key) => (
-                    <div key={key} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-zinc-100 text-zinc-600 border border-zinc-200">
-                        <span className="font-medium mr-1">{key}:</span>
-                        <span className="text-zinc-500 truncate max-w-[100px]" title={String(parsed[key])}>
-                            {String(parsed[key])}
-                        </span>
-                    </div>
-                ))}
-            </div>
-        );
-    } catch (e) {
-        return <span className="text-zinc-500 truncate">{String(details)}</span>;
+    switch (log.action) {
+        case 'create_user_manual':
+            return <span>Created user <span className="font-medium">{details.email}</span></span>;
+        case 'delete_user_admin':
+            return <span>Deleted user account {target}</span>;
+        case 'bulk_delete_users':
+            return <span>Bulk deleted <span className="font-medium">{details.count}</span> users</span>;
+        case 'promote_to_admin':
+            return <span>Promoted <span className="font-medium">{details.count}</span> users to System Admin</span>;
+        case 'demote_from_admin':
+            return <span>Revoked System Admin from <span className="font-medium">{details.count}</span> users</span>;
+        case 'update_tenant_tier':
+            return <span>Changed tenant tier to <Badge variant="outline" className="text-xs uppercase">{details.tier}</Badge></span>;
+        case 'impersonate_user':
+            return <span>Impersonated <span className="font-medium">{details.targetEmail}</span></span>;
+        case 'update_zoom_credentials':
+            return <span>Updated Zoom credentials for tenant {target}</span>;
+        case 'grant_studio_access':
+            return <span>Granted <span className="font-medium">{details.role}</span> access to studio</span>;
+        case 'revoke_studio_access':
+            return <span>Revoked access from studio</span>;
+        case 'scan_file':
+            return <span>Virus scan result: <span className={details.infected ? "text-red-600 font-bold" : "text-green-600"}>{details.infected ? "INFECTED" : "Clean"}</span></span>;
+        case 'USER_LOGIN':
+            return <span>User logged in</span>;
+        default:
+            const keys = Object.keys(details).filter(k => !['userAgent', 'ip'].includes(k));
+            if (keys.length > 0) {
+                return <span className="text-zinc-500">{keys.map(k => `${k}: ${details[k]}`).join(', ')}</span>;
+            }
+            return <span className="text-zinc-400 italic">No additional details</span>;
     }
 }
 
@@ -152,20 +164,37 @@ export default function AdminIndex() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[50px]"></TableHead>
-                                <TableHead>Time</TableHead>
-                                <TableHead>Action</TableHead>
-                                <TableHead>Target</TableHead>
-                                <TableHead>IP Address</TableHead>
+                                <TableHead className="w-[180px]">Time</TableHead>
+                                <TableHead className="w-[150px]">Action</TableHead>
+                                <TableHead>Summary</TableHead>
+                                <TableHead>Actor</TableHead>
                             </TableRow>
                         </TableHeader>
                         <tbody>
                             {logs.map((log: any) => (
-                                <LogRows key={log.id} log={log} />
+                                <TableRow key={log.id} className="hover:bg-zinc-50">
+                                    <TableCell className="font-mono text-xs text-zinc-500 whitespace-nowrap">
+                                        {new Date(log.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant="outline" className="font-mono text-[10px] uppercase">
+                                            {log.action.replace(/_/g, ' ')}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-sm">
+                                        {formatLogDetails(log)}
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-medium text-zinc-900">{log.actorProfile?.firstName} {log.actorProfile?.lastName}</span>
+                                            <span className="text-xs text-zinc-500">{log.actorEmail}</span>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
                             ))}
                             {logs.length === 0 && (
                                 <TableRow>
-                                    <TableCell className="text-center text-zinc-500 py-8" colSpan={5}>
+                                    <TableCell className="text-center text-zinc-500 py-8" colSpan={4}>
                                         No recent activity found.
                                     </TableCell>
                                 </TableRow>
@@ -178,45 +207,4 @@ export default function AdminIndex() {
     );
 }
 
-function LogRows({ log }: { log: any }) {
-    const [expanded, setExpanded] = useState(false);
 
-    return (
-        <>
-            <TableRow className="cursor-pointer hover:bg-zinc-50 transition-colors" onClick={() => setExpanded(!expanded)}>
-                <TableCell className="p-2 text-center text-zinc-400">
-                    <span className={`transform transition-transform inline-block ${expanded ? 'rotate-90' : ''}`}>›</span>
-                </TableCell>
-                <TableCell className="font-mono text-xs text-zinc-500">
-                    {new Date(log.createdAt).toISOString().replace('T', ' ').substring(0, 16)}
-                </TableCell>
-                <TableCell>
-                    <Badge variant={
-                        log.action === 'USER_LOGIN' ? 'success' :
-                            log.action === 'USER_LOGOUT' ? 'outline' :
-                                'outline'
-                    }>{log.action}</Badge>
-                </TableCell>
-                <TableCell className="font-mono text-xs">
-                    {log.targetId || "-"}
-                </TableCell>
-                <TableCell className="font-mono text-xs text-zinc-400">
-                    {log.ipAddress}
-                </TableCell>
-            </TableRow>
-            {expanded && (
-                <TableRow className="bg-zinc-50/50 hover:bg-zinc-50/50">
-                    <TableCell colSpan={5} className="p-4 pl-12">
-                        <div className="bg-white border border-zinc-200 rounded p-3 shadow-sm text-xs font-mono text-zinc-600 overflow-auto max-h-[300px]">
-                            <AuditDetails details={log.details} />
-                            <div className="mt-2 text-[10px] text-zinc-400 border-t pt-2 flex gap-4">
-                                <span>ID: {log.id}</span>
-                                <span>User Agent: {log.details?.userAgent || 'N/A'}</span>
-                            </div>
-                        </div>
-                    </TableCell>
-                </TableRow>
-            )}
-        </>
-    );
-}
