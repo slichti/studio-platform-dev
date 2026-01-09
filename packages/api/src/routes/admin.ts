@@ -16,14 +16,6 @@ type Bindings = {
 
 
 
-import { authMiddleware } from '../middleware/auth';
-import tenantFeaturesRouter from './admin.features';
-
-
-const app = new Hono<HonoContext>();
-
-app.route('/', tenantFeaturesRouter); // Mounts /tenants/:id/features endpoints (admin.features has /tenants/:id/features paths)
-
 // Protect all admin routes
 app.use('*', authMiddleware);
 app.use('*', async (c, next) => {
@@ -35,10 +27,12 @@ app.use('*', async (c, next) => {
     });
 
     if (!user?.isSystemAdmin) {
-        return c.json({ error: 'Forbidden' }, 403);
+        return c.json({ error: 'System Admin privileges required' }, 403);
     }
     await next();
 });
+
+app.route('/', tenantFeaturesRouter); // Mounts feature routes
 
 // GET /logs - Recent Audit Logs
 app.get('/logs', async (c) => {

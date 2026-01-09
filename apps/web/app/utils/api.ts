@@ -1,7 +1,19 @@
 import { useAuth } from "@clerk/react-router";
 
 const DEFAULT_API_URL = "http://localhost:8787";
-export const API_URL = import.meta.env.VITE_API_URL || DEFAULT_API_URL;
+const PROD_API_URL = "https://studio-platform-api.slichti.workers.dev"; // Fallback for production
+
+export const API_URL = (() => {
+    // If explicitly set via build-time env var, use it
+    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+
+    // Client-side detection: If on production domain but no Env Var, use Prod API
+    if (typeof window !== "undefined" && !window.location.hostname.includes("localhost")) {
+        return PROD_API_URL;
+    }
+
+    return DEFAULT_API_URL;
+})();
 
 export async function apiRequest<T = any>(path: string, token: string | null | undefined, options: RequestInit = {}, baseUrl?: string): Promise<T> {
     const url = baseUrl || API_URL;
