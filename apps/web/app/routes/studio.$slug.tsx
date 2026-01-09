@@ -305,6 +305,20 @@ export default function StudioLayout() {
                 {!isStudentView && (
                     <CommandBar token={(useLoaderData() as any).token} />
                 )}
+
+                {/* Tenant Google Analytics */}
+                {(tenant.googleCredentials as any)?.measurementId && (
+                    <>
+                        <script async src={`https://www.googletagmanager.com/gtag/js?id=${(tenant.googleCredentials as any).measurementId}`}></script>
+                        <script dangerouslySetInnerHTML={{
+                            __html: `
+                            window.dataLayer = window.dataLayer || [];
+                            function gtag(){dataLayer.push(arguments);}
+                            gtag('js', new Date());
+                            gtag('config', '${(tenant.googleCredentials as any).measurementId}');
+                        `}} />
+                    </>
+                )}
             </main>
         </div>
     );

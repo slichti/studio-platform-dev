@@ -6,7 +6,7 @@ import { useOutletContext, useLoaderData, Form, useNavigation, useSubmit, Link }
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router"; // Add types
 import { apiRequest, API_URL } from "../utils/api";
 import { getAuth } from "@clerk/react-router/server";
-import { Plus, Trash2, MapPin, CreditCard, FileText, Mail, MessageSquare, Video, Globe, CheckCircle, Smartphone, ShoppingBag, Code } from "lucide-react";
+import { Plus, Trash2, MapPin, CreditCard, FileText, Mail, MessageSquare, Video, Globe, CheckCircle, Smartphone, ShoppingBag, Code, BarChart3 } from "lucide-react";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { params } = args;
@@ -798,13 +798,48 @@ export default function StudioSettings() {
                                 alert("SMS configuration saved.");
                                 window.location.reload();
                             } catch (err: any) { alert(err.message); }
-                        }} className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <input name="twilioAccountSid" placeholder="Account SID" className="text-sm border-zinc-300 rounded px-3 py-2" defaultValue={(tenant.twilioCredentials as any)?.accountSid || ''} />
-                            <input name="twilioAuthToken" type="password" placeholder="Auth Token" className="text-sm border-zinc-300 rounded px-3 py-2" />
-                            <input name="twilioFromNumber" placeholder="From Number (+1...)" className="text-sm border-zinc-300 rounded px-3 py-2" defaultValue={(tenant.twilioCredentials as any)?.fromNumber || ''} />
-                            <div className="md:col-span-3">
-                                <button type="submit" className="text-xs bg-white border border-zinc-300 hover:bg-zinc-50 px-3 py-2 rounded font-medium">Save Twilio Config</button>
+                        }} className="space-y-3">
+                            <input name="twilioAccountSid" placeholder="Account SID (AC...)" className="w-full text-sm border-zinc-300 rounded px-3 py-2" />
+                            <div className="flex gap-2">
+                                <input name="twilioAuthToken" type="password" placeholder="Auth Token" className="flex-1 text-sm border-zinc-300 rounded px-3 py-2" />
+                                <input name="twilioFromNumber" placeholder="From (+1...)" className="flex-1 text-sm border-zinc-300 rounded px-3 py-2" />
                             </div>
+                            <button type="submit" className="w-full text-xs bg-white border border-zinc-300 hover:bg-zinc-50 px-3 py-2 rounded font-medium">Save Twilio Config</button>
+                        </form>
+                    </div>
+
+                    {/* 4. Google Analytics */}
+                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-5">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                <BarChart3 className="h-4 w-4" /> Google Analytics
+                            </h3>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(tenant.googleCredentials as any)?.measurementId ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
+                                {(tenant.googleCredentials as any)?.measurementId ? 'Active' : 'Not Configured'}
+                            </span>
+                        </div>
+                        <p className="text-xs text-zinc-500 mb-3">Track visitor traffic to your studio pages.</p>
+                        <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            const formData = new FormData(e.currentTarget);
+                            const googleMeasurementId = formData.get("googleMeasurementId");
+                            try {
+                                const token = await (window as any).Clerk?.session?.getToken();
+                                await apiRequest(`/studios/${tenant.id}/integrations`, token, {
+                                    method: 'PUT',
+                                    body: JSON.stringify({ googleMeasurementId })
+                                });
+                                alert("Google Analytics configuration saved.");
+                                window.location.reload();
+                            } catch (err: any) { alert(err.message); }
+                        }} className="flex gap-2">
+                            <input
+                                name="googleMeasurementId"
+                                placeholder="G-XXXXXXXXXX"
+                                defaultValue={(tenant.googleCredentials as any)?.measurementId || ''}
+                                className="flex-1 text-sm border-zinc-300 rounded px-3 py-2 uppercase"
+                            />
+                            <button type="submit" className="text-xs bg-white border border-zinc-300 hover:bg-zinc-50 px-3 py-2 rounded font-medium">Save ID</button>
                         </form>
                     </div>
 
@@ -971,10 +1006,11 @@ export default function StudioSettings() {
                     </div>
 
                 </div>
-            </div>
+            </div >
 
             {/* Billing & Subscription */}
-            <Link to={`/studio/${tenant.slug}/settings/billing`} className="block bg-white border border-zinc-200 rounded-lg p-6 shadow-sm mb-8 hover:border-blue-300 transition-colors group">
+            < Link to={`/studio/${tenant.slug}/settings/billing`
+            } className="block bg-white border border-zinc-200 rounded-lg p-6 shadow-sm mb-8 hover:border-blue-300 transition-colors group" >
                 <div className="flex justify-between items-center">
                     <div>
                         <h2 className="text-lg font-semibold group-hover:text-blue-600 transition-colors">Billing & Subscription</h2>
@@ -984,10 +1020,10 @@ export default function StudioSettings() {
                         <CreditCard className="h-5 w-5" />
                     </div>
                 </div>
-            </Link>
+            </Link >
 
             {/* Locations */}
-            <div className="bg-white border border-zinc-200 rounded-lg p-6 shadow-sm">
+            < div className="bg-white border border-zinc-200 rounded-lg p-6 shadow-sm" >
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-lg font-semibold">Locations</h2>
                     <button
@@ -999,39 +1035,41 @@ export default function StudioSettings() {
                     </button>
                 </div>
 
-                {isAddingLocation && (
-                    <div className="bg-zinc-50 border border-zinc-200 rounded p-4 mb-6">
-                        <h3 className="text-sm font-semibold mb-3">New Location</h3>
-                        <Form method="post" onSubmit={() => setIsAddingLocation(false)}>
-                            <input type="hidden" name="intent" value="create_location" />
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                <div>
-                                    <label className="block text-xs text-zinc-500 mb-1">Name</label>
-                                    <input name="name" required placeholder="e.g. Main Studio" className="w-full text-sm border-zinc-300 rounded px-3 py-2" />
+                {
+                    isAddingLocation && (
+                        <div className="bg-zinc-50 border border-zinc-200 rounded p-4 mb-6">
+                            <h3 className="text-sm font-semibold mb-3">New Location</h3>
+                            <Form method="post" onSubmit={() => setIsAddingLocation(false)}>
+                                <input type="hidden" name="intent" value="create_location" />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                    <div>
+                                        <label className="block text-xs text-zinc-500 mb-1">Name</label>
+                                        <input name="name" required placeholder="e.g. Main Studio" className="w-full text-sm border-zinc-300 rounded px-3 py-2" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-zinc-500 mb-1">Address (Optional)</label>
+                                        <input name="address" placeholder="123 Yoga St" className="w-full text-sm border-zinc-300 rounded px-3 py-2" />
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-xs text-zinc-500 mb-1">Address (Optional)</label>
-                                    <input name="address" placeholder="123 Yoga St" className="w-full text-sm border-zinc-300 rounded px-3 py-2" />
+                                <div className="flex justify-end gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsAddingLocation(false)}
+                                        className="px-3 py-1.5 text-xs border border-zinc-300 rounded hover:bg-zinc-100"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                                    >
+                                        Save Location
+                                    </button>
                                 </div>
-                            </div>
-                            <div className="flex justify-end gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsAddingLocation(false)}
-                                    className="px-3 py-1.5 text-xs border border-zinc-300 rounded hover:bg-zinc-100"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                                >
-                                    Save Location
-                                </button>
-                            </div>
-                        </Form>
-                    </div>
-                )}
+                            </Form>
+                        </div>
+                    )
+                }
 
                 <div className="space-y-3">
                     {locations.length === 0 ? (
@@ -1063,10 +1101,10 @@ export default function StudioSettings() {
                         ))
                     )}
                 </div>
-            </div>
+            </div >
 
             {/* Data Import */}
-            <Link to={`/studio/${tenant.slug}/settings/import`} className="block bg-white border border-zinc-200 rounded-lg p-6 shadow-sm mb-8 hover:border-blue-300 transition-colors group">
+            < Link to={`/studio/${tenant.slug}/settings/import`} className="block bg-white border border-zinc-200 rounded-lg p-6 shadow-sm mb-8 hover:border-blue-300 transition-colors group" >
                 <div className="flex justify-between items-center">
                     <div>
                         <h2 className="text-lg font-semibold group-hover:text-blue-600 transition-colors">Data Import</h2>
@@ -1076,11 +1114,11 @@ export default function StudioSettings() {
                         <FileText className="h-5 w-5" />
                     </div>
                 </div>
-            </Link>
+            </Link >
 
 
             {/* Custom Domain */}
-            <Link to={`/studio/${tenant.slug}/settings/domain`} className="block bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm mb-8 hover:border-purple-300 transition-colors group">
+            < Link to={`/studio/${tenant.slug}/settings/domain`} className="block bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm mb-8 hover:border-purple-300 transition-colors group" >
                 <div className="flex justify-between items-center">
                     <div>
                         <h2 className="text-lg font-semibold dark:text-zinc-100 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Custom Domain</h2>
@@ -1090,30 +1128,32 @@ export default function StudioSettings() {
                         <Globe className="h-5 w-5" />
                     </div>
                 </div>
-            </Link>
+            </Link >
 
             {/* Order Reader Modal */}
-            {showOrderReader && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white w-full max-w-md rounded-2xl p-8 shadow-2xl">
-                        <h2 className="text-xl font-bold mb-2">Order BBPOS WisePOS E</h2>
-                        <p className="text-sm text-zinc-500 mb-6">Connect your Stripe account to the physical world with a pre-certified card reader. $249/unit.</p>
+            {
+                showOrderReader && (
+                    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                        <div className="bg-white w-full max-w-md rounded-2xl p-8 shadow-2xl">
+                            <h2 className="text-xl font-bold mb-2">Order BBPOS WisePOS E</h2>
+                            <p className="text-sm text-zinc-500 mb-6">Connect your Stripe account to the physical world with a pre-certified card reader. $249/unit.</p>
 
-                        <div className="bg-zinc-50 p-4 rounded-xl mb-6 flex justify-center">
-                            <CreditCard size={48} className="text-zinc-300" />
-                        </div>
+                            <div className="bg-zinc-50 p-4 rounded-xl mb-6 flex justify-center">
+                                <CreditCard size={48} className="text-zinc-300" />
+                            </div>
 
-                        <div className="flex gap-4">
-                            <button onClick={() => setShowOrderReader(false)} className="flex-1 py-3 font-bold text-zinc-500 hover:bg-zinc-100 rounded-xl">Cancel</button>
-                            <button onClick={handleOrderReader} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 flex items-center justify-center gap-2">
-                                <ShoppingBag size={16} /> Place Order
-                            </button>
+                            <div className="flex gap-4">
+                                <button onClick={() => setShowOrderReader(false)} className="flex-1 py-3 font-bold text-zinc-500 hover:bg-zinc-100 rounded-xl">Cancel</button>
+                                <button onClick={handleOrderReader} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 flex items-center justify-center gap-2">
+                                    <ShoppingBag size={16} /> Place Order
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
-        </div>
+        </div >
     );
 }
 
