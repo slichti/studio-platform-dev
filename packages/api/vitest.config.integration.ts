@@ -11,7 +11,7 @@ export default defineWorkersConfig({
                     kvNamespaces: ['KV'],
                     d1Databases: ['DB'],
                     r2Buckets: ['R2'],
-                    compatibiltyFlags: ['nodejs_compat'],
+                    compatibilityFlags: ['nodejs_compat'],
                 },
             },
         },

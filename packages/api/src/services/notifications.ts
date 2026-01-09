@@ -1,7 +1,7 @@
 import { createDb } from '../db';
 import { emailLogs, smsLogs, smsConfig, tenantFeatures, tenantMembers } from 'db/src/schema'; // Ensure sms exported
 import { eq, and } from 'drizzle-orm';
-import { Twilio } from 'twilio';
+import type { Twilio } from 'twilio';
 import { UsageService } from './pricing';
 import { tenants } from 'db/src/schema';
 
@@ -116,6 +116,7 @@ export class NotificationService {
                     console.error('[SMS ERROR] Missing Twilio Credentials');
                     status = 'failed_config';
                 } else {
+                    const { Twilio } = await import('twilio');
                     const client = new Twilio(accountSid, authToken);
                     const message = await client.messages.create({
                         body,

@@ -1,4 +1,4 @@
-import { Twilio } from 'twilio';
+import type { Twilio } from 'twilio';
 import { UsageService } from './pricing';
 import { smsLogs } from 'db/src/schema';
 
@@ -16,6 +16,10 @@ export class SmsService {
     private db: any;
     private tenantId: string;
 
+    // Stored config for lazy init
+    private credentials?: TwilioCredentials;
+    private env?: any;
+
     constructor(
         credentials: TwilioCredentials | undefined,
         env: any,
@@ -25,27 +29,44 @@ export class SmsService {
     ) {
         this.db = db;
         this.tenantId = tenantId;
-
-        // 1. Try Tenant Credentials (BYOK)
-        if (credentials?.accountSid && credentials?.authToken && credentials?.fromNumber) {
-            this.client = new Twilio(credentials.accountSid, credentials.authToken);
-            this.fromNumber = credentials.fromNumber;
-            this.isByok = true;
-        }
-        // 2. Fallback to Platform Credentials
-        else if (env?.TWILIO_ACCOUNT_SID && env?.TWILIO_AUTH_TOKEN && env?.TWILIO_FROM_NUMBER) {
-            this.client = new Twilio(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN);
-            this.fromNumber = env.TWILIO_FROM_NUMBER;
-            this.isByok = false;
-        } else {
-            console.warn("SmsService: No valid Twilio credentials found.");
-        }
-
         this.usageService = usageService;
+        this.credentials = credentials;
+        this.env = env;
+    }
+
+    private async getClient(): Promise<Twilio | null> {
+        if (this.client) return this.client;
+
+        try {
+            // Dynamic import to avoid node:os in Workers startup
+            const { Twilio } = await import('twilio');
+
+            // 1. Try Tenant Credentials (BYOK)
+            if (this.credentials?.accountSid && this.credentials?.authToken && this.credentials?.fromNumber) {
+                this.client = new Twilio(this.credentials.accountSid, this.credentials.authToken);
+                this.fromNumber = this.credentials.fromNumber;
+                this.isByok = true;
+            }
+            // 2. Fallback to Platform Credentials
+            else if (this.env?.TWILIO_ACCOUNT_SID && this.env?.TWILIO_AUTH_TOKEN && this.env?.TWILIO_FROM_NUMBER) {
+                this.client = new Twilio(this.env.TWILIO_ACCOUNT_SID, this.env.TWILIO_AUTH_TOKEN);
+                this.fromNumber = this.env.TWILIO_FROM_NUMBER;
+                this.isByok = false;
+            } else {
+                // Warning only once? Or on every send attempt (which calls getClient)
+                // We'll warn in sendSms if getClient returns null
+            }
+        } catch (e) {
+            console.error("Failed to load Twilio SDK", e);
+        }
+
+        return this.client;
     }
 
     async sendSms(to: string, body: string) {
-        if (!this.client || !this.fromNumber) {
+        const client = await this.getClient();
+
+        if (!client || !this.fromNumber) {
             await this.logSms(to, body, 'failed', { error: 'Configuration missing' });
             return { success: false, error: 'SMS configuration missing', code: 'CONFIG_MISSING' };
         }
@@ -61,7 +82,7 @@ export class SmsService {
         }
 
         try {
-            const message = await this.client.messages.create({
+            const message = await client.messages.create({
                 body: body,
                 from: this.fromNumber,
                 to: to
