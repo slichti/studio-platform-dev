@@ -69,6 +69,19 @@ export default function App() {
                         <meta charSet="utf-8" />
                         <Meta />
                         <Links />
+                        {/* Google Analytics */}
+                        {(loaderData as any)?.env?.VITE_GA_ID && (
+                            <>
+                                <script async src={`https://www.googletagmanager.com/gtag/js?id=${(loaderData as any).env.VITE_GA_ID}`}></script>
+                                <script dangerouslySetInnerHTML={{
+                                    __html: `
+                                    window.dataLayer = window.dataLayer || [];
+                                    function gtag(){dataLayer.push(arguments);}
+                                    gtag('js', new Date());
+                                    gtag('config', '${(loaderData as any).env.VITE_GA_ID}');
+                                `}} />
+                            </>
+                        )}
                         {/* Emergency SW Kill Script - runs before hydration */}
                         <script dangerouslySetInnerHTML={{
                             __html: `

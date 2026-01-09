@@ -1,20 +1,22 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { users, tenantMembers, tenantRoles, tenants, subscriptions, auditLogs, emailLogs, smsLogs, brandingAssets, videos, waiverTemplates, waiverSignatures } from 'db/src/schema'; // Ensure all imports
+import { users, tenantMembers, tenantRoles, tenants, subscriptions, auditLogs, emailLogs, smsLogs, brandingAssets, videos, waiverTemplates, waiverSignatures } from 'db/src/schema';
 import { eq, sql, desc, count, or, like, asc, and, inArray } from 'drizzle-orm';
 import { UsageService } from '../services/pricing';
 import type { HonoContext } from '../types';
+import { authMiddleware } from '../middleware/auth';
+import tenantFeaturesRouter from './admin.features';
 
 type Bindings = {
     DB: D1Database;
-    CLERK_SECRET_KEY?: string; // Optional
+    CLERK_SECRET_KEY?: string;
     RESEND_API_KEY?: string;
     TWILIO_ACCOUNT_SID?: string;
     CLOUDFLARE_ACCOUNT_ID: string;
     CLOUDFLARE_API_TOKEN: string;
 };
 
-
+const app = new Hono<{ Bindings: Bindings, Variables: HonoContext }>();
 
 // Protect all admin routes
 app.use('*', authMiddleware);
@@ -32,7 +34,7 @@ app.use('*', async (c, next) => {
     await next();
 });
 
-app.route('/', tenantFeaturesRouter); // Mounts feature routes
+app.route('/', tenantFeaturesRouter); // Mounts feature routes at root of /admin (e.g. /tenants/:id/features)
 
 // GET /logs - Recent Audit Logs
 app.get('/logs', async (c) => {

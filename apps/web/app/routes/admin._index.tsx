@@ -1,6 +1,7 @@
 // @ts-ignore
 import { type LoaderFunctionArgs, useLoaderData, redirect } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
+import { useState } from "react";
 import { apiRequest } from "../utils/api";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/Card";
 import { Table, TableHeader, TableHead, TableRow, TableCell } from "../components/ui/Table";
@@ -151,36 +152,16 @@ export default function AdminIndex() {
                     <Table>
                         <TableHeader>
                             <TableRow>
+                                <TableHead className="w-[50px]"></TableHead>
                                 <TableHead>Time</TableHead>
                                 <TableHead>Action</TableHead>
                                 <TableHead>Target</TableHead>
-                                <TableHead>Details</TableHead>
                                 <TableHead>IP Address</TableHead>
                             </TableRow>
                         </TableHeader>
                         <tbody>
                             {logs.map((log: any) => (
-                                <TableRow key={log.id}>
-                                    <TableCell className="font-mono text-xs text-zinc-500">
-                                        {new Date(log.createdAt).toISOString().replace('T', ' ').substring(0, 16)}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant={
-                                            log.action === 'USER_LOGIN' ? 'success' :
-                                                log.action === 'USER_LOGOUT' ? 'outline' :
-                                                    'outline'
-                                        }>{log.action}</Badge>
-                                    </TableCell>
-                                    <TableCell className="font-mono text-xs">
-                                        {log.targetId || "-"}
-                                    </TableCell>
-                                    <TableCell className="max-w-md text-xs">
-                                        <AuditDetails details={log.details} />
-                                    </TableCell>
-                                    <TableCell className="font-mono text-xs text-zinc-400">
-                                        {log.ipAddress}
-                                    </TableCell>
-                                </TableRow>
+                                <LogRows key={log.id} log={log} />
                             ))}
                             {logs.length === 0 && (
                                 <TableRow>
@@ -194,5 +175,48 @@ export default function AdminIndex() {
                 </CardContent>
             </Card>
         </div>
+    );
+}
+
+function LogRows({ log }: { log: any }) {
+    const [expanded, setExpanded] = useState(false);
+
+    return (
+        <>
+            <TableRow className="cursor-pointer hover:bg-zinc-50 transition-colors" onClick={() => setExpanded(!expanded)}>
+                <TableCell className="p-2 text-center text-zinc-400">
+                    <span className={`transform transition-transform inline-block ${expanded ? 'rotate-90' : ''}`}>›</span>
+                </TableCell>
+                <TableCell className="font-mono text-xs text-zinc-500">
+                    {new Date(log.createdAt).toISOString().replace('T', ' ').substring(0, 16)}
+                </TableCell>
+                <TableCell>
+                    <Badge variant={
+                        log.action === 'USER_LOGIN' ? 'success' :
+                            log.action === 'USER_LOGOUT' ? 'outline' :
+                                'outline'
+                    }>{log.action}</Badge>
+                </TableCell>
+                <TableCell className="font-mono text-xs">
+                    {log.targetId || "-"}
+                </TableCell>
+                <TableCell className="font-mono text-xs text-zinc-400">
+                    {log.ipAddress}
+                </TableCell>
+            </TableRow>
+            {expanded && (
+                <TableRow className="bg-zinc-50/50 hover:bg-zinc-50/50">
+                    <TableCell colSpan={5} className="p-4 pl-12">
+                        <div className="bg-white border border-zinc-200 rounded p-3 shadow-sm text-xs font-mono text-zinc-600 overflow-auto max-h-[300px]">
+                            <AuditDetails details={log.details} />
+                            <div className="mt-2 text-[10px] text-zinc-400 border-t pt-2 flex gap-4">
+                                <span>ID: {log.id}</span>
+                                <span>User Agent: {log.details?.userAgent || 'N/A'}</span>
+                            </div>
+                        </div>
+                    </TableCell>
+                </TableRow>
+            )}
+        </>
     );
 }

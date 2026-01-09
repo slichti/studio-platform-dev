@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Users, LogOut, ChevronDown, Check } from 'lucide-react';
 import { Menu } from '@headlessui/react';
+// @ts-ignore
+import { useSubmit } from "react-router";
 
 interface ImpersonationBannerProps {
     tenantName: string;
@@ -9,7 +11,7 @@ interface ImpersonationBannerProps {
     availableRoles?: string[]; // Optional: if we want to restrict to actual roles, but for sysadmin we allow all
 }
 
-export function ImpersonationBanner({ tenantName, userName, currentRole }: ImpersonationBannerProps) {
+export function ImpersonationBanner({ tenantName, userName, currentRole }: { tenantName: string, userName: string, currentRole: string }) {
     const roles = ['owner', 'instructor', 'student'];
 
     const handleRoleChange = (role: string) => {

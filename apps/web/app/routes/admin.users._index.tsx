@@ -183,7 +183,9 @@ export default function AdminUsers() {
             if (res.error) throw new Error(res.error);
 
             if (res.token) {
-                localStorage.setItem("impersonation_token", res.token);
+                // Set cookie for SSR compatibility
+                document.cookie = `__impersonate_token=${res.token}; path=/; max-age=3600; samesite=lax; secure`;
+
                 // Redirect to first available studio or dashboard
                 const user = usersList.find((u: any) => u.id === userId);
                 if (user && user.memberships && user.memberships.length > 0) {

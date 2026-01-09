@@ -470,49 +470,41 @@ export default function StudioSettings() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Attendance Switch Cutoff</label>
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="number"
-                                className="w-24 border-zinc-300 dark:border-zinc-700 rounded text-sm px-3 py-2 bg-white dark:bg-zinc-800"
-                                placeholder="15"
-                                defaultValue={tenant.settings?.classSettings?.attendanceSwitchCutoffMinutes || '15'}
-                                onBlur={async (e) => {
-                                    const val = parseInt(e.target.value);
-                                    const token = await (window as any).Clerk?.session?.getToken();
-                                    await apiRequest(`/tenant/settings`, token, {
-                                        method: "PATCH",
-                                        headers: { 'X-Tenant-Slug': tenant.slug },
-                                        body: JSON.stringify({ settings: { classSettings: { ...tenant.settings?.classSettings, attendanceSwitchCutoffMinutes: val } } })
-                                    });
-                                }}
-                            />
-                            <span className="text-sm text-zinc-500">minutes before class</span>
-                        </div>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">When students can last switch between In-Person and Zoom.</p>
+                        <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">Attendance Switch Cutoff</label>
+                        <NumberStepper
+                            value={tenant.settings?.classSettings?.attendanceSwitchCutoffMinutes || 15}
+                            min={0}
+                            step={5}
+                            suffix="min"
+                            onChange={async (val) => {
+                                const token = await (window as any).Clerk?.session?.getToken();
+                                await apiRequest(`/tenant/settings`, token, {
+                                    method: "PATCH",
+                                    headers: { 'X-Tenant-Slug': tenant.slug },
+                                    body: JSON.stringify({ settings: { classSettings: { ...tenant.settings?.classSettings, attendanceSwitchCutoffMinutes: val } } })
+                                });
+                            }}
+                        />
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2">When students can last switch between In-Person and Zoom.</p>
                     </div>
 
                     <div>
-                        <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Cancellation Cutoff</label>
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="number"
-                                className="w-24 border-zinc-300 dark:border-zinc-700 rounded text-sm px-3 py-2 bg-white dark:bg-zinc-800"
-                                placeholder="60"
-                                defaultValue={tenant.settings?.classSettings?.cancellationCutoffMinutes || '60'}
-                                onBlur={async (e) => {
-                                    const val = parseInt(e.target.value);
-                                    const token = await (window as any).Clerk?.session?.getToken();
-                                    await apiRequest(`/tenant/settings`, token, {
-                                        method: "PATCH",
-                                        headers: { 'X-Tenant-Slug': tenant.slug },
-                                        body: JSON.stringify({ settings: { classSettings: { ...tenant.settings?.classSettings, cancellationCutoffMinutes: val } } })
-                                    });
-                                }}
-                            />
-                            <span className="text-sm text-zinc-500">minutes before class</span>
-                        </div>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Latest time a student can cancel without penalty.</p>
+                        <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">Cancellation Cutoff</label>
+                        <NumberStepper
+                            value={tenant.settings?.classSettings?.cancellationCutoffMinutes || 60}
+                            min={0}
+                            step={15}
+                            suffix="min"
+                            onChange={async (val) => {
+                                const token = await (window as any).Clerk?.session?.getToken();
+                                await apiRequest(`/tenant/settings`, token, {
+                                    method: "PATCH",
+                                    headers: { 'X-Tenant-Slug': tenant.slug },
+                                    body: JSON.stringify({ settings: { classSettings: { ...tenant.settings?.classSettings, cancellationCutoffMinutes: val } } })
+                                });
+                            }}
+                        />
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2">Latest time a student can cancel without penalty.</p>
                     </div>
 
                     <div className="md:col-span-2 border-t border-zinc-100 dark:border-zinc-800 pt-4">
@@ -1121,6 +1113,43 @@ export default function StudioSettings() {
                 </div>
             )}
 
+        </div>
+    );
+}
+
+function NumberStepper({ value, onChange, min = 0, max = 1000, step = 1, suffix = '' }: { value: number, onChange: (val: number) => void, min?: number, max?: number, step?: number, suffix?: string }) {
+    const [localValue, setLocalValue] = useState(value);
+
+    // Sync external changes
+    useEffect(() => {
+        setLocalValue(value);
+    }, [value]);
+
+    const handleChange = (val: number) => {
+        const clampped = Math.max(min, Math.min(max, val));
+        setLocalValue(clampped);
+        onChange(clampped);
+    };
+
+    return (
+        <div className="flex items-center gap-3">
+            <button
+                type="button"
+                onClick={() => handleChange(localValue - step)}
+                className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-colors border border-blue-200"
+            >
+                <span className="text-lg font-bold leading-none mb-0.5">−</span>
+            </button>
+            <div className="min-w-[80px] text-center font-mono font-medium text-lg text-zinc-700 dark:text-zinc-200">
+                {localValue} <span className="text-xs text-zinc-400 font-sans">{suffix}</span>
+            </div>
+            <button
+                type="button"
+                onClick={() => handleChange(localValue + step)}
+                className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-colors border border-blue-200"
+            >
+                <span className="text-lg font-bold leading-none mb-0.5">+</span>
+            </button>
         </div>
     );
 }
