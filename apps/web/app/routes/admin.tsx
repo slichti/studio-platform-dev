@@ -88,6 +88,8 @@ export default function AdminLayout() {
         { label: "Activity Logs", href: "/admin/logs", icon: "📋" },
         { label: "System Users", href: "/admin/users", icon: "👥" },
         { label: "Video Manager", href: "/admin/videos", icon: "🎬" },
+        { label: "Website Builder", href: "/admin/website", icon: "🌐" },
+        { label: "Chat System", href: "/admin/chat", icon: "💬" },
         { label: "Platform Features", href: "/admin/features", icon: "⚙️" },
         { label: "System Status", href: "/admin/status", icon: "🟢" },
         { label: "Diagnostics", href: "/admin/diagnostics", icon: "🩺" },
