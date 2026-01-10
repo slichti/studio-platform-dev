@@ -29,7 +29,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
     let data: CommsData = { totals: { email: 0, sms: 0 }, tenants: [] };
 
     try {
-        const res = await apiRequest<CommsData>("/admin-api/stats/communications", token);
+        const res = await apiRequest<CommsData>("/admin/stats/communications", token);
         if (res && !(res as any).error) data = res;
     } catch (e) {
         console.error("Failed to load comms stats", e);
