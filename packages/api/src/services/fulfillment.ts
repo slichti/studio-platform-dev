@@ -1,6 +1,6 @@
 
 import { classes, users, classPackDefinitions, purchasedPacks, giftCards, giftCardTransactions, tenantMembers, tenants, couponRedemptions } from 'db/src/schema'; // Ensure these are exported from schema
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { EmailService } from './email';
 
 export class FulfillmentService {
@@ -99,6 +99,34 @@ export class FulfillmentService {
                 type: 'purchase',
                 createdAt: new Date()
             }).run();
+
+            // Receipt Logic (Buyer)
+            if (buyerMemberId && this.resendApiKey) {
+                const buyerUser = await this.db.select().from(users).where(eq(users.id, metadata.userId)).get();
+                // Check Minor
+                let isMinor = buyerUser?.isMinor;
+                if (buyerUser?.dob && !isMinor) {
+                    const ageDifMs = Date.now() - new Date(buyerUser.dob).getTime();
+                    const ageDate = new Date(ageDifMs);
+                    if (Math.abs(ageDate.getUTCFullYear() - 1970) < 18) {
+                        isMinor = true;
+                    }
+                }
+
+                if (buyerUser && !isMinor && buyerUser.email) {
+                    const tenant = await this.db.select().from(tenants).where(eq(tenants.id, metadata.tenantId)).get();
+                    if (tenant) {
+                        const emailService = new EmailService(this.resendApiKey, tenant as any);
+                        await emailService.sendReceipt(buyerUser.email, {
+                            amount,
+                            currency: tenant.currency || 'usd',
+                            description: `Gift Card Purchase ($${(amount / 100).toFixed(2)})`,
+                            date: new Date(),
+                            paymentMethod: 'Credit Card'
+                        });
+                    }
+                }
+            }
 
             if (recipientEmail && this.resendApiKey) {
                 const tenant = await this.db.select().from(tenants).where(eq(tenants.id, metadata.tenantId)).get();

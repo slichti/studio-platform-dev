@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { classes, bookings, tenantMembers, users, tenantRoles, subscriptions, purchasedPacks, userRelationships, challenges, userChallenges, tenants, classSeries, waiverTemplates, waiverSignatures, membershipPlans, classPackDefinitions, giftCards, giftCardTransactions, studentNotes } from 'db/src/schema'; // Ensure imports
+import { classes, bookings, tenantMembers, users, tenantRoles, subscriptions, purchasedPacks, userRelationships, challenges, userChallenges, tenants, classSeries, waiverTemplates, waiverSignatures, membershipPlans, classPackDefinitions, giftCards, giftCardTransactions, studentNotes, locations } from 'db/src/schema'; // Ensure imports
 import { eq, and, sql, lt, ne, gt, inArray, desc, gte, lte } from 'drizzle-orm'; // Added inArray, desc
 import { ZoomService } from '../services/zoom';
 import { EncryptionUtils } from '../utils/encryption';
@@ -989,7 +989,8 @@ app.post('/:id/book', async (c) => {
                         gt(purchasedPacks.remainingCredits, 0),
                     ),
                     orderBy: (purchasedPacks, { asc }) => [asc(purchasedPacks.expiresAt)]
-                }
+                },
+                user: true
             }
         });
 
@@ -1000,12 +1001,12 @@ app.post('/:id/book', async (c) => {
 
         // Membership Access Logic
         const classType = classInfo.type || 'class';
-        const includedPlanIds = classInfo.includedPlanIds || []; // Drizzle parses JSON
+        const includedPlanIds = (classInfo.includedPlanIds as string[]) || []; // Drizzle parses JSON
         const allowCredits = classInfo.allowCredits !== false; // Default true
 
         // 1. Explicit Inclusion (Specific Plan)
         const hasIncludedPlan = memberWithPlans.memberships.some(sub =>
-            includedPlanIds.includes(sub.planId) && sub.status === 'active'
+            sub.planId && includedPlanIds.includes(sub.planId) && sub.status === 'active'
         );
 
         if (hasIncludedPlan && !isGuest) {
@@ -1102,8 +1103,9 @@ app.post('/:id/book', async (c) => {
                         webhookUrl: slackCreds.webhookUrl,
                         botToken
                     });
-                    const firstName = memberWithPlans.user.profile?.firstName || 'Unknown';
-                    const lastName = memberWithPlans.user.profile?.lastName || '';
+                    const profile = memberWithPlans.user.profile as any;
+                    const firstName = profile?.firstName || 'Unknown';
+                    const lastName = profile?.lastName || '';
                     const msg = `🔔 New Booking: *${firstName} ${lastName}* booked *${classInfo.title}*`;
                     await slack.sendNotification(msg);
                 } catch (e) {
@@ -1129,6 +1131,66 @@ app.post('/:id/book', async (c) => {
                     `Booking Confirmed: ${classInfo.title}. See you there!`
                 ));
             }
+        }
+
+        // Email Notification (New)
+        if (memberWithPlans.user?.email && c.env.RESEND_API_KEY) {
+            const { EmailService } = await import('../services/email');
+            const { UsageService } = await import('../services/pricing');
+            const usageService = new UsageService(db, tenant.id);
+            const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
+            const isByok = !!(tenant.resendCredentials as any)?.apiKey;
+
+            const emailService = new EmailService(
+                resendKey,
+                { branding: tenant.branding as any, settings: tenant.settings as any },
+                { slug: tenant.slug },
+                usageService,
+                isByok
+            );
+
+            // Determine if booked by someone else
+            let bookedBy = undefined;
+            if (userId !== memberWithPlans.userId) {
+                // Fetch the actor's name
+                const actor = await db.select({ profile: users.profile }).from(users).where(eq(users.id, userId)).get();
+                if (actor) {
+                    const profile = actor.profile as any;
+                    bookedBy = profile?.firstName ? `${profile.firstName} ${profile.lastName || ''}` : 'a family member';
+                }
+            }
+
+            // Fetch Location Name if needed
+            let locationName = undefined;
+            if (classInfo.locationId) {
+                const loc = await db.select({ name: locations.name }).from(locations).where(eq(locations.id, classInfo.locationId)).get();
+                locationName = loc?.name;
+            }
+
+            // Fetch Instructor Name if needed
+            let instructorName = undefined;
+            if (classInfo.instructorId) {
+                const instr = await db.select({ profile: users.profile }).from(tenantMembers)
+                    .innerJoin(users, eq(tenantMembers.userId, users.id))
+                    .where(eq(tenantMembers.id, classInfo.instructorId)).get();
+                if (instr) {
+                    const profile = instr.profile as any;
+                    instructorName = profile?.firstName ? `${profile.firstName} ${profile.lastName || ''}` : undefined;
+                }
+            }
+
+
+            c.executionCtx.waitUntil(emailService.sendBookingConfirmation(
+                memberWithPlans.user.email,
+                {
+                    title: classInfo.title,
+                    startTime: new Date(classInfo.startTime),
+                    instructorName: instructorName,
+                    locationName: locationName,
+                    zoomUrl: attendanceType === 'zoom' ? classInfo.zoomMeetingUrl || undefined : undefined,
+                    bookedBy
+                }
+            ));
         }
 
         return c.json({ id, status: 'confirmed' }, 201);

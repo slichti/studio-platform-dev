@@ -123,31 +123,33 @@ export default function AdminFeatures() {
                     const Icon = feature.icon;
 
                     return (
-                        <div key={feature.key} className="p-6 flex items-start gap-4">
-                            <div className={`p-3 rounded-lg ${isEnabled ? 'bg-blue-50 text-blue-600' : 'bg-zinc-100 text-zinc-400'}`}>
-                                <Icon size={24} />
+                        <div key={feature.key} className="p-4 flex items-center gap-3">
+                            <div className={`p-2 rounded-md ${isEnabled ? 'bg-blue-50 text-blue-600' : 'bg-zinc-100 text-zinc-400'}`}>
+                                <Icon size={18} />
                             </div>
-                            <div className="flex-1">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-lg font-medium text-zinc-900">{feature.label}</h3>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2">
+                                    <div>
+                                        <h3 className="text-sm font-medium text-zinc-900">{feature.label}</h3>
+                                        <p className="text-xs text-zinc-500 truncate">{feature.description}</p>
+                                    </div>
                                     <button
                                         onClick={() => handleToggle(feature.key, isEnabled)}
                                         disabled={loading === feature.key}
-                                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${isEnabled ? 'bg-blue-600' : 'bg-zinc-200'}`}
+                                        className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 ${isEnabled ? 'bg-blue-600' : 'bg-zinc-200'}`}
                                     >
                                         <span
                                             aria-hidden="true"
-                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isEnabled ? 'translate-x-5' : 'translate-x-0'}`}
+                                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isEnabled ? 'translate-x-4' : 'translate-x-0'}`}
                                         />
                                     </button>
                                 </div>
-                                <p className="text-zinc-500 text-sm mt-1 mb-3">{feature.description}</p>
-                                <div className="flex items-center gap-2">
-                                    <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${isEnabled ? 'bg-green-100 text-green-800' : 'bg-zinc-100 text-zinc-600'}`}>
-                                        {isEnabled ? 'Enabled Globally' : 'Disabled (Hidden)'}
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${isEnabled ? 'bg-green-100 text-green-800' : 'bg-zinc-100 text-zinc-600'}`}>
+                                        {isEnabled ? 'Enabled' : 'Disabled (Hidden)'}
                                     </span>
                                     {config.updatedAt && (
-                                        <span className="text-xs text-zinc-400">Updated {new Date(config.updatedAt).toLocaleDateString()}</span>
+                                        <span className="text-[10px] text-zinc-400">Updated {new Date(config.updatedAt).toLocaleDateString()}</span>
                                     )}
                                 </div>
                             </div>

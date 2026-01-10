@@ -168,6 +168,7 @@ export class EmailService {
         instructorName?: string;
         locationName?: string;
         zoomUrl?: string;
+        bookedBy?: string;
     }) {
         if (!await this.checkAndTrackUsage()) return;
 
@@ -180,6 +181,7 @@ export class EmailService {
             ${classDetails.instructorName ? `<p><strong>Instructor:</strong> ${classDetails.instructorName}</p>` : ''}
             ${classDetails.locationName ? `<p><strong>Location:</strong> ${classDetails.locationName}</p>` : ''}
             ${classDetails.zoomUrl ? `<p><strong>Zoom Link:</strong> <a href="${classDetails.zoomUrl}">Join Meeting</a></p>` : ''}
+            ${classDetails.bookedBy ? `<p style="font-size: 12px; color: #666; margin-top: 10px;">Booked by ${classDetails.bookedBy}</p>` : ''}
             <p>Can't wait to see you there!</p>
         `;
 
@@ -344,6 +346,48 @@ export class EmailService {
             console.log(`Template email sent to ${to}`);
         } catch (e) {
             console.error("Template Send Error", e);
+        }
+    }
+    async sendReceipt(to: string, data: {
+        amount: number;
+        currency: string;
+        description: string;
+        date: Date;
+        paymentMethod?: string; // 'Card ending in 4242'
+        receiptUrl?: string;
+    }) {
+        if (!await this.checkAndTrackUsage()) return;
+
+        const dateStr = data.date.toLocaleString();
+        const amountStr = (data.amount / 100).toFixed(2);
+
+        const htmlContent = `
+            <h1>Payment Receipt</h1>
+            <p>Thank you for your purchase.</p>
+            <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h2 style="margin-top: 0; font-size: 24px;">$${amountStr} <span style="font-size: 14px; color: #666;">${data.currency.toUpperCase()}</span></h2>
+                <p style="margin-bottom: 5px;"><strong>${data.description}</strong></p>
+                <p style="color: #666; font-size: 14px; margin: 0;">${dateStr}</p>
+            </div>
+            ${data.paymentMethod ? `<p><strong>Payment Method:</strong> ${data.paymentMethod}</p>` : ''}
+            ${data.receiptUrl ? `<p><a href="${data.receiptUrl}" class="button">View Online Receipt</a></p>` : ''}
+        `;
+
+        const { bcc } = this.getRecipients(to, 'transactional');
+        const options = this.getEmailOptions();
+
+        try {
+            await this.resend.emails.send({
+                ...options,
+                to,
+                bcc,
+                subject: `Receipt for ${data.description}`,
+                html: this.wrapHtml(htmlContent)
+            });
+            await this.incrementUsage();
+            console.log(`Receipt email sent to ${to}`);
+        } catch (e) {
+            console.error("Failed to send receipt email", e);
         }
     }
 }
