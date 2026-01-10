@@ -213,3 +213,22 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
 
     await next();
 };
+
+/**
+ * Middleware factory to require a specific feature to be enabled for the tenant.
+ * Usage: app.use('/*', requireFeature('website_builder'));
+ */
+export const requireFeature = (featureKey: string) => {
+    return async (c: Context<{ Bindings: Bindings, Variables: Variables }>, next: Next) => {
+        const features = c.get('features');
+
+        if (!features || !features.has(featureKey)) {
+            return c.json({
+                error: `Feature '${featureKey}' is not enabled for this tenant.`,
+                featureKey
+            }, 403);
+        }
+
+        await next();
+    };
+};

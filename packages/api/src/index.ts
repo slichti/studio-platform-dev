@@ -42,6 +42,8 @@ import videoManagement from './routes/video-management';
 import tenantIntegrations from './routes/tenant-integrations';
 import diagnosticsRoutes from './routes/diagnostics';
 import telemetryRoutes from './routes/telemetry';
+import websiteRoutes from './routes/website';
+import chatRoutes from './routes/chat';
 
 type Bindings = {
   DB: D1Database;
@@ -490,6 +492,8 @@ app.route('/webhooks', webhookRoutes);
 app.route('/integrations', tenantIntegrations);
 app.route('/diagnostics', diagnosticsRoutes);
 app.route('/telemetry', telemetryRoutes);
+app.route('/website', websiteRoutes);
+app.route('/chat', chatRoutes);
 
 import { scheduled } from './cron';
 
