@@ -116,14 +116,14 @@ export default function AdminFeatures() {
                 <p className="text-zinc-500 mt-2">Manage global feature flags. Disabling a feature here hides it from all tenants.</p>
             </div>
 
-            <div className="bg-white rounded-lg border border-zinc-200 divide-y divide-zinc-100 shadow-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {KNOWN_FEATURES.map(feature => {
                     const config = getConfig(feature.key);
                     const isEnabled = config.enabled;
                     const Icon = feature.icon;
 
                     return (
-                        <div key={feature.key} className="p-4 flex items-center gap-3">
+                        <div key={feature.key} className="bg-white rounded-lg border border-zinc-200 p-4 flex items-center gap-3 shadow-sm">
                             <div className={`p-2 rounded-md ${isEnabled ? 'bg-blue-50 text-blue-600' : 'bg-zinc-100 text-zinc-400'}`}>
                                 <Icon size={18} />
                             </div>
