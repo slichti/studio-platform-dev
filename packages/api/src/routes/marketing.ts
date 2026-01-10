@@ -7,11 +7,13 @@ import { EmailService } from '../services/email';
 import { SmsService } from '../services/sms';
 import { isFeatureEnabled } from '../utils/features';
 import { AutomationsService } from '../services/automations';
+import { EncryptionUtils } from '../utils/encryption';
 
 type Bindings = {
     DB: D1Database;
     RESEND_API_KEY: string;
     GEMINI_API_KEY: string;
+    ENCRYPTION_SECRET: string;
 };
 
 type Variables = {
@@ -124,46 +126,73 @@ app.post('/', async (c) => {
     }
 
     // 3. "Send" Emails (Create Logs)
-    // 3. "Send" Emails (Create Logs)
-    const resendKey = tenant.resendCredentials?.apiKey || c.env.RESEND_API_KEY;
-    const isByokEmail = !!tenant.resendCredentials?.apiKey;
-
-    const emailService = new EmailService(
-        resendKey,
-        { branding: tenant.branding as any, settings: tenant.settings as any },
-        { slug: tenant.slug },
-        usageService,
-        isByokEmail
-    );
-
+    const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
     const logs: any[] = [];
     const errors: any[] = [];
 
-    // Send in batches to avoid overwhelming Resend or the Worker (though Resend handles high volume well)
-    // For MVP, simplistic loop with Promise.all for speed, or sequential for safety?
-    // Let's do sequential or small batches for now to be safe.
-    for (const r of recipients) {
-        if (!r.email) continue;
-        try {
-            await emailService.sendGenericEmail(
-                r.email,
-                subject,
-                content, // Content is plain text for now, wrapHtml will handle basic container
-                true // isNotification/Broadcast
-            );
+    if (tenant.marketingProvider === 'mailchimp') {
+        const { MailchimpService } = await import('../services/mailchimp');
+        const mc = await MailchimpService.getForTenant(tenant, c.env, encryption);
+        if (mc) {
+            for (const r of recipients) {
+                if (!r.email) continue;
+                const tag = `Campaign: ${subject.substring(0, 20)}`;
+                const merge = {
+                    FNAME: (r as any).firstName || '',
+                    LNAME: (r as any).lastName || ''
+                };
+                try {
+                    await mc.addContact(r.email, merge, [tag, ...Object.keys(activeFilters)]);
+                    logs.push({
+                        id: crypto.randomUUID(),
+                        tenantId: tenant.id,
+                        campaignId,
+                        recipientEmail: r.email,
+                        subject: `Synced to Mailchimp (${tag})`,
+                        status: 'sent',
+                        sentAt: new Date()
+                    });
+                } catch (e: any) {
+                    errors.push({ email: r.email, error: e.message });
+                }
+            }
+        } else {
+            return c.json({ error: "Mailchimp configured but credentials invalid" }, 500);
+        }
+    } else {
+        // System / Resend Logic
+        const resendKey = tenant.resendCredentials?.apiKey || c.env.RESEND_API_KEY;
+        const isByokEmail = !!tenant.resendCredentials?.apiKey;
+        const emailService = new EmailService(
+            resendKey,
+            { branding: tenant.branding as any, settings: tenant.settings as any },
+            { slug: tenant.slug },
+            usageService,
+            isByokEmail
+        );
 
-            logs.push({
-                id: crypto.randomUUID(),
-                tenantId: tenant.id,
-                campaignId,
-                recipientEmail: r.email,
-                subject,
-                status: 'sent',
-                sentAt: new Date()
-            });
-        } catch (e: any) {
-            console.error(`Failed to send to ${r.email}`, e);
-            errors.push({ email: r.email, error: e.message });
+        for (const r of recipients) {
+            if (!r.email) continue;
+            try {
+                await emailService.sendGenericEmail(
+                    r.email,
+                    subject,
+                    content,
+                    true // isNotification/Broadcast
+                );
+                logs.push({
+                    id: crypto.randomUUID(),
+                    tenantId: tenant.id,
+                    campaignId,
+                    recipientEmail: r.email,
+                    subject,
+                    status: 'sent',
+                    sentAt: new Date()
+                });
+            } catch (e: any) {
+                console.error(`Failed to send to ${r.email}`, e);
+                errors.push({ email: r.email, error: e.message });
+            }
         }
     }
 

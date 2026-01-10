@@ -326,31 +326,42 @@ app.post('/', async (c) => {
         return c.json({ message: 'Series created', seriesId, count: newClasses.length }, 201);
     }
 
+
+
     // Single Class Flow
     const id = crypto.randomUUID();
     let zoomMeetingUrl: string | undefined = undefined;
 
-    // Determine Zoom Credentials (Tenant > Env)
-    // We assume 'zoomCredentials' is loaded with tenant. 
-    // Note: 'tenant' object from middleware might imply simple select. 
-    // We might need to ensure 'zoomCredentials' is fetched if it is a JSON field.
-    // Drizzle select() without columns usually fetches all. 
+    // Validation: Zoom Configured?
+    // Explicitly handle video provider or fallback to createZoomMeeting flag
+    let finalVideoProvider = parseResult.data.videoProvider;
+    if (createZoomMeeting && finalVideoProvider === 'offline') {
+        finalVideoProvider = 'zoom';
+    }
 
-    // Check if we should create a zoom meeting
-    // Logic: Explicit flag OR Location name "Zoom" (if we had location lookup, but let's stick to flag for now)
+    const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
+    if (finalVideoProvider === 'zoom') {
+        // Enforce configuration check
+        const zoomService = await ZoomService.getForTenant(tenant, c.env, encryption);
+        if (!zoomService) {
+            return c.json({
+                error: "Zoom is not configured for this studio. Please connect Zoom in Studio Settings first.",
+                code: "ZOOM_NOT_CONFIGURED"
+            }, 400);
+        }
+    }
 
     let meetingData: any = null;
 
     if (createZoomMeeting) {
-        const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
         const zoomService = await ZoomService.getForTenant(tenant, c.env, encryption);
-
         if (zoomService) {
             try {
-                // userId is used as 'host'? No, Zoom Service uses Me or Account default. 
                 meetingData = await zoomService.createMeeting(title, new Date(startTime), durationMinutes);
             } catch (e) {
                 console.error("Zoom creation failed:", e);
+                // Should we fail hard? Yes, if they asked for Zoom.
+                return c.json({ error: "Failed to create Zoom meeting. Please check your Zoom connection." }, 500);
             }
         }
     }
@@ -358,12 +369,6 @@ app.post('/', async (c) => {
     // Hybrid Video Logic (LiveKit)
     let livekitRoomName: string | undefined;
     let livekitRoomSid: string | undefined;
-
-    // Explicitly handle video provider or fallback to createZoomMeeting flag
-    let finalVideoProvider = parseResult.data.videoProvider;
-    if (createZoomMeeting && finalVideoProvider === 'offline') {
-        finalVideoProvider = 'zoom';
-    }
 
     if (finalVideoProvider === 'livekit') {
         livekitRoomName = `${tenant.slug}-${id}`;
@@ -523,7 +528,10 @@ app.patch('/:id', async (c) => {
                     updateData.zoomMeetingId = meeting.id?.toString();
                     updateData.zoomMeetingUrl = meeting.join_url;
                     updateData.zoomPassword = meeting.password;
-                } catch (e: any) { console.error("Zoom Create Failed", e); }
+                } catch (e: any) {
+                    console.error("Zoom Create Failed", e);
+                    return c.json({ error: "Failed to create Zoom meeting" }, 500);
+                }
             }
             // Case 2: Disable Zoom (was enabled)
             else if (!zoomEnabled && existingClass.zoomEnabled && existingClass.zoomMeetingId) {
@@ -534,8 +542,15 @@ app.patch('/:id', async (c) => {
                     updateData.zoomPassword = null;
                 } catch (e: any) { console.error("Zoom Delete Failed", e); }
             }
+        } else if (zoomEnabled) {
+            // zoomEnabled requested but NO service available
+            return c.json({
+                error: "Zoom is not configured for this studio. Please connect Zoom settings.",
+                code: "ZOOM_NOT_CONFIGURED"
+            }, 400);
         }
     }
+
 
     // Case 3: Update existing Zoom meeting (Time/Desc changed)
     if (existingClass.zoomEnabled && updateData.zoomEnabled !== false && existingClass.zoomMeetingId) {

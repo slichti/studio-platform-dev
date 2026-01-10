@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { appointmentServices, availabilities, appointments, tenantMembers, users, tenants } from 'db/src/schema';
-import { eq, and, gte, lte, or, lt, gt } from 'drizzle-orm';
+import { eq, and, gte, lte, or, lt, gt, inArray, sql } from 'drizzle-orm';
 
 type Bindings = {
     DB: D1Database;
@@ -318,3 +318,149 @@ app.get('/me', async (c) => {
 });
 
 export default app;
+
+// --- CRUD Endpoints matching Front-end ---
+
+// GET / -> List appointments for a week
+app.get('/', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const query = c.req.query();
+    const weekStart = query.weekStart; // YYYY-MM-DD
+
+    if (!weekStart) return c.json({ error: 'weekStart required' }, 400);
+
+    const start = new Date(weekStart);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 7);
+
+    // Fetch appointments
+    const results = await db.query.appointments.findMany({
+        where: and(
+            eq(appointments.tenantId, tenant.id),
+            gte(appointments.startTime, start),
+            lt(appointments.startTime, end)
+        ),
+        with: {
+            service: true,
+            member: {
+                with: {
+                    user: {
+                        columns: {
+                            profile: true,
+                            email: true
+                        }
+                    }
+                }
+            },
+            instructor: {
+                with: {
+                    user: {
+                        columns: {
+                            profile: true
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    return c.json(results);
+});
+
+// POST / -> Create Appointment (Admin/Instructor or Self)
+app.post('/', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const auth = c.get('auth');
+    if (!auth.userId) return c.json({ error: "Unauthorized" }, 401);
+
+    const roles = c.get('roles') || [];
+    const isStaff = roles.includes('instructor') || roles.includes('owner');
+
+    const body = await c.req.json();
+    const { serviceId, instructorId, memberId, startTime, notes } = body;
+
+    // Resolve Acting Member
+    let actingMember = c.get('member');
+    if (!actingMember) {
+        actingMember = await db.query.tenantMembers.findFirst({
+            where: and(eq(tenantMembers.userId, auth.userId!), eq(tenantMembers.tenantId, tenant.id))
+        });
+    }
+
+    if (!actingMember) return c.json({ error: "Must be a member" }, 403);
+
+    // Permission Check
+    // If setting memberId to someone else, must be staff
+    const targetMemberId = memberId || actingMember.id;
+    if (targetMemberId !== actingMember.id && !isStaff) {
+        return c.json({ error: "Cannot book for others" }, 403);
+    }
+
+    // Validate Service
+    const service = await db.select().from(appointmentServices).where(eq(appointmentServices.id, serviceId)).get();
+    if (!service) return c.json({ error: "Invalid Service" }, 400);
+
+    const start = new Date(startTime);
+    const end = new Date(start.getTime() + service.durationMinutes * 60 * 1000);
+
+    // Availability Check (Strict for now)
+    const conflict = await db.select().from(appointments)
+        .where(and(
+            eq(appointments.instructorId, instructorId),
+            eq(appointments.status, 'confirmed'),
+            lt(appointments.startTime, end),
+            gt(appointments.endTime, start)
+        )).get();
+
+    if (conflict) {
+        return c.json({ error: "Slot already taken" }, 409);
+    }
+
+    const id = crypto.randomUUID();
+    await db.insert(appointments).values({
+        id,
+        tenantId: tenant.id,
+        serviceId,
+        instructorId,
+        memberId: targetMemberId,
+        startTime: start,
+        endTime: end,
+        notes,
+        status: 'confirmed'
+    });
+
+    return c.json({ id, status: 'confirmed' }, 201);
+});
+
+// PATCH /:id -> Update Status
+app.patch('/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const id = c.req.param('id');
+    const roles = c.get('roles') || [];
+
+    if (!roles.includes('instructor') && !roles.includes('owner')) {
+        return c.json({ error: "Unauthorized" }, 403);
+    }
+
+    const body = await c.req.json();
+    const { status } = body;
+
+    if (!['confirmed', 'cancelled', 'completed'].includes(status)) {
+        return c.json({ error: "Invalid status" }, 400);
+    }
+
+    await db.update(appointments)
+        .set({ status })
+        .where(and(
+            eq(appointments.id, id),
+            eq(appointments.tenantId, tenant.id)
+        ))
+        .run();
+
+    return c.json({ success: true });
+});

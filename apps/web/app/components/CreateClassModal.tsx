@@ -40,9 +40,7 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
         type: 'class',
         memberPrice: "",
         allowCredits: true,
-        type: 'class',
-        memberPrice: "",
-        allowCredits: true,
+
         includedPlanIds: [] as string[],
         recurringDays: [] as string[]
     });

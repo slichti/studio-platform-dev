@@ -16,6 +16,7 @@ export const tenants = sqliteTable('tenants', {
 
     // Phase 15: Flexible Payments (Connect vs BYOK)
     paymentProvider: text('payment_provider', { enum: ['connect', 'custom'] }).default('connect').notNull(),
+    marketingProvider: text('marketing_provider', { enum: ['system', 'mailchimp'] }).default('system').notNull(),
     stripeCredentials: text('stripe_credentials', { mode: 'json' }), // Encrypted JSON: { publishableKey, secretKey }
 
     // Phase 16: Secure BYOK (Email/SMS)

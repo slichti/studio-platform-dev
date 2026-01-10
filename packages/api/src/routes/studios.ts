@@ -122,6 +122,11 @@ app.put('/:id/integrations', async (c) => {
         updateData.paymentProvider = paymentProvider;
     }
 
+    const { marketingProvider } = body;
+    if (marketingProvider) {
+        updateData.marketingProvider = marketingProvider;
+    }
+
     if (stripePublishableKey && stripeSecretKey) {
         // Only update if both provided, or handle partial? 
         // Let's assume frontend sends both for now on update.
