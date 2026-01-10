@@ -435,6 +435,70 @@ export default function IntegrationsPage() {
 
                 <Card>
                     <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <svg role="img" viewBox="0 0 24 24" className="h-5 w-5 fill-current">
+                                <path d="M12 24c6.627 0 12-5.373 12-12S18.627 0 12 0 0 5.373 0 12s5.373 12 12 12z" fill="#fff" />
+                                <path d="M12.48 4.75c-1.39 0-2.68.74-3.35 1.83l-2.03 3.32h5.38V4.75zm-6.26 2.06c-.53 1.1-.82 2.34-.82 3.65 0 1.25.26 2.43.74 3.5l2.03-3.32L6.22 6.81zm-.74 7.15c.67 1.09 1.96 1.83 3.35 1.83h2.69v-4.38H6.15l-.67 2.55zm5.71 1.83c1.39 0 2.68-.74 3.35-1.83l2.03-3.32H11.2v4.38v.77zm6.26-2.06c.53-1.1.82-2.34.82-3.65 0-1.25-.26-2.43-.74-3.5l-2.03 3.32 2.7 3.83zm.74-7.15c-.67-1.09-1.96-1.83-3.35-1.83h-2.69v4.38h5.38l.66-2.55z" fill="#4285F4" />
+                            </svg>
+                            Google Calendar
+                        </CardTitle>
+                        <CardDescription>
+                            Sync your classes and appointments to your primary Google Calendar.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-center justify-between">
+                            <div className="text-sm">
+                                {tenant.googleCalendarCredentials ? (
+                                    <div className="flex items-center text-green-600 gap-2">
+                                        <CheckCircle className="h-4 w-4" />
+                                        <span>Connected</span>
+                                    </div>
+                                ) : (
+                                    <div className="text-muted-foreground">Not connected</div>
+                                )}
+                            </div>
+                            <div>
+                                {tenant.googleCalendarCredentials ? (
+                                    <button
+                                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                        onClick={async () => {
+                                            if (!confirm('Are you sure you want to disconnect Google Calendar?')) return;
+                                            try {
+                                                const token = (window as any).Clerk?.session?.getToken ? await (window as any).Clerk.session.getToken() : localStorage.getItem('token');
+                                                const res = await fetch(`${API_URL}/studios/${tenant.id}/integrations/google`, {
+                                                    method: 'DELETE',
+                                                    headers: {
+                                                        'Authorization': `Bearer ${token}`
+                                                    }
+                                                });
+                                                if (res.ok) {
+                                                    alert('Disconnected');
+                                                    window.location.reload();
+                                                }
+                                            } catch (e) {
+                                                console.error(e);
+                                                alert('Failed to disconnect');
+                                            }
+                                        }}
+                                    >
+                                        Disconnect
+                                    </button>
+                                ) : (
+                                    <a
+                                        href={`${API_URL}/studios/google/connect?tenantId=${tenant.id}`}
+                                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
+                                    >
+                                        Connect Google Calendar
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
                         <CardTitle>Studio API Credentials</CardTitle>
                         <CardDescription>
                             Use these credentials to authenticate API requests.

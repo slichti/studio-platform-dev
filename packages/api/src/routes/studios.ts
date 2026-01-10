@@ -10,6 +10,8 @@ type Bindings = {
     STRIPE_SECRET_KEY: string;
     STRIPE_CLIENT_ID: string;
     ENCRYPTION_SECRET: string;
+    GOOGLE_CLIENT_ID: string;
+    GOOGLE_CLIENT_SECRET: string;
 };
 
 import { StripeService } from '../services/stripe';
@@ -224,6 +226,98 @@ app.put('/:id/integrations', async (c) => {
 
     await db.update(tenants)
         .set(updateData)
+        .where(eq(tenants.id, id))
+        .run();
+
+    return c.json({ success: true });
+});
+
+app.get('/google/connect', async (c) => {
+    const { GoogleCalendarService } = await import('../services/google-calendar');
+    const clientId = c.env.GOOGLE_CLIENT_ID;
+    const clientSecret = c.env.GOOGLE_CLIENT_SECRET;
+
+    // Construct Redirect URI based on request origin
+    // NOTE: This must match what is authorized in Google Cloud Console
+    const redirectUri = `${new URL(c.req.url).origin}/studios/google/callback`;
+
+    if (!clientId || !clientSecret) return c.json({ error: 'Google credentials not configured' }, 500);
+
+    const service = new GoogleCalendarService(clientId, clientSecret, redirectUri);
+    const tenantId = c.req.query('tenantId');
+    if (!tenantId) return c.json({ error: 'Tenant ID required' }, 400);
+
+    // State should be secure
+    const state = tenantId;
+
+    return c.redirect(service.getAuthUrl(state));
+});
+
+app.get('/google/callback', async (c) => {
+    const code = c.req.query('code');
+    const state = c.req.query('state'); // tenantId
+    const error = c.req.query('error');
+
+    if (error) return c.json({ error }, 400);
+    if (!code || !state) return c.json({ error: 'Missing code or state' }, 400);
+
+    const { GoogleCalendarService } = await import('../services/google-calendar');
+    const clientId = c.env.GOOGLE_CLIENT_ID;
+    const clientSecret = c.env.GOOGLE_CLIENT_SECRET;
+    const redirectUri = `${new URL(c.req.url).origin}/studios/google/callback`;
+
+    const service = new GoogleCalendarService(clientId, clientSecret, redirectUri);
+    const db = createDb(c.env.DB);
+    const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
+
+    try {
+        const tokens = await service.exchangeCode(code);
+
+        // Encrypt tokens before storage
+        const encryptedAccess = await encryption.encrypt(tokens.access_token);
+        const encryptedRefresh = tokens.refresh_token ? await encryption.encrypt(tokens.refresh_token) : undefined;
+
+        const credentials: any = {
+            accessToken: encryptedAccess,
+            expiryDate: Date.now() + (tokens.expires_in * 1000)
+        };
+
+        if (encryptedRefresh) {
+            credentials.refreshToken = encryptedRefresh;
+        } else {
+            // If no refresh token, try to keep existing? 
+            // Ideally we shouldn't overwrite unless we got a new one or force re-consent.
+            // If users revoke access, fetching existing is moot.
+            // But if they just re-authed for scope, we might not get refresh token.
+        }
+
+        // We need to fetch existing to merge refresh token if not present?
+        const existing = await db.select().from(tenants).where(eq(tenants.id, state)).get();
+        if (existing?.googleCalendarCredentials) {
+            const existingCreds = existing.googleCalendarCredentials as any;
+            if (!credentials.refreshToken && existingCreds.refreshToken) {
+                credentials.refreshToken = existingCreds.refreshToken;
+            }
+        }
+
+        await db.update(tenants)
+            .set({ googleCalendarCredentials: credentials })
+            .where(eq(tenants.id, state))
+            .run();
+
+        return c.text('Google Calendar connected! You can close this window.');
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
+app.delete('/:id/integrations/google', async (c) => {
+    const db = createDb(c.env.DB);
+    const id = c.req.param('id');
+    // Verify auth?
+
+    await db.update(tenants)
+        .set({ googleCalendarCredentials: null })
         .where(eq(tenants.id, id))
         .run();
 

@@ -5,6 +5,9 @@ import { eq, and, gte, lte, or, lt, gt, inArray, sql } from 'drizzle-orm';
 
 type Bindings = {
     DB: D1Database;
+    GOOGLE_CLIENT_ID: string;
+    GOOGLE_CLIENT_SECRET: string;
+    ENCRYPTION_SECRET: string;
 };
 
 type Variables = {
@@ -244,6 +247,40 @@ app.post('/book', async (c) => {
         status: 'confirmed'
     });
 
+
+    // Google Calendar Sync
+    if (tenant.googleCalendarCredentials) {
+        c.executionCtx.waitUntil((async () => {
+            try {
+                const { GoogleCalendarService } = await import('../services/google-calendar');
+                const { EncryptionUtils } = await import('../utils/encryption');
+                const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
+                const creds = tenant.googleCalendarCredentials as any;
+                const accessToken = await encryption.decrypt(creds.accessToken);
+
+                const gService = new GoogleCalendarService(c.env.GOOGLE_CLIENT_ID, c.env.GOOGLE_CLIENT_SECRET, '');
+
+                const event = {
+                    summary: `Appointment: ${service.title}`,
+                    description: `Client: ${member.profile?.firstName || 'User'}`,
+                    start: { dateTime: start.toISOString() },
+                    end: { dateTime: end.toISOString() }
+                };
+
+                const gEvent = await gService.createEvent(accessToken, 'primary', event);
+
+                if (gEvent.id) {
+                    await db.update(appointments)
+                        .set({ googleEventId: gEvent.id })
+                        .where(eq(appointments.id, id))
+                        .run();
+                }
+            } catch (e: any) {
+                console.error("Google Sync Appt Failed", e);
+            }
+        })());
+    }
+
     return c.json({ id, status: 'confirmed' }, 201);
 });
 
@@ -432,6 +469,40 @@ app.post('/', async (c) => {
         notes,
         status: 'confirmed'
     });
+
+
+    // Google Calendar Sync
+    if (tenant.googleCalendarCredentials) {
+        c.executionCtx.waitUntil((async () => {
+            try {
+                const { GoogleCalendarService } = await import('../services/google-calendar');
+                const { EncryptionUtils } = await import('../utils/encryption');
+                const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
+                const creds = tenant.googleCalendarCredentials as any;
+                const accessToken = await encryption.decrypt(creds.accessToken);
+
+                const service = new GoogleCalendarService(c.env.GOOGLE_CLIENT_ID, c.env.GOOGLE_CLIENT_SECRET, '');
+
+                const event = {
+                    summary: `Appointment: ${service.title}`, // From scope? No, service variable is 'service' (db row)
+                    description: `Client: ${actingMember.profile?.firstName || 'User'}\nNotes: ${notes || ''}`,
+                    start: { dateTime: start.toISOString() },
+                    end: { dateTime: end.toISOString() }
+                };
+
+                const gEvent = await service.createEvent(accessToken, 'primary', event);
+
+                if (gEvent.id) {
+                    await db.update(appointments)
+                        .set({ googleEventId: gEvent.id })
+                        .where(eq(appointments.id, id))
+                        .run();
+                }
+            } catch (e: any) {
+                console.error("Google Sync Appt Failed", e);
+            }
+        })());
+    }
 
     return c.json({ id, status: 'confirmed' }, 201);
 });

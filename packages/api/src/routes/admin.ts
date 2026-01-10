@@ -14,9 +14,10 @@ type Bindings = {
     TWILIO_ACCOUNT_SID?: string;
     CLOUDFLARE_ACCOUNT_ID: string;
     CLOUDFLARE_API_TOKEN: string;
+    STRIPE_SECRET_KEY?: string;
 };
 
-const app = new Hono<{ Bindings: Bindings, Variables: HonoContext }>();
+const app = new Hono<HonoContext>();
 
 // Protect all admin routes
 app.use('*', authMiddleware);
@@ -780,12 +781,12 @@ app.get('/stats/health', async (c) => {
     // const dbLatency = Math.round(performance.now() - start);
 
     return c.json({
-        version: "v1.0.2-DEBUG", // VERIFICATION MARKER
+        version: "v1.0.2-DEBUG",
         activeTenants: tCount?.count || 0,
         totalUsers: uCount?.count || 0,
         recentErrors: 0,
-        dbLatencyMs: 0, // dbLatency,
-        status: 'healthy', // dbLatency < 300 ? 'healthy' : 'degraded'
+        dbLatencyMs: 0,
+        status: 'healthy',
         services: {
             resend: !!c.env.RESEND_API_KEY,
             twilio: !!c.env.TWILIO_ACCOUNT_SID,
@@ -797,6 +798,69 @@ app.get('/stats/health', async (c) => {
             }
         }
     });
+});
+
+// GET /billing/preview - Preview chargebacks
+app.get('/billing/preview', async (c) => {
+    const db = createDb(c.env.DB);
+    // Use pricing service directly for preview
+    const { UsageService } = await import('../services/pricing');
+
+    const allTenants = await db.select().from(tenants).where(eq(tenants.status, 'active')).all();
+    const results = [];
+
+    for (const tenant of allTenants) {
+        if (tenant.billingExempt) continue;
+
+        const usageService = new UsageService(db, tenant.id);
+        const { costs, total } = await usageService.calculateBillableUsage();
+
+        if (total > 0) {
+            results.push({
+                tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug, stripeCustomerId: tenant.stripeCustomerId },
+                costs,
+                total: parseFloat(total.toFixed(2)) // Format money
+            });
+        }
+    }
+
+    return c.json({ count: results.length, tenants: results });
+});
+
+// POST /billing/charge - Execute chargebacks
+app.post('/billing/charge', async (c) => {
+    const db = createDb(c.env.DB);
+    const { BillingService } = await import('../services/billing');
+
+    // Check key
+    if (!c.env.STRIPE_SECRET_KEY) return c.json({ error: "Stripe Key Missing" }, 500);
+
+    const billingService = new BillingService(db, c.env.STRIPE_SECRET_KEY);
+    const { tenantIds } = await c.req.json().catch(() => ({ tenantIds: null }));
+
+    let targetTenants;
+    if (tenantIds && Array.isArray(tenantIds) && tenantIds.length > 0) {
+        targetTenants = await db.select().from(tenants).where(inArray(tenants.id, tenantIds)).all();
+    } else {
+        targetTenants = await db.select().from(tenants).where(eq(tenants.status, 'active')).all();
+    }
+
+    const results = [];
+    for (const tenant of targetTenants) {
+        if (tenant.billingExempt) continue;
+
+        try {
+            const res = await billingService.syncUsageToStripe(tenant.id);
+            if (res.items && res.items.length > 0) {
+                results.push({ tenantId: tenant.id, name: tenant.name, items: res.items, total: res.total });
+            }
+        } catch (e: any) {
+            console.error(`Billing Failed for ${tenant.slug}:`, e);
+            results.push({ tenantId: tenant.id, error: e.message });
+        }
+    }
+
+    return c.json({ success: true, charged: results.length, details: results });
 });
 
 // POST /tenants - Admin Create Tenant (Bypass Billing)

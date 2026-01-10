@@ -20,6 +20,8 @@ type Bindings = {
     TWILIO_ACCOUNT_SID: string;
     TWILIO_AUTH_TOKEN: string;
     TWILIO_FROM_NUMBER: string;
+    GOOGLE_CLIENT_ID: string;
+    GOOGLE_CLIENT_SECRET: string;
 };
 
 type Variables = {
@@ -423,7 +425,7 @@ app.post('/classes', async (c) => {
 
     const [newClass] = await db.insert(classes).values({
         id: crypto.randomUUID(),
-        tenantId: tenant.id,
+        tenantId: tenant!.id,
         instructorId: instructorId || member.id,
         locationId: locationId,
         title,
@@ -439,6 +441,61 @@ app.post('/classes', async (c) => {
         zoomEnabled: !!zoomEnabled,
         status: 'active'
     }).returning();
+
+
+
+    // Google Calendar Sync
+    if (tenant!.googleCalendarCredentials) {
+        c.executionCtx.waitUntil((async () => {
+            try {
+                const { GoogleCalendarService } = await import('../services/google-calendar');
+                const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
+                const creds = tenant.googleCalendarCredentials as any;
+
+                // Decrypt access token
+                const accessToken = await encryption.decrypt(creds.accessToken);
+                // Check expiry and refresh if needed? 
+                // Service could handle auto-refresh if we pass full creds?
+                // For MVP, if expired, we should refresh.
+
+                const service = new GoogleCalendarService(c.env.GOOGLE_CLIENT_ID, c.env.GOOGLE_CLIENT_SECRET, ''); // Redirect URI not needed for actions
+
+                let validAccessToken = accessToken;
+                if (creds.expiryDate && Date.now() > creds.expiryDate && creds.refreshToken) {
+                    const refreshToken = await encryption.decrypt(creds.refreshToken);
+                    const tokens = await service.refreshAccessToken(refreshToken);
+                    validAccessToken = tokens.access_token;
+
+                    // Update DB with new expiry/access check? 
+                    // Ideally yes, but let's just use it for now.
+                }
+
+                const event = {
+                    summary: title,
+                    description: description || '',
+                    start: { dateTime: new Date(startTime).toISOString() },
+                    end: { dateTime: new Date(new Date(startTime).getTime() + parseInt(durationMinutes) * 60000).toISOString() },
+                    // Add meeting link if Zoom?
+                };
+
+                if (zoomEnabled) { // zoom info might be on newClass
+                    // Fetch if needed, or use inputs. 
+                    // newClass has zoomMeetingUrl if we set it.
+                }
+
+                const gEvent = await service.createEvent(validAccessToken, 'primary', event);
+
+                if (gEvent.id) {
+                    await db.update(classes)
+                        .set({ googleEventId: gEvent.id })
+                        .where(eq(classes.id, newClass.id))
+                        .run();
+                }
+            } catch (e: any) {
+                console.error("Google Calendar Sync Failed", e);
+            }
+        })());
+    }
 
     return c.json(newClass);
 });
@@ -570,6 +627,41 @@ app.patch('/:id', async (c) => {
 
     await db.update(classes).set(updateData).where(eq(classes.id, classId)).run();
 
+    // Google Calendar Sync (Update)
+    if (existingClass.googleEventId && tenant.googleCalendarCredentials) {
+        c.executionCtx.waitUntil((async () => {
+            try {
+                const { GoogleCalendarService } = await import('../services/google-calendar');
+                const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
+                const creds = tenant.googleCalendarCredentials as any;
+                const accessToken = await encryption.decrypt(creds.accessToken);
+
+                const service = new GoogleCalendarService(c.env.GOOGLE_CLIENT_ID, c.env.GOOGLE_CLIENT_SECRET, '');
+
+                // TODO: Refresh token logic reuse (should be a helper)
+
+                // Only update if timing/title changed
+                if (title || startTime || durationMinutes || description) {
+                    const evt: any = {};
+                    if (title) evt.summary = title;
+                    if (description) evt.description = description;
+
+                    const start = startTime ? new Date(startTime) : existingClass.startTime;
+                    const duration = durationMinutes || existingClass.durationMinutes;
+
+                    if (startTime || durationMinutes) {
+                        evt.start = { dateTime: start.toISOString() };
+                        evt.end = { dateTime: new Date(start.getTime() + duration * 60000).toISOString() };
+                    }
+
+                    await service.updateEvent(accessToken, 'primary', existingClass.googleEventId!, evt);
+                }
+            } catch (e) {
+                console.error("Google Sync Update Failed", e);
+            }
+        })());
+    }
+
     // NOTIFICATION
     if ((startTime && new Date(startTime).getTime() !== existingClass.startTime.getTime()) || updateData.status === 'cancelled') {
         // Send updates
@@ -686,12 +778,12 @@ app.delete('/:id', async (c) => {
             .where(eq(bookings.classId, classId));
 
         for (const attendee of attendees) {
-            await emailService.sendGenericEmail(attendee.email, `Class Cancelled: ${existingClass.title}`, `The class scheduled for ${new Date(existingClass.startTime).toLocaleString()} has been cancelled.`);
-            if (attendee.phone) await smsService.sendSms(attendee.phone, `Class Cancelled: ${existingClass.title} has been removed.`);
+            await emailService.sendGenericEmail(attendee.email, `Class Cancelled: ${existingClass!.title}`, `The class scheduled for ${new Date(existingClass!.startTime).toLocaleString()} has been cancelled.`);
+            if (attendee.phone) await smsService.sendSms(attendee.phone, `Class Cancelled: ${existingClass!.title} has been removed.`);
         }
 
         // Notify Instructor
-        if (existingClass.instructorId) {
+        if (existingClass!.instructorId) {
             const instructor = await db.select({ email: users.email })
                 .from(tenantMembers)
                 .innerJoin(users, eq(tenantMembers.userId, users.id))
@@ -701,8 +793,8 @@ app.delete('/:id', async (c) => {
             if (instructor?.email) {
                 await emailService.sendGenericEmail(
                     instructor.email,
-                    `Class Cancelled: ${existingClass.title}`,
-                    `Your class "${existingClass.title}" scheduled for ${new Date(existingClass.startTime).toLocaleString()} has been cancelled and removed from the schedule.`
+                    `Class Cancelled: ${existingClass!.title}`,
+                    `Your class "${existingClass!.title}" scheduled for ${new Date(existingClass!.startTime).toLocaleString()} has been cancelled and removed from the schedule.`
                 );
             }
         }

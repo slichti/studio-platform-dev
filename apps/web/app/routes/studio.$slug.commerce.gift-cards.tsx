@@ -418,6 +418,99 @@ export default function GiftCardsPage() {
                     </div>
                 </div>
             )}
+            {/* Link Modal */}
+            {showLinkModal && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+                    <div className="bg-white dark:bg-zinc-900 rounded-3xl p-8 max-w-md w-full shadow-2xl scale-100 animate-in zoom-in-95">
+                        <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-2">Link Gift Card</h2>
+                        <p className="text-zinc-500 mb-6">Enter the code from your gift card email to add it to your wallet.</p>
+
+                        <form onSubmit={handleLinkCard} className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Gift Card Code</label>
+                                <input
+                                    type="text"
+                                    placeholder="GIFT-XXXX-XXXX"
+                                    className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl font-mono text-sm outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                                    value={linkCode}
+                                    onChange={(e) => setLinkCode(e.target.value.toUpperCase())}
+                                    required
+                                />
+                            </div>
+
+                            {linkSuccess && (
+                                <div className="p-3 bg-emerald-100 text-emerald-800 rounded-xl text-sm font-bold flex items-center gap-2">
+                                    <CheckCircle size={16} /> Card Linked Successfully!
+                                </div>
+                            )}
+
+                            <div className="flex gap-2 pt-2">
+                                <button type="button" onClick={() => setShowLinkModal(false)} className="flex-1 py-3 font-bold text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl transition-colors">Cancel</button>
+                                <button type="submit" disabled={loading} className="flex-1 py-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-bold rounded-xl hover:scale-[1.02] transition-transform shadow-lg disabled:opacity-50 disabled:hover:scale-100">
+                                    {loading ? <Loader2 className="animate-spin w-5 h-5 mx-auto" /> : "Link Card"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Issue Modal (Admin) */}
+            {showIssueModal && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+                    <div className="bg-white dark:bg-zinc-900 rounded-3xl p-8 max-w-md w-full shadow-2xl scale-100 animate-in zoom-in-95">
+                        <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-2">Issue Gift Card</h2>
+                        <p className="text-zinc-500 mb-6">Create a new gift card manually.</p>
+
+                        <form onSubmit={handleIssue} className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Amount ($)</label>
+                                <input
+                                    type="number"
+                                    placeholder="50.00"
+                                    className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl font-bold text-lg outline-none focus:ring-2 focus:ring-blue-500"
+                                    value={issueData.amount}
+                                    onChange={(e) => setIssueData({ ...issueData, amount: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Recipient Email</label>
+                                <input
+                                    type="email"
+                                    placeholder="customer@example.com"
+                                    className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                                    value={issueData.recipientEmail}
+                                    onChange={(e) => setIssueData({ ...issueData, recipientEmail: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Notes (Internal)</label>
+                                <input
+                                    type="text"
+                                    placeholder="Reason for issuance..."
+                                    className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                                    value={issueData.notes}
+                                    onChange={(e) => setIssueData({ ...issueData, notes: e.target.value })}
+                                />
+                            </div>
+
+                            {issueSuccess && (
+                                <div className="p-3 bg-emerald-100 text-emerald-800 rounded-xl text-sm font-bold flex items-center gap-2">
+                                    <CheckCircle size={16} /> {issueSuccess}
+                                </div>
+                            )}
+
+                            <div className="flex gap-2 pt-2">
+                                <button type="button" onClick={() => setShowIssueModal(false)} className="flex-1 py-3 font-bold text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl transition-colors">Cancel</button>
+                                <button type="submit" disabled={loading} className="flex-1 py-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-bold rounded-xl hover:scale-[1.02] transition-transform shadow-lg disabled:opacity-50 disabled:hover:scale-100">
+                                    {loading ? <Loader2 className="animate-spin w-5 h-5 mx-auto" /> : "Issue Card"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

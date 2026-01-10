@@ -497,6 +497,28 @@ app.post('/checkout/session', async (c) => {
             });
         }
 
+        // 8. Calculate Application Fee
+        const { PricingService } = await import('../services/pricing');
+        const tierConfig = PricingService.getTierConfig(tenant.tier);
+        // tierConfig.applicationFeePercent is e.g. 0.05 for 5%
+        const appFeeDecimal = tierConfig.applicationFeePercent;
+
+        let applicationFeeAmount;
+        let applicationFeePercent;
+
+        if (stripeMode === 'subscription') {
+            // Stripe expects percent as number, e.g. 5 for 5%
+            if (appFeeDecimal > 0) {
+                applicationFeePercent = appFeeDecimal * 100;
+            }
+        } else {
+            // Calculate absolute amount for one-time payments
+            // We take a cut of the TOTAL charged amount (including the processing fee surcharge)
+            if (appFeeDecimal > 0) {
+                applicationFeeAmount = Math.round(amountWithFee * appFeeDecimal);
+            }
+        }
+
         const session = await stripeService.createEmbeddedCheckoutSession(
             tenant.stripeAccountId,
             {
@@ -506,6 +528,8 @@ app.post('/checkout/session', async (c) => {
                 customer: stripeCustomerId || undefined,
                 lineItems,
                 mode: stripeMode,
+                applicationFeeAmount,
+                applicationFeePercent,
                 metadata: {
                     type: pack ? 'pack_purchase' : (plan ? 'membership_purchase' : 'gift_card_purchase'),
                     packId: pack?.id || '',
@@ -528,6 +552,7 @@ app.post('/checkout/session', async (c) => {
                     subtotal: String(taxableAmount), // net of coupon
                     processingFee: String(stripeFee),
                     totalCharge: String(amountWithFee),
+                    applicationFee: String(applicationFeeAmount || (applicationFeePercent ? `${applicationFeePercent}%` : '0')),
                     couponCode: couponCode || '',
                     usedGiftCardId: appliedGiftCardId || '',
                     giftCardCode: giftCardCode || ''

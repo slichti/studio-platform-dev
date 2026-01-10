@@ -114,6 +114,8 @@ export class StripeService {
             customer?: string;
             lineItems?: Stripe.Checkout.SessionCreateParams.LineItem[];
             mode?: 'payment' | 'subscription';
+            applicationFeeAmount?: number;
+            applicationFeePercent?: number;
         }
     ) {
         const { client, options } = this.getClient(connectedAccountId);
@@ -132,6 +134,18 @@ export class StripeService {
             return_url: params.returnUrl,
             metadata: params.metadata,
         };
+
+        if (params.mode === 'subscription' && params.applicationFeePercent) {
+            sessionParams.subscription_data = {
+                application_fee_percent: params.applicationFeePercent
+            };
+        }
+
+        if (params.mode !== 'subscription' && params.applicationFeeAmount) {
+            sessionParams.payment_intent_data = {
+                application_fee_amount: params.applicationFeeAmount
+            };
+        }
 
         if (params.lineItems && params.lineItems.length > 0) {
             sessionParams.line_items = params.lineItems;
@@ -377,6 +391,27 @@ export class StripeService {
         return this.stripe.billingPortal.sessions.create({
             customer: customerId,
             return_url: returnUrl,
+        });
+    }
+
+    /**
+     * Create Invoice Item (Pending Invoice Item for next billing cycle)
+     */
+    async createInvoiceItem(
+        customerId: string,
+        params: {
+            amount: number;
+            currency: string;
+            description: string;
+            metadata?: Record<string, string>;
+        }
+    ) {
+        return this.stripe.invoiceItems.create({
+            customer: customerId,
+            amount: params.amount,
+            currency: params.currency,
+            description: params.description,
+            metadata: params.metadata
         });
     }
 }

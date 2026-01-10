@@ -253,4 +253,58 @@ export class UsageService {
             .where(eq(tenants.id, this.tenantId))
             .run();
     }
+
+    async calculateBillableUsage() {
+        const usage = await this.getUsage();
+        const costs: any = {};
+        let total = 0;
+
+        // SMS
+        // If limit is -1 (unlimited), overage is 0.
+        const smsLimit = usage.smsLimit === -1 ? Infinity : usage.smsLimit;
+        const smsOverage = Math.max(0, usage.smsUsage - smsLimit);
+        if (smsOverage > 0) {
+            costs.sms = { quantity: smsOverage, amount: smsOverage * UNIT_COSTS.sms };
+            total += costs.sms.amount;
+        }
+
+        // Email
+        const emailLimit = usage.emailLimit === -1 ? Infinity : usage.emailLimit;
+        const emailOverage = Math.max(0, usage.emailUsage - emailLimit);
+        if (emailOverage > 0) {
+            costs.email = { quantity: emailOverage, amount: emailOverage * UNIT_COSTS.email };
+            total += costs.email.amount;
+        }
+
+        // Streaming (VOD Minutes)
+        const streamingLimit = usage.streamingLimit === -1 ? Infinity : usage.streamingLimit;
+        const streamingOverage = Math.max(0, usage.streamingUsage - streamingLimit);
+        if (streamingOverage > 0) {
+            costs.streaming = { quantity: streamingOverage, amount: streamingOverage * UNIT_COSTS.streaming };
+            total += costs.streaming.amount;
+        }
+
+        // Storage
+        // Storage limit from Tier Config (not currently overridable on tenant directly in getUsage return, but logic uses tier default if not overridden)
+        // usage.storageGB is calculated in getUsage
+        // PricingService.getTierConfig(usage.tier).limits.storageGB is the base.
+        // Let's assume for now we use the tier limit as the threshold.
+        const tierConfig = PricingService.getTierConfig(usage.tier);
+        const storageLimit = tierConfig.limits.storageGB === -1 ? Infinity : tierConfig.limits.storageGB;
+
+        const storageOverage = Math.max(0, usage.storageGB - storageLimit);
+        if (storageOverage > 0) {
+            costs.storage = { quantity: storageOverage, amount: storageOverage * UNIT_COSTS.storage };
+            total += costs.storage.amount;
+        }
+
+        return { costs, total };
+    }
 }
+
+export const UNIT_COSTS = {
+    sms: 0.0075, // per message
+    email: 0.0006, // per email
+    streaming: 0.05, // per minute
+    storage: 0.02 // per GB
+};

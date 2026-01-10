@@ -30,6 +30,7 @@ export const tenants = sqliteTable('tenants', {
     zapierCredentials: text('zapier_credentials', { mode: 'json' }), // JSON: { webhookUrl, apiKey }
     googleCredentials: text('google_credentials', { mode: 'json' }), // JSON: { clientId, measurementId }
     slackCredentials: text('slack_credentials', { mode: 'json' }), // JSON: { webhookUrl, botToken }
+    googleCalendarCredentials: text('google_calendar_credentials', { mode: 'json' }), // JSON: { accessToken, refreshToken, expiryDate, calendarId }
     status: text('status', { enum: ['active', 'paused', 'suspended'] }).default('active').notNull(),
     tier: text('tier', { enum: ['basic', 'growth', 'scale'] }).default('basic').notNull(),
     subscriptionStatus: text('subscription_status', { enum: ['active', 'past_due', 'canceled', 'trialing'] }).default('active').notNull(),
@@ -48,6 +49,8 @@ export const tenants = sqliteTable('tenants', {
     storageUsage: integer('storage_usage').default(0).notNull(), // in bytes
     memberCount: integer('member_count').default(0).notNull(),
     instructorCount: integer('instructor_count').default(0).notNull(),
+
+    lastBilledAt: integer('last_billed_at', { mode: 'timestamp' }), // Track last chargeback invoice
 
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
@@ -227,6 +230,8 @@ export const classes = sqliteTable('classes', {
     autoCancelThreshold: integer('auto_cancel_threshold'), // Hours before start
     autoCancelEnabled: integer('auto_cancel_enabled', { mode: 'boolean' }).default(false),
 
+    googleEventId: text('google_event_id'),
+
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     tenantTimeIdx: index('tenant_time_idx').on(table.tenantId, table.startTime),
@@ -332,6 +337,7 @@ export const appointments = sqliteTable('appointments', {
 
     // Zoom/Virtual support
     zoomMeetingUrl: text('zoom_meeting_url'),
+    googleEventId: text('google_event_id'),
 
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
