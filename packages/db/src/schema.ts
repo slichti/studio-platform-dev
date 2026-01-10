@@ -1256,3 +1256,91 @@ export const platformConfig = sqliteTable('platform_config', {
     description: text('description'),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
+
+// --- Website Builder: Pages ---
+export const websitePages = sqliteTable('website_pages', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+    slug: text('slug').notNull(), // e.g., "home", "about", "pricing"
+    title: text('title').notNull(),
+    content: text('content', { mode: 'json' }), // Puck JSON output
+    isPublished: integer('is_published', { mode: 'boolean' }).default(false).notNull(),
+    seoTitle: text('seo_title'),
+    seoDescription: text('seo_description'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('website_page_tenant_idx').on(table.tenantId),
+    slugIdx: uniqueIndex('website_page_slug_idx').on(table.tenantId, table.slug),
+}));
+
+export const websitePagesRelations = relations(websitePages, ({ one }) => ({
+    tenant: one(tenants, {
+        fields: [websitePages.tenantId],
+        references: [tenants.id],
+    }),
+}));
+
+// --- Website Builder: Settings ---
+export const websiteSettings = sqliteTable('website_settings', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }).unique(),
+    domain: text('domain'), // Custom domain for website
+    theme: text('theme', { mode: 'json' }), // { primaryColor, secondaryColor, fontFamily }
+    navigation: text('navigation', { mode: 'json' }), // [{ label, slug, order }]
+    globalStyles: text('global_styles', { mode: 'json' }), // CSS overrides
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+});
+
+export const websiteSettingsRelations = relations(websiteSettings, ({ one }) => ({
+    tenant: one(tenants, {
+        fields: [websiteSettings.tenantId],
+        references: [tenants.id],
+    }),
+}));
+
+// --- Chat: Rooms ---
+export const chatRooms = sqliteTable('chat_rooms', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+    type: text('type', { enum: ['support', 'class', 'community', 'direct'] }).notNull(),
+    name: text('name').notNull(),
+    metadata: text('metadata', { mode: 'json' }), // { classId, memberIds, etc }
+    isArchived: integer('is_archived', { mode: 'boolean' }).default(false).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('chat_room_tenant_idx').on(table.tenantId),
+    typeIdx: index('chat_room_type_idx').on(table.tenantId, table.type),
+}));
+
+export const chatRoomsRelations = relations(chatRooms, ({ one, many }) => ({
+    tenant: one(tenants, {
+        fields: [chatRooms.tenantId],
+        references: [tenants.id],
+    }),
+    messages: many(chatMessages),
+}));
+
+// --- Chat: Messages ---
+export const chatMessages = sqliteTable('chat_messages', {
+    id: text('id').primaryKey(),
+    roomId: text('room_id').notNull().references(() => chatRooms.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id),
+    content: text('content').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    roomIdx: index('chat_message_room_idx').on(table.roomId),
+    userIdx: index('chat_message_user_idx').on(table.userId),
+}));
+
+export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
+    room: one(chatRooms, {
+        fields: [chatMessages.roomId],
+        references: [chatRooms.id],
+    }),
+    user: one(users, {
+        fields: [chatMessages.userId],
+        references: [users.id],
+    }),
+}));
