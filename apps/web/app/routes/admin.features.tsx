@@ -4,7 +4,7 @@ import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { useState } from "react";
 import { useAuth } from "@clerk/react-router";
-import { Smartphone, Video, CreditCard, MessageSquare, Mail, Save } from "lucide-react";
+import { Smartphone, Video, CreditCard, MessageSquare, Mail, Save, Globe, MessagesSquare } from "lucide-react";
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -23,6 +23,18 @@ const KNOWN_FEATURES = [
         label: 'White-Label Mobile App',
         description: 'Enable Mobile App settings and promotion across all studios. Keep disabled until apps are approved.',
         icon: Smartphone
+    },
+    {
+        key: 'feature_website_builder',
+        label: 'Website Builder',
+        description: 'Enable drag-and-drop website creation for tenants using Puck editor.',
+        icon: Globe
+    },
+    {
+        key: 'feature_chat',
+        label: 'Chat System',
+        description: 'Enable real-time chat for support and community using Durable Objects.',
+        icon: MessagesSquare
     },
     {
         key: 'feature_financials',
@@ -67,6 +79,7 @@ const KNOWN_FEATURES = [
         icon: Save
     }
 ];
+
 
 export default function AdminFeatures() {
     const { configs: initialConfigs, error } = useLoaderData<any>();
