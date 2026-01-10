@@ -159,6 +159,35 @@ app.post('/', async (c) => {
         } else {
             return c.json({ error: "Mailchimp configured but credentials invalid" }, 500);
         }
+    } else if (tenant.marketingProvider === 'flodesk') {
+        const { FlodeskService } = await import('../services/flodesk');
+        const fd = await FlodeskService.getForTenant(tenant, c.env, encryption);
+        if (fd) {
+            for (const r of recipients) {
+                if (!r.email) continue;
+                // Flodesk doesn't easily support dynamic tags/segments on add without ID lookup.
+                // We'll just sync the contact basic info.
+                try {
+                    await fd.addContact(r.email, {
+                        firstName: (r as any).firstName,
+                        lastName: (r as any).lastName
+                    });
+                    logs.push({
+                        id: crypto.randomUUID(),
+                        tenantId: tenant.id,
+                        campaignId,
+                        recipientEmail: r.email,
+                        subject: `Synced to Flodesk`,
+                        status: 'sent',
+                        sentAt: new Date()
+                    });
+                } catch (e: any) {
+                    errors.push({ email: r.email, error: e.message });
+                }
+            }
+        } else {
+            return c.json({ error: "Flodesk configured but credentials invalid" }, 500);
+        }
     } else {
         // System / Resend Logic
         const resendKey = tenant.resendCredentials?.apiKey || c.env.RESEND_API_KEY;

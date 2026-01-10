@@ -198,6 +198,15 @@ app.put('/:id/integrations', async (c) => {
         };
     }
 
+    // 8. Flodesk Configuration
+    const { flodeskApiKey } = body;
+    if (flodeskApiKey) {
+        const encryptedKey = await encryption.encrypt(flodeskApiKey);
+        updateData.flodeskCredentials = {
+            apiKey: encryptedKey
+        };
+    }
+
     // 8. Slack Configuration
     const { slackWebhookUrl, slackBotToken } = body;
     if (slackWebhookUrl || slackBotToken) {

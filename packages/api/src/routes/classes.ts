@@ -995,6 +995,31 @@ app.post('/:id/book', async (c) => {
             spotNumber
         });
 
+        // Slack Notification
+        if (tenant.slackCredentials) {
+            const slackCreds = tenant.slackCredentials as any;
+            c.executionCtx.waitUntil((async () => {
+                try {
+                    const { SlackService } = await import('../services/slack');
+                    const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
+                    let botToken;
+                    if (slackCreds.botToken) {
+                        botToken = await encryption.decrypt(slackCreds.botToken);
+                    }
+                    const slack = new SlackService({
+                        webhookUrl: slackCreds.webhookUrl,
+                        botToken
+                    });
+                    const firstName = memberWithPlans.user.profile?.firstName || 'Unknown';
+                    const lastName = memberWithPlans.user.profile?.lastName || '';
+                    const msg = `🔔 New Booking: *${firstName} ${lastName}* booked *${classInfo.title}*`;
+                    await slack.sendNotification(msg);
+                } catch (e) {
+                    console.error("Slack notification failed", e);
+                }
+            })());
+        }
+
         // SMS Notification
         const notificationSettings = (tenant.settings as any)?.notificationSettings || {};
         if (notificationSettings.bookingSms !== false) {
