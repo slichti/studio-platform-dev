@@ -24,147 +24,139 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 // GET /users/me - Get full user profile including tenants
 // GET /users/me - Get full user profile including tenants
 app.get('/me', async (c) => {
-    const auth = c.get('auth');
-    if (!auth?.userId) return c.json({ error: 'Unauthorized' }, 401);
+    try {
+        const auth = c.get('auth');
+        if (!auth?.userId) return c.json({ error: 'Unauthorized' }, 401);
 
-    const db = createDb(c.env.DB);
+        const db = createDb(c.env.DB);
 
-    // 1. Try to find the user by their Clerk ID
-    let user = await db.query.users.findFirst({
-        where: eq(users.id, auth.userId),
-        with: {
-            memberships: {
-                with: {
-                    tenant: true,
-                    roles: true
+        // 1. Try to find the user by their Clerk ID
+        let user = await db.query.users.findFirst({
+            where: eq(users.id, auth.userId),
+            with: {
+                memberships: {
+                    with: {
+                        tenant: true,
+                        roles: true
+                    }
                 }
             }
-        }
-    });
+        });
 
-    // 2. If not found, implement JIT Provisioning & Account Linking
-    if (!user) {
-        console.log(`User ${auth.userId} not found in DB. Attempting JIT provisioning...`);
-        try {
-            // A. Fetch User Details from Clerk API
-            const clerkRes = await fetch(`https://api.clerk.com/v1/users/${auth.userId}`, {
-                headers: {
-                    'Authorization': `Bearer ${c.env.CLERK_SECRET_KEY}`,
-                    'Content-Type': 'application/json'
+        // 2. If not found, implement JIT Provisioning & Account Linking
+        if (!user) {
+            console.log(`User ${auth.userId} not found in DB. Attempting JIT provisioning...`);
+            try {
+                // A. Fetch User Details from Clerk API
+                const clerkRes = await fetch(`https://api.clerk.com/v1/users/${auth.userId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${c.env.CLERK_SECRET_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!clerkRes.ok) {
+                    console.error("Failed to fetch from Clerk", await clerkRes.text());
+                    return c.json({ error: 'User provisioning failed' }, 500);
                 }
-            });
 
-            if (!clerkRes.ok) {
-                console.error("Failed to fetch from Clerk", await clerkRes.text());
-                return c.json({ error: 'User provisioning failed' }, 500);
-            }
+                const clerkUser = await clerkRes.json() as any;
+                const email = clerkUser.email_addresses?.[0]?.email_address;
+                const firstName = clerkUser.first_name;
+                const lastName = clerkUser.last_name;
+                const portraitUrl = clerkUser.image_url;
 
-            const clerkUser = await clerkRes.json() as any;
-            const email = clerkUser.email_addresses?.[0]?.email_address;
-            const firstName = clerkUser.first_name;
-            const lastName = clerkUser.last_name;
-            const portraitUrl = clerkUser.image_url;
+                if (!email) {
+                    return c.json({ error: 'No email found for user' }, 400);
+                }
 
-            if (!email) {
-                return c.json({ error: 'No email found for user' }, 400);
-            }
+                // B. Check for "Shadow User" (Created by Admin via email)
+                const shadowUser = await db.query.users.findFirst({
+                    where: eq(users.email, email)
+                });
 
-            // B. Check for "Shadow User" (Created by Admin via email)
-            const shadowUser = await db.query.users.findFirst({
-                where: eq(users.email, email)
-            });
+                const profile = { firstName, lastName, portraitUrl };
 
-            const profile = { firstName, lastName, portraitUrl };
+                if (shadowUser) {
+                    console.log(`Found Shadow User ${shadowUser.id} for email ${email}. Migrating to Clerk ID ${auth.userId}...`);
+                    // C. Migrate Records
+                    await db.batch([
+                        // Insert new Global User
+                        db.insert(users).values({
+                            id: auth.userId,
+                            email,
+                            profile,
+                            isSystemAdmin: shadowUser.isSystemAdmin,
+                            stripeCustomerId: shadowUser.stripeCustomerId,
+                            stripeAccountId: shadowUser.stripeAccountId,
+                            createdAt: shadowUser.createdAt
+                        }),
 
-            if (shadowUser) {
-                console.log(`Found Shadow User ${shadowUser.id} for email ${email}. Migrating to Clerk ID ${auth.userId}...`);
-                // C. Migrate Records
-                // We need to move everything from shadowUser.id to auth.userId
-                // Then delete shadowUser.id
-                // Then insert auth.userId (or update if we prefer, but ID change is tricky in SQL)
-                // SQLite doesn't support changing primary key easily with cascading update unless defined.
-                // We will manually reassign FKs.
+                        // Reassign Foreign Keys
+                        db.update(tenantMembers).set({ userId: auth.userId }).where(eq(tenantMembers.userId, shadowUser.id)),
+                        db.update(subscriptions).set({ userId: auth.userId }).where(eq(subscriptions.userId, shadowUser.id)),
+                        db.update(userRelationships).set({ parentUserId: auth.userId }).where(eq(userRelationships.parentUserId, shadowUser.id)),
+                        db.update(userRelationships).set({ childUserId: auth.userId }).where(eq(userRelationships.childUserId, shadowUser.id)),
 
-                // 1. Subscriptions
-                // 2. Tenant Members
-                // 3. User Relationships (Parent/Child)
-                // 4. User Challenges
-                // 5. Audit Logs (Actor)
+                        // Delete Shadow User
+                        db.delete(users).where(eq(users.id, shadowUser.id))
+                    ]);
 
-                await db.batch([
-                    // Insert new Global User
-                    db.insert(users).values({
+                } else {
+                    console.log(`Creating new JIT user for ${auth.userId}`);
+                    // D. Create New User
+                    await db.insert(users).values({
                         id: auth.userId,
                         email,
                         profile,
-                        isSystemAdmin: shadowUser.isSystemAdmin,
-                        stripeCustomerId: shadowUser.stripeCustomerId,
-                        stripeAccountId: shadowUser.stripeAccountId,
-                        createdAt: shadowUser.createdAt
-                    }),
+                        createdAt: new Date()
+                    }).run();
+                }
 
-                    // Reassign Foreign Keys
-                    db.update(tenantMembers).set({ userId: auth.userId }).where(eq(tenantMembers.userId, shadowUser.id)),
-                    db.update(subscriptions).set({ userId: auth.userId }).where(eq(subscriptions.userId, shadowUser.id)),
-                    db.update(userRelationships).set({ parentUserId: auth.userId }).where(eq(userRelationships.parentUserId, shadowUser.id)),
-                    db.update(userRelationships).set({ childUserId: auth.userId }).where(eq(userRelationships.childUserId, shadowUser.id)),
-                    // Note: Add other tables if necessary (e.g. Audit Logs if we want to keep history linked)
-
-                    // Delete Shadow User
-                    db.delete(users).where(eq(users.id, shadowUser.id))
-                ]);
-
-            } else {
-                console.log(`Creating new JIT user for ${auth.userId}`);
-                // D. Create New User
-                await db.insert(users).values({
-                    id: auth.userId,
-                    email,
-                    profile,
-                    createdAt: new Date()
-                }).run();
-            }
-
-            // 3. Re-fetch User
-            user = await db.query.users.findFirst({
-                where: eq(users.id, auth.userId),
-                with: {
-                    memberships: {
-                        with: {
-                            tenant: true,
-                            roles: true
+                // 3. Re-fetch User
+                user = await db.query.users.findFirst({
+                    where: eq(users.id, auth.userId),
+                    with: {
+                        memberships: {
+                            with: {
+                                tenant: true,
+                                roles: true
+                            }
                         }
                     }
-                }
-            });
+                });
 
-        } catch (e: any) {
-            console.error("JIT Error:", e);
-            return c.json({ error: `JIT Provisioning Failed: ${e.message}` }, 500);
+            } catch (e: any) {
+                console.error("JIT Error:", e);
+                return c.json({ error: `JIT Provisioning Failed: ${e.message}` }, 500);
+            }
         }
+
+        if (!user) {
+            return c.json({ error: 'User could not be loaded' }, 500);
+        }
+
+        const myTenants = user.memberships.map(m => ({
+            id: m.tenant.id,
+            name: m.tenant.name,
+            slug: m.tenant.slug,
+            roles: m.roles.map(r => r.role),
+            branding: m.tenant.branding
+        }));
+
+        return c.json({
+            id: user.id,
+            email: user.email,
+            firstName: (user.profile as any)?.firstName,
+            lastName: (user.profile as any)?.lastName,
+            portraitUrl: (user.profile as any)?.portraitUrl,
+            isSystemAdmin: user.isSystemAdmin,
+            tenants: myTenants
+        });
+    } catch (e: any) {
+        console.error("GET /me Failed:", e);
+        return c.json({ error: "Failed to fetch user profile: " + e.message }, 500);
     }
-
-    if (!user) {
-        return c.json({ error: 'User could not be loaded' }, 500);
-    }
-
-    const myTenants = user.memberships.map(m => ({
-        id: m.tenant.id,
-        name: m.tenant.name,
-        slug: m.tenant.slug,
-        roles: m.roles.map(r => r.role),
-        branding: m.tenant.branding
-    }));
-
-    return c.json({
-        id: user.id,
-        email: user.email,
-        firstName: (user.profile as any)?.firstName,
-        lastName: (user.profile as any)?.lastName,
-        portraitUrl: (user.profile as any)?.portraitUrl,
-        isSystemAdmin: user.isSystemAdmin,
-        tenants: myTenants
-    });
 });
 
 // GET /users/me/family - List family members for the current tenant

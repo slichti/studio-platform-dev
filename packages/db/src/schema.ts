@@ -30,7 +30,7 @@ export const tenants = sqliteTable('tenants', {
     zapierCredentials: text('zapier_credentials', { mode: 'json' }), // JSON: { webhookUrl, apiKey }
     googleCredentials: text('google_credentials', { mode: 'json' }), // JSON: { clientId, measurementId }
     slackCredentials: text('slack_credentials', { mode: 'json' }), // JSON: { webhookUrl, botToken }
-    googleCalendarCredentials: text('google_calendar_credentials', { mode: 'json' }), // JSON: { accessToken, refreshToken, expiryDate, calendarId }
+    googleCalendarCredentials: text('google_calendar_credentials'), // Temporarily disabled JSON mode to fix raw string crash
     status: text('status', { enum: ['active', 'paused', 'suspended'] }).default('active').notNull(),
     tier: text('tier', { enum: ['basic', 'growth', 'scale'] }).default('basic').notNull(),
     subscriptionStatus: text('subscription_status', { enum: ['active', 'past_due', 'canceled', 'trialing'] }).default('active').notNull(),

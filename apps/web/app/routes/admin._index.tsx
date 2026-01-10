@@ -13,7 +13,6 @@ export const loader = async (args: LoaderFunctionArgs) => {
         const { getToken } = await getAuth(args);
         token = await getToken();
     } catch (authErr: any) {
-        // If auth system fails entirely, maybe redirect or log
         console.error("Auth System Error", JSON.stringify(authErr, Object.getOwnPropertyNames(authErr)));
         return redirect('/sign-in');
     }
@@ -22,38 +21,19 @@ export const loader = async (args: LoaderFunctionArgs) => {
         return redirect('/sign-in?redirect_url=/admin');
     }
 
-    try {
-        const env = (args.context as any).cloudflare?.env || (args.context as any).env || {};
-        const apiUrl = env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev";
+    const env = (args.context as any).cloudflare?.env || (args.context as any).env || {};
+    const apiUrl = env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev";
 
-        const [logs, health] = await Promise.all([
-            apiRequest("/admin/logs", token, {}, apiUrl),
-            apiRequest("/admin/stats/health", token, {}, apiUrl).catch((e) => {
-                console.error("Health Check Failed:", e);
-                return { status: 'error', error: e.message || "Fetch Failed" };
-            })
-        ]);
-        return { logs, health };
-    } catch (e: any) {
-        const env = (args.context as any).cloudflare?.env || (args.context as any).env || {};
-        const apiUrl = env.VITE_API_URL || "UNKNOWN";
-        const message = e.message || "Unknown Error";
+    // Fetch in parallel but handle errors individually so we don't crash
+    const [logsResult, healthResult] = await Promise.allSettled([
+        apiRequest("/admin/logs", token, {}, apiUrl),
+        apiRequest("/admin/stats/health", token, {}, apiUrl)
+    ]);
 
-        // Handle 403 Forbidden specifically (Not an Admin)
-        if (e.status === 403 || message.includes("Forbidden")) {
-            throw new Response("Access Denied: You do not have permission to view the Admin Dashboard.", { status: 403 });
-        }
+    const logs = logsResult.status === 'fulfilled' ? logsResult.value : { error: logsResult.reason?.message || "Failed to load logs" };
+    const health = healthResult.status === 'fulfilled' ? healthResult.value : { status: 'error', error: healthResult.reason?.message || "Failed to load health" };
 
-        // Handle 401 Unauthorized (Token expired/invalid during fetch)
-        if (e.status === 401 || message.includes("Unauthorized")) {
-            return redirect('/sign-in?redirect_url=/admin');
-        }
-
-        console.error("Admin Dashboard Loader Error:", e);
-        // Return empty state or rethrow for custom error boundary?
-        // Throwing 500 is fine if it's a real system error, but let's be descriptive.
-        throw new Response(`Admin Dashboard Error: ${message}`, { status: 500 });
-    }
+    return { logs, health };
 };
 
 function StatCard({ title, value, status, trend }: { title: string, value: string, status?: "success" | "warning" | "error" | "neutral", trend?: string }) {
@@ -161,46 +141,53 @@ export default function AdminIndex() {
                     <CardTitle>Recent Audit Logs</CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-[180px]">Time</TableHead>
-                                <TableHead className="w-[150px]">Action</TableHead>
-                                <TableHead>Summary</TableHead>
-                                <TableHead>Actor</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <tbody>
-                            {logs.map((log: any) => (
-                                <TableRow key={log.id} className="hover:bg-zinc-50">
-                                    <TableCell className="font-mono text-xs text-zinc-500 whitespace-nowrap">
-                                        {new Date(log.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant="outline" className="font-mono text-[10px] uppercase">
-                                            {log.action.replace(/_/g, ' ')}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-sm">
-                                        {formatLogDetails(log)}
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-col">
-                                            <span className="text-sm font-medium text-zinc-900">{log.actorProfile?.firstName} {log.actorProfile?.lastName}</span>
-                                            <span className="text-xs text-zinc-500">{log.actorEmail}</span>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            {logs.length === 0 && (
+                    {Array.isArray(logs) ? (
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell className="text-center text-zinc-500 py-8" colSpan={4}>
-                                        No recent activity found.
-                                    </TableCell>
+                                    <TableHead className="w-[180px]">Time</TableHead>
+                                    <TableHead className="w-[150px]">Action</TableHead>
+                                    <TableHead>Summary</TableHead>
+                                    <TableHead>Actor</TableHead>
                                 </TableRow>
-                            )}
-                        </tbody>
-                    </Table>
+                            </TableHeader>
+                            <tbody>
+                                {logs.map((log: any) => (
+                                    <TableRow key={log.id} className="hover:bg-zinc-50">
+                                        <TableCell className="font-mono text-xs text-zinc-500 whitespace-nowrap">
+                                            {new Date(log.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline" className="font-mono text-[10px] uppercase">
+                                                {log.action.replace(/_/g, ' ')}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-sm">
+                                            {formatLogDetails(log)}
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-medium text-zinc-900">{log.actorProfile?.firstName} {log.actorProfile?.lastName}</span>
+                                                <span className="text-xs text-zinc-500">{log.actorEmail}</span>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {logs.length === 0 && (
+                                    <TableRow>
+                                        <TableCell className="text-center text-zinc-500 py-8" colSpan={4}>
+                                            No recent activity found.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </tbody>
+                        </Table>
+                    ) : (
+                        <div className="p-6 text-red-600 bg-red-50">
+                            <p className="font-medium">Error Loading Logs</p>
+                            <p className="text-sm mt-1">{logs.error}</p>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>

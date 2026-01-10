@@ -61,7 +61,11 @@ export const loader = async (args: LoaderFunctionArgs) => {
             return redirect("/sign-in?redirect_url=/admin");
         }
         console.error("Admin Loader Error:", e);
-        throw e;
+
+        // Return a dummy user with error state to prevent UI crash, 
+        // OR throw a 503 response that error boundary handles nicely?
+        // Let's throw a proper Response so standard Error Boundary picks it up but with logic
+        throw new Response(`System Unavailable: ${e.message}`, { status: 503 });
     }
 };
 

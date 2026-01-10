@@ -42,23 +42,28 @@ app.get('/logs', async (c) => {
     const db = createDb(c.env.DB);
 
 
-    const logs = await db.select({
-        id: auditLogs.id,
-        action: auditLogs.action,
-        actorId: auditLogs.actorId,
-        targetId: auditLogs.targetId,
-        details: auditLogs.details,
-        createdAt: auditLogs.createdAt,
-        actorEmail: users.email,
-        actorProfile: users.profile
-    })
-        .from(auditLogs)
-        .leftJoin(users, eq(auditLogs.actorId, users.id))
-        .orderBy(desc(auditLogs.createdAt))
-        .limit(100)
-        .all();
+    try {
+        const logs = await db.select({
+            id: auditLogs.id,
+            action: auditLogs.action,
+            actorId: auditLogs.actorId,
+            targetId: auditLogs.targetId,
+            details: auditLogs.details,
+            createdAt: auditLogs.createdAt,
+            actorEmail: users.email,
+            actorProfile: users.profile
+        })
+            .from(auditLogs)
+            .leftJoin(users, eq(auditLogs.actorId, users.id))
+            .orderBy(desc(auditLogs.createdAt))
+            .limit(100)
+            .all();
 
-    return c.json(logs);
+        return c.json(logs);
+    } catch (e: any) {
+        console.error("Fetch Logs Failed:", e);
+        return c.json({ error: "Failed to fetch audit logs: " + e.message }, 500);
+    }
 });
 
 // GET /users - List all users across the platform
@@ -803,28 +808,31 @@ app.get('/stats/health', async (c) => {
 // GET /billing/preview - Preview chargebacks
 app.get('/billing/preview', async (c) => {
     const db = createDb(c.env.DB);
-    // Use pricing service directly for preview
-    const { UsageService } = await import('../services/pricing');
+    const { UNIT_COSTS } = await import('../services/pricing');
 
-    const allTenants = await db.select().from(tenants).where(eq(tenants.status, 'active')).all();
-    const results = [];
+    try {
+        const allTenants = await db.select().from(tenants).where(eq(tenants.status, 'active')).all();
+        const results = [];
 
-    for (const tenant of allTenants) {
-        if (tenant.billingExempt) continue;
+        for (const tenant of allTenants) {
+            if (tenant.billingExempt) continue;
 
-        const usageService = new UsageService(db, tenant.id);
-        const { costs, total } = await usageService.calculateBillableUsage();
+            const usageService = new UsageService(db, tenant.id);
+            const { subscription, overages, overageTotal, totalRevenue } = await usageService.calculateBillableUsage();
 
-        if (total > 0) {
             results.push({
                 tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug, stripeCustomerId: tenant.stripeCustomerId },
-                costs,
-                total: parseFloat(total.toFixed(2)) // Format money
+                subscription,
+                costs: overages,
+                total: parseFloat(totalRevenue.toFixed(2)) // Format money
             });
         }
-    }
 
-    return c.json({ count: results.length, tenants: results });
+        return c.json({ count: results.length, tenants: results, fees: UNIT_COSTS });
+    } catch (e: any) {
+        console.error("Billing Preview Failed:", e);
+        return c.json({ error: e.message || "Billing Preview Failed" }, 500);
+    }
 });
 
 // POST /billing/charge - Execute chargebacks
