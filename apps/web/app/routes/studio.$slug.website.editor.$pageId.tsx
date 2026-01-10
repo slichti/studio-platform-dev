@@ -2,12 +2,12 @@
 
 import { useLoaderData, useNavigate, useParams } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
-import { apiRequest } from "../../../utils/api";
+import { apiRequest } from "../utils/api";
 import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/react-router";
 import { Puck } from "@measured/puck";
 import "@measured/puck/puck.css";
-import { puckConfig } from "../../../components/website/puck-config";
+import { puckConfig } from "../components/website/puck-config";
 import { Save, ArrowLeft, Eye } from "lucide-react";
 
 export const loader = async (args: any) => {
@@ -21,7 +21,7 @@ export const loader = async (args: any) => {
         const pages = await apiRequest<any[]>("/website/pages", token, {
             headers: { "X-Tenant-Slug": slug }
         });
-        const page = pages.find(p => p.id === pageId);
+        const page = pages.find((p: any) => p.id === pageId);
 
         if (!page) {
             throw new Error("Page not found");

@@ -497,6 +497,9 @@ app.route('/chat', chatRoutes);
 
 import { scheduled } from './cron';
 
+// Durable Objects
+export { ChatRoom } from './durable-objects/ChatRoom';
+
 export default {
   fetch: app.fetch,
   scheduled

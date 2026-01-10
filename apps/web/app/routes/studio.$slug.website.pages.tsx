@@ -2,7 +2,7 @@
 
 import { useLoaderData, Link, useNavigate } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
-import { apiRequest } from "../../../utils/api";
+import { apiRequest } from "../utils/api";
 import { useState } from "react";
 import { useAuth } from "@clerk/react-router";
 import { Plus, Edit2, Trash2, Eye, EyeOff, Globe, FileText } from "lucide-react";
