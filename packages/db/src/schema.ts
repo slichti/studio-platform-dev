@@ -164,6 +164,19 @@ export const auditLogs = sqliteTable('audit_logs', {
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
+// --- Usage Logs (Billing) ---
+export const usageLogs = sqliteTable('usage_logs', {
+    id: text('id').primaryKey(), // UUID
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    metric: text('metric').notNull(), // 'sms_segments', 'emails_sent', 'vod_storage_gb'
+    value: integer('value').notNull().default(1),
+    timestamp: integer('timestamp', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    meta: text('meta', { mode: 'json' }), // Optional metadata (e.g. { messageId: '...' })
+}, (table) => ({
+    tenantMetricIdx: index('usage_tenant_metric_idx').on(table.tenantId, table.metric, table.timestamp),
+    metricIdx: index('usage_metric_idx').on(table.metric, table.timestamp), // For platform-wide aggregation
+}));
+
 // --- Locations ---
 export const locations = sqliteTable('locations', {
     id: text('id').primaryKey(),

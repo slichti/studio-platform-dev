@@ -36,12 +36,16 @@ export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
     const token = await getToken();
     try {
-        const tenants = await apiRequest<Tenant[]>("/admin/tenants", token);
-        return { tenants, error: null };
+        const [tenants, platformConfig] = await Promise.all([
+            apiRequest<Tenant[]>("/admin/tenants", token),
+            apiRequest<any[]>("/admin/platform/config", token).catch(() => [])
+        ]);
+        return { tenants, platformConfig, error: null };
     } catch (e: any) {
         console.error("Loader failed", e);
         return {
             tenants: [],
+            platformConfig: [],
             error: e.message || "Unauthorized",
             debug: e.data?.debug
         };
@@ -49,7 +53,7 @@ export const loader = async (args: any) => {
 };
 
 export default function AdminTenants() {
-    const { tenants: initialTenants } = useLoaderData<any>();
+    const { tenants: initialTenants, platformConfig } = useLoaderData<any>();
     const [tenants, setTenants] = useState(initialTenants);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -385,14 +389,34 @@ export default function AdminTenants() {
             setTenants(tenants.map((t: any) =>
                 t.id === tenantId ? { ...t, [key]: value } : t
             ));
-            // Removed modal confirmation as requested
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message });
         }
     };
 
+    const handleWaiveUsage = async (tenantId: string) => {
+        if (!confirm("Are you sure you want to WAIVE all current usage for this tenant? This resets counters to 0.")) return;
+        setLoading(true);
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/admin/tenants/${tenantId}/billing/waive`, token, {
+                method: 'POST'
+            });
+            if (res.error) throw new Error(res.error);
 
-    const handleExport = async (tenantId: string, type: 'subscribers' | 'financials' | 'products') => {
+            setSuccessDialog({ isOpen: true, message: "Usage waived and counters reset to 0." });
+            setTenants(tenants.map((t: any) =>
+                t.id === tenantId ? { ...t, smsUsage: 0, emailUsage: 0, streamingUsage: 0 } : t
+            ));
+        } catch (e: any) {
+            setErrorDialog({ isOpen: true, message: e.message });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+
+    const handleExport = async (tenantId: string, type: 'subscribers' | 'financials' | 'products' | 'classes' | 'memberships' | 'vod') => {
         setExportLoading(type);
         try {
             const token = await getToken();
@@ -880,6 +904,14 @@ export default function AdminTenants() {
                                                             {t.billingExempt && (
                                                                 <span className="text-[10px] text-zinc-400 pl-5">Limits ignored</span>
                                                             )}
+                                                            {!t.billingExempt && (
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); handleWaiveUsage(t.id); }}
+                                                                    className="mt-2 text-[10px] text-zinc-400 hover:text-blue-600 hover:underline text-left pl-5"
+                                                                >
+                                                                    Waive Usage (Reset)
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </div>
 
@@ -910,39 +942,61 @@ export default function AdminTenants() {
                                                         </div>
                                                     </div>
 
-                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); handleExport(t.id, 'subscribers') }}
                                                             disabled={!!exportLoading}
                                                             className="text-left bg-zinc-50 border border-zinc-200 rounded p-2 hover:bg-zinc-100 disabled:opacity-50 group transition-all"
                                                         >
-                                                            <div className="flex items-center gap-2 mb-1">
-                                                                <span className="bg-white p-1 rounded border border-zinc-200 text-zinc-500 group-hover:text-blue-600">⬇</span>
+                                                            <div className="flex items-center gap-1.5 mb-0.5">
+                                                                <span className="bg-white p-0.5 rounded border border-zinc-200 text-zinc-500 group-hover:text-blue-600 text-[10px]">⬇</span>
                                                                 <span className="text-xs font-bold text-zinc-700">Subscribers</span>
                                                             </div>
-                                                            <div className="text-[10px] text-zinc-500">Download CSV of all members</div>
+                                                            <div className="text-[10px] text-zinc-500 truncate">CSV of all members</div>
                                                         </button>
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); handleExport(t.id, 'financials') }}
                                                             disabled={!!exportLoading}
                                                             className="text-left bg-zinc-50 border border-zinc-200 rounded p-2 hover:bg-zinc-100 disabled:opacity-50 group transition-all"
                                                         >
-                                                            <div className="flex items-center gap-2 mb-1">
-                                                                <span className="bg-white p-1 rounded border border-zinc-200 text-zinc-500 group-hover:text-green-600">⬇</span>
+                                                            <div className="flex items-center gap-1.5 mb-0.5">
+                                                                <span className="bg-white p-0.5 rounded border border-zinc-200 text-zinc-500 group-hover:text-green-600 text-[10px]">⬇</span>
                                                                 <span className="text-xs font-bold text-zinc-700">Financials</span>
                                                             </div>
-                                                            <div className="text-[10px] text-zinc-500">Export transaction history</div>
+                                                            <div className="text-[10px] text-zinc-500 truncate">Transactions & Subs</div>
                                                         </button>
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); handleExport(t.id, 'products') }}
                                                             disabled={!!exportLoading}
                                                             className="text-left bg-zinc-50 border border-zinc-200 rounded p-2 hover:bg-zinc-100 disabled:opacity-50 group transition-all"
                                                         >
-                                                            <div className="flex items-center gap-2 mb-1">
-                                                                <span className="bg-white p-1 rounded border border-zinc-200 text-zinc-500 group-hover:text-purple-600">⬇</span>
+                                                            <div className="flex items-center gap-1.5 mb-0.5">
+                                                                <span className="bg-white p-0.5 rounded border border-zinc-200 text-zinc-500 group-hover:text-purple-600 text-[10px]">⬇</span>
                                                                 <span className="text-xs font-bold text-zinc-700">Products</span>
                                                             </div>
-                                                            <div className="text-[10px] text-zinc-500">List of items and prices</div>
+                                                            <div className="text-[10px] text-zinc-500 truncate">Plans & Prices</div>
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleExport(t.id, 'classes') }}
+                                                            disabled={!!exportLoading}
+                                                            className="text-left bg-zinc-50 border border-zinc-200 rounded p-2 hover:bg-zinc-100 disabled:opacity-50 group transition-all"
+                                                        >
+                                                            <div className="flex items-center gap-1.5 mb-0.5">
+                                                                <span className="bg-white p-0.5 rounded border border-zinc-200 text-zinc-500 group-hover:text-amber-600 text-[10px]">⬇</span>
+                                                                <span className="text-xs font-bold text-zinc-700">Classes</span>
+                                                            </div>
+                                                            <div className="text-[10px] text-zinc-500 truncate">Schedule & Attendance</div>
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleExport(t.id, 'vod') }}
+                                                            disabled={!!exportLoading}
+                                                            className="text-left bg-zinc-50 border border-zinc-200 rounded p-2 hover:bg-zinc-100 disabled:opacity-50 group transition-all"
+                                                        >
+                                                            <div className="flex items-center gap-1.5 mb-0.5">
+                                                                <span className="bg-white p-0.5 rounded border border-zinc-200 text-zinc-500 group-hover:text-red-500 text-[10px]">⬇</span>
+                                                                <span className="text-xs font-bold text-zinc-700">VOD Usage</span>
+                                                            </div>
+                                                            <div className="text-[10px] text-zinc-500 truncate">Storage & Streaming</div>
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1015,17 +1069,35 @@ export default function AdminTenants() {
                                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                                             {FEATURES.map(f => {
                                                                 const state = tenantFeatures[f.key] || { enabled: false, source: 'manual' };
+
+                                                                // Check Global Status
+                                                                let globalKey = '';
+                                                                if (f.key === 'marketing') globalKey = 'feature_marketing';
+                                                                else globalKey = `feature_${f.key}`;
+
+                                                                const globalFeature = platformConfig?.find((c: any) => c.key === globalKey);
+                                                                const isGloballyEnabled = globalFeature ? globalFeature.enabled : true; // Default to true if not found in list (backward compat)
+                                                                // Actually default should be FALSE if we want strict control, but "feature_mobile_app" is "Keep disabled...".
+                                                                // Let's assume if key exists in config, use value. If not, assume enabled (legacy).
+                                                                // For keys I just added (financials etc), they might be missing in DB until set.
+                                                                // If I just deployed the code to fetch them, but DB doesn't have rows yet, `apiRequest` returns empty for them?
+                                                                // `admin.features` page *creates* them on toggle. If never toggled, they don't exist? 
+                                                                // If row missing, default to enabled for existing features, but safer to check.
+                                                                // Let's use strict check: if key matches known keys and is false, disable.
+
+                                                                const isDisabledByPlatform = globalFeature && !globalFeature.enabled;
+
                                                                 return (
-                                                                    <div key={f.key} className="flex items-center justify-between p-3 border rounded-md bg-zinc-50">
+                                                                    <div key={f.key} className={`flex items-center justify-between p-3 border rounded-md ${isDisabledByPlatform ? 'bg-zinc-100 opacity-60' : 'bg-zinc-50'}`}>
                                                                         <div className="flex items-center gap-3">
-                                                                            <f.icon size={18} className="text-zinc-500" />
+                                                                            <f.icon size={18} className={isDisabledByPlatform ? "text-zinc-400" : "text-zinc-500"} />
                                                                             <div>
-                                                                                <div className="text-sm font-medium text-zinc-900">{f.label}</div>
-                                                                                <div className="text-xs text-zinc-500">Source: {state.source}</div>
+                                                                                <div className={`text-sm font-medium ${isDisabledByPlatform ? 'text-zinc-500' : 'text-zinc-900'}`}>{f.label}</div>
+                                                                                <div className="text-xs text-zinc-500">{isDisabledByPlatform ? 'Disabled by Platform' : `Source: ${state.source}`}</div>
                                                                             </div>
                                                                         </div>
                                                                         <div className="flex items-center gap-2">
-                                                                            {f.key === 'zoom' && state.enabled && (
+                                                                            {f.key === 'zoom' && state.enabled && !isDisabledByPlatform && (
                                                                                 <button
                                                                                     onClick={(e) => { e.stopPropagation(); openZoomConfig(t.id); }}
                                                                                     className="p-1 text-zinc-500 hover:text-blue-600 hover:bg-zinc-200 rounded"
@@ -1037,9 +1109,12 @@ export default function AdminTenants() {
                                                                             <button
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
+                                                                                    if (isDisabledByPlatform) return;
                                                                                     handleFeatureToggle(t.id, f.key, state.enabled);
                                                                                 }}
-                                                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${state.enabled ? 'bg-blue-600' : 'bg-gray-200'
+                                                                                disabled={isDisabledByPlatform}
+                                                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${isDisabledByPlatform ? 'bg-zinc-300 cursor-not-allowed' :
+                                                                                    state.enabled ? 'bg-blue-600' : 'bg-gray-200'
                                                                                     }`}
                                                                             >
                                                                                 <span

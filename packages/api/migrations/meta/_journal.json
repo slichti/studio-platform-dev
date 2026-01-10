@@ -253,6 +253,13 @@
       "when": 1768073296714,
       "tag": "0035_absurd_scarecrow",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "6",
+      "when": 1768074518685,
+      "tag": "0036_young_lady_mastermind",
+      "breakpoints": true
     }
   ]
 }

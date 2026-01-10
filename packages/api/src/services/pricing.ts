@@ -1,6 +1,7 @@
 import { createDb } from '../db';
 import { eq, count, and, sql, sum } from 'drizzle-orm';
-import { tenants, tenantMembers, classes, purchasedPacks, tenantRoles, uploads, locations } from 'db/src/schema';
+import { tenants, tenantMembers, classes, purchasedPacks, tenantRoles, uploads, locations, usageLogs } from 'db/src/schema';
+import { Resend } from 'resend';
 
 export type Tier = 'basic' | 'growth' | 'scale';
 
@@ -246,12 +247,98 @@ export class UsageService {
         return (tenant[`${service}Usage`] || 0) < limit;
     }
 
-    async incrementUsage(service: 'sms' | 'email', amount = 1) {
-        const column = service === 'sms' ? tenants.smsUsage : tenants.emailUsage;
-        await this.db.update(tenants)
-            .set({ [service === 'sms' ? 'smsUsage' : 'emailUsage']: sql`${column} + ${amount}` })
-            .where(eq(tenants.id, this.tenantId))
-            .run();
+    async incrementUsage(service: 'sms' | 'email' | 'vod_minutes' | 'vod_storage', amount = 1, metadata: any = {}) {
+        const columnMap = {
+            sms: 'smsUsage',
+            email: 'emailUsage',
+            vod_minutes: 'streamingUsage',
+            vod_storage: 'storageUsage'
+        };
+        const column = tenants[columnMap[service] as keyof typeof tenants];
+
+        // 1. Update Counter
+        if (column) {
+            await this.db.update(tenants)
+                .set({ [columnMap[service]]: sql`${column} + ${amount}` })
+                .where(eq(tenants.id, this.tenantId))
+                .run();
+        }
+
+        // 2. Log Event
+        try {
+            await this.db.insert(usageLogs).values({
+                id: crypto.randomUUID(),
+                tenantId: this.tenantId,
+                metric: service,
+                value: amount,
+                timestamp: new Date(),
+                meta: metadata ? JSON.stringify(metadata) : null
+            }).run();
+        } catch (e) {
+            console.error("Failed to insert usage_log", e);
+            // Don't fail the operation just because logging failed
+        }
+    }
+
+    static async checkPlatformHealth(db: any, env: any) {
+        // 1. Aggregate Usage for current month
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+
+        // Sum via SQL query on usage_logs is best for platform-wide stats
+        // But for MVP, let's sum tenant counters? No, tenant counters are rolling/lifetime?
+        // Actually, if counters are not reset monthly, they are lifetime.
+        // Strategy says "Generous Base + Metered Overage" implies monthly reset or tracking.
+        // Assuming counters are reset monthly (by the Billing Aggregator).
+
+        // Let's use `usage_logs` for current month platform total.
+        const smsTotal = await db.select({ count: sum(usageLogs.value) })
+            .from(usageLogs)
+            .where(and(
+                eq(usageLogs.metric, 'sms'),
+                sql`${usageLogs.timestamp} >= ${startOfMonth.getTime() / 1000}`
+            ))
+            .get();
+
+        const emailTotal = await db.select({ count: sum(usageLogs.value) })
+            .from(usageLogs)
+            .where(and(
+                eq(usageLogs.metric, 'email'),
+                sql`${usageLogs.timestamp} >= ${startOfMonth.getTime() / 1000}`
+            ))
+            .get();
+
+        const platformSms = Number(smsTotal?.count || 0);
+        const platformEmail = Number(emailTotal?.count || 0);
+
+        // 2. Check Limits
+        const TWILIO_TIER_LIMIT = 10000; // Example
+        const RESEND_TIER_LIMIT = 50000; // Example
+
+        if (platformSms > TWILIO_TIER_LIMIT * 0.8) {
+            await UsageService.alertAdmin(env, 'Twilio SMS', platformSms, TWILIO_TIER_LIMIT);
+        }
+
+        if (platformEmail > RESEND_TIER_LIMIT * 0.8) {
+            await UsageService.alertAdmin(env, 'Resend Email', platformEmail, RESEND_TIER_LIMIT);
+        }
+    }
+
+    private static async alertAdmin(env: any, serviceName: string, usage: number, limit: number) {
+        console.warn(`[PLATFORM ALERT] ${serviceName} usage (${usage}) is > 80% of limit (${limit})`);
+
+        if (env.RESEND_API_KEY && env.SYSTEM_EMAIL) {
+            const resend = new Resend(env.RESEND_API_KEY);
+            await resend.emails.send({
+                from: 'system@studio-platform.com',
+                to: env.SYSTEM_EMAIL,
+                subject: `⚠️ Platform Alert: ${serviceName} Usage High`,
+                html: `<p>The platform has used <strong>${usage}</strong> units of ${serviceName} this month.</p>
+                       <p>This is over 80% of the assumed tier limit (${limit}).</p>
+                       <p>Please upgrade the platform plan or investigate usage.</p>`
+            });
+        }
     }
 
     async calculateBillableUsage() {

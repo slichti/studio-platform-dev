@@ -25,10 +25,28 @@ const KNOWN_FEATURES = [
         icon: Smartphone
     },
     {
+        key: 'feature_financials',
+        label: 'Financials & Payouts',
+        description: 'Global master switch for Financial reporting and Stripe payouts.',
+        icon: CreditCard
+    },
+    {
         key: 'feature_vod',
         label: 'Video on Demand (VOD)',
         description: 'Global master switch for VOD functionality.',
         icon: Video
+    },
+    {
+        key: 'feature_zoom',
+        label: 'Zoom Integration',
+        description: 'Enable Zoom meeting creation and sync.',
+        icon: Video
+    },
+    {
+        key: 'feature_pos',
+        label: 'POS & Retail',
+        description: 'Enable Point of Sale and Product management.',
+        icon: CreditCard
     },
     {
         key: 'feature_sms',
@@ -37,10 +55,16 @@ const KNOWN_FEATURES = [
         icon: MessageSquare
     },
     {
-        key: 'feature_email_marketing',
-        label: 'Email Marketing',
-        description: 'Enable Resend email marketing tools.',
+        key: 'feature_marketing',
+        label: 'Marketing & CRM',
+        description: 'Enable Email Marketing and CRM tools.',
         icon: Mail
+    },
+    {
+        key: 'feature_payroll',
+        label: 'Payroll & Compensation',
+        description: 'Enable Instructor Payroll and Commission tracking.',
+        icon: Save
     }
 ];
 

@@ -633,6 +633,52 @@ app.patch('/tenants/:id/quotas', async (c) => {
     return c.json({ success: true });
 });
 
+// POST /tenants/:id/billing/waive - Waive current usage (Reset counters)
+app.post('/tenants/:id/billing/waive', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+    const auth = c.get('auth');
+
+    // 1. Get current usage for audit
+    const tenant = await db.query.tenants.findFirst({
+        where: eq(tenants.id, tenantId),
+        columns: {
+            smsUsage: true,
+            emailUsage: true,
+            streamingUsage: true
+        }
+    });
+
+    if (!tenant) return c.json({ error: "Tenant not found" }, 404);
+
+    // 2. Reset counters
+    await db.update(tenants)
+        .set({
+            smsUsage: 0,
+            emailUsage: 0,
+            streamingUsage: 0
+        })
+        .where(eq(tenants.id, tenantId))
+        .run();
+
+    // 3. Audit Log
+    const audit = new AuditService(db);
+    await audit.log({
+        actorId: auth.userId,
+        action: 'waive_billing_usage',
+        tenantId,
+        targetId: tenantId,
+        details: {
+            waived_sms: tenant.smsUsage,
+            waived_email: tenant.emailUsage,
+            waived_streaming: tenant.streamingUsage
+        },
+        ipAddress: c.req.header('CF-Connecting-IP')
+    });
+
+    return c.json({ success: true, waived: tenant });
+});
+
 // PATCH /tenants/:id/subscription - Admin Update Subscription (Edit Trial)
 app.patch('/tenants/:id/subscription', async (c) => {
     const db = createDb(c.env.DB);
@@ -1546,7 +1592,7 @@ app.post('/tenants/:id/lifecycle/restore', async (c) => {
 app.get('/tenants/:id/export', async (c) => {
     const db = createDb(c.env.DB);
     const tenantId = c.req.param('id');
-    const type = c.req.query('type') as 'subscribers' | 'financials' | 'products' || 'subscribers';
+    const type = c.req.query('type') as 'subscribers' | 'financials' | 'products' | 'classes' | 'memberships' | 'vod' || 'subscribers';
     const auth = c.get('auth');
 
     const svc = new ExportService(db, tenantId);
