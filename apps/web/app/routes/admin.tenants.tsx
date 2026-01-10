@@ -71,6 +71,9 @@ export default function AdminTenants() {
     const [cancelModalOpen, setCancelModalOpen] = useState(false);
     const [selectedTenantForCancel, setSelectedTenantForCancel] = useState<string | null>(null);
 
+    const [gracePeriodModalOpen, setGracePeriodModalOpen] = useState(false);
+    const [selectedTenantForGrace, setSelectedTenantForGrace] = useState<{ id: string, enabled: boolean } | null>(null);
+
     const FEATURES = [
         { key: 'financials', label: 'Financials & Payouts', icon: CreditCard },
         { key: 'vod', label: 'Video on Demand', icon: Video },
@@ -414,17 +417,30 @@ export default function AdminTenants() {
         }
     };
 
-    const handleGracePeriod = async (tenantId: string, enabled: boolean) => {
-        if (!confirm(enabled ? "Disable student access (Grace Period)?" : "Re-enable student access?")) return;
+    const handleGracePeriod = (tenantId: string, enabled: boolean) => {
+        setSelectedTenantForGrace({ id: tenantId, enabled });
+        setGracePeriodModalOpen(true);
+    };
+
+    const confirmGracePeriod = async () => {
+        if (!selectedTenantForGrace) return;
+        const { id, enabled } = selectedTenantForGrace;
+        setLoading(true);
         try {
             const token = await getToken();
-            const res: any = await apiRequest(`/admin/tenants/${tenantId}/lifecycle/grace-period`, token, {
+            const res: any = await apiRequest(`/admin/tenants/${id}/lifecycle/grace-period`, token, {
                 method: 'POST',
                 body: JSON.stringify({ enabled })
             });
             if (res.error) throw new Error(res.error);
-            setTenants(tenants.map((t: any) => t.id === tenantId ? { ...t, studentAccessDisabled: enabled } : t));
-        } catch (e: any) { alert(e.message); }
+            setTenants(tenants.map((t: any) => t.id === id ? { ...t, studentAccessDisabled: enabled } : t));
+            setSuccessDialog({ isOpen: true, message: `Student access ${enabled ? 'disabled (Grace Period started)' : 're-enabled'}.` });
+            setGracePeriodModalOpen(false);
+        } catch (e: any) {
+            setErrorDialog({ isOpen: true, message: e.message });
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleArchive = async (tenantId: string) => {
@@ -882,9 +898,9 @@ export default function AdminTenants() {
                                                                 <>
                                                                     <button
                                                                         onClick={(e) => { e.stopPropagation(); handleGracePeriod(t.id, !t.studentAccessDisabled) }}
-                                                                        className={`text-xs px-2 py-1 rounded border ${t.studentAccessDisabled ? 'bg-amber-100 border-amber-200 text-amber-800' : 'bg-white border-zinc-300 text-zinc-600 hover:bg-zinc-50'}`}
+                                                                        className={`text-xs px-3 py-1.5 rounded-md border font-medium transition-colors ${t.studentAccessDisabled ? 'bg-amber-100 border-amber-200 text-amber-800 hover:bg-amber-200' : 'bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-50'}`}
                                                                     >
-                                                                        {t.studentAccessDisabled ? 'Enable Access' : 'Start Grace Period'}
+                                                                        {t.studentAccessDisabled ? 'Enable Student Access' : 'Start Grace Period'}
                                                                     </button>
                                                                     <button onClick={(e) => { e.stopPropagation(); handleArchive(t.id) }} className="text-xs bg-red-50 text-red-600 border border-red-100 px-2 py-1 rounded hover:bg-red-100">
                                                                         Archive
@@ -894,27 +910,39 @@ export default function AdminTenants() {
                                                         </div>
                                                     </div>
 
-                                                    <div className="grid grid-cols-3 gap-2">
+                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); handleExport(t.id, 'subscribers') }}
                                                             disabled={!!exportLoading}
-                                                            className="text-xs flex items-center justify-center gap-1 bg-zinc-50 border border-zinc-200 rounded py-2 text-zinc-600 hover:bg-zinc-100 disabled:opacity-50"
+                                                            className="text-left bg-zinc-50 border border-zinc-200 rounded p-2 hover:bg-zinc-100 disabled:opacity-50 group transition-all"
                                                         >
-                                                            {exportLoading === 'subscribers' ? '...' : <span>⬇</span>} Subscribers
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className="bg-white p-1 rounded border border-zinc-200 text-zinc-500 group-hover:text-blue-600">⬇</span>
+                                                                <span className="text-xs font-bold text-zinc-700">Subscribers</span>
+                                                            </div>
+                                                            <div className="text-[10px] text-zinc-500">Download CSV of all members</div>
                                                         </button>
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); handleExport(t.id, 'financials') }}
                                                             disabled={!!exportLoading}
-                                                            className="text-xs flex items-center justify-center gap-1 bg-zinc-50 border border-zinc-200 rounded py-2 text-zinc-600 hover:bg-zinc-100 disabled:opacity-50"
+                                                            className="text-left bg-zinc-50 border border-zinc-200 rounded p-2 hover:bg-zinc-100 disabled:opacity-50 group transition-all"
                                                         >
-                                                            {exportLoading === 'financials' ? '...' : <span>⬇</span>} Financials
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className="bg-white p-1 rounded border border-zinc-200 text-zinc-500 group-hover:text-green-600">⬇</span>
+                                                                <span className="text-xs font-bold text-zinc-700">Financials</span>
+                                                            </div>
+                                                            <div className="text-[10px] text-zinc-500">Export transaction history</div>
                                                         </button>
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); handleExport(t.id, 'products') }}
                                                             disabled={!!exportLoading}
-                                                            className="text-xs flex items-center justify-center gap-1 bg-zinc-50 border border-zinc-200 rounded py-2 text-zinc-600 hover:bg-zinc-100 disabled:opacity-50"
+                                                            className="text-left bg-zinc-50 border border-zinc-200 rounded p-2 hover:bg-zinc-100 disabled:opacity-50 group transition-all"
                                                         >
-                                                            {exportLoading === 'products' ? '...' : <span>⬇</span>} Products
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className="bg-white p-1 rounded border border-zinc-200 text-zinc-500 group-hover:text-purple-600">⬇</span>
+                                                                <span className="text-xs font-bold text-zinc-700">Products</span>
+                                                            </div>
+                                                            <div className="text-[10px] text-zinc-500">List of items and prices</div>
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1321,6 +1349,49 @@ export default function AdminTenants() {
                                 className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 font-medium"
                             >
                                 {loading ? 'Cancelling...' : 'Yes, Cancel Subscription'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Grace Period Modal */}
+            {gracePeriodModalOpen && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl border border-amber-100">
+                        <div className="flex items-center gap-3 text-amber-600 mb-4 bg-amber-50 p-3 rounded-lg">
+                            <Activity className="h-6 w-6" />
+                            <span className="font-bold">{selectedTenantForGrace?.enabled ? 'Start Grace Period' : 'End Grace Period'}</span>
+                        </div>
+                        {selectedTenantForGrace?.enabled ? (
+                            <>
+                                <p className="text-zinc-600 text-sm mb-4">
+                                    Enabling <strong>Grace Period</strong> will disable access to the Student Portal and Mobile App immediately.
+                                </p>
+                                <p className="text-zinc-600 text-sm mb-6">
+                                    - Admins will retain access.<br />
+                                    - Public schedules will be hidden.<br />
+                                    - Tenant status remains "Active" for billing purposes unless changed.
+                                </p>
+                            </>
+                        ) : (
+                            <p className="text-zinc-600 text-sm mb-6">
+                                Re-enabling access will restore Student Portal and Mobile App functionality immediately.
+                            </p>
+                        )}
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setGracePeriodModalOpen(false)}
+                                className="px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-100 rounded"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmGracePeriod}
+                                disabled={loading}
+                                className={`px-4 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 ${selectedTenantForGrace?.enabled ? 'bg-amber-600 hover:bg-amber-700' : 'bg-green-600 hover:bg-green-700'}`}
+                            >
+                                {loading ? 'Processing...' : (selectedTenantForGrace?.enabled ? 'Disable Access' : 'Restore Access')}
                             </button>
                         </div>
                     </div>
