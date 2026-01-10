@@ -58,7 +58,14 @@ export default function AdminTenants() {
     const [expandedTenant, setExpandedTenant] = useState<string | null>(null);
     const [tenantFeatures, setTenantFeatures] = useState<Record<string, any>>({});
     const [tenantStats, setTenantStats] = useState<any>({});
+    const [subscriptionDetails, setSubscriptionDetails] = useState<Record<string, any>>({});
+    const [invoices, setInvoices] = useState<Record<string, any[]>>({}); // New state
     const [featuresLoading, setFeaturesLoading] = useState(false);
+    const [refundModalOpen, setRefundModalOpen] = useState(false);
+    const [selectedTenantForRefund, setSelectedTenantForRefund] = useState<string | null>(null);
+    const [refundAmount, setRefundAmount] = useState('');
+    const [refundReason, setRefundReason] = useState('requested_by_customer');
+    const [refundPaymentIntent, setRefundPaymentIntent] = useState('');
 
     const FEATURES = [
         { key: 'financials', label: 'Financials & Payouts', icon: CreditCard },
@@ -238,6 +245,84 @@ export default function AdminTenants() {
         }
     };
 
+    const handleIntervalChange = async (tenantId: string, interval: string) => {
+        if (!confirm(`Switch billing interval to ${interval}? This will update the Stripe Subscription immediately.`)) return;
+        setLoading(true);
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/admin/tenants/${tenantId}/subscription`, token, {
+                method: 'PATCH',
+                body: JSON.stringify({ interval })
+            });
+            if (res.error) throw new Error(res.error);
+            setSuccessDialog({ isOpen: true, message: "Subscription interval updated." });
+            // Refresh details
+            const details = await apiRequest(`/admin/tenants/${tenantId}/billing/details`, token);
+            setSubscriptionDetails(prev => ({ ...prev, [tenantId]: details }));
+        } catch (e: any) {
+            setErrorDialog({ isOpen: true, message: e.message });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCancelSubscription = async (tenantId: string) => {
+        // Ask for mode
+        const immediate = confirm("Click OK to CANCEL IMMEDIATELY (and remove access). Click Cancel to schedule cancellation at END OF PERIOD.");
+
+        if (!confirm(`Are you sure you want to cancel? ${immediate ? "Access will be revoked immediately." : "Access continues until period end."}`)) return;
+
+        setLoading(true);
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/admin/tenants/${tenantId}/subscription/cancel`, token, {
+                method: 'POST',
+                body: JSON.stringify({ immediate })
+            });
+            if (res.error) throw new Error(res.error);
+            setSuccessDialog({ isOpen: true, message: immediate ? "Subscription canceled immediately." : "Subscription set to cancel at end of period." });
+
+            // Refresh details
+            const details = await apiRequest(`/admin/tenants/${tenantId}/billing/details`, token);
+            setSubscriptionDetails(prev => ({ ...prev, [tenantId]: details }));
+        } catch (e: any) {
+            setErrorDialog({ isOpen: true, message: e.message });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleRefundSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedTenantForRefund) return;
+        setLoading(true);
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/admin/tenants/${selectedTenantForRefund}/billing/refund`, token, {
+                method: 'POST',
+                body: JSON.stringify({
+                    paymentIntentId: refundPaymentIntent,
+                    amount: refundAmount ? Math.round(parseFloat(refundAmount) * 100) : undefined, // cents
+                    reason: refundReason
+                })
+            });
+            if (res.error) throw new Error(res.error);
+            setSuccessDialog({ isOpen: true, message: "Refund processed successfully." });
+            setRefundModalOpen(false);
+        } catch (e: any) {
+            setErrorDialog({ isOpen: true, message: e.message });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const openRefundModal = (tenantId: string) => {
+        setSelectedTenantForRefund(tenantId);
+        setRefundAmount('');
+        setRefundPaymentIntent('');
+        setRefundModalOpen(true);
+    };
+
     const handleSubscriptionUpdate = async (tenantId: string, daysToAdd: number) => {
         try {
             const token = await getToken();
@@ -283,7 +368,7 @@ export default function AdminTenants() {
             setTenants(tenants.map((t: any) =>
                 t.id === tenantId ? { ...t, [key]: value } : t
             ));
-            setSuccessDialog({ isOpen: true, message: "Limits updated." });
+            // Removed modal confirmation as requested
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message });
         }
@@ -301,12 +386,16 @@ export default function AdminTenants() {
         setFeaturesLoading(true);
         try {
             const token = await getToken();
-            const [featuresRes, statsRes]: [any, any] = await Promise.all([
+            const [featuresRes, statsRes, billingRes, historyRes]: [any, any, any, any] = await Promise.all([
                 apiRequest(`/admin/tenants/${tenantId}/features`, token),
-                apiRequest(`/admin/tenants/${tenantId}/stats`, token)
+                apiRequest(`/admin/tenants/${tenantId}/stats`, token),
+                apiRequest(`/admin/tenants/${tenantId}/billing/details`, token).catch(() => ({})),
+                apiRequest(`/admin/tenants/${tenantId}/billing/history`, token).catch(() => ({ invoices: [] }))
             ]);
             setTenantFeatures(featuresRes.features || {});
             setTenantStats(statsRes || {});
+            setSubscriptionDetails(prev => ({ ...prev, [tenantId]: billingRes }));
+            setInvoices(prev => ({ ...prev, [tenantId]: historyRes.invoices || [] }));
         } catch (e) {
             console.error(e);
         } finally {
@@ -562,80 +651,207 @@ export default function AdminTenants() {
                                 {expandedTenant === t.id && (
                                     <tr className="bg-zinc-50/50">
                                         <td colSpan={7} className="px-6 pb-6 pt-2">
-                                            <div className="bg-white border border-zinc-200 rounded-lg p-4 shadow-inner">
-                                                <div className="flex justify-between items-start mb-4">
-                                                    <h4 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
-                                                        <Activity size={16} /> Entitlements & Features
-                                                    </h4>
+                                            <div className="bg-white border border-zinc-200 rounded-lg p-6 shadow-inner space-y-6">
 
-                                                    {/* Subscription Info */}
-                                                    <div className="text-right bg-zinc-50 p-3 rounded border border-zinc-200">
-                                                        <div className="text-xs text-zinc-500">Subscription Status</div>
-                                                        <div className="font-medium text-zinc-900 capitalize">{t.subscriptionStatus || 'trialing'}</div>
+                                                {/* Subscription & Billing Header - Streamlined & Wide */}
+                                                <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-4 flex flex-col md:flex-row gap-6 justify-between items-center">
 
-                                                        <div className="text-xs text-zinc-500 mt-2">Period Ends</div>
-                                                        <div className="flex items-center justify-end gap-2 mt-1">
-                                                            <input
-                                                                type="date"
-                                                                className="text-xs border border-zinc-300 rounded px-2 py-1 bg-white"
-                                                                defaultValue={t.currentPeriodEnd ? new Date(t.currentPeriodEnd).toISOString().split('T')[0] : ''}
-                                                                onBlur={(e) => {
-                                                                    // Only save if changed and valid
-                                                                    if (e.target.value) {
-                                                                        const confirm = window.confirm(`Update renewal date to ${e.target.value}?`);
-                                                                        if (confirm) handleDateUpdate(t.id, e.target.value);
-                                                                    }
-                                                                }}
-                                                            />
+                                                    {/* Status & Type */}
+                                                    <div className="flex items-center gap-4">
+                                                        <div>
+                                                            <div className="text-[10px] uppercase text-zinc-500 font-bold mb-1">Subscription Information</div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${t.subscriptionStatus === 'active' ? 'bg-green-100 text-green-800' :
+                                                                        t.subscriptionStatus === 'past_due' ? 'bg-orange-100 text-orange-800' :
+                                                                            t.subscriptionStatus === 'canceled' ? 'bg-red-100 text-red-800' :
+                                                                                'bg-zinc-200 text-zinc-800'
+                                                                    }`}>
+                                                                    {t.subscriptionStatus === 'past_due' ? 'Past Due' : t.subscriptionStatus || 'trialing'}
+                                                                </span>
+                                                                <select
+                                                                    className="text-xs bg-white border border-zinc-300 rounded px-2 py-1 outline-none focus:border-blue-500"
+                                                                    value={subscriptionDetails[t.id]?.interval || 'monthly'}
+                                                                    onChange={(e) => handleIntervalChange(t.id, e.target.value)}
+                                                                >
+                                                                    <option value="monthly">Monthly</option>
+                                                                    <option value="annual">Annual</option>
+                                                                </select>
+                                                            </div>
+                                                            {subscriptionDetails[t.id]?.cancelAtPeriodEnd && (
+                                                                <div className="text-[10px] text-red-600 font-medium mt-1">Cancels at end of period</div>
+                                                            )}
                                                         </div>
 
-                                                        <div className="mt-2 flex gap-2 justify-end">
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); handleSubscriptionUpdate(t.id, 30); }}
-                                                                className="text-xs text-blue-600 hover:text-blue-800 underline"
-                                                            >
-                                                                extend +30d
-                                                            </button>
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); handleSubscriptionUpdate(t.id, 9999); }}
-                                                                className="text-xs text-blue-600 hover:text-blue-800 underline"
-                                                            >
-                                                                infinite
-                                                            </button>
+                                                        <div className="h-8 w-px bg-zinc-200 hidden md:block"></div>
+
+                                                        {/* Renewal Date */}
+                                                        <div>
+                                                            <div className="text-[10px] uppercase text-zinc-500 font-bold mb-1">Period Ends</div>
+                                                            <div className="flex items-center gap-2">
+                                                                <input
+                                                                    type="date"
+                                                                    className="text-xs border border-zinc-300 rounded px-2 py-1 bg-white hover:border-zinc-400 transition-colors"
+                                                                    defaultValue={t.currentPeriodEnd ? new Date(t.currentPeriodEnd).toISOString().split('T')[0] : ''}
+                                                                    onBlur={(e) => {
+                                                                        if (e.target.value) {
+                                                                            const confirm = window.confirm(`Update renewal date to ${e.target.value}?`);
+                                                                            if (confirm) handleDateUpdate(t.id, e.target.value);
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                <div className="flex text-[10px] gap-1">
+                                                                    <button onClick={(e) => { e.stopPropagation(); handleSubscriptionUpdate(t.id, 30); }} className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100">+30d</button>
+                                                                    <button onClick={(e) => { e.stopPropagation(); handleSubscriptionUpdate(t.id, 9999); }} className="px-1.5 py-0.5 bg-zinc-100 text-zinc-600 rounded hover:bg-zinc-200">∞</button>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex gap-2 mt-1">
+                                                                <button onClick={(e) => { e.stopPropagation(); handleCancelSubscription(t.id); }} className="text-[10px] text-red-600 hover:underline">Cancel Subs</button>
+                                                                <button onClick={(e) => { e.stopPropagation(); openRefundModal(t.id); }} className="text-[10px] text-zinc-500 hover:text-zinc-800 hover:underline">Refund</button>
+                                                            </div>
                                                         </div>
                                                     </div>
 
-                                                    {/* Limits & Billing */}
-                                                    <div className="text-right bg-zinc-50 p-3 rounded border border-zinc-200 mt-2">
-                                                        <div className="text-xs text-zinc-500 font-bold mb-2">Usage Limits</div>
-
-                                                        <div className="grid grid-cols-2 gap-2">
-                                                            <div>
-                                                                <label className="text-[10px] uppercase text-zinc-400 font-bold block">SMS</label>
-                                                                <input type="number"
-                                                                    className="w-full text-xs border rounded px-1 py-0.5 text-right"
-                                                                    defaultValue={t.smsLimit || 0}
-                                                                    onBlur={(e) => handleLimitUpdate(t.id, 'smsLimit', parseInt(e.target.value))}
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-[10px] uppercase text-zinc-400 font-bold block">Email</label>
-                                                                <input type="number"
-                                                                    className="w-full text-xs border rounded px-1 py-0.5 text-right"
-                                                                    defaultValue={t.emailLimit || 0}
-                                                                    onBlur={(e) => handleLimitUpdate(t.id, 'emailLimit', parseInt(e.target.value))}
-                                                                />
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="mt-3 flex items-center justify-end gap-2 px-1">
-                                                            <label className="text-xs text-zinc-700 cursor-pointer select-none" htmlFor={`exempt-${t.id}`}>Billing Exempt</label>
-                                                            <input type="checkbox"
-                                                                id={`exempt-${t.id}`}
-                                                                defaultChecked={!!t.billingExempt}
-                                                                onChange={(e) => handleLimitUpdate(t.id, 'billingExempt', e.target.checked)}
+                                                    {/* Usage Limits - Horizontal */}
+                                                    {/* Usage Limits - Horizontal */}
+                                                    <div className="flex items-center gap-6 border-l border-zinc-200 pl-6 border-l-0 md:border-l">
+                                                        <div>
+                                                            <label className="text-[10px] uppercase text-zinc-400 font-bold block mb-1">SMS Limit</label>
+                                                            <input type="number"
+                                                                className={`w-20 text-xs border rounded px-2 py-1 ${t.billingExempt ? 'bg-zinc-100 text-zinc-400' : ''}`}
+                                                                defaultValue={t.smsLimit || 0}
+                                                                onBlur={(e) => handleLimitUpdate(t.id, 'smsLimit', parseInt(e.target.value))}
                                                             />
+                                                            <div className="mt-2 w-full">
+                                                                {t.billingExempt ? (
+                                                                    <div className="text-center">
+                                                                        <span className="text-[10px] uppercase font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Unlimited</span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="space-y-1">
+                                                                        <div className="flex justify-between text-[10px] text-zinc-500">
+                                                                            <span>{t.smsUsage || 0} sent</span>
+                                                                            <span>{Math.round(((t.smsUsage || 0) / (t.smsLimit || 1)) * 100)}%</span>
+                                                                        </div>
+                                                                        <div className="h-1.5 w-24 bg-zinc-100 rounded-full overflow-hidden">
+                                                                            <div
+                                                                                className={`h-full rounded-full transition-all ${(t.smsUsage || 0) >= (t.smsLimit || 0) ? 'bg-red-500' :
+                                                                                    ((t.smsUsage || 0) / (t.smsLimit || 1)) > 0.8 ? 'bg-amber-400' : 'bg-emerald-500'
+                                                                                    }`}
+                                                                                style={{ width: `${Math.min(100, ((t.smsUsage || 0) / (t.smsLimit || 1)) * 100)}%` }}
+                                                                            ></div>
+                                                                        </div>
+                                                                        <div className="text-[10px] text-zinc-400 text-right">{t.smsLimit || 0} limit</div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </div>
+                                                        <div>
+                                                            <label className="text-[10px] uppercase text-zinc-400 font-bold block mb-1">Email Limit</label>
+                                                            <input type="number"
+                                                                className={`w-20 text-xs border rounded px-2 py-1 ${t.billingExempt ? 'bg-zinc-100 text-zinc-400' : ''}`}
+                                                                defaultValue={t.emailLimit || 0}
+                                                                onBlur={(e) => handleLimitUpdate(t.id, 'emailLimit', parseInt(e.target.value))}
+                                                            />
+                                                            <div className="mt-2 w-full">
+                                                                {t.billingExempt ? (
+                                                                    <div className="text-center">
+                                                                        <span className="text-[10px] uppercase font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Unlimited</span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="space-y-1">
+                                                                        <div className="flex justify-between text-[10px] text-zinc-500">
+                                                                            <span>{t.emailUsage || 0} sent</span>
+                                                                            <span>{Math.round(((t.emailUsage || 0) / (t.emailLimit || 1)) * 100)}%</span>
+                                                                        </div>
+                                                                        <div className="h-1.5 w-24 bg-zinc-100 rounded-full overflow-hidden">
+                                                                            <div
+                                                                                className={`h-full rounded-full transition-all ${(t.emailUsage || 0) >= (t.emailLimit || 0) ? 'bg-red-500' :
+                                                                                    ((t.emailUsage || 0) / (t.emailLimit || 1)) > 0.8 ? 'bg-amber-400' : 'bg-emerald-500'
+                                                                                    }`}
+                                                                                style={{ width: `${Math.min(100, ((t.emailUsage || 0) / (t.emailLimit || 1)) * 100)}%` }}
+                                                                            ></div>
+                                                                        </div>
+                                                                        <div className="text-[10px] text-zinc-400 text-right">{t.emailLimit || 0} limit</div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-col gap-1 pt-0">
+                                                            <div className="flex items-center gap-2">
+                                                                <input type="checkbox"
+                                                                    id={`exempt-${t.id}`}
+                                                                    className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                                                                    defaultChecked={!!t.billingExempt}
+                                                                    onChange={(e) => handleLimitUpdate(t.id, 'billingExempt', e.target.checked)}
+                                                                />
+                                                                <label className="text-xs text-zinc-700 cursor-pointer select-none font-medium" htmlFor={`exempt-${t.id}`}>Billing Exempt</label>
+                                                            </div>
+                                                            {t.billingExempt && (
+                                                                <span className="text-[10px] text-zinc-400 pl-5">Limits ignored</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                </div>
+
+                                                {/* Payment History */}
+                                                <div>
+                                                    <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3">Recent Payments</h4>
+                                                    <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden">
+                                                        <table className="w-full text-left text-xs">
+                                                            <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-500">
+                                                                <tr>
+                                                                    <th className="px-4 py-2 font-medium">Date</th>
+                                                                    <th className="px-4 py-2 font-medium">Amount</th>
+                                                                    <th className="px-4 py-2 font-medium">Status</th>
+                                                                    <th className="px-4 py-2 font-medium text-right">Actions</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody className="divide-y divide-zinc-100">
+                                                                {invoices[t.id]?.length ? (
+                                                                    invoices[t.id].map((inv: any) => (
+                                                                        <tr key={inv.id} className="hover:bg-zinc-50">
+                                                                            <td className="px-4 py-2 text-zinc-600">
+                                                                                {new Date(inv.date).toLocaleDateString()}
+                                                                            </td>
+                                                                            <td className="px-4 py-2 font-medium text-zinc-900">
+                                                                                ${(inv.amount / 100).toFixed(2)}
+                                                                            </td>
+                                                                            <td className="px-4 py-2">
+                                                                                <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium capitalize ${inv.status === 'paid' ? 'bg-emerald-100 text-emerald-800' :
+                                                                                    inv.status === 'open' ? 'bg-blue-100 text-blue-800' :
+                                                                                        'bg-zinc-100 text-zinc-600'
+                                                                                    }`}>
+                                                                                    {inv.status}
+                                                                                </span>
+                                                                            </td>
+                                                                            <td className="px-4 py-2 text-right flex justify-end gap-3">
+                                                                                {inv.hostedUrl && (
+                                                                                    <a href={inv.hostedUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">Invoice</a>
+                                                                                )}
+                                                                                {inv.paymentIntentId && inv.amount > 0 && inv.status === 'paid' && (
+                                                                                    <button
+                                                                                        onClick={() => {
+                                                                                            setSelectedTenantForRefund(t.id);
+                                                                                            setRefundPaymentIntent(inv.paymentIntentId);
+                                                                                            setRefundAmount('');
+                                                                                            setRefundModalOpen(true);
+                                                                                        }}
+                                                                                        className="text-zinc-500 hover:text-red-600"
+                                                                                    >
+                                                                                        Refund
+                                                                                    </button>
+                                                                                )}
+                                                                            </td>
+                                                                        </tr>
+                                                                    ))
+                                                                ) : (
+                                                                    <tr>
+                                                                        <td colSpan={4} className="px-4 py-4 text-center text-zinc-400 italic">No payment history available</td>
+                                                                    </tr>
+                                                                )}
+                                                            </tbody>
+                                                        </table>
                                                     </div>
                                                 </div>
 
@@ -751,6 +967,64 @@ export default function AdminTenants() {
                     </div>
                 </form>
             </Modal>
+
+            {/* Refund Modal */}
+            <Modal
+                isOpen={refundModalOpen}
+                onClose={() => setRefundModalOpen(false)}
+                title="Issue Refund"
+            >
+                <div className="mb-4 text-sm text-zinc-500">
+                    Refund a payment for this tenant. You need the Stripe Payment Intent ID (from Stripe Dashboard).
+                </div>
+                <form onSubmit={handleRefundSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 mb-1">Payment Intent ID</label>
+                        <input
+                            type="text"
+                            required
+                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
+                            placeholder="pi_..."
+                            value={refundPaymentIntent}
+                            onChange={(e) => setRefundPaymentIntent(e.target.value)}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 mb-1">Amount (Optional - leave empty for full)</label>
+                        <div className="relative">
+                            <span className="absolute left-3 top-2 text-zinc-500">$</span>
+                            <input
+                                type="number"
+                                step="0.01"
+                                className="w-full pl-8 pr-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
+                                placeholder="0.00"
+                                value={refundAmount}
+                                onChange={(e) => setRefundAmount(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 mb-1">Reason</label>
+                        <select
+                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
+                            value={refundReason}
+                            onChange={(e) => setRefundReason(e.target.value)}
+                        >
+                            <option value="requested_by_customer">Requested by Customer</option>
+                            <option value="duplicate">Duplicate</option>
+                            <option value="fraudulent">Fraudulent</option>
+                        </select>
+                    </div>
+
+                    <div className="pt-4 flex gap-3">
+                        <button type="button" onClick={() => setRefundModalOpen(false)} className="flex-1 px-4 py-2 border border-zinc-300 text-zinc-700 rounded-md hover:bg-zinc-50 font-medium">Cancel</button>
+                        <button type="submit" disabled={loading} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium disabled:opacity-50">
+                            {loading ? "Processing..." : "Issue Refund"}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+
 
             {/* Create Tenant Modal */}
             < Modal

@@ -219,6 +219,55 @@ export class StripeService {
     }
 
     /**
+     * Cancel Subscription
+     */
+    async cancelSubscription(subscriptionId: string, atPeriodEnd: boolean = true) {
+        if (atPeriodEnd) {
+            return this.stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: true });
+        } else {
+            return this.stripe.subscriptions.cancel(subscriptionId);
+        }
+    }
+
+    /**
+     * Update Subscription (Change Price/Interval)
+     * Note: This assumes swapping the single item in the subscription.
+     */
+    async updateSubscription(subscriptionId: string, newPriceId: string) {
+        // 1. Get subscription to find item ID
+        const subscription = await this.stripe.subscriptions.retrieve(subscriptionId);
+        const itemId = subscription.items.data[0].id;
+
+        // 2. Update the item
+        return this.stripe.subscriptions.update(subscriptionId, {
+            items: [{
+                id: itemId,
+                price: newPriceId,
+            }],
+            proration_behavior: 'create_prorations', // Default behavior
+        });
+    }
+
+    /**
+     * Get Subscription Details
+     */
+    async getSubscription(subscriptionId: string) {
+        // Expand latest_invoice to get payment_intent
+        return this.stripe.subscriptions.retrieve(subscriptionId, {
+            expand: ['items.data.price.product', 'latest_invoice.payment_intent']
+        });
+    }
+
+    async listInvoices(customerId: string, limit = 20) {
+        return this.stripe.invoices.list({
+            customer: customerId,
+            limit,
+            status: 'paid', // Or all? Usually paid for history.
+            expand: ['data.payment_intent']
+        });
+    }
+
+    /**
      * Create a Transfer (for Payouts to Instructors)
      * Moves funds from the Studio's connected account to the Platform, 
      * then potentially onwards or as a direct transfer from the Studio's balance.

@@ -3,6 +3,8 @@ import { createDb } from '../db';
 import { users, tenantMembers, tenantRoles, tenants, subscriptions, auditLogs, emailLogs, smsLogs, brandingAssets, videos, waiverTemplates, waiverSignatures, marketingAutomations } from 'db/src/schema';
 import { eq, sql, desc, count, or, like, asc, and, inArray } from 'drizzle-orm';
 import { UsageService } from '../services/pricing';
+import { StripeService } from '../services/stripe';
+import { AuditService } from '../services/audit';
 import type { HonoContext } from '../types';
 import { authMiddleware } from '../middleware/auth';
 import tenantFeaturesRouter from './admin.features';
@@ -615,6 +617,18 @@ app.patch('/tenants/:id/quotas', async (c) => {
         .where(eq(tenants.id, tenantId))
         .run();
 
+    // Audit
+    const auth = c.get('auth');
+    const audit = new AuditService(db);
+    await audit.log({
+        actorId: auth.userId,
+        action: 'update_tenant_quotas',
+        tenantId,
+        targetId: tenantId,
+        details: updateData,
+        ipAddress: c.req.header('CF-Connecting-IP')
+    });
+
     return c.json({ success: true });
 });
 
@@ -754,6 +768,225 @@ app.get('/tenants', async (c) => {
     return c.json(enriched);
 });
 
+
+
+// GET /tenants/:id/billing/details - Get Stripe Sync'd Details
+app.get('/tenants/:id/billing/details', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+    const tenant = await db.query.tenants.findFirst({
+        where: eq(tenants.id, tenantId)
+    });
+
+    if (!tenant) return c.json({ error: "Tenant not found" }, 404);
+
+    if (!tenant.stripeSubscriptionId || !c.env.STRIPE_SECRET_KEY) {
+        return c.json({
+            status: tenant.subscriptionStatus,
+            interval: 'monthly', // Default fallback
+            currentPeriodEnd: tenant.currentPeriodEnd
+        });
+    }
+
+    try {
+        const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
+        const sub = await stripe.getSubscription(tenant.stripeSubscriptionId) as any;
+
+        const price = sub.items.data[0]?.price;
+        const interval = price?.recurring?.interval || 'monthly';
+        const amount = price?.unit_amount;
+
+        return c.json({
+            status: sub.status,
+            interval,
+            currentPeriodEnd: new Date(sub.current_period_end * 1000),
+            amount,
+            cancelAtPeriodEnd: sub.cancel_at_period_end
+        });
+    } catch (e: any) {
+        return c.json({ error: "Stripe Error: " + e.message }, 500);
+    }
+});
+
+// GET /tenants/:id/billing/history - Get Invoices
+app.get('/tenants/:id/billing/history', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+    const tenant = await db.query.tenants.findFirst({
+        where: eq(tenants.id, tenantId)
+    });
+
+    if (!tenant || !tenant.stripeSubscriptionId || !c.env.STRIPE_SECRET_KEY) {
+        return c.json({ invoices: [] });
+    }
+
+    try {
+        const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
+        // We need customer ID. It's not on tenant table? 
+        // Let's fetch subscription to get customer ID.
+        const sub = await stripe.getSubscription(tenant.stripeSubscriptionId);
+        const customerId = sub.customer as string;
+
+        const invoices = await stripe.listInvoices(customerId);
+
+        return c.json({
+            invoices: invoices.data.map((inv: any) => ({
+                id: inv.id,
+                date: new Date(inv.created * 1000),
+                amount: inv.amount_paid,
+                status: inv.status,
+                pdfUrl: inv.invoice_pdf,
+                hostedUrl: inv.hosted_invoice_url,
+                paymentIntentId: inv.payment_intent?.id || inv.payment_intent
+            }))
+        });
+    } catch (e: any) {
+        return c.json({ error: "Stripe Error: " + e.message }, 500);
+    }
+});
+
+// PATCH /tenants/:id/subscription -  Update Subscription (Trial, Period, or Plan Interval)
+app.patch('/tenants/:id/subscription', async (c) => {
+    const db = createDb(c.env.DB);
+    const auth = c.get('auth');
+    const tenantId = c.req.param('id');
+    const body = await c.req.json();
+    const { trialDays, currentPeriodEnd, interval } = body;
+
+    const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
+    if (!tenant) return c.json({ error: "Tenant not found" }, 404);
+
+    // 1. Manual Updates (Trial / Period End override)
+    if (trialDays !== undefined || currentPeriodEnd !== undefined) {
+        const updates: any = {};
+        if (trialDays !== undefined) {
+            updates.currentPeriodEnd = new Date(Date.now() + trialDays * 86400000);
+            updates.subscriptionStatus = 'trialing'; // Reset to trialing? Or just extend?
+        }
+        if (currentPeriodEnd) {
+            updates.currentPeriodEnd = new Date(currentPeriodEnd);
+        }
+        await db.update(tenants).set(updates).where(eq(tenants.id, tenantId)).run();
+        return c.json({ success: true });
+    }
+
+    // 2. Stripe Plan/Interval Update
+    if (interval && tenant.stripeSubscriptionId && c.env.STRIPE_SECRET_KEY) {
+        // Map Tier + Interval to Price ID
+        // TODO: Move this configuration to env or DB
+        const PLAN_MAP: Record<string, Record<string, string>> = {
+            'basic': { 'monthly': 'price_basic_m', 'annual': 'price_basic_y' },
+            'growth': { 'monthly': 'price_growth_m', 'annual': 'price_growth_y' },
+            'scale': { 'monthly': 'price_scale_m', 'annual': 'price_scale_y' }
+        };
+
+        const tier = tenant.tier || 'basic';
+        const newPriceId = PLAN_MAP[tier]?.[interval];
+
+        if (!newPriceId) {
+            // If we don't have a map (likely in dev), we can't switch Stripe.
+            return c.json({ error: "Plan configuration missing for this tier/interval combination" }, 400);
+        }
+
+        try {
+            const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
+            await stripe.updateSubscription(tenant.stripeSubscriptionId, newPriceId);
+
+            // Audit
+            const audit = new AuditService(db);
+            await audit.log({
+                actorId: auth.userId,
+                action: 'update_subscription_plan',
+                tenantId: tenant.id,
+                targetId: tenant.stripeSubscriptionId,
+                details: { oldTier: tenant.tier, newTier: tier, interval, newPriceId },
+                ipAddress: c.req.header('CF-Connecting-IP')
+            });
+
+            return c.json({ success: true });
+        } catch (e: any) {
+            return c.json({ error: "Stripe Update Failed: " + e.message }, 500);
+        }
+    }
+
+    return c.json({ success: true }); // No op if no valid params
+});
+
+// POST /tenants/:id/subscription/cancel - Cancel Subscription
+app.post('/tenants/:id/subscription/cancel', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+    const { immediate } = await c.req.json(); // If true, cancel immediately
+
+    const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
+    if (!tenant || !tenant.stripeSubscriptionId) {
+        // Manual cancel
+        await db.update(tenants).set({ subscriptionStatus: 'canceled' }).where(eq(tenants.id, tenantId)).run();
+        return c.json({ success: true, mode: 'manual' });
+    }
+
+    if (!c.env.STRIPE_SECRET_KEY) return c.json({ error: "Stripe key missing" }, 500);
+
+    try {
+        const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
+        // atPeriodEnd = !immediate
+        await stripe.cancelSubscription(tenant.stripeSubscriptionId, !immediate);
+
+        // Update local status if immediate
+        if (immediate) {
+            await db.update(tenants).set({ subscriptionStatus: 'canceled' }).where(eq(tenants.id, tenantId)).run();
+        }
+
+        // Audit
+        const audit = new AuditService(db);
+        await audit.log({
+            actorId: c.get('auth').userId,
+            action: 'cancel_subscription',
+            tenantId: tenant.id,
+            targetId: tenant.stripeSubscriptionId,
+            details: { immediate },
+            ipAddress: c.req.header('CF-Connecting-IP')
+        });
+
+        return c.json({ success: true });
+    } catch (e: any) {
+        return c.json({ error: "Cancellation Failed: " + e.message }, 500);
+    }
+});
+
+// POST /tenants/:id/billing/refund - Issue Refund
+app.post('/tenants/:id/billing/refund', async (c) => {
+    const db = createDb(c.env.DB);
+    // Requires Payment Intent ID or Charge ID passed in body
+    const { paymentIntentId, amount, reason } = await c.req.json();
+    if (!c.env.STRIPE_SECRET_KEY) return c.json({ error: "Stripe key missing" }, 500);
+
+    try {
+        const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
+        await stripe.refundPayment('platform', { // 'platform' because we charge on platform account for subscriptions
+            paymentIntent: paymentIntentId,
+            amount, // integer cents
+            reason
+        });
+
+        // Audit
+        const audit = new AuditService(db);
+        await audit.log({
+            actorId: c.get('auth').userId,
+            action: 'refund_payment',
+            // tenantId is accessible via param but we might want to verify ownership if needed. 
+            // Here we assume admin context.
+            tenantId: c.req.param('id'),
+            targetId: paymentIntentId,
+            details: { amount, reason },
+            ipAddress: c.req.header('CF-Connecting-IP')
+        });
+
+        return c.json({ success: true });
+    } catch (e: any) {
+        return c.json({ error: "Refund Failed: " + e.message }, 500);
+    }
+});
 
 // POST /impersonate - Generate a token for another user
 app.post('/impersonate', async (c) => {

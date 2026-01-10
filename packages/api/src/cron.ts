@@ -1,5 +1,5 @@
 import { createDb } from './db';
-import { tenants, classes, bookings, tenantMembers, marketingAutomations, users, emailLogs, purchasedPacks, tenantRoles } from 'db/src/schema'; // Ensure imports
+import { tenants, classes, bookings, tenantMembers, marketingAutomations, users, emailLogs, purchasedPacks, tenantRoles, subscriptions, membershipPlans } from 'db/src/schema'; // Ensure imports
 import { and, eq, lte, gt, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 import { BookingService } from './services/bookings';
 
@@ -372,4 +372,186 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
             }
         }
     }
+
+    // 5. Billing Renewal Notifications
+    await processRenewals(db, env);
 };
+
+async function processRenewals(db: any, env: any) {
+    const now = new Date();
+    // Target date: 3 days from now
+    const targetDateStart = new Date(now);
+    targetDateStart.setDate(targetDateStart.getDate() + 3);
+    targetDateStart.setHours(0, 0, 0, 0);
+
+    const targetDateEnd = new Date(targetDateStart);
+    targetDateEnd.setHours(23, 59, 59, 999);
+
+    console.log(`Processing Renewals for target range: ${targetDateStart.toISOString()} - ${targetDateEnd.toISOString()}`);
+
+    // --- A. Platform Subscription Renewals (Tenant Owners) ---
+    // Find tenants whose currentPeriodEnd falls within the target day
+    const renewingTenants = await db.query.tenants.findMany({
+        where: and(
+            gte(tenants.currentPeriodEnd, targetDateStart),
+            lte(tenants.currentPeriodEnd, targetDateEnd),
+            eq(tenants.subscriptionStatus, 'active')
+        )
+    });
+
+    for (const tenant of renewingTenants) {
+        // Find Owner(s)
+        const owners = await db.select({
+            email: users.email,
+            firstName: users.profile,
+            userId: users.id
+        })
+            .from(tenantMembers)
+            .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
+            .innerJoin(users, eq(tenantMembers.userId, users.id))
+            .where(and(
+                eq(tenantMembers.tenantId, tenant.id),
+                eq(tenantRoles.role, 'owner')
+            ))
+            .all();
+
+        for (const owner of owners) {
+            if (!owner.email) continue;
+
+            const periodEndNum = tenant.currentPeriodEnd ? new Date(tenant.currentPeriodEnd).getTime() : 0;
+            const uniqueKey = `platform_renewal_notice_${tenant.id}_${periodEndNum}`;
+
+            // Check duplicate log
+            const existingLog = await db.select().from(emailLogs).where(and(
+                eq(emailLogs.recipientEmail, owner.email),
+                eq(emailLogs.status, 'sent'),
+                sql`json_extract(${emailLogs.metadata}, '$.uniqueKey') = ${uniqueKey}`
+            )).get();
+
+            if (existingLog) continue;
+
+            // Send Email (Platform Branding)
+            const emailService = new EmailService(env.RESEND_API_KEY); // No tenant config = Platform branding
+            const profile: any = owner.firstName || {};
+            const name = profile.firstName || 'Partner';
+            const dateStr = tenant.currentPeriodEnd ? new Date(tenant.currentPeriodEnd).toLocaleDateString() : 'soon';
+
+            try {
+                await emailService.sendGenericEmail(
+                    owner.email,
+                    `Upcoming Subscription Renewal`,
+                    `
+                    <h1>Subscription Renewal Notice</h1>
+                    <p>Hi ${name},</p>
+                    <p>This is a reminder that your subscription to <strong>Studio Platform</strong> is set to renew on <strong>${dateStr}</strong>.</p>
+                    <p>No action is required if your payment details are up to date.</p>
+                    <p>Thank you for building with us!</p>
+                    `,
+                    true
+                );
+
+                // Log it
+                await db.insert(emailLogs).values({
+                    id: crypto.randomUUID(),
+                    tenantId: tenant.id,
+                    recipientEmail: owner.email,
+                    subject: 'Upcoming Subscription Renewal',
+                    status: 'sent',
+                    metadata: { uniqueKey, type: 'platform_renewal' }
+                }).run();
+
+                console.log(`Sent Platform Renewal Notice to ${owner.email}`);
+            } catch (e) {
+                console.error(`Failed to send platform renewal to ${owner.email}`, e);
+            }
+        }
+    }
+
+    // --- B. Studio Membership Renewals (Students) ---
+    // Find subscriptions expiring in 3 days
+    const renewingSubs = await db.query.subscriptions.findMany({
+        where: and(
+            gte(subscriptions.currentPeriodEnd, targetDateStart),
+            lte(subscriptions.currentPeriodEnd, targetDateEnd),
+            eq(subscriptions.status, 'active')
+        ),
+        with: {
+            tenant: true, // Need branding
+            // We need user email, but 'subscriptions' links to Users.
+            // Drizzle 'with' needs relation defined in schema logic (relations).
+            // Schema has 'userId', let's fetch user manually or rely on relations if present.
+            // Looking at schema.ts, we need to check if relations are defined for subscriptions -> users.
+            // Taking safe route: fetch user details manually if needed, or query with join.
+        }
+    });
+
+    // Efficiently batch fetch users if list is large, but loop is fine for cron for now.
+    // Actually, 'renewingSubs' will be list of subscription objects.
+    // 'tenant' is joined. 'userId' is available.
+
+    for (const sub of renewingSubs) {
+        if (!sub.tenant || !sub.userId) continue;
+
+        const user = await db.query.users.findFirst({ where: eq(users.id, sub.userId) });
+        if (!user || !user.email) continue;
+
+        // Determine Plan Name (for email context)
+        let planName = 'Membership';
+        if (sub.planId) {
+            // Fetch plan name (Optimize: cache or join)
+            // We can assume we might need to fetch it.
+            const plan = await db.query.membershipPlans.findFirst({ where: eq(membershipPlans.id, sub.planId) });
+            if (plan) planName = plan.name;
+        }
+
+        const periodEndNum = sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd).getTime() : 0;
+        const uniqueKey = `student_renewal_notice_${sub.id}_${periodEndNum}`;
+
+        // Check duplicate log
+        const existingLog = await db.select().from(emailLogs).where(and(
+            eq(emailLogs.recipientEmail, user.email),
+            eq(emailLogs.status, 'sent'),
+            sql`json_extract(${emailLogs.metadata}, '$.uniqueKey') = ${uniqueKey}`
+        )).get();
+
+        if (existingLog) continue;
+
+        // Send Email (Studio Branding)
+        const emailService = new EmailService(env.RESEND_API_KEY, {
+            branding: sub.tenant.branding as any,
+            settings: sub.tenant.settings as any
+        }, { slug: sub.tenant.slug, customDomain: sub.tenant.customDomain });
+
+        const profile: any = user.profile || {};
+        const name = profile.firstName || 'Student';
+        const dateStr = sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd).toLocaleDateString() : 'soon';
+
+        try {
+            await emailService.sendGenericEmail(
+                user.email,
+                `Membership Renewal: ${planName}`,
+                `
+                <h1>Upcoming Renewal</h1>
+                <p>Hi ${name},</p>
+                <p>Your <strong>${planName}</strong> membership at <strong>${sub.tenant.name}</strong> is set to renew on <strong>${dateStr}</strong>.</p>
+                <p>We look forward to seeing you soon!</p>
+                `,
+                true
+            );
+
+            // Log it
+            await db.insert(emailLogs).values({
+                id: crypto.randomUUID(),
+                tenantId: sub.tenant.id,
+                recipientEmail: user.email,
+                subject: `Membership Renewal: ${planName}`,
+                status: 'sent',
+                metadata: { uniqueKey, type: 'student_renewal', subscriptionId: sub.id }
+            }).run();
+
+            console.log(`Sent Student Renewal Notice to ${user.email} (Tenant: ${sub.tenant.slug})`);
+        } catch (e) {
+            console.error(`Failed to send student renewal to ${user.email}`, e);
+        }
+    }
+}
