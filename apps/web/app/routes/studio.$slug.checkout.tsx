@@ -18,6 +18,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const token = await getToken();
     const url = new URL(args.request.url);
     const packId = url.searchParams.get("packId");
+    const planId = url.searchParams.get("planId");
 
     // Gift Card Params
     const giftCardAmount = url.searchParams.get("giftCardAmount");
@@ -26,11 +27,11 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const senderName = url.searchParams.get("senderName");
     const message = url.searchParams.get("message");
 
-    return { token, packId, giftCardAmount, recipientEmail, recipientName, senderName, message, slug: args.params.slug };
+    return { token, packId, planId, giftCardAmount, recipientEmail, recipientName, senderName, message, slug: args.params.slug };
 };
 
 export default function CheckoutPage() {
-    const { token, packId, giftCardAmount, recipientEmail, recipientName, senderName, message, slug } = useLoaderData<any>();
+    const { token, packId, planId, giftCardAmount, recipientEmail, recipientName, senderName, message, slug } = useLoaderData<any>();
     const [clientSecret, setClientSecret] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
@@ -59,14 +60,15 @@ export default function CheckoutPage() {
     // 3. We call /checkout/session with code.
 
     useEffect(() => {
-        if ((!packId && !giftCardAmount) || !token) return;
+        if ((!packId && !giftCardAmount && !planId) || !token) return;
         createSession(); // Load initial session without coupon
-    }, [packId, giftCardAmount, token, slug]);
+    }, [packId, giftCardAmount, planId, token, slug]);
 
     const createSession = (code?: string, giftCode?: string) => {
         setLoadingSession(true);
         const payload: any = {
             packId,
+            planId,
             couponCode: code,
             giftCardAmount,
             recipientEmail,

@@ -242,7 +242,7 @@ export default function StudioMemberships() {
                                 {isStudentView ? (
                                     <button
                                         onClick={() => {
-                                            alert("Membership checkout coming soon!")
+                                            window.location.href = `checkout?planId=${plan.id}`;
                                         }}
                                         className="w-full py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-colors shadow-sm"
                                     >

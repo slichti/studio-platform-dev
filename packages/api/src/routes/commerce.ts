@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantMembers, coupons, couponRedemptions, classPackDefinitions, giftCards } from 'db/src/schema'; // Ensure exported
+import { tenants, tenantMembers, coupons, couponRedemptions, classPackDefinitions, giftCards, membershipPlans } from 'db/src/schema'; // Ensure exported
 import { eq, and, gt, sql } from 'drizzle-orm';
 
 type Bindings = {
@@ -217,14 +217,16 @@ app.post('/checkout/session', async (c) => {
         }
 
         const body = await c.req.json();
-        const { packId, couponCode, giftCardCode, giftCardAmount, recipientEmail, recipientName, senderName, message } = body;
+        const { packId, planId, couponCode, giftCardCode, giftCardAmount, recipientEmail, recipientName, senderName, message } = body;
 
-        if (!packId && !giftCardAmount) return c.json({ error: "Pack ID or Amount required" }, 400);
+        if (!packId && !giftCardAmount && !planId) return c.json({ error: "Product ID or Amount required" }, 400);
 
         let finalAmount = 0;
         let basePrice = 0;
         let discountAmount = 0;
         let pack = null;
+        let plan = null;
+        let stripeMode: 'payment' | 'subscription' = 'payment';
 
         if (packId) {
             // 1. Fetch Pack
@@ -235,6 +237,21 @@ app.post('/checkout/session', async (c) => {
             if (!pack) return c.json({ error: "Pack not found" }, 404);
             finalAmount = pack.price || 0;
             basePrice = finalAmount;
+        } else if (planId) {
+            // 1b. Fetch Plan
+            plan = await db.select().from(membershipPlans)
+                .where(and(eq(membershipPlans.id, planId), eq(membershipPlans.tenantId, tenant.id)))
+                .get();
+
+            if (!plan) return c.json({ error: "Plan not found" }, 404);
+            if (!plan.active) return c.json({ error: "Plan is no longer active" }, 400);
+
+            finalAmount = plan.price || 0;
+            basePrice = finalAmount;
+
+            if (plan.interval && plan.interval !== 'one_time') {
+                stripeMode = 'subscription';
+            }
         } else {
             if (giftCardAmount) {
                 finalAmount = parseInt(giftCardAmount);
@@ -375,7 +392,7 @@ app.post('/checkout/session', async (c) => {
 
         // Construct Line Items
         const lineItems = [];
-        const itemName = pack ? pack.name : 'Gift Card Credit';
+        const itemName = pack ? pack.name : (plan ? plan.name : 'Gift Card Credit');
 
         // Item Details
         // If Gift Card was applied, we show the remaining balance as the item cost?
@@ -404,28 +421,72 @@ app.post('/checkout/session', async (c) => {
         const taxNet = Math.max(0, taxAmount - creditData.remaining);
 
         if (itemNet > 0) {
+            const priceData: any = {
+                currency: tenant.currency || 'usd',
+                product_data: { name: itemName },
+                unit_amount: itemNet
+            };
+
+            if (stripeMode === 'subscription' && plan) {
+                priceData.recurring = {
+                    interval: plan.interval, // 'month', 'year', 'week'
+                    interval_count: 1
+                };
+            }
+
             lineItems.push({
-                price_data: {
-                    currency: tenant.currency || 'usd',
-                    product_data: { name: itemName },
-                    unit_amount: itemNet
-                },
+                price_data: priceData,
                 quantity: 1
             });
         }
 
         if (taxNet > 0) {
-            lineItems.push({
-                price_data: {
-                    currency: tenant.currency || 'usd',
-                    product_data: { name: 'Sales Tax (MI 6%)' },
-                    unit_amount: taxNet
-                },
-                quantity: 1
-            });
+            // Tax cannot be recurring strictly speaking if attached to a subscription,
+            // but for simple checkout, we might need a workaround or just charge it as one-time
+            // IF it is a subscription, we should probably include tax in the recurring price OR
+            // establish a tax rate object.
+            // For MVP: If subscription, we just bundle tax into the unit_amount?
+            // OR we use Stripe Tax.
+            // Simpler: We just add it as a one-time fee line item if allowed in sub mode?
+            // Stripe Subscription Checkout allows one-time items (setup fees).
+            // But tax should ideally recur.
+            // Let's just bundle it for now if subscription.
+            // Wait, if we bundle it, the recurring charge is higher.
+
+            if (stripeMode === 'subscription') {
+                // Determine if we want to bundle tax. 
+                // Let's assume we use Stripe Tax automatic calculation in future.
+                // For now, let's just NOT charge tax on subscriptions explicitly to avoid complexity
+                // OR add it as a separate recurring line item? No, cleaner to bundle or use Tax Rates.
+                // Let's skip tax line item for subscription for MVP or bake it in if critical.
+                // Actually, let's keep it simple: Add it as a one-time line item logic below is valid for 'payment' mode.
+                // For subscription, adding a one-time tax item works for the FIRST invoice only.
+                // Recurring tax handling requires Tax Rates.
+
+                // FALLBACK: Add as one-time fee for first payment.
+                lineItems.push({
+                    price_data: {
+                        currency: tenant.currency || 'usd',
+                        product_data: { name: 'Sales Tax (First Payment Only)' },
+                        unit_amount: taxNet
+                    },
+                    quantity: 1
+                });
+            } else {
+                lineItems.push({
+                    price_data: {
+                        currency: tenant.currency || 'usd',
+                        product_data: { name: 'Sales Tax (MI 6%)' },
+                        unit_amount: taxNet
+                    },
+                    quantity: 1
+                });
+            }
         }
 
         if (stripeFee > 0) {
+            // Same logic for fee - usually one time or baked in. 
+            // We'll charge it purely as one-time for now to cover the transaction cost.
             lineItems.push({
                 price_data: {
                     currency: tenant.currency || 'usd',
@@ -444,9 +505,11 @@ app.post('/checkout/session', async (c) => {
                 customerEmail,
                 customer: stripeCustomerId || undefined,
                 lineItems,
+                mode: stripeMode,
                 metadata: {
-                    type: pack ? 'pack_purchase' : 'gift_card_purchase',
+                    type: pack ? 'pack_purchase' : (plan ? 'membership_purchase' : 'gift_card_purchase'),
                     packId: pack?.id || '',
+                    planId: plan?.id || '',
                     tenantId: tenant.id,
                     userId: user?.userId || 'guest',
                     couponId: appliedCouponId || '',

@@ -113,6 +113,7 @@ export class StripeService {
             customerEmail?: string;
             customer?: string;
             lineItems?: Stripe.Checkout.SessionCreateParams.LineItem[];
+            mode?: 'payment' | 'subscription';
         }
     ) {
         const { client, options } = this.getClient(connectedAccountId);
@@ -127,7 +128,7 @@ export class StripeService {
                     },
                 },
             },
-            mode: 'payment',
+            mode: params.mode || 'payment',
             return_url: params.returnUrl,
             metadata: params.metadata,
         };
