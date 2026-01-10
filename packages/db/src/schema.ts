@@ -1235,3 +1235,11 @@ export const webhookEndpoints = sqliteTable('webhook_endpoints', {
 }, (table) => ({
     tenantIdx: index('webhook_tenant_idx').on(table.tenantId),
 }));
+// --- Platform Global Config ---
+export const platformConfig = sqliteTable('platform_config', {
+    key: text('key').primaryKey(), // e.g. 'feature_mobile_app'
+    value: text('value', { mode: 'json' }), // Optional config payload
+    enabled: integer('enabled', { mode: 'boolean' }).default(false).notNull(),
+    description: text('description'),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+});

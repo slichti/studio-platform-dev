@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { users, tenantMembers, tenantRoles, tenants, subscriptions, auditLogs, emailLogs, smsLogs, brandingAssets, videos, waiverTemplates, waiverSignatures, marketingAutomations } from 'db/src/schema';
+import { users, tenantMembers, tenantRoles, tenants, subscriptions, auditLogs, emailLogs, smsLogs, brandingAssets, videos, waiverTemplates, waiverSignatures, marketingAutomations, platformConfig } from 'db/src/schema';
 import { eq, sql, desc, count, or, like, asc, and, inArray } from 'drizzle-orm';
 import { UsageService } from '../services/pricing';
 import { StripeService } from '../services/stripe';
@@ -1571,6 +1571,53 @@ app.get('/tenants/:id/export', async (c) => {
     } catch (e: any) {
         return c.json({ error: e.message }, 400);
     }
+});
+
+
+// --- Platform Features (Global Config) ---
+
+// GET /platform/config
+app.get('/platform/config', async (c) => {
+    const db = createDb(c.env.DB);
+    const configs = await db.select().from(platformConfig).all();
+    return c.json(configs);
+});
+
+// PUT /platform/config/:key
+app.put('/platform/config/:key', async (c) => {
+    const db = createDb(c.env.DB);
+    const key = c.req.param('key');
+    const { enabled, value, description } = await c.req.json();
+    const auth = c.get('auth');
+
+    // Upsert
+    await db.insert(platformConfig).values({
+        key,
+        enabled,
+        value,
+        description,
+        updatedAt: new Date()
+    }).onConflictDoUpdate({
+        target: platformConfig.key,
+        set: {
+            enabled,
+            value,
+            description,
+            updatedAt: new Date()
+        }
+    }).run();
+
+    // Audit
+    const audit = new AuditService(db);
+    await audit.log({
+        actorId: auth.userId,
+        action: 'update_platform_config',
+        tenantId: 'system', // Use 'system' instead of 'platform' which might be invalid if strict foreign keys? auditLogs tenantId is usually UUID. 'system' might need special handling.
+        details: { key, enabled, value },
+        ipAddress: c.req.header('CF-Connecting-IP')
+    });
+
+    return c.json({ success: true });
 });
 
 

@@ -1,0 +1,138 @@
+
+import { useLoaderData, useNavigate } from "react-router";
+import { getAuth } from "@clerk/react-router/server";
+import { apiRequest } from "../utils/api";
+import { useState } from "react";
+import { useAuth } from "@clerk/react-router";
+import { Smartphone, Video, CreditCard, MessageSquare, Save } from "lucide-react";
+
+export const loader = async (args: any) => {
+    const { getToken } = await getAuth(args);
+    const token = await getToken();
+    try {
+        const configs = await apiRequest<any[]>("/admin/platform/config", token);
+        return { configs, error: null };
+    } catch (e: any) {
+        return { configs: [], error: e.message };
+    }
+};
+
+const KNOWN_FEATURES = [
+    {
+        key: 'feature_mobile_app',
+        label: 'White-Label Mobile App',
+        description: 'Enable Mobile App settings and promotion across all studios. Keep disabled until apps are approved.',
+        icon: Smartphone
+    },
+    {
+        key: 'feature_vod',
+        label: 'Video on Demand (VOD)',
+        description: 'Global master switch for VOD functionality.',
+        icon: Video
+    },
+    {
+        key: 'feature_communications',
+        label: 'Communication Suite (SMS/Email)',
+        description: 'Enable SMS and Email marketing tools.',
+        icon: MessageSquare
+    }
+];
+
+export default function AdminFeatures() {
+    const { configs: initialConfigs, error } = useLoaderData<any>();
+    const [configs, setConfigs] = useState<any[]>(initialConfigs || []);
+    const { getToken } = useAuth();
+    const [loading, setLoading] = useState<string | null>(null);
+
+    const getConfig = (key: string) => configs.find(c => c.key === key) || { enabled: false };
+
+    const handleToggle = async (key: string, currentValue: boolean) => {
+        setLoading(key);
+        // Optimistic update
+        setConfigs(prev => {
+            const existing = prev.find(c => c.key === key);
+            if (existing) {
+                return prev.map(c => c.key === key ? { ...c, enabled: !currentValue } : c);
+            } else {
+                return [...prev, { key, enabled: !currentValue }];
+            }
+        });
+
+        try {
+            const token = await getToken();
+            await apiRequest(`/admin/platform/config/${key}`, token, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    enabled: !currentValue,
+                    description: KNOWN_FEATURES.find(k => k.key === key)?.description
+                })
+            });
+        } catch (e) {
+            console.error(e);
+            alert("Failed to update feature flag");
+            // Revert
+            setConfigs(initialConfigs);
+        } finally {
+            setLoading(null);
+        }
+    };
+
+    if (error) return <div className="p-8 text-red-600">Error loading config: {error}</div>;
+
+    return (
+        <div className="max-w-4xl mx-auto py-8">
+            <div className="mb-8">
+                <h1 className="text-2xl font-bold text-zinc-900">Platform Features</h1>
+                <p className="text-zinc-500 mt-2">Manage global feature flags. Disabling a feature here hides it from all tenants.</p>
+            </div>
+
+            <div className="bg-white rounded-lg border border-zinc-200 divide-y divide-zinc-100 shadow-sm">
+                {KNOWN_FEATURES.map(feature => {
+                    const config = getConfig(feature.key);
+                    const isEnabled = config.enabled;
+                    const Icon = feature.icon;
+
+                    return (
+                        <div key={feature.key} className="p-6 flex items-start gap-4">
+                            <div className={`p-3 rounded-lg ${isEnabled ? 'bg-blue-50 text-blue-600' : 'bg-zinc-100 text-zinc-400'}`}>
+                                <Icon size={24} />
+                            </div>
+                            <div className="flex-1">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-medium text-zinc-900">{feature.label}</h3>
+                                    <button
+                                        onClick={() => handleToggle(feature.key, isEnabled)}
+                                        disabled={loading === feature.key}
+                                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${isEnabled ? 'bg-blue-600' : 'bg-zinc-200'}`}
+                                    >
+                                        <span
+                                            aria-hidden="true"
+                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isEnabled ? 'translate-x-5' : 'translate-x-0'}`}
+                                        />
+                                    </button>
+                                </div>
+                                <p className="text-zinc-500 text-sm mt-1 mb-3">{feature.description}</p>
+                                <div className="flex items-center gap-2">
+                                    <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${isEnabled ? 'bg-green-100 text-green-800' : 'bg-zinc-100 text-zinc-600'}`}>
+                                        {isEnabled ? 'Enabled Globally' : 'Disabled (Hidden)'}
+                                    </span>
+                                    {config.updatedAt && (
+                                        <span className="text-xs text-zinc-400">Updated {new Date(config.updatedAt).toLocaleDateString()}</span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            <div className="mt-8 bg-blue-50 border border-blue-100 rounded-lg p-4">
+                <h4 className="font-medium text-blue-900 mb-2">How this works</h4>
+                <ul className="list-disc list-inside text-sm text-blue-800 space-y-1">
+                    <li><strong>Enabled:</strong> Feature is visible to tenants (subject to their subscription tier).</li>
+                    <li><strong>Disabled:</strong> Feature is completely hidden from the entire platform. Useful for testing or incomplete features (e.g. Mobile App).</li>
+                </ul>
+            </div>
+        </div>
+    );
+}

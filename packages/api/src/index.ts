@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { createDb } from './db';
-import { tenants, tenantMembers, tenantFeatures, users, classes, bookings, posOrders, purchasedPacks, waiverTemplates, waiverSignatures, tenantRoles } from 'db/src/schema';
+import { tenants, tenantMembers, tenantFeatures, users, classes, bookings, posOrders, purchasedPacks, waiverTemplates, waiverSignatures, tenantRoles, platformConfig } from 'db/src/schema';
 import { eq, and, count, sum, gte, like, or } from 'drizzle-orm';
 import { UsageService } from './services/pricing';
 import { StripeService } from './services/stripe';
@@ -209,9 +209,17 @@ const studioApp = new Hono<{ Bindings: Bindings, Variables: Variables }>()
 app.route('/studios', studioRoutes);
 
 // 6. Base Studio Logic
-studioApp.get('/info', (c) => {
+studioApp.get('/info', async (c) => {
   const tenant = c.get('tenant');
   if (!tenant) return c.json({ error: "No tenant" }, 404);
+
+  const db = createDb(c.env.DB);
+  const platformConfigs = await db.select().from(platformConfig).all();
+  const globalFeatures = platformConfigs.reduce((acc, curr) => {
+    acc[curr.key] = curr.enabled;
+    return acc;
+  }, {} as Record<string, boolean>);
+
   return c.json({
     id: tenant.id,
     name: tenant.name,
@@ -220,7 +228,8 @@ studioApp.get('/info', (c) => {
     settings: tenant.settings,
     stripeAccountId: tenant.stripeAccountId,
     branding: tenant.branding,
-    features: Array.from(c.get('features') || [])
+    features: Array.from(c.get('features') || []),
+    platformFeatures: globalFeatures
   });
 });
 
