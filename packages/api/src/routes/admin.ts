@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { users, tenantMembers, tenantRoles, tenants, subscriptions, auditLogs, emailLogs, smsLogs, brandingAssets, videos, waiverTemplates, waiverSignatures } from 'db/src/schema';
+import { users, tenantMembers, tenantRoles, tenants, subscriptions, auditLogs, emailLogs, smsLogs, brandingAssets, videos, waiverTemplates, waiverSignatures, marketingAutomations } from 'db/src/schema';
 import { eq, sql, desc, count, or, like, asc, and, inArray } from 'drizzle-orm';
 import { UsageService } from '../services/pricing';
 import type { HonoContext } from '../types';
@@ -463,6 +463,66 @@ app.get('/stats/email', async (c) => {
         totalSent,
         byTenant,
         recentLogs
+    });
+});
+
+// GET /stats/communications - Unified Comms Stats
+app.get('/stats/communications', async (c) => {
+    const db = createDb(c.env.DB);
+
+    // 1. Fetch Basic Usage Stats (Aggregated)
+    const [emailCounts, smsCounts, automationStats, allTenants] = await Promise.all([
+        db.select({ tenantId: emailLogs.tenantId, count: count(emailLogs.id) })
+            .from(emailLogs)
+            .groupBy(emailLogs.tenantId)
+            .all(),
+        db.select({ tenantId: smsLogs.tenantId, count: count(smsLogs.id) })
+            .from(smsLogs)
+            .groupBy(smsLogs.tenantId)
+            .all(),
+        db.select({
+            tenantId: marketingAutomations.tenantId,
+            type: marketingAutomations.triggerEvent,
+            active: marketingAutomations.isEnabled
+        })
+            .from(marketingAutomations)
+            .all(),
+        db.select({ id: tenants.id, name: tenants.name, slug: tenants.slug }).from(tenants).where(eq(tenants.status, 'active')).all()
+    ]);
+
+    // 2. Map Maps
+    const emailMap = new Map(emailCounts.map(e => [e.tenantId, e.count]));
+    const smsMap = new Map(smsCounts.map(s => [s.tenantId, s.count]));
+
+    // Group automations by tenant
+    const automationMap = new Map<string, any[]>();
+    for (const auto of automationStats) {
+        if (!auto.active) continue;
+        const existing = automationMap.get(auto.tenantId) || [];
+        existing.push({ type: auto.type, active: auto.active });
+        automationMap.set(auto.tenantId, existing);
+    }
+
+    // 3. Build Result
+    const tenantStats = allTenants.map(t => ({
+        id: t.id,
+        name: t.name,
+        slug: t.slug,
+        emailCount: emailMap.get(t.id) || 0,
+        smsCount: smsMap.get(t.id) || 0,
+        automations: automationMap.get(t.id) || []
+    }));
+
+    // Calculate Totals
+    const totals = {
+        email: tenantStats.reduce((acc, t) => acc + t.emailCount, 0),
+        sms: tenantStats.reduce((acc, t) => acc + t.smsCount, 0)
+    };
+
+    return c.json({
+        totals,
+        tenants: tenantStats
+            .sort((a, b) => (b.emailCount + b.smsCount) - (a.emailCount + a.smsCount)) // Sort by total volume
     });
 });
 
