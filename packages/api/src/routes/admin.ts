@@ -5,6 +5,7 @@ import { eq, sql, desc, count, or, like, asc, and, inArray } from 'drizzle-orm';
 import { UsageService } from '../services/pricing';
 import { StripeService } from '../services/stripe';
 import { AuditService } from '../services/audit';
+import { ExportService } from '../services/export';
 import type { HonoContext } from '../types';
 import { authMiddleware } from '../middleware/auth';
 import tenantFeaturesRouter from './admin.features';
@@ -1458,5 +1459,119 @@ app.post('/videos', async (c) => {
 
     return c.json({ success: true });
 });
+
+
+
+// --- Lifecycle Management ---
+
+// POST /tenants/:id/lifecycle/grace-period
+app.post('/tenants/:id/lifecycle/grace-period', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+    const { enabled, endsAt } = await c.req.json();
+    const auth = c.get('auth');
+
+    await db.update(tenants).set({
+        studentAccessDisabled: !!enabled,
+        gracePeriodEndsAt: endsAt ? new Date(endsAt) : null
+    }).where(eq(tenants.id, tenantId)).run();
+
+    const audit = new AuditService(db);
+    await audit.log({
+        actorId: auth.userId,
+        action: 'update_grace_period',
+        tenantId,
+        details: { enabled, endsAt },
+        ipAddress: c.req.header('CF-Connecting-IP')
+    });
+
+    return c.json({ success: true });
+});
+
+// POST /tenants/:id/lifecycle/archive
+app.post('/tenants/:id/lifecycle/archive', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+    const auth = c.get('auth');
+
+    // 1. Set Status
+    await db.update(tenants).set({
+        status: 'archived',
+        archivedAt: new Date(),
+        studentAccessDisabled: true // Ensure locked out
+    }).where(eq(tenants.id, tenantId)).run();
+
+    // 2. Cleanup resources (Optional: Flag VODs as deleted or actually delete from R2? Just flag for now per "maintain records")
+    // If we delete VODs per requirement ("don't need to maintain VOD content"), we should trigger a job.
+    // implementing a "soft delete" or clearing external VOD references here might be good.
+    // For now, let's just mark the status. A separate cleanup job is safer.
+
+    const audit = new AuditService(db);
+    await audit.log({
+        actorId: auth.userId,
+        action: 'archive_tenant',
+        tenantId,
+        details: {},
+        ipAddress: c.req.header('CF-Connecting-IP')
+    });
+
+    return c.json({ success: true });
+});
+
+// POST /tenants/:id/lifecycle/restore
+app.post('/tenants/:id/lifecycle/restore', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+    const auth = c.get('auth');
+
+    await db.update(tenants).set({
+        status: 'active',
+        archivedAt: null,
+        studentAccessDisabled: false
+    }).where(eq(tenants.id, tenantId)).run();
+
+    const audit = new AuditService(db);
+    await audit.log({
+        actorId: auth.userId,
+        action: 'restore_tenant',
+        tenantId,
+        details: {},
+        ipAddress: c.req.header('CF-Connecting-IP')
+    });
+
+    return c.json({ success: true });
+});
+
+// GET /tenants/:id/export
+app.get('/tenants/:id/export', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+    const type = c.req.query('type') as 'subscribers' | 'financials' | 'products' || 'subscribers';
+    const auth = c.get('auth');
+
+    const svc = new ExportService(db, tenantId);
+
+    try {
+        const { filename, csv } = await svc.generateExport(type);
+
+        // Audit
+        const audit = new AuditService(db);
+        await audit.log({
+            actorId: auth.userId,
+            action: 'export_data',
+            tenantId,
+            details: { type },
+            ipAddress: c.req.header('CF-Connecting-IP')
+        });
+
+        // Return CSV
+        c.header('Content-Type', 'text/csv');
+        c.header('Content-Disposition', `attachment; filename="${filename}"`);
+        return c.body(csv);
+    } catch (e: any) {
+        return c.json({ error: e.message }, 400);
+    }
+});
+
 
 export default app;

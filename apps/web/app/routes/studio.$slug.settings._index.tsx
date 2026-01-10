@@ -6,7 +6,7 @@ import { useOutletContext, useLoaderData, Form, useNavigation, useSubmit, Link }
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router"; // Add types
 import { apiRequest, API_URL } from "../utils/api";
 import { getAuth } from "@clerk/react-router/server";
-import { Plus, Trash2, MapPin, CreditCard, FileText, Mail, MessageSquare, Video, Globe, CheckCircle, Smartphone, ShoppingBag, Code, BarChart3 } from "lucide-react";
+import { Plus, Trash2, MapPin, CreditCard, FileText, Mail, MessageSquare, Video, Globe, CheckCircle, Smartphone, Code, ShoppingBag } from "lucide-react";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { params } = args;
@@ -182,7 +182,7 @@ export default function StudioSettings() {
                                             },
                                             body: formData
                                         });
-                                        const result = await response.json();
+                                        const result = await response.json() as any;
                                         if (result.error) throw new Error(result.error);
                                         setSuccess('Logo uploaded successfully');
                                         window.location.reload();
@@ -791,18 +791,7 @@ export default function StudioSettings() {
                 </div>
             </div >
 
-            {/* Data Import */}
-            < Link to={`/studio/${tenant.slug}/settings/import`} className="block bg-white border border-zinc-200 rounded-lg p-6 shadow-sm mb-8 hover:border-blue-300 transition-colors group" >
-                <div className="flex justify-between items-center">
-                    <div>
-                        <h2 className="text-lg font-semibold group-hover:text-blue-600 transition-colors">Data Import</h2>
-                        <p className="text-sm text-zinc-500">Migrate users and memberships from CSV.</p>
-                    </div>
-                    <div className="bg-zinc-100 p-2 rounded-full group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                        <FileText className="h-5 w-5" />
-                    </div>
-                </div>
-            </Link >
+
 
 
             {/* Custom Domain */}

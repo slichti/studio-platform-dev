@@ -193,6 +193,22 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
         }
 
         c.set('roles', roles);
+
+        // 4. Lifecycle Checks
+        if (tenant.status === 'archived' && !isSystemAdmin) {
+            // Archived tenants are inaccessible except to System Admins (for restoration)
+            // Note: If Owners need read-only access to archived tenants, this logic needs adjustment.
+            // Requirement says "spin it back up in event of audit", implying it is currently offline.
+            // Exports should happen DURING grace period.
+            return c.json({ error: "This studio has been archived." }, 403);
+        }
+
+        if (tenant.studentAccessDisabled && !isSystemAdmin) {
+            const hasPrivilegedRole = roles.some(r => ['owner', 'instructor', 'admin'].includes(r));
+            if (!hasPrivilegedRole) {
+                return c.json({ error: "Student access is currently disabled for this studio." }, 403);
+            }
+        }
     }
 
     await next();

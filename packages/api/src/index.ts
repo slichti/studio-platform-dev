@@ -4,6 +4,7 @@ import { tenants, tenantMembers, tenantFeatures, users, classes, bookings, posOr
 import { eq, and, count, sum, gte, like, or } from 'drizzle-orm';
 import { UsageService } from './services/pricing';
 import { StripeService } from './services/stripe';
+import { ExportService } from './services/export';
 import { authMiddleware } from './middleware/auth';
 import { optionalAuthMiddleware } from './middleware/optionalAuth';
 import { tenantMiddleware } from './middleware/tenant';
@@ -353,6 +354,29 @@ studioApp.patch('/settings', async (c) => {
   if (Object.keys(updateData).length === 0) return c.json({ received: true });
   await db.update(tenants).set(updateData).where(eq(tenants.id, tenant.id)).run();
   return c.json({ success: true });
+});
+
+studioApp.get('/settings/export', async (c) => {
+  const tenant = c.get('tenant');
+  const db = createDb(c.env.DB);
+  const type = c.req.query('type') as 'subscribers' | 'financials' | 'products' || 'subscribers';
+  const roles = c.get('roles') || [];
+
+  // Only Owners/Admins
+  if (!roles.includes('owner') && !roles.includes('admin')) {
+    return c.json({ error: "Unauthorized" }, 403);
+  }
+
+  const svc = new ExportService(db, tenant.id);
+
+  try {
+    const { filename, csv } = await svc.generateExport(type);
+    c.header('Content-Type', 'text/csv');
+    c.header('Content-Disposition', `attachment; filename="${filename}"`);
+    return c.body(csv);
+  } catch (e: any) {
+    return c.json({ error: e.message }, 400);
+  }
 });
 
 studioApp.put('/credentials/zoom', async (c) => {

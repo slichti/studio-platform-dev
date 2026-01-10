@@ -10,6 +10,7 @@ type AuthVariables = {
         userId: string | null;
         claims: any;
     };
+    tenantId?: string;
     isImpersonating?: boolean;
 };
 

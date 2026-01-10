@@ -33,7 +33,8 @@ import {
     Code,
     Terminal,
     Film,
-    Image as ImageIcon
+    Image as ImageIcon,
+    Database
 } from "lucide-react";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { CommandBar } from "../components/CommandBar";
@@ -208,6 +209,7 @@ export default function StudioLayout() {
                                 <NavItem to={`/studio/${slug}/discounts`} icon={<Tag size={18} />}>Discounts</NavItem>
                                 <NavItem to={`/studio/${slug}/settings/embeds`} icon={<Code size={18} />}>Website Widgets</NavItem>
                                 <NavItem to={`/studio/${slug}/settings/integrations`} icon={<Terminal size={18} />}>Integrations</NavItem>
+                                <NavItem to={`/studio/${slug}/data`} icon={<Database size={18} />}>Data</NavItem>
                                 <NavItem to={`/studio/${slug}/settings`} end icon={<Settings size={18} />}>Settings</NavItem>
                             </SidebarGroup>
 

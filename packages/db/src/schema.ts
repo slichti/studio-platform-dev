@@ -31,7 +31,7 @@ export const tenants = sqliteTable('tenants', {
     googleCredentials: text('google_credentials', { mode: 'json' }), // JSON: { clientId, measurementId }
     slackCredentials: text('slack_credentials', { mode: 'json' }), // JSON: { webhookUrl, botToken }
     googleCalendarCredentials: text('google_calendar_credentials'), // Temporarily disabled JSON mode to fix raw string crash
-    status: text('status', { enum: ['active', 'paused', 'suspended'] }).default('active').notNull(),
+    status: text('status', { enum: ['active', 'paused', 'suspended', 'archived'] }).default('active').notNull(),
     tier: text('tier', { enum: ['basic', 'growth', 'scale'] }).default('basic').notNull(),
     subscriptionStatus: text('subscription_status', { enum: ['active', 'past_due', 'canceled', 'trialing'] }).default('active').notNull(),
 
@@ -51,6 +51,9 @@ export const tenants = sqliteTable('tenants', {
     instructorCount: integer('instructor_count').default(0).notNull(),
 
     lastBilledAt: integer('last_billed_at', { mode: 'timestamp' }), // Track last chargeback invoice
+    archivedAt: integer('archived_at', { mode: 'timestamp' }),
+    gracePeriodEndsAt: integer('grace_period_ends_at', { mode: 'timestamp' }),
+    studentAccessDisabled: integer('student_access_disabled', { mode: 'boolean' }).default(false).notNull(),
 
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
