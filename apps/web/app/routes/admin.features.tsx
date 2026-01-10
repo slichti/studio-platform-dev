@@ -4,7 +4,7 @@ import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { useState } from "react";
 import { useAuth } from "@clerk/react-router";
-import { Smartphone, Video, CreditCard, MessageSquare, Save } from "lucide-react";
+import { Smartphone, Video, CreditCard, MessageSquare, Mail, Save } from "lucide-react";
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -31,10 +31,16 @@ const KNOWN_FEATURES = [
         icon: Video
     },
     {
-        key: 'feature_communications',
-        label: 'Communication Suite (SMS/Email)',
-        description: 'Enable SMS and Email marketing tools.',
+        key: 'feature_sms',
+        label: 'SMS Messaging',
+        description: 'Enable Twilio SMS features and quotas.',
         icon: MessageSquare
+    },
+    {
+        key: 'feature_email_marketing',
+        label: 'Email Marketing',
+        description: 'Enable Resend email marketing tools.',
+        icon: Mail
     }
 ];
 
