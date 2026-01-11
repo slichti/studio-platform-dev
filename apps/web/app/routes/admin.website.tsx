@@ -1,27 +1,75 @@
-// Admin Website Builder - Platform-wide website management
+// Admin Website Builder - Platform main site pages management
 
-import { useLoaderData, Link } from "react-router";
+import { useLoaderData, Link, useNavigate } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { useState } from "react";
 import { useAuth } from "@clerk/react-router";
-import { Globe, ExternalLink, Settings, Users } from "lucide-react";
+import { Plus, Edit2, Trash2, Eye, EyeOff, Globe, FileText, ExternalLink } from "lucide-react";
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
     const token = await getToken();
 
     try {
-        // Get all tenants with website feature enabled
-        const tenants = await apiRequest<any[]>("/admin/tenants", token);
-        return { tenants, error: null };
+        const pages = await apiRequest<any[]>("/platform-pages/pages", token);
+        return { pages, error: null };
     } catch (e: any) {
-        return { tenants: [], error: e.message };
+        return { pages: [], error: e.message };
     }
 };
 
 export default function AdminWebsite() {
-    const { tenants, error } = useLoaderData<any>();
+    const { pages: initialPages, error } = useLoaderData<any>();
+    const [pages, setPages] = useState<any[]>(initialPages || []);
+    const { getToken } = useAuth();
+    const navigate = useNavigate();
+    const [creating, setCreating] = useState(false);
+    const [newPage, setNewPage] = useState({ title: "", slug: "" });
+
+    const handleCreate = async () => {
+        if (!newPage.title || !newPage.slug) return;
+
+        try {
+            const token = await getToken();
+            const created = await apiRequest<any>("/platform-pages/pages", token, {
+                method: "POST",
+                body: JSON.stringify(newPage),
+            });
+            setPages([...pages, created]);
+            setCreating(false);
+            setNewPage({ title: "", slug: "" });
+        } catch (e: any) {
+            alert("Failed to create page: " + e.message);
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!confirm("Delete this page?")) return;
+
+        try {
+            const token = await getToken();
+            await apiRequest(`/platform-pages/pages/${id}`, token, {
+                method: "DELETE",
+            });
+            setPages(pages.filter(p => p.id !== id));
+        } catch (e: any) {
+            alert("Failed to delete: " + e.message);
+        }
+    };
+
+    const handleTogglePublish = async (page: any) => {
+        try {
+            const token = await getToken();
+            await apiRequest(`/platform-pages/pages/${page.id}/publish`, token, {
+                method: "POST",
+                body: JSON.stringify({ isPublished: !page.isPublished }),
+            });
+            setPages(pages.map(p => p.id === page.id ? { ...p, isPublished: !p.isPublished } : p));
+        } catch (e: any) {
+            alert("Failed to update: " + e.message);
+        }
+    };
 
     if (error) {
         return (
@@ -35,87 +83,145 @@ export default function AdminWebsite() {
 
     return (
         <div className="p-8 max-w-6xl mx-auto">
-            <div className="mb-8">
-                <h1 className="text-2xl font-bold text-zinc-900 flex items-center gap-2">
-                    <Globe className="text-blue-600" />
-                    Website Builder
-                </h1>
-                <p className="text-zinc-500 mt-1">Manage tenant website pages and settings</p>
+            <div className="flex items-center justify-between mb-8">
+                <div>
+                    <h1 className="text-2xl font-bold text-zinc-900 flex items-center gap-2">
+                        <Globe className="text-blue-600" />
+                        Platform Website Builder
+                    </h1>
+                    <p className="text-zinc-500 mt-1">Manage main site pages (Home, Pricing, About, etc.)</p>
+                </div>
+                <button
+                    onClick={() => setCreating(true)}
+                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                >
+                    <Plus size={18} />
+                    New Page
+                </button>
             </div>
 
-            {/* Overview Stats */}
-            <div className="grid grid-cols-3 gap-4 mb-8">
-                <div className="bg-white border border-zinc-200 rounded-xl p-6">
-                    <div className="text-3xl font-bold text-zinc-900">{tenants?.length || 0}</div>
-                    <div className="text-sm text-zinc-500">Total Tenants</div>
-                </div>
-                <div className="bg-white border border-zinc-200 rounded-xl p-6">
-                    <div className="text-3xl font-bold text-green-600">
-                        {tenants?.filter((t: any) => t.features?.includes('website_builder'))?.length || 0}
-                    </div>
-                    <div className="text-sm text-zinc-500">With Website Builder</div>
-                </div>
-                <div className="bg-white border border-zinc-200 rounded-xl p-6">
-                    <div className="text-3xl font-bold text-blue-600">—</div>
-                    <div className="text-sm text-zinc-500">Published Pages</div>
-                </div>
-            </div>
-
-            {/* Tenant List */}
-            <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
-                <div className="p-4 border-b border-zinc-200 bg-zinc-50">
-                    <h2 className="font-medium text-zinc-900">Tenant Websites</h2>
-                </div>
-                {tenants.length === 0 ? (
-                    <div className="p-8 text-center text-zinc-500">
-                        No tenants available
-                    </div>
-                ) : (
-                    <div className="divide-y divide-zinc-100">
-                        {tenants.map((tenant: any) => (
-                            <div key={tenant.id} className="p-4 flex items-center justify-between hover:bg-zinc-50">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center font-medium">
-                                        {tenant.name?.charAt(0) || "?"}
-                                    </div>
-                                    <div>
-                                        <h3 className="font-medium text-zinc-900">{tenant.name}</h3>
-                                        <p className="text-sm text-zinc-500">{tenant.slug}.studio-platform.com</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Link
-                                        to={`/studio/${tenant.slug}/website/pages`}
-                                        className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg"
-                                    >
-                                        <Settings size={14} />
-                                        Manage
-                                    </Link>
-                                    <a
-                                        href={`https://${tenant.slug}.studio-platform.com`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-1 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 rounded-lg"
-                                    >
-                                        <ExternalLink size={14} />
-                                        View Site
-                                    </a>
-                                </div>
+            {/* Create Modal */}
+            {creating && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+                        <h2 className="text-lg font-semibold mb-4">Create New Platform Page</h2>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 mb-1">Page Title</label>
+                                <input
+                                    type="text"
+                                    value={newPage.title}
+                                    onChange={(e) => setNewPage({ ...newPage, title: e.target.value })}
+                                    className="w-full border border-zinc-300 rounded-lg px-3 py-2"
+                                    placeholder="e.g., About Us"
+                                />
                             </div>
-                        ))}
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 mb-1">URL Slug</label>
+                                <input
+                                    type="text"
+                                    value={newPage.slug}
+                                    onChange={(e) => setNewPage({ ...newPage, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
+                                    className="w-full border border-zinc-300 rounded-lg px-3 py-2"
+                                    placeholder="e.g., about"
+                                />
+                                <p className="text-xs text-zinc-400 mt-1">studio-platform.com/{newPage.slug || "slug"}</p>
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-2 mt-6">
+                            <button onClick={() => setCreating(false)} className="px-4 py-2 text-zinc-600 hover:bg-zinc-100 rounded-lg">
+                                Cancel
+                            </button>
+                            <button onClick={handleCreate} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                Create Page
+                            </button>
+                        </div>
                     </div>
-                )}
+                </div>
+            )}
+
+            {/* Quick Links */}
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 mb-8 text-white">
+                <h2 className="font-semibold mb-3">Common Pages</h2>
+                <p className="text-white/70 text-sm mb-4">Create pages for these common routes if they don't exist:</p>
+                <div className="flex gap-2 flex-wrap">
+                    {['home', 'pricing', 'about', 'contact', 'features'].map(slug => {
+                        const exists = pages.some(p => p.slug === slug);
+                        return (
+                            <span
+                                key={slug}
+                                className={`px-3 py-1 rounded-full text-sm ${exists ? 'bg-white/20' : 'bg-white/10 opacity-60'}`}
+                            >
+                                /{slug} {exists ? '✓' : ''}
+                            </span>
+                        );
+                    })}
+                </div>
             </div>
 
-            {/* Help Section */}
-            <div className="mt-8 bg-blue-50 border border-blue-100 rounded-xl p-4">
-                <h4 className="font-medium text-blue-900 mb-2">Website Builder Features</h4>
-                <ul className="text-sm text-blue-800 space-y-1">
-                    <li>• <strong>Puck Editor:</strong> Drag-and-drop visual page builder</li>
-                    <li>• <strong>8 Components:</strong> Hero, TextBlock, FeatureGrid, ClassSchedule, InstructorGrid, Testimonials, ContactForm, MapSection</li>
-                    <li>• <strong>Custom Domains:</strong> Tenants can connect their own domains</li>
-                </ul>
-            </div>
+            {/* Pages List */}
+            {pages.length === 0 ? (
+                <div className="bg-zinc-50 border-2 border-dashed border-zinc-200 rounded-xl p-12 text-center">
+                    <FileText size={48} className="mx-auto text-zinc-300 mb-4" />
+                    <h3 className="text-lg font-medium text-zinc-700 mb-2">No platform pages yet</h3>
+                    <p className="text-zinc-500 mb-4">Create your first page to customize the main site</p>
+                    <button
+                        onClick={() => setCreating(true)}
+                        className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg"
+                    >
+                        <Plus size={18} />
+                        Create First Page
+                    </button>
+                </div>
+            ) : (
+                <div className="bg-white rounded-xl border border-zinc-200 divide-y">
+                    {pages.map((page) => (
+                        <div key={page.id} className="p-4 flex items-center justify-between hover:bg-zinc-50">
+                            <div className="flex items-center gap-4">
+                                <div className={`p-2 rounded-lg ${page.isPublished ? 'bg-green-100 text-green-600' : 'bg-zinc-100 text-zinc-400'}`}>
+                                    <FileText size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="font-medium text-zinc-900">{page.title}</h3>
+                                    <p className="text-sm text-zinc-500">/{page.slug}</p>
+                                </div>
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${page.isPublished ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-600'}`}>
+                                    {page.isPublished ? 'Published' : 'Draft'}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => handleTogglePublish(page)}
+                                    className="p-2 hover:bg-zinc-100 rounded-lg text-zinc-600"
+                                    title={page.isPublished ? 'Unpublish' : 'Publish'}
+                                >
+                                    {page.isPublished ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                                <a
+                                    href={page.slug === 'home' ? '/' : `/${page.slug}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-2 hover:bg-zinc-100 rounded-lg text-zinc-600"
+                                >
+                                    <ExternalLink size={18} />
+                                </a>
+                                <Link
+                                    to={`/admin/website/edit/${page.id}`}
+                                    className="p-2 hover:bg-blue-50 rounded-lg text-blue-600"
+                                >
+                                    <Edit2 size={18} />
+                                </Link>
+                                <button
+                                    onClick={() => handleDelete(page.id)}
+                                    className="p-2 hover:bg-red-50 rounded-lg text-red-600"
+                                >
+                                    <Trash2 size={18} />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

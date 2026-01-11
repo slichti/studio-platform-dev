@@ -1344,3 +1344,16 @@ export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
         references: [users.id],
     }),
 }));
+
+// --- Platform Pages (Main Site) ---
+export const platformPages = sqliteTable('platform_pages', {
+    id: text('id').primaryKey(),
+    slug: text('slug').notNull().unique(), // e.g., "home", "pricing", "about"
+    title: text('title').notNull(),
+    content: text('content', { mode: 'json' }), // Puck JSON output
+    isPublished: integer('is_published', { mode: 'boolean' }).default(false).notNull(),
+    seoTitle: text('seo_title'),
+    seoDescription: text('seo_description'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+});

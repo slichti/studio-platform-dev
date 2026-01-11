@@ -44,6 +44,7 @@ import diagnosticsRoutes from './routes/diagnostics';
 import telemetryRoutes from './routes/telemetry';
 import websiteRoutes from './routes/website';
 import chatRoutes from './routes/chat';
+import platformPagesRoutes from './routes/platform-pages';
 
 type Bindings = {
   DB: D1Database;
@@ -494,6 +495,7 @@ app.route('/diagnostics', diagnosticsRoutes);
 app.route('/telemetry', telemetryRoutes);
 app.route('/website', websiteRoutes);
 app.route('/chat', chatRoutes);
+app.route('/platform-pages', platformPagesRoutes);
 
 import { scheduled } from './cron';
 
