@@ -5,7 +5,7 @@ import { useState, Fragment } from "react";
 import { useAuth } from "@clerk/react-router";
 import { Modal } from "../components/Modal";
 import { ErrorDialog, ConfirmationDialog } from "../components/Dialogs";
-import { ChevronDown, ChevronRight, Activity, CreditCard, Video, Monitor, ShoppingCart, Mail, Settings, AlertTriangle } from "lucide-react";
+import { ChevronDown, ChevronRight, Activity, CreditCard, Video, Monitor, ShoppingCart, Mail, Settings, AlertTriangle, Smartphone, Globe, MessagesSquare, MessageSquare } from "lucide-react";
 import { PrivacyBlur } from "../components/PrivacyBlur";
 
 interface TenantStats {
@@ -79,10 +79,14 @@ export default function AdminTenants() {
     const [selectedTenantForGrace, setSelectedTenantForGrace] = useState<{ id: string, enabled: boolean } | null>(null);
 
     const FEATURES = [
+        { key: 'mobile_app', label: 'White-Label Mobile App', icon: Smartphone },
+        { key: 'website_builder', label: 'Website Builder', icon: Globe },
+        { key: 'chat', label: 'Chat System', icon: MessagesSquare },
         { key: 'financials', label: 'Financials & Payouts', icon: CreditCard },
         { key: 'vod', label: 'Video on Demand', icon: Video },
-        { key: 'zoom', label: 'Zoom Integration', icon: Monitor }, // Placeholder for now
+        { key: 'zoom', label: 'Zoom Integration', icon: Monitor },
         { key: 'pos', label: 'POS & Retail', icon: ShoppingCart },
+        { key: 'sms', label: 'SMS Messaging', icon: MessageSquare },
         { key: 'marketing', label: 'Marketing & CRM', icon: Mail },
         { key: 'payroll', label: 'Payroll & Compensation', icon: CreditCard },
     ];
@@ -1070,22 +1074,14 @@ export default function AdminTenants() {
                                                             {FEATURES.map(f => {
                                                                 const state = tenantFeatures[f.key] || { enabled: false, source: 'manual' };
 
-                                                                // Check Global Status
-                                                                let globalKey = '';
-                                                                if (f.key === 'marketing') globalKey = 'feature_marketing';
-                                                                else globalKey = `feature_${f.key}`;
-
+                                                                // Check Global Status - Map tenant feature key to platform config key
+                                                                const globalKey = `feature_${f.key}`;
                                                                 const globalFeature = platformConfig?.find((c: any) => c.key === globalKey);
-                                                                const isGloballyEnabled = globalFeature ? globalFeature.enabled : true; // Default to true if not found in list (backward compat)
-                                                                // Actually default should be FALSE if we want strict control, but "feature_mobile_app" is "Keep disabled...".
-                                                                // Let's assume if key exists in config, use value. If not, assume enabled (legacy).
-                                                                // For keys I just added (financials etc), they might be missing in DB until set.
-                                                                // If I just deployed the code to fetch them, but DB doesn't have rows yet, `apiRequest` returns empty for them?
-                                                                // `admin.features` page *creates* them on toggle. If never toggled, they don't exist? 
-                                                                // If row missing, default to enabled for existing features, but safer to check.
-                                                                // Let's use strict check: if key matches known keys and is false, disable.
 
-                                                                const isDisabledByPlatform = globalFeature && !globalFeature.enabled;
+                                                                // IMPORTANT: If feature doesn't exist in platformConfig yet, 
+                                                                // it means it was never toggled on the Platform Features page.
+                                                                // Default to DISABLED for safety (features must be explicitly enabled).
+                                                                const isDisabledByPlatform = !globalFeature || !globalFeature.enabled;
 
                                                                 return (
                                                                     <div key={f.key} className={`flex items-center justify-between p-3 border rounded-md ${isDisabledByPlatform ? 'bg-zinc-100 opacity-60' : 'bg-zinc-50'}`}>
