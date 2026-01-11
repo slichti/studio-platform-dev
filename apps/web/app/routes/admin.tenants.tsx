@@ -7,6 +7,7 @@ import { Modal } from "../components/Modal";
 import { ErrorDialog, ConfirmationDialog } from "../components/Dialogs";
 import { ChevronDown, ChevronRight, Activity, CreditCard, Video, Monitor, ShoppingCart, Mail, Settings, AlertTriangle, Smartphone, Globe, MessagesSquare, MessageSquare } from "lucide-react";
 import { PrivacyBlur } from "../components/PrivacyBlur";
+import { DataExportModal } from "../components/DataExportModal";
 
 interface TenantStats {
     owners: number;
@@ -77,6 +78,9 @@ export default function AdminTenants() {
 
     const [gracePeriodModalOpen, setGracePeriodModalOpen] = useState(false);
     const [selectedTenantForGrace, setSelectedTenantForGrace] = useState<{ id: string, enabled: boolean } | null>(null);
+
+    // Data Export Modal State
+    const [exportModal, setExportModal] = useState<{ isOpen: boolean; tenantId: string; tenantName: string; dataType: 'subscribers' | 'financials' | 'products' } | null>(null);
 
     const FEATURES = [
         { key: 'mobile_app', label: 'White-Label Mobile App', icon: Smartphone },
@@ -948,37 +952,34 @@ export default function AdminTenants() {
 
                                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                                                         <button
-                                                            onClick={(e) => { e.stopPropagation(); handleExport(t.id, 'subscribers') }}
-                                                            disabled={!!exportLoading}
-                                                            className="text-left bg-zinc-50 border border-zinc-200 rounded p-2 hover:bg-zinc-100 disabled:opacity-50 group transition-all"
+                                                            onClick={(e) => { e.stopPropagation(); setExportModal({ isOpen: true, tenantId: t.id, tenantName: t.name, dataType: 'subscribers' }); }}
+                                                            className="text-left bg-zinc-50 border border-zinc-200 rounded p-2 hover:bg-zinc-100 group transition-all"
                                                         >
                                                             <div className="flex items-center gap-1.5 mb-0.5">
                                                                 <span className="bg-white p-0.5 rounded border border-zinc-200 text-zinc-500 group-hover:text-blue-600 text-[10px]">⬇</span>
                                                                 <span className="text-xs font-bold text-zinc-700">Subscribers</span>
                                                             </div>
-                                                            <div className="text-[10px] text-zinc-500 truncate">CSV of all members</div>
+                                                            <div className="text-[10px] text-zinc-500 truncate">View & select members</div>
                                                         </button>
                                                         <button
-                                                            onClick={(e) => { e.stopPropagation(); handleExport(t.id, 'financials') }}
-                                                            disabled={!!exportLoading}
-                                                            className="text-left bg-zinc-50 border border-zinc-200 rounded p-2 hover:bg-zinc-100 disabled:opacity-50 group transition-all"
+                                                            onClick={(e) => { e.stopPropagation(); setExportModal({ isOpen: true, tenantId: t.id, tenantName: t.name, dataType: 'financials' }); }}
+                                                            className="text-left bg-zinc-50 border border-zinc-200 rounded p-2 hover:bg-zinc-100 group transition-all"
                                                         >
                                                             <div className="flex items-center gap-1.5 mb-0.5">
                                                                 <span className="bg-white p-0.5 rounded border border-zinc-200 text-zinc-500 group-hover:text-green-600 text-[10px]">⬇</span>
                                                                 <span className="text-xs font-bold text-zinc-700">Financials</span>
                                                             </div>
-                                                            <div className="text-[10px] text-zinc-500 truncate">Transactions & Subs</div>
+                                                            <div className="text-[10px] text-zinc-500 truncate">View & select transactions</div>
                                                         </button>
                                                         <button
-                                                            onClick={(e) => { e.stopPropagation(); handleExport(t.id, 'products') }}
-                                                            disabled={!!exportLoading}
-                                                            className="text-left bg-zinc-50 border border-zinc-200 rounded p-2 hover:bg-zinc-100 disabled:opacity-50 group transition-all"
+                                                            onClick={(e) => { e.stopPropagation(); setExportModal({ isOpen: true, tenantId: t.id, tenantName: t.name, dataType: 'products' }); }}
+                                                            className="text-left bg-zinc-50 border border-zinc-200 rounded p-2 hover:bg-zinc-100 group transition-all"
                                                         >
                                                             <div className="flex items-center gap-1.5 mb-0.5">
                                                                 <span className="bg-white p-0.5 rounded border border-zinc-200 text-zinc-500 group-hover:text-purple-600 text-[10px]">⬇</span>
                                                                 <span className="text-xs font-bold text-zinc-700">Products</span>
                                                             </div>
-                                                            <div className="text-[10px] text-zinc-500 truncate">Plans & Prices</div>
+                                                            <div className="text-[10px] text-zinc-500 truncate">View & select products</div>
                                                         </button>
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); handleExport(t.id, 'classes') }}
@@ -1467,6 +1468,17 @@ export default function AdminTenants() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Data Export Modal */}
+            {exportModal && (
+                <DataExportModal
+                    isOpen={exportModal.isOpen}
+                    onClose={() => setExportModal(null)}
+                    tenantId={exportModal.tenantId}
+                    tenantName={exportModal.tenantName}
+                    dataType={exportModal.dataType}
+                />
             )}
         </div>
     );

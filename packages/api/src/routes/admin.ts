@@ -1666,5 +1666,96 @@ app.put('/platform/config/:key', async (c) => {
     return c.json({ success: true });
 });
 
+// --- Tenant Data Export Endpoints ---
+
+// GET /tenants/:id/subscribers - Get all members for a tenant
+app.get('/tenants/:id/subscribers', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+
+    const members = await db.query.tenantMembers.findMany({
+        where: eq(tenantMembers.tenantId, tenantId),
+        with: {
+            user: true,
+            roles: true,
+        },
+        orderBy: (m: any, { desc }: any) => [desc(m.joinedAt)],
+    });
+
+    // Format for export
+    const formatted = members.map((m: any) => ({
+        id: m.id,
+        email: m.user?.email || '',
+        firstName: (m.user?.profile as any)?.firstName || '',
+        lastName: (m.user?.profile as any)?.lastName || '',
+        roles: m.roles?.map((r: any) => r.role).join(', ') || '',
+        status: m.status,
+        joinedAt: m.joinedAt,
+    }));
+
+    return c.json(formatted);
+});
+
+// GET /tenants/:id/transactions - Get all financial transactions for a tenant
+app.get('/tenants/:id/transactions', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+
+    const subs = await db.query.subscriptions.findMany({
+        where: eq(subscriptions.tenantId, tenantId),
+        with: {
+            member: {
+                with: {
+                    user: true,
+                }
+            },
+            plan: true,
+        },
+        orderBy: (s: any, { desc }: any) => [desc(s.createdAt)],
+    });
+
+    // Format for export
+    const formatted = subs.map((s: any) => ({
+        id: s.id,
+        memberEmail: s.member?.user?.email || '',
+        memberName: `${(s.member?.user?.profile as any)?.firstName || ''} ${(s.member?.user?.profile as any)?.lastName || ''}`.trim(),
+        planName: s.plan?.name || 'Unknown',
+        amount: s.plan?.price || 0,
+        status: s.status,
+        createdAt: s.createdAt,
+        currentPeriodEnd: s.currentPeriodEnd,
+    }));
+
+    return c.json(formatted);
+});
+
+// GET /tenants/:id/products - Get all products for a tenant
+app.get('/tenants/:id/products', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+
+    // Import products schema
+    const { products } = await import('db/src/schema');
+
+    const prods = await db.query.products.findMany({
+        where: eq(products.tenantId, tenantId),
+        orderBy: (p: any, { asc }: any) => [asc(p.name)],
+    });
+
+    // Format for export
+    const formatted = prods.map((p: any) => ({
+        id: p.id,
+        sku: p.sku || '',
+        name: p.name,
+        description: p.description || '',
+        price: p.price,
+        category: p.category || '',
+        isActive: p.isActive,
+        createdAt: p.createdAt,
+    }));
+
+    return c.json(formatted);
+});
+
 
 export default app;
