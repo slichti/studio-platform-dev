@@ -17,7 +17,7 @@ export const loader = async (args: any) => {
 };
 
 const ServiceCard = ({ title, sub, icon: Icon, color, status = "online", items }: any) => (
-    <div className={`relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur-sm transition-all hover:bg-zinc-900/80 hover:border-${color}-500/30 group`}>
+    <div className={`relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/80 p-6 backdrop-blur-sm transition-all hover:bg-zinc-900 hover:border-${color}-500/30 group z-10`}>
         <div className={`absolute top-0 right-0 p-3 opacity-50`}>
             {/* Background glow */}
             <div className={`w-24 h-24 rounded-full bg-${color}-500/10 blur-2xl -mr-10 -mt-10 transition-all group-hover:bg-${color}-500/20`}></div>
@@ -52,16 +52,18 @@ const ServiceCard = ({ title, sub, icon: Icon, color, status = "online", items }
     </div>
 );
 
-const ConnectionLine = ({ height = 40, active = false }: { height?: number, active?: boolean }) => (
-    <div className={`w-px mx-auto bg-gradient-to-b from-zinc-800 to-zinc-800 ${active ? 'from-indigo-500/50 to-indigo-500/50' : ''}`} style={{ height }} />
+const HorizontalBrace = () => (
+    <div className="relative h-4 w-full flex justify-center opacity-50">
+        <div className="absolute top-0 left-1/4 right-1/4 h-px bg-indigo-500/30"></div>
+        <div className="absolute top-0 left-1/4 h-4 w-px bg-indigo-500/30"></div>
+        <div className="absolute top-0 right-1/4 h-4 w-px bg-indigo-500/30"></div>
+        <div className="absolute top-0 left-1/2 h-4 w-px bg-indigo-500/30 -translate-x-1/2"></div>
+    </div>
 );
 
-const HorizontalBrace = ({ width = "100%" }) => (
-    <div className="relative h-4 w-full flex justify-center">
-        <div className="absolute top-0 left-1/4 right-1/4 h-px bg-zinc-800"></div>
-        <div className="absolute top-0 left-1/4 h-4 w-px bg-zinc-800"></div>
-        <div className="absolute top-0 right-1/4 h-4 w-px bg-zinc-800"></div>
-        <div className="absolute top-0 left-1/2 h-4 w-px bg-zinc-800 -translate-x-1/2"></div>
+const DotPattern = () => (
+    <div className="absolute inset-0 z-0 opacity-20 pointer-events-none"
+        style={{ backgroundImage: 'radial-gradient(#6366f1 1px, transparent 1px)', backgroundSize: '32px 32px' }}>
     </div>
 );
 
@@ -79,9 +81,9 @@ export default function AdminArchitecture() {
     if (error) return <div className="p-8 text-red-600">Error: {error}</div>;
 
     return (
-        <div className="min-h-screen bg-zinc-950 text-zinc-200 font-sans selection:bg-indigo-500/30">
+        <div className="min-h-screen bg-gray-50/50 text-zinc-900 font-sans">
             {/* Header */}
-            <div className="bg-white border-b border-zinc-200 px-8 py-4 flex items-center justify-between">
+            <div className="bg-white border-b border-zinc-200 px-8 py-6 flex items-center justify-between sticky top-0 z-50">
                 <div>
                     <h1 className="text-xl font-bold text-zinc-900">System Architecture</h1>
                     <p className="text-sm text-zinc-500">Microservices overview and communication status</p>
@@ -95,107 +97,110 @@ export default function AdminArchitecture() {
                 </button>
             </div>
 
-            <div className="p-8 pb-32 max-w-[1400px] mx-auto">
+            <div className="p-8 pb-32 max-w-[1400px] mx-auto space-y-8">
 
-                {/* Entrance Nodes */}
-                <div className="flex justify-center gap-6 mb-2">
-                    <div className="px-4 py-2 rounded-full border border-zinc-700 bg-zinc-900/50 text-zinc-400 text-sm flex items-center gap-2">
-                        <Globe size={14} /> Web App
-                    </div>
-                    <div className="px-4 py-2 rounded-full border border-zinc-700 bg-zinc-900/50 text-zinc-400 text-sm flex items-center gap-2">
-                        <Layout size={14} /> Admin Portal
-                    </div>
-                    <div className="px-4 py-2 rounded-full border border-zinc-700 bg-zinc-900/50 text-zinc-400 text-sm flex items-center gap-2">
-                        <Globe size={14} /> Public API
-                    </div>
-                </div>
+                {/* Main Architecture Card */}
+                <div className="rounded-3xl bg-zinc-950 p-8 md:p-12 relative overflow-hidden shadow-2xl shadow-zinc-900/20 border border-zinc-800">
+                    <DotPattern />
 
-                <div className="flex justify-center mb-2">
-                    <div className="h-8 w-px border-l border-dashed border-zinc-600"></div>
-                </div>
+                    <div className="relative z-10">
+                        {/* Entrance Nodes */}
+                        <div className="flex justify-center gap-6 mb-2">
+                            <div className="px-4 py-2 rounded-full border border-zinc-700 bg-zinc-900/50 text-zinc-400 text-sm flex items-center gap-2 backdrop-blur-sm">
+                                <Globe size={14} /> Web App
+                            </div>
+                            <div className="px-4 py-2 rounded-full border border-zinc-700 bg-zinc-900/50 text-zinc-400 text-sm flex items-center gap-2 backdrop-blur-sm">
+                                <Layout size={14} /> Admin Portal
+                            </div>
+                            <div className="px-4 py-2 rounded-full border border-zinc-700 bg-zinc-900/50 text-zinc-400 text-sm flex items-center gap-2 backdrop-blur-sm">
+                                <Globe size={14} /> Public API
+                            </div>
+                        </div>
 
-                {/* Gateway */}
-                <div className="max-w-2xl mx-auto mb-8 relative">
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded text-[10px] font-bold bg-indigo-600 text-white uppercase tracking-wider shadow-lg shadow-indigo-500/20 z-10">
-                        Entrance
-                    </div>
-                    <div className="rounded-2xl border border-indigo-500/30 bg-zinc-900/80 p-8 text-center relative overflow-hidden backdrop-blur-xl shadow-2xl shadow-indigo-900/20">
-                        <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none"></div>
-                        <div className="flex flex-col items-center gap-2 relative z-10">
-                            <Layers className="text-indigo-400 mb-2" size={32} />
-                            <h2 className="text-xl font-bold text-white">API Gateway</h2>
-                            <span className="font-mono text-zinc-500 text-sm">`packages/api`</span>
+                        <div className="flex justify-center mb-2">
+                            <div className="h-8 w-px border-l border-dashed border-zinc-700"></div>
+                        </div>
 
-                            <div className="flex gap-2 mt-4">
-                                {['Routing', 'Rate Limiting', 'Auth Context', 'Observability'].map(tag => (
-                                    <span key={tag} className="px-2 py-1 rounded bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-medium">
-                                        {tag}
-                                    </span>
-                                ))}
+                        {/* Gateway */}
+                        <div className="max-w-2xl mx-auto mb-8 relative">
+                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded text-[10px] font-bold bg-indigo-600 text-white uppercase tracking-wider shadow-lg shadow-indigo-500/20 z-10">
+                                Entrance
+                            </div>
+                            <div className="rounded-2xl border border-indigo-500/30 bg-zinc-900/80 p-8 text-center relative overflow-hidden backdrop-blur-xl shadow-2xl shadow-indigo-900/20">
+                                <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none"></div>
+                                <div className="flex flex-col items-center gap-2 relative z-10">
+                                    <Layers className="text-indigo-400 mb-2" size={32} />
+                                    <h2 className="text-xl font-bold text-white">API Gateway</h2>
+                                    <span className="font-mono text-zinc-500 text-sm">`packages/api`</span>
+
+                                    <div className="flex gap-2 mt-4 justify-center flex-wrap">
+                                        {['Routing', 'Rate Limiting', 'Auth Context', 'Observability'].map(tag => (
+                                            <span key={tag} className="px-2 py-1 rounded bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-medium">
+                                                {tag}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="max-w-4xl mx-auto mb-8">
+                            <HorizontalBrace />
+                        </div>
+
+                        {/* Microservices */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto mb-16 px-4">
+                            <ServiceCard
+                                title="Core API"
+                                sub="apps/core-api"
+                                icon={Shield}
+                                color="emerald"
+                                items={['Identity', 'Tenants', 'Onboarding', 'Platform Admin']}
+                            />
+                            <ServiceCard
+                                title="Commerce API"
+                                sub="apps/commerce-api"
+                                icon={CreditCard}
+                                color="blue"
+                                items={['Billing', 'Subscriptions', 'Products', 'POS', 'Webhooks']}
+                            />
+                            <ServiceCard
+                                title="Studio API"
+                                sub="apps/studio-api"
+                                icon={Calendar}
+                                color="orange"
+                                items={['Classes', 'Bookings', 'Members', 'Waivers', 'Payroll']}
+                            />
+                        </div>
+
+                        {/* Infrastructure Layer */}
+                        <div className="max-w-3xl mx-auto border-t border-zinc-800 pt-8 flex gap-6">
+                            <div className="flex-1 rounded-xl border border-dashed border-zinc-800 bg-zinc-900/50 p-4 flex items-center gap-4 hover:border-zinc-700 transition-colors backdrop-blur-sm">
+                                <div className="p-3 bg-zinc-900 rounded-lg text-zinc-400 border border-zinc-800">
+                                    <Database size={20} />
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-semibold text-zinc-200">Database</h4>
+                                    <p className="text-xs text-zinc-500">Cloudflare D1 (SQLite)</p>
+                                </div>
+                            </div>
+                            <div className="flex-1 rounded-xl border border-dashed border-zinc-800 bg-zinc-900/50 p-4 flex items-center gap-4 hover:border-zinc-700 transition-colors backdrop-blur-sm">
+                                <div className="p-3 bg-zinc-900 rounded-lg text-zinc-400 border border-zinc-800">
+                                    <Box size={20} />
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-semibold text-zinc-200">Shared Lib</h4>
+                                    <p className="text-xs text-zinc-500">Middleware, Utils, Types</p>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="max-w-4xl mx-auto mb-8">
-                    <HorizontalBrace />
-                </div>
-
-                {/* Microservices */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto mb-16 px-4">
-                    <ServiceCard
-                        title="Core API"
-                        sub="apps/core-api"
-                        icon={Shield}
-                        color="emerald"
-                        items={['Identity', 'Tenants', 'Onboarding', 'Platform Admin']}
-                    />
-                    <ServiceCard
-                        title="Commerce API"
-                        sub="apps/commerce-api"
-                        icon={CreditCard}
-                        color="blue"
-                        items={['Billing', 'Subscriptions', 'Products', 'POS', 'Webhooks']}
-                    />
-                    <ServiceCard
-                        title="Studio API"
-                        sub="apps/studio-api"
-                        icon={Calendar}
-                        color="orange"
-                        items={['Classes', 'Bookings', 'Members', 'Waivers', 'Payroll']}
-                    />
-                </div>
-
-                {/* Infrastructure Layer */}
-                <div className="max-w-3xl mx-auto">
-                    <div className="border-t border-zinc-800 pt-8 flex gap-6">
-                        <div className="flex-1 rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 p-4 flex items-center gap-4 hover:border-zinc-700 transition-colors">
-                            <div className="p-3 bg-zinc-800 rounded-lg text-zinc-400">
-                                <Database size={20} />
-                            </div>
-                            <div>
-                                <h4 className="text-sm font-semibold text-zinc-200">Database</h4>
-                                <p className="text-xs text-zinc-500">Cloudflare D1 (SQLite)</p>
-                            </div>
-                        </div>
-                        <div className="flex-1 rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 p-4 flex items-center gap-4 hover:border-zinc-700 transition-colors">
-                            <div className="p-3 bg-zinc-800 rounded-lg text-zinc-400">
-                                <Box size={20} />
-                            </div>
-                            <div>
-                                <h4 className="text-sm font-semibold text-zinc-200">Shared Lib</h4>
-                                <p className="text-xs text-zinc-500">Middleware, Utils, Types</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Performance Footer */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-zinc-200 p-6 z-50">
-                <div className="max-w-7xl mx-auto">
+                {/* Performance Footer (Inline now) */}
+                <div className="bg-white rounded-xl border border-zinc-200 p-6 shadow-sm">
                     <h3 className="text-sm font-semibold text-zinc-900 mb-4">Gateway Performance</h3>
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div className="p-4 rounded-lg bg-zinc-50 border border-zinc-100">
                             <div className="text-xs font-bold text-zinc-400 uppercase mb-1">DB Read Latency</div>
                             <div className="flex items-baseline gap-1">
