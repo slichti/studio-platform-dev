@@ -98,8 +98,11 @@ export default function AdminArchitecture() {
             {/* Page Header (Static) */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-zinc-900">System Architecture</h1>
-                    <p className="text-sm text-zinc-500">Microservices overview and communication status</p>
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-2xl font-bold text-zinc-900">System Architecture</h1>
+                        <span className="px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold uppercase tracking-wider">Live View</span>
+                    </div>
+                    <p className="text-sm text-zinc-500 mt-1">Microservices overview and communication status</p>
                 </div>
                 <button
                     onClick={handleRefresh}
@@ -209,36 +212,38 @@ export default function AdminArchitecture() {
                 </div>
             </div>
 
-            {/* Performance Grid - Inline & Compact */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-12">
-                <div className="bg-white rounded-lg border border-zinc-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="text-[10px] font-bold text-zinc-400 uppercase mb-1 tracking-wider">DB Read Latency</div>
+            {/* Performance Grid - Integrated & Dark */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 pt-8 border-t border-zinc-900/50">
+                <div className="bg-zinc-900/50 rounded-lg border border-zinc-800 p-4 hover:bg-zinc-900 transition-colors">
+                    <div className="text-[10px] font-bold text-zinc-500 uppercase mb-1 tracking-wider">DB Read Latency</div>
                     <div className="flex items-baseline gap-1">
-                        <span className="text-xl font-bold text-zinc-900">{stats?.latency?.database_ms || 0}</span>
+                        <span className="text-xl font-bold text-zinc-200">{stats?.latency?.database_ms || 0}</span>
                         <span className="text-xs text-zinc-500">ms</span>
                     </div>
                 </div>
-                <div className="bg-white rounded-lg border border-zinc-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="text-[10px] font-bold text-zinc-400 uppercase mb-1 tracking-wider">Edge Latency</div>
+                <div className="bg-zinc-900/50 rounded-lg border border-zinc-800 p-4 hover:bg-zinc-900 transition-colors">
+                    <div className="text-[10px] font-bold text-zinc-500 uppercase mb-1 tracking-wider">Edge Latency</div>
                     <div className="flex items-baseline gap-1">
-                        <span className="text-xl font-bold text-zinc-900">{stats?.latency?.edge_ms || 0}</span>
+                        <span className="text-xl font-bold text-zinc-200">{stats?.latency?.edge_ms || 0}</span>
                         <span className="text-xs text-zinc-500">ms</span>
                     </div>
                 </div>
-                <div className="bg-white rounded-lg border border-zinc-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="text-[10px] font-bold text-zinc-400 uppercase mb-1 tracking-wider">Worker Region</div>
+                <div className="bg-zinc-900/50 rounded-lg border border-zinc-800 p-4 hover:bg-zinc-900 transition-colors">
+                    <div className="text-[10px] font-bold text-zinc-500 uppercase mb-1 tracking-wider">Worker Region</div>
                     <div className="flex items-baseline gap-1">
-                        <span className="text-lg font-bold text-zinc-900">{stats?.worker?.region || 'Unknown'}</span>
+                        <span className="text-lg font-bold text-zinc-200">{stats?.worker?.region || 'Unknown'}</span>
                     </div>
                 </div>
-                <div className="bg-white rounded-lg border border-zinc-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="text-[10px] font-bold text-zinc-400 uppercase mb-1 tracking-wider">Memory Used</div>
+                <div className="bg-zinc-900/50 rounded-lg border border-zinc-800 p-4 hover:bg-zinc-900 transition-colors">
+                    <div className="text-[10px] font-bold text-zinc-500 uppercase mb-1 tracking-wider">Memory Used</div>
                     <div className="flex items-baseline gap-1">
-                        <span className="text-xl font-bold text-zinc-900">{stats?.worker?.memory_used_mb || 0}</span>
+                        <span className="text-xl font-bold text-zinc-200">{stats?.worker?.memory_used_mb || 0}</span>
                         <span className="text-xs text-zinc-500">MB</span>
                     </div>
                 </div>
             </div>
         </div>
+            </div >
+        </div >
     );
 }
