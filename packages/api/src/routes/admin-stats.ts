@@ -42,9 +42,12 @@ app.get('/architecture', async (c) => {
             database_ms: dbLatency,
             edge_ms: 10 // Estimated
         },
+        worker: {
+            region: (c.req.raw as any).cf?.colo || 'ORD', // Default to ORD (Chicago) if local
+            memory_used_mb: Math.floor(Math.random() * 50) + 10 // Simulated for now
+        },
         connectedUsers,
         services,
-        regions: ["ord", "iad", "lhr"] // Simulated Cloudflare regions
     });
 });
 
