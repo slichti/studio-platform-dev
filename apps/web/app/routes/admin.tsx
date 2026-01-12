@@ -92,6 +92,7 @@ export default function AdminLayout() {
         { label: "Chat System", href: "/admin/chat", icon: "💬" },
         { label: "Platform Features", href: "/admin/features", icon: "⚙️" },
         { label: "System Status", href: "/admin/status", icon: "🟢" },
+        { label: "Architecture", href: "/admin/architecture", icon: "🏗️" }, // [NEW] Link
         { label: "Diagnostics", href: "/admin/diagnostics", icon: "🩺" },
     ];
 

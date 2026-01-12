@@ -46,6 +46,7 @@ import websiteRoutes from './routes/website';
 import chatRoutes from './routes/chat';
 import platformPagesRoutes from './routes/platform-pages';
 import guestRoutes from './routes/guest';
+import adminStats from './routes/admin-stats'; // [NEW] Import
 
 type Bindings = {
   DB: D1Database;
@@ -489,6 +490,7 @@ app.route('/tenant', studioApp);
 
 app.route('/users', userRoutes);
 app.route('/admin', admin);
+app.route('/admin/stats', adminStats); // [NEW] Mount
 app.route('/onboarding', onboarding);
 app.route('/import', dataImport);
 app.route('/webhooks', webhookRoutes);
