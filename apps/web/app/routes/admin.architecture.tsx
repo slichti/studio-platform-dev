@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useLoaderData, useRevalidator } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
-import { RefreshCw, Layout, Smartphone, Globe, Database, Layers, Shield, ShoppingCreditCard, Calendar, Box } from "lucide-react";
+import { RefreshCw, Layout, Smartphone, Globe, Database, Layers, Shield, CreditCard, Calendar, Box } from "lucide-react";
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -122,7 +122,7 @@ export default function AdminArchitecture() {
                     <div className="rounded-2xl border border-indigo-500/30 bg-zinc-900/80 p-8 text-center relative overflow-hidden backdrop-blur-xl shadow-2xl shadow-indigo-900/20">
                         <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none"></div>
                         <div className="flex flex-col items-center gap-2 relative z-10">
-                            <layers className="text-indigo-400 mb-2" size={32} />
+                            <Layers className="text-indigo-400 mb-2" size={32} />
                             <h2 className="text-xl font-bold text-white">API Gateway</h2>
                             <span className="font-mono text-zinc-500 text-sm">`packages/api`</span>
 
@@ -153,7 +153,7 @@ export default function AdminArchitecture() {
                     <ServiceCard
                         title="Commerce API"
                         sub="apps/commerce-api"
-                        icon={ShoppingCreditCard}
+                        icon={CreditCard}
                         color="blue"
                         items={['Billing', 'Subscriptions', 'Products', 'POS', 'Webhooks']}
                     />
