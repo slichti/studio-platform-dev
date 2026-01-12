@@ -213,37 +213,70 @@ export default function AdminArchitecture() {
             </div>
 
             {/* Performance Grid - Integrated & Dark */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 pt-8 border-t border-zinc-900/50">
-                <div className="bg-zinc-900/50 rounded-lg border border-zinc-800 p-4 hover:bg-zinc-900 transition-colors">
-                    <div className="text-[10px] font-bold text-zinc-500 uppercase mb-1 tracking-wider">DB Read Latency</div>
-                    <div className="flex items-baseline gap-1">
-                        <span className="text-xl font-bold text-zinc-200">{stats?.latency?.database_ms || 0}</span>
-                        <span className="text-xs text-zinc-500">ms</span>
+            {/* Live Activity Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12 pt-8 border-t border-zinc-900/50">
+
+                {/* Business Metrics */}
+                <div className="space-y-4">
+                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Platform Activity</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 p-5 hover:bg-zinc-900 transition-colors">
+                            <div className="flex justify-between items-start mb-2">
+                                <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">
+                                    <Globe size={18} />
+                                </div>
+                                <span className="text-[10px] uppercase font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">Live</span>
+                            </div>
+                            <div className="text-3xl font-bold text-white mb-1">{stats?.connectedUsers || 0}</div>
+                            <div className="text-xs text-zinc-500 font-medium">Active Users</div>
+                        </div>
+                        <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 p-5 hover:bg-zinc-900 transition-colors">
+                            <div className="flex justify-between items-start mb-2">
+                                <div className="p-2 rounded-lg bg-orange-500/10 text-orange-400">
+                                    <Layout size={18} />
+                                </div>
+                            </div>
+                            <div className="text-3xl font-bold text-white mb-1">{stats?.tenantCount || 0}</div>
+                            <div className="text-xs text-zinc-500 font-medium">Total Tenants</div>
+                        </div>
+                    </div>
+
+                    {/* Technical Metrics (Moved here) */}
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                        <div className="bg-zinc-900/30 rounded-lg p-3 border border-zinc-800/50">
+                            <div className="text-[10px] text-zinc-500 uppercase mb-1">DB Latency</div>
+                            <div className="text-lg font-bold text-zinc-300">{stats?.latency?.database_ms || 0}<span className="text-xs text-zinc-600 ml-1">ms</span></div>
+                        </div>
+                        <div className="bg-zinc-900/30 rounded-lg p-3 border border-zinc-800/50">
+                            <div className="text-[10px] text-zinc-500 uppercase mb-1">Edge Latency</div>
+                            <div className="text-lg font-bold text-zinc-300">{stats?.latency?.edge_ms || 0}<span className="text-xs text-zinc-600 ml-1">ms</span></div>
+                        </div>
                     </div>
                 </div>
-                <div className="bg-zinc-900/50 rounded-lg border border-zinc-800 p-4 hover:bg-zinc-900 transition-colors">
-                    <div className="text-[10px] font-bold text-zinc-500 uppercase mb-1 tracking-wider">Edge Latency</div>
-                    <div className="flex items-baseline gap-1">
-                        <span className="text-xl font-bold text-zinc-200">{stats?.latency?.edge_ms || 0}</span>
-                        <span className="text-xs text-zinc-500">ms</span>
-                    </div>
-                </div>
-                <div className="bg-zinc-900/50 rounded-lg border border-zinc-800 p-4 hover:bg-zinc-900 transition-colors">
-                    <div className="text-[10px] font-bold text-zinc-500 uppercase mb-1 tracking-wider">Worker Region</div>
-                    <div className="flex items-baseline gap-1">
-                        <span className="text-lg font-bold text-zinc-200">{stats?.worker?.region || 'Unknown'}</span>
-                    </div>
-                </div>
-                <div className="bg-zinc-900/50 rounded-lg border border-zinc-800 p-4 hover:bg-zinc-900 transition-colors">
-                    <div className="text-[10px] font-bold text-zinc-500 uppercase mb-1 tracking-wider">Memory Used</div>
-                    <div className="flex items-baseline gap-1">
-                        <span className="text-xl font-bold text-zinc-200">{stats?.worker?.memory_used_mb || 0}</span>
-                        <span className="text-xs text-zinc-500">MB</span>
+
+                {/* Geographic Distribution */}
+                <div className="bg-zinc-900/30 rounded-xl border border-zinc-800/50 p-6">
+                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-6">User Geography</h3>
+                    <div className="space-y-4">
+                        {stats?.userRegions?.map((region: any, i: number) => (
+                            <div key={region.code} className="group">
+                                <div className="flex justify-between items-end mb-1">
+                                    <span className="text-sm font-medium text-zinc-300 flex items-center gap-2">
+                                        <span className="text-xs text-zinc-600 font-mono w-6">{region.code}</span>
+                                        {region.name}
+                                    </span>
+                                    <span className="text-xs text-zinc-500 font-mono">{region.count}</span>
+                                </div>
+                                <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
+                                    <div
+                                        className={`h-full rounded-full bg-indigo-500/50 group-hover:bg-indigo-500 transition-colors`}
+                                        style={{ width: `${(region.count / (stats?.userRegions[0]?.count || 1)) * 100}%` }}
+                                    ></div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
-        </div>
-            </div >
-        </div >
-    );
+            );
 }
