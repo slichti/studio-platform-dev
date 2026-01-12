@@ -1307,11 +1307,20 @@ export const chatRooms = sqliteTable('chat_rooms', {
     type: text('type', { enum: ['support', 'class', 'community', 'direct'] }).notNull(),
     name: text('name').notNull(),
     metadata: text('metadata', { mode: 'json' }), // { classId, memberIds, etc }
-    isArchived: integer('is_archived', { mode: 'boolean' }).default(false).notNull(),
+
+    // Support / Ticketing Fields
+    status: text('status', { enum: ['open', 'in_progress', 'closed', 'archived'] }).default('open').notNull(),
+    priority: text('priority', { enum: ['low', 'normal', 'high', 'urgent'] }).default('normal').notNull(),
+    assignedToId: text('assigned_to_id').references(() => users.id), // Global User ID of the agent
+    customerEmail: text('customer_email'), // For anonymous support requests (widget)
+
+    isArchived: integer('is_archived', { mode: 'boolean' }).default(false).notNull(), // Deprecated in favor of status='archived'
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     tenantIdx: index('chat_room_tenant_idx').on(table.tenantId),
     typeIdx: index('chat_room_type_idx').on(table.tenantId, table.type),
+    statusIdx: index('chat_room_status_idx').on(table.tenantId, table.status),
+    assigneeIdx: index('chat_room_assignee_idx').on(table.assignedToId),
 }));
 
 export const chatRoomsRelations = relations(chatRooms, ({ one, many }) => ({

@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { users, tenantMembers, tenantRoles, tenants, subscriptions, auditLogs, emailLogs, smsLogs, brandingAssets, videos, waiverTemplates, waiverSignatures, marketingAutomations, platformConfig } from 'db/src/schema';
+import { users, tenantMembers, tenantRoles, tenants, subscriptions, auditLogs, emailLogs, smsLogs, brandingAssets, videos, waiverTemplates, waiverSignatures, marketingAutomations, platformConfig, chatRooms } from 'db/src/schema';
 import { eq, sql, desc, count, or, like, asc, and, inArray } from 'drizzle-orm';
 import { UsageService } from '../services/pricing';
 import { StripeService } from '../services/stripe';
@@ -1757,5 +1757,46 @@ app.get('/tenants/:id/products', async (c) => {
     return c.json(formatted);
 });
 
+
+// GET /chat/tickets - Global Support Ticket Queue
+app.get('/chat/tickets', async (c) => {
+    const db = createDb(c.env.DB);
+    const status = c.req.query('status'); // open, closed
+    const assignedTo = c.req.query('assignedTo'); // me, unassigned, uuid
+    const auth = c.get('auth');
+
+    const conditions = [eq(chatRooms.type, 'support')];
+
+    if (status) {
+        conditions.push(eq(chatRooms.status, status as any));
+    }
+
+    if (assignedTo === 'me') {
+        conditions.push(eq(chatRooms.assignedToId, auth.userId));
+    } else if (assignedTo === 'unassigned') {
+        conditions.push(sql`${chatRooms.assignedToId} IS NULL`);
+    } else if (assignedTo) {
+        conditions.push(eq(chatRooms.assignedToId, assignedTo));
+    }
+
+    const tickets = await db.select({
+        id: chatRooms.id,
+        tenantId: chatRooms.tenantId,
+        tenantName: tenants.name,
+        name: chatRooms.name,
+        status: chatRooms.status,
+        priority: chatRooms.priority,
+        assignedToId: chatRooms.assignedToId,
+        customerEmail: chatRooms.customerEmail,
+        createdAt: chatRooms.createdAt,
+    })
+        .from(chatRooms)
+        .leftJoin(tenants, eq(chatRooms.tenantId, tenants.id))
+        .where(and(...conditions))
+        .orderBy(desc(chatRooms.createdAt))
+        .all();
+
+    return c.json(tickets);
+});
 
 export default app;

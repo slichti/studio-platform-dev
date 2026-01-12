@@ -15,7 +15,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const token = await getToken();
 
     try {
-        const locationsData = await apiRequest('/locations', token, { headers: { 'X-Tenant-Slug': slug } }) as any;
+        const locationsData = await apiRequest('/locations', token, { headers: { 'X-Tenant-Slug': slug || '' } }) as any;
         return { locations: locationsData || [] };
     } catch (e) {
         console.error("Locations Loader Error", e);
@@ -31,6 +31,15 @@ export const action = async (args: ActionFunctionArgs) => {
     const intent = formData.get("intent");
 
     if (intent === 'create' || intent === 'update') {
+        const uploadFile = formData.get("file");
+        if (uploadFile && uploadFile instanceof File) {
+            const uploadForm = new FormData();
+            uploadForm.append("file", uploadFile);
+            // Assuming file upload is handled separately or the payload needs to include a reference
+            // For now, we'll proceed with the rest of the payload.
+            // If the file needs to be uploaded first and its URL/ID included in the payload,
+            // that logic would go here.
+        }
         const id = formData.get("id");
         const payload = {
             name: formData.get("name"),
@@ -46,7 +55,7 @@ export const action = async (args: ActionFunctionArgs) => {
 
         await apiRequest(id ? `/locations/${id}` : '/locations', token, {
             method: id ? 'PATCH' : 'POST',
-            headers: { 'X-Tenant-Slug': slug },
+            headers: { 'X-Tenant-Slug': slug || '' },
             body: JSON.stringify(payload)
         });
     }
@@ -55,7 +64,7 @@ export const action = async (args: ActionFunctionArgs) => {
         const id = formData.get("id");
         await apiRequest(`/locations/${id}`, token, {
             method: 'DELETE',
-            headers: { 'X-Tenant-Slug': slug }
+            headers: { 'X-Tenant-Slug': slug || '' }
         });
     }
 
@@ -63,7 +72,7 @@ export const action = async (args: ActionFunctionArgs) => {
         const id = formData.get("id");
         await apiRequest(`/locations/${id}/set-primary`, token, {
             method: 'POST',
-            headers: { 'X-Tenant-Slug': slug }
+            headers: { 'X-Tenant-Slug': slug || '' }
         });
     }
 

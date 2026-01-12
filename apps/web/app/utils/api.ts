@@ -15,9 +15,26 @@ export const API_URL = (() => {
     return DEFAULT_API_URL;
 })();
 
-export async function apiRequest<T = any>(path: string, token: string | null | undefined, options: RequestInit = {}, baseUrl?: string): Promise<T> {
+export async function apiRequest<T = any>(path: string, token: string | null | undefined, options: Omit<RequestInit, 'headers'> & { headers?: Record<string, string | undefined> | HeadersInit } = {}, baseUrl?: string): Promise<T> {
     const url = baseUrl || API_URL;
-    const headers = new Headers(options.headers);
+
+    // Sanitize headers to remove undefined values
+    const safeHeaders: HeadersInit = {};
+    if (options.headers) {
+        if (options.headers instanceof Headers || Array.isArray(options.headers)) {
+            // Already safe or iterable
+            // converting to Headers object to merge
+            (options.headers as any).forEach((v: string, k: string) => (safeHeaders as any)[k] = v);
+        } else {
+            Object.entries(options.headers).forEach(([k, v]) => {
+                if (v !== undefined && v !== null) {
+                    (safeHeaders as any)[k] = String(v);
+                }
+            });
+        }
+    }
+
+    const headers = new Headers(safeHeaders);
 
     if (token) {
         headers.set("Authorization", `Bearer ${token}`);
@@ -31,8 +48,8 @@ export async function apiRequest<T = any>(path: string, token: string | null | u
         }
     }
 
-    // Default to JSON
-    if (!headers.has("Content-Type")) {
+    // Default to JSON unless FormData
+    if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
         headers.set("Content-Type", "application/json");
     }
 

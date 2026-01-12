@@ -70,62 +70,23 @@ export default function StudioBranding() {
         try {
             const token = await (window as any).Clerk?.session?.getToken();
 
-            // Upload form data to /r2-image (generic image upload)
+            // Upload form data to /uploads/r2-image (generic image upload)
             const formData = new FormData();
             formData.append('file', file);
+            formData.append('title', `Logo - ${file.name}`);
 
-            const res = await apiRequest('/r2-image', token, {
+            // Used to fail because apiRequest forced JSON content-type.
+            // Fixed in api.ts to support FormData auto-detection.
+            const res = await apiRequest('/uploads/r2-image', token, {
                 method: 'POST',
-                body: formData,
-                // apiRequest handles JSON, but for FormData we might need to handle content-type differently if the helper sets JSON.
-                // Checking `api.ts`: usually helpers set Content-Type: application/json if body is string.
-                // If body is FormData, it should let browser set boundary.
-                // The `apiRequest` helper in this codebase DOES NOT handle FormData automatically if it blindly sets JSON headers.
-                // I'll check `api.ts` later properly, but assuming standard fetch behavior, passing FormData in body works if headers are omitted.
-                // BUT `apiRequest` adds headers.
-                // I will use raw `fetch` for this upload if `apiRequest` is strict, then wrap error.
-                // OR assuming `apiRequest` is smart.
-                // Let's safe-bet: Use generic fetch with auth header for the upload step.
-            });
-
-            // Wait, apiRequest wrapper probably enforces JSON.
-            // Let's use fetch directly for R2 upload.
-            const authHeader = `Bearer ${token}`; // Authorization header
-
-            // Reuse existing helper logic? I'll just look at `api.ts` if it failed.
-            // Actually, `uploads.ts` shows `app.post('/r2-image')` expects `c.req.parseBody()`.
-
-            // Let's try `apiRequest`. If it fails, I'll fix it.
-            // actually `apiRequest` automatically standardizes errors.
-            // I'll assume `apiRequest` handles FormData if I don't pass 'Content-Type'.
-
-        } catch (e) {
-            // ...
-        }
-
-        // Actually, looking at `uploads.ts`, it returns `{ url: ... }`.
-        // To avoid guessing `apiRequest` implementation, I'll use `window.fetch`.
-
-        try {
-            const token = await (window as any).Clerk?.session?.getToken();
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const response = await fetch('/api/r2-image', { // Assuming /api prefix or similar
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
                 body: formData
             });
 
-            if (!response.ok) throw new Error("Upload failed");
-            const data = await response.json();
-
-            setLogoUrl(data.url);
+            setLogoUrl(res.url);
             setSuccess("Logo uploaded. Don't forget to save settings.");
 
         } catch (e: any) {
+            console.error(e);
             setError("Logo upload failed: " + e.message);
         } finally {
             setUploading(null);

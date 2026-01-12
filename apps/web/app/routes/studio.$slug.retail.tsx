@@ -40,7 +40,7 @@ export const action = async (args: ActionFunctionArgs) => {
         // apiRequest assumes JSON body if data is object.
         // Let's assume apiRequest can handle FormData or we use fetch directly.
         // Using fetch directly to forward the FormData.
-        const apiUrl = (process.env.API_URL || "https://api.studio-platform.com") + "/products/images";
+        // const apiUrl = ... (removed legacy)
         // Actually apiRequest constructs the URL. Let's look at apiRequest implementation if possible, 
         // but for now I'll use a direct fetch or try to use apiRequest if it supports non-JSON Body.
         // I'll assume standard fetch to avoiding debugging `apiRequest` right now, 
@@ -81,12 +81,13 @@ export const action = async (args: ActionFunctionArgs) => {
         // This `action` is the Remix Server Action.
 
         // Let's just try to pass generic request.
-        const res = await fetch("https://api.studio-platform.com/products/images", { // TODO: Use Env
+        const uploadData = new FormData();
+        if (file) uploadData.append("file", file);
+
+        const data = await apiRequest("/products/images", token, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-            body: formData // Forward the form data directly
+            body: uploadData
         });
-        const data = await res.json();
         return data;
     }
 

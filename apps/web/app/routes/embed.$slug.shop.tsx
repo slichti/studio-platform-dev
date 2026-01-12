@@ -10,14 +10,11 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const { slug } = args.params;
 
     try {
-        // Public endpoint - no auth required
-        const response = await fetch(`${process.env.API_BASE_URL || 'https://studio-platform-api.slichti.workers.dev'}/products?active=true`, {
+        // Public endpoint - no auth required (token null)
+        const products = await apiRequest<any[]>('/products?active=true', null, {
             headers: { 'X-Tenant-Slug': slug || '' }
         });
 
-        if (!response.ok) throw new Error("Failed to fetch products");
-
-        const products = await response.json();
         return { products: products || [], slug };
     } catch (e) {
         console.error("Shop Loader Error", e);

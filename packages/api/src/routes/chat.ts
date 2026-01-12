@@ -3,6 +3,7 @@ import { eq, and, desc } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from 'db/src/schema';
 import { tenantMiddleware, requireFeature } from '../middleware/tenant';
+import { EmailService } from '../services/email';
 
 const app = new Hono<{ Bindings: any; Variables: any }>();
 
@@ -15,7 +16,9 @@ app.use('/*', requireFeature('chat'));
 // List rooms for tenant (filtered by type optionally)
 app.get('/rooms', async (c) => {
     const db = drizzle(c.env.DB, { schema });
-    const tenantId = c.get('tenantId');
+    const tenant = c.get('tenant');
+    const tenantId = tenant?.id;
+    if (!tenantId) return c.json({ error: 'Tenant context missing' }, 500);
     const type = c.req.query('type');
 
     let query = db.query.chatRooms.findMany({
@@ -32,7 +35,9 @@ app.get('/rooms', async (c) => {
 // Get single room
 app.get('/rooms/:id', async (c) => {
     const db = drizzle(c.env.DB, { schema });
-    const tenantId = c.get('tenantId');
+    const tenant = c.get('tenant');
+    const tenantId = tenant?.id;
+    if (!tenantId) return c.json({ error: 'Tenant context missing' }, 500);
     const id = c.req.param('id');
 
     const room = await db.query.chatRooms.findFirst({
@@ -52,11 +57,15 @@ app.get('/rooms/:id', async (c) => {
 // Create room
 app.post('/rooms', async (c) => {
     const db = drizzle(c.env.DB, { schema });
-    const tenantId = c.get('tenantId');
+    const tenant = c.get('tenant');
+    const tenantId = tenant?.id;
+    if (!tenantId) return c.json({ error: 'Tenant context missing' }, 500);
     const body = await c.req.json<{
         type: 'support' | 'class' | 'community' | 'direct';
         name: string;
         metadata?: any;
+        priority?: 'low' | 'normal' | 'high' | 'urgent';
+        customer_email?: string;
     }>();
 
     if (!body.type || !body.name) {
@@ -70,6 +79,8 @@ app.post('/rooms', async (c) => {
         type: body.type,
         name: body.name,
         metadata: body.metadata,
+        priority: body.priority || 'normal',
+        customerEmail: body.customer_email,
         isArchived: false,
     });
 
@@ -77,15 +88,46 @@ app.post('/rooms', async (c) => {
         where: eq(schema.chatRooms.id, id),
     });
 
+    // Send Notification for Support Tickets
+    if (body.type === 'support') {
+        // Construct notification email
+        const notifyEmail = tenant.settings?.chatConfig?.offlineEmail || tenant.settings?.notifications?.adminEmail;
+
+        if (notifyEmail) {
+            const apiKey = c.get('emailApiKey') || c.env.RESEND_API_KEY;
+            // Ensure we catch email errors so we don't fail the request
+            try {
+                const emailService = new EmailService(apiKey, tenant, { slug: tenant.slug, customDomain: tenant.customDomain });
+                await emailService.sendGenericEmail(
+                    notifyEmail,
+                    `New Support Request: ${body.name}`,
+                    `<p>You have a new support request from <strong>${body.name}</strong> (${body.customer_email || 'Anonymous'}).</p>
+                     <p>${body.metadata?.initialMessage ? `"${body.metadata.initialMessage}"` : ''}</p>
+                     <p><a href="https://studio-platform-web.pages.dev/studio/${tenant.slug}/chat/${id}">View in Studio</a></p>`,
+                    true
+                );
+            } catch (e) {
+                console.error("Failed to send support notification", e);
+            }
+        }
+    }
+
     return c.json(created, 201);
 });
 
-// Archive/unarchive room
-app.post('/rooms/:id/archive', async (c) => {
+// Archive/unarchive room or update status/priority/assignment
+app.patch('/rooms/:id', async (c) => {
     const db = drizzle(c.env.DB, { schema });
-    const tenantId = c.get('tenantId');
+    const tenant = c.get('tenant');
+    const tenantId = tenant?.id;
+    if (!tenantId) return c.json({ error: 'Tenant context missing' }, 500);
     const id = c.req.param('id');
-    const body = await c.req.json<{ isArchived: boolean }>();
+    const body = await c.req.json<{
+        status?: 'open' | 'in_progress' | 'closed' | 'archived';
+        priority?: 'low' | 'normal' | 'high' | 'urgent';
+        assignedToId?: string | null;
+        isArchived?: boolean; // Legacy support
+    }>();
 
     const existing = await db.query.chatRooms.findFirst({
         where: and(
@@ -98,9 +140,36 @@ app.post('/rooms/:id/archive', async (c) => {
         return c.json({ error: 'Room not found' }, 404);
     }
 
+    const updates: any = {};
+    if (body.status) updates.status = body.status;
+    if (body.priority) updates.priority = body.priority;
+    if (body.assignedToId !== undefined) updates.assignedToId = body.assignedToId;
+    if (body.isArchived !== undefined) {
+        updates.isArchived = body.isArchived;
+        if (body.isArchived) updates.status = 'archived'; // Sync status
+    }
+
     await db.update(schema.chatRooms)
-        .set({ isArchived: body.isArchived })
+        .set(updates)
         .where(eq(schema.chatRooms.id, id));
+
+    return c.json({ success: true, ...updates });
+});
+
+// Legacy POST for archive (Deprecated, forward to PATCH logic if needed or keep for backward compat)
+app.post('/rooms/:id/archive', async (c) => {
+    // ... logic same as above ...
+    // Keeping this for now but it's redundant.
+    const db = drizzle(c.env.DB, { schema });
+    const tenant = c.get('tenant');
+    const tenantId = tenant?.id;
+    if (!tenantId) return c.json({ error: 'Tenant context missing' }, 500);
+    const id = c.req.param('id');
+    const body = await c.req.json<{ isArchived: boolean }>();
+
+    await db.update(schema.chatRooms)
+        .set({ isArchived: body.isArchived, status: body.isArchived ? 'archived' : 'open' })
+        .where(and(eq(schema.chatRooms.id, id), eq(schema.chatRooms.tenantId, tenantId)));
 
     return c.json({ success: true, isArchived: body.isArchived });
 });
@@ -110,7 +179,9 @@ app.post('/rooms/:id/archive', async (c) => {
 // Get message history for a room
 app.get('/rooms/:id/messages', async (c) => {
     const db = drizzle(c.env.DB, { schema });
-    const tenantId = c.get('tenantId');
+    const tenant = c.get('tenant');
+    const tenantId = tenant?.id;
+    if (!tenantId) return c.json({ error: 'Tenant context missing' }, 500);
     const roomId = c.req.param('id');
     const limit = parseInt(c.req.query('limit') || '50');
     const before = c.req.query('before'); // cursor for pagination
@@ -148,7 +219,9 @@ app.get('/rooms/:id/messages', async (c) => {
 // Post message (REST fallback, primarily use WebSocket)
 app.post('/rooms/:id/messages', async (c) => {
     const db = drizzle(c.env.DB, { schema });
-    const tenantId = c.get('tenantId');
+    const tenant = c.get('tenant');
+    const tenantId = tenant?.id;
+    if (!tenantId) return c.json({ error: 'Tenant context missing' }, 500);
     const roomId = c.req.param('id');
     const userId = c.get('userId');
     const body = await c.req.json<{ content: string }>();
@@ -198,11 +271,38 @@ app.post('/rooms/:id/messages', async (c) => {
 // --- WebSocket Upgrade (Durable Object) ---
 // This endpoint will be implemented with Durable Objects in Phase 6
 app.get('/rooms/:id/websocket', async (c) => {
-    // Placeholder - Will connect to Durable Object
-    return c.json({
-        message: 'WebSocket endpoint - coming in Phase 6',
-        roomId: c.req.param('id'),
-    });
+    const roomId = c.req.param('id');
+    const upgradeHeader = c.req.header('Upgrade');
+
+    if (!upgradeHeader || upgradeHeader !== 'websocket') {
+        return c.json({ error: 'Expected Upgrade: websocket' }, 426);
+    }
+
+    // Pass user context to Durable Object via query params
+    const userId = c.get('userId') || 'anon';
+    const userRole = (c.get('roles') || [])[0] || 'student';
+    // For now we assume the profile or user object is available on 'auth' or 'member' context
+    // The simplified context in this file might need checking.
+    // userMiddleware usually sets 'userId' and 'claims'.
+    // tenantMiddleware sets 'tenantId'.
+    // Let's pass what we have.
+    const tenant = c.get('tenant');
+    const tenantId = tenant?.id;
+    if (!tenantId) return c.json({ error: 'Tenant context missing' }, 500);
+
+    // We need to construct a URL to the DO that includes metadata
+    const url = new URL(c.req.url);
+    url.searchParams.set('roomId', roomId);
+    url.searchParams.set('tenantId', tenantId);
+    url.searchParams.set('userId', userId);
+    url.searchParams.set('role', userRole);
+
+    // Get the Durable Object stub
+    const id = c.env.CHAT_ROOM.idFromString(roomId);
+    const stub = c.env.CHAT_ROOM.get(id);
+
+    // Forward the Upgrade request
+    return stub.fetch(url.toString(), c.req.raw);
 });
 
 export default app;

@@ -1,28 +1,103 @@
 // Admin Chat System - Platform-wide chat management
 
-import { useLoaderData, Link } from "react-router";
+import { useLoaderData, Link, useSubmit, Form } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { useState } from "react";
 import { useAuth } from "@clerk/react-router";
-import { MessageCircle, Users, Shield, ExternalLink } from "lucide-react";
+import { MessageCircle, Users, Shield, ExternalLink, Plus } from "lucide-react";
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
     const token = await getToken();
 
     try {
-        // Get all tenants
-        const tenants = await apiRequest<any[]>("/admin/tenants", token);
-        return { tenants, error: null };
+        // Get all tenants and open support tickets
+        const [tenants, tickets] = await Promise.all([
+            apiRequest<any[]>("/admin/tenants", token),
+            apiRequest<any[]>("/chat/tickets?status=open", token).catch(() => []) // Graceful fail
+        ]);
+        return { tenants, tickets, error: null };
     } catch (e: any) {
-        return { tenants: [], error: e.message };
+        return { tenants: [], tickets: [], error: e.message };
     }
 };
 
+export const action = async (args: any) => {
+    const { getToken } = await getAuth(args);
+    const token = await getToken();
+    const formData = await args.request.formData();
+    const intent = formData.get("intent");
+
+    if (intent === "create_support_room") {
+        const tenantId = formData.get("tenantId");
+        const tenantSlug = formData.get("tenantSlug");
+
+        // 1. Check if room exists? For now just create new one or the backend logic should handle singleton support room if desired.
+        // We'll just create a new one "Support [Date]"
+        try {
+            const room = await apiRequest("/chat/rooms", token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': tenantSlug }, // Context for creating room in that tenant
+                body: JSON.stringify({
+                    type: "support",
+                    name: "Platform Support",
+                    metadata: { createdBy: "admin" }
+                })
+            });
+            return { success: true, roomId: room.id };
+        } catch (e: any) {
+            return { error: e.message };
+        }
+    }
+    return null;
+};
+
 export default function AdminChat() {
-    const { tenants, error } = useLoaderData<any>();
-    const [selectedTenant, setSelectedTenant] = useState<any>(null);
+    const { tenants, tickets: initialTickets, error } = useLoaderData<any>();
+
+    // Client-side filtering/management could go here or use useRevalidator
+    const tickets = initialTickets || [];
+
+    const actionData = useLoaderData<any>();
+
+    const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
+
+    const handleOpenSupport = async (tenant: any) => {
+        setLoadingMap(prev => ({ ...prev, [tenant.id]: true }));
+        try {
+            const token = await (window as any).Clerk.session.getToken();
+
+            // 1. Find existing support room? (Backend list filtered by type?)
+            // GET /chat/rooms?type=support
+            const rooms = await apiRequest(`/chat/rooms?type=support`, token, {
+                headers: { 'X-Tenant-Slug': tenant.slug }
+            });
+
+            let roomId;
+            if (rooms && rooms.length > 0) {
+                roomId = rooms[0].id;
+            } else {
+                // 2. Create if not exists
+                const newRoom = await apiRequest("/chat/rooms", token, {
+                    method: "POST",
+                    headers: { 'X-Tenant-Slug': tenant.slug },
+                    body: JSON.stringify({
+                        type: "support",
+                        name: "Platform Support",
+                        metadata: { createdBy: "admin" }
+                    })
+                });
+                roomId = newRoom.id;
+            }
+
+            // 3. Navigate
+            window.location.href = `/admin/chat/${roomId}`;
+        } catch (e) {
+            alert("Failed to open support chat: " + e);
+            setLoadingMap(prev => ({ ...prev, [tenant.id]: false }));
+        }
+    };
 
     if (error) {
         return (
@@ -44,8 +119,81 @@ export default function AdminChat() {
                 <p className="text-zinc-500 mt-1">Manage tenant chat rooms and platform support</p>
             </div>
 
+            {/* Support Tickets Inbox */}
+            <div className="mb-8">
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold text-zinc-900 flex items-center gap-2">
+                        <Shield className="text-indigo-600" size={20} />
+                        Support Inbox (Open)
+                    </h2>
+                    <div className="text-sm text-zinc-500">
+                        {tickets.length} open tickets
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden shadow-sm">
+                    {tickets.length === 0 ? (
+                        <div className="p-8 text-center text-zinc-500">
+                            No open support tickets found. Great job!
+                        </div>
+                    ) : (
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-zinc-50 border-b border-zinc-100 text-zinc-500">
+                                <tr>
+                                    <th className="p-4 font-medium">Tenant</th>
+                                    <th className="p-4 font-medium">Subject</th>
+                                    <th className="p-4 font-medium">Priority</th>
+                                    <th className="p-4 font-medium">Status</th>
+                                    <th className="p-4 font-medium">Assigned</th>
+                                    <th className="p-4 font-medium">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-100">
+                                {tickets.map((ticket: any) => (
+                                    <tr key={ticket.id} className="hover:bg-zinc-50 group">
+                                        <td className="p-4">
+                                            <div className="font-medium text-zinc-900">{ticket.tenantName}</div>
+                                            <div className="text-xs text-zinc-500">ID: {ticket.tenantId?.slice(0, 8)}</div>
+                                        </td>
+                                        <td className="p-4">
+                                            <div className="text-zinc-900">{ticket.name}</div>
+                                            <div className="text-xs text-zinc-500">{new Date(ticket.createdAt).toLocaleDateString()}</div>
+                                        </td>
+                                        <td className="p-4">
+                                            <span className={`px-2 py-1 rounded text-xs font-medium capitalize
+                                            ${ticket.priority === 'urgent' ? 'bg-red-100 text-red-700' :
+                                                    ticket.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                                                        'bg-zinc-100 text-zinc-600'}`}>
+                                                {ticket.priority || 'normal'}
+                                            </span>
+                                        </td>
+                                        <td className="p-4">
+                                            <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium capitalize">
+                                                {ticket.status || 'open'}
+                                            </span>
+                                        </td>
+                                        <td className="p-4 text-zinc-500">
+                                            {ticket.assignedToId ? 'Agent' : 'Unassigned'}
+                                        </td>
+                                        <td className="p-4">
+                                            <Link
+                                                to={`/admin/chat/${ticket.id}`}
+                                                className="px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-sm font-medium hover:bg-zinc-50 text-indigo-600"
+                                            >
+                                                Open
+                                            </Link>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+            </div>
+
             {/* Overview Stats */}
             <div className="grid grid-cols-4 gap-4 mb-8">
+                {/* ... existing stats ... */}
                 <div className="bg-white border border-zinc-200 rounded-xl p-6">
                     <div className="text-3xl font-bold text-zinc-900">{tenants?.length || 0}</div>
                     <div className="text-sm text-zinc-500">Total Tenants</div>
@@ -57,28 +205,12 @@ export default function AdminChat() {
                     <div className="text-sm text-zinc-500">With Chat Enabled</div>
                 </div>
                 <div className="bg-white border border-zinc-200 rounded-xl p-6">
-                    <div className="text-3xl font-bold text-blue-600">—</div>
-                    <div className="text-sm text-zinc-500">Active Rooms</div>
+                    <div className="text-3xl font-bold text-blue-600">{tickets.length}</div>
+                    <div className="text-sm text-zinc-500">Open Tickets</div>
                 </div>
                 <div className="bg-white border border-zinc-200 rounded-xl p-6">
                     <div className="text-3xl font-bold text-purple-600">—</div>
                     <div className="text-sm text-zinc-500">Messages Today</div>
-                </div>
-            </div>
-
-            {/* Platform Support Chat */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 mb-8 text-white">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h2 className="text-xl font-bold flex items-center gap-2">
-                            <Shield size={24} />
-                            Platform Support Chat
-                        </h2>
-                        <p className="text-white/80 mt-1">Chat with tenants requiring platform-level support</p>
-                    </div>
-                    <button className="bg-white text-blue-600 px-4 py-2 rounded-lg font-medium hover:bg-blue-50 transition">
-                        Open Support Console
-                    </button>
                 </div>
             </div>
 
@@ -94,7 +226,7 @@ export default function AdminChat() {
                     </div>
                 ) : (
                     <div className="divide-y divide-zinc-100">
-                        {tenants.slice(0, 10).map((tenant: any) => (
+                        {tenants.slice(0, 50).map((tenant: any) => (
                             <div key={tenant.id} className="p-4 flex items-center justify-between hover:bg-zinc-50">
                                 <div className="flex items-center gap-4">
                                     <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center font-medium">
@@ -103,20 +235,21 @@ export default function AdminChat() {
                                     <div>
                                         <h3 className="font-medium text-zinc-900">{tenant.name}</h3>
                                         <div className="flex items-center gap-2 text-sm text-zinc-500">
-                                            <span>0 active rooms</span>
-                                            <span>•</span>
-                                            <span>0 messages</span>
+                                            <span>{tenant.slug}</span>
+                                            {tenant.features?.includes('chat') && (
+                                                <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-bold">CHAT ACTIVE</span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <button className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg">
-                                        <MessageCircle size={14} />
-                                        View Rooms
-                                    </button>
-                                    <button className="flex items-center gap-1 px-3 py-1.5 text-sm text-purple-600 hover:bg-purple-50 rounded-lg">
+                                    <button
+                                        onClick={() => handleOpenSupport(tenant)}
+                                        disabled={loadingMap[tenant.id]}
+                                        className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg disabled:opacity-50"
+                                    >
                                         <Shield size={14} />
-                                        Support
+                                        {loadingMap[tenant.id] ? "Opening..." : "Support"}
                                     </button>
                                 </div>
                             </div>

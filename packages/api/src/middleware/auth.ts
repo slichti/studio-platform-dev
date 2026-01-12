@@ -21,24 +21,30 @@ type Bindings = {
 };
 
 export const authMiddleware = createMiddleware<{ Variables: AuthVariables, Bindings: Bindings }>(async (c, next) => {
+    let token: string | undefined;
     const authHeader = c.req.header('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+    } else if (c.req.query('token')) {
+        token = c.req.query('token');
+    } else {
         return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const token = authHeader.split(' ')[1];
+    if (!token) return c.json({ error: 'Unauthorized' }, 401);
 
     try {
         // 1. Check for Impersonation Token (Custom JWT, HS256)
         // We use dynamic import or assume hono/jwt is available
         try {
             const payload = await verify(token, (c.env as any).CLERK_SECRET_KEY);
-            if (payload.impersonatorId) {
+            if (payload.impersonatorId || payload.role === 'guest') {
                 c.set('auth', {
                     userId: payload.sub as string,
                     claims: payload as any,
                 });
-                // Flag as impersonated session
+                // Flag as impersonated/guest session
                 c.set('isImpersonating', true);
                 return await next();
             }

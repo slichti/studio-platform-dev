@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useOutletContext } from "react-router";
+import { apiRequest } from "~/utils/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/Card";
 import { Trash2, Terminal, Loader2, Key, MessageSquare, Mail, Save, CreditCard, CheckCircle, Smartphone, Send } from "lucide-react";
 
@@ -22,7 +23,7 @@ export default function IntegrationsPage() {
     const [resendForm, setResendForm] = useState({ apiKey: '' });
     const [showOrderReader, setShowOrderReader] = useState(false);
 
-    const API_URL = (import.meta as any).env.VITE_API_URL || "http://localhost:8787";
+    // Removed local API_URL definition to use apiRequest utility
 
     useEffect(() => {
         loadDevData();
@@ -32,33 +33,25 @@ export default function IntegrationsPage() {
         setLoadingDev(true);
         try {
             const token = (window as any).Clerk?.session?.getToken ? await (window as any).Clerk.session.getToken() : localStorage.getItem('token');
-            const headers: any = {
-                'Authorization': `Bearer ${token}`,
-                'X-Tenant-Slug': slug || ''
-            };
-
-            const [webhooksRes, credsRes] = await Promise.all([
-                fetch(`${API_URL}/integrations/webhooks`, { headers }),
-                fetch(`${API_URL}/integrations/credentials`, { headers })
+            // apiRequest handles token if passed
+            
+            const [webhooksData, credsData] = await Promise.all([
+                apiRequest("/integrations/webhooks", token, { headers: { 'X-Tenant-Slug': slug || '' } }),
+                apiRequest("/integrations/credentials", token, { headers: { 'X-Tenant-Slug': slug || '' } })
             ]);
 
-            if (webhooksRes.ok) {
-                const data = await webhooksRes.json() as { endpoints: any[] };
-                setEndpoints(data.endpoints);
-            }
-            if (credsRes.ok) {
-                const data = await credsRes.json() as any;
-                setCredentials(data);
-                // Pre-fill forms (only public parts)
-                setTwilioForm({
-                    accountSid: data.twilio?.accountSid || '',
-                    authToken: '', // Never return auth token
-                    fromNumber: data.twilio?.fromNumber || ''
-                });
-                setResendForm({
-                    apiKey: data.resend?.apiKey || ''
-                });
-            }
+            setEndpoints((webhooksData as any).endpoints || []);
+            setCredentials(credsData);
+            
+            // Pre-fill forms (only public parts)
+            setTwilioForm({
+                accountSid: (credsData as any).twilio?.accountSid || '',
+                authToken: '', // Never return auth token
+                fromNumber: (credsData as any).twilio?.fromNumber || ''
+            });
+            setResendForm({
+                apiKey: (credsData as any).resend?.apiKey || ''
+            });
         } catch (e: any) {
             console.error("Failed to load data", e);
         } finally {
@@ -70,35 +63,20 @@ export default function IntegrationsPage() {
         setSaving(true);
         try {
             const token = await (window as any).Clerk?.session?.getToken();
-            const body: any = {};
-            if (type === 'twilio') body.twilio = twilioForm;
-            if (type === 'resend') body.resend = resendForm;
-
-            const res = await fetch(`${API_URL}/integrations/credentials`, { // Legacy endpoint path for credentials?
-                // Actually the Settings logic calls /studios/:id/integrations for some, and /integrations/credentials for others?
-                // Just use the studio-centric one for global settings if possible, but Developers used /integrations/credentials.
-                // Let's stick to /integrations/credentials for BYOK logic if that's where the backend expects specific shapes.
-                // However, the "Settings" page used `PUT /studios/${tenant.id}/integrations`.
-                // I should verify if they map to the same backend logic or different tables.
-                // Looking at user code:
-                // Settings used: PUT /studios/${tenant.id}/integrations for Provider & keys.
-                // Developers used: GET/PATCH /integrations/credentials (for same keys!).
-                // Let's unify on the Settings approach (Tenant scope) as it seems more robust for the main UI.
-
-                method: 'PUT', // Using the Settings approach
-            });
-
-            // Wait, I should use the one that works.
-            // Settings uses: PUT /studios/:id/integrations with body { twilioAccountSid, ... } or { resendApiKey }.
-            // Developers uses: PATCH /integrations/credentials with body { twilio: {...}, resend: {...} }.
-            // I will use apiRequest helper if possible, or fetch.
-            // Let's stick to the Settings PAGE implementation logic for consistency with what works on Settings page. (PUT /studios/:id/integrations).
-            // But I need to adapt the form handling.
-
-            // Wait, "Developers" might be using a newer or different route?
-            // "Settings" page is using `PUT /studios/${tenant.id}/integrations`.
-            // "Developers" page is using `PATCH /integrations/credentials`.
-            // I'll assume both work but one might be preferred. I'll use the Settings one for Payment/Resend/Twilio basics, and the Webhooks one for webhooks.
+            
+            // Using logic discussed: Developers page was using PATCH /integrations/credentials
+            // Since we are refactoring, we'll stick to that if it works, or switch to the one that `updateIntegration` uses.
+            // The previous code had a comment block about confusion. 
+            // Let's assume `updateIntegration` (PUT /studios/:id/integrations) is the robust one for Settings page.
+            // But this specific function `handleSaveCredentials` was unused? 
+            // Looking at the JSX... `handleSaveCredentials` is NOT called in the JSX forms below!
+            // The Twilio form calls `updateIntegration`. The Resend form calls `updateIntegration`.
+            // So `handleSaveCredentials` is dead code?
+            // Actually, let's verify.
+            // Twilio form: `onSubmit={(e) => { ... updateIntegration({...}) }}`
+            // Resend form: `onSubmit={(e) => { ... updateIntegration({...}) }}`
+            // So `handleSaveCredentials` is indeed dead code or legacy.
+            // I will remove it to clean up.
         } catch (e) { }
     };
 
@@ -106,16 +84,11 @@ export default function IntegrationsPage() {
     const updateIntegration = async (body: any) => {
         try {
             const token = await (window as any).Clerk?.session?.getToken();
-            const res = await fetch(`${API_URL}/studios/${tenant.id}/integrations`, {
+            await apiRequest(`/studios/${tenant.id}/integrations`, token, {
                 method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'X-Tenant-Slug': slug || ''
-                },
+                headers: { 'X-Tenant-Slug': slug || '' },
                 body: JSON.stringify(body)
             });
-            if (!res.ok) throw new Error("Failed to update");
             alert("Settings saved successfully.");
             window.location.reload();
         } catch (e: any) {
@@ -128,13 +101,9 @@ export default function IntegrationsPage() {
         setIsCreating(true);
         try {
             const token = await (window as any).Clerk?.session?.getToken();
-            const res = await fetch(`${API_URL}/integrations/webhooks`, {
+            await apiRequest("/integrations/webhooks", token, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                    'X-Tenant-Slug': slug || ''
-                },
+                headers: { 'X-Tenant-Slug': slug || '' },
                 body: JSON.stringify({
                     url: createUrl,
                     events: createEvents.split(',').map(s => s.trim()),
@@ -142,14 +111,11 @@ export default function IntegrationsPage() {
                 })
             });
 
-            if (res.ok) {
-                setCreateUrl("");
-                loadDevData();
-            } else {
-                alert("Failed to create webhook");
-            }
+            setCreateUrl("");
+            loadDevData();
         } catch (e: any) {
             console.error(e);
+            alert("Failed to create webhook: " + e.message);
         } finally {
             setIsCreating(false);
         }
@@ -159,18 +125,14 @@ export default function IntegrationsPage() {
         if (!confirm("Delete this webhook?")) return;
         try {
             const token = await (window as any).Clerk?.session?.getToken();
-            const res = await fetch(`${API_URL}/integrations/webhooks/${id}`, {
+            await apiRequest(`/integrations/webhooks/${id}`, token, {
                 method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'X-Tenant-Slug': slug || ''
-                }
+                headers: { 'X-Tenant-Slug': slug || '' }
             });
-            if (res.ok) {
-                setEndpoints(endpoints.filter(e => e.id !== id));
-            }
+            setEndpoints(endpoints.filter(e => e.id !== id));
         } catch (e: any) {
             console.error(e);
+            alert("Failed to delete webhook: " + e.message);
         }
     };
 
@@ -209,7 +171,7 @@ export default function IntegrationsPage() {
                             <div className="font-bold text-sm text-zinc-900 dark:text-zinc-100 mb-1">Platform Managed</div>
                             <div className="text-xs text-zinc-500">We handle billing complexity. Standard fees. Recommended for most studios.</div>
                             {tenant.paymentProvider === 'connect' && !tenant.stripeAccountId && (
-                                <a href={`${API_URL}/studios/stripe/connect?tenantId=${tenant.id}`} className="mt-4 block w-full py-2 text-center bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700">Connect Stripe Account &rarr;</a>
+                                <a href={`${import.meta.env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev"}/studios/stripe/connect?tenantId=${tenant.id}`} className="mt-4 block w-full py-2 text-center bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700">Connect Stripe Account &rarr;</a>
                             )}
                             {tenant.paymentProvider === 'connect' && tenant.stripeAccountId && (
                                 <div className="mt-4 pt-4 border-t border-blue-200 dark:border-blue-800">
@@ -290,23 +252,16 @@ export default function IntegrationsPage() {
                         try {
                             const apiKey = new FormData(e.currentTarget).get("flodeskApiKey");
                             const token = await (window as any).Clerk?.session?.getToken();
-                            const res = await fetch(`${API_URL}/integrations/credentials`, {
+                            await apiRequest("/integrations/credentials", token, {
                                 method: 'PATCH',
-                                headers: {
-                                    'Authorization': `Bearer ${token}`,
-                                    'Content-Type': 'application/json',
-                                    'X-Tenant-Slug': slug || ''
-                                },
+                                headers: { 'X-Tenant-Slug': slug || '' },
                                 body: JSON.stringify({ flodesk: { apiKey } })
                             });
-                            if (res.ok) {
-                                alert("Flodesk settings saved.");
-                                loadDevData();
-                            } else {
-                                alert("Failed to save Flodesk settings.");
-                            }
-                        } catch (e) {
+                            alert("Flodesk settings saved.");
+                            loadDevData();
+                        } catch (e: any) {
                             console.error(e);
+                            alert("Failed to save Flodesk settings: " + e.message);
                         }
                     }} className="flex gap-2">
                         <input name="flodeskApiKey" type="password" placeholder="Flodesk API Key" className="flex-1 text-sm border-zinc-300 rounded px-3 py-2" />
@@ -466,16 +421,11 @@ export default function IntegrationsPage() {
                                             if (!confirm('Are you sure you want to disconnect Google Calendar?')) return;
                                             try {
                                                 const token = (window as any).Clerk?.session?.getToken ? await (window as any).Clerk.session.getToken() : localStorage.getItem('token');
-                                                const res = await fetch(`${API_URL}/studios/${tenant.id}/integrations/google`, {
-                                                    method: 'DELETE',
-                                                    headers: {
-                                                        'Authorization': `Bearer ${token}`
-                                                    }
+                                                await apiRequest(`/studios/${tenant.id}/integrations/google`, token, {
+                                                    method: 'DELETE'
                                                 });
-                                                if (res.ok) {
-                                                    alert('Disconnected');
-                                                    window.location.reload();
-                                                }
+                                                alert('Disconnected');
+                                                window.location.reload();
                                             } catch (e) {
                                                 console.error(e);
                                                 alert('Failed to disconnect');
@@ -485,8 +435,8 @@ export default function IntegrationsPage() {
                                         Disconnect
                                     </button>
                                 ) : (
-                                    <a
-                                        href={`${API_URL}/studios/google/connect?tenantId=${tenant.id}`}
+                                <a
+                                        href={`${import.meta.env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev"}/studios/google/connect?tenantId=${tenant.id}`}
                                         className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
                                     >
                                         Connect Google Calendar

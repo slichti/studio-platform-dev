@@ -82,3 +82,33 @@ sequenceDiagram
     end
     API-->>Student: Booking Confirmed
 ```
+
+### 3. Expanded Chat System (Support & Ticketing)
+
+```mermaid
+sequenceDiagram
+    participant Guest as Widget (Guest)
+    participant API
+    participant DB
+    participant Email as EmailService
+    participant Admin as Tenant Admin
+
+    Note over Guest, API: Guest Auth & Ticket Creation
+    Guest->>API: POST /guest/token (Name, Email)
+    API-->>Guest: JWT (Valid 7 days)
+    Guest->>API: POST /chat/rooms (Type: Support)
+    API->>DB: Create Room (Status: Open)
+    API->>Email: Send "New Support Request" Notification to Admin
+    API-->>Guest: Room ID
+
+    Note over Guest, Admin: Real-time Chat
+    Guest->>API: WebSocket Connect (/rooms/:id/websocket)
+    Admin->>API: WebSocket Connect
+    Guest->>API: Send Message
+    API->>DB: Store Message
+    API->>Admin: Broadcast Message
+
+    Note over Admin, DB: Ticket Management
+    Admin->>API: PATCH /rooms/:id (Status: Closed)
+    API->>DB: Update Room Status
+```

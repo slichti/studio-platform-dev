@@ -43,18 +43,15 @@ export const action: ActionFunction = async (args: any) => {
             // The backend /me/family requires tenant context. 
             // We usually pass tenant ID or Slug in header.
 
-            // NOTE: apiRequest helper usually handles base URL. We need to pass headers.
-            const res = await fetch(`${process.env.API_URL || 'https://api.studio-platform-dev.pages.dev'}/users/me/family`, {
+            // Refactored to use apiRequest
+            const data = await apiRequest('/users/me/family', token, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
                     'X-Tenant-Slug': params.slug!
                 },
                 body: JSON.stringify({ firstName, lastName, dob })
             });
 
-            const data = await res.json();
             return data;
         } catch (e: any) {
             return { error: e.message };

@@ -45,6 +45,7 @@ import telemetryRoutes from './routes/telemetry';
 import websiteRoutes from './routes/website';
 import chatRoutes from './routes/chat';
 import platformPagesRoutes from './routes/platform-pages';
+import guestRoutes from './routes/guest';
 
 type Bindings = {
   DB: D1Database;
@@ -137,7 +138,8 @@ app.get('/public/tenant/:slug', async (c) => {
     slug: tenant.slug,
     branding: tenant.branding,
     features: features.map(f => f.featureKey),
-    currency: tenant.currency
+    currency: tenant.currency,
+    chatConfig: (tenant.settings as any)?.chatConfig
   });
 });
 
@@ -495,6 +497,7 @@ app.route('/diagnostics', diagnosticsRoutes);
 app.route('/telemetry', telemetryRoutes);
 app.route('/website', websiteRoutes);
 app.route('/chat', chatRoutes);
+app.route('/guest', guestRoutes);
 app.route('/platform-pages', platformPagesRoutes);
 
 import { scheduled } from './cron';
