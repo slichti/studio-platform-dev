@@ -17,20 +17,20 @@ export const loader = async (args: any) => {
 };
 
 const ServiceCard = ({ title, sub, icon: Icon, color, status = "online", items }: any) => (
-    <div className={`relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/80 p-6 backdrop-blur-sm transition-all hover:bg-zinc-900 hover:border-${color}-500/30 group z-10`}>
+    <div className={`relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/80 p-5 backdrop-blur-sm transition-all hover:bg-zinc-900 hover:border-${color}-500/30 group z-10`}>
         <div className={`absolute top-0 right-0 p-3 opacity-50`}>
             {/* Background glow */}
             <div className={`w-24 h-24 rounded-full bg-${color}-500/10 blur-2xl -mr-10 -mt-10 transition-all group-hover:bg-${color}-500/20`}></div>
         </div>
 
-        <div className="flex justify-between items-start mb-6">
+        <div className="flex justify-between items-start mb-4">
             <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-${color}-400`}>
-                    <Icon size={20} />
+                    <Icon size={18} />
                 </div>
                 <div>
-                    <h3 className="font-semibold text-zinc-100">{title}</h3>
-                    <p className="text-xs text-zinc-500 font-mono">{sub}</p>
+                    <h3 className="font-semibold text-zinc-100 text-sm">{title}</h3>
+                    <p className="text-[10px] text-zinc-500 font-mono">{sub}</p>
                 </div>
             </div>
             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
@@ -40,9 +40,9 @@ const ServiceCard = ({ title, sub, icon: Icon, color, status = "online", items }
         </div>
 
         {items && (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
                 {items.map((item: string, i: number) => (
-                    <div key={i} className="flex items-center gap-2 text-xs text-zinc-400">
+                    <div key={i} className="flex items-center gap-2 text-[11px] text-zinc-400">
                         <div className={`w-1 h-1 rounded-full bg-${color}-500/50`}></div>
                         {item}
                     </div>
@@ -52,12 +52,25 @@ const ServiceCard = ({ title, sub, icon: Icon, color, status = "online", items }
     </div>
 );
 
-const HorizontalBrace = () => (
-    <div className="relative h-4 w-full flex justify-center opacity-50">
-        <div className="absolute top-0 left-1/4 right-1/4 h-px bg-indigo-500/30"></div>
-        <div className="absolute top-0 left-1/4 h-4 w-px bg-indigo-500/30"></div>
-        <div className="absolute top-0 right-1/4 h-4 w-px bg-indigo-500/30"></div>
-        <div className="absolute top-0 left-1/2 h-4 w-px bg-indigo-500/30 -translate-x-1/2"></div>
+// Grid-based connector lines that perfectly align with columns
+const ConnectorLayer = () => (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto px-4 h-8 mb-[-1px]">
+        {/* Left Column Connector */}
+        <div className="relative h-full">
+            <div className="absolute top-0 right-0 h-1/2 w-1/2 border-b border-l border-zinc-700 rounded-bl-xl opacity-30"></div>
+            <div className="absolute top-[50%] left-1/2 h-1/2 w-px bg-zinc-700 opacity-30"></div>
+        </div>
+
+        {/* Center Column Connector */}
+        <div className="relative h-full flex justify-center">
+            <div className="h-full w-px bg-zinc-700 opacity-30"></div>
+        </div>
+
+        {/* Right Column Connector */}
+        <div className="relative h-full">
+            <div className="absolute top-0 left-0 h-1/2 w-1/2 border-b border-r border-zinc-700 rounded-br-xl opacity-30"></div>
+            <div className="absolute top-[50%] left-1/2 h-1/2 w-px bg-zinc-700 opacity-30"></div>
+        </div>
     </div>
 );
 
@@ -83,59 +96,60 @@ export default function AdminArchitecture() {
     return (
         <div className="min-h-screen bg-gray-50/50 text-zinc-900 font-sans">
             {/* Header */}
-            <div className="bg-white border-b border-zinc-200 px-8 py-6 flex items-center justify-between sticky top-0 z-50">
+            <div className="bg-white border-b border-zinc-200 px-8 py-4 flex items-center justify-between sticky top-0 z-50">
                 <div>
-                    <h1 className="text-xl font-bold text-zinc-900">System Architecture</h1>
-                    <p className="text-sm text-zinc-500">Microservices overview and communication status</p>
+                    <h1 className="text-lg font-bold text-zinc-900">System Architecture</h1>
+                    <p className="text-xs text-zinc-500">Microservices overview and communication status</p>
                 </div>
                 <button
                     onClick={handleRefresh}
                     disabled={isRefreshing}
                     className="p-2 text-zinc-400 hover:text-zinc-600 transition-colors rounded-full hover:bg-zinc-100"
                 >
-                    <RefreshCw size={20} className={isRefreshing ? "animate-spin" : ""} />
+                    <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} />
                 </button>
             </div>
 
-            <div className="p-8 pb-32 max-w-[1400px] mx-auto space-y-8">
+            <div className="p-6 pb-24 max-w-6xl mx-auto space-y-6">
 
                 {/* Main Architecture Card */}
-                <div className="rounded-3xl bg-zinc-950 p-8 md:p-12 relative overflow-hidden shadow-2xl shadow-zinc-900/20 border border-zinc-800">
+                <div className="rounded-2xl bg-zinc-950 p-8 pb-12 relative overflow-hidden shadow-xl shadow-zinc-900/10 border border-zinc-900/50">
                     <DotPattern />
 
                     <div className="relative z-10">
                         {/* Entrance Nodes */}
-                        <div className="flex justify-center gap-6 mb-2">
-                            <div className="px-4 py-2 rounded-full border border-zinc-700 bg-zinc-900/50 text-zinc-400 text-sm flex items-center gap-2 backdrop-blur-sm">
-                                <Globe size={14} /> Web App
-                            </div>
-                            <div className="px-4 py-2 rounded-full border border-zinc-700 bg-zinc-900/50 text-zinc-400 text-sm flex items-center gap-2 backdrop-blur-sm">
-                                <Layout size={14} /> Admin Portal
-                            </div>
-                            <div className="px-4 py-2 rounded-full border border-zinc-700 bg-zinc-900/50 text-zinc-400 text-sm flex items-center gap-2 backdrop-blur-sm">
-                                <Globe size={14} /> Public API
-                            </div>
+                        <div className="flex justify-center gap-4 mb-4">
+                            {[
+                                { icon: Globe, label: "Web App" },
+                                { icon: Layout, label: "Admin Portal" },
+                                { icon: Globe, label: "Public API" }
+                            ].map((item, i) => (
+                                <div key={i} className="px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/80 text-zinc-400 text-xs flex items-center gap-2 backdrop-blur-sm">
+                                    <item.icon size={12} /> {item.label}
+                                </div>
+                            ))}
                         </div>
 
-                        <div className="flex justify-center mb-2">
-                            <div className="h-8 w-px border-l border-dashed border-zinc-700"></div>
+                        {/* Central Vertical Line */}
+                        <div className="flex justify-center h-8 mb-4">
+                            <div className="w-px border-l border-dashed border-zinc-800"></div>
                         </div>
 
                         {/* Gateway */}
-                        <div className="max-w-2xl mx-auto mb-8 relative">
-                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded text-[10px] font-bold bg-indigo-600 text-white uppercase tracking-wider shadow-lg shadow-indigo-500/20 z-10">
+                        <div className="max-w-xl mx-auto mb-4 relative">
+                            <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-[4px] text-[9px] font-bold bg-indigo-600 text-white uppercase tracking-wider shadow-lg shadow-indigo-500/20 z-10">
                                 Entrance
                             </div>
-                            <div className="rounded-2xl border border-indigo-500/30 bg-zinc-900/80 p-8 text-center relative overflow-hidden backdrop-blur-xl shadow-2xl shadow-indigo-900/20">
+                            <div className="rounded-xl border border-indigo-500/20 bg-zinc-900/80 p-6 text-center relative overflow-hidden backdrop-blur-xl shadow-2xl shadow-indigo-900/10">
                                 <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none"></div>
-                                <div className="flex flex-col items-center gap-2 relative z-10">
-                                    <Layers className="text-indigo-400 mb-2" size={32} />
-                                    <h2 className="text-xl font-bold text-white">API Gateway</h2>
-                                    <span className="font-mono text-zinc-500 text-sm">`packages/api`</span>
+                                <div className="flex flex-col items-center gap-1.5 relative z-10">
+                                    <Layers className="text-indigo-400 mb-1" size={24} />
+                                    <h2 className="text-lg font-bold text-white">API Gateway</h2>
+                                    <span className="font-mono text-zinc-600 text-xs">`packages/api`</span>
 
-                                    <div className="flex gap-2 mt-4 justify-center flex-wrap">
+                                    <div className="flex gap-1 mt-3 justify-center flex-wrap">
                                         {['Routing', 'Rate Limiting', 'Auth Context', 'Observability'].map(tag => (
-                                            <span key={tag} className="px-2 py-1 rounded bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-medium">
+                                            <span key={tag} className="px-1.5 py-0.5 rounded bg-indigo-500/5 border border-indigo-500/10 text-indigo-300/[0.7] text-[10px] font-medium">
                                                 {tag}
                                             </span>
                                         ))}
@@ -144,12 +158,11 @@ export default function AdminArchitecture() {
                             </div>
                         </div>
 
-                        <div className="max-w-4xl mx-auto mb-8">
-                            <HorizontalBrace />
-                        </div>
+                        {/* Connection Lines Layer */}
+                        <ConnectorLayer />
 
                         {/* Microservices */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto mb-16 px-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-12 px-4">
                             <ServiceCard
                                 title="Core API"
                                 sub="apps/core-api"
@@ -173,60 +186,57 @@ export default function AdminArchitecture() {
                             />
                         </div>
 
-                        {/* Infrastructure Layer */}
-                        <div className="max-w-3xl mx-auto border-t border-zinc-800 pt-8 flex gap-6">
-                            <div className="flex-1 rounded-xl border border-dashed border-zinc-800 bg-zinc-900/50 p-4 flex items-center gap-4 hover:border-zinc-700 transition-colors backdrop-blur-sm">
-                                <div className="p-3 bg-zinc-900 rounded-lg text-zinc-400 border border-zinc-800">
-                                    <Database size={20} />
+                        {/* Infrastructure Layer - Compact */}
+                        <div className="max-w-2xl mx-auto flex gap-4 opacity-80 pt-8 border-t border-zinc-900">
+                            <div className="flex-1 rounded-lg border border-dashed border-zinc-800 bg-zinc-900/30 p-3 flex items-center gap-3 hover:border-zinc-700 transition-colors">
+                                <div className="p-2 bg-zinc-900 rounded text-zinc-500 border border-zinc-800">
+                                    <Database size={16} />
                                 </div>
                                 <div>
-                                    <h4 className="text-sm font-semibold text-zinc-200">Database</h4>
-                                    <p className="text-xs text-zinc-500">Cloudflare D1 (SQLite)</p>
+                                    <h4 className="text-xs font-semibold text-zinc-300">Database</h4>
+                                    <p className="text-[10px] text-zinc-600">Cloudflare D1</p>
                                 </div>
                             </div>
-                            <div className="flex-1 rounded-xl border border-dashed border-zinc-800 bg-zinc-900/50 p-4 flex items-center gap-4 hover:border-zinc-700 transition-colors backdrop-blur-sm">
-                                <div className="p-3 bg-zinc-900 rounded-lg text-zinc-400 border border-zinc-800">
-                                    <Box size={20} />
+                            <div className="flex-1 rounded-lg border border-dashed border-zinc-800 bg-zinc-900/30 p-3 flex items-center gap-3 hover:border-zinc-700 transition-colors">
+                                <div className="p-2 bg-zinc-900 rounded text-zinc-500 border border-zinc-800">
+                                    <Box size={16} />
                                 </div>
                                 <div>
-                                    <h4 className="text-sm font-semibold text-zinc-200">Shared Lib</h4>
-                                    <p className="text-xs text-zinc-500">Middleware, Utils, Types</p>
+                                    <h4 className="text-xs font-semibold text-zinc-300">Shared Lib</h4>
+                                    <p className="text-[10px] text-zinc-600">Utils, Types</p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Performance Footer (Inline now) */}
-                <div className="bg-white rounded-xl border border-zinc-200 p-6 shadow-sm">
-                    <h3 className="text-sm font-semibold text-zinc-900 mb-4">Gateway Performance</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div className="p-4 rounded-lg bg-zinc-50 border border-zinc-100">
-                            <div className="text-xs font-bold text-zinc-400 uppercase mb-1">DB Read Latency</div>
-                            <div className="flex items-baseline gap-1">
-                                <span className="text-2xl font-bold text-zinc-900">{stats?.latency?.database_ms || 0}</span>
-                                <span className="text-sm text-zinc-500">ms</span>
-                            </div>
+                {/* Performance Grid - Inline & Compact */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-white rounded-lg border border-zinc-200 p-4 shadow-sm">
+                        <div className="text-[10px] font-bold text-zinc-400 uppercase mb-1 tracking-wider">DB Read Latency</div>
+                        <div className="flex items-baseline gap-1">
+                            <span className="text-xl font-bold text-zinc-900">{stats?.latency?.database_ms || 0}</span>
+                            <span className="text-xs text-zinc-500">ms</span>
                         </div>
-                        <div className="p-4 rounded-lg bg-zinc-50 border border-zinc-100">
-                            <div className="text-xs font-bold text-zinc-400 uppercase mb-1">Edge Latency</div>
-                            <div className="flex items-baseline gap-1">
-                                <span className="text-2xl font-bold text-zinc-900">{stats?.latency?.edge_ms || 0}</span>
-                                <span className="text-sm text-zinc-500">ms</span>
-                            </div>
+                    </div>
+                    <div className="bg-white rounded-lg border border-zinc-200 p-4 shadow-sm">
+                        <div className="text-[10px] font-bold text-zinc-400 uppercase mb-1 tracking-wider">Edge Latency</div>
+                        <div className="flex items-baseline gap-1">
+                            <span className="text-xl font-bold text-zinc-900">{stats?.latency?.edge_ms || 0}</span>
+                            <span className="text-xs text-zinc-500">ms</span>
                         </div>
-                        <div className="p-4 rounded-lg bg-zinc-50 border border-zinc-100">
-                            <div className="text-xs font-bold text-zinc-400 uppercase mb-1">Worker Region</div>
-                            <div className="flex items-baseline gap-1">
-                                <span className="text-xl font-bold text-zinc-900">{stats?.worker?.region || 'Unknown'}</span>
-                            </div>
+                    </div>
+                    <div className="bg-white rounded-lg border border-zinc-200 p-4 shadow-sm">
+                        <div className="text-[10px] font-bold text-zinc-400 uppercase mb-1 tracking-wider">Worker Region</div>
+                        <div className="flex items-baseline gap-1">
+                            <span className="text-lg font-bold text-zinc-900">{stats?.worker?.region || 'Unknown'}</span>
                         </div>
-                        <div className="p-4 rounded-lg bg-zinc-50 border border-zinc-100">
-                            <div className="text-xs font-bold text-zinc-400 uppercase mb-1">Memory Used</div>
-                            <div className="flex items-baseline gap-1">
-                                <span className="text-2xl font-bold text-zinc-900">{stats?.worker?.memory_used_mb || 0}</span>
-                                <span className="text-sm text-zinc-500">MB</span>
-                            </div>
+                    </div>
+                    <div className="bg-white rounded-lg border border-zinc-200 p-4 shadow-sm">
+                        <div className="text-[10px] font-bold text-zinc-400 uppercase mb-1 tracking-wider">Memory Used</div>
+                        <div className="flex items-baseline gap-1">
+                            <span className="text-xl font-bold text-zinc-900">{stats?.worker?.memory_used_mb || 0}</span>
+                            <span className="text-xs text-zinc-500">MB</span>
                         </div>
                     </div>
                 </div>
