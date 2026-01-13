@@ -57,6 +57,8 @@ async function handleRequest(request, responseStatusCode, responseHeaders, route
       // Allow API & WebSocket connections
       "frame-src 'self' https://*.stripe.com https://*.youtube.com https://*.vimeo.com https://challenges.cloudflare.com https://*.clerk.accounts.dev https://*.clerk.com",
       // Embeds + Turnstile + Clerk
+      "worker-src 'self' blob:",
+      // Allow Clerk Web Workers
       "base-uri 'self'",
       "form-action 'self'"
     ].join("; ");

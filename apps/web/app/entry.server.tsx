@@ -43,6 +43,7 @@ export default async function handleRequest(
             "img-src 'self' data: https: blob:", // Allow external images (R2, User Content)
             "connect-src 'self' https: wss:", // Allow API & WebSocket connections
             "frame-src 'self' https://*.stripe.com https://*.youtube.com https://*.vimeo.com https://challenges.cloudflare.com https://*.clerk.accounts.dev https://*.clerk.com", // Embeds + Turnstile + Clerk
+            "worker-src 'self' blob:", // Allow Clerk Web Workers
             "base-uri 'self'",
             "form-action 'self'"
         ].join('; ');
