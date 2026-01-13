@@ -12,7 +12,7 @@
         "db": "^6.0.3",
         "drizzle-orm": "^0.45.1",
         "hono": "^4.11.3",
-        "jspdf": "^3.0.4",
+        "jspdf": "^4.0.0",
         "livekit-server-sdk": "^2.15.0",
         "papaparse": "^5.5.3",
         "resend": "^6.6.0",
@@ -27,7 +27,7 @@
         "@cloudflare/workers-types": "^4.20251231.0",
         "@types/papaparse": "^5.5.2",
         "typescript": "^5.9.3",
-        "vitest": "^3.0.0",
+        "vitest": "^4.0.17",
         "wrangler": "^4.57.0"
     }
 }
