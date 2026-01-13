@@ -10,6 +10,7 @@ import { optionalAuthMiddleware } from './middleware/optionalAuth';
 import { tenantMiddleware } from './middleware/tenant';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
+import { rateLimitMiddleware } from './middleware/rate-limit'; // [NEW]
 
 // Route Imports
 import studioRoutes from './routes/studios';
@@ -67,6 +68,8 @@ type Bindings = {
   ENCRYPTION_SECRET: string;
   LIVEKIT_API_KEY: string;
   LIVEKIT_API_SECRET: string;
+  RATE_LIMITER: DurableObjectNamespace;
+  METRICS: DurableObjectNamespace;
 };
 
 type Variables = {
@@ -88,6 +91,7 @@ import { traceMiddleware } from './middleware/trace';
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>()
 
 app.use('*', traceMiddleware);
+app.use('*', rateLimitMiddleware(300, 60)); // [NEW] Global Rate Limit: 300 req/min
 app.use('*', logger((str, ...rest) => {
   // Custom logger wrapper could go here, but Hono logger is simple.
   // For now we rely on the header being set by traceMiddleware for standard logs
@@ -507,8 +511,9 @@ import { scheduled } from './cron';
 // Durable Objects
 import { ChatRoom } from './durable-objects/ChatRoom';
 import { RateLimiter } from './durable-objects/RateLimiter';
+import { Metrics } from './durable-objects/Metrics';
 
-export { ChatRoom, RateLimiter };
+export { ChatRoom, RateLimiter, Metrics };
 
 export default {
   fetch: app.fetch,

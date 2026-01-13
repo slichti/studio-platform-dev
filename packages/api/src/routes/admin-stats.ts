@@ -7,6 +7,7 @@ import { count, eq, gt } from 'drizzle-orm';
 type Bindings = {
     DB: D1Database;
     STRIPE_SECRET_KEY: string;
+    METRICS: DurableObjectNamespace;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -24,16 +25,28 @@ app.get('/architecture', async (c) => {
     const dbLatency = Math.round(performance.now() - start);
 
     // 2. Connected Users (Active in last 15 minutes)
+    // 2. Connected Users (Realtime via Metrics DO)
     let connectedUsers = 0;
-    try {
-        const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
-        const result = await db.select({ count: count() })
-            .from(users)
-            .where(gt(users.lastActiveAt, fifteenMinutesAgo))
-            .get();
-        connectedUsers = result?.count || 0;
-    } catch (e) {
-        console.error("Failed to fetch active users", e);
+    if (c.env.METRICS) {
+        try {
+            const doId = c.env.METRICS.idFromName('global');
+            const stub = c.env.METRICS.get(doId);
+            const res = await stub.fetch('http://do/stats');
+            const data: any = await res.json();
+            connectedUsers = data.activeUsers || 0;
+        } catch (e) {
+            console.error("Failed to fetch active users from DO", e);
+        }
+    } else {
+        // Fallback to DB
+        try {
+            const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+            const result = await db.select({ count: count() })
+                .from(users)
+                .where(gt(users.lastActiveAt, fifteenMinutesAgo))
+                .get();
+            connectedUsers = result?.count || 0;
+        } catch (e) { }
     }
 
     // 3. User Geography (Real)

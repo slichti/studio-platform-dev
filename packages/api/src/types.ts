@@ -15,6 +15,8 @@ export interface Bindings {
     ZOOM_ACCOUNT_ID?: string;
     ENVIRONMENT?: string;
     R2: R2Bucket;
+    RATE_LIMITER: DurableObjectNamespace;
+    METRICS: DurableObjectNamespace;
 }
 
 export interface Variables {
@@ -23,6 +25,7 @@ export interface Variables {
     tenant?: typeof tenants.$inferSelect;
     member?: typeof tenantMembers.$inferSelect;
     user?: typeof users.$inferSelect;
+    traceId?: string;
 }
 
 export type HonoContext = {

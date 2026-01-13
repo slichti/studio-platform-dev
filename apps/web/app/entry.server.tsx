@@ -34,6 +34,21 @@ export default async function handleRequest(
         // responseHeaders.set("Clear-Site-Data", '"cache", "cookies", "storage"');
         responseHeaders.set("Cache-Control", "no-cache, no-store, must-revalidate");
 
+        // Content Security Policy
+        const csp = [
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.stripe.com https://*.cloudflare.com https://static.cloudflareinsights.com https://challenges.cloudflare.com",
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+            "font-src 'self' https://fonts.gstatic.com",
+            "img-src 'self' data: https: blob:", // Allow external images (R2, User Content)
+            "connect-src 'self' https: wss:", // Allow API & WebSocket connections
+            "frame-src 'self' https://*.stripe.com https://*.youtube.com https://*.vimeo.com https://challenges.cloudflare.com", // Embeds + Turnstile
+            "base-uri 'self'",
+            "form-action 'self'"
+        ].join('; ');
+
+        responseHeaders.set("Content-Security-Policy", csp);
+
         return new Response(body, {
             headers: responseHeaders,
             status: responseStatusCode,

@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { AccessToken } from 'livekit-server-sdk';
+import { AccessToken, WebhookReceiver } from 'livekit-server-sdk';
 import { createDb } from '../db';
 import { classes, tenantMembers, users } from 'db/src/schema';
 import { eq, and } from 'drizzle-orm';
@@ -50,15 +50,22 @@ app.post('/token', async (c) => {
 
 // Webhook for Room Finished (VOD Automation)
 app.post('/webhook', async (c) => {
-    // Verify Webhook Signature (TODO)
-    const body = await c.req.json();
+    const Receiver = new WebhookReceiver(c.env.LIVEKIT_API_KEY, c.env.LIVEKIT_API_SECRET);
+    const body = await c.req.text();
+    const authHeader = c.req.header('Authorization');
 
-    if (body.event === 'egress_ended' || body.event === 'room_finished') {
-        // Trigger Cloudflare Stream Upload Logic Here
-        console.log("LiveKit Webhook Received:", body);
+    try {
+        const event = await Receiver.receive(body, authHeader);
+
+        if (event.event === 'egress_ended' || event.event === 'room_finished') {
+            // Trigger Cloudflare Stream Upload Logic Here
+            console.log("LiveKit Webhook Received:", event);
+        }
+
+        return c.text('OK');
+    } catch (e) {
+        return c.text('Invalid signature', 401);
     }
-
-    return c.text('OK');
 });
 
 export default app;
