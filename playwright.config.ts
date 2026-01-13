@@ -12,6 +12,12 @@ export default defineConfig({
         baseURL: 'http://localhost:8788',
         trace: 'on-first-retry',
     },
+    webServer: {
+        command: 'cd apps/web && npm run start',
+        port: 8788,
+        reuseExistingServer: !process.env.CI,
+        stdout: 'pipe',
+    },
     projects: [
         {
             name: 'chromium',
