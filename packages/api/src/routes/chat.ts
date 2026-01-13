@@ -2,12 +2,15 @@ import { Hono } from 'hono';
 import { eq, and, desc } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from 'db/src/schema';
+import { authMiddleware } from '../middleware/auth';
 import { tenantMiddleware, requireFeature } from '../middleware/tenant';
 import { EmailService } from '../services/email';
 
 const app = new Hono<{ Bindings: any; Variables: any }>();
 
-// Apply tenant middleware and require chat feature
+// Apply auth & tenant middleware
+// Note: Guest tokens (from /guest/token) are validated by authMiddleware
+app.use('/*', authMiddleware);
 app.use('/*', tenantMiddleware);
 app.use('/*', requireFeature('chat'));
 

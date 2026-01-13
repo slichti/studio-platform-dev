@@ -101,6 +101,7 @@ export const users = sqliteTable('users', {
     stripeCustomerId: text('stripe_customer_id'), // Platform-level Stripe Customer ID
     stripeAccountId: text('stripe_account_id'), // Instructor's Stripe Connect Account ID
     lastActiveAt: integer('last_active_at', { mode: 'timestamp' }), // Timestamp of last API request
+    lastLocation: text('last_location', { mode: 'json' }), // JSON: { city, country, lat, lng }
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     emailIdx: index('email_idx').on(table.email),

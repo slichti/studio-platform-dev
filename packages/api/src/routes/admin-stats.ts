@@ -36,14 +36,36 @@ app.get('/architecture', async (c) => {
         console.error("Failed to fetch active users", e);
     }
 
-    // 3. User Geography (Simulated)
-    const userRegions = [
-        { code: 'US', name: 'United States', count: Math.floor(Math.random() * 500) + 120, lat: 37.0902, lng: -95.7129 },
-        { code: 'GB', name: 'United Kingdom', count: Math.floor(Math.random() * 200) + 50, lat: 55.3781, lng: -3.4360 },
-        { code: 'DE', name: 'Germany', count: Math.floor(Math.random() * 150) + 40, lat: 51.1657, lng: 10.4515 },
-        { code: 'CA', name: 'Canada', count: Math.floor(Math.random() * 100) + 30, lat: 56.1304, lng: -106.3468 },
-        { code: 'AU', name: 'Australia', count: Math.floor(Math.random() * 80) + 20, lat: -25.2744, lng: 133.7751 },
-    ];
+    // 3. User Geography (Real)
+    const activeUsersWithLocation = await db.select({
+        location: users.lastLocation
+    })
+        .from(users)
+        .where(gt(users.lastActiveAt, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))) // Active in last 30 days
+        .all();
+
+    const regionMap = new Map();
+
+    for (const u of activeUsersWithLocation) {
+        const loc = u.location as any;
+        if (loc && loc.country) {
+            const key = loc.country;
+            if (!regionMap.has(key)) {
+                regionMap.set(key, {
+                    code: loc.country,
+                    name: loc.country, // Full name if available, else code
+                    count: 0,
+                    lat: loc.lat || 0,
+                    lng: loc.lng || 0
+                });
+            }
+            regionMap.get(key).count++;
+        }
+    }
+
+    const userRegions = Array.from(regionMap.values())
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
 
     // 4. Tenant Count
     let tenantCount = 0;

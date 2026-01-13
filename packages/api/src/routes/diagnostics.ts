@@ -4,13 +4,27 @@ import { sql, eq, desc } from 'drizzle-orm';
 import { auditLogs } from 'db/src/schema';
 import type { HonoContext } from '../types';
 
+import { authMiddleware } from '../middleware/auth';
+import { users } from 'db/src/schema';
+
 const diagnostics = new Hono<HonoContext>();
 
-// Protected by Auth & Tenant middleware (inherit from mount point or add explicitly if needed)
-// Assuming this will be mounted under /tenant or similar, or we can make it standalone /admin/diagnostics
+// Protect: Auth required
+diagnostics.use('*', authMiddleware);
 
 diagnostics.get('/', async (c) => {
     const db = createDb(c.env.DB);
+    const userId = c.get('auth').userId;
+
+    // Strict Check: System Admin Only
+    const user = await db.query.users.findFirst({
+        where: eq(users.id, userId as string)
+    });
+
+    if (!user || !user.isSystemAdmin) {
+        return c.json({ error: "Unauthorized" }, 403);
+    }
+
     const start = performance.now();
 
     // 1. Check Database Latency (Read)

@@ -2,11 +2,13 @@ import { Hono } from 'hono';
 import { eq, and } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from 'db/src/schema';
+import { authMiddleware } from '../middleware/auth';
 import { tenantMiddleware, requireFeature } from '../middleware/tenant';
 
 const app = new Hono<{ Bindings: any; Variables: any }>();
 
-// Apply tenant middleware and require website_builder feature
+// Apply auth & tenant middleware
+app.use('/*', authMiddleware);
 app.use('/*', tenantMiddleware);
 app.use('/*', requireFeature('website_builder'));
 

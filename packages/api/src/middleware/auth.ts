@@ -100,16 +100,20 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables, Bindi
             c.executionCtx.waitUntil((async () => {
                 try {
                     const db = createDb(c.env.DB);
-
-                    // Throttle: Only update if older than 5 minutes or null
-                    // Optimization: We can just blind update if we don't care about read cost vs write cost.
-                    // But checking first is better for write-heavy D1 pricing? 
-                    // Actually D1 reads are cheap/free, writes are paid.
-                    // Let's just update. It's simpler for now. Or better: use WHERE clause to limit writes?
-                    // "UPDATE users SET last_active = NOW WHERE id = X AND (last_active IS NULL OR last_active < NOW - 5min)"
+                    const cf = (c.req.raw as any).cf;
+                    const location = cf ? {
+                        city: cf.city,
+                        country: cf.country,
+                        region: cf.region,
+                        lat: cf.latitude,
+                        lng: cf.longitude
+                    } : null;
 
                     await db.update(users)
-                        .set({ lastActiveAt: new Date() })
+                        .set({
+                            lastActiveAt: new Date(),
+                            lastLocation: location
+                        })
                         .where(
                             eq(users.id, userId)
                         )
@@ -154,7 +158,7 @@ export const optionalAuthMiddleware = createMiddleware<{ Variables: AuthVariable
                 c.set('isImpersonating', true);
                 return await next();
             }
-        } catch (ignore) {}
+        } catch (ignore) { }
 
         // 3. Clerk Verification (RS256)
         let publicKey = (c.env as any).CLERK_PEM_PUBLIC_KEY;

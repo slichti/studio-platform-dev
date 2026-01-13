@@ -281,6 +281,13 @@
       "when": 1768221552254,
       "tag": "0039_needy_mystique",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1768273335089,
+      "tag": "0040_old_ikaris",
+      "breakpoints": true
     }
   ]
 }
