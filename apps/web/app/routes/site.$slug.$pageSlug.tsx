@@ -57,6 +57,7 @@ export default function WebsitePage() {
                     page.tenantSettings?.chatEnabled !== false &&
                     page.content?.root?.props?.chatEnabled !== false
                 }
+                chatConfig={page.tenantSettings?.chatConfig}
             />
 
             <SignedIn>

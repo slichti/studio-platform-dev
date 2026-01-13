@@ -35,7 +35,8 @@ import {
     Film,
     Image as ImageIcon,
     Database,
-    Smartphone
+    Smartphone,
+    MessageSquare
 } from "lucide-react";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { CommandBar } from "../components/CommandBar";
@@ -214,6 +215,7 @@ export default function StudioLayout() {
                                     <NavItem to={`/studio/${slug}/settings/mobile-app`} icon={<Smartphone size={18} />}>Mobile App</NavItem>
                                 )}
                                 <NavItem to={`/studio/${slug}/settings/integrations`} icon={<Terminal size={18} />}>Integrations</NavItem>
+                                <NavItem to={`/studio/${slug}/settings/chat`} icon={<MessageSquare size={18} />}>Chat Settings</NavItem>
                                 <NavItem to={`/studio/${slug}/data`} icon={<Database size={18} />}>Data</NavItem>
                                 <NavItem to={`/studio/${slug}/settings`} end icon={<Settings size={18} />}>Settings</NavItem>
                             </SidebarGroup>
@@ -340,6 +342,7 @@ export default function StudioLayout() {
                 userId={me.id}
                 userName={`${me.firstName} ${me.lastName}`}
                 enabled={!isStudentView || tenant.settings?.chatEnabled !== false}
+                chatConfig={isStudentView ? tenant.settings?.chatConfig : undefined}
             />
         </div>
     );

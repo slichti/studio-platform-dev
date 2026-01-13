@@ -11,16 +11,28 @@ interface ChatMessage {
     timestamp: number;
 }
 
+interface ChatOption {
+    id: string;
+    label: string;
+    type: "action" | "menu";
+    children?: ChatOption[];
+    actionType?: "message" | "link";
+    payload?: string;
+    routeToRole?: "owner" | "admin" | "instructor" | "support";
+    autoReply?: string;
+}
+
 interface ChatWidgetProps {
     roomId: string;
-    tenantId: string; // The tenant to connect to (e.g. 'platform' or specific studio slug)
+    tenantId: string;
     userId?: string;
     userName?: string;
     apiUrl?: string;
-    enabled?: boolean; // Control visibility
+    enabled?: boolean;
+    chatConfig?: ChatOption[]; // Dynamic configuration
 }
 
-export function ChatWidget({ roomId, tenantId, userId, userName, apiUrl = "", enabled = true }: ChatWidgetProps) {
+export function ChatWidget({ roomId, tenantId, userId, userName, apiUrl = "", enabled = true, chatConfig }: ChatWidgetProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputValue, setInputValue] = useState("");
@@ -129,18 +141,19 @@ export function ChatWidget({ roomId, tenantId, userId, userName, apiUrl = "", en
 
     const [unreadCount, setUnreadCount] = useState(0);
 
-    const instantAnswers = [
-        "Track my order",
-        "What are your shipping details?",
-        "What is your shipping time?",
-        "What is your contact info?"
+    // Fallback instant answers if no config provided
+    const defaultInstantAnswers = [
+        "I have a question",
+        "Contact support",
+        "Billing inquiry"
     ];
 
-    const sendInstantAnswer = (answer: string) => {
+    const sendInstantAnswer = (answer: string, routeToRole?: string) => {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
         wsRef.current.send(JSON.stringify({
             type: "message",
             content: answer,
+            metadata: routeToRole ? { routedRole: routeToRole } : undefined
         }));
     };
 
@@ -199,18 +212,18 @@ export function ChatWidget({ roomId, tenantId, userId, userName, apiUrl = "", en
                                     </div>
                                 ))}
 
-                                {/* Instant Answers (Only show if no messages or user wants them? Screenshot shows them present) */}
+                                {/* Instant Answers / Decision Tree */}
                                 {messages.length === 0 && (
                                     <div className="space-y-2 mt-4">
-                                        <p className="text-xs font-semibold text-zinc-500 mb-2 uppercase tracking-wide">Instant answers</p>
-                                        {instantAnswers.map((answer) => (
+                                        <p className="text-xs font-semibold text-zinc-500 mb-2 uppercase tracking-wide">How can we help?</p>
+                                        {(chatConfig && chatConfig.length > 0 ? chatConfig : defaultInstantAnswers.map(a => ({ id: a, label: a, type: 'action' as const }))).map((option: any) => (
                                             <button
-                                                key={answer}
-                                                onClick={() => sendInstantAnswer(answer)}
+                                                key={option.id || option.label}
+                                                onClick={() => sendInstantAnswer(option.label, option.routeToRole)}
                                                 disabled={!connected}
                                                 className="w-full text-left p-3 rounded-xl border border-zinc-200 text-sm text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300 transition-colors bg-white shadow-sm"
                                             >
-                                                {answer}
+                                                {option.label}
                                             </button>
                                         ))}
                                     </div>
