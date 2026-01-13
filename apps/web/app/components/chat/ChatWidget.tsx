@@ -131,7 +131,7 @@ export function ChatWidget({ roomId, tenantSlug, userId, userName, apiUrl = "" }
             {/* Floating Button */}
             <button
                 onClick={() => { setIsOpen(!isOpen); setShowBadge(false); }}
-                className="fixed bottom-6 right-6 w-14 h-14 bg-[#F2542D] text-white rounded-full shadow-lg hover:opacity-90 transition flex items-center justify-center z-50"
+                className="fixed bottom-6 right-6 w-14 h-14 bg-[#2563EB] text-white rounded-full shadow-lg hover:opacity-90 transition flex items-center justify-center z-50"
             >
                 {isOpen ? <X size={24} /> : <MessageCircle size={24} />}
                 {showBadge && !isOpen && (
@@ -145,7 +145,7 @@ export function ChatWidget({ roomId, tenantSlug, userId, userName, apiUrl = "" }
             {isOpen && (
                 <div className="fixed bottom-24 right-6 w-[380px] h-[600px] bg-white rounded-xl shadow-2xl border border-zinc-200 flex flex-col z-50 overflow-hidden font-sans">
                     {/* Header */}
-                    <div className="bg-[#F2542D] text-white px-6 py-6 pb-12 relative overflow-hidden">
+                    <div className="bg-[#2563EB] text-white px-6 py-6 pb-12 relative overflow-hidden">
                         <div className="relative z-10">
                             <h2 className="text-xl font-bold mb-2">Chat with us</h2>
                             <p className="text-white/90 text-sm leading-relaxed">
@@ -169,7 +169,7 @@ export function ChatWidget({ roomId, tenantSlug, userId, userName, apiUrl = "" }
                                 >
                                     <div
                                         className={`max-w-[85%] p-3 rounded-2xl text-sm ${msg.userId === userId
-                                            ? 'bg-[#F2542D] text-white rounded-br-sm'
+                                            ? 'bg-[#2563EB] text-white rounded-br-sm'
                                             : 'bg-gray-100 text-zinc-900 rounded-bl-sm'
                                             }`}
                                     >
@@ -213,7 +213,7 @@ export function ChatWidget({ roomId, tenantSlug, userId, userName, apiUrl = "" }
                             <button
                                 onClick={sendMessage}
                                 disabled={!connected || !inputValue.trim()}
-                                className="absolute right-2 p-2 text-zinc-400 hover:text-[#F2542D] transition-colors disabled:opacity-50"
+                                className="absolute right-2 p-2 text-zinc-400 hover:text-[#2563EB] transition-colors disabled:opacity-50"
                             >
                                 <Send size={20} />
                             </button>
