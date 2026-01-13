@@ -1366,8 +1366,19 @@ app.delete('/videos/:id', async (c) => {
     const videoId = c.req.param('id');
     const auth = c.get('auth');
 
-    // TODO: Verify R2 deletion logic (usually handled by R2 bucket lifecycle or explicit delete from backend)
-    // For now, we delete the metadata.
+    // Verify R2 deletion logic
+    const video = await db.query.videos.findFirst({
+        where: eq(videos.id, videoId)
+    });
+
+    if (video?.r2Key) {
+        try {
+            await c.env.R2.delete(video.r2Key);
+            console.log(`Deleted R2 object: ${video.r2Key}`);
+        } catch (e) {
+            console.error(`Failed to delete R2 object ${video.r2Key}`, e);
+        }
+    }
 
     await db.delete(videos).where(eq(videos.id, videoId)).run();
 

@@ -14,6 +14,7 @@ export interface Bindings {
     STRIPE_SECRET_KEY?: string;
     ZOOM_ACCOUNT_ID?: string;
     ENVIRONMENT?: string;
+    R2: R2Bucket;
 }
 
 export interface Variables {

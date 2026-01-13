@@ -44,7 +44,9 @@ export class EmailService {
             this.fromEmail = `no-reply@${domainConfig.slug}.studio-platform.com`;
         } else {
             // Default Fallback
-            this.fromEmail = 'noreply@studio-platform.com'; // TODO: Update to real domain
+            // Use configurable env var if available, else standard fallback
+            const platformDomain = (domainConfig as any)?.platformDomain || 'studio-platform.com';
+            this.fromEmail = `noreply@${platformDomain}`;
         }
     }
 
