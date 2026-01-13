@@ -14,8 +14,8 @@ interface ChatMessage {
 interface ChatWidgetProps {
     roomId: string;
     tenantSlug: string;
-    userId: string;
-    userName: string;
+    userId?: string;
+    userName?: string;
     apiUrl?: string;
 }
 
@@ -27,6 +27,10 @@ export function ChatWidget({ roomId, tenantSlug, userId, userName, apiUrl = "" }
     const [users, setUsers] = useState<{ userId: string; userName: string }[]>([]);
     const wsRef = useRef<WebSocket | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const [guestId] = useState(() => `guest_${Math.random().toString(36).substr(2, 9)}`);
+
+    const effectiveUserId = userId || guestId;
+    const effectiveUserName = userName || "Guest";
 
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -40,7 +44,12 @@ export function ChatWidget({ roomId, tenantSlug, userId, userName, apiUrl = "" }
     useEffect(() => {
         if (!isOpen || connected) return;
 
-        const wsUrl = `${apiUrl.replace('https://', 'wss://').replace('http://', 'ws://')}/chat/rooms/${roomId}/websocket?roomId=${roomId}&tenantId=${tenantSlug}&userId=${userId}&userName=${encodeURIComponent(userName)}`;
+        // Use window.location.origin if apiUrl is not provided
+        const baseUrl = apiUrl || (typeof window !== 'undefined' ? window.location.origin : '');
+        const wsProtocol = baseUrl.startsWith('https') ? 'wss://' : 'ws://';
+        const wsHost = baseUrl.replace(/^http(s)?:\/\//, '');
+
+        const wsUrl = `${wsProtocol}${wsHost}/api/chat/rooms/${roomId}/websocket?roomId=${roomId}&tenantId=${tenantSlug}&userId=${effectiveUserId}&userName=${encodeURIComponent(effectiveUserName)}`;
 
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;

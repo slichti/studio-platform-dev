@@ -63,7 +63,7 @@ export default function App() {
 
     return (
         <ClerkProvider loaderData={loaderData} signUpFallbackRedirectUrl="/" signInFallbackRedirectUrl="/dashboard">
-            <ThemeProvider defaultTheme="system" storageKey="studio-theme">
+            <ThemeProvider defaultTheme="light" storageKey="studio-theme">
                 <html lang="en">
                     <head>
                         <meta charSet="utf-8" />

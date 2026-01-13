@@ -42,6 +42,7 @@ import { CommandBar } from "../components/CommandBar";
 import { SidebarGroup } from "../components/SidebarGroup";
 import { useClerk } from "@clerk/react-router";
 import { ImpersonationBanner } from "../components/ImpersonationBanner";
+import { ChatWidget } from "../components/chat/ChatWidget";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { params, request } = args;
@@ -333,6 +334,12 @@ export default function StudioLayout() {
                     </>
                 )}
             </main>
+            <ChatWidget
+                roomId={`support-${me.id}`}
+                tenantSlug={slug || ""}
+                userId={me.id}
+                userName={`${me.firstName} ${me.lastName}`}
+            />
         </div>
     );
 }

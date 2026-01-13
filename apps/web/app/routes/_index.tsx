@@ -4,6 +4,7 @@ import type { MetaFunction } from "react-router";
 import { Link } from "react-router";
 import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/react-router";
 import { ThemeToggle } from "~/components/ThemeToggle";
+import { ChatWidget } from "~/components/chat/ChatWidget";
 
 export default function Index() {
     const { user } = useUser();
@@ -144,6 +145,12 @@ export default function Index() {
                     </div>
                 </div>
             </div>
+            <ChatWidget
+                roomId={user ? `support-${user.id}` : "support-guest"}
+                tenantSlug="public"
+                userId={user?.id}
+                userName={user?.fullName || "Guest"}
+            />
         </div >
     );
 }
