@@ -1,0 +1,1 @@
+import{p as e,j as t,bq as n}from"./vendor-react-D59Q0YKK.js";import"./vendor-puck-RN2Ey-av.js";import"./vendor-charts-Dp-zC2wb.js";const r=e(function(){return t.jsx("div",{style:{display:"flex",justifyContent:"center",alignItems:"center",height:"100vh"},children:t.jsx(n,{})})});export{r as default};

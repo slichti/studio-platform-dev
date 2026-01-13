@@ -70,6 +70,7 @@ export default function EmbedChat() {
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [message, setMessage] = useState("");
+    const [selectedRoutedRole, setSelectedRoutedRole] = useState<string | null>(null);
 
     useEffect(() => {
         // Restore session
@@ -119,7 +120,8 @@ export default function EmbedChat() {
                     name: `Support: ${name}`,
                     customer_email: email,
                     metadata: { source: 'widget', initialMessage: message },
-                    priority: 'normal'
+                    priority: 'normal',
+                    routedRole: selectedRoutedRole || undefined
                 })
             });
 
@@ -197,6 +199,24 @@ export default function EmbedChat() {
                                 onChange={(e) => setEmail(e.target.value)}
                             />
                         </div>
+                        {/* Routing Options - populated from chatConfig.options if available */}
+                        {tenant?.settings?.chatConfig && Array.isArray(tenant.settings.chatConfig) && tenant.settings.chatConfig.length > 0 && (
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 mb-1">Topic</label>
+                                <select
+                                    className="w-full border border-zinc-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                    value={selectedRoutedRole || ''}
+                                    onChange={(e) => setSelectedRoutedRole(e.target.value || null)}
+                                >
+                                    <option value="">Select a topic...</option>
+                                    {(tenant.settings.chatConfig as any[]).map((opt: any) => (
+                                        <option key={opt.id} value={opt.routeToRole || ''}>
+                                            {opt.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                         <div>
                             <label className="block text-sm font-medium text-zinc-700 mb-1">Message</label>
                             <textarea

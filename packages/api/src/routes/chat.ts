@@ -16,22 +16,32 @@ app.use('/*', requireFeature('chat'));
 
 // --- Chat Rooms ---
 
-// List rooms for tenant (filtered by type optionally)
+// List rooms for tenant (filtered by type and/or routedRole)
 app.get('/rooms', async (c) => {
     const db = drizzle(c.env.DB, { schema });
     const tenant = c.get('tenant');
     const tenantId = tenant?.id;
     if (!tenantId) return c.json({ error: 'Tenant context missing' }, 500);
     const type = c.req.query('type');
+    const routedRole = c.req.query('routedRole');
 
-    let query = db.query.chatRooms.findMany({
+    // Build base query
+    const rooms = await db.query.chatRooms.findMany({
         where: type
             ? and(eq(schema.chatRooms.tenantId, tenantId), eq(schema.chatRooms.type, type as any))
             : eq(schema.chatRooms.tenantId, tenantId),
         orderBy: (rooms: any, { desc }: any) => [desc(rooms.createdAt)],
     });
 
-    const rooms = await query;
+    // Filter by routedRole in metadata (post-filter since it's JSON)
+    if (routedRole) {
+        const filtered = rooms.filter((room: any) => {
+            const meta = room.metadata || {};
+            return meta.routedRole === routedRole;
+        });
+        return c.json(filtered);
+    }
+
     return c.json(rooms);
 });
 
@@ -69,6 +79,7 @@ app.post('/rooms', async (c) => {
         metadata?: any;
         priority?: 'low' | 'normal' | 'high' | 'urgent';
         customer_email?: string;
+        routedRole?: 'admin' | 'instructor' | 'owner' | 'support';
     }>();
 
     if (!body.type || !body.name) {
@@ -76,12 +87,17 @@ app.post('/rooms', async (c) => {
     }
 
     const id = crypto.randomUUID();
+    // Merge routedRole into metadata if provided
+    const metadata = {
+        ...(body.metadata || {}),
+        ...(body.routedRole ? { routedRole: body.routedRole } : {}),
+    };
     await db.insert(schema.chatRooms).values({
         id,
         tenantId,
         type: body.type,
         name: body.name,
-        metadata: body.metadata,
+        metadata: Object.keys(metadata).length > 0 ? metadata : null,
         priority: body.priority || 'normal',
         customerEmail: body.customer_email,
         isArchived: false,

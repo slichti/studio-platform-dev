@@ -61,6 +61,8 @@ export default function StudioChat() {
         setChatConfig({ ...chatConfig, schedule: newSchedule });
     };
 
+    const [roleFilter, setRoleFilter] = useState<string>('all');
+
     if (error) {
         return <div className="p-8 text-red-600">Error: {error}</div>;
     }
@@ -68,6 +70,11 @@ export default function StudioChat() {
     // Classify rooms
     const customerChats = rooms.filter((r: any) => r.metadata?.source === 'widget' || r.customerEmail);
     const platformTickets = rooms.filter((r: any) => !r.customerEmail && r.metadata?.source !== 'widget');
+
+    // Apply role filter
+    const filteredCustomerChats = roleFilter === 'all'
+        ? customerChats
+        : customerChats.filter((r: any) => r.metadata?.routedRole === roleFilter);
 
     return (
         <div className="p-8 max-w-6xl mx-auto h-full flex flex-col">
@@ -170,15 +177,28 @@ export default function StudioChat() {
                             <User size={18} className="text-blue-600" />
                             Customer Inquiries
                         </h2>
-                        <span className="text-xs bg-zinc-200 text-zinc-600 px-2 py-0.5 rounded-full">{customerChats.length}</span>
+                        <div className="flex items-center gap-2">
+                            <select
+                                value={roleFilter}
+                                onChange={(e) => setRoleFilter(e.target.value)}
+                                className="text-xs border border-zinc-200 rounded px-2 py-1"
+                            >
+                                <option value="all">All</option>
+                                <option value="owner">Owner</option>
+                                <option value="admin">Admin</option>
+                                <option value="instructor">Instructor</option>
+                                <option value="support">Support</option>
+                            </select>
+                            <span className="text-xs bg-zinc-200 text-zinc-600 px-2 py-0.5 rounded-full">{filteredCustomerChats.length}</span>
+                        </div>
                     </div>
                     <div className="flex-1 overflow-y-auto divide-y divide-zinc-100">
-                        {customerChats.length === 0 ? (
+                        {filteredCustomerChats.length === 0 ? (
                             <div className="p-8 text-center text-zinc-500 text-sm">
-                                No customer messages yet.
+                                {roleFilter === 'all' ? 'No customer messages yet.' : `No messages routed to ${roleFilter}.`}
                             </div>
                         ) : (
-                            customerChats.map((room: any) => (
+                            filteredCustomerChats.map((room: any) => (
                                 <Link
                                     key={room.id}
                                     to={`/studio/${slug}/chat/${room.id}`}
@@ -195,6 +215,11 @@ export default function StudioChat() {
                                             }`}>
                                             {room.status || 'open'}
                                         </span>
+                                        {room.metadata?.routedRole && (
+                                            <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 capitalize">
+                                                → {room.metadata.routedRole}
+                                            </span>
+                                        )}
                                     </div>
                                 </Link>
                             ))

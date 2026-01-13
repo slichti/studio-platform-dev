@@ -85,12 +85,14 @@ type Variables = {
 };
 
 import { traceMiddleware } from './middleware/trace';
+import { sentryMiddleware } from './middleware/sentry';
 
 // ...
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>()
 
 app.use('*', traceMiddleware);
+app.use('*', sentryMiddleware()); // [NEW] Sentry error tracking
 app.use('*', rateLimitMiddleware(300, 60)); // [NEW] Global Rate Limit: 300 req/min
 app.use('*', logger((str, ...rest) => {
   // Custom logger wrapper could go here, but Hono logger is simple.
