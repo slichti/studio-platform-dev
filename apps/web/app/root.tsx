@@ -64,7 +64,7 @@ export default function App() {
     return (
         <ClerkProvider loaderData={loaderData} signUpFallbackRedirectUrl="/" signInFallbackRedirectUrl="/dashboard">
             <ThemeProvider defaultTheme="light" storageKey="studio-theme">
-                <html lang="en">
+                <html lang="en" suppressHydrationWarning>
                     <head>
                         <meta charSet="utf-8" />
                         <Meta />
@@ -96,7 +96,7 @@ export default function App() {
                             }
                         `}} />
                     </head>
-                    <body className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 font-sans antialiased selection:bg-blue-100 dark:selection:bg-blue-900">
+                    <body className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 font-sans antialiased selection:bg-blue-100 dark:selection:bg-blue-900" suppressHydrationWarning>
                         <Outlet />
                         <ScrollRestoration />
                         <Scripts />
