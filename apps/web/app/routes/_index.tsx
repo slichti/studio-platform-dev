@@ -147,7 +147,7 @@ export default function Index() {
             </div>
             <ChatWidget
                 roomId={user ? `support-${user.id}` : "support-guest"}
-                tenantSlug="public"
+                tenantId="platform"
                 userId={user?.id}
                 userName={user?.fullName || "Guest"}
             />

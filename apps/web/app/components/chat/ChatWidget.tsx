@@ -13,13 +13,14 @@ interface ChatMessage {
 
 interface ChatWidgetProps {
     roomId: string;
-    tenantSlug: string;
+    tenantId: string; // The tenant to connect to (e.g. 'platform' or specific studio slug)
     userId?: string;
     userName?: string;
     apiUrl?: string;
+    enabled?: boolean; // Control visibility
 }
 
-export function ChatWidget({ roomId, tenantSlug, userId, userName, apiUrl = "" }: ChatWidgetProps) {
+export function ChatWidget({ roomId, tenantId, userId, userName, apiUrl = "", enabled = true }: ChatWidgetProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputValue, setInputValue] = useState("");
@@ -49,7 +50,7 @@ export function ChatWidget({ roomId, tenantSlug, userId, userName, apiUrl = "" }
         const wsProtocol = baseUrl.startsWith('https') ? 'wss://' : 'ws://';
         const wsHost = baseUrl.replace(/^http(s)?:\/\//, '');
 
-        const wsUrl = `${wsProtocol}${wsHost}/api/chat/rooms/${roomId}/websocket?roomId=${roomId}&tenantId=${tenantSlug}&userId=${effectiveUserId}&userName=${encodeURIComponent(effectiveUserName)}`;
+        const wsUrl = `${wsProtocol}${wsHost}/api/chat/rooms/${roomId}/websocket?roomId=${roomId}&tenantId=${tenantId}&userId=${effectiveUserId}&userName=${encodeURIComponent(effectiveUserName)}`;
 
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
@@ -98,7 +99,7 @@ export function ChatWidget({ roomId, tenantSlug, userId, userName, apiUrl = "" }
             ws.close();
             wsRef.current = null;
         };
-    }, [isOpen, roomId, tenantSlug, userId, userName, apiUrl]);
+    }, [isOpen, roomId, tenantId, userId, userName, apiUrl]);
 
     const sendMessage = () => {
         if (!inputValue.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
@@ -134,6 +135,8 @@ export function ChatWidget({ roomId, tenantSlug, userId, userName, apiUrl = "" }
             content: answer,
         }));
     };
+
+    if (!enabled) return null;
 
     return (
         <>

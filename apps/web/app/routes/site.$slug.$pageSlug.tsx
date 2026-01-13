@@ -50,9 +50,10 @@ export default function WebsitePage() {
 
             <ChatWidget
                 roomId={user ? `support-${user.id}` : "support-guest"}
-                tenantSlug={tenantSlug || ""}
+                tenantId={tenantSlug || ""}
                 userId={user?.id}
                 userName={user?.fullName || "Guest"}
+                enabled={true} // TODO: Connect to page.chatEnabled or tenant.features.chat
             />
 
             <SignedIn>

@@ -336,7 +336,7 @@ export default function StudioLayout() {
             </main>
             <ChatWidget
                 roomId={`support-${me.id}`}
-                tenantSlug={slug || ""}
+                tenantId={isStudentView ? (slug || "") : "platform"}
                 userId={me.id}
                 userName={`${me.firstName} ${me.lastName}`}
             />
