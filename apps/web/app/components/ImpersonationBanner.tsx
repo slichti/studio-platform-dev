@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Users, LogOut, ChevronDown, Check } from 'lucide-react';
 import { Menu } from '@headlessui/react';
+import { useClerk } from '@clerk/react-router';
 // @ts-ignore
 import { useSubmit } from "react-router";
 
@@ -13,6 +14,7 @@ interface ImpersonationBannerProps {
 
 export function ImpersonationBanner({ tenantName, userName, currentRole }: { tenantName: string, userName: string, currentRole: string }) {
     const roles = ['owner', 'instructor', 'student'];
+    const { signOut } = useClerk();
 
     const handleRoleChange = (role: string) => {
         // Set cookie
@@ -20,12 +22,13 @@ export function ImpersonationBanner({ tenantName, userName, currentRole }: { ten
         window.location.reload();
     };
 
-    const handleExit = () => {
-        // Clear all
+    const handleExit = async () => {
+        // Clear impersonation cookies
         localStorage.removeItem("impersonation_token");
         document.cookie = "__impersonate_token=; path=/; max-age=0; SameSite=Lax";
         document.cookie = "__impersonate_role=; path=/; max-age=0; SameSite=Lax";
-        window.location.href = "/admin/users";
+        // Perform full Clerk logout
+        await signOut({ redirectUrl: "/admin/users" });
     };
 
     // Determine banner color/style based on role
