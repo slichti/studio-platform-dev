@@ -115,7 +115,8 @@ app.put('/:id/integrations', async (c) => {
         twilioFromNumber,
         zoomAccountId,
         zoomClientId,
-        zoomClientSecret
+        zoomClientSecret,
+        chatEnabled // Feature flag
     } = body;
 
     // [SECURITY] VERIFY OWNERSHIP (IDOR Fix)
@@ -254,6 +255,18 @@ app.put('/:id/integrations', async (c) => {
         updateData.slackCredentials = {
             webhookUrl: slackWebhookUrl,
             botToken: encryptedToken
+        };
+    }
+
+    // 9. Chat Feature
+    if (chatEnabled !== undefined) {
+        // Fetch current settings to merge
+        const currentTenant = await db.select().from(tenants).where(eq(tenants.id, id)).get();
+        const currentSettings = (currentTenant?.settings as any) || {};
+
+        updateData.settings = {
+            ...currentSettings,
+            chatEnabled: chatEnabled
         };
     }
 

@@ -160,6 +160,23 @@ const MapSection = ({ title, address }: any) => {
 // --- Puck Config Export ---
 
 export const puckConfig: Config = {
+    root: {
+        fields: {
+            title: { type: "text", label: "Page Title" }, // Useful to edit title inline too
+            chatEnabled: {
+                type: "radio",
+                label: "Chat Widget",
+                options: [
+                    { label: "Enabled", value: true },
+                    { label: "Disabled", value: false },
+                ],
+            },
+        },
+        defaultProps: {
+            title: "New Page",
+            chatEnabled: true,
+        },
+    },
     components: {
         Hero: {
             label: "Hero Section",

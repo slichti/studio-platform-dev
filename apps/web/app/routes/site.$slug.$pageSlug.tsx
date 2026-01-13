@@ -53,7 +53,10 @@ export default function WebsitePage() {
                 tenantId={tenantSlug || ""}
                 userId={user?.id}
                 userName={user?.fullName || "Guest"}
-                enabled={true} // TODO: Connect to page.chatEnabled or tenant.features.chat
+                enabled={
+                    page.tenantSettings?.chatEnabled !== false &&
+                    page.content?.root?.props?.chatEnabled !== false
+                }
             />
 
             <SignedIn>

@@ -32,7 +32,11 @@ new_sqlite_classes = ["RateLimiter"]
 
 [[migrations]]
 tag = "v3"
-new_classes = ["Metrics"]
+new_classes = [] 
+
+[[migrations]]
+tag = "v4"
+new_sqlite_classes = ["Metrics"]
 
 [triggers]
 crons = ["*/15 * * * *"]

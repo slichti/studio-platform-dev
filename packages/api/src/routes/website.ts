@@ -44,7 +44,10 @@ app.get('/pages/:slug', async (c) => {
         return c.json({ error: 'Page not found' }, 404);
     }
 
-    return c.json(page);
+    const tenant = c.get('tenant');
+    const settings = (tenant?.settings as any) || {};
+
+    return c.json({ ...page, tenantSettings: settings });
 });
 
 // Create new page

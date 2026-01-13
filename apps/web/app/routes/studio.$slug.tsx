@@ -339,6 +339,7 @@ export default function StudioLayout() {
                 tenantId={isStudentView ? (slug || "") : "platform"}
                 userId={me.id}
                 userName={`${me.firstName} ${me.lastName}`}
+                enabled={!isStudentView || tenant.settings?.chatEnabled !== false}
             />
         </div>
     );

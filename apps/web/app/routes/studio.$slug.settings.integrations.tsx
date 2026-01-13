@@ -34,7 +34,7 @@ export default function IntegrationsPage() {
         try {
             const token = (window as any).Clerk?.session?.getToken ? await (window as any).Clerk.session.getToken() : localStorage.getItem('token');
             // apiRequest handles token if passed
-            
+
             const [webhooksData, credsData] = await Promise.all([
                 apiRequest("/integrations/webhooks", token, { headers: { 'X-Tenant-Slug': slug || '' } }),
                 apiRequest("/integrations/credentials", token, { headers: { 'X-Tenant-Slug': slug || '' } })
@@ -42,7 +42,7 @@ export default function IntegrationsPage() {
 
             setEndpoints((webhooksData as any).endpoints || []);
             setCredentials(credsData);
-            
+
             // Pre-fill forms (only public parts)
             setTwilioForm({
                 accountSid: (credsData as any).twilio?.accountSid || '',
@@ -63,7 +63,7 @@ export default function IntegrationsPage() {
         setSaving(true);
         try {
             const token = await (window as any).Clerk?.session?.getToken();
-            
+
             // Using logic discussed: Developers page was using PATCH /integrations/credentials
             // Since we are refactoring, we'll stick to that if it works, or switch to the one that `updateIntegration` uses.
             // The previous code had a comment block about confusion. 
@@ -297,6 +297,32 @@ export default function IntegrationsPage() {
                         </div>
                     </form>
                 </div>
+
+                {/* Chat Widget */}
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-5 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                            <MessageSquare className="h-4 w-4" /> Customer Support Chat
+                        </h3>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${tenant.settings?.chatEnabled !== false ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
+                            {tenant.settings?.chatEnabled !== false ? 'Enabled' : 'Disabled'}
+                        </span>
+                    </div>
+                    <p className="text-xs text-zinc-500 mb-3">Allow students to chat with you directly from your website and portal.</p>
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => {
+                                const isEnabled = tenant.settings?.chatEnabled !== false;
+                                if (confirm(isEnabled ? "Disable chat widget for your studio?" : "Enable chat widget for your studio?")) {
+                                    updateIntegration({ chatEnabled: !isEnabled });
+                                }
+                            }}
+                            className={`px-3 py-2 text-xs font-medium rounded border ${tenant.settings?.chatEnabled !== false ? 'bg-zinc-50 border-zinc-300 text-zinc-700' : 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700'}`}
+                        >
+                            {tenant.settings?.chatEnabled !== false ? 'Disable Chat' : 'Enable Chat'}
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {/* --- SECTION 2: DEVELOPER TOOLS (FROM DEVELOPERS) --- */}
@@ -435,7 +461,7 @@ export default function IntegrationsPage() {
                                         Disconnect
                                     </button>
                                 ) : (
-                                <a
+                                    <a
                                         href={`${import.meta.env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev"}/studios/google/connect?tenantId=${tenant.id}`}
                                         className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
                                     >
