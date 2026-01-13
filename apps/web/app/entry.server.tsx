@@ -38,8 +38,8 @@ export default async function handleRequest(
         const csp = [
             "default-src 'self'",
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.stripe.com https://*.cloudflare.com https://static.cloudflareinsights.com https://challenges.cloudflare.com https://*.clerk.accounts.dev https://*.clerk.com",
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-            "font-src 'self' https://fonts.gstatic.com",
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://rsms.me",
+            "font-src 'self' https://fonts.gstatic.com https://rsms.me",
             "img-src 'self' data: https: blob:", // Allow external images (R2, User Content)
             "connect-src 'self' https: wss:", // Allow API & WebSocket connections
             "frame-src 'self' https://*.stripe.com https://*.youtube.com https://*.vimeo.com https://challenges.cloudflare.com https://*.clerk.accounts.dev https://*.clerk.com", // Embeds + Turnstile + Clerk

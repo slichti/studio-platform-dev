@@ -16,26 +16,19 @@ export default defineConfig({
                 manualChunks: (id) => {
                     // Split heavy vendor libraries into separate chunks
                     if (id.includes('node_modules')) {
-                        // Recharts and D3 (charts)
-                        if (id.includes('recharts') || id.includes('d3-')) {
-                            return 'vendor-charts';
-                        }
-                        // LiveKit (video)
+                        // LiveKit (video) - large, rarely used
                         if (id.includes('livekit')) {
                             return 'vendor-livekit';
                         }
-                        // Puck editor
+                        // Puck editor - only used in website editor
                         if (id.includes('@measured/puck')) {
                             return 'vendor-puck';
                         }
-                        // Sentry
+                        // Sentry - only for error tracking
                         if (id.includes('@sentry')) {
                             return 'vendor-sentry';
                         }
-                        // React core - keep together
-                        if (id.includes('react') || id.includes('react-dom')) {
-                            return 'vendor-react';
-                        }
+                        // Note: Removed vendor-react and vendor-charts to avoid dependency order issues
                     }
                     // Default chunking
                     return undefined;
