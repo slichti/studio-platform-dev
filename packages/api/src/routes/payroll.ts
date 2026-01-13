@@ -295,13 +295,14 @@ app.get('/history', async (c) => {
     const isMine = c.req.query('mine') === 'true';
 
     // If requesting own history, filter by memberId.
-    // Otherwise, assume Admin view (TODO: Enforce Admin Role check here for security)
+    // Otherwise, assume Admin view (Requires 'owner' role)
 
     let whereClause = eq(payouts.tenantId, tenant.id);
     if (isMine) {
         if (!member) return c.json({ error: 'Member context not found' }, 404);
         whereClause = and(whereClause, eq(payouts.instructorId, member.id))!;
     } else {
+        // Strict check for Owner role to view all history
         if (!roles.includes('owner')) return c.json({ error: 'Unauthorized' }, 403);
     }
 

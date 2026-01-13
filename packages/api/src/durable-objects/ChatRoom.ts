@@ -55,7 +55,18 @@ export class ChatRoom {
     async fetch(request: Request): Promise<Response> {
         const url = new URL(request.url);
 
-        // Extract metadata from query params
+        // Handle internal broadcast API (from REST API)
+        if (request.method === 'POST' && url.pathname === '/broadcast') {
+            try {
+                const message = await request.json();
+                this.broadcast(message);
+                return new Response(JSON.stringify({ success: true }), { status: 200 });
+            } catch (e: any) {
+                return new Response(e.message, { status: 500 });
+            }
+        }
+
+        // Extract metadata from query params (for WS upgrade)
         const roomId = url.searchParams.get("roomId");
         const tenantId = url.searchParams.get("tenantId");
         const userId = url.searchParams.get("userId");

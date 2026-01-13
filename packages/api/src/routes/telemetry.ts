@@ -3,12 +3,12 @@ import { createDb } from '../db';
 import { auditLogs, users } from 'db/src/schema'; // Reuse audit logs for now
 import { eq } from 'drizzle-orm';
 import type { HonoContext } from '../types';
-import { authMiddleware } from '../middleware/auth';
+import { optionalAuthMiddleware } from '../middleware/auth';
 
 const app = new Hono<{ Bindings: HonoContext['Bindings'], Variables: HonoContext['Variables'] }>();
 
-// Use auth middleware to get userId if available
-app.use('*', authMiddleware);
+// Use optional auth middleware to catch userId if logged in, but allow guests (login page errors)
+app.use('*', optionalAuthMiddleware);
 
 app.post('/client-error', async (c) => {
     const db = createDb(c.env.DB);

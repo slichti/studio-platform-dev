@@ -266,7 +266,22 @@ app.post('/rooms/:id/messages', async (c) => {
         },
     });
 
-    // TODO: Broadcast to Durable Object WebSocket connections
+    // Broadcast to Durable Object WebSocket connections
+    // Note: We use the ID to get the stub, then hit the internal API we just added
+    try {
+        const doId = c.env.CHAT_ROOM.idFromString(roomId);
+        const stub = c.env.CHAT_ROOM.get(doId);
+        await stub.fetch(new Request('https://do/broadcast', {
+            method: 'POST',
+            body: JSON.stringify({
+                type: 'message',
+                ...created
+            })
+        }));
+    } catch (e: any) {
+        console.error("Failed to broadcast message to DO", e);
+        // We don't fail the request here, just log it. Persistence succeeded.
+    }
 
     return c.json(created, 201);
 });
