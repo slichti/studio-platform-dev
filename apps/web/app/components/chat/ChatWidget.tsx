@@ -109,87 +109,119 @@ export function ChatWidget({ roomId, tenantSlug, userId, userName, apiUrl = "" }
         }
     };
 
+    const [showBadge, setShowBadge] = useState(true);
+
+    const instantAnswers = [
+        "Track my order",
+        "What are your shipping details?",
+        "What is your shipping time?",
+        "What is your contact info?"
+    ];
+
+    const sendInstantAnswer = (answer: string) => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+        wsRef.current.send(JSON.stringify({
+            type: "message",
+            content: answer,
+        }));
+    };
+
     return (
         <>
             {/* Floating Button */}
             <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition flex items-center justify-center z-50"
+                onClick={() => { setIsOpen(!isOpen); setShowBadge(false); }}
+                className="fixed bottom-6 right-6 w-14 h-14 bg-[#F2542D] text-white rounded-full shadow-lg hover:opacity-90 transition flex items-center justify-center z-50"
             >
                 {isOpen ? <X size={24} /> : <MessageCircle size={24} />}
+                {showBadge && !isOpen && (
+                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white border-2 border-white">
+                        1
+                    </span>
+                )}
             </button>
 
             {/* Chat Panel */}
             {isOpen && (
-                <div className="fixed bottom-24 right-6 w-96 h-[500px] bg-white rounded-xl shadow-2xl border border-zinc-200 flex flex-col z-50 overflow-hidden">
+                <div className="fixed bottom-24 right-6 w-[380px] h-[600px] bg-white rounded-xl shadow-2xl border border-zinc-200 flex flex-col z-50 overflow-hidden font-sans">
                     {/* Header */}
-                    <div className="bg-blue-600 text-white px-4 py-3 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <MessageCircle size={20} />
-                            <span className="font-medium">Chat</span>
+                    <div className="bg-[#F2542D] text-white px-6 py-6 pb-12 relative overflow-hidden">
+                        <div className="relative z-10">
+                            <h2 className="text-xl font-bold mb-2">Chat with us</h2>
+                            <p className="text-white/90 text-sm leading-relaxed">
+                                👋 Hi, message us with any questions. We're happy to help!
+                            </p>
                         </div>
-                        <div className="flex items-center gap-2 text-sm">
-                            <Users size={16} />
-                            <span>{users.length} online</span>
-                            <span className={`w-2 h-2 rounded-full ${connected ? 'bg-green-400' : 'bg-red-400'}`} />
-                        </div>
+                        {/* Decorative Circles */}
+                        <div className="absolute -top-8 -right-8 w-32 h-32 bg-white/10 rounded-full" />
+                        <div className="absolute top-8 right-12 w-16 h-16 bg-white/10 rounded-full" />
                     </div>
 
-                    {/* Messages */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-zinc-50">
-                        {messages.length === 0 && (
-                            <div className="text-center text-zinc-400 py-8">
-                                <MessageCircle size={32} className="mx-auto mb-2 opacity-50" />
-                                <p>No messages yet</p>
-                                <p className="text-sm">Start the conversation!</p>
-                            </div>
-                        )}
-                        {messages.map((msg) => (
-                            <div
-                                key={msg.id}
-                                className={`flex ${msg.userId === userId ? 'justify-end' : 'justify-start'}`}
-                            >
+                    {/* Messages & Instant Answers */}
+                    <div className="flex-1 overflow-y-auto bg-white flex flex-col">
+                        {/* Wrapper to push content to bottom */}
+                        <div className="mt-auto p-4 space-y-4">
+                            {/* Chat History */}
+                            {messages.map((msg) => (
                                 <div
-                                    className={`max-w-[80%] p-3 rounded-xl ${msg.userId === userId
-                                            ? 'bg-blue-600 text-white rounded-br-sm'
-                                            : 'bg-white text-zinc-900 border border-zinc-200 rounded-bl-sm'
-                                        }`}
+                                    key={msg.id}
+                                    className={`flex ${msg.userId === userId ? 'justify-end' : 'justify-start'}`}
                                 >
-                                    {msg.userId !== userId && (
-                                        <p className="text-xs font-medium text-blue-600 mb-1">{msg.userName}</p>
-                                    )}
-                                    <p className="text-sm">{msg.content}</p>
-                                    <p className={`text-[10px] mt-1 ${msg.userId === userId ? 'text-blue-200' : 'text-zinc-400'}`}>
-                                        {new Date(msg.timestamp).toLocaleTimeString()}
-                                    </p>
+                                    <div
+                                        className={`max-w-[85%] p-3 rounded-2xl text-sm ${msg.userId === userId
+                                            ? 'bg-[#F2542D] text-white rounded-br-sm'
+                                            : 'bg-gray-100 text-zinc-900 rounded-bl-sm'
+                                            }`}
+                                    >
+                                        <p>{msg.content}</p>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
-                        <div ref={messagesEndRef} />
+                            ))}
+
+                            {/* Instant Answers (Only show if no messages or user wants them? Screenshot shows them present) */}
+                            {messages.length === 0 && (
+                                <div className="space-y-2 mt-4">
+                                    <p className="text-xs font-semibold text-zinc-500 mb-2 uppercase tracking-wide">Instant answers</p>
+                                    {instantAnswers.map((answer) => (
+                                        <button
+                                            key={answer}
+                                            onClick={() => sendInstantAnswer(answer)}
+                                            disabled={!connected}
+                                            className="w-full text-left p-3 rounded-xl border border-zinc-200 text-sm text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300 transition-colors bg-white shadow-sm"
+                                        >
+                                            {answer}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            <div ref={messagesEndRef} />
+                        </div>
                     </div>
 
-                    {/* Input */}
-                    <div className="p-3 border-t border-zinc-200 bg-white">
-                        <div className="flex gap-2">
+                    {/* Input Area */}
+                    <div className="p-4 border-t border-zinc-100 bg-white">
+                        <div className="relative flex items-center">
                             <input
                                 type="text"
                                 value={inputValue}
                                 onChange={(e) => setInputValue(e.target.value)}
                                 onKeyPress={handleKeyPress}
-                                placeholder="Type a message..."
-                                className="flex-1 px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Write message"
+                                className="w-full pl-4 pr-12 py-3 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-zinc-300 focus:ring-0 shadow-sm"
                                 disabled={!connected}
                             />
                             <button
                                 onClick={sendMessage}
                                 disabled={!connected || !inputValue.trim()}
-                                className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="absolute right-2 p-2 text-zinc-400 hover:text-[#F2542D] transition-colors disabled:opacity-50"
                             >
-                                <Send size={18} />
+                                <Send size={20} />
                             </button>
                         </div>
                         {!connected && (
-                            <p className="text-xs text-red-500 mt-1">Connecting...</p>
+                            <div className="text-center mt-2">
+                                <span className="text-[10px] text-zinc-400">Connecting to support...</span>
+                            </div>
                         )}
                     </div>
                 </div>
