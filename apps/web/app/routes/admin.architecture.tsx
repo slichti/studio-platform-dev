@@ -278,5 +278,6 @@ export default function AdminArchitecture() {
                     </div>
                 </div>
             </div>
-            );
+        </div>
+    );
 }

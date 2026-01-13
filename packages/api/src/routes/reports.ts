@@ -9,6 +9,7 @@ type Bindings = {
 
 type Variables = {
     tenant: typeof tenants.$inferSelect;
+    roles?: string[];
 };
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
@@ -18,6 +19,11 @@ app.get('/revenue', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner')) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
 
     const start = c.req.query('startDate') ? new Date(c.req.query('startDate')!) : new Date(new Date().setDate(new Date().getDate() - 30));
     const end = c.req.query('endDate') ? new Date(c.req.query('endDate')!) : new Date();
@@ -34,6 +40,11 @@ app.get('/attendance', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner')) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
+
     const start = c.req.query('startDate') ? new Date(c.req.query('startDate')!) : new Date(new Date().setDate(new Date().getDate() - 30));
     const end = c.req.query('endDate') ? new Date(c.req.query('endDate')!) : new Date();
 
@@ -47,6 +58,11 @@ app.get('/attendance', async (c) => {
 app.post('/projection', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner')) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
+
     const { studentCount, monthlyFee, costs } = await c.req.json();
 
     if (studentCount === undefined || monthlyFee === undefined) {
@@ -62,6 +78,10 @@ app.post('/projection', async (c) => {
 // GET /accounting/journal
 app.get('/accounting/journal', async (c) => {
     const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner')) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
     const db = createDb(c.env.DB);
     const { startDate, endDate, format } = c.req.query();
 

@@ -1,124 +1,159 @@
-[31mx[39m Build failed in 1.89s
-[31m[vite]: Rollup failed to resolve import "@headlessui/react" from "/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/ClassDetailModal.tsx".
-This is most likely unintended because it can break your application at runtime.
-If you do want to externalize this module explicitly add it to
-`build.rollupOptions.external`[39m
-    at viteWarn (file:///Users/slichti/GitHub/studio-platform-dev/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:65855:17)
-    at onwarn (/Users/slichti/GitHub/studio-platform-dev/node_modules/@react-router/dev/dist/cli/index.js:1657:11)
-    at onRollupWarning (file:///Users/slichti/GitHub/studio-platform-dev/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:65885:5)
-    at onwarn (file:///Users/slichti/GitHub/studio-platform-dev/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:65550:7)
-    at file:///Users/slichti/GitHub/studio-platform-dev/node_modules/rollup/dist/es/shared/node-entry.js:21046:13
-    at Object.logger [as onLog] (file:///Users/slichti/GitHub/studio-platform-dev/node_modules/rollup/dist/es/shared/node-entry.js:22919:9)
-    at ModuleLoader.handleInvalidResolvedId (file:///Users/slichti/GitHub/studio-platform-dev/node_modules/rollup/dist/es/shared/node-entry.js:21663:26)
-    at file:///Users/slichti/GitHub/studio-platform-dev/node_modules/rollup/dist/es/shared/node-entry.js:21621:26 {
+[tsconfig-paths] An error occurred while parsing "/Users/slichti/GitHub/studio-platform-dev/packages/ui/tsconfig.json". See below for details. To disable this message, set the `ignoreConfigErrors` option to true.
+[tsconfig-paths] An error occurred while parsing "/Users/slichti/GitHub/studio-platform-dev/packages/ui/tsconfig.json". See below for details. To disable this message, set the `ignoreConfigErrors` option to true.
+[tsconfig-paths] An error occurred while parsing "/Users/slichti/GitHub/studio-platform-dev/packages/ui/tsconfig.json". See below for details. To disable this message, set the `ignoreConfigErrors` option to true.
+[tsconfig-paths] An error occurred while parsing "/Users/slichti/GitHub/studio-platform-dev/packages/ui/tsconfig.json". See below for details. To disable this message, set the `ignoreConfigErrors` option to true.
+[tsconfig-paths] An error occurred while parsing "/Users/slichti/GitHub/studio-platform-dev/packages/ui/tsconfig.json". See below for details. To disable this message, set the `ignoreConfigErrors` option to true.
+vite v7.3.1 building client environment for production...
+[tsconfig-paths] An error occurred while parsing "/Users/slichti/GitHub/studio-platform-dev/packages/ui/tsconfig.json". See below for details. To disable this message, set the `ignoreConfigErrors` option to true.
+transforming...
+✓ 3 modules transformed.
+✗ Build failed in 167ms
+[vite:esbuild] Transform failed with 1 error:
+/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.architecture.tsx?__react-router-build-client-route:282:11: ERROR: Unterminated regular expression
+file: /Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.architecture.tsx?__react-router-build-client-route:282:11
+
+Unterminated regular expression
+280 |              </div>
+281 |          </div>
+282 |      </div >
+    |             ^
+283 |      );
+284 |  }
+
+    at failureErrorWithLog (/Users/slichti/GitHub/studio-platform-dev/node_modules/esbuild/lib/main.js:1467:15)
+    at /Users/slichti/GitHub/studio-platform-dev/node_modules/esbuild/lib/main.js:736:50
+    at responseCallbacks.<computed> (/Users/slichti/GitHub/studio-platform-dev/node_modules/esbuild/lib/main.js:603:9)
+    at handleIncomingPacket (/Users/slichti/GitHub/studio-platform-dev/node_modules/esbuild/lib/main.js:658:12)
+    at Socket.readFromStdout (/Users/slichti/GitHub/studio-platform-dev/node_modules/esbuild/lib/main.js:581:7)
+    at Socket.emit (node:events:508:28)
+    at addChunk (node:internal/streams/readable:559:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:510:3)
+    at Socket.Readable.push (node:internal/streams/readable:390:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23) {
+  errors: [Getter/Setter],
+  warnings: [Getter/Setter],
+  frame: '\n' +
+    'Unterminated regular expression\n' +
+    '280 |              </div>\n' +
+    '281 |          </div>\n' +
+    '282 |      </div >\n' +
+    '    |             ^\n' +
+    '283 |      );\n' +
+    '284 |  }\n',
+  loc: {
+    column: 11,
+    file: '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.architecture.tsx?__react-router-build-client-route',
+    length: 0,
+    line: 282,
+    lineText: '    </div >',
+    namespace: '',
+    suggestion: ''
+  },
+  code: 'PLUGIN_ERROR',
+  plugin: 'vite:esbuild',
+  hook: 'transform',
+  id: '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.architecture.tsx?__react-router-build-client-route',
   watchFiles: [
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/pricing.compare.tsx',
     '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/root.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.commerce.packs.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/accept-invite.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/pricing._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/create-studio.tsx',
     '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/site.$slug.$pageSlug.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.website.editor.$pageId.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.videos.collections.$id.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.financials.payroll.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.financials.my-payouts.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.financials._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.commerce.gift-cards.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.videos.edit.$videoId.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.commerce.coupons.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.commerce.packs.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.substitutions.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.website.pages.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.appointments.calendar.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.appointments.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.instructor.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.instructor.schedule.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.challenges.tsx',
     '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.memberships.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.schedule.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.instructor.payroll.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.videos._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.discounts.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.marketing.automations.tsx',
     '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.branding.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.students.$id.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.students.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.classes.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/entry.client.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.marketing.referrals.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.checkout.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.checkout.return.tsx',
     '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.finances.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/dashboard.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.classes.$id.roster.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.marketing.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.schedule.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings.integrations.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings.branding.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings.addons.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings.hardware.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings.billing.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings.domain.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.students.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.dashboard.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings.embeds.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.checkin.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.students._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.classes.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.students.$id.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.loyalty.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.profile.tsx',
     '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.waivers.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.reports.advanced.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.reports.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.classes._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/entry.client.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.waivers.new.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.waivers._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.retail.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.tasks.tsx',
     '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug._index.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/dashboard.profile.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.leads.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.chat.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.data._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.chat.$roomId.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.data.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.data.export.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/embed.$slug.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.pos.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.data.import.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.settings.locations.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/embed.$slug.chat.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/embed.$slug.pricing.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/embed.$slug.calendar.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/embed.$slug.shop.tsx',
     '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/dashboard.classes.tsx',
     '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/dashboard.classes.$id.roster.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/$pageSlug.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/dashboard.classes._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/dashboard.profile.tsx',
     '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/dashboard._index.tsx',
     '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/dashboard.classes.$id.watch.tsx',
     '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/sign-in.$.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.tenants.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/debug-ssr.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/dashboard.tsx',
     '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/sign-up.$.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.status.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/_index.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.tsx',
     '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.users.$userId.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.users.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/package.json',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/index.css',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/node_modules/react-dom/client.js',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/node_modules/react/jsx-runtime.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react-router/dist/development/dom-export.mjs',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/utils/api.ts',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/CreateClassModal.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/ClassDetailModal.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/Layout.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/node_modules/react/index.js',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/ImageUploader.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/LogoutButton.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/CardCreator.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/Modal.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/ui/Card.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/ui/Table.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/ui/Badge.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/Dialogs.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes.ts',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/utils/cropImage.ts',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/entry.server.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/components/SignaturePad.tsx',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/tailwind.config.ts',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/node_modules/react/cjs/react-jsx-runtime.production.min.js',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/node_modules/react-dom/index.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react-router/dist/development/chunk-YNUBSHFH.mjs',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react-router/dist/development/chunk-JMJ3UQ3L.mjs',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/node_modules/react/cjs/react.production.min.js',
-    '/Users/slichti/GitHub/studio-platform-dev/apps/web/node_modules/react-dom/cjs/react-dom.production.min.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react-router/dist/development/index.mjs',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/@clerk/react-router/dist/index.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/date-fns/format.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/date-fns/getDay.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/date-fns/locale/en-US.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/date-fns/startOfWeek.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react-big-calendar/lib/css/react-big-calendar.css',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/date-fns/parse.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/react-big-calendar/dist/react-big-calendar.esm.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/lucide-react/dist/esm/lucide-react.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/scheduler/index.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/@clerk/react-router/dist/client/index.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/@clerk/clerk-react/dist/internal.mjs',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/set-cookie-parser/lib/set-cookie.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/cookie/dist/index.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/date-fns/toDate.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/date-fns/_lib/format/formatters.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/date-fns/isValid.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/date-fns/_lib/defaultLocale.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/date-fns/_lib/defaultOptions.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/date-fns/locale/en-US/_lib/formatDistance.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/date-fns/locale/en-US/_lib/formatLong.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/date-fns/locale/en-US/_lib/formatRelative.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/date-fns/locale/en-US/_lib/localize.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/date-fns/_lib/protectedTokens.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/date-fns/getDefaultOptions.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/date-fns/_lib/format/longFormatters.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/date-fns/constructFrom.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/date-fns/index.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/date-fns/locale/en-US/_lib/match.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/date-fns/parse/_lib/Setter.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/date-fns/parse/_lib/parsers.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/lucide-react/dist/esm/icons/fingerprint-pattern.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/lucide-react/dist/esm/icons/alarm-clock-check.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/lucide-react/dist/esm/icons/index.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/lucide-react/dist/esm/icons/alarm-clock-plus.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/lucide-react/dist/esm/icons/arrow-down-wide-narrow.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/lucide-react/dist/esm/icons/arrow-down-a-z.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/lucide-react/dist/esm/icons/arrow-down-z-a.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/lucide-react/dist/esm/icons/arrow-up-z-a.js',
-    '/Users/slichti/GitHub/studio-platform-dev/node_modules/lucide-react/dist/esm/icons/arrow-up-a-z.js',
-    ... 2202 more items
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/_index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.architecture.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.diagnostics.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/studio.$slug.classes.$id.roster.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.users._index.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.diagnostics.run.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.projections.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.features.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.tenants.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.financials.tsx',
+    '/Users/slichti/GitHub/studio-platform-dev/apps/web/app/routes/admin.website.tsx',
+    ... 17 more items
   ]
 }
-npm error Lifecycle script `build` failed with error:
-npm error code 1
-npm error path /Users/slichti/GitHub/studio-platform-dev/apps/web
-npm error workspace web
-npm error location /Users/slichti/GitHub/studio-platform-dev/apps/web
-npm error command failed
-npm error command sh -c react-router build

@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { createDb } from '../db';
 import { tenants, tenantMembers, coupons, couponRedemptions, classPackDefinitions, giftCards, membershipPlans } from 'db/src/schema'; // Ensure exported
 import { eq, and, gt, sql } from 'drizzle-orm';
+import { rateLimit } from '../middleware/rateLimit';
 
 type Bindings = {
     DB: D1Database;
@@ -196,7 +197,7 @@ app.post('/validate', async (c) => {
 
 
 // POST /checkout/session - Create Stripe Session (with optional coupon)
-app.post('/checkout/session', async (c) => {
+app.post('/checkout/session', rateLimit({ limit: 10, window: 60, keyPrefix: 'checkout' }), async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     const user = c.get('auth'); // from authMiddleware

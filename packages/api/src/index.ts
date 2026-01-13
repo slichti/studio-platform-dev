@@ -505,7 +505,10 @@ app.route('/platform-pages', platformPagesRoutes);
 import { scheduled } from './cron';
 
 // Durable Objects
-export { ChatRoom } from './durable-objects/ChatRoom';
+import { ChatRoom } from './durable-objects/ChatRoom';
+import { RateLimiter } from './durable-objects/RateLimiter';
+
+export { ChatRoom, RateLimiter };
 
 export default {
   fetch: app.fetch,

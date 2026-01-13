@@ -17,12 +17,17 @@ bucket_name = "studio-platform-assets"
 
 [durable_objects]
 bindings = [
-  { name = "CHAT_ROOM", class_name = "ChatRoom" }
+  { name = "CHAT_ROOM", class_name = "ChatRoom" },
+  { name = "RATE_LIMITER", class_name = "RateLimiter" }
 ]
 
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["ChatRoom"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["RateLimiter"]
 
 [triggers]
 crons = ["*/15 * * * *"]

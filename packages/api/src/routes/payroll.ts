@@ -23,6 +23,7 @@ type Bindings = {
 type Variables = {
     tenant: typeof tenants.$inferSelect;
     member?: any;
+    roles?: string[];
 };
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
@@ -298,6 +299,7 @@ app.get('/history', async (c) => {
 
     let whereClause = eq(payouts.tenantId, tenant.id);
     if (isMine) {
+        if (!member) return c.json({ error: 'Member context not found' }, 404);
         whereClause = and(whereClause, eq(payouts.instructorId, member.id))!;
     } else {
         if (!roles.includes('owner')) return c.json({ error: 'Unauthorized' }, 403);

@@ -22,6 +22,7 @@ type Variables = {
     };
     tenant: any;
     member?: any;
+    roles?: string[];
 };
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
@@ -30,6 +31,11 @@ const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 app.get('/', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: "Unauthorized" }, 403);
+    }
 
     const campaigns = await db.select().from(marketingCampaigns)
         .where(eq(marketingCampaigns.tenantId, tenant.id))
@@ -43,6 +49,12 @@ app.get('/', async (c) => {
 app.post('/', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+
+    if (!roles.includes('owner')) {
+        return c.json({ error: "Unauthorized" }, 403);
+    }
+
     const body = await c.req.json();
     const { subject, content, filters } = body;
 
@@ -247,6 +259,11 @@ app.post('/', async (c) => {
 app.get('/automations', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: "Unauthorized" }, 403);
+    }
 
     const existing = await db.select().from(marketingAutomations)
         .where(eq(marketingAutomations.tenantId, tenant.id))
@@ -294,6 +311,12 @@ app.get('/automations', async (c) => {
 app.post('/automations', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+
+    if (!roles.includes('owner')) {
+        return c.json({ error: "Unauthorized" }, 403);
+    }
+
     const { triggerEvent, subject, content, templateId, audienceFilter, triggerCondition } = await c.req.json();
 
     const [newAuto] = await db.insert(marketingAutomations).values({
@@ -319,6 +342,12 @@ app.post('/automations', async (c) => {
 app.patch('/automations/:id', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+
+    if (!roles.includes('owner')) {
+        return c.json({ error: "Unauthorized" }, 403);
+    }
+
     const id = c.req.param('id');
     const body = await c.req.json();
 
@@ -354,6 +383,12 @@ app.patch('/automations/:id', async (c) => {
 app.delete('/automations/:id', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+
+    if (!roles.includes('owner')) {
+        return c.json({ error: "Unauthorized" }, 403);
+    }
+
     const id = c.req.param('id');
 
     await db.delete(marketingAutomations)
@@ -367,6 +402,12 @@ app.delete('/automations/:id', async (c) => {
 app.post('/automations/:id/test', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+
+    if (!roles.includes('owner')) {
+        return c.json({ error: "Unauthorized" }, 403);
+    }
+
     const id = c.req.param('id');
     const { email } = await c.req.json(); // Test recipient
 

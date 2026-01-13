@@ -2,12 +2,13 @@ import { Hono } from 'hono';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from 'db/src/schema';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
 
 const app = new Hono<{ Bindings: any; Variables: any }>();
 
 // Require authentication for all routes
-app.use('/*', authMiddleware);
+// Require authentication for all routes
+// app.use('/*', authMiddleware); // REMOVED: We need optional auth for public viewing
 
 // Verify system admin for write operations
 const requireSystemAdmin = async (c: any, next: any) => {
@@ -29,7 +30,7 @@ const requireSystemAdmin = async (c: any, next: any) => {
 // --- Platform Pages CRUD ---
 
 // List all platform pages
-app.get('/pages', async (c) => {
+app.get('/pages', optionalAuthMiddleware, async (c) => {
     const db = drizzle(c.env.DB, { schema });
 
     const pages = await db.query.platformPages.findMany({
@@ -40,7 +41,7 @@ app.get('/pages', async (c) => {
 });
 
 // Get single page by slug (public for rendering)
-app.get('/pages/:slug', async (c) => {
+app.get('/pages/:slug', optionalAuthMiddleware, async (c) => {
     const db = drizzle(c.env.DB, { schema });
     const slug = c.req.param('slug');
 
@@ -52,11 +53,17 @@ app.get('/pages/:slug', async (c) => {
         return c.json({ error: 'Page not found' }, 404);
     }
 
+    // Check publication status
+    const auth = c.get('auth');
+    if (!page.isPublished && !auth?.userId) {
+        return c.json({ error: 'Page not found' }, 404);
+    }
+
     return c.json(page);
 });
 
 // Create new page (admin only)
-app.post('/pages', requireSystemAdmin, async (c) => {
+app.post('/pages', authMiddleware, requireSystemAdmin, async (c) => {
     const db = drizzle(c.env.DB, { schema });
     const body = await c.req.json<{
         slug: string;
@@ -98,7 +105,7 @@ app.post('/pages', requireSystemAdmin, async (c) => {
 });
 
 // Update page (admin only)
-app.put('/pages/:id', requireSystemAdmin, async (c) => {
+app.put('/pages/:id', authMiddleware, requireSystemAdmin, async (c) => {
     const db = drizzle(c.env.DB, { schema });
     const id = c.req.param('id');
     const body = await c.req.json<{
@@ -132,7 +139,7 @@ app.put('/pages/:id', requireSystemAdmin, async (c) => {
 });
 
 // Publish/unpublish page (admin only)
-app.post('/pages/:id/publish', requireSystemAdmin, async (c) => {
+app.post('/pages/:id/publish', authMiddleware, requireSystemAdmin, async (c) => {
     const db = drizzle(c.env.DB, { schema });
     const id = c.req.param('id');
     const body = await c.req.json<{ isPublished: boolean }>();
@@ -156,7 +163,7 @@ app.post('/pages/:id/publish', requireSystemAdmin, async (c) => {
 });
 
 // Delete page (admin only)
-app.delete('/pages/:id', requireSystemAdmin, async (c) => {
+app.delete('/pages/:id', authMiddleware, requireSystemAdmin, async (c) => {
     const db = drizzle(c.env.DB, { schema });
     const id = c.req.param('id');
 

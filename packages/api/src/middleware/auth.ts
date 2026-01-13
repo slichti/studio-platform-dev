@@ -126,3 +126,66 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables, Bindi
         return c.json({ error: "Authentication Error" }, 401);
     }
 });
+
+export const optionalAuthMiddleware = createMiddleware<{ Variables: AuthVariables, Bindings: Bindings }>(async (c, next) => {
+    let token: string | undefined;
+    const authHeader = c.req.header('Authorization');
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+    } else if (c.req.query('token')) {
+        token = c.req.query('token');
+    }
+
+    // If no token, just proceed without setting auth
+    if (!token) {
+        return await next();
+    }
+
+    try {
+        // 1. Check for Impersonation Token (Custom JWT, HS256)
+        try {
+            const payload = await verify(token, (c.env as any).CLERK_SECRET_KEY);
+            if (payload.impersonatorId || payload.role === 'guest') {
+                c.set('auth', {
+                    userId: payload.sub as string,
+                    claims: payload as any,
+                });
+                c.set('isImpersonating', true);
+                return await next();
+            }
+        } catch (ignore) {}
+
+        // 3. Clerk Verification (RS256)
+        let publicKey = (c.env as any).CLERK_PEM_PUBLIC_KEY;
+        if (!publicKey) {
+            console.error("Server Configuration Error: Missing Public Key");
+            return await next();
+        }
+
+        const dirtyKey = publicKey
+            .replace(/-----BEGIN PUBLIC KEY-----/g, '')
+            .replace(/-----END PUBLIC KEY-----/g, '')
+            .replace(/\s+/g, '');
+
+        const chunks = dirtyKey.match(/.{1,64}/g);
+        if (!chunks) return await next();
+
+        const cleanPublicKey = `-----BEGIN PUBLIC KEY-----\n${chunks.join('\n')}\n-----END PUBLIC KEY-----`;
+
+        try {
+            const payload = await verify(token, cleanPublicKey, 'RS256');
+            c.set('auth', {
+                userId: payload.sub as string,
+                claims: payload as any,
+            });
+        } catch (jwtErr: any) {
+            console.error("JWT Verification Failed (Optional):", jwtErr.message);
+        }
+
+        await next();
+    } catch (error: any) {
+        console.error("Optional Auth Middleware logic error:", error);
+        await next();
+    }
+});

@@ -2,7 +2,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { tenants, tenantMembers, users } from 'db/src/schema'; // Ensure imports
-import { count, eq } from 'drizzle-orm';
+import { count, eq, gt } from 'drizzle-orm';
 
 type Bindings = {
     DB: D1Database;
@@ -23,10 +23,18 @@ app.get('/architecture', async (c) => {
     }
     const dbLatency = Math.round(performance.now() - start);
 
-    // 2. Connected Users (Simulation for now, until ChatRoom aggregation is built)
-    // In a real scenario, we'd query Durable Objects or a presence table.
-    // For now, let's return a realistic simulated number based on active sessions or just random variance for "live" feel
-    const connectedUsers = Math.floor(Math.random() * 15) + 5; // 5-20 users
+    // 2. Connected Users (Active in last 15 minutes)
+    let connectedUsers = 0;
+    try {
+        const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+        const result = await db.select({ count: count() })
+            .from(users)
+            .where(gt(users.lastActiveAt, fifteenMinutesAgo))
+            .get();
+        connectedUsers = result?.count || 0;
+    } catch (e) {
+        console.error("Failed to fetch active users", e);
+    }
 
     // 3. User Geography (Simulated)
     const userRegions = [

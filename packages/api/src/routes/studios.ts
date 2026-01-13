@@ -14,10 +14,14 @@ type Bindings = {
     GOOGLE_CLIENT_SECRET: string;
 };
 
+type Variables = {
+    auth: { userId: string; claims: any };
+};
+
 import { StripeService } from '../services/stripe';
 import { EncryptionUtils } from '../utils/encryption';
 
-const app = new Hono<{ Bindings: Bindings }>();
+const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 
 app.get('/stripe/connect', async (c) => {
     const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
@@ -114,10 +118,34 @@ app.put('/:id/integrations', async (c) => {
         zoomClientSecret
     } = body;
 
-    // TODO: Verify ownership/permissions
+    // [SECURITY] VERIFY OWNERSHIP (IDOR Fix)
+    const auth = c.get('auth');
+    if (!auth || !auth.userId) {
+        return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    // Check membership
+    const { tenantMembers } = await import('db/src/schema');
+    const { and } = await import('drizzle-orm');
+
+    const membership = await db.select()
+        .from(tenantMembers)
+        .where(and(
+            eq(tenantMembers.tenantId, id),
+            eq(tenantMembers.userId, auth.userId)
+        ))
+        .get();
+
+    if (!membership) {
+        return c.json({ error: 'Forbidden: You do not have permission to manage this studio.' }, 403);
+    }
+
 
     const updateData: any = {};
-    const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET || 'default-secret-change-me-in-prod-at-least-32-chars');
+    if (!c.env.ENCRYPTION_SECRET) {
+        throw new Error("Server Configuration Error: ENCRYPTION_SECRET is missing");
+    }
+    const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
 
     // 1. Stripe Configuration
     if (paymentProvider) {
@@ -198,6 +226,15 @@ app.put('/:id/integrations', async (c) => {
             clientId: googleClientId,
             measurementId: googleMeasurementId
         };
+
+        // [SECURITY] INPUT SANITIZATION (Stored XSS Fix)
+        if (googleMeasurementId) {
+            // Allow G-XXXXXX (GA4) or UA-XXXXX-Y (Universal Analytics)
+            const isValid = /^(G-[A-Z0-9]+|UA-\d+-\d+)$/i.test(googleMeasurementId);
+            if (!isValid) {
+                return c.json({ error: 'Invalid Google Measurement ID format. Expected G-XXXXXX or UA-XXXX-Y.' }, 400);
+            }
+        }
     }
 
     // 8. Flodesk Configuration

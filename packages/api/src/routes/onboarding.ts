@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { createDb } from '../db';
 import { tenants, tenantMembers, tenantRoles, users, auditLogs } from 'db/src/schema'; // Ensure exported
 import { eq } from 'drizzle-orm';
+import { rateLimit } from '../middleware/rateLimit';
 
 type Bindings = {
     DB: D1Database;
@@ -19,8 +20,8 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 
-// POST /studio: Create a new studio (Self-Service)
-app.post('/studio', async (c) => {
+// POST /onboarding - Create new tenant & cleanup user
+app.post('/', rateLimit({ limit: 5, window: 300, keyPrefix: 'onboarding' }), async (c) => {
     const auth = c.get('auth');
     if (!auth?.userId) {
         return c.json({ error: "Unauthorized" }, 401);

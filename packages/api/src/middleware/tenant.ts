@@ -75,7 +75,11 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
     // -------------------------------------------------------------
     // Credential Decryption (BYOK)
     // -------------------------------------------------------------
-    const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET || 'default-secret-change-me-in-prod-at-least-32-chars');
+    if (!c.env.ENCRYPTION_SECRET) {
+        console.error("Configuration Error: ENCRYPTION_SECRET is missing");
+        return c.json({ error: "Server Configuration Error" }, 500);
+    }
+    const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
 
     // 1. Email (Resend)
     if (tenant.resendCredentials) {

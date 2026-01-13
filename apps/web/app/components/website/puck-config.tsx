@@ -132,17 +132,30 @@ const ContactForm = ({ title, email }: any) => (
 );
 
 // Map/Location
-const MapSection = ({ title, address }: any) => (
-    <section className="py-16 px-8">
-        <div className="max-w-6xl mx-auto">
-            <h2 className="text-3xl font-bold text-center mb-8">{title || "Find Us"}</h2>
-            <div className="aspect-video bg-zinc-200 rounded-xl flex items-center justify-center">
-                <p className="text-zinc-500">Map embed will appear here</p>
+const MapSection = ({ title, address }: any) => {
+    const encodedAddress = encodeURIComponent(address || "New York, NY");
+    return (
+        <section className="py-16 px-8">
+            <div className="max-w-6xl mx-auto">
+                <h2 className="text-3xl font-bold text-center mb-8">{title || "Find Us"}</h2>
+                <div className="aspect-video bg-zinc-200 rounded-xl overflow-hidden shadow-sm">
+                    <iframe
+                        width="100%"
+                        height="100%"
+                        frameBorder="0"
+                        scrolling="no"
+                        marginHeight={0}
+                        marginWidth={0}
+                        src={`https://maps.google.com/maps?q=${encodedAddress}&t=&z=13&ie=UTF8&iwloc=&output=embed`}
+                        title="Location Map"
+                        className="w-full h-full"
+                    ></iframe>
+                </div>
+                {address && <p className="text-center mt-4 text-zinc-600">{address}</p>}
             </div>
-            {address && <p className="text-center mt-4 text-zinc-600">{address}</p>}
-        </div>
-    </section>
-);
+        </section>
+    );
+};
 
 // --- Puck Config Export ---
 
