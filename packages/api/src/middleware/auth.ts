@@ -26,9 +26,8 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables, Bindi
 
     if (authHeader && authHeader.startsWith('Bearer ')) {
         token = authHeader.split(' ')[1];
-    } else if (c.req.query('token')) {
-        token = c.req.query('token');
     } else {
+        // Security: Query parameter tokens removed to prevent exposure in logs/history
         return c.json({ error: 'Unauthorized' }, 401);
     }
 

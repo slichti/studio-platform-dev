@@ -120,11 +120,22 @@ app.use('*', cors({
 
 app.onError((err: any, c) => {
   console.error('Global App Error:', err);
+
+  // Only expose detailed error info in non-production environments
+  const isDev = (c.env as any).ENVIRONMENT !== 'production';
+
+  if (isDev) {
+    return c.json({
+      error: "Internal Application Error",
+      message: err.message,
+      stack: err.stack,
+      cause: err.cause
+    }, 500);
+  }
+
   return c.json({
     error: "Internal Application Error",
-    message: err.message,
-    stack: err.stack,
-    cause: err.cause
+    requestId: c.req.header('X-Request-Id') || 'unknown'
   }, 500);
 });
 
@@ -203,7 +214,8 @@ const authenticatedPaths = [
   '/integrations', '/integrations/*',
   '/sub-dispatch', '/sub-dispatch/*',
   '/waitlist', '/waitlist/*',
-  '/video-management', '/video-management/*'
+  '/video-management', '/video-management/*',
+  '/diagnostics', '/diagnostics/*'  // Security: Require auth for diagnostics
 ];
 
 const publicStudioPaths = [

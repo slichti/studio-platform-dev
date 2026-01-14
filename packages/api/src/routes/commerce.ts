@@ -23,10 +23,16 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 
-// GET /coupons - List (Admin)
+// GET /coupons - List (Owner/Instructor only)
 app.get('/coupons', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+
+    // Security: Only owners and instructors can view coupons
+    if (!roles.includes('owner') && !roles.includes('instructor')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
 
     // Sort by newest and include usage count
     const list = await db.select({
@@ -48,10 +54,17 @@ app.get('/coupons', async (c) => {
     });
 });
 
-// POST /coupons - Create
+// POST /coupons - Create (Owner only)
 app.post('/coupons', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+
+    // Security: Only owners can create coupons
+    if (!roles.includes('owner')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+
     const { code, type, value, usageLimit } = await c.req.json();
 
     if (!code || !type || !value) return c.json({ error: "Missing fields" }, 400);
@@ -77,11 +90,17 @@ app.post('/coupons', async (c) => {
     }
 });
 
-// DELETE /coupons/:id - Deactivate
+// DELETE /coupons/:id - Deactivate (Owner only)
 app.delete('/coupons/:id', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
     const id = c.req.param('id');
+
+    // Security: Only owners can deactivate coupons
+    if (!roles.includes('owner')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
 
     await db.update(coupons)
         .set({ active: false })
