@@ -816,9 +816,6 @@ export const videoShares = sqliteTable('video_shares', {
     uniqueShare: uniqueIndex('unique_video_share').on(table.videoId, table.tenantId),
     tenantIdx: index('video_share_tenant_idx').on(table.tenantId),
 }));
-}, (table) => ({
-    tenantIdx: index('video_tenant_idx').on(table.tenantId),
-}));
 
 export const videoCollections = sqliteTable('video_collections', {
     id: text('id').primaryKey(),
@@ -1110,13 +1107,6 @@ export const challengesRelations = relations(challenges, ({ one, many }) => ({
     participants: many(userChallenges),
 }));
 
-// --- Video Shares ---
-export const videoShares = sqliteTable('video_shares', {
-    id: text('id').primaryKey(),
-    videoId: text('video_id').notNull().references(() => videos.id, { onDelete: 'cascade' }),
-    tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
-    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
-});
 
 export const videoSharesRelations = relations(videoShares, ({ one }) => ({
     video: one(videos, {

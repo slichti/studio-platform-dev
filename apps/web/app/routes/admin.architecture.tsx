@@ -123,6 +123,7 @@ export default function AdminArchitecture() {
                     <div className="flex justify-center gap-4 mb-4">
                         {[
                             { icon: Globe, label: "Web App" },
+                            { icon: Smartphone, label: "Mobile App" },
                             { icon: Layout, label: "Admin Portal" },
                             { icon: Globe, label: "Public API" }
                         ].map((item, i) => (
@@ -186,6 +187,37 @@ export default function AdminArchitecture() {
                             color="orange"
                             items={['Classes', 'Bookings', 'Members', 'Waivers', 'Payroll']}
                         />
+                    </div>
+
+                    {/* External Vendors Layer */}
+                    <div className="max-w-4xl mx-auto mb-8 relative">
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-zinc-950 px-2 text-[10px] uppercase font-bold text-zinc-600 tracking-widest z-10">External Integration</div>
+                        <div className="border border-zinc-800 rounded-xl p-4 bg-zinc-900/20 border-dashed flex justify-around items-center gap-4">
+                            <div className="flex flex-col items-center gap-2 group">
+                                <div className="w-10 h-10 rounded-lg bg-[#635BFF]/10 border border-[#635BFF]/20 flex items-center justify-center text-[#635BFF] transition-all group-hover:bg-[#635BFF]/20">
+                                    <CreditCard size={18} />
+                                </div>
+                                <span className="text-[10px] font-semibold text-zinc-400">Stripe</span>
+                            </div>
+                            <div className="flex flex-col items-center gap-2 group">
+                                <div className="w-10 h-10 rounded-lg bg-[#2D8CFF]/10 border border-[#2D8CFF]/20 flex items-center justify-center text-[#2D8CFF] transition-all group-hover:bg-[#2D8CFF]/20">
+                                    <Globe size={18} />
+                                </div>
+                                <span className="text-[10px] font-semibold text-zinc-400">Zoom</span>
+                            </div>
+                            <div className="flex flex-col items-center gap-2 group">
+                                <div className="w-10 h-10 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center text-white transition-all group-hover:bg-white/20">
+                                    <Smartphone size={18} />
+                                </div>
+                                <span className="text-[10px] font-semibold text-zinc-400">Resend</span>
+                            </div>
+                            <div className="flex flex-col items-center gap-2 group">
+                                <div className="w-10 h-10 rounded-lg bg-[#F22F46]/10 border border-[#F22F46]/20 flex items-center justify-center text-[#F22F46] transition-all group-hover:bg-[#F22F46]/20">
+                                    <Smartphone size={18} />
+                                </div>
+                                <span className="text-[10px] font-semibold text-zinc-400">Twilio</span>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Infrastructure Layer - Compact */}
