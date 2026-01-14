@@ -3,6 +3,7 @@ import { useLoaderData, useOutletContext, Link } from "react-router";
 // @ts-ignore
 import type { LoaderFunctionArgs } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
+import { useUser } from "@clerk/react-router";
 import { apiRequest } from "~/utils/api";
 import { Users, Calendar, DollarSign, ArrowRight, Activity, TrendingUp, FileSignature, Ticket, Award, Target, Flame } from "lucide-react";
 
@@ -26,14 +27,33 @@ export const loader = async (args: LoaderFunctionArgs) => {
 export default function StudioDashboardIndex() {
     const { tenant, roles, me, isStudentView } = useOutletContext<any>();
     const { stats } = useLoaderData<typeof loader>();
-    const names = me?.firstName ? `${me.firstName} ${me.lastName || ''}` : me?.email?.split('@')[0];
+    const { user: clerkUser } = useUser();
     const isOwner = roles.includes('owner');
+
+    // Get display name: prefer Clerk's logged-in user name (for impersonation), fallback to API name
+    const displayName = clerkUser?.firstName || me?.firstName || 'Studio Admin';
+
+    // Compute role label for impersonation/student view indicator
+    const getRoleLabel = () => {
+        const isPlatformAdmin = (me as any)?.user?.isPlatformAdmin;
+        let baseRole = '';
+        if (isPlatformAdmin) baseRole = 'Admin';
+        else if (me?.roles?.includes('owner')) baseRole = 'Owner';
+        else if (me?.roles?.includes('admin')) baseRole = 'Manager';
+        else if (me?.roles?.includes('instructor')) baseRole = 'Instructor';
+
+        // Show "(Admin/Owner)" suffix when viewing as different role
+        if (isStudentView && baseRole) return ` (${baseRole})`;
+        return '';
+    };
 
     return (
         <div className="max-w-6xl pb-10 p-8 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                 <div>
-                    <h2 className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight">Welcome back, {me?.firstName || 'Studio Admin'}!</h2>
+                    <h2 className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight">
+                        Welcome back, {displayName}{getRoleLabel()}!
+                    </h2>
                     <p className="text-zinc-500 dark:text-zinc-400 mt-1">Here's what's happening at {tenant.name} today.</p>
                 </div>
                 <div className="flex items-center gap-2 text-sm font-medium text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-full">

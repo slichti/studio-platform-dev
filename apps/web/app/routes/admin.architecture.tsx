@@ -276,13 +276,13 @@ export default function AdminArchitecture() {
 
                     {/* Technical Metrics (Moved here) */}
                     <div className="grid grid-cols-2 gap-4 mt-4">
-                        <div className="bg-zinc-50 rounded-lg p-3 border border-zinc-200">
-                            <div className="text-[10px] text-zinc-500 uppercase mb-1">DB Latency</div>
-                            <div className="text-lg font-bold text-zinc-700">{stats?.latency?.database_ms || 0}<span className="text-xs text-zinc-500 ml-1">ms</span></div>
+                        <div className="bg-zinc-800/50 rounded-lg p-3 border border-zinc-700">
+                            <div className="text-[10px] text-zinc-400 uppercase mb-1">DB Latency</div>
+                            <div className="text-lg font-bold text-zinc-100">{stats?.latency?.database_ms || 0}<span className="text-xs text-zinc-400 ml-1">ms</span></div>
                         </div>
-                        <div className="bg-zinc-50 rounded-lg p-3 border border-zinc-200">
-                            <div className="text-[10px] text-zinc-500 uppercase mb-1">Edge Latency</div>
-                            <div className="text-lg font-bold text-zinc-700">{stats?.latency?.edge_ms || 0}<span className="text-xs text-zinc-500 ml-1">ms</span></div>
+                        <div className="bg-zinc-800/50 rounded-lg p-3 border border-zinc-700">
+                            <div className="text-[10px] text-zinc-400 uppercase mb-1">Edge Latency</div>
+                            <div className="text-lg font-bold text-zinc-100">{stats?.latency?.edge_ms || 0}<span className="text-xs text-zinc-400 ml-1">ms</span></div>
                         </div>
                     </div>
                 </div>

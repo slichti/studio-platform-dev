@@ -4,37 +4,250 @@ import { useLoaderData, useOutletContext } from "react-router";
 import type { LoaderFunctionArgs } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
-import { useState } from "react";
-import { Ticket, Plus, Trash2, Tag, AlertCircle, Link as LinkIcon } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Ticket, Plus, Trash2, Tag, AlertCircle, Link as LinkIcon, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmationDialog } from "~/components/Dialogs";
 
 export const loader = async (args: LoaderFunctionArgs) => {
-    const { params } = args;
+    const { params, request } = args;
     const { getToken, userId } = await getAuth(args);
-    if (!userId) return { error: "Unauthorized" };
+    if (!userId) return { error: "Unauthorized", coupons: [], isStudent: false };
 
     const token = await getToken();
+
+    // Check if viewing as student (from cookie/session)
+    const url = new URL(request.url);
+    const isStudentViewHint = url.searchParams.get('view') === 'student';
+
     try {
         const res: any = await apiRequest("/commerce/coupons", token, {
             headers: { 'X-Tenant-Slug': params.slug! }
         });
-        return { coupons: res.coupons || [], error: null };
-    } catch (e) {
-        return { coupons: [], error: "Failed to load coupons" };
+        return { coupons: res.coupons || [], error: null, isStudent: false };
+    } catch (e: any) {
+        // 403 = student trying to access (expected after security fix)
+        if (e.message?.includes('403') || e.message?.includes('Access Denied')) {
+            return { coupons: [], error: null, isStudent: true };
+        }
+        return { coupons: [], error: "Failed to load coupons", isStudent: false };
     }
 };
 
 export default function CouponsPage() {
-    const { coupons: initialCoupons, error } = useLoaderData<typeof loader>();
+    const { coupons: initialCoupons, error, isStudent: apiIsStudent } = useLoaderData<typeof loader>();
     const { tenant, isStudentView } = useOutletContext<any>() || {};
 
-    return <CouponsView initialCoupons={initialCoupons} tenant={tenant} isStudentView={isStudentView} />;
+    // Use either API detection or context's isStudentView
+    const effectiveStudentView = isStudentView || apiIsStudent;
+
+    if (effectiveStudentView) {
+        return <StudentCouponsView tenant={tenant} />;
+    }
+
+    return <AdminCouponsView initialCoupons={initialCoupons} tenant={tenant} />;
 }
 
 import { useAuth } from "@clerk/react-router";
 
-function CouponsView({ initialCoupons, tenant, isStudentView }: any) {
+// Student view: Show saved coupons and allow entering new codes
+function StudentCouponsView({ tenant }: any) {
+    const [savedCoupons, setSavedCoupons] = useState<any[]>([]);
+    const [couponCode, setCouponCode] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [validationResult, setValidationResult] = useState<any>(null);
+    const { getToken } = useAuth();
+
+    // Load saved coupons from localStorage on mount
+    useEffect(() => {
+        const saved = localStorage.getItem(`coupons_${tenant?.slug}`);
+        if (saved) {
+            try {
+                setSavedCoupons(JSON.parse(saved));
+            } catch { }
+        }
+        // Also check for pending coupon from URL
+        const pending = sessionStorage.getItem('pending_coupon');
+        if (pending) {
+            setCouponCode(pending);
+            handleValidate(pending);
+            sessionStorage.removeItem('pending_coupon');
+        }
+    }, [tenant?.slug]);
+
+    const handleValidate = async (code?: string) => {
+        const codeToValidate = code || couponCode;
+        if (!codeToValidate.trim()) return;
+
+        setLoading(true);
+        setValidationResult(null);
+
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/commerce/coupons/validate`, token, {
+                method: 'POST',
+                headers: { 'X-Tenant-Slug': tenant.slug },
+                body: JSON.stringify({ code: codeToValidate.toUpperCase() })
+            });
+
+            if (res.valid) {
+                setValidationResult({ valid: true, coupon: res.coupon });
+            } else {
+                setValidationResult({ valid: false, error: res.error || 'Invalid coupon code' });
+            }
+        } catch (e: any) {
+            setValidationResult({ valid: false, error: e.message || 'Failed to validate coupon' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSaveCoupon = () => {
+        if (!validationResult?.valid || !validationResult?.coupon) return;
+
+        const coupon = validationResult.coupon;
+        const existing = savedCoupons.find(c => c.code === coupon.code);
+        if (existing) {
+            toast.info('This coupon is already saved');
+            return;
+        }
+
+        const updated = [...savedCoupons, coupon];
+        setSavedCoupons(updated);
+        localStorage.setItem(`coupons_${tenant?.slug}`, JSON.stringify(updated));
+        setCouponCode('');
+        setValidationResult(null);
+        toast.success('Coupon saved! It will be applied at checkout.');
+    };
+
+    const handleRemoveCoupon = (code: string) => {
+        const updated = savedCoupons.filter(c => c.code !== code);
+        setSavedCoupons(updated);
+        localStorage.setItem(`coupons_${tenant?.slug}`, JSON.stringify(updated));
+        toast.success('Coupon removed');
+    };
+
+    return (
+        <div className="p-8 max-w-4xl mx-auto">
+            <div className="mb-8">
+                <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-pink-100 dark:bg-pink-900/30 rounded-xl flex items-center justify-center">
+                        <Tag className="text-pink-600 dark:text-pink-400" size={24} />
+                    </div>
+                    <div>
+                        <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">My Coupons</h1>
+                        <p className="text-zinc-500 dark:text-zinc-400 text-sm">Enter and save discount codes for checkout.</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Enter Coupon Code Section */}
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 mb-6 shadow-sm">
+                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-4">Enter Coupon Code</h3>
+                <div className="flex gap-3">
+                    <input
+                        type="text"
+                        className="flex-1 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-lg px-4 py-3 text-sm font-mono uppercase placeholder:normal-case placeholder:font-sans"
+                        placeholder="Enter your coupon code"
+                        value={couponCode}
+                        onChange={e => {
+                            setCouponCode(e.target.value.toUpperCase());
+                            setValidationResult(null);
+                        }}
+                        onKeyDown={e => e.key === 'Enter' && handleValidate()}
+                    />
+                    <button
+                        onClick={() => handleValidate()}
+                        disabled={loading || !couponCode.trim()}
+                        className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-6 py-3 rounded-lg text-sm font-bold hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+                    >
+                        {loading ? 'Checking...' : 'Apply'}
+                    </button>
+                </div>
+
+                {/* Validation Result */}
+                {validationResult && (
+                    <div className={`mt-4 p-4 rounded-lg flex items-center gap-3 ${validationResult.valid
+                        ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+                        : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+                        }`}>
+                        {validationResult.valid ? (
+                            <>
+                                <CheckCircle className="text-green-600 dark:text-green-400" size={20} />
+                                <div className="flex-1">
+                                    <span className="font-bold text-green-700 dark:text-green-300">Valid coupon!</span>
+                                    <span className="ml-2 text-green-600 dark:text-green-400">
+                                        {validationResult.coupon.type === 'percent'
+                                            ? `${validationResult.coupon.value}% off`
+                                            : `$${(validationResult.coupon.value / 100).toFixed(2)} off`}
+                                    </span>
+                                </div>
+                                <button
+                                    onClick={handleSaveCoupon}
+                                    className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700"
+                                >
+                                    Save for Checkout
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <XCircle className="text-red-600 dark:text-red-400" size={20} />
+                                <span className="text-red-700 dark:text-red-300">{validationResult.error}</span>
+                            </>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* Saved Coupons */}
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-sm">
+                <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
+                    <h3 className="font-bold text-zinc-900 dark:text-zinc-100">Saved Coupons</h3>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">These will be automatically applied at checkout.</p>
+                </div>
+
+                {savedCoupons.length === 0 ? (
+                    <div className="p-12 text-center text-zinc-400">
+                        <Ticket className="mx-auto h-12 w-12 mb-4 opacity-20" />
+                        <h3 className="text-zinc-900 dark:text-zinc-100 font-bold mb-1">No Saved Coupons</h3>
+                        <p className="text-sm">Enter a coupon code above to save it for checkout.</p>
+                    </div>
+                ) : (
+                    <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                        {savedCoupons.map((coupon: any) => (
+                            <div key={coupon.code} className="px-6 py-4 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                                <div className="flex items-center gap-4">
+                                    <span className="font-mono font-bold text-zinc-800 dark:text-zinc-200 bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded">
+                                        {coupon.code}
+                                    </span>
+                                    {coupon.type === 'percent' ? (
+                                        <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded text-xs font-bold">
+                                            {coupon.value}% OFF
+                                        </span>
+                                    ) : (
+                                        <span className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded text-xs font-bold">
+                                            ${(coupon.value / 100).toFixed(2)} OFF
+                                        </span>
+                                    )}
+                                </div>
+                                <button
+                                    onClick={() => handleRemoveCoupon(coupon.code)}
+                                    className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                                    title="Remove"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// Admin view: Full coupon management
+function AdminCouponsView({ initialCoupons, tenant }: any) {
     const [coupons, setCoupons] = useState(initialCoupons || []);
     const [loading, setLoading] = useState(false);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -44,8 +257,6 @@ function CouponsView({ initialCoupons, tenant, isStudentView }: any) {
 
     const fetchCoupons = async () => {
         const token = await getToken();
-        // If student, this might need a different endpoint or the API handles it. 
-        // For now using the same endpoint but filtered by UI permissions.
         const res: any = await apiRequest("/commerce/coupons", token, {
             headers: { 'X-Tenant-Slug': tenant.slug }
         });
@@ -106,20 +317,16 @@ function CouponsView({ initialCoupons, tenant, isStudentView }: any) {
                         <Tag className="text-pink-600 dark:text-pink-400" size={24} />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">{isStudentView ? "My Coupons" : "Coupons"}</h1>
-                        <p className="text-zinc-500 dark:text-zinc-400 text-sm">
-                            {isStudentView ? "View available discount codes." : "Manage discounts and promotional codes."}
-                        </p>
+                        <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">Coupons</h1>
+                        <p className="text-zinc-500 dark:text-zinc-400 text-sm">Manage discounts and promotional codes.</p>
                     </div>
                 </div>
-                {!isStudentView && (
-                    <button
-                        onClick={() => setIsCreateOpen(true)}
-                        className="bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-2 rounded-lg text-sm font-bold hover:bg-zinc-800 transition-colors shadow-lg shadow-zinc-500/10 flex items-center gap-2"
-                    >
-                        <Plus size={16} /> New Coupon
-                    </button>
-                )}
+                <button
+                    onClick={() => setIsCreateOpen(true)}
+                    className="bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-2 rounded-lg text-sm font-bold hover:bg-zinc-800 transition-colors shadow-lg shadow-zinc-500/10 flex items-center gap-2"
+                >
+                    <Plus size={16} /> New Coupon
+                </button>
             </div>
 
             {/* Create Modal */}
@@ -249,7 +456,7 @@ function CouponsView({ initialCoupons, tenant, isStudentView }: any) {
                                         )}
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        {coupon.active && !isStudentView && (
+                                        {coupon.active && (
                                             <>
                                                 <button
                                                     onClick={() => {
@@ -292,3 +499,4 @@ function CouponsView({ initialCoupons, tenant, isStudentView }: any) {
         </div>
     );
 }
+

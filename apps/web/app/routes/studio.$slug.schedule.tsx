@@ -39,11 +39,12 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const token = await getToken();
 
     // Fetch classes, locations, and instructors parallel
+    // Note: Students may get 403 on members/locations endpoints, so catch individually
     try {
         const [classes, locationsRes, instructorsRes, familyRes] = await Promise.all([
             apiRequest("/classes", token, { headers: { 'X-Tenant-Slug': params.slug! } }),
-            apiRequest("/locations", token, { headers: { 'X-Tenant-Slug': params.slug! } }),
-            apiRequest("/members?role=instructor", token, { headers: { 'X-Tenant-Slug': params.slug! } }),
+            apiRequest("/locations", token, { headers: { 'X-Tenant-Slug': params.slug! } }).catch(() => ({ locations: [] })),
+            apiRequest("/members?role=instructor", token, { headers: { 'X-Tenant-Slug': params.slug! } }).catch(() => ({ members: [] })),
             apiRequest("/users/me/family", token, { headers: { 'X-Tenant-Slug': params.slug! } }).catch(() => ({ family: [] }))
         ]);
 
@@ -59,6 +60,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
         return { classes: [], locations: [], instructors: [], error: "Failed to load schedule" };
     }
 };
+
 
 export default function StudioSchedule() {
     const { classes: initialClasses, locations, instructors, family, error } = useLoaderData<any>();
