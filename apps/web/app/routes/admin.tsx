@@ -98,7 +98,7 @@ export default function AdminLayout() {
     ];
 
     return (
-        <div className="min-h-screen bg-zinc-50 font-sans flex text-zinc-900">
+        <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 font-sans flex text-zinc-900 dark:text-zinc-100">
             {/* Admin Sidebar */}
             <aside className="w-64 bg-zinc-950 text-zinc-400 flex flex-col border-r border-zinc-800 shadow-xl z-10">
                 <div className="p-6 border-b border-zinc-900/50 flex items-center gap-3">
@@ -136,21 +136,21 @@ export default function AdminLayout() {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 flex flex-col h-screen overflow-hidden bg-zinc-50/50">
-                <header className="h-16 bg-white border-b border-zinc-200 flex items-center justify-between px-8">
+            <main className="flex-1 flex flex-col h-screen overflow-hidden bg-zinc-50/50 dark:bg-zinc-950">
+                <header className="h-16 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-8">
                     <div className="flex items-center gap-2 text-sm text-zinc-500">
-                        <span className="hover:text-zinc-900 cursor-pointer">Admin</span>
+                        <span className="hover:text-zinc-900 dark:hover:text-zinc-300 cursor-pointer">Admin</span>
                         <span>/</span>
-                        <span className="font-medium text-zinc-900">Dashboard</span>
+                        <span className="font-medium text-zinc-900 dark:text-zinc-100">Dashboard</span>
                     </div>
                     <div className="flex items-center gap-4">
-                        <span className="text-xs font-mono text-zinc-400 bg-zinc-100 px-2 py-1 rounded">v1.0.0-dev</span>
-                        <div className="h-4 w-px bg-zinc-200 mx-2" />
+                        <span className="text-xs font-mono text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded">v1.0.0-dev</span>
+                        <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-800 mx-2" />
 
                         {isLoaded && (clerkUser || dbUser) ? (
                             <div className="flex items-center gap-3">
                                 <div className="flex flex-col items-end">
-                                    <span className="text-sm font-medium text-zinc-900 leading-none">{displayName}</span>
+                                    <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100 leading-none">{displayName}</span>
                                     <span className="text-xs text-zinc-500">
                                         {displayEmail}
                                     </span>
