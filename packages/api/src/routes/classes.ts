@@ -99,6 +99,7 @@ app.get('/', async (c) => {
     const auth = c.get('auth');
     const userId = auth?.userId;
     let userBookings: Map<string, string> = new Map();
+    const classIds = results.map(r => r.id);
 
     if (userId) {
         // Find member ID first
@@ -107,7 +108,6 @@ app.get('/', async (c) => {
         });
 
         if (member) {
-            const classIds = results.map(r => r.id);
             if (classIds.length > 0) {
                 const myBookings = await db.select({ classId: bookings.classId, status: bookings.status })
                     .from(bookings)

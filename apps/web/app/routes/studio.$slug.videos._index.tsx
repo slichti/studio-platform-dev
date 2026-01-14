@@ -42,8 +42,9 @@ export default function StudioMediaLibrary() {
     const [searchParams, setSearchParams] = useSearchParams();
     const { isStudentView } = useOutletContext<any>();
 
-    // Tab State
-    const currentTab = searchParams.get('tab') || 'videos';
+    // Tab State - prevent students from accessing images tab
+    const rawTab = searchParams.get('tab') || 'videos';
+    const currentTab = (isStudentView && rawTab === 'images') ? 'videos' : rawTab;
 
     // Search & Filter
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -134,13 +135,17 @@ export default function StudioMediaLibrary() {
                     <div className="flex justify-between items-center mb-6">
                         <div>
                             <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Media Library</h1>
-                            <p className="text-zinc-500 dark:text-zinc-400">Manage your class recordings and photo assets.</p>
+                            <p className="text-zinc-500 dark:text-zinc-400">
+                                {isStudentView ? "Browse class recordings and video content." : "Manage your class recordings and photo assets."}
+                            </p>
                         </div>
                         <div className="flex items-center gap-4">
-                            <div className="bg-zinc-100 dark:bg-zinc-800 px-4 py-2 rounded-lg text-sm">
-                                <span className="font-medium text-zinc-600 dark:text-zinc-400">Storage Used: </span>
-                                <span className="font-bold text-zinc-900 dark:text-zinc-200">{formatBytes(storageUsage)}</span>
-                            </div>
+                            {!isStudentView && (
+                                <div className="bg-zinc-100 dark:bg-zinc-800 px-4 py-2 rounded-lg text-sm">
+                                    <span className="font-medium text-zinc-600 dark:text-zinc-400">Storage Used: </span>
+                                    <span className="font-bold text-zinc-900 dark:text-zinc-200">{formatBytes(storageUsage)}</span>
+                                </div>
+                            )}
 
                             {!isStudentView && (
                                 currentTab === 'videos' ? (
@@ -186,12 +191,14 @@ export default function StudioMediaLibrary() {
                         >
                             <Folder size={16} /> Collections ({collections.length})
                         </button>
-                        <button
-                            onClick={() => setSearchParams({ tab: 'images' })}
-                            className={`pb-3 text-sm font-medium flex items-center gap-2 border-b-2 transition ${currentTab === 'images' ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100' : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'}`}
-                        >
-                            <ImageIcon size={16} /> Photos ({images.length})
-                        </button>
+                        {!isStudentView && (
+                            <button
+                                onClick={() => setSearchParams({ tab: 'images' })}
+                                className={`pb-3 text-sm font-medium flex items-center gap-2 border-b-2 transition ${currentTab === 'images' ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100' : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'}`}
+                            >
+                                <ImageIcon size={16} /> Photos ({images.length})
+                            </button>
+                        )}
                     </div>
                 </div>
 

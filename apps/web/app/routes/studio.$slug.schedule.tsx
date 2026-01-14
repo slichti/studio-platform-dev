@@ -64,7 +64,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
 export default function StudioSchedule() {
     const { classes: initialClasses, locations, instructors, family, error } = useLoaderData<any>();
-    const { tenant, me, features } = useOutletContext<any>() || {};
+    const { tenant, me, features, roles, isStudentView } = useOutletContext<any>() || {};
+    const canSchedule = !isStudentView && (roles?.includes('owner') || roles?.includes('instructor'));
     const [classes, setClasses] = useState(initialClasses || []);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -143,15 +144,19 @@ export default function StudioSchedule() {
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Schedule</h1>
-                    <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">Manage your class calendar and bookings.</p>
+                    <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
+                        {isStudentView ? "View upcoming classes and book sessions." : "Manage your class calendar and bookings."}
+                    </p>
                 </div>
-                <button
-                    onClick={() => setIsCreateOpen(true)}
-                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors font-medium text-sm"
-                >
-                    <Plus size={16} />
-                    Schedule Class
-                </button>
+                {canSchedule && (
+                    <button
+                        onClick={() => setIsCreateOpen(true)}
+                        className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors font-medium text-sm"
+                    >
+                        <Plus size={16} />
+                        Schedule Class
+                    </button>
+                )}
             </div>
 
             {error && (
