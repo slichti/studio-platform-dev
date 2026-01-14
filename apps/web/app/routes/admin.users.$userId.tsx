@@ -28,7 +28,7 @@ export default function EditUser() {
     const { user, tenants } = useLoaderData<any>();
     const { getToken } = useAuth();
     const navigate = useNavigate();
-    const [isSystemAdmin, setIsSystemAdmin] = useState(user.isSystemAdmin);
+    const [isPlatformAdmin, setIsPlatformAdmin] = useState(user.isPlatformAdmin);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
 
@@ -38,6 +38,10 @@ export default function EditUser() {
     const [newMembership, setNewMembership] = useState({ tenantId: "", role: "student" });
     const [statusDialog, setStatusDialog] = useState<{ isOpen: boolean, type: 'error' | 'success', message: string }>({ isOpen: false, type: 'success', message: '' });
 
+    // Confirmation States
+    const [confirmRemoveMembershipId, setConfirmRemoveMembershipId] = useState<string | null>(null);
+    const [showImpersonateConfirm, setShowImpersonateConfirm] = useState(false);
+
     const handleSave = async () => {
         setSaving(true);
         setError("");
@@ -45,7 +49,7 @@ export default function EditUser() {
             const token = await getToken();
             await apiRequest(`/admin/users/${user.id}`, token, {
                 method: 'PUT',
-                body: JSON.stringify({ isSystemAdmin })
+                body: JSON.stringify({ isPlatformAdmin })
             });
             navigate("/admin/users");
         } catch (e: any) {
@@ -76,8 +80,13 @@ export default function EditUser() {
         }
     };
 
-    const removeMembership = async (tenantId: string) => {
-        if (!confirm("Are you sure you want to remove this user from the studio?")) return;
+    const removeMembership = (tenantId: string) => {
+        setConfirmRemoveMembershipId(tenantId);
+    };
+
+    const confirmRemoveMembershipAction = async () => {
+        if (!confirmRemoveMembershipId) return;
+        const tenantId = confirmRemoveMembershipId;
 
         try {
             const token = await getToken();
@@ -89,11 +98,16 @@ export default function EditUser() {
             setMemberships(memberships.filter((m: any) => m.tenant.id !== tenantId));
         } catch (e: any) {
             setStatusDialog({ isOpen: true, type: 'error', message: e.message });
+        } finally {
+            setConfirmRemoveMembershipId(null);
         }
     };
 
-    const handleImpersonate = async () => {
-        if (!confirm(`You are about to sign in as ${user.email}. This will assume their identity.`)) return;
+    const handleImpersonate = () => {
+        setShowImpersonateConfirm(true);
+    };
+
+    const confirmImpersonate = async () => {
         try {
             const token = await getToken();
             const res = await apiRequest("/admin/impersonate", token, {
@@ -126,11 +140,14 @@ export default function EditUser() {
                     // Let's go to `/studio/${slug}`.
                     window.location.href = `/studio/${slug}`;
                 } else {
-                    alert("User has no studio memberships to access.");
+                    // alert("User has no studio memberships to access.");
+                    setStatusDialog({ isOpen: true, type: 'error', message: "User has no studio memberships to access." });
                 }
             }
         } catch (e: any) {
             setStatusDialog({ isOpen: true, type: 'error', message: `Impersonation failed: ${e.message}` });
+        } finally {
+            setShowImpersonateConfirm(false);
         }
     };
 
@@ -182,12 +199,12 @@ export default function EditUser() {
                             <label className="flex items-start gap-3 cursor-pointer p-4 rounded-lg border border-zinc-200 hover:bg-zinc-50 transition-colors">
                                 <input
                                     type="checkbox"
-                                    checked={isSystemAdmin}
-                                    onChange={(e) => setIsSystemAdmin(e.target.checked)}
+                                    checked={isPlatformAdmin}
+                                    onChange={(e) => setIsPlatformAdmin(e.target.checked)}
                                     className="mt-1 w-5 h-5 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
                                 />
                                 <div>
-                                    <div className="font-medium text-zinc-900">System Administrator</div>
+                                    <div className="font-medium text-zinc-900">Platform Administrator</div>
                                     <div className="text-sm text-zinc-500 mt-1">Grants full access to modify all tenants, users, and system settings.</div>
                                 </div>
                             </label>
@@ -308,6 +325,26 @@ export default function EditUser() {
                 onClose={() => setStatusDialog({ ...statusDialog, isOpen: false })}
                 title="Error"
                 message={statusDialog.message}
+            />
+
+            <ConfirmationDialog
+                isOpen={!!confirmRemoveMembershipId}
+                onClose={() => setConfirmRemoveMembershipId(null)}
+                onConfirm={confirmRemoveMembershipAction}
+                title="Remove Studio Access"
+                message="Are you sure you want to remove this user from the studio?"
+                isDestructive={true}
+                confirmText="Remove Access"
+            />
+
+            <ConfirmationDialog
+                isOpen={showImpersonateConfirm}
+                onClose={() => setShowImpersonateConfirm(false)}
+                onConfirm={confirmImpersonate}
+                title="Impersonate User"
+                message={`You are about to sign in as ${user.email}. This will assume their identity.`}
+                confirmText="Impersonate"
+                isDestructive={true}
             />
         </div>
     );

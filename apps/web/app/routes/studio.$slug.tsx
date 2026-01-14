@@ -1,8 +1,7 @@
-// @ts-ignore
-import { Outlet, useLoaderData, useParams, NavLink, redirect, Link } from "react-router";
+import { Outlet, useLoaderData, useParams, NavLink, redirect, Link, useSearchParams } from "react-router";
 // @ts-ignore
 import type { LoaderFunctionArgs } from "react-router";
-import { useState } from "react"; // Added useState
+import { useState, useEffect } from "react"; // Added useState
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { UserButton } from "@clerk/react-router";
@@ -36,12 +35,14 @@ import {
     Image as ImageIcon,
     Database,
     Smartphone,
-    MessageSquare
+    MessageSquare,
+    CircleHelp
 } from "lucide-react";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { CommandBar } from "../components/CommandBar";
 import { SidebarGroup } from "../components/SidebarGroup";
-import { useClerk } from "@clerk/react-router";
+import { ComponentProps } from "react";
+import { useClerk, useUser } from "@clerk/react-router";
 import { ImpersonationBanner } from "../components/ImpersonationBanner";
 import { ChatWidget } from "../components/chat/ChatWidget";
 
@@ -107,7 +108,13 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
 export default function StudioLayout() {
     const { slug, tenant, me, isPaused, features } = useLoaderData<typeof loader>();
+    const { user: clerkUser } = useUser();
     const featureSet = new Set(features);
+
+    // Name Display Logic
+    const dbName = `${me.firstName || ''} ${me.lastName || ''}`.trim();
+    // If DB name is just "User" or empty, try Clerk name, otherwise fallback to DB (or 'Member')
+    const displayName = (dbName && dbName !== 'User') ? dbName : (clerkUser?.fullName || dbName || 'Member');
 
     // Student View State
     // Initialize from localStorage if client-side, otherwise false
@@ -124,6 +131,21 @@ export default function StudioLayout() {
         // Force a soft reload/re-render might be needed if side effects depend on roles,
         // but passing new roles to Outlet context should propagate to children.
     };
+
+    // Auto-Apply Coupon Logic
+    const [searchParams, setSearchParams] = useSearchParams();
+    useEffect(() => {
+        const coupon = searchParams.get('coupon');
+        if (coupon) {
+            sessionStorage.setItem('pending_coupon', coupon.toUpperCase());
+            // Clear param from URL to accept it gracefully
+            const newParams = new URLSearchParams(searchParams);
+            newParams.delete('coupon');
+            setSearchParams(newParams, { replace: true });
+            // Ideally show toast here, but we don't have a global toast context readily visible without looking deeper.
+            // Assuming silent apply is okay for now, checkout will show it.
+        }
+    }, [searchParams, setSearchParams]);
 
     // Effective Roles: If in student view, force role to just 'student'
     const effectiveRoles = isStudentView ? ['student'] : (me?.roles || []);
@@ -212,7 +234,7 @@ export default function StudioLayout() {
                                 <NavItem to={`/studio/${slug}/discounts`} icon={<Tag size={18} />}>Discounts</NavItem>
                                 <NavItem to={`/studio/${slug}/settings/embeds`} icon={<Code size={18} />}>Website Widgets</NavItem>
                                 {tenant.platformFeatures?.feature_mobile_app && (
-                                    <NavItem to={`/studio/${slug}/settings/mobile-app`} icon={<Smartphone size={18} />}>Mobile App</NavItem>
+                                    <NavItem to={`/studio/${slug}/settings/mobile`} icon={<Smartphone size={18} />}>Mobile App</NavItem>
                                 )}
                                 <NavItem to={`/studio/${slug}/settings/integrations`} icon={<Terminal size={18} />}>Integrations</NavItem>
                                 <NavItem to={`/studio/${slug}/settings/chat`} icon={<MessageSquare size={18} />}>Chat Settings</NavItem>
@@ -230,7 +252,7 @@ export default function StudioLayout() {
 
                 <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex flex-col gap-3">
                     {/* View as Student Toggle */}
-                    {!isStudentView && (me?.roles?.includes('owner') || me?.roles?.includes('admin') || (useLoaderData() as any).me?.user?.isSystemAdmin || (useLoaderData() as any).isImpersonating) && (
+                    {!isStudentView && (me?.roles?.includes('owner') || me?.roles?.includes('admin') || (useLoaderData() as any).me?.user?.isPlatformAdmin || (useLoaderData() as any).isImpersonating) && (
                         <button
                             onClick={toggleStudentView}
                             className="flex items-center gap-2 text-zinc-500 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 text-xs font-medium transition mb-1"
@@ -241,7 +263,7 @@ export default function StudioLayout() {
                     )}
 
                     {/* System Admin Escape Hatch */}
-                    {((useLoaderData() as any).me?.user?.isSystemAdmin || (useLoaderData() as any).isImpersonating) && !isStudentView && (
+                    {((useLoaderData() as any).me?.user?.isPlatformAdmin || (useLoaderData() as any).isImpersonating) && !isStudentView && (
                         <a href="/admin" className="flex items-center gap-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 text-xs font-medium transition mb-1"
                         >
                             <Users size={14} />
@@ -249,18 +271,14 @@ export default function StudioLayout() {
                         </a>
                     )}
 
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <UserButton />
-                            <div className="flex flex-col overflow-hidden">
-                                <span className="text-sm font-medium truncate text-zinc-900 dark:text-zinc-200">
-                                    {me.firstName} {me.lastName}
-                                </span>
-                                <span className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{me.email}</span>
-                            </div>
-                        </div>
-                        <ThemeToggle />
-                    </div>
+                    <Link
+                        to="/help"
+                        className="flex items-center gap-2 text-zinc-500 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 text-xs font-medium transition mb-1"
+                    >
+                        <CircleHelp size={14} />
+                        <span>Help & Support</span>
+                    </Link>
+
 
                     <div className="pt-4 mt-auto">
                         <PoweredBy tier={tenant.tier} branding={tenant.branding} />
@@ -303,17 +321,74 @@ export default function StudioLayout() {
                     </div>
                 )}
 
-                {/* Search Bar Hint */}
-                <div className="px-8 pt-4 flex justify-end">
-                    <button
-                        onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs text-zinc-400 hover:border-blue-500 transition-all shadow-sm group"
-                    >
-                        <Search size={14} className="group-hover:text-blue-500" />
-                        <span>Search...</span>
-                        <kbd className="ml-2 px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded font-sans opacity-50">⌘K</kbd>
-                    </button>
-                </div>
+                {/* Global Header */}
+                <header className="h-16 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-between px-6 sticky top-0 z-10">
+                    {/* Breadcrumbs */}
+                    <div className="flex items-center gap-2 text-sm text-zinc-500">
+                        <span className="hover:text-zinc-900 dark:hover:text-zinc-300 cursor-pointer">Studio</span>
+                        <span>/</span>
+                        <span className="font-medium text-zinc-900 dark:text-zinc-100">{tenant.name}</span>
+                    </div>
+
+                    {/* Right Actions */}
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => window.dispatchEvent(new CustomEvent('open-command-bar'))}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs text-zinc-500 dark:text-zinc-400 hover:border-blue-500 transition-all shadow-sm group"
+                        >
+                            <Search size={14} className="group-hover:text-blue-500" />
+                            <span>Search...</span>
+                            <kbd className="ml-2 px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-700 rounded font-sans opacity-50">⌘K</kbd>
+                        </button>
+
+                        <Link
+                            to="/help"
+                            title="Help Center"
+                            className="p-2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        >
+                            <CircleHelp size={20} />
+                        </Link>
+
+                        <ThemeToggle />
+
+                        <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-800 mx-2" />
+
+                        <div className="flex items-center gap-3">
+                            <div className="flex flex-col items-end hidden sm:flex">
+                                <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100 leading-none">{displayName}</span>
+                                <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium capitalize mt-0.5">
+                                    {(() => {
+                                        const isPlatformAdmin = (me as any)?.user?.isPlatformAdmin;
+                                        let baseRole = 'Member';
+                                        if (isPlatformAdmin) baseRole = 'Admin';
+                                        else if (me?.roles?.includes('owner')) baseRole = 'Owner';
+                                        else if (me?.roles?.includes('admin')) baseRole = 'Manager';
+                                        else if (me?.roles?.includes('instructor')) baseRole = 'Instructor';
+
+                                        let activeRole = (effectiveRoles[0] || 'member').replace(/_/g, ' ');
+
+                                        // Capitalize helper
+                                        const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+                                        baseRole = cap(baseRole);
+                                        activeRole = cap(activeRole);
+
+                                        // Deduplicate if same
+                                        if (baseRole === activeRole) return activeRole;
+
+                                        // Show compound if strictly different effective state (e.g. Admin acting as Owner, or Owner viewing as Student)
+                                        // Case 1: System Admin acting as anything else
+                                        if (baseRole === 'Admin') return `${baseRole} / ${activeRole}`;
+                                        // Case 2: Owner/Manager viewing as Student
+                                        if (activeRole === 'Student' && baseRole !== 'Member') return `${baseRole} / ${activeRole}`;
+
+                                        return activeRole;
+                                    })()}
+                                </span>
+                            </div>
+                            <UserButton />
+                        </div>
+                    </div>
+                </header>
 
                 <div className="flex-1 overflow-auto">
                     <Outlet context={{ tenant, me, features: featureSet, roles: effectiveRoles, isStudentView }} />

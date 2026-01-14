@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/react-router";
 
-export function useAdminPrivacy(isSystemAdmin: boolean = false) {
+export function useAdminPrivacy(isPlatformAdmin: boolean = false) {
     const [isPrivacyMode, setIsPrivacyMode] = useState(false);
 
     useEffect(() => {
-        // Only relevant if user is System Admin (or we are in admin context)
-        // If passed isSystemAdmin is false, maybe we check generic token or similar?
+        // Only relevant if user is Platform Admin (or we are in admin context)
+        // If passed isPlatformAdmin is false, maybe we check generic token or similar?
         // But mainly this relies on localStorage toggled by Admin.
 
         // If we want to strictly enforce "Only System Admins see this", the backend handles data security.

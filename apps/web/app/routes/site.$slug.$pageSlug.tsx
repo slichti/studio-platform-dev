@@ -42,7 +42,7 @@ export default function WebsitePage() {
 
     // Check if user is authorized to edit (Owner of the tenant)
     // We can check Clerk metadata or just show it if they are logged in and let the editor enforce perms
-    const canEdit = user?.publicMetadata?.isSystemAdmin || true; // Simply show if logged in, editor will 403 if not active member
+    const canEdit = user?.publicMetadata?.isPlatformAdmin || true; // Simply show if logged in, editor will 403 if not active member
 
     return (
         <div className="min-h-screen bg-white relative">

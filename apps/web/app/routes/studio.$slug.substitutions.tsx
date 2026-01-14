@@ -6,7 +6,8 @@ import { getAuth } from "@clerk/react-router/server";
 import { useAuth } from "@clerk/react-router";
 import { apiRequest } from "../utils/api";
 import { useState } from "react";
-import { RefreshCw, CheckCircle, XCircle, AlertCircle, Clock } from "lucide-react";
+import { RefreshCw, CheckCircle, AlertCircle, Clock } from "lucide-react";
+import { ErrorDialog } from "../components/Dialogs";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { params } = args;
@@ -16,12 +17,12 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const token = await getToken();
 
     try {
-        const res: any = await apiRequest("/substitutions", token, {
+        const res: any = await apiRequest("/sub-dispatch/items", token, {
             headers: { 'X-Tenant-Slug': params.slug! }
         });
-        return { substitutions: res.substitutions || [], error: null };
+        return { substitutions: res.requests || [], error: null };
     } catch (e) {
-        return { substitutions: [], error: "Failed to load substitutions" };
+        return { substitutions: [], error: "Failed to load sub requests" };
     }
 };
 
@@ -29,8 +30,9 @@ export default function SubstitutionsPage() {
     const { substitutions: initialSubs, error } = useLoaderData<any>();
     const { tenant, me } = useOutletContext<any>() || {};
     const { getToken } = useAuth();
-    const [subs, setSubs] = useState(initialSubs);
+    const [subs, setSubs] = useState(initialSubs || []);
     const [loading, setLoading] = useState(false);
+    const [errorState, setErrorState] = useState<{ isOpen: boolean; message: string }>({ isOpen: false, message: '' });
 
     // Create Mode
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -45,9 +47,6 @@ export default function SubstitutionsPage() {
             const res: any = await apiRequest(`/classes?startDate=${new Date().toISOString()}&instructorId=${me?.member?.id}`, token, {
                 headers: { 'X-Tenant-Slug': tenant.slug }
             });
-            // Filter out classes that already have a sub request? 
-            // Ideally backend filters, but client side check is ok for now.
-            // Actually, querying /classes returns all. We can filter in UI if needed.
             setMyClasses(Array.isArray(res) ? res : []);
         } catch (e) {
             console.error(e);
@@ -59,10 +58,10 @@ export default function SubstitutionsPage() {
         setLoading(true);
         try {
             const token = await getToken();
-            const res: any = await apiRequest("/substitutions/request", token, {
+            const res: any = await apiRequest(`/sub-dispatch/classes/${form.classId}/request`, token, {
                 method: 'POST',
                 headers: { 'X-Tenant-Slug': tenant.slug },
-                body: JSON.stringify(form)
+                body: JSON.stringify({ message: form.notes })
             });
 
             if (res.error) throw new Error(res.error);
@@ -72,12 +71,12 @@ export default function SubstitutionsPage() {
             setForm({ classId: '', notes: '' });
 
             // Refresh List
-            const refreshed: any = await apiRequest("/substitutions", token, {
+            const refreshed: any = await apiRequest("/sub-dispatch/items", token, {
                 headers: { 'X-Tenant-Slug': tenant.slug }
             });
-            setSubs(refreshed.substitutions || []);
+            setSubs(refreshed.requests || []);
         } catch (e: any) {
-            alert(e.message);
+            setErrorState({ isOpen: true, message: e.message });
         } finally {
             setLoading(false);
         }
@@ -89,20 +88,23 @@ export default function SubstitutionsPage() {
         if (loading) return;
         setLoading(true);
         try {
+            // Currently only support 'accept' (claim)
+            if (action !== 'accept') return;
+
             const token = await getToken();
-            const res: any = await apiRequest(`/substitutions/${id}/${action}`, token, {
+            const res: any = await apiRequest(`/sub-dispatch/items/${id}/accept`, token, {
                 method: 'POST',
                 headers: { 'X-Tenant-Slug': tenant.slug }
             });
             if (res.error) throw new Error(res.error);
 
             // Refresh
-            const refreshed: any = await apiRequest("/substitutions", token, {
+            const refreshed: any = await apiRequest("/sub-dispatch/items", token, {
                 headers: { 'X-Tenant-Slug': tenant.slug }
             });
-            setSubs(refreshed.substitutions || []);
+            setSubs(refreshed.requests || []);
         } catch (e: any) {
-            alert(e.message);
+            setErrorState({ isOpen: true, message: e.message });
         } finally {
             setLoading(false);
         }
@@ -191,10 +193,10 @@ export default function SubstitutionsPage() {
             )}
 
             <div className="grid grid-cols-1 gap-8">
-                {/* Pending Requests */}
+                {/* Open Requests */}
                 <Section title="Needs Coverage" icon={<AlertCircle className="text-amber-500" size={18} />}>
                     <SubList
-                        items={subs.filter((s: any) => s.status === 'pending')}
+                        items={subs.filter((s: any) => s.status === 'open')}
                         onAction={handleAction}
                         canClaim={true}
                         currentMemberId={me?.member?.id}
@@ -202,26 +204,21 @@ export default function SubstitutionsPage() {
                     />
                 </Section>
 
-                {/* Claimed - Awaiting Approval */}
-                <Section title="Awaiting Approval" icon={<Clock className="text-blue-500" size={18} />}>
+                {/* Histroy / Filled - Optional */}
+                <Section title="Filled / Past" icon={<CheckCircle className="text-green-500" size={18} />}>
                     <SubList
-                        items={subs.filter((s: any) => s.status === 'claimed')}
-                        onAction={handleAction}
-                        canApprove={isOwner}
-                        loading={loading}
-                    />
-                </Section>
-
-                {/* Recently Approved */}
-                <Section title="Approved Changes" icon={<CheckCircle className="text-green-500" size={18} />}>
-                    <SubList
-                        items={subs.filter((s: any) => s.status === 'approved')}
+                        items={subs.filter((s: any) => s.status === 'filled')}
                         onAction={handleAction}
                         readOnly={true}
                         loading={loading}
                     />
                 </Section>
             </div>
+            <ErrorDialog
+                isOpen={errorState.isOpen}
+                onClose={() => setErrorState({ ...errorState, isOpen: false })}
+                message={errorState.message}
+            />
         </div>
     );
 }
@@ -245,7 +242,7 @@ function Section({ title, icon, children }: any) {
     );
 }
 
-function SubList({ items, onAction, canClaim, canApprove, readOnly, currentMemberId, loading }: any) {
+function SubList({ items, onAction, canClaim, readOnly, currentMemberId, loading }: any) {
     if (items.length === 0) {
         return (
             <div className="p-12 text-center">
@@ -263,77 +260,46 @@ function SubList({ items, onAction, canClaim, canApprove, readOnly, currentMembe
                 <div key={sub.id} className="p-6 hover:bg-zinc-50 dark:hover:bg-zinc-800/20 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                            <div className="font-bold text-lg text-zinc-900 dark:text-zinc-100">{sub.class?.title}</div>
+                            <div className="font-bold text-lg text-zinc-900 dark:text-zinc-100">{sub.classTitle}</div>
                             <span className="text-[10px] bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-700 font-mono">
-                                {sub.class?.id.substring(0, 8)}
+                                {sub.classId?.substring(0, 8)}
                             </span>
                         </div>
                         <div className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
                             <Clock size={14} />
-                            {new Date(sub.class?.startTime).toLocaleString([], { dateStyle: 'full', timeStyle: 'short' })}
+                            {new Date(sub.startTime).toLocaleString([], { dateStyle: 'full', timeStyle: 'short' })}
                         </div>
+                        {sub.message && (
+                            <div className="mt-2 text-sm text-zinc-600 dark:text-zinc-300 italic">
+                                "{sub.message}"
+                            </div>
+                        )}
                         <div className="mt-4 flex flex-wrap items-center gap-6 text-[10px] font-bold uppercase tracking-widest">
                             <div className="flex flex-col">
-                                <span className="text-zinc-400 mb-1">Scheduled Instructor</span>
-                                <span className="text-zinc-800 dark:text-zinc-200">{sub.requestingInstructor?.user?.profile?.firstName} {sub.requestingInstructor?.user?.profile?.lastName}</span>
+                                <span className="text-zinc-400 mb-1">Original Instructor</span>
+                                <span className="text-zinc-800 dark:text-zinc-200">{sub.originalInstructorName || 'Unknown'}</span>
                             </div>
-                            {sub.coveringInstructor && (
-                                <div className="flex flex-col">
-                                    <span className="text-blue-500 mb-1">Assigned Substitute</span>
-                                    <span className="text-blue-600 dark:text-blue-400 flex items-center gap-1">
-                                        {sub.coveringInstructor?.user?.profile?.firstName} {sub.coveringInstructor?.user?.profile?.lastName}
-                                    </span>
-                                </div>
-                            )}
                         </div>
                     </div>
 
                     {!readOnly && (
                         <div className="flex items-center gap-2">
-                            {canClaim && sub.requestingInstructorId !== currentMemberId && sub.status === 'pending' && (
+                            {canClaim && sub.status === 'open' && (
                                 <button
-                                    onClick={() => onAction(sub.id, 'claim')}
+                                    onClick={() => onAction(sub.id, 'accept')}
                                     disabled={loading}
                                     className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-blue-500/20 hover:bg-blue-700 disabled:opacity-50 transition-all hover:-translate-y-0.5"
                                 >
-                                    Claim Shift
-                                </button>
-                            )}
-                            {canApprove && sub.status === 'claimed' && (
-                                <div className="flex gap-2 w-full md:w-auto">
-                                    <button
-                                        onClick={() => onAction(sub.id, 'approve')}
-                                        disabled={loading}
-                                        className="flex-1 md:flex-none bg-green-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-green-500/20 hover:bg-green-700 disabled:opacity-50 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2"
-                                    >
-                                        <CheckCircle size={18} /> Approve
-                                    </button>
-                                    <button
-                                        onClick={() => onAction(sub.id, 'decline')}
-                                        disabled={loading}
-                                        className="flex-1 md:flex-none bg-white dark:bg-zinc-800 border border-red-100 dark:border-red-900/30 text-red-600 px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-red-50 dark:hover:bg-red-900/10 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <XCircle size={18} /> Decline
-                                    </button>
-                                </div>
-                            )}
-
-                            {sub.requestingInstructorId === currentMemberId && sub.status === 'pending' && (
-                                <button
-                                    onClick={() => onAction(sub.id, 'decline')}
-                                    disabled={loading}
-                                    className="text-zinc-400 hover:text-red-500 text-xs font-bold uppercase transition-colors"
-                                >
-                                    Cancel Request
+                                    Accept Shift
                                 </button>
                             )}
                         </div>
                     )}
 
-                    {sub.status === 'approved' && (
+                    {sub.status === 'filled' && (
                         <div className="flex items-center gap-2 text-green-600 bg-green-50 dark:bg-green-900/20 px-4 py-2 rounded-xl border border-green-100 dark:border-green-900/30">
                             <CheckCircle size={20} />
-                            <span className="text-sm font-bold">Approved</span>
+                            <span className="text-sm font-bold">Filled</span>
                         </div>
                     )}
                 </div>

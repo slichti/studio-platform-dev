@@ -20,7 +20,7 @@ export default function AdminWorkflows() {
                     title="Tenant Provisioning Flow"
                     chart={`
 sequenceDiagram
-    participant Admin as System Admin
+    participant Admin as Platform Admin
     participant API as Platform API
     participant DB as Database
     participant Stripe

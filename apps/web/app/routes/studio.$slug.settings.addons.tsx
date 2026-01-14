@@ -6,6 +6,7 @@ import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";
 import { MessageSquare, Check, X } from "lucide-react";
+import { toast } from "sonner";
 
 export const loader: LoaderFunction = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -72,7 +73,7 @@ export default function AddonsPage() {
             const res = await apiRequest(`/admin/tenants/${tenantId}/features`, token);
             setFeatures(res);
         } catch (e) {
-            alert("Failed to update add-on");
+            toast.error("Failed to update add-on");
         } finally {
             setLoading(null);
         }
@@ -117,8 +118,8 @@ export default function AddonsPage() {
                             onClick={toggleSMS}
                             disabled={!!loading}
                             className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${smsEnabled
-                                    ? "border-red-200 text-red-700 hover:bg-red-50"
-                                    : "bg-blue-600 text-white border-transparent hover:bg-blue-700"
+                                ? "border-red-200 text-red-700 hover:bg-red-50"
+                                : "bg-blue-600 text-white border-transparent hover:bg-blue-700"
                                 }`}
                         >
                             {loading === 'sms' ? "Updating..." : (smsEnabled ? "Disable" : "Enable Add-on")}

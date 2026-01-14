@@ -55,7 +55,7 @@ export default function AdminUsers() {
         firstName: "",
         lastName: "",
         email: "",
-        isSystemAdmin: false,
+        isPlatformAdmin: false,
         initialTenantId: "",
         initialRole: "student"
     });
@@ -164,7 +164,7 @@ export default function AdminUsers() {
 
             setStatusDialog({ isOpen: true, type: 'success', message: "User created successfully." });
             setIsAddUserOpen(false);
-            setNewUser({ firstName: "", lastName: "", email: "", isSystemAdmin: false, initialTenantId: "", initialRole: "student" });
+            setNewUser({ firstName: "", lastName: "", email: "", isPlatformAdmin: false, initialTenantId: "", initialRole: "student" });
             submit(searchParams); // Refresh list
         } catch (e: any) {
             setStatusDialog({ isOpen: true, type: 'error', message: e.message });
@@ -218,8 +218,8 @@ export default function AdminUsers() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-zinc-900">Global User Directory</h1>
-                    <p className="text-zinc-500">Manage all users across the platform.</p>
+                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Global User Directory</h1>
+                    <p className="text-zinc-500 dark:text-zinc-400">Manage all users across the platform.</p>
                 </div>
                 <div className="flex gap-2">
                     <button
@@ -233,14 +233,14 @@ export default function AdminUsers() {
             </div>
 
             {/* Actions Bar */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-between bg-white p-4 rounded-lg border border-zinc-200 shadow-sm">
+            <div className="flex flex-col sm:flex-row gap-4 justify-between bg-white dark:bg-zinc-900 p-4 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
                 <Form onSubmit={handleSearch} className="relative w-full sm:w-96">
                     <input
                         type="search"
                         name="search"
                         defaultValue={searchParams.get("search") || ""}
                         placeholder="Search users..."
-                        className="w-full pl-10 pr-4 py-2 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
+                        className="w-full pl-10 pr-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 focus:border-transparent bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                     />
                     <svg className="absolute left-3 top-2.5 h-5 w-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -248,12 +248,12 @@ export default function AdminUsers() {
                 </Form>
 
                 <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-2 text-sm text-zinc-600 font-medium">
+                    <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 font-medium">
                         <input
                             type="checkbox"
                             checked={groupByTenant}
                             onChange={(e) => setGroupByTenant(e.target.checked)}
-                            className="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
+                            className="rounded border-zinc-300 dark:border-zinc-600 text-zinc-900 focus:ring-zinc-900 dark:bg-zinc-700"
                         />
                         Group by Tenant
                     </label>
@@ -266,8 +266,9 @@ export default function AdminUsers() {
                     <span className="font-medium">{selectedUsers.size} users selected</span>
                     <div className="h-4 w-px bg-zinc-700"></div>
                     <div className="flex gap-2">
-                        <button onClick={() => executeBulk('set_system_admin', true)} className="hover:text-zinc-300 text-sm font-medium">Promote to Admin</button>
-                        <button onClick={() => executeBulk('set_system_admin', false)} className="hover:text-zinc-300 text-sm font-medium">Demote</button>
+                        <button onClick={() => executeBulk('set_role', 'owner')} className="hover:text-zinc-300 text-sm font-medium">Make Owner</button>
+                        <button onClick={() => executeBulk('set_role', 'admin')} className="hover:text-zinc-300 text-sm font-medium">Make Admin</button>
+                        <button onClick={() => executeBulk('set_role', 'user')} className="hover:text-zinc-300 text-sm font-medium">Demote</button>
                         <div className="w-px h-4 bg-zinc-700 mx-2"></div>
                         <button
                             onClick={() => {
@@ -284,12 +285,12 @@ export default function AdminUsers() {
             )}
 
             {/* User List */}
-            <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden shadow-sm">
-                <div className="grid grid-cols-12 gap-4 p-4 border-b border-zinc-100 bg-zinc-50 text-xs font-medium text-zinc-500 uppercase tracking-wider items-center">
+            <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm">
+                <div className="grid grid-cols-12 gap-4 p-4 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider items-center">
                     <div className="col-span-1 flex items-center justify-center">
-                        <input type="checkbox" onChange={toggleSelectAll} checked={selectedUsers.size === usersList.length && usersList.length > 0} className="rounded border-zinc-300" />
+                        <input type="checkbox" onChange={toggleSelectAll} checked={selectedUsers.size === usersList.length && usersList.length > 0} className="rounded border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800" />
                     </div>
-                    <div className="col-span-3 flex items-center gap-1 cursor-pointer hover:text-zinc-700" onClick={() => {
+                    <div className="col-span-3 flex items-center gap-1 cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300" onClick={() => {
                         const current = searchParams.get('sort');
                         const newSort = current === 'name_asc' ? 'name_desc' : 'name_asc';
                         setSearchParams((prev: URLSearchParams) => { prev.set('sort', newSort); return prev; });
@@ -298,7 +299,7 @@ export default function AdminUsers() {
                     </div>
                     <div className="col-span-3">Email</div>
                     <div className="col-span-2">Role</div>
-                    <div className="col-span-2 flex items-center gap-1 cursor-pointer hover:text-zinc-700" onClick={() => {
+                    <div className="col-span-2 flex items-center gap-1 cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300" onClick={() => {
                         const current = searchParams.get('sort');
                         const newSort = current === 'joined_asc' ? 'joined_desc' : 'joined_asc';
                         setSearchParams((prev: URLSearchParams) => { prev.set('sort', newSort); return prev; });
@@ -310,16 +311,16 @@ export default function AdminUsers() {
 
                 {groupByTenant && groupedData ? (
                     Object.entries(groupedData).map(([tId, group]: [string, any]) => (
-                        <div key={tId} className="border-b border-zinc-100 last:border-0">
+                        <div key={tId} className="border-b border-zinc-100 dark:border-zinc-800 last:border-0">
                             <div
-                                className="p-3 bg-zinc-50/50 flex items-center gap-2 cursor-pointer hover:bg-zinc-100 transition-colors"
+                                className="p-3 bg-zinc-50/50 dark:bg-zinc-900/50 flex items-center gap-2 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                                 onClick={() => toggleGroup(tId)}
                             >
                                 <div className="w-4 h-4 flex items-center justify-center text-zinc-400">
                                     {expandedGroups.has(tId) ? '▼' : '▶'}
                                 </div>
-                                <span className="font-semibold text-zinc-700 text-sm">{group.tenant.name}</span>
-                                <span className="text-xs text-zinc-400 bg-white border border-zinc-200 px-1.5 py-0.5 rounded-full">{group.users.length}</span>
+                                <span className="font-semibold text-zinc-700 dark:text-zinc-300 text-sm">{group.tenant.name}</span>
+                                <span className="text-xs text-zinc-400 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-1.5 py-0.5 rounded-full">{group.users.length}</span>
                             </div>
 
                             {expandedGroups.has(tId) && (
@@ -364,18 +365,18 @@ export default function AdminUsers() {
                 <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-zinc-700 mb-1">First Name</label>
+                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">First Name</label>
                             <input
-                                className="w-full border border-zinc-300 rounded-md p-2 text-sm"
+                                className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md p-2 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                                 value={newUser.firstName}
                                 onChange={(e) => setNewUser({ ...newUser, firstName: e.target.value })}
                                 placeholder="Jane"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-zinc-700 mb-1">Last Name</label>
+                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Last Name</label>
                             <input
-                                className="w-full border border-zinc-300 rounded-md p-2 text-sm"
+                                className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md p-2 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                                 value={newUser.lastName}
                                 onChange={(e) => setNewUser({ ...newUser, lastName: e.target.value })}
                                 placeholder="Doe"
@@ -383,9 +384,9 @@ export default function AdminUsers() {
                         </div>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-zinc-700 mb-1">Email Address</label>
+                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Email Address</label>
                         <input
-                            className="w-full border border-zinc-300 rounded-md p-2 text-sm"
+                            className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md p-2 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                             type="email"
                             value={newUser.email}
                             onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
@@ -394,24 +395,26 @@ export default function AdminUsers() {
                     </div>
 
                     <div className="pt-2">
-                        <label className="flex items-center gap-2 text-sm text-zinc-700">
+                        <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
                             <input
                                 type="checkbox"
-                                checked={newUser.isSystemAdmin}
-                                onChange={(e) => setNewUser({ ...newUser, isSystemAdmin: e.target.checked })}
+                                checked={newUser.isPlatformAdmin}
+                                onChange={(e) => setNewUser({ ...newUser, isPlatformAdmin: e.target.checked })}
                                 className="rounded border-zinc-300"
                             />
-                            System Administrator (Main Platform Access)
+                            Platform Administrator (Main Platform Access)
                         </label>
                     </div>
 
-                    <div className="relative pt-4 before:content-['OR'] before:absolute before:top-2 before:left-1/2 before:-translate-x-1/2 before:bg-white before:px-2 before:text-xs before:text-zinc-400 border-t border-zinc-200">
+
+
+                    <div className="relative pt-4 before:content-['OR'] before:absolute before:top-2 before:left-1/2 before:-translate-x-1/2 before:bg-white dark:before:bg-zinc-900 before:px-2 before:text-xs before:text-zinc-400 border-t border-zinc-200 dark:border-zinc-800">
                         <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3 mt-2">Assign to Studio (Optional)</h4>
                         <div className="grid grid-cols-3 gap-2">
                             <div className="col-span-2">
-                                <label className="block text-xs font-medium text-zinc-500 mb-1">Studio</label>
+                                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Studio</label>
                                 <select
-                                    className="w-full border border-zinc-300 rounded-md p-2 text-sm"
+                                    className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md p-2 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                                     value={newUser.initialTenantId}
                                     onChange={(e) => setNewUser({ ...newUser, initialTenantId: e.target.value })}
                                 >
@@ -422,9 +425,9 @@ export default function AdminUsers() {
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-zinc-500 mb-1">Role</label>
+                                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Role</label>
                                 <select
-                                    className="w-full border border-zinc-300 rounded-md p-2 text-sm bg-zinc-50"
+                                    className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md p-2 text-sm bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                                     value={newUser.initialRole}
                                     onChange={(e) => setNewUser({ ...newUser, initialRole: e.target.value })}
                                     disabled={!newUser.initialTenantId}
@@ -438,7 +441,7 @@ export default function AdminUsers() {
                     </div>
 
                     <div className="pt-4 flex justify-end gap-2">
-                        <button onClick={() => setIsAddUserOpen(false)} className="px-3 py-2 text-zinc-600 hover:bg-zinc-100 rounded text-sm">Cancel</button>
+                        <button onClick={() => setIsAddUserOpen(false)} className="px-3 py-2 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded text-sm">Cancel</button>
                         <button
                             onClick={handleCreateUser}
                             disabled={!newUser.email || !newUser.firstName}
@@ -448,7 +451,7 @@ export default function AdminUsers() {
                         </button>
                     </div>
                 </div>
-            </Modal>
+            </Modal >
 
             <ConfirmationDialog
                 isOpen={statusDialog.isOpen && statusDialog.type === 'success'}
@@ -465,7 +468,7 @@ export default function AdminUsers() {
                 title="Error"
                 message={statusDialog.message}
             />
-        </div>
+        </div >
     );
 }
 
@@ -506,19 +509,19 @@ function UserRow({ user, selected, toggle, showCheckbox, currentUserId, contextR
     if (!displayName) displayName = user.email;
 
     return (
-        <div className={`grid grid-cols-12 gap-4 p-4 border-b border-zinc-100 items-center hover:bg-zinc-50 transition-colors ${selected ? 'bg-blue-50/50' : ''}`}>
+        <div className={`grid grid-cols-12 gap-4 p-4 border-b border-zinc-100 dark:border-zinc-800 items-center hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors ${selected ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
             <div className="col-span-1 flex justify-center">
                 {showCheckbox ? (
                     <input
                         type="checkbox"
-                        className="rounded border-zinc-300"
+                        className="rounded border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800"
                         checked={selected}
                         onChange={toggle}
                     />
                 ) : null}
             </div>
-            <div className="col-span-3 font-medium text-zinc-900 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-zinc-200 flex items-center justify-center text-xs font-bold text-zinc-600 overflow-hidden shrink-0">
+            <div className="col-span-3 font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-xs font-bold text-zinc-600 dark:text-zinc-300 overflow-hidden shrink-0">
                     {user.profile?.portraitUrl ? <img src={user.profile.portraitUrl} alt="" className="w-full h-full object-cover" /> : (displayName[0] || 'U')}
                 </div>
                 <div className="truncate min-w-0">
@@ -526,25 +529,27 @@ function UserRow({ user, selected, toggle, showCheckbox, currentUserId, contextR
                     {contextRole && <div className="text-xs text-zinc-400 capitalize">{contextRole}</div>}
                 </div>
             </div>
-            <div className="col-span-3 text-zinc-600 text-sm truncate" title={user.email}>{user.email}</div>
+            <div className="col-span-3 text-zinc-600 dark:text-zinc-400 text-sm truncate" title={user.email}>{user.email}</div>
             <div className="col-span-2">
-                {user.isSystemAdmin ? (
-                    <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded text-xs font-bold">Admin</span>
+                {user.role === 'owner' ? (
+                    <span className="bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded text-xs font-bold border border-amber-200 dark:border-amber-800">Owner</span>
+                ) : (user.role === 'admin' || user.isPlatformAdmin === true) ? (
+                    <span className="bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-300 px-2 py-0.5 rounded text-xs font-bold">Admin</span>
                 ) : (
-                    <span className="text-zinc-400 text-xs">User</span>
+                    <span className="text-zinc-400 dark:text-zinc-500 text-xs">User</span>
                 )}
             </div>
-            <div className="col-span-2 text-zinc-400 text-xs flex flex-col gap-0.5">
+            <div className="col-span-2 text-zinc-400 dark:text-zinc-500 text-xs flex flex-col gap-0.5">
                 <span>
                     {user.lastActiveAt ? <ClientDate date={user.lastActiveAt} /> : 'Never'}
                 </span>
-                <span className="text-zinc-300 flex gap-1">
+                <span className="text-zinc-300 dark:text-zinc-600 flex gap-1">
                     Joined <ClientDateOnly date={user.createdAt} />
                 </span>
             </div>
             <div className="col-span-1">
                 <div className="flex gap-3 justify-end items-center">
-                    {onImpersonate && !user.isSystemAdmin && (
+                    {onImpersonate && !user.isPlatformAdmin && (
                         <button onClick={onImpersonate} className="text-zinc-500 hover:text-zinc-900 text-sm font-medium flex items-center gap-1" title="Login As">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
 

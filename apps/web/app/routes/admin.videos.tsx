@@ -136,7 +136,6 @@ export default function AdminVideos() {
     };
 
     const handleUpload = async (file: File) => {
-        // if (!selectedTenantId) return alert("Please select a tenant");
 
         setUploading(true);
         setUploadStatus("Getting upload URL...");
@@ -237,8 +236,8 @@ export default function AdminVideos() {
 
             <div className="flex justify-between items-start">
                 <div>
-                    <h1 className="text-2xl font-bold text-zinc-900">Platform Video Management</h1>
-                    <p className="text-zinc-500">Monitor storage usage and manage video assets across all studios.</p>
+                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Platform Video Management</h1>
+                    <p className="text-zinc-500 dark:text-zinc-400">Monitor storage usage and manage video assets across all studios.</p>
                 </div>
                 <button
                     onClick={() => setIsUploadOpen(true)}
@@ -251,17 +250,17 @@ export default function AdminVideos() {
 
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white p-4 rounded-lg border border-zinc-200 shadow-sm">
-                    <div className="text-sm text-zinc-500 font-medium uppercase tracking-wider">Total Videos</div>
-                    <div className="text-2xl font-bold text-zinc-900">{stats.totalVideos}</div>
+                <div className="bg-white dark:bg-zinc-900 p-4 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                    <div className="text-sm text-zinc-500 dark:text-zinc-400 font-medium uppercase tracking-wider">Total Videos</div>
+                    <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{stats.totalVideos}</div>
                 </div>
-                <div className="bg-white p-4 rounded-lg border border-zinc-200 shadow-sm">
-                    <div className="text-sm text-zinc-500 font-medium uppercase tracking-wider">Total Storage</div>
-                    <div className="text-2xl font-bold text-zinc-900">{formatBytes(stats.totalStorageBytes)}</div>
+                <div className="bg-white dark:bg-zinc-900 p-4 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                    <div className="text-sm text-zinc-500 dark:text-zinc-400 font-medium uppercase tracking-wider">Total Storage</div>
+                    <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{formatBytes(stats.totalStorageBytes)}</div>
                 </div>
-                <div className="bg-white p-4 rounded-lg border border-zinc-200 shadow-sm">
-                    <div className="text-sm text-zinc-500 font-medium uppercase tracking-wider">Processing</div>
-                    <div className="text-2xl font-bold text-zinc-900">{stats.processingCount}</div>
+                <div className="bg-white dark:bg-zinc-900 p-4 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                    <div className="text-sm text-zinc-500 dark:text-zinc-400 font-medium uppercase tracking-wider">Processing</div>
+                    <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{stats.processingCount}</div>
                 </div>
             </div>
 
@@ -304,14 +303,14 @@ export default function AdminVideos() {
                             placeholder="Search videos..."
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
-                            className="pl-9 pr-4 py-2 border border-zinc-200 rounded-lg text-sm w-64 focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                            className="pl-9 pr-4 py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm w-64 focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent outline-none bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
                         />
                     </form>
                     <div className="relative">
                         <select
                             value={tenantFilter}
                             onChange={(e) => setTenantFilter(e.target.value)}
-                            className="pl-3 pr-8 py-2 border border-zinc-200 rounded-lg text-sm appearance-none bg-white focus:ring-2 focus:ring-black focus:border-transparent outline-none cursor-pointer"
+                            className="pl-3 pr-8 py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm appearance-none bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent outline-none cursor-pointer"
                         >
                             <option value="">All Tenants</option>
                             {tenants.map((t: any) => (
@@ -325,9 +324,9 @@ export default function AdminVideos() {
 
             {/* Content */}
             {currentTab === 'videos' ? (
-                <div className="bg-white rounded-lg border border-zinc-200 shadow-sm overflow-hidden">
+                <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
                     <table className="w-full text-sm text-left">
-                        <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-500 font-medium">
+                        <thead className="bg-zinc-50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 font-medium">
                             <tr>
                                 <th className="px-4 py-3">Video</th>
                                 <th className="px-4 py-3">Tenant</th>
@@ -336,31 +335,31 @@ export default function AdminVideos() {
                                 <th className="px-4 py-3 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-zinc-100">
+                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                             {filteredVideos.map((video: any) => (
-                                <tr key={video.id} className="hover:bg-zinc-50/50 group">
+                                <tr key={video.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 group">
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-3">
                                             <div
-                                                className="w-10 h-10 bg-zinc-100 rounded flex items-center justify-center text-zinc-400 cursor-pointer hover:bg-zinc-200 hover:text-zinc-600 transition"
+                                                className="w-10 h-10 bg-zinc-100 dark:bg-zinc-800 rounded flex items-center justify-center text-zinc-400 cursor-pointer hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-600 dark:hover:text-zinc-300 transition"
                                                 onClick={() => setPreviewVideo(video)}
                                             >
                                                 <Play size={16} fill="currentColor" />
                                             </div>
                                             <div>
-                                                <div className="font-medium text-zinc-900">{video.title || "Untitled"}</div>
+                                                <div className="font-medium text-zinc-900 dark:text-zinc-100">{video.title || "Untitled"}</div>
                                                 <div className="text-xs text-zinc-400 font-mono">{video.id}</div>
                                             </div>
                                         </div>
                                     </td>
                                     <td className="px-4 py-3">
-                                        <div className="text-zinc-900">{video.tenantName || <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-100 text-zinc-800 border border-zinc-200">Platform</span>}</div>
-                                        {video.tenantSlug && <div className="text-xs text-zinc-500">{video.tenantSlug}</div>}
+                                        <div className="text-zinc-900 dark:text-zinc-100">{video.tenantName || <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700">Platform</span>}</div>
+                                        {video.tenantSlug && <div className="text-xs text-zinc-500 dark:text-zinc-400">{video.tenantSlug}</div>}
                                     </td>
                                     <td className="px-4 py-3">
                                         <StatusBadge status={video.status} />
                                     </td>
-                                    <td className="px-4 py-3 text-zinc-600 font-mono">
+                                    <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400 font-mono">
                                         {formatBytes(video.sizeBytes)}
                                     </td>
                                     <td className="px-4 py-3 text-right">
@@ -403,9 +402,9 @@ export default function AdminVideos() {
                     </table>
                 </div>
             ) : (
-                <div className="bg-white rounded-lg border border-zinc-200 shadow-sm overflow-hidden">
+                <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
                     <table className="w-full text-sm text-left">
-                        <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-500 font-medium">
+                        <thead className="bg-zinc-50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 font-medium">
                             <tr>
                                 <th className="px-4 py-3">Asset Title</th>
                                 <th className="px-4 py-3">Type</th>
@@ -418,19 +417,19 @@ export default function AdminVideos() {
                             {brandingAssets.map((asset: any) => (
                                 <tr key={asset.id} className="hover:bg-zinc-50/50">
                                     <td className="px-4 py-3">
-                                        <div className="font-medium text-zinc-900">{asset.title}</div>
+                                        <div className="font-medium text-zinc-900 dark:text-zinc-100">{asset.title}</div>
                                         <div className="text-xs text-zinc-400 font-mono truncate max-w-[150px]">{asset.cloudflareStreamId}</div>
                                     </td>
                                     <td className="px-4 py-3">
-                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize ${asset.type === 'intro' ? 'bg-indigo-100 text-indigo-700' : 'bg-purple-100 text-purple-700'}`}>
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize ${asset.type === 'intro' ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' : 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300'}`}>
                                             {asset.type}
                                         </span>
                                     </td>
                                     <td className="px-4 py-3">
-                                        <div className="text-zinc-900">{asset.tenantName}</div>
-                                        <div className="text-xs text-zinc-500">{asset.tenantSlug}</div>
+                                        <div className="text-zinc-900 dark:text-zinc-100">{asset.tenantName}</div>
+                                        <div className="text-xs text-zinc-500 dark:text-zinc-400">{asset.tenantSlug}</div>
                                     </td>
-                                    <td className="px-4 py-3 text-zinc-600 font-mono">
+                                    <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400 font-mono">
                                         {asset.active ? (
                                             <span className="text-emerald-600 flex items-center gap-1 text-xs font-semibold"><CheckCircle size={12} /> Yes</span>
                                         ) : (
@@ -463,19 +462,19 @@ export default function AdminVideos() {
             {/* Upload Modal (Action) */}
             {isUploadOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200 border border-zinc-200 dark:border-zinc-800">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-lg font-bold">Upload Video</h2>
-                            <button onClick={() => setIsUploadOpen(false)} className="text-zinc-400 hover:text-zinc-600">
+                            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Upload Video</h2>
+                            <button onClick={() => setIsUploadOpen(false)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
                                 <X size={20} />
                             </button>
                         </div>
 
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-zinc-700 mb-1">Target</label>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Target</label>
                                 <select
-                                    className="w-full rounded-lg border-zinc-200 text-sm"
+                                    className="w-full rounded-lg border-zinc-200 dark:border-zinc-700 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                                     value={selectedTenantId}
                                     onChange={(e) => setSelectedTenantId(e.target.value)}
                                 >
@@ -486,23 +485,23 @@ export default function AdminVideos() {
                                         ))}
                                     </optgroup>
                                 </select>
-                                <p className="text-xs text-zinc-500 mt-1">
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                                     {selectedTenantId ? "Video will be owned by this tenant." : "Video will be available to the platform. You can share it with tenants later."}
                                 </p>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-zinc-700 mb-1">Asset Type</label>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Asset Type</label>
                                 <div className="grid grid-cols-3 gap-2">
                                     <button
                                         onClick={() => setUploadType('vod')}
-                                        className={`px-3 py-2 text-sm rounded-md border text-center ${uploadType === 'vod' ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50'}`}
+                                        className={`px-3 py-2 text-sm rounded-md border text-center ${uploadType === 'vod' ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 dark:border-zinc-100' : 'bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700'}`}
                                     >
                                         Video (VOD)
                                     </button>
                                     <button
                                         onClick={() => setUploadType('intro')}
-                                        className={`px-3 py-2 text-sm rounded-md border text-center ${uploadType === 'intro' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50'}`}
+                                        className={`px-3 py-2 text-sm rounded-md border text-center ${uploadType === 'intro' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700'}`}
                                     >
                                         Intro
                                     </button>
@@ -516,9 +515,9 @@ export default function AdminVideos() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-zinc-700 mb-1">File</label>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">File</label>
                                 <div
-                                    className={`border-2 border-dashed rounded-lg p-8 text-center transition cursor-pointer relative ${uploading ? 'bg-zinc-50 border-zinc-200' : 'hover:bg-zinc-50 border-zinc-300 hover:border-zinc-400'}`}
+                                    className={`border-2 border-dashed rounded-lg p-8 text-center transition cursor-pointer relative ${uploading ? 'bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50 border-zinc-300 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500'}`}
                                     onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                     onDrop={(e) => {
                                         e.preventDefault();
@@ -599,21 +598,21 @@ export default function AdminVideos() {
             {/* Share Modal */}
             {shareVideo && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 animate-in fade-in zoom-in duration-200">
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl max-w-sm w-full p-6 animate-in fade-in zoom-in duration-200 border border-zinc-200 dark:border-zinc-800">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-lg font-bold">Share Video</h2>
-                            <button onClick={() => setShareVideo(null)} className="text-zinc-400 hover:text-zinc-600">
+                            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Share Video</h2>
+                            <button onClick={() => setShareVideo(null)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
                                 <X size={20} />
                             </button>
                         </div>
-                        <p className="text-sm text-zinc-500 mb-4">
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
                             Give a tenant access to <strong>{shareVideo.title}</strong>.
                         </p>
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-zinc-700 mb-1">Select Tenant</label>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Select Tenant</label>
                                 <select
-                                    className="w-full rounded-lg border-zinc-200 text-sm"
+                                    className="w-full rounded-lg border-zinc-200 dark:border-zinc-700 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                                     value={shareTenantId}
                                     onChange={(e) => setShareTenantId(e.target.value)}
                                 >
@@ -643,10 +642,10 @@ function StatusBadge({ status }: { status: string }) {
         return <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700"><CheckCircle size={12} /> Ready</span>;
     }
     if (status === 'processing') {
-        return <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700"><RefreshCw size={12} className="animate-spin" /> Processing</span>;
+        return <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"><RefreshCw size={12} className="animate-spin" /> Processing</span>;
     }
     if (status === 'error') {
-        return <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700"><AlertCircle size={12} /> Error</span>;
+        return <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300"><AlertCircle size={12} /> Error</span>;
     }
-    return <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-700">{status}</span>;
+    return <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">{status}</span>;
 }

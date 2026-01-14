@@ -6,6 +6,8 @@ import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";
 import { MapPin, Plus, Edit, Trash2, Check, X, Star, Clock, Phone, Building } from "lucide-react";
+import { ConfirmationDialog } from "~/components/Dialogs";
+import { toast } from "sonner";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken, userId } = await getAuth(args);
@@ -84,10 +86,17 @@ export default function LocationsSettings() {
     const submit = useSubmit();
     const [isEditing, setIsEditing] = useState<any | null>(null);
     const [isCreating, setIsCreating] = useState(false);
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-    const handleDelete = (id: string) => {
-        if (confirm("Are you sure you want to delete this location?")) {
-            submit({ intent: 'delete', id }, { method: 'post' });
+    const handleDeleteClick = (id: string) => {
+        setConfirmDeleteId(id);
+    };
+
+    const confirmDelete = () => {
+        if (confirmDeleteId) {
+            submit({ intent: 'delete', id: confirmDeleteId }, { method: 'post' });
+            setConfirmDeleteId(null);
+            toast.success("Location deleted");
         }
     };
 
@@ -158,7 +167,7 @@ export default function LocationsSettings() {
                                             </Form>
                                         )}
                                         <button onClick={() => setIsEditing(location)} className="p-2 hover:bg-zinc-100 rounded-lg"><Edit size={16} /></button>
-                                        <button onClick={() => handleDelete(location.id)} className="p-2 hover:bg-red-50 rounded-lg text-red-500"><Trash2 size={16} /></button>
+                                        <button onClick={() => handleDeleteClick(location.id)} className="p-2 hover:bg-red-50 rounded-lg text-red-500"><Trash2 size={16} /></button>
                                     </div>
                                 </div>
                             </div>
@@ -185,6 +194,16 @@ export default function LocationsSettings() {
                     }}
                 />
             )}
+
+            <ConfirmationDialog
+                isOpen={!!confirmDeleteId}
+                onClose={() => setConfirmDeleteId(null)}
+                onConfirm={confirmDelete}
+                title="Delete Location"
+                message="Are you sure you want to delete this location? This action cannot be undone."
+                confirmText="Delete"
+                isDestructive
+            />
         </div>
     );
 }

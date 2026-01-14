@@ -8,6 +8,7 @@ export const tenants = sqliteTable('tenants', {
     name: text('name').notNull(),
     customDomain: text('custom_domain').unique(),
     branding: text('branding', { mode: 'json' }), // JSON: { primaryColor, logoUrl, font }
+    mobileAppConfig: text('mobile_app_config', { mode: 'json' }), // JSON: { appName, iconUrl, splashUrl, primaryColor }
     settings: text('settings', { mode: 'json' }), // JSON: { enableStudentRegistration, noShowFeeEnabled, noShowFeeAmount, notifications }
     stripeAccountId: text('stripe_account_id'), // Connect Account ID (Receiving money)
     stripeCustomerId: text('stripe_customer_id'), // Platform Customer ID (Paying for SaaS)
@@ -93,7 +94,8 @@ export const users = sqliteTable('users', {
     id: text('id').primaryKey(), // Clerk ID
     email: text('email').notNull(),
     profile: text('profile', { mode: 'json' }), // Global profile: { firstName, lastName, portraitUrl }
-    isSystemAdmin: integer('is_system_admin', { mode: 'boolean' }).default(false), // Platform-level admin
+    isPlatformAdmin: integer('is_platform_admin', { mode: 'boolean' }).default(false), // Legacy boolean flag (keep for compat, but role supersedes)
+    role: text('role', { enum: ['owner', 'admin', 'user'] }).default('user').notNull(), // New Role System
     phone: text('phone'),
     dob: integer('dob', { mode: 'timestamp' }),
     address: text('address'), // Full address string or JSON
@@ -798,6 +800,10 @@ export const videos = sqliteTable('videos', {
     source: text('source', { enum: ['zoom', 'livekit', 'upload'] }).default('upload'),
 
     // Non-Destructive Editing
+    videoProvider: text('video_provider', { enum: ['zoom', 'livekit', 'offline'] }).default('offline').notNull(),
+    livekitRoomName: text('livekit_room_name'),
+    livekitRoomSid: text('livekit_room_sid'),
+
     trimStart: integer('trim_start'),
     trimEnd: integer('trim_end'),
 
@@ -806,6 +812,41 @@ export const videos = sqliteTable('videos', {
     tenantIdx: index('video_tenant_idx').on(table.tenantId),
     statusIdx: index('video_status_idx').on(table.status),
 }));
+
+// --- Phase 12: Smart Waitlists ---
+export const waitlist = sqliteTable('waitlist', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    classId: text('class_id').notNull().references(() => classes.id),
+    userId: text('user_id').notNull().references(() => users.id),
+    position: integer('position').notNull(),
+    status: text('status', { enum: ['pending', 'offered', 'expired', 'accepted', 'cancelled'] }).default('pending').notNull(),
+    offerExpiresAt: integer('offer_expires_at', { mode: 'timestamp' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    classPositionIdx: index('waitlist_class_pos_idx').on(table.classId, table.position),
+    userClassIdx: uniqueIndex('waitlist_user_class_idx').on(table.userId, table.classId),
+}));
+
+// --- Phase 12: Substitute Dispatch ---
+export const subRequests = sqliteTable('sub_requests', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    classId: text('class_id').notNull().references(() => classes.id),
+    originalInstructorId: text('original_instructor_id').notNull().references(() => tenantMembers.id),
+    coveredByUserId: text('covered_by_user_id').references(() => tenantMembers.id), // Nullable until claimed
+
+    status: text('status', { enum: ['open', 'filled', 'cancelled'] }).default('open').notNull(),
+    message: text('message'),
+
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantStatusIdx: index('sub_req_tenant_status_idx').on(table.tenantId, table.status),
+    classIdx: index('sub_req_class_idx').on(table.classId),
+}));
+
 
 export const videoShares = sqliteTable('video_shares', {
     id: text('id').primaryKey(),
@@ -1391,3 +1432,17 @@ export const platformPages = sqliteTable('platform_pages', {
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
+
+// --- Custom Reporting ---
+export const customReports = sqliteTable('custom_reports', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    name: text('name').notNull(),
+    config: text('config', { mode: 'json' }).notNull(), // { metrics, dimensions, filters, chartType }
+    isPublic: integer('is_public', { mode: 'boolean' }).default(false).notNull(),
+    createdBy: text('created_by'), // userId
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantReportIdx: index('custom_reports_tenant_idx').on(table.tenantId),
+}));

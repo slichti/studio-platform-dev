@@ -1,5 +1,5 @@
 // @ts-ignore
-import { useOutletContext } from "react-router";
+import { useOutletContext, Link } from "react-router";
 import { ProjectionsCalculator } from "../components/ProjectionsCalculator";
 import { useState, useEffect } from "react";
 import { apiRequest } from "../utils/api";
@@ -80,25 +80,33 @@ export default function StudioReports() {
                     <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Analytics</h1>
                     <p className="text-zinc-500 dark:text-zinc-400">Performance metrics and insights.</p>
                 </div>
-                <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg">
-                    <button
-                        onClick={() => setActiveTab('financials')}
-                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'financials' ? 'bg-white dark:bg-zinc-700 shadow text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700'}`}
+                <div className="flex gap-4">
+                    <Link
+                        to="custom"
+                        className="px-4 py-2 text-sm font-medium rounded-md bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow hover:opacity-90 transition-opacity"
                     >
-                        Financials
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('attendance')}
-                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'attendance' ? 'bg-white dark:bg-zinc-700 shadow text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700'}`}
-                    >
-                        Attendance
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('projections')}
-                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'projections' ? 'bg-white dark:bg-zinc-700 shadow text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700'}`}
-                    >
-                        Projections
-                    </button>
+                        Custom Query
+                    </Link>
+                    <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg">
+                        <button
+                            onClick={() => setActiveTab('financials')}
+                            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'financials' ? 'bg-white dark:bg-zinc-700 shadow text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700'}`}
+                        >
+                            Financials
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('attendance')}
+                            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'attendance' ? 'bg-white dark:bg-zinc-700 shadow text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700'}`}
+                        >
+                            Attendance
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('projections')}
+                            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'projections' ? 'bg-white dark:bg-zinc-700 shadow text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700'}`}
+                        >
+                            Projections
+                        </button>
+                    </div>
                 </div>
             </div>
 

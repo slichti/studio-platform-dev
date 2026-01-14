@@ -7,6 +7,7 @@ import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { ArrowLeft, Save } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 export const action = async (args: ActionFunctionArgs) => {
     const { request, params } = args;
@@ -134,9 +135,9 @@ export default function NewWaiverTemplate() {
 
                                         const input = document.getElementById('pdf-url-input') as HTMLInputElement;
                                         if (input) input.value = data.url;
-                                        alert("PDF Uploaded successfully!");
+                                        toast.success("PDF Uploaded successfully!");
                                     } catch (err: any) {
-                                        alert("Upload failed: " + err.message);
+                                        toast.error("Upload failed: " + err.message);
                                     } finally {
                                         setUploading(false);
                                     }

@@ -1,1 +1,0 @@
-import{w as o,e as s,O as e}from"./chunk-JMJ3UQ3L-BFmd18Yu.js";import{j as r}from"./vendor-puck-DM_I7lvc.js";import"./vendor-livekit-D3VpklN2.js";const m=o(function(){const t=s();return r.jsx(e,{context:t})});export{m as default};

@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { classes, bookings, tenantMembers, users, tenantRoles, subscriptions, purchasedPacks, userRelationships, challenges, userChallenges, tenants, classSeries, waiverTemplates, waiverSignatures, membershipPlans, classPackDefinitions, giftCards, giftCardTransactions, studentNotes, locations } from 'db/src/schema'; // Ensure imports
+import { classes, bookings, tenantMembers, users, tenantRoles, subscriptions, purchasedPacks, userRelationships, challenges, userChallenges, tenants, classSeries, waiverTemplates, waiverSignatures, membershipPlans, classPackDefinitions, giftCards, giftCardTransactions, studentNotes, locations, waitlist } from 'db/src/schema'; // Ensure imports
 import { eq, and, sql, lt, ne, gt, inArray, desc, gte, lte } from 'drizzle-orm'; // Added inArray, desc
 import { ZoomService } from '../services/zoom';
 import { EncryptionUtils } from '../utils/encryption';
@@ -149,10 +149,33 @@ app.get('/', async (c) => {
         virtual: c.virtualCount
     }]));
 
+    // 3. Fetch Waitlist Data (New Table)
+    const waitlistCounts = await db.select({
+        classId: waitlist.classId,
+        count: sql<number>`count(*)`
+    })
+        .from(waitlist)
+        .where(and(inArray(waitlist.classId, classIds), eq(waitlist.status, 'pending')))
+        .groupBy(waitlist.classId)
+        .all();
+
+    const waitlistMap = new Map(waitlistCounts.map(w => [w.classId, w.count]));
+
+    // Check if user is in waitlist
+    if (userId) {
+        const myWaitlist = await db.select().from(waitlist)
+            .where(and(eq(waitlist.userId, userId), inArray(waitlist.classId, classIds), eq(waitlist.status, 'pending')))
+            .all();
+
+        myWaitlist.forEach(w => {
+            userBookings.set(w.classId, 'waitlisted');
+        });
+    }
+
     const finalResults = results.map(cls => ({
         ...cls,
         confirmedCount: countsMap.get(cls.id)?.confirmed || 0,
-        waitlistCount: countsMap.get(cls.id)?.waitlisted || 0,
+        waitlistCount: (countsMap.get(cls.id)?.waitlisted || 0) + (waitlistMap.get(cls.id) || 0), // Merge legacy and new
         inPersonCount: countsMap.get(cls.id)?.inPerson || 0,
         virtualCount: countsMap.get(cls.id)?.virtual || 0,
         userBookingStatus: userBookings.get(cls.id) || null // 'confirmed', 'waitlisted', etc.
@@ -250,58 +273,36 @@ app.post('/', async (c) => {
 
         const newClasses = [];
 
+        const classesToInsert: any[] = [];
+        const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
+        const zoomService = createZoomMeeting ? await ZoomService.getForTenant(tenant, c.env, encryption) : null;
+
+        // Helper for concurrent execution with limit (simple chunking)
+        const chunk = <T>(arr: T[], size: number): T[][] =>
+            Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
+
+        // Process Zoom meetings in chunks of 5 to avoid rate limits while being faster than sequential
+        const zoomMeetingsMap = new Map<number, any>(); // Using timestamp as key logic correlation
+
+        if (zoomService && createZoomMeeting) {
+            const dateChunks = chunk(dates, 5);
+            for (const batch of dateChunks) {
+                await Promise.all(batch.map(async (date) => {
+                    try {
+                        const meeting = await zoomService.createMeeting(title, date, durationMinutes) as any;
+                        zoomMeetingsMap.set(date.getTime(), meeting);
+                    } catch (e) {
+                        console.error("Zoom Create Error", e);
+                    }
+                }));
+            }
+        }
+
         for (const date of dates) {
             const classId = crypto.randomUUID();
-            let zoomUrl = undefined;
+            const meetingData = zoomMeetingsMap.get(date.getTime());
 
-            if (createZoomMeeting) {
-                // Ensure Zoom Service is initialized
-                const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
-                const zoomService = await ZoomService.getForTenant(tenant, c.env, encryption);
-
-                if (zoomService && date.getTime() === dates[0].getTime()) {
-                    try {
-                        const meeting = await zoomService.createMeeting(`${title}`, date, durationMinutes) as any;
-                        zoomUrl = meeting.join_url;
-                        // For recurring series, we might only create one meeting for the first one, 
-                        // or shared meeting? Zoom recurring meetings approach is complex. 
-                        // For simple MVP: Create separate meetings or use same link?
-                        // If we use same link, we need RRule on Zoom side. 
-                        // Let's simple check: if we want unique links, we loop.
-                        // But here we are inside loop.
-                    } catch (e) { console.error("Zoom Sync Error", e); }
-                }
-            }
-
-            // NOTE: For recurring classes, ideally we should create a RECURRING meeting in Zoom.
-            // But implementing full sync is complex.
-            // Simplified: If createZoomMeeting is true, we create a meeting for EACH instance if we are iterating? 
-            // Or simpler: Create one recurring meeting on Zoom and share URL. 
-            // Let's create one meeting on Zoom for the first date, and reuse URL? No, that breaks time.
-
-            // Re-evaluating Loop:
-            // We should use Zoom's recurrence if possible. 
-            // But DB schema splits them into individual classes.
-            // Let's iterate and create unique meetings for each for now (safer but slower), 
-            // OR create one Recurring Zoom Meeting ID and reuse.
-            // Let's try One Recurring Zoom Meeting for the SERIES.
-
-            // (Revisiting logic to keep it simple for now: We won't support auto-Zoom for recurring series in this MVP iteration to avoid API rate limits, or we do it efficiently).
-            // Let's just create individual meetings for now but handle errors gracefully.
-
-            let meetingData: any = null;
-            if (createZoomMeeting) {
-                const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
-                const zoomService = await ZoomService.getForTenant(tenant, c.env, encryption);
-                if (zoomService) {
-                    try {
-                        meetingData = await zoomService.createMeeting(title, date, durationMinutes);
-                    } catch (e) { console.error("Zoom error", e); }
-                }
-            }
-
-            // Insert Class
-            await db.insert(classes).values({
+            const newClass = {
                 id: classId,
                 tenantId: tenant.id,
                 instructorId: member.id,
@@ -321,8 +322,17 @@ app.post('/', async (c) => {
                 thumbnailUrl,
                 autoCancelEnabled: autoCancelEnabled ?? false,
                 autoCancelThreshold: autoCancelThresholdHours ?? null
-            });
+            };
+
+            classesToInsert.push(newClass);
             newClasses.push({ id: classId, startTime: date });
+        }
+
+        // Batch Insert
+        // SQLite limit check: chunk inserts if array is huge ( > 50 items to be safe/optimal)
+        const insertChunks = chunk(classesToInsert, 50);
+        for (const batch of insertChunks) {
+            await db.insert(classes).values(batch).run();
         }
 
         return c.json({ message: 'Series created', seriesId, count: newClasses.length }, 201);

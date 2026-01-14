@@ -34,6 +34,12 @@ graph TD
 ## Core Workflows
 
 ### 1. Member Invitation & Onboarding
+User Roles:
+- **Admin**: System Administrators with full platform access (Dashboard + Admin Portal).
+- **Owner**: Premium Studio Owners (Customers). Access to Dashboard and VIP features, but NO Admin Portal access.
+- **User**: Standard users (Instructors, Students).
+
+```mermaid
 
 ```mermaid
 sequenceDiagram

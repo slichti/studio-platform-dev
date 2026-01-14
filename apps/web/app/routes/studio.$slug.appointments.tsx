@@ -6,6 +6,7 @@ import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";
 import { ArrowLeft, Calendar, Check, Clock, User } from "lucide-react";
+import { toast } from "sonner";
 
 export const loader: LoaderFunction = async (args: any) => {
     const { getToken, userId } = await getAuth(args);
@@ -69,7 +70,7 @@ export default function AppointmentsPage() {
         if (!selectedSlot || !selectedService) return;
 
         if (!userId) {
-            alert("Please login to book");
+            toast.error("Please login to book");
             return;
         }
 
@@ -85,15 +86,15 @@ export default function AppointmentsPage() {
             });
 
             if ((res as any).error) {
-                alert((res as any).error);
+                toast.error((res as any).error);
             } else {
-                alert("Booking Confirmed!");
+                toast.success("Booking Confirmed!");
                 setStep("service");
                 setSelectedService(null);
                 setSelectedSlot(null);
             }
         } catch (e: any) {
-            alert("Booking failed: " + e.message);
+            toast.error("Booking failed: " + e.message);
         }
     }
 

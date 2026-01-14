@@ -5,7 +5,9 @@ import type { LoaderFunctionArgs } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";
-import { Ticket, Plus, Trash2, Tag, AlertCircle } from "lucide-react";
+import { Ticket, Plus, Trash2, Tag, AlertCircle, Link as LinkIcon } from "lucide-react";
+import { toast } from "sonner";
+import { ConfirmationDialog } from "~/components/Dialogs";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { params } = args;
@@ -37,6 +39,7 @@ function CouponsView({ initialCoupons, tenant, isStudentView }: any) {
     const [loading, setLoading] = useState(false);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [form, setForm] = useState({ code: '', type: 'percent', value: '', usageLimit: '' });
+    const [confirmDeactivateId, setConfirmDeactivateId] = useState<string | null>(null);
     const { getToken } = useAuth();
 
     const fetchCoupons = async () => {
@@ -66,26 +69,32 @@ function CouponsView({ initialCoupons, tenant, isStudentView }: any) {
             setForm({ code: '', type: 'percent', value: '', usageLimit: '' });
             await fetchCoupons();
         } catch (e: any) {
-            alert(e.message);
+            toast.error(e.message);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleDeactivate = async (id: string) => {
-        if (!confirm("Are you sure you want to deactivate this coupon?")) return;
+    const handleDeactivate = (id: string) => {
+        setConfirmDeactivateId(id);
+    };
+
+    const confirmDeactivateAction = async () => {
+        if (!confirmDeactivateId) return;
         setLoading(true);
         try {
             const token = await getToken();
-            await apiRequest(`/commerce/coupons/${id}`, token, {
+            await apiRequest(`/commerce/coupons/${confirmDeactivateId}`, token, {
                 method: 'DELETE',
                 headers: { 'X-Tenant-Slug': tenant.slug }
             });
             await fetchCoupons();
+            toast.success("Coupon deactivated");
         } catch (e: any) {
-            alert(e.message);
+            toast.error(e.message);
         } finally {
             setLoading(false);
+            setConfirmDeactivateId(null);
         }
     };
 
@@ -241,14 +250,27 @@ function CouponsView({ initialCoupons, tenant, isStudentView }: any) {
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         {coupon.active && !isStudentView && (
-                                            <button
-                                                onClick={() => handleDeactivate(coupon.id)}
-                                                disabled={loading}
-                                                className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-colors"
-                                                title="Deactivate Coupon"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
+                                            <>
+                                                <button
+                                                    onClick={() => {
+                                                        const link = `${window.location.origin}/studio/${tenant.slug}?coupon=${coupon.code}`;
+                                                        navigator.clipboard.writeText(link);
+                                                        toast.success("Coupon link copied to clipboard!");
+                                                    }}
+                                                    className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-2 rounded-lg transition-colors mr-1"
+                                                    title="Copy Coupon Link"
+                                                >
+                                                    <LinkIcon size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeactivate(coupon.id)}
+                                                    disabled={loading}
+                                                    className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                                                    title="Deactivate Coupon"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </>
                                         )}
                                     </td>
                                 </tr>
@@ -257,6 +279,16 @@ function CouponsView({ initialCoupons, tenant, isStudentView }: any) {
                     </table>
                 )}
             </div>
+
+            <ConfirmationDialog
+                isOpen={!!confirmDeactivateId}
+                onClose={() => setConfirmDeactivateId(null)}
+                onConfirm={confirmDeactivateAction}
+                title="Deactivate Coupon"
+                message="Are you sure you want to deactivate this coupon? This action cannot be undone."
+                confirmText="Deactivate"
+                isDestructive
+            />
         </div>
     );
 }

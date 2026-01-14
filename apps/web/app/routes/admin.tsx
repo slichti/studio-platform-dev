@@ -3,7 +3,9 @@ import { getAuth } from "@clerk/react-router/server";
 import { useUser } from "@clerk/react-router";
 import { LogoutButton } from "../components/LogoutButton";
 import { ThemeToggle } from "../components/ThemeToggle";
+import { CommandBar } from "../components/CommandBar";
 import { apiRequest } from "../utils/api";
+import { Search } from "lucide-react";
 
 // ----------------------------------------------------------------------
 // SECURITY CONFIGURATION
@@ -37,8 +39,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
         const user = (await apiRequest("/users/me", token, {}, apiUrl)) as any;
 
         // A. Role Check (Must be System Admin)
-        if (!user.isSystemAdmin) {
-            console.warn(`Admin Access Denied: User ${user.email} (${user.id}) is not a System Admin.`);
+        if (!user.isPlatformAdmin && user.role !== 'admin') {
+            console.warn(`Admin Access Denied: User ${user.email} (${user.id}) is not a Platform Admin.`);
             throw new Response("Forbidden", { status: 403 });
         }
 
@@ -52,7 +54,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
             throw new Response("Access Denied: You are not authorized to view this portal.", { status: 403 });
         }
 
-        return { user };
+        return { user, token };
     } catch (e: any) {
         if (e.status === 403 || e.message?.includes("Forbidden")) {
             throw new Response("Access Denied", { status: 403 });
@@ -108,7 +110,9 @@ export default function AdminLayout() {
                     </div>
                     <div>
                         <div className="font-semibold text-zinc-100 leading-tight">Studio Platform</div>
-                        <div className="text-[10px] uppercase tracking-wider text-zinc-500 font-medium">System Admin</div>
+                        <div className="text-[10px] uppercase tracking-wider text-zinc-500 font-medium">
+                            {dbUser?.role === 'owner' ? 'Platform Owner' : 'Platform Admin'}
+                        </div>
                     </div>
                 </div>
 
@@ -147,6 +151,15 @@ export default function AdminLayout() {
                     <div className="flex items-center gap-4">
                         <span className="text-xs font-mono text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded">v1.0.0-dev</span>
 
+                        <button
+                            onClick={() => window.dispatchEvent(new CustomEvent('open-command-bar'))}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs text-zinc-500 dark:text-zinc-400 hover:border-blue-500 transition-all shadow-sm group"
+                        >
+                            <Search size={14} className="group-hover:text-blue-500" />
+                            <span>Search...</span>
+                            <kbd className="ml-2 px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-700 rounded font-sans opacity-50">⌘K</kbd>
+                        </button>
+
                         <ThemeToggle />
 
                         <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-800 mx-2" />
@@ -184,6 +197,7 @@ export default function AdminLayout() {
                 <div className="flex-1 overflow-auto p-8">
                     <Outlet />
                 </div>
+                <CommandBar token={loaderData?.token || ""} />
             </main>
         </div>
     );

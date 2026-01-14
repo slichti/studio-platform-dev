@@ -74,10 +74,12 @@ function formatLogDetails(log: any) {
             return <span>Deleted user account {target}</span>;
         case 'bulk_delete_users':
             return <span>Bulk deleted <span className="font-medium">{details.count}</span> users</span>;
+        case 'set_platform_admin':
         case 'promote_to_admin':
-            return <span>Promoted <span className="font-medium">{details.count}</span> users to System Admin</span>;
+            return <span>Promoted <span className="font-medium">{details.count}</span> users to Platform Admin</span>;
+        case 'set_platform_admin_false': // If I log explicit false action, or assume passed 'action' string
         case 'demote_from_admin':
-            return <span>Revoked System Admin from <span className="font-medium">{details.count}</span> users</span>;
+            return <span>Revoked Platform Admin from <span className="font-medium">{details.count}</span> users</span>;
         case 'update_tenant_tier':
             return <span>Changed tenant tier to <Badge variant="outline" className="text-xs uppercase">{details.tier}</Badge></span>;
         case 'impersonate_user':

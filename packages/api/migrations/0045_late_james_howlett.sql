@@ -1,0 +1,1 @@
+ALTER TABLE `tenants` ADD `mobile_app_config` text;

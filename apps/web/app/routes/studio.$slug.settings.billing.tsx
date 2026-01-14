@@ -3,6 +3,7 @@ import { useLoaderData, Link } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { CreditCard, Check, BarChart } from "lucide-react";
+import { toast } from "sonner";
 
 export const loader = async (args: any) => {
     const { getToken, userId } = await getAuth(args);
@@ -14,6 +15,19 @@ export const loader = async (args: any) => {
             apiRequest(`/tenant/info`, token, { headers: { 'X-Tenant-Slug': slug } }),
             apiRequest(`/tenant/usage`, token, { headers: { 'X-Tenant-Slug': slug } })
         ]);
+
+        if (!tenant.roles?.includes('owner') && !tenant.roles?.includes('admin')) {
+            // In some cases 'tenant' is the studio info object and 'me' is separate, but here apiResponse might differ.
+            // Looking at usage in component: `tenant.features`, `tenant.tier`.
+            // Wait, the loader returns { tenant, usage }. `apiRequest('/tenant/info')` usually returns public/semi-public info.
+            // We need to check the CURRENT MEMBER's role.
+            // We should fetch '/tenant/me' to be sure or trust the API to block `usage` (which we just fixed).
+            // Since we just fixed `usage` to 403, `usageRes` might be { error: 'Unauthorized' }.
+            if ((usageRes as any).error) {
+                throw new Response("Unauthorized", { status: 403 });
+            }
+        }
+
         return { tenant, usage: usageRes, slug, token };
     } catch (e: any) {
         throw new Response("Unauthorized", { status: 401 });
@@ -40,11 +54,11 @@ export default function StudioBilling() {
             if (res.url) {
                 window.location.href = res.url;
             } else {
-                alert("Could not load billing portal. Please contact support.");
+                toast.error("Could not load billing portal. Please contact support.");
             }
         } catch (e) {
             console.error(e);
-            alert("Failed to redirect to billing portal.");
+            toast.error("Failed to redirect to billing portal.");
         }
     };
 

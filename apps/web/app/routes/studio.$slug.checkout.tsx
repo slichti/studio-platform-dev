@@ -61,7 +61,19 @@ export default function CheckoutPage() {
 
     useEffect(() => {
         if ((!packId && !giftCardAmount && !planId) || !token) return;
-        createSession(); // Load initial session without coupon
+
+        // Check for pending coupon
+        const pending = sessionStorage.getItem('pending_coupon');
+        if (pending) {
+            setCouponCode(pending);
+            createSession(pending);
+            // Optional: Remove it? 
+            // sessionStorage.removeItem('pending_coupon'); // Keep it until success?
+            // If createSession fails with invalid coupon, user sees error.
+            // Let's keep it simply in state. If they reload, it re-applies.
+        } else {
+            createSession();
+        }
     }, [packId, giftCardAmount, planId, token, slug]);
 
     const createSession = (code?: string, giftCode?: string) => {

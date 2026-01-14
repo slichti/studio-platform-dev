@@ -1,6 +1,6 @@
 
 // @ts-ignore
-import { useLoaderData, useActionData, Form, useNavigation, useSubmit, redirect } from "react-router";
+import { useLoaderData, useActionData, Form, useNavigation, useSubmit, redirect, useOutletContext } from "react-router";
 // @ts-ignore
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { apiRequest } from "~/utils/api";
@@ -14,12 +14,16 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const { slug } = args.params;
 
     try {
-        const challenges = await apiRequest('/challenges', token, {
+        const challenges = await apiRequest('/challenges/my-progress', token, {
             headers: { 'X-Tenant-Slug': slug! }
         });
-        return { challenges: Array.isArray(challenges) ? challenges : [], error: null };
+        return {
+            challenges: Array.isArray(challenges) ? challenges : [],
+            isOwnerOrAdmin: false, // Default, will override in component via Context or check Me here
+            error: null
+        };
     } catch (e) {
-        return { challenges: [], error: "Failed to load challenges" };
+        return { challenges: [], isOwnerOrAdmin: false, error: "Failed to load challenges" };
     }
 };
 
@@ -31,6 +35,19 @@ export const action = async (args: ActionFunctionArgs) => {
 
     const formData = await request.formData();
     const intent = formData.get("intent");
+
+    if (intent === "join") {
+        const challengeId = formData.get("challengeId");
+        try {
+            await apiRequest(`/challenges/${challengeId}/join`, token, {
+                method: 'POST',
+                headers: { 'X-Tenant-Slug': slug! }
+            });
+            return { success: true };
+        } catch (e: any) {
+            return { error: e.message || "Failed to join challenge" };
+        }
+    }
 
     if (intent === "create") {
         const data = {
@@ -71,6 +88,10 @@ export default function LoyaltyPage() {
         }
     }, [actionData]);
 
+    // @ts-ignore
+    const { me } = useOutletContext();
+    const isManager = me?.roles?.includes('owner') || me?.roles?.includes('admin') || me?.roles?.includes('instructor');
+
     return (
         <div className="p-8 max-w-6xl mx-auto animate-in fade-in duration-500">
             <div className="flex items-center justify-between mb-8">
@@ -83,13 +104,15 @@ export default function LoyaltyPage() {
                         Gamify attendance with challenges and rewards.
                     </p>
                 </div>
-                <button
-                    onClick={() => setIsCreateModalOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg hover:opacity-90 transition-opacity font-medium shadow-sm"
-                >
-                    <Plus size={16} />
-                    Create Challenge
-                </button>
+                {isManager && (
+                    <button
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg hover:opacity-90 transition-opacity font-medium shadow-sm"
+                    >
+                        <Plus size={16} />
+                        Create Challenge
+                    </button>
+                )}
             </div>
 
             {error && (
@@ -105,38 +128,76 @@ export default function LoyaltyPage() {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {challenges.map((challenge: any) => (
-                    <div key={challenge.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-                        <div className="flex justify-between items-start mb-4">
-                            <div className="p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg text-yellow-600 dark:text-yellow-400">
-                                <Target size={24} />
-                            </div>
-                            <span className={`px-2 py-1 text-xs rounded-full font-medium ${challenge.active ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'bg-zinc-100 text-zinc-500'}`}>
-                                {challenge.active ? 'Active' : 'Inactive'}
-                            </span>
-                        </div>
+                {challenges.map((challenge: any) => {
+                    // userProgress logic
+                    const progress = challenge.userProgress || {};
+                    const isJoined = !!progress.id;
+                    const isCompleted = progress.status === 'completed' || (progress.progress >= challenge.targetValue);
+                    const percentage = Math.min(100, Math.round((progress.progress / challenge.targetValue) * 100));
 
-                        <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-2">{challenge.title}</h3>
-                        <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4 line-clamp-2 min-h-[40px]">{challenge.description}</p>
+                    return (
+                        <div key={challenge.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group flex flex-col h-full">
+                            <div className="flex justify-between items-start mb-4">
+                                <div className="p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg text-yellow-600 dark:text-yellow-400">
+                                    <Target size={24} />
+                                </div>
+                                <span className={`px-2 py-1 text-xs rounded-full font-medium ${challenge.active ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'bg-zinc-100 text-zinc-500'}`}>
+                                    {challenge.active ? 'Active' : 'Inactive'}
+                                </span>
+                            </div>
 
-                        <div className="space-y-3 pt-4 border-t border-zinc-100 dark:border-zinc-800 text-sm text-zinc-600 dark:text-zinc-300">
-                            <div className="flex items-center gap-2">
-                                <Target size={14} className="text-zinc-400" />
-                                <span>Goal: <strong>{challenge.targetValue}</strong> {challenge.type === 'count' ? 'Classes' : challenge.type === 'minutes' ? 'Minutes' : 'Streak Days'}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Gift size={14} className="text-zinc-400" />
-                                <span className="capitalize">Reward: <strong>{challenge.rewardType.replace('_', ' ')}</strong></span>
-                            </div>
-                            {challenge.endDate && (
-                                <div className="flex items-center gap-2">
-                                    <Calendar size={14} className="text-zinc-400" />
-                                    <span>Ends: {new Date(challenge.endDate).toLocaleDateString()}</span>
+                            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-2">{challenge.title}</h3>
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4 line-clamp-2 min-h-[40px] flex-1">{challenge.description}</p>
+
+                            {!isJoined && challenge.active && (
+                                <Form method="post" className="mb-4">
+                                    <input type="hidden" name="intent" value="join" />
+                                    <input type="hidden" name="challengeId" value={challenge.id} />
+                                    <button type="submit" className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm text-sm">
+                                        Join Challenge
+                                    </button>
+                                </Form>
+                            )}
+
+                            {isJoined && (
+                                <div className="mb-4 space-y-2">
+                                    <div className="flex justify-between text-xs font-semibold uppercase text-zinc-500 dark:text-zinc-400">
+                                        <span>Progress</span>
+                                        <span>{progress.progress} / {challenge.targetValue}</span>
+                                    </div>
+                                    <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                        <div className="h-full bg-blue-600 rounded-full transition-all duration-1000 ease-out" style={{ width: `${percentage}%` }} />
+                                    </div>
+                                    {isCompleted && (
+                                        <div className="text-center mt-2">
+                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-bold">
+                                                <Award size={12} />
+                                                Challenge Completed!
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             )}
+
+                            <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 text-sm text-zinc-600 dark:text-zinc-300 mt-auto">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <Target size={14} className="text-zinc-400" />
+                                        <span>Goal</span>
+                                    </div>
+                                    <span className="font-medium">{challenge.targetValue} {challenge.type === 'count' ? 'Classes' : challenge.type === 'minutes' ? 'Min' : 'Days'}</span>
+                                </div>
+
+                                {challenge.endDate && (
+                                    <div className="flex items-center justify-between text-xs text-zinc-500">
+                                        <span>Ends</span>
+                                        <span>{new Date(challenge.endDate).toLocaleDateString()}</span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    )
+                })}
 
                 {challenges.length === 0 && (
                     <div className="col-span-full py-16 text-center border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/20">
@@ -144,7 +205,7 @@ export default function LoyaltyPage() {
                             <Award size={32} />
                         </div>
                         <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100">No active challenges</h3>
-                        <p className="text-zinc-500 max-w-sm mx-auto mt-2 text-sm">Create your first challenge to start engaging students and building loyalty.</p>
+                        <p className="text-zinc-500 max-w-sm mx-auto mt-2 text-sm">Check back later for new challenges!</p>
                     </div>
                 )}
             </div>

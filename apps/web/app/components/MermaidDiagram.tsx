@@ -27,10 +27,22 @@ export function MermaidDiagram({ chart, title }: MermaidDiagramProps) {
             themeVariables: {
                 fontFamily: "Inter, sans-serif",
                 // Ensure good contrast for text in both modes
-                primaryTextColor: theme === 'dark' ? '#f4f4f5' : '#18181b', // zinc-100 : zinc-900
-                lineColor: theme === 'dark' ? '#a1a1aa' : '#52525b', // zinc-400 : zinc-600
-                secondaryColor: theme === 'dark' ? '#27272a' : '#f4f4f5', // zinc-800 : zinc-100
-                tertiaryColor: theme === 'dark' ? '#18181b' : '#ffffff', // zinc-900 : white
+                primaryTextColor: theme === 'dark' ? '#f4f4f5' : '#18181b',
+                lineColor: theme === 'dark' ? '#a1a1aa' : '#52525b',
+                secondaryColor: theme === 'dark' ? '#27272a' : '#f4f4f5',
+                tertiaryColor: theme === 'dark' ? '#18181b' : '#ffffff',
+                // Sequence Diagram Specifics
+                actorBkg: theme === 'dark' ? '#27272a' : '#ffffff', // Dark boxes in dark mode
+                actorBorder: theme === 'dark' ? '#52525b' : '#000000',
+                actorTextColor: theme === 'dark' ? '#f4f4f5' : '#000000',
+                signalColor: theme === 'dark' ? '#f4f4f5' : '#18181b',
+                signalTextColor: theme === 'dark' ? '#f4f4f5' : '#18181b',
+                labelBoxBkgColor: theme === 'dark' ? '#27272a' : '#f4f4f5',
+                labelBoxBorderColor: theme === 'dark' ? '#52525b' : '#000000',
+                labelTextColor: theme === 'dark' ? '#f4f4f5' : '#000000',
+                loopTextColor: theme === 'dark' ? '#f4f4f5' : '#000000',
+                noteBkgColor: theme === 'dark' ? '#fef08a' : '#fff9c4', // Keep yellow-ish but adjusted
+                noteTextColor: '#000000', // Notes usually black text
             },
             securityLevel: "loose",
         });

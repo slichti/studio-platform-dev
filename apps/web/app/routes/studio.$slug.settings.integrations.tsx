@@ -4,6 +4,8 @@ import { useParams, useOutletContext } from "react-router";
 import { apiRequest } from "~/utils/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/Card";
 import { Trash2, Terminal, Loader2, Key, MessageSquare, Mail, Save, CreditCard, CheckCircle, Smartphone, Send } from "lucide-react";
+import { toast } from "sonner";
+import { ConfirmationDialog } from "~/components/Dialogs";
 
 export default function IntegrationsPage() {
     const { slug } = useParams();
@@ -22,6 +24,12 @@ export default function IntegrationsPage() {
     const [twilioForm, setTwilioForm] = useState({ accountSid: '', authToken: '', fromNumber: '' });
     const [resendForm, setResendForm] = useState({ apiKey: '' });
     const [showOrderReader, setShowOrderReader] = useState(false);
+
+    // Confirmation States
+    const [deleteWebhookId, setDeleteWebhookId] = useState<string | null>(null);
+    const [disconnectGoogle, setDisconnectGoogle] = useState(false);
+    const [chatToggle, setChatToggle] = useState<boolean | null>(null);
+    const [pendingPaymentProvider, setPendingPaymentProvider] = useState<string | null>(null);
 
     // Removed local API_URL definition to use apiRequest utility
 
@@ -59,26 +67,7 @@ export default function IntegrationsPage() {
         }
     };
 
-    const handleSaveCredentials = async (type: 'twilio' | 'resend') => {
-        setSaving(true);
-        try {
-            const token = await (window as any).Clerk?.session?.getToken();
 
-            // Using logic discussed: Developers page was using PATCH /integrations/credentials
-            // Since we are refactoring, we'll stick to that if it works, or switch to the one that `updateIntegration` uses.
-            // The previous code had a comment block about confusion. 
-            // Let's assume `updateIntegration` (PUT /studios/:id/integrations) is the robust one for Settings page.
-            // But this specific function `handleSaveCredentials` was unused? 
-            // Looking at the JSX... `handleSaveCredentials` is NOT called in the JSX forms below!
-            // The Twilio form calls `updateIntegration`. The Resend form calls `updateIntegration`.
-            // So `handleSaveCredentials` is dead code?
-            // Actually, let's verify.
-            // Twilio form: `onSubmit={(e) => { ... updateIntegration({...}) }}`
-            // Resend form: `onSubmit={(e) => { ... updateIntegration({...}) }}`
-            // So `handleSaveCredentials` is indeed dead code or legacy.
-            // I will remove it to clean up.
-        } catch (e) { }
-    };
 
     // Helper to use the Settings-style API call for credentials
     const updateIntegration = async (body: any) => {
@@ -89,10 +78,10 @@ export default function IntegrationsPage() {
                 headers: { 'X-Tenant-Slug': slug || '' },
                 body: JSON.stringify(body)
             });
-            alert("Settings saved successfully.");
+            toast.success("Settings saved successfully.");
             window.location.reload();
         } catch (e: any) {
-            alert(e.message || "Failed to save");
+            toast.error(e.message || "Failed to save");
         }
     };
 
@@ -115,24 +104,31 @@ export default function IntegrationsPage() {
             loadDevData();
         } catch (e: any) {
             console.error(e);
-            alert("Failed to create webhook: " + e.message);
+            toast.error("Failed to create webhook: " + e.message);
         } finally {
             setIsCreating(false);
         }
     };
 
-    const handleDeleteWebhook = async (id: string) => {
-        if (!confirm("Delete this webhook?")) return;
+    const handleDeleteWebhook = (id: string) => {
+        setDeleteWebhookId(id);
+    };
+
+    const confirmDeleteWebhook = async () => {
+        if (!deleteWebhookId) return;
         try {
             const token = await (window as any).Clerk?.session?.getToken();
-            await apiRequest(`/integrations/webhooks/${id}`, token, {
+            await apiRequest(`/integrations/webhooks/${deleteWebhookId}`, token, {
                 method: 'DELETE',
                 headers: { 'X-Tenant-Slug': slug || '' }
             });
-            setEndpoints(endpoints.filter(e => e.id !== id));
+            setEndpoints(endpoints.filter(e => e.id !== deleteWebhookId));
+            toast.success("Webhook deleted");
         } catch (e: any) {
             console.error(e);
-            alert("Failed to delete webhook: " + e.message);
+            toast.error("Failed to delete webhook: " + e.message);
+        } finally {
+            setDeleteWebhookId(null);
         }
     };
 
@@ -162,7 +158,7 @@ export default function IntegrationsPage() {
                         <div
                             onClick={() => {
                                 if (tenant.paymentProvider !== 'connect') {
-                                    if (confirm("Switch to Platform Managed?")) updateIntegration({ paymentProvider: 'connect' });
+                                    setPendingPaymentProvider('connect');
                                 }
                             }}
                             className={`relative cursor-pointer border rounded-lg p-4 transition-all ${tenant.paymentProvider === 'connect' ? 'border-blue-500 ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300'}`}
@@ -257,11 +253,11 @@ export default function IntegrationsPage() {
                                 headers: { 'X-Tenant-Slug': slug || '' },
                                 body: JSON.stringify({ flodesk: { apiKey } })
                             });
-                            alert("Flodesk settings saved.");
+                            toast.success("Flodesk settings saved.");
                             loadDevData();
                         } catch (e: any) {
                             console.error(e);
-                            alert("Failed to save Flodesk settings: " + e.message);
+                            toast.error("Failed to save Flodesk settings: " + e.message);
                         }
                     }} className="flex gap-2">
                         <input name="flodeskApiKey" type="password" placeholder="Flodesk API Key" className="flex-1 text-sm border-zinc-300 rounded px-3 py-2" />
@@ -313,9 +309,7 @@ export default function IntegrationsPage() {
                         <button
                             onClick={() => {
                                 const isEnabled = tenant.settings?.chatEnabled !== false;
-                                if (confirm(isEnabled ? "Disable chat widget for your studio?" : "Enable chat widget for your studio?")) {
-                                    updateIntegration({ chatEnabled: !isEnabled });
-                                }
+                                setChatToggle(!isEnabled);
                             }}
                             className={`px-3 py-2 text-xs font-medium rounded border ${tenant.settings?.chatEnabled !== false ? 'bg-zinc-50 border-zinc-300 text-zinc-700' : 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700'}`}
                         >
@@ -443,20 +437,7 @@ export default function IntegrationsPage() {
                                 {tenant.googleCalendarCredentials ? (
                                     <button
                                         className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                                        onClick={async () => {
-                                            if (!confirm('Are you sure you want to disconnect Google Calendar?')) return;
-                                            try {
-                                                const token = (window as any).Clerk?.session?.getToken ? await (window as any).Clerk.session.getToken() : localStorage.getItem('token');
-                                                await apiRequest(`/studios/${tenant.id}/integrations/google`, token, {
-                                                    method: 'DELETE'
-                                                });
-                                                alert('Disconnected');
-                                                window.location.reload();
-                                            } catch (e) {
-                                                console.error(e);
-                                                alert('Failed to disconnect');
-                                            }
-                                        }}
+                                        onClick={() => setDisconnectGoogle(true)}
                                     >
                                         Disconnect
                                     </button>
@@ -501,6 +482,68 @@ export default function IntegrationsPage() {
                     </CardContent>
                 </Card>
             </div>
-        </div>
+            {/* Confirmation Dialogs */}
+            <ConfirmationDialog
+                isOpen={!!deleteWebhookId}
+                onClose={() => setDeleteWebhookId(null)}
+                onConfirm={confirmDeleteWebhook}
+                title="Delete Webhook"
+                message="Are you sure you want to delete this webhook?"
+                isDestructive={true}
+                confirmText="Delete"
+            />
+
+            <ConfirmationDialog
+                isOpen={disconnectGoogle}
+                onClose={() => setDisconnectGoogle(false)}
+                onConfirm={async () => {
+                    try {
+                        const token = (window as any).Clerk?.session?.getToken ? await (window as any).Clerk.session.getToken() : localStorage.getItem('token');
+                        await apiRequest(`/studios/${tenant.id}/integrations/google`, token, {
+                            method: 'DELETE'
+                        });
+                        toast.success('Disconnected');
+                        window.location.reload();
+                    } catch (e) {
+                        console.error(e);
+                        toast.error('Failed to disconnect');
+                    } finally {
+                        setDisconnectGoogle(false);
+                    }
+                }}
+                title="Disconnect Google Calendar"
+                message="Are you sure you want to disconnect Google Calendar? Classes will no longer sync."
+                isDestructive={true}
+                confirmText="Disconnect"
+            />
+
+            <ConfirmationDialog
+                isOpen={chatToggle !== null}
+                onClose={() => setChatToggle(null)}
+                onConfirm={() => {
+                    if (chatToggle !== null) {
+                        updateIntegration({ chatEnabled: chatToggle });
+                        setChatToggle(null);
+                    }
+                }}
+                title={chatToggle ? "Enable Chat Widget" : "Disable Chat Widget"}
+                message={chatToggle ? "Enable chat widget for your studio? This will verify connectivity to your configured support channels." : "Disable chat widget for your studio?"}
+                confirmText={chatToggle ? "Enable" : "Disable"}
+            />
+
+            <ConfirmationDialog
+                isOpen={!!pendingPaymentProvider}
+                onClose={() => setPendingPaymentProvider(null)}
+                onConfirm={() => {
+                    if (pendingPaymentProvider) {
+                        updateIntegration({ paymentProvider: pendingPaymentProvider });
+                        setPendingPaymentProvider(null);
+                    }
+                }}
+                title="Switch Payment Provider"
+                message={`Switch to ${pendingPaymentProvider === 'connect' ? 'Platform Managed' : 'Self Managed'} payments?`}
+                confirmText="Switch"
+            />
+        </div >
     );
 }

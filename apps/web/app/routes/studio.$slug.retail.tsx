@@ -6,6 +6,8 @@ import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { useState, useEffect } from "react";
 import { Plus, Edit, Trash2, Package, Search, Filter, DollarSign, Box, Tag, Image as ImageIcon, X, Save, Upload } from "lucide-react";
+import { toast } from "sonner";
+import { ConfirmationDialog } from "~/components/Dialogs";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken, userId } = await getAuth(args);
@@ -149,6 +151,7 @@ export default function RetailManagement() {
     const [isEditing, setIsEditing] = useState<any | null>(null);
     const [isCreating, setIsCreating] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
     // Get unique categories
     const categories = [...new Set(products.map((p: any) => p.category).filter(Boolean))];
@@ -160,9 +163,15 @@ export default function RetailManagement() {
         return true;
     });
 
-    const handleDelete = (id: string) => {
-        if (confirm("Are you sure you want to delete this product?")) {
-            submit({ intent: 'delete', id }, { method: 'post' });
+    const handleDeleteClick = (id: string) => {
+        setConfirmDeleteId(id);
+    };
+
+    const confirmDeleteAction = () => {
+        if (confirmDeleteId) {
+            submit({ intent: 'delete', id: confirmDeleteId }, { method: 'post' });
+            setConfirmDeleteId(null);
+            toast.success("Product deleted");
         }
     };
 
@@ -251,7 +260,7 @@ export default function RetailManagement() {
                                     )}
                                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition flex gap-1">
                                         <button onClick={() => setIsEditing(product)} className="p-1.5 bg-white rounded shadow hover:bg-zinc-50"><Edit size={14} /></button>
-                                        <button onClick={() => handleDelete(product.id)} className="p-1.5 bg-white rounded shadow hover:bg-red-50 text-red-500"><Trash2 size={14} /></button>
+                                        <button onClick={() => handleDeleteClick(product.id)} className="p-1.5 bg-white rounded shadow hover:bg-red-50 text-red-500"><Trash2 size={14} /></button>
                                     </div>
                                 </div>
                                 <div className="p-4">
@@ -305,6 +314,16 @@ export default function RetailManagement() {
                     }}
                 />
             )}
+
+            <ConfirmationDialog
+                isOpen={!!confirmDeleteId}
+                onClose={() => setConfirmDeleteId(null)}
+                onConfirm={confirmDeleteAction}
+                title="Delete Product"
+                message="Are you sure you want to delete this product? This action cannot be undone."
+                confirmText="Delete Product"
+                isDestructive
+            />
         </div>
     );
 }

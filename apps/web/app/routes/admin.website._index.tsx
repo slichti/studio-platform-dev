@@ -107,11 +107,11 @@ export default function AdminWebsite() {
 
             <div className="flex items-center justify-between mb-8">
                 <div>
-                    <h1 className="text-2xl font-bold text-zinc-900 flex items-center gap-2">
+                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                         <Globe className="text-blue-600" />
                         Platform Website Builder
                     </h1>
-                    <p className="text-zinc-500 mt-1">Manage main site pages (Home, Pricing, About, etc.)</p>
+                    <p className="text-zinc-500 dark:text-zinc-400 mt-1">Manage main site pages (Home, Pricing, About, etc.)</p>
                 </div>
                 <button
                     onClick={() => setCreating(true)}
@@ -125,33 +125,33 @@ export default function AdminWebsite() {
             {/* Create Modal */}
             {creating && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
-                        <h2 className="text-lg font-semibold mb-4">Create New Platform Page</h2>
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 w-full max-w-md shadow-xl">
+                        <h2 className="text-lg font-semibold mb-4 dark:text-zinc-100">Create New Platform Page</h2>
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-zinc-700 mb-1">Page Title</label>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Page Title</label>
                                 <input
                                     type="text"
                                     value={newPage.title}
                                     onChange={(e) => setNewPage({ ...newPage, title: e.target.value })}
-                                    className="w-full border border-zinc-300 rounded-lg px-3 py-2"
+                                    className="w-full border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                                     placeholder="e.g., About Us"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-zinc-700 mb-1">URL Slug</label>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">URL Slug</label>
                                 <input
                                     type="text"
                                     value={newPage.slug}
                                     onChange={(e) => setNewPage({ ...newPage, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
-                                    className="w-full border border-zinc-300 rounded-lg px-3 py-2"
+                                    className="w-full border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                                     placeholder="e.g., about"
                                 />
                                 <p className="text-xs text-zinc-400 mt-1">studio-platform.com/{newPage.slug || "slug"}</p>
                             </div>
                         </div>
                         <div className="flex justify-end gap-2 mt-6">
-                            <button onClick={() => setCreating(false)} className="px-4 py-2 text-zinc-600 hover:bg-zinc-100 rounded-lg">
+                            <button onClick={() => setCreating(false)} className="px-4 py-2 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg">
                                 Cancel
                             </button>
                             <button onClick={handleCreate} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
@@ -183,10 +183,10 @@ export default function AdminWebsite() {
 
             {/* Pages List */}
             {pages.length === 0 ? (
-                <div className="bg-zinc-50 border-2 border-dashed border-zinc-200 rounded-xl p-12 text-center">
-                    <FileText size={48} className="mx-auto text-zinc-300 mb-4" />
-                    <h3 className="text-lg font-medium text-zinc-700 mb-2">No platform pages yet</h3>
-                    <p className="text-zinc-500 mb-4">Create your first page to customize the main site</p>
+                <div className="bg-zinc-50 dark:bg-zinc-900/50 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl p-12 text-center">
+                    <FileText size={48} className="mx-auto text-zinc-300 dark:text-zinc-600 mb-4" />
+                    <h3 className="text-lg font-medium text-zinc-700 dark:text-zinc-300 mb-2">No platform pages yet</h3>
+                    <p className="text-zinc-500 dark:text-zinc-400 mb-4">Create your first page to customize the main site</p>
                     <button
                         onClick={() => setCreating(true)}
                         className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg"
@@ -196,25 +196,25 @@ export default function AdminWebsite() {
                     </button>
                 </div>
             ) : (
-                <div className="bg-white rounded-xl border border-zinc-200 divide-y">
+                <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 divide-y divide-zinc-200 dark:divide-zinc-800">
                     {pages.map((page) => (
-                        <div key={page.id} className="p-4 flex items-center justify-between hover:bg-zinc-50">
+                        <div key={page.id} className="p-4 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
                             <div className="flex items-center gap-4">
-                                <div className={`p-2 rounded-lg ${page.isPublished ? 'bg-green-100 text-green-600' : 'bg-zinc-100 text-zinc-400'}`}>
+                                <div className={`p-2 rounded-lg ${page.isPublished ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500'}`}>
                                     <FileText size={20} />
                                 </div>
                                 <div>
-                                    <h3 className="font-medium text-zinc-900">{page.title}</h3>
-                                    <p className="text-sm text-zinc-500">/{page.slug}</p>
+                                    <h3 className="font-medium text-zinc-900 dark:text-zinc-100">{page.title}</h3>
+                                    <p className="text-sm text-zinc-500 dark:text-zinc-400">/{page.slug}</p>
                                 </div>
-                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${page.isPublished ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-600'}`}>
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${page.isPublished ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'}`}>
                                     {page.isPublished ? 'Published' : 'Draft'}
                                 </span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={() => handleTogglePublish(page)}
-                                    className="p-2 hover:bg-zinc-100 rounded-lg text-zinc-600"
+                                    className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg text-zinc-600 dark:text-zinc-400"
                                     title={page.isPublished ? 'Unpublish' : 'Publish'}
                                 >
                                     {page.isPublished ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -223,19 +223,19 @@ export default function AdminWebsite() {
                                     href={page.slug === 'home' ? '/' : `/${page.slug}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="p-2 hover:bg-zinc-100 rounded-lg text-zinc-600"
+                                    className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg text-zinc-600 dark:text-zinc-400"
                                 >
                                     <ExternalLink size={18} />
                                 </a>
                                 <Link
                                     to={`/admin/website/edit/${page.id}`}
-                                    className="p-2 hover:bg-blue-50 rounded-lg text-blue-600"
+                                    className="p-2 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400"
                                 >
                                     <Edit2 size={18} />
                                 </Link>
                                 <button
                                     onClick={() => setDeleteId(page.id)}
-                                    className="p-2 hover:bg-red-50 rounded-lg text-red-600"
+                                    className="p-2 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400"
                                 >
                                     <Trash2 size={18} />
                                 </button>

@@ -4,6 +4,7 @@ import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { useState } from "react";
 import { useAuth } from "@clerk/react-router";
+import { toast } from "sonner";
 import { Smartphone, Video, CreditCard, MessageSquare, Mail, Save, Globe, MessagesSquare } from "lucide-react";
 
 export const loader = async (args: any) => {
@@ -112,7 +113,8 @@ export default function AdminFeatures() {
             });
         } catch (e) {
             console.error(e);
-            alert("Failed to update feature flag");
+            console.error(e);
+            toast.error("Failed to update feature flag");
             // Revert
             setConfigs(initialConfigs);
         } finally {
@@ -125,8 +127,8 @@ export default function AdminFeatures() {
     return (
         <div className="max-w-4xl mx-auto py-8">
             <div className="mb-8">
-                <h1 className="text-2xl font-bold text-zinc-900">Platform Features</h1>
-                <p className="text-zinc-500 mt-2">Manage global feature flags. Disabling a feature here hides it from all tenants.</p>
+                <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Platform Features</h1>
+                <p className="text-zinc-500 dark:text-zinc-400 mt-2">Manage global feature flags. Disabling a feature here hides it from all tenants.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -136,18 +138,18 @@ export default function AdminFeatures() {
                     const Icon = feature.icon;
 
                     return (
-                        <div key={feature.key} className="bg-white rounded-lg border border-zinc-200 p-3 shadow-sm">
+                        <div key={feature.key} className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 shadow-sm">
                             <div className="flex items-start gap-3">
-                                <div className={`p-2 rounded-md flex-shrink-0 ${isEnabled ? 'bg-blue-50 text-blue-600' : 'bg-zinc-100 text-zinc-400'}`}>
+                                <div className={`p-2 rounded-md flex-shrink-0 ${isEnabled ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500'}`}>
                                     <Icon size={18} />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-start justify-between gap-2">
-                                        <h3 className="text-sm font-medium text-zinc-900 leading-tight">{feature.label}</h3>
+                                        <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 leading-tight">{feature.label}</h3>
                                         <button
                                             onClick={() => handleToggle(feature.key, isEnabled)}
                                             disabled={loading === feature.key}
-                                            className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 ${isEnabled ? 'bg-blue-600' : 'bg-zinc-200'}`}
+                                            className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 dark:focus:ring-offset-zinc-900 ${isEnabled ? 'bg-blue-600' : 'bg-zinc-200 dark:bg-zinc-700'}`}
                                         >
                                             <span
                                                 aria-hidden="true"
@@ -155,13 +157,13 @@ export default function AdminFeatures() {
                                             />
                                         </button>
                                     </div>
-                                    <p className="text-xs text-zinc-500 mt-0.5 line-clamp-2">{feature.description}</p>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 line-clamp-2">{feature.description}</p>
                                     <div className="flex items-center gap-2 mt-1.5">
-                                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${isEnabled ? 'bg-green-100 text-green-800' : 'bg-zinc-100 text-zinc-600'}`}>
+                                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${isEnabled ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'}`}>
                                             {isEnabled ? 'Enabled' : 'Disabled (Hidden)'}
                                         </span>
                                         {config.updatedAt && (
-                                            <span className="text-[10px] text-zinc-400">Updated {new Date(config.updatedAt).toLocaleDateString()}</span>
+                                            <span className="text-[10px] text-zinc-400 dark:text-zinc-500">Updated {new Date(config.updatedAt).toLocaleDateString()}</span>
                                         )}
                                     </div>
                                 </div>
@@ -171,9 +173,9 @@ export default function AdminFeatures() {
                 })}
             </div>
 
-            <div className="mt-8 bg-blue-50 border border-blue-100 rounded-lg p-4">
-                <h4 className="font-medium text-blue-900 mb-2">How this works</h4>
-                <ul className="list-disc list-inside text-sm text-blue-800 space-y-1">
+            <div className="mt-8 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg p-4">
+                <h4 className="font-medium text-blue-900 dark:text-blue-300 mb-2">How this works</h4>
+                <ul className="list-disc list-inside text-sm text-blue-800 dark:text-blue-300 space-y-1">
                     <li><strong>Enabled:</strong> Feature is visible to tenants (subject to their subscription tier).</li>
                     <li><strong>Disabled:</strong> Feature is completely hidden from the entire platform. Useful for testing or incomplete features (e.g. Mobile App).</li>
                 </ul>

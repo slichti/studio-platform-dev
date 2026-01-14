@@ -45,35 +45,35 @@ export default function AdminCommsPage() {
         <div className="p-8 max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
-                <h1 className="text-3xl font-bold text-zinc-900 mb-2">Communications</h1>
-                <p className="text-zinc-500">System-wide Email & SMS usage and automation tracking.</p>
+                <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Communications</h1>
+                <p className="text-zinc-500 dark:text-zinc-400">System-wide Email & SMS usage and automation tracking.</p>
             </div>
 
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <div className="bg-white p-6 rounded-xl border border-zinc-200 shadow-sm flex items-center gap-4">
-                    <div className="p-4 bg-blue-50 text-blue-600 rounded-full"><Mail size={24} /></div>
+                <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center gap-4">
+                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full"><Mail size={24} /></div>
                     <div>
-                        <div className="text-sm font-medium text-zinc-500">Total Emails</div>
-                        <div className="text-3xl font-bold text-zinc-900">{totals.email.toLocaleString()}</div>
+                        <div className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Total Emails</div>
+                        <div className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">{totals.email.toLocaleString()}</div>
                     </div>
                 </div>
-                <div className="bg-white p-6 rounded-xl border border-zinc-200 shadow-sm flex items-center gap-4">
-                    <div className="p-4 bg-green-50 text-green-600 rounded-full"><MessageSquare size={24} /></div>
+                <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center gap-4">
+                    <div className="p-4 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-full"><MessageSquare size={24} /></div>
                     <div>
-                        <div className="text-sm font-medium text-zinc-500">Total SMS</div>
-                        <div className="text-3xl font-bold text-zinc-900">{totals.sms.toLocaleString()}</div>
+                        <div className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Total SMS</div>
+                        <div className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">{totals.sms.toLocaleString()}</div>
                     </div>
                 </div>
             </div>
 
             {/* Main Table */}
-            <div className="bg-white rounded-xl border border-zinc-200 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-zinc-200 bg-zinc-50">
-                    <h3 className="font-semibold text-zinc-900">Tenant Usage & Automations</h3>
+            <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
+                    <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Tenant Usage & Automations</h3>
                 </div>
                 <table className="w-full text-left">
-                    <thead className="bg-zinc-50 border-b border-zinc-200">
+                    <thead className="bg-zinc-50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800">
                         <tr>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase">Tenant</th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase text-right">Emails</th>
@@ -81,26 +81,26 @@ export default function AdminCommsPage() {
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase">Active Automations</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-100">
+                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                         {tenants.map((t) => (
-                            <tr key={t.id} className="hover:bg-zinc-50">
+                            <tr key={t.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
                                 <td className="px-6 py-4">
-                                    <div className="font-medium text-zinc-900">{t.name}</div>
-                                    <div className="text-xs text-zinc-500 font-mono">{t.slug}</div>
+                                    <div className="font-medium text-zinc-900 dark:text-zinc-100">{t.name}</div>
+                                    <div className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">{t.slug}</div>
                                 </td>
-                                <td className="px-6 py-4 text-right font-mono text-zinc-700">
+                                <td className="px-6 py-4 text-right font-mono text-zinc-700 dark:text-zinc-300">
                                     {t.emailCount.toLocaleString()}
                                 </td>
-                                <td className="px-6 py-4 text-right font-mono text-zinc-700">
+                                <td className="px-6 py-4 text-right font-mono text-zinc-700 dark:text-zinc-300">
                                     {t.smsCount.toLocaleString()}
                                 </td>
                                 <td className="px-6 py-4">
                                     {t.automations.length === 0 ? (
-                                        <span className="text-xs text-zinc-400 italic">None active</span>
+                                        <span className="text-xs text-zinc-400 dark:text-zinc-500 italic">None active</span>
                                     ) : (
                                         <div className="flex flex-wrap gap-2">
                                             {t.automations.map((a, i) => (
-                                                <span key={i} className="inline-flex items-center px-2 py-1 rounded-md bg-zinc-100 text-zinc-700 text-xs border border-zinc-200">
+                                                <span key={i} className="inline-flex items-center px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs border border-zinc-200 dark:border-zinc-700">
                                                     <Zap size={10} className="mr-1 text-amber-500" />
                                                     {formatAutomationType(a.type)}
                                                 </span>

@@ -1,100 +1,109 @@
+
 // @ts-ignore
-import { useState, useEffect } from "react";
+import { useLoaderData, useSubmit, Link, Form } from "react-router";
 // @ts-ignore
-import { useOutletContext, useLoaderData, Form, useNavigation, useSubmit, Link } from "react-router";
-// @ts-ignore
-import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router"; // Add types
-import { apiRequest, API_URL } from "../utils/api";
+import { LoaderFunction, ActionFunction } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
-import { Plus, Trash2, MapPin, CreditCard, FileText, Mail, MessageSquare, Video, Globe, CheckCircle, Smartphone, Code, ShoppingBag } from "lucide-react";
+import { apiRequest } from "~/utils/api";
+import { useState, useEffect } from "react";
+import { Settings, Save, MapPin, Plus, Trash2, CreditCard, ShoppingBag, Globe } from "lucide-react";
+import { toast } from "sonner";
+import { ConfirmationDialog } from "~/components/Dialogs";
 
-export const loader = async (args: LoaderFunctionArgs) => {
-    const { params } = args;
+const API_URL = typeof window !== 'undefined' ? (window as any).ENV?.API_URL : '';
+
+export const action: ActionFunction = async (args) => {
     const { getToken } = await getAuth(args);
     const token = await getToken();
-
-    const res: any = await apiRequest(`/locations`, token, {
-        headers: { 'X-Tenant-Slug': params.slug! }
-    });
-
-    return { locations: res.locations || [] };
-};
-
-export const action = async (args: ActionFunctionArgs) => {
-    const { request, params } = args;
-    const { getToken } = await getAuth(args);
-    const token = await getToken();
-    const formData = await request.formData();
+    const formData = await args.request.formData();
     const intent = formData.get("intent");
+    const tenantSlug = args.params.slug;
 
     if (intent === "create_location") {
         const name = formData.get("name");
         const address = formData.get("address");
 
-        await apiRequest(`/locations`, token, {
-            method: "POST",
-            headers: { 'X-Tenant-Slug': params.slug! },
-            body: JSON.stringify({ name, address })
-        });
-        return { success: true };
+        if (!name) return { error: "Name is required" };
+
+        try {
+            // Get tenant ID first? Or assume endpoint handles it?
+            // The endpoint is likely /tenants/:id/locations. 
+            // We need tenant ID. Let's assume we can loop up or pass slug header.
+            // Actually, better to fetch tenant first.
+            const tenantRes = await apiRequest(`/tenants/${tenantSlug}`, token);
+            await apiRequest(`/locations`, token, {
+                method: "POST",
+                body: JSON.stringify({
+                    tenantId: tenantRes.id,
+                    name,
+                    address
+                })
+            });
+            return { success: true };
+        } catch (e) {
+            return { error: "Failed to create location" };
+        }
     }
 
     if (intent === "delete_location") {
         const id = formData.get("id");
-        await apiRequest(`/locations/${id}`, token, {
-            method: "DELETE",
-            headers: { 'X-Tenant-Slug': params.slug! }
-        });
-        return { success: true };
+        try {
+            await apiRequest(`/locations/${id}`, token, { method: "DELETE" });
+            return { success: true };
+        } catch (e) {
+            return { error: "Failed to delete location" };
+        }
     }
 
     return null;
-}
+};
 
-export default function StudioSettings() {
-    const { tenant } = useOutletContext<any>();
-    const { locations } = useLoaderData<{ locations: any[] }>();
-    const navigation = useNavigation();
+export const loader: LoaderFunction = async (args: any) => {
+    const { getToken } = await getAuth(args);
+    const token = await getToken();
+    const slug = args.params.slug;
 
-    // Studio Name State
-    const [name, setName] = useState(tenant.name || '');
+    try {
+        const tenant = await apiRequest(`/tenants/${slug}`, token);
+        const locations = await apiRequest(`/tenants/${tenant.id}/locations`, token);
+        return { tenant, locations: locations || [], token };
+    } catch (e) {
+        throw new Response("Tenant not found", { status: 404 });
+    }
+};
+
+export default function SettingsIndex() {
+    const { tenant: initialTenant, locations } = useLoaderData<any>();
+    const [tenant, setTenant] = useState(initialTenant);
+    const [name, setName] = useState(tenant.name);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
 
-    // Location State
+    // Location state
     const [isAddingLocation, setIsAddingLocation] = useState(false);
+    const submit = useSubmit();
 
-    // Order Reader Modal
+    const [confirmDeleteLocationId, setConfirmDeleteLocationId] = useState<string | null>(null);
+
+    // BBPOS
     const [showOrderReader, setShowOrderReader] = useState(false);
 
-    const handleSaveName = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        setError(null);
-        setSuccess(null);
-
-        try {
-            // Client side fetch
-            const token = await (window as any).Clerk?.session?.getToken();
-
-            await apiRequest(`/tenant/settings`, token, {
-                method: "PATCH",
-                headers: { 'X-Tenant-Slug': tenant.slug },
-                body: JSON.stringify({ name })
-            });
-            setSuccess("Settings saved successfully.");
-        } catch (e: any) {
-            setError(e.message || "Failed to save settings.");
-        } finally {
-            setLoading(false);
-        }
+    const handleOrderReader = async () => {
+        // Mock order logic
+        toast.success("Your request for a Stripe Terminal Reader (WisePOS E) has been received. Our team will contact you shortly to confirm shipping details.");
+        setShowOrderReader(false);
     };
 
-    const handleOrderReader = async (e: React.FormEvent) => {
-        e.preventDefault();
-        alert("Your request for a Stripe Terminal Reader (WisePOS E) has been received. Our team will contact you shortly to confirm shipping details.");
-        setShowOrderReader(false);
+    const handleDeleteLocation = (id: string) => {
+        setConfirmDeleteLocationId(id);
+    };
+
+    const confirmDeleteLocation = () => {
+        if (confirmDeleteLocationId) {
+            submit({ intent: "delete_location", id: confirmDeleteLocationId }, { method: "post" });
+            setConfirmDeleteLocationId(null);
+        }
     };
 
     return (
@@ -112,15 +121,35 @@ export default function StudioSettings() {
                         {error}
                     </div>
                 )}
-
                 {success && (
                     <div className="bg-green-50 text-green-600 p-3 rounded mb-4 text-sm">
                         {success}
                     </div>
                 )}
 
-                <form onSubmit={handleSaveName} className="space-y-4">
-                    <div>
+                <form
+                    onSubmit={async (e) => {
+                        e.preventDefault();
+                        setLoading(true);
+                        setError(null);
+                        setSuccess(null);
+
+                        try {
+                            const token = await (window as any).Clerk?.session?.getToken();
+                            await apiRequest(`/tenants/${tenant.slug}`, token, {
+                                method: "PATCH",
+                                body: JSON.stringify({ name })
+                            });
+                            setSuccess("Settings saved successfully");
+                        } catch (err: any) {
+                            setError(err.message || "Failed to save settings");
+                            toast.error(err.message || "Failed to save settings");
+                        } finally {
+                            setLoading(false);
+                        }
+                    }}
+                >
+                    <div className="mb-4">
                         <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">
                             Studio Name
                         </label>
@@ -242,7 +271,7 @@ export default function StudioSettings() {
                                     // Refresh page to update context
                                     window.location.reload();
                                 } catch (err) {
-                                    alert("Failed to update setting");
+                                    toast.error("Failed to update setting");
                                 }
                             }}
                         />
@@ -352,7 +381,7 @@ export default function StudioSettings() {
                                                 body: JSON.stringify({ settings: { noShowFeeEnabled: checked } })
                                             });
                                             window.location.reload();
-                                        } catch (err) { alert("Failed to save"); }
+                                        } catch (err) { toast.error("Failed to save"); }
                                     }}
                                 />
                                 <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
@@ -429,7 +458,7 @@ export default function StudioSettings() {
                                                 body: JSON.stringify({ settings: { noShowAutoMarkEnabled: checked } })
                                             });
                                             window.location.reload();
-                                        } catch (err) { alert("Failed to save"); }
+                                        } catch (err) { toast.error("Failed to save"); }
                                     }}
                                 />
                                 <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
@@ -697,8 +726,7 @@ export default function StudioSettings() {
 
 
             {/* Billing & Subscription */}
-            < Link to={`/studio/${tenant.slug}/settings/billing`
-            } className="block bg-white border border-zinc-200 rounded-lg p-6 shadow-sm mb-8 hover:border-blue-300 transition-colors group" >
+            <Link to={`/studio/${tenant.slug}/settings/billing`} className="block bg-white border border-zinc-200 rounded-lg p-6 shadow-sm mb-8 hover:border-blue-300 transition-colors group">
                 <div className="flex justify-between items-center">
                     <div>
                         <h2 className="text-lg font-semibold group-hover:text-blue-600 transition-colors">Billing & Subscription</h2>
@@ -708,10 +736,10 @@ export default function StudioSettings() {
                         <CreditCard className="h-5 w-5" />
                     </div>
                 </div>
-            </Link >
+            </Link>
 
             {/* Locations */}
-            < div className="bg-white border border-zinc-200 rounded-lg p-6 shadow-sm" >
+            <div className="bg-white border border-zinc-200 rounded-lg p-6 shadow-sm">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-lg font-semibold">Locations</h2>
                     <button
@@ -776,40 +804,40 @@ export default function StudioSettings() {
                                         {loc.address && <div className="text-sm text-zinc-500">{loc.address}</div>}
                                     </div>
                                 </div>
-                                <Form method="post" onSubmit={(e: React.FormEvent) => {
-                                    if (!confirm("Delete this location?")) e.preventDefault();
-                                }}>
-                                    <input type="hidden" name="intent" value="delete_location" />
-                                    <input type="hidden" name="id" value={loc.id} />
-                                    <button className="text-zinc-400 hover:text-red-600 p-2 rounded hover:bg-zinc-100">
-                                        <Trash2 className="h-4 w-4" />
-                                    </button>
-                                </Form>
+                                <button
+                                    onClick={() => handleDeleteLocation(loc.id)}
+                                    className="text-zinc-400 hover:text-red-600 p-2 rounded hover:bg-zinc-100"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </button>
                             </div>
                         ))
                     )}
                 </div>
-            </div >
 
+                <ConfirmationDialog
+                    isOpen={!!confirmDeleteLocationId}
+                    onClose={() => setConfirmDeleteLocationId(null)}
+                    onConfirm={confirmDeleteLocation}
+                    title="Delete Location"
+                    message="Are you sure you want to delete this location? This action cannot be undone."
+                    confirmText="Delete"
+                    isDestructive
+                />
 
-
-
-            {/* Custom Domain */}
-            < Link to={`/studio/${tenant.slug}/settings/domain`} className="block bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm mb-8 hover:border-purple-300 transition-colors group" >
-                <div className="flex justify-between items-center">
-                    <div>
-                        <h2 className="text-lg font-semibold dark:text-zinc-100 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Custom Domain</h2>
-                        <p className="text-sm text-zinc-500 dark:text-zinc-400">Connect your own website domain (e.g. studio.com). <span className="inline-block bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-[10px] px-1.5 py-0.5 rounded ml-2 uppercase font-bold tracking-wider">Scale</span></p>
+                <Link to={`/studio/${tenant.slug}/settings/domain`} className="block bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm mb-8 hover:border-purple-300 transition-colors group">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h2 className="text-lg font-semibold dark:text-zinc-100 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Custom Domain</h2>
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400">Connect your own website domain (e.g. studio.com). <span className="inline-block bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-[10px] px-1.5 py-0.5 rounded ml-2 uppercase font-bold tracking-wider">Scale</span></p>
+                        </div>
+                        <div className="bg-zinc-100 dark:bg-zinc-800 p-2 rounded-full group-hover:bg-purple-50 dark:group-hover:bg-purple-900/30 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                            <Globe className="h-5 w-5" />
+                        </div>
                     </div>
-                    <div className="bg-zinc-100 dark:bg-zinc-800 p-2 rounded-full group-hover:bg-purple-50 dark:group-hover:bg-purple-900/30 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
-                        <Globe className="h-5 w-5" />
-                    </div>
-                </div>
-            </Link >
+                </Link>
 
-            {/* Order Reader Modal */}
-            {
-                showOrderReader && (
+                {showOrderReader && (
                     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                         <div className="bg-white w-full max-w-md rounded-2xl p-8 shadow-2xl">
                             <h2 className="text-xl font-bold mb-2">Order BBPOS WisePOS E</h2>
@@ -827,14 +855,30 @@ export default function StudioSettings() {
                             </div>
                         </div>
                     </div>
-                )
-            }
+                )}
 
-        </div >
+            </div>
+        </div>
     );
 }
 
-function NumberStepper({ value, onChange, min = 0, max = 1000, step = 1, suffix = '' }: { value: number, onChange: (val: number) => void, min?: number, max?: number, step?: number, suffix?: string }) {
+interface NumberStepperProps {
+    value: number;
+    onChange: (val: number) => void;
+    min?: number;
+    max?: number;
+    step?: number;
+    suffix?: string;
+}
+
+function NumberStepper({
+    value,
+    onChange,
+    min = 0,
+    max = 1000,
+    step = 1,
+    suffix = ''
+}: NumberStepperProps) {
     const [localValue, setLocalValue] = useState(value);
 
     // Sync external changes

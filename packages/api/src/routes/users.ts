@@ -13,10 +13,12 @@ type Variables = {
     auth: {
         userId: string;
         sessionId: string;
+        claims?: any;
     };
     tenant?: {
         id: string;
     };
+    isImpersonating?: boolean;
 };
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
@@ -86,7 +88,7 @@ app.get('/me', async (c) => {
                             id: auth.userId,
                             email,
                             profile,
-                            isSystemAdmin: shadowUser.isSystemAdmin,
+                            isPlatformAdmin: shadowUser.isPlatformAdmin,
                             stripeCustomerId: shadowUser.stripeCustomerId,
                             stripeAccountId: shadowUser.stripeAccountId,
                             createdAt: shadowUser.createdAt
@@ -150,7 +152,8 @@ app.get('/me', async (c) => {
             firstName: (user.profile as any)?.firstName,
             lastName: (user.profile as any)?.lastName,
             portraitUrl: (user.profile as any)?.portraitUrl,
-            isSystemAdmin: user.isSystemAdmin,
+            isPlatformAdmin: user.isPlatformAdmin,
+            role: user.role,
             tenants: myTenants
         });
     } catch (e: any) {
@@ -275,6 +278,74 @@ app.post('/me/family', async (c) => {
             lastName
         }
     }, 201);
+});
+
+// POST /users/me/switch-profile - Switch context to a family member
+app.post('/me/switch-profile', async (c) => {
+    const auth = c.get('auth');
+    if (!auth?.userId) return c.json({ error: 'Unauthorized' }, 401);
+
+    const body = await c.req.json();
+    const { targetUserId } = body;
+
+    if (!targetUserId) return c.json({ error: 'Target User ID required' }, 400);
+
+    // If switching back to self
+    if (targetUserId === auth.userId) {
+        // Just return a success, frontend should clear cookies
+        return c.json({ token: null, isSelf: true });
+    }
+
+    const db = createDb(c.env.DB);
+
+    // Verify Relationship: Current User must be Parent of Target User
+    // OR Current User is System Admin
+    // OR Current User is impersonating a Parent? (Nested? No let's keep it simple: Real User -> Child)
+
+    // We need the REAL underlying user ID if we are already impersonating? 
+    // Actually authMiddleware sets `userId` to the *effective* user.
+    // But `claims.impersonatorId` has the real one.
+    const realUserId = auth.claims.impersonatorId || auth.userId;
+
+    const relationship = await db.query.userRelationships.findFirst({
+        where: and(
+            eq(userRelationships.parentUserId, realUserId),
+            eq(userRelationships.childUserId, targetUserId)
+        )
+    });
+
+    if (!relationship) {
+        // Allow System Admin override?
+        // const user = await db.query.users.findFirst({ where: eq(users.id, realUserId) });
+        // if (!user?.isSystemAdmin) ...
+        return c.json({ error: 'Unauthorized: Not a managed family member' }, 403);
+    }
+
+    // Generate Custom Token
+    const payload = {
+        sub: targetUserId, // The effective user is now the child
+        impersonatorId: realUserId, // The real user is the parent
+        role: 'member', // or inherited
+        exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24), // 24 hours
+    };
+
+    // Use dynamic import for hono/jwt if needed, or standard import
+    // We imported verify, let's import sign at top if not present, or use dynamic
+    const { sign } = await import('hono/jwt');
+    const token = await sign(payload, (c.env as any).CLERK_SECRET_KEY);
+
+    return c.json({ token });
+});
+
+// GET /session-info - Debug/UI check for current session state
+app.get('/session-info', (c) => {
+    const auth = c.get('auth');
+    const isImpersonating = c.get('isImpersonating');
+    return c.json({
+        userId: auth?.userId,
+        isImpersonating: !!isImpersonating,
+        impersonatorId: auth?.claims?.impersonatorId
+    });
 });
 
 export default app;

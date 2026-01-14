@@ -14,7 +14,7 @@ export const loader: LoaderFunction = async (args) => {
     }
 
     const token = await getToken();
-    let isSystemAdmin = false;
+    let isPlatformAdmin = false;
     let tenants: any[] = [];
     let userProfile: any = null;
 
@@ -23,8 +23,8 @@ export const loader: LoaderFunction = async (args) => {
     try {
         const user = await apiRequest("/users/me", token);
         if (user) {
-            if (user.isSystemAdmin) {
-                isSystemAdmin = true;
+            if (user.isPlatformAdmin || user.role === 'admin') {
+                isPlatformAdmin = true;
             }
             tenants = user.tenants || [];
             userProfile = user;
@@ -35,15 +35,15 @@ export const loader: LoaderFunction = async (args) => {
         error = e.message || "Failed to load profile";
     }
 
-    if (isSystemAdmin && tenants.length === 0) {
+    if (isPlatformAdmin && tenants.length === 0) {
         return redirect("/admin");
     }
 
-    return { isSystemAdmin, tenants, userProfile, error };
+    return { isPlatformAdmin, tenants, userProfile, error };
 };
 
 export default function DashboardRoute() {
-    const { isSystemAdmin } = useLoaderData<{ isSystemAdmin: boolean }>();
+    const { isPlatformAdmin, userProfile } = useLoaderData<{ isPlatformAdmin: boolean, userProfile: any }>();
 
     let navItems = [
         <NavLink
@@ -61,7 +61,7 @@ export default function DashboardRoute() {
         </NavLink>
     ];
 
-    if (isSystemAdmin) {
+    if (isPlatformAdmin) {
         navItems.push(
             <div key="separator" className="my-2 border-t border-zinc-200 dark:border-zinc-800" />
         );
@@ -71,14 +71,14 @@ export default function DashboardRoute() {
                 to="/admin"
                 className="block px-3 py-2 rounded-md text-sm font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
             >
-                🛡️ System Admin
+                🛡️ Platform Admin
             </NavLink>
         );
     }
 
     return (
-        <Layout navItems={navItems}>
-            {(isSystemAdmin === false && (useLoaderData() as any).error) && (
+        <Layout navItems={navItems} role={userProfile?.role}>
+            {(isPlatformAdmin === false && (useLoaderData() as any).error) && (
                 <div className="bg-red-50 text-red-700 p-4 border-b border-red-200 text-sm text-center">
                     Warning: Profile load failed. Admin features may be hidden. <br />
                     <span className="font-mono text-xs opacity-75">{(useLoaderData() as any).error}</span>

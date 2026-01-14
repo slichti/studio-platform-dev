@@ -5,6 +5,7 @@ import { ChatWindow } from "~/components/chat/ChatWindow";
 import { apiRequest, API_URL } from "~/utils/api";
 import { ArrowLeft, Grip, Settings } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 export const loader = async (args: any) => {
     const { getToken, userId } = await getAuth(args);
@@ -49,7 +50,7 @@ export default function AdminChatRoom() {
             if (updates.priority) setPriority(updates.priority);
             if (updates.assignedToId !== undefined) setAssignee(updates.assignedToId);
         } catch (e) {
-            alert("Failed to update ticket");
+            toast.error("Failed to update ticket");
         }
     };
 

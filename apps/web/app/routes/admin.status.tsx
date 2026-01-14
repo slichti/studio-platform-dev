@@ -28,7 +28,7 @@ export default function AdminStatus() {
             <h2 className="text-2xl font-bold mb-6 text-zinc-900 dark:text-zinc-100">System Status</h2>
 
             <div className="space-y-6">
-                <div className="bg-white p-6 rounded-lg border border-zinc-200 shadow-sm">
+                <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
                     <h3 className="font-semibold text-lg mb-4 text-zinc-900 dark:text-zinc-200">Core Services</h3>
                     <div className="space-y-4">
                         <StatusItem name="Database (D1)" status={services.database ? 'operational' : 'degraded'} />
@@ -49,7 +49,7 @@ export default function AdminStatus() {
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-lg border border-zinc-200 shadow-sm">
+                <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
                     <h3 className="font-semibold text-lg mb-4 text-zinc-900 dark:text-zinc-200">Environment</h3>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                         <div className="p-3 bg-zinc-50 dark:bg-zinc-950 rounded border border-zinc-100 dark:border-zinc-800">

@@ -10,8 +10,8 @@ const app = new Hono<{ Bindings: any; Variables: any }>();
 // Require authentication for all routes
 // app.use('/*', authMiddleware); // REMOVED: We need optional auth for public viewing
 
-// Verify system admin for write operations
-const requireSystemAdmin = async (c: any, next: any) => {
+// Verify platform admin for write operations
+const requirePlatformAdmin = async (c: any, next: any) => {
     const auth = c.get('auth');
     if (!auth?.userId) return c.json({ error: 'Unauthorized' }, 401);
 
@@ -20,8 +20,8 @@ const requireSystemAdmin = async (c: any, next: any) => {
         where: eq(schema.users.id, auth.userId),
     });
 
-    if (!user?.isSystemAdmin) {
-        return c.json({ error: 'System admin access required' }, 403);
+    if (!user?.isPlatformAdmin) {
+        return c.json({ error: 'Platform admin access required' }, 403);
     }
 
     await next();
@@ -63,7 +63,7 @@ app.get('/pages/:slug', optionalAuthMiddleware, async (c) => {
 });
 
 // Create new page (admin only)
-app.post('/pages', authMiddleware, requireSystemAdmin, async (c) => {
+app.post('/pages', authMiddleware, requirePlatformAdmin, async (c) => {
     const db = drizzle(c.env.DB, { schema });
     const body = await c.req.json<{
         slug: string;
@@ -105,7 +105,7 @@ app.post('/pages', authMiddleware, requireSystemAdmin, async (c) => {
 });
 
 // Update page (admin only)
-app.put('/pages/:id', authMiddleware, requireSystemAdmin, async (c) => {
+app.put('/pages/:id', authMiddleware, requirePlatformAdmin, async (c) => {
     const db = drizzle(c.env.DB, { schema });
     const id = c.req.param('id');
     const body = await c.req.json<{
@@ -139,7 +139,7 @@ app.put('/pages/:id', authMiddleware, requireSystemAdmin, async (c) => {
 });
 
 // Publish/unpublish page (admin only)
-app.post('/pages/:id/publish', authMiddleware, requireSystemAdmin, async (c) => {
+app.post('/pages/:id/publish', authMiddleware, requirePlatformAdmin, async (c) => {
     const db = drizzle(c.env.DB, { schema });
     const id = c.req.param('id');
     const body = await c.req.json<{ isPublished: boolean }>();
@@ -163,7 +163,7 @@ app.post('/pages/:id/publish', authMiddleware, requireSystemAdmin, async (c) => 
 });
 
 // Delete page (admin only)
-app.delete('/pages/:id', authMiddleware, requireSystemAdmin, async (c) => {
+app.delete('/pages/:id', authMiddleware, requirePlatformAdmin, async (c) => {
     const db = drizzle(c.env.DB, { schema });
     const id = c.req.param('id');
 

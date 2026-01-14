@@ -9,6 +9,7 @@ import { Puck } from "@measured/puck";
 import "@measured/puck/puck.css";
 import { puckConfig } from "../components/website/puck-config";
 import { Save, ArrowLeft, Eye } from "lucide-react";
+import { toast } from "sonner";
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -52,8 +53,9 @@ export default function WebsiteEditor() {
                 body: JSON.stringify({ content: puckData }),
             });
             setLastSaved(new Date());
+            toast.success("Page saved");
         } catch (e: any) {
-            alert("Failed to save: " + e.message);
+            toast.error("Failed to save: " + e.message);
         } finally {
             setSaving(false);
         }

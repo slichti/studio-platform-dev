@@ -10,7 +10,6 @@ import {
     users,
     waiverSignatures,
     waiverTemplates,
-    activePackDefinitions,
     classPackDefinitions
 } from 'db/src/schema'; // Ensure correct imports
 import { and, between, eq, sql, desc, count, gte, lte } from 'drizzle-orm';
@@ -321,5 +320,134 @@ export class ReportService {
         }
 
         return journal;
+    }
+    async query(options: {
+        metrics: string[]; // ['revenue', 'attendance', 'bookings']
+        dimensions: string[]; // ['date' | 'instructor' | 'payment_method' | 'class_type']
+        filters: {
+            startDate: Date;
+            endDate: Date;
+            instructorId?: string;
+        };
+    }) {
+        const { metrics, dimensions, filters } = options;
+        const result: any = {
+            chartData: [],
+            summary: {}
+        };
+
+        const groupByDay = dimensions.includes('date');
+        const groupByInstructor = dimensions.includes('instructor');
+
+        // REVENUE METRIC
+        if (metrics.includes('revenue')) {
+            // POS Revenue
+            const posQuery = this.db.select({
+                amount: posOrders.totalAmount,
+                date: posOrders.createdAt
+            })
+                .from(posOrders)
+                .where(and(
+                    eq(posOrders.tenantId, this.tenantId),
+                    between(posOrders.createdAt, filters.startDate, filters.endDate),
+                    eq(posOrders.status, 'completed')
+                ));
+
+            // Pack Revenue
+            const packQuery = this.db.select({
+                amount: purchasedPacks.price,
+                date: purchasedPacks.createdAt
+            })
+                .from(purchasedPacks)
+                .where(and(
+                    eq(purchasedPacks.tenantId, this.tenantId),
+                    between(purchasedPacks.createdAt, filters.startDate, filters.endDate)
+                ));
+
+            const [pos, packs] = await Promise.all([posQuery.all(), packQuery.all()]);
+
+            // Aggregation
+            let totalRevenue = 0;
+            const dataMap = new Map<string, number>();
+
+            [...pos, ...packs].forEach(item => {
+                totalRevenue += item.amount || 0;
+                if (groupByDay) {
+                    const key = new Date(item.date || '').toISOString().split('T')[0];
+                    dataMap.set(key, (dataMap.get(key) || 0) + (item.amount || 0));
+                }
+            });
+
+            result.summary.revenue = totalRevenue / 100;
+
+            if (groupByDay) {
+                // Merge into chartData
+                // Initialize map if needed
+                if (!result.chartData.length) {
+                    const cursor = new Date(filters.startDate);
+                    while (cursor <= filters.endDate) {
+                        const key = cursor.toISOString().split('T')[0];
+                        result.chartData.push({ name: key, revenue: 0 });
+                        cursor.setDate(cursor.getDate() + 1);
+                    }
+                }
+
+                result.chartData = result.chartData.map((d: any) => ({
+                    ...d,
+                    revenue: (dataMap.get(d.name) || 0) / 100
+                }));
+            }
+        }
+
+        // ATTENDANCE METRIC
+        if (metrics.includes('attendance')) {
+            const conditions = [
+                eq(classes.tenantId, this.tenantId),
+                between(classes.startTime, filters.startDate, filters.endDate),
+                eq(bookings.status, 'confirmed')
+            ];
+
+            if (filters.instructorId) {
+                conditions.push(eq(classes.instructorId, filters.instructorId));
+            }
+
+            const query = this.db.select({
+                id: bookings.id,
+                date: classes.startTime,
+                instructorId: classes.instructorId,
+            })
+                .from(bookings)
+                .innerJoin(classes, eq(bookings.classId, classes.id))
+                .where(and(...conditions));
+
+            const filteredData = await query.all();
+
+            result.summary.attendance = filteredData.length;
+
+            if (groupByDay) {
+                const dataMap = new Map<string, number>();
+                filteredData.forEach(item => {
+                    const key = new Date(item.date).toISOString().split('T')[0];
+                    dataMap.set(key, (dataMap.get(key) || 0) + 1);
+                });
+
+                // Merge
+                if (!result.chartData.length) {
+                    const cursor = new Date(filters.startDate);
+                    while (cursor <= filters.endDate) {
+                        const key = cursor.toISOString().split('T')[0];
+                        result.chartData.push({ name: key, attendance: 0 });
+                        cursor.setDate(cursor.getDate() + 1);
+                    }
+                }
+
+                result.chartData = result.chartData.map((d: any) => ({
+                    ...d,
+                    attendance: (dataMap.get(d.name) || 0)
+                }));
+            }
+        }
+
+        return result;
     }
 }

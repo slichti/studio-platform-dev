@@ -116,4 +116,49 @@ app.get('/my-progress', async (c) => {
     return c.json(enriched);
 });
 
+// POST /challenges/:id/join - Join a challenge
+app.post('/:id/join', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const member = c.get('member');
+    const challengeId = c.req.param('id');
+
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+    if (!member) return c.json({ error: 'Member context required' }, 401);
+
+    // 1. Verify Challenge Exists & Active
+    const challenge = await db.select().from(challenges)
+        .where(and(
+            eq(challenges.id, challengeId),
+            eq(challenges.tenantId, tenant.id),
+            eq(challenges.active, true)
+        ))
+        .get();
+
+    if (!challenge) return c.json({ error: 'Challenge not found or inactive' }, 404);
+
+    // 2. Check overlap? (Optional, maybe allowed multiple times? Schema has uniqueIndex)
+    const existing = await db.select().from(userChallenges)
+        .where(and(
+            eq(userChallenges.userId, member.userId), // Global user ID
+            eq(userChallenges.challengeId, challengeId)
+        ))
+        .get();
+
+    if (existing) return c.json({ error: 'Already joined this challenge' }, 400);
+
+    // 3. Join
+    await db.insert(userChallenges).values({
+        id: crypto.randomUUID(),
+        tenantId: tenant.id,
+        userId: member.userId,
+        challengeId: challengeId,
+        progress: 0,
+        status: 'active',
+        createdAt: new Date()
+    });
+
+    return c.json({ success: true });
+});
+
 export default app;

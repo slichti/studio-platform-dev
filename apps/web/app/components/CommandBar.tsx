@@ -55,6 +55,13 @@ export function CommandBar({ token }: CommandBarProps) {
         return () => document.removeEventListener("keydown", down);
     }, [isOpen, flatResults, selectedIndex]);
 
+    // External Open Event Listener
+    useEffect(() => {
+        const handleOpen = () => setIsOpen(true);
+        window.addEventListener("open-command-bar", handleOpen);
+        return () => window.removeEventListener("open-command-bar", handleOpen);
+    }, []);
+
     // Focus input on open
     useEffect(() => {
         if (isOpen) {

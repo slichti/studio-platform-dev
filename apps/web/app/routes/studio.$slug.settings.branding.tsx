@@ -5,6 +5,8 @@ import { useOutletContext, useLoaderData } from "react-router";
 import { apiRequest } from "../utils/api";
 import { getAuth } from "@clerk/react-router/server";
 import { Upload, X, Trash2, Video, CheckCircle, Circle, Play, Image as ImageIcon } from "lucide-react";
+import { toast } from "sonner";
+import { ConfirmationDialog } from "~/components/Dialogs";
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -21,6 +23,7 @@ export default function StudioBranding() {
     const { tenant } = useOutletContext<any>();
     const { assets: initialAssets } = useLoaderData();
     const [assets, setAssets] = useState(initialAssets);
+    const [brandingConfirmId, setBrandingConfirmId] = useState<string | null>(null);
 
     // Existing Email/Brand State
     const [primaryColor, setPrimaryColor] = useState(tenant.branding?.primaryColor || '#4f46e5');
@@ -156,12 +159,18 @@ export default function StudioBranding() {
         }
     }
 
-    const handleDelete = async (id: string) => {
-        if (!confirm("Delete this branding asset?")) return;
+    const handleDelete = (id: string) => {
+        setBrandingConfirmId(id);
+    }
+
+    const confirmDelete = async () => {
+        if (!brandingConfirmId) return;
         try {
             const token = await (window as any).Clerk?.session?.getToken();
-            await apiRequest(`/video-management/branding/${id}`, token, { method: 'DELETE' });
-            setAssets(assets.filter((a: any) => a.id !== id));
+            await apiRequest(`/video-management/branding/${brandingConfirmId}`, token, { method: 'DELETE' });
+            setAssets(assets.filter((a: any) => a.id !== brandingConfirmId));
+            setBrandingConfirmId(null);
+            toast.success("Asset deleted successfully");
         } catch (e) {
             setError("Failed to delete asset");
         }
@@ -281,11 +290,11 @@ export default function StudioBranding() {
                                 type="checkbox"
                                 checked={hidePoweredBy}
                                 onChange={(e) => setHidePoweredBy(e.target.checked)}
-                                disabled={tenant.tier !== 'scale'}
+                                disabled={tenant.tier?.toLowerCase() !== 'scale'}
                                 className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
                             />
                             <div className="text-sm">
-                                <label htmlFor="hidePoweredBy" className={`font-medium ${tenant.tier !== 'scale' ? 'text-zinc-400' : 'text-zinc-900'}`}>
+                                <label htmlFor="hidePoweredBy" className={`font-medium ${tenant.tier?.toLowerCase() !== 'scale' ? 'text-zinc-400' : 'text-zinc-900'}`}>
                                     Hide "Powered by StudioPlatform" badge
                                 </label>
                                 <p className="text-zinc-500 text-xs mt-0.5">Scale tier required.</p>
@@ -364,6 +373,16 @@ export default function StudioBranding() {
                     </div>
                 </div>
             </div>
+
+            <ConfirmationDialog
+                isOpen={!!brandingConfirmId}
+                onClose={() => setBrandingConfirmId(null)}
+                onConfirm={confirmDelete}
+                title="Delete Branding Asset"
+                message="Are you sure you want to delete this branding asset? This action cannot be undone."
+                confirmText="Delete"
+                isDestructive
+            />
         </div>
     );
 }

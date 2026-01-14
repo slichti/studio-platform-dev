@@ -5,6 +5,7 @@ import { ChatWindow } from "~/components/chat/ChatWindow";
 import { apiRequest, API_URL } from "~/utils/api";
 import { ArrowLeft, Grip, Settings, CheckCircle, Clock } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 export const loader = async (args: any) => {
     const { getToken, userId } = await getAuth(args);
@@ -45,7 +46,7 @@ export default function StudioChatRoom() {
             });
             setStatus(newStatus);
         } catch (e) {
-            alert("Failed to update status");
+            toast.error("Failed to update status");
         }
     };
 
@@ -73,7 +74,7 @@ export default function StudioChatRoom() {
                 <div className="flex items-center gap-2">
                     {/* Status Badge */}
                     <span className={`px-2 py-1 rounded text-xs font-medium capitalize ${status === 'open' ? 'bg-green-100 text-green-700' :
-                            status === 'closed' ? 'bg-zinc-100 text-zinc-600' : 'bg-blue-50 text-blue-700'
+                        status === 'closed' ? 'bg-zinc-100 text-zinc-600' : 'bg-blue-50 text-blue-700'
                         }`}>
                         {status}
                     </span>

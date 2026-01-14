@@ -4,9 +4,9 @@ import { Plus, Building2, ShieldCheck, Search } from "lucide-react";
 
 export default function DashboardIndex() {
     // Get data from parent layout loader
-    const data = useRouteLoaderData("routes/dashboard") as { isSystemAdmin: boolean; tenants: any[]; userProfile: any } | undefined;
+    const data = useRouteLoaderData("routes/dashboard") as { isPlatformAdmin: boolean; tenants: any[]; userProfile: any } | undefined;
 
-    const isSystemAdmin = data?.isSystemAdmin || false;
+    const isPlatformAdmin = data?.isPlatformAdmin || false;
     const tenants = data?.tenants || [];
     const user = data?.userProfile;
 
@@ -21,11 +21,11 @@ export default function DashboardIndex() {
                 </p>
             </div>
 
-            {/* Quick Actions / System Admin */}
-            {isSystemAdmin && (
+            {/* Quick Actions / Platform Admin */}
+            {isPlatformAdmin && (
                 <div className="mb-12">
                     <h3 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-                        System Administration
+                        Platform Administration
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <Link to="/admin" className="group block p-6 bg-gradient-to-br from-purple-50 to-white dark:from-purple-900/20 dark:to-zinc-900 border border-purple-100 dark:border-purple-800/50 rounded-xl shadow-sm hover:shadow-md transition-all">

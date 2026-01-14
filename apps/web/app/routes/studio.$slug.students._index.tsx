@@ -6,6 +6,8 @@ import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { useState } from "react";
 import { useAuth } from "@clerk/react-router";
+import { toast } from "sonner";
+import { ConfirmationDialog } from "~/components/Dialogs";
 
 type Student = {
     id: string; // Member ID
@@ -50,6 +52,8 @@ export default function StudioStudents() {
     const [isAddingMember, setIsAddingMember] = useState(false);
     const [isSubmittingMember, setIsSubmittingMember] = useState(false);
     const [editingMember, setEditingMember] = useState<any | null>(null);
+    const [pendingRoleChange, setPendingRoleChange] = useState<{ memberId: string, newRole: string } | null>(null);
+    const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
 
     // Filter members
     const filteredMembers = (members || []).filter((m: any) => {
@@ -68,7 +72,7 @@ export default function StudioStudents() {
         const lastName = formData.get('lastName');
 
         if (!slug) {
-            alert("Missing studio slug");
+            toast.error("Missing studio slug");
             setIsSubmittingMember(false);
             return;
         }
@@ -82,12 +86,13 @@ export default function StudioStudents() {
             }) as any;
 
             if (res.error) {
-                alert(res.error);
+                toast.error(res.error);
             } else {
+                toast.success("Member added successfully");
                 window.location.reload();
             }
         } catch (e: any) {
-            alert(e.message);
+            toast.error(e.message);
         } finally {
             setIsSubmittingMember(false);
             setIsAddingMember(false);
@@ -96,7 +101,12 @@ export default function StudioStudents() {
 
     const handleRemoveMember = async () => {
         if (!editingMember) return;
-        if (!confirm(`Are you sure you want to remove ${editingMember.user.email} from the studio? This will archive their membership.`)) return;
+        setShowRemoveConfirm(true);
+    };
+
+    const confirmRemoveMember = async () => {
+        if (!editingMember) return;
+
 
         setUpdating(editingMember.id);
         try {
@@ -105,24 +115,32 @@ export default function StudioStudents() {
                 method: "DELETE",
                 headers: { 'X-Tenant-Slug': slug! }
             }) as any;
-            if (res.error) alert(res.error);
+            if (res.error) toast.error(res.error);
             else {
+                toast.success("Member removed");
                 setEditingMember(null);
                 window.location.reload();
             }
         } catch (e: any) {
-            alert(e.message);
+            toast.error(e.message);
         } finally {
             setUpdating(null);
+            setShowRemoveConfirm(false);
         }
     };
 
-    const handleRoleChange = async (memberId: string, newRole: string) => {
-        if (!confirm(`Are you sure you want to change this user's role to ${newRole}?`)) return;
+    const handleRoleChange = (memberId: string, newRole: string) => {
+        setPendingRoleChange({ memberId, newRole });
+    };
+
+    const confirmRoleChange = async () => {
+        if (!pendingRoleChange) return;
+        const { memberId, newRole } = pendingRoleChange;
+
         setUpdating(memberId);
 
         if (!slug) {
-            alert("Missing studio slug");
+            toast.error("Missing studio slug");
             setUpdating(null);
             return;
         }
@@ -134,12 +152,16 @@ export default function StudioStudents() {
                 headers: { 'X-Tenant-Slug': slug },
                 body: JSON.stringify({ role: newRole })
             }) as any;
-            if (res.error) alert(res.error);
-            else window.location.reload();
+            if (res.error) toast.error(res.error);
+            else {
+                toast.success("Role updated");
+                window.location.reload();
+            }
         } catch (e: any) {
-            alert(e.message);
+            toast.error(e.message);
         } finally {
             setUpdating(null);
+            setPendingRoleChange(null);
         }
     };
 
@@ -363,6 +385,25 @@ export default function StudioStudents() {
                     </div>
                 </div>
             )}
-        </div>
+            {/* Confirmation Dialogs */}
+            <ConfirmationDialog
+                isOpen={showRemoveConfirm}
+                onClose={() => setShowRemoveConfirm(false)}
+                onConfirm={confirmRemoveMember}
+                title="Remove Member"
+                message={`Are you sure you want to remove ${editingMember?.user.email} from the studio? This will archive their membership.`}
+                isDestructive={true}
+                confirmText="Remove"
+            />
+
+            <ConfirmationDialog
+                isOpen={!!pendingRoleChange}
+                onClose={() => setPendingRoleChange(null)}
+                onConfirm={confirmRoleChange}
+                title="Change Role"
+                message={`Are you sure you want to change this user's role to ${pendingRoleChange?.newRole}?`}
+                confirmText="Change Role"
+            />
+        </div >
     );
 }

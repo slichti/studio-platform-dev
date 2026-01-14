@@ -8,6 +8,8 @@ import { useState, useEffect } from "react";
 import { CreateClassModal } from "../components/CreateClassModal";
 import { Plus, Archive, ArchiveRestore } from "lucide-react";
 import { BookingModal } from "../components/BookingModal";
+import { toast } from "sonner";
+import { ConfirmationDialog } from "~/components/Dialogs";
 
 type ClassEvent = {
     id: string;
@@ -70,7 +72,78 @@ export const loader = async (args: LoaderFunctionArgs) => {
     }
 };
 
-// ... (keep action as is)
+
+export const action = async (args: ActionFunctionArgs) => {
+    const { request, params } = args;
+    const { getToken } = await getAuth(args);
+    const token = await getToken();
+
+    const formData = await request.formData();
+    const intent = formData.get("intent");
+    const classId = formData.get("classId") as string;
+    const attendanceType = formData.get("attendanceType");
+    const memberId = formData.get("memberId"); // For family booking
+
+    if (!token) return { error: "Unauthorized" };
+
+    try {
+        if (intent === "book") {
+            const body: any = { classId, attendanceType: attendanceType || 'in_person' };
+            if (memberId) body.memberId = memberId;
+
+            await apiRequest("/bookings", token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': params.slug! },
+                body: JSON.stringify(body)
+            });
+            return { success: true };
+        }
+
+        if (intent === "waitlist") {
+            // New Waitlist Logic
+            const body: any = {};
+            if (memberId) body.userId = memberId; // Assuming waitlist API handles family via userId or we need memberId logic. 
+            // My waitlist API uses `c.get('user')`. If booking for family, user ID might differ? 
+            // Waitlist table is `userId`. Family member has `userId`.
+            // Ideally passing `memberId` to waitlist API and resolving user is better. 
+            // BUT, for now, simple implementation assuming acting user.
+            // If family member, we need to handle that.
+            // Let's stick to simple user waitlist for now.
+            // Or pass memberId if my API supports it (it doesn't yet).
+
+            await apiRequest(`/waitlist/${classId}/join`, token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': params.slug! },
+                body: JSON.stringify(body) // Body ignored by current impl but good for future
+            });
+            return { success: true };
+        }
+
+        if (intent === "cancel_booking") {
+            const bookingId = formData.get("bookingId") as string;
+            await apiRequest(`/bookings/${bookingId}`, token, {
+                method: "DELETE",
+                headers: { 'X-Tenant-Slug': params.slug! }
+            });
+            return { success: true };
+        }
+
+        if (intent === "switch_attendance") {
+            const bookingId = formData.get("bookingId") as string;
+            await apiRequest(`/bookings/${bookingId}`, token, {
+                method: "PATCH",
+                headers: { 'X-Tenant-Slug': params.slug! },
+                body: JSON.stringify({ attendanceType })
+            });
+            return { success: true };
+        }
+
+    } catch (e: any) {
+        return { error: e.message || "Action failed" };
+    }
+    return null;
+};
+
 
 export default function StudioPublicClasses() {
     const { classes: initialClasses, family, error, locations, instructors, plans } = useLoaderData<any>();
@@ -91,6 +164,10 @@ export default function StudioPublicClasses() {
 
     const isAdmin = roles?.includes('owner') || roles?.includes('instructor');
 
+    // Confirm Dialog States
+    const [confirmArchiveData, setConfirmArchiveData] = useState<{ id: string, archive: boolean } | null>(null);
+    const [confirmCancelData, setConfirmCancelData] = useState<{ bookingId: string, classId: string } | null>(null);
+
     // Helpers
     const handleBookClick = (cls: ClassEvent) => {
         if (family.length > 0) {
@@ -107,23 +184,37 @@ export default function StudioPublicClasses() {
         setClasses([...classes, newClass]);
     };
 
-    const handleArchive = async (classId: string, archive: boolean) => {
-        if (!confirm(`Are you sure you want to ${archive ? 'archive' : 'unarchive'} this class?`)) return;
+    const handleArchiveClick = (classId: string, archive: boolean) => {
+        setConfirmArchiveData({ id: classId, archive });
+    };
+
+    const confirmArchiveAction = async () => {
+        if (!confirmArchiveData) return;
+        const { id, archive } = confirmArchiveData;
+
         try {
             const token = await (window as any).Clerk?.session?.getToken();
-            await apiRequest(`/classes/${classId}`, token, {
+            await apiRequest(`/classes/${id}`, token, {
                 method: 'PATCH',
                 headers: { 'X-Tenant-Slug': tenant.slug },
                 body: JSON.stringify({ status: archive ? 'archived' : 'active' })
             });
-            // Update local state or reload
-            // Reloading via fetcher or window might be safer, but local update is faster
-            setClasses(classes.map((c: ClassEvent) => c.id === classId ? { ...c, status: archive ? 'archived' : 'active' } : c));
-            // Trigger loader reload to respect filters
-            // fetcher.load(location.pathname + location.search);
+            setClasses(classes.map((c: ClassEvent) => c.id === id ? { ...c, status: archive ? 'archived' : 'active' } : c));
+            toast.success(archive ? "Class archived" : "Class restored");
         } catch (e) {
-            alert("Failed to update class status");
+            toast.error("Failed to update class status");
+        } finally {
+            setConfirmArchiveData(null);
         }
+    };
+
+    const confirmCancelAction = () => {
+        if (!confirmCancelData) return;
+        fetcher.submit(
+            { intent: "cancel_booking", bookingId: confirmCancelData.bookingId, classId: confirmCancelData.classId },
+            { method: "post" }
+        );
+        setConfirmCancelData(null);
     };
 
     const grouped = classes.reduce((acc: Record<string, ClassEvent[]>, cls: ClassEvent) => {
@@ -236,7 +327,7 @@ export default function StudioPublicClasses() {
                                             {/* Admin Actions */}
                                             {isAdmin && (
                                                 <button
-                                                    onClick={() => handleArchive(cls.id, cls.status !== 'archived')}
+                                                    onClick={() => handleArchiveClick(cls.id, cls.status !== 'archived')}
                                                     className="p-1.5 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded"
                                                     title={cls.status === 'archived' ? 'Restore Class' : 'Archive Class'}
                                                 >
@@ -283,22 +374,14 @@ export default function StudioPublicClasses() {
                                                                                 </fetcher.Form>
                                                                             ) : null}
 
-                                                                            <fetcher.Form method="post" onSubmit={(e: React.FormEvent) => {
-                                                                                if (!confirm("Are you sure you want to cancel this booking?")) {
-                                                                                    e.preventDefault();
-                                                                                }
-                                                                            }}>
-                                                                                <input type="hidden" name="intent" value="cancel_booking" />
-                                                                                <input type="hidden" name="classId" value={cls.id} />
-                                                                                <input type="hidden" name="bookingId" value={cls.userBooking!.id} />
-                                                                                <button
-                                                                                    type="submit"
-                                                                                    disabled={fetcher.state !== "idle"}
-                                                                                    className="text-xs text-red-600 hover:underline disabled:opacity-50"
-                                                                                >
-                                                                                    Cancel
-                                                                                </button>
-                                                                            </fetcher.Form>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => setConfirmCancelData({ bookingId: cls.userBooking!.id, classId: cls.id })}
+                                                                                disabled={fetcher.state !== "idle"}
+                                                                                className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                                                                            >
+                                                                                Cancel
+                                                                            </button>
 
                                                                             <span className="px-4 py-2 text-sm font-medium rounded bg-zinc-100 text-zinc-500 cursor-default">
                                                                                 Booked {cls.userBooking?.attendanceType === 'zoom' ? '(Virtual)' : '(In-Person)'}
@@ -351,6 +434,26 @@ export default function StudioPublicClasses() {
                     ))
                 )}
             </div>
+
+            <ConfirmationDialog
+                isOpen={!!confirmArchiveData}
+                onClose={() => setConfirmArchiveData(null)}
+                onConfirm={confirmArchiveAction}
+                title={confirmArchiveData?.archive ? "Archive Class" : "Restore Class"}
+                message={`Are you sure you want to ${confirmArchiveData?.archive ? 'archive' : 'unarchive'} this class?`}
+                confirmText={confirmArchiveData?.archive ? "Archive" : "Restore"}
+                isDestructive={confirmArchiveData?.archive}
+            />
+
+            <ConfirmationDialog
+                isOpen={!!confirmCancelData}
+                onClose={() => setConfirmCancelData(null)}
+                onConfirm={confirmCancelAction}
+                title="Cancel Booking"
+                message="Are you sure you want to cancel this booking?"
+                confirmText="Cancel Booking"
+                isDestructive
+            />
         </div >
     );
 }

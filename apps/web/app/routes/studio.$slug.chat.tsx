@@ -5,6 +5,7 @@ import { apiRequest } from "~/utils/api";
 import { MessageCircle, User, Shield, ExternalLink, Plus, Settings } from "lucide-react";
 import { useState } from "react";
 import { Modal } from "~/components/Modal";
+import { toast } from "sonner";
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -48,7 +49,7 @@ export default function StudioChat() {
             });
             setIsSettingsOpen(false);
         } catch (e) {
-            alert("Failed to save settings");
+            toast.error("Failed to save settings");
         }
     };
 

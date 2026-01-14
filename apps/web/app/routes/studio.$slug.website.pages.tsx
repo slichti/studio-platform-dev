@@ -6,6 +6,8 @@ import { apiRequest } from "../utils/api";
 import { useState } from "react";
 import { useAuth } from "@clerk/react-router";
 import { Plus, Edit2, Trash2, Eye, EyeOff, Globe, FileText } from "lucide-react";
+import { toast } from "sonner";
+import { ConfirmationDialog } from "~/components/Dialogs";
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -29,6 +31,7 @@ export default function WebsitePagesManager() {
     const navigate = useNavigate();
     const [creating, setCreating] = useState(false);
     const [newPage, setNewPage] = useState({ title: "", slug: "" });
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
     const handleCreate = async () => {
         if (!newPage.title || !newPage.slug) return;
@@ -43,23 +46,31 @@ export default function WebsitePagesManager() {
             setPages([...pages, created]);
             setCreating(false);
             setNewPage({ title: "", slug: "" });
+            toast.success("Page created");
         } catch (e: any) {
-            alert("Failed to create page: " + e.message);
+            toast.error("Failed to create page: " + e.message);
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm("Delete this page?")) return;
+    const handleDelete = (id: string) => {
+        setConfirmDeleteId(id);
+    };
+
+    const confirmDeleteAction = async () => {
+        if (!confirmDeleteId) return;
 
         try {
             const token = await getToken();
-            await apiRequest(`/website/pages/${id}`, token, {
+            await apiRequest(`/website/pages/${confirmDeleteId}`, token, {
                 method: "DELETE",
                 headers: { "X-Tenant-Slug": slug },
             });
-            setPages(pages.filter(p => p.id !== id));
+            setPages(pages.filter(p => p.id !== confirmDeleteId));
+            toast.success("Page deleted");
         } catch (e: any) {
-            alert("Failed to delete: " + e.message);
+            toast.error("Failed to delete: " + e.message);
+        } finally {
+            setConfirmDeleteId(null);
         }
     };
 
@@ -72,8 +83,9 @@ export default function WebsitePagesManager() {
                 body: JSON.stringify({ isPublished: !page.isPublished }),
             });
             setPages(pages.map(p => p.id === page.id ? { ...p, isPublished: !p.isPublished } : p));
+            toast.success(page.isPublished ? "Page unpublished" : "Page published");
         } catch (e: any) {
-            alert("Failed to update: " + e.message);
+            toast.error("Failed to update: " + e.message);
         }
     };
 
@@ -201,6 +213,16 @@ export default function WebsitePagesManager() {
                     ))}
                 </div>
             )}
+
+            <ConfirmationDialog
+                isOpen={!!confirmDeleteId}
+                onClose={() => setConfirmDeleteId(null)}
+                onConfirm={confirmDeleteAction}
+                title="Delete Page"
+                message="Are you sure you want to delete this page? This cannot be undone."
+                confirmText="Delete"
+                isDestructive
+            />
         </div>
     );
 }

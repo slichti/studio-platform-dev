@@ -4,6 +4,7 @@ import { useOutletContext } from "react-router";
 import { apiRequest } from "../utils/api";
 import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/react-router";
+import { toast } from "sonner";
 
 export default function StudioHardwareSettings() {
     const { tenant } = useOutletContext<any>();
@@ -74,10 +75,10 @@ export default function StudioHardwareSettings() {
 
         setIsOrdering(false);
         if (res && !res.error) {
-            alert('Order Placed Successfully! You will receive confirmation shortly.');
+            toast.success('Order Placed Successfully! You will receive confirmation shortly.');
             setIsOrderModalOpen(false);
         } else {
-            alert(`Order Failed: ${res?.error || 'Unknown error'}`);
+            toast.error(`Order Failed: ${res?.error || 'Unknown error'}`);
             // Note: In test mode, we might need a test token or similar.
         }
     };

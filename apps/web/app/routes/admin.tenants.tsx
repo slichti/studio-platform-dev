@@ -104,6 +104,7 @@ export default function AdminTenants() {
     const [intervalChange, setIntervalChange] = useState<{ id: string, interval: string } | null>(null);
     const [waiveUsageId, setWaiveUsageId] = useState<string | null>(null);
     const [restoreId, setRestoreId] = useState<string | null>(null);
+    const [renewalDateChange, setRenewalDateChange] = useState<{ id: string, date: string } | null>(null);
 
     // Archive State
     const [archiveId, setArchiveId] = useState<string | null>(null);
@@ -410,6 +411,12 @@ export default function AdminTenants() {
         }
     };
 
+    const confirmRenewalDateUpdate = async () => {
+        if (!renewalDateChange) return;
+        await handleDateUpdate(renewalDateChange.id, renewalDateChange.date);
+        setRenewalDateChange(null);
+    };
+
     const handleLimitUpdate = async (tenantId: string, key: string, value: any) => {
         try {
             const token = await getToken();
@@ -634,6 +641,15 @@ export default function AdminTenants() {
                 title="Change Billing Interval"
                 message={`Switch billing interval to ${intervalChange?.interval}? This will update the Stripe Subscription immediately.`}
                 confirmText="Update Interval"
+            />
+
+            <ConfirmationDialog
+                isOpen={!!renewalDateChange}
+                onClose={() => setRenewalDateChange(null)}
+                onConfirm={confirmRenewalDateUpdate}
+                title="Update Renewal Date"
+                message={`Are you sure you want to update the renewal date to ${renewalDateChange?.date}?`}
+                confirmText="Update Date"
             />
 
             <ConfirmationDialog
@@ -921,7 +937,7 @@ export default function AdminTenants() {
                                                             )}
                                                         </div>
 
-                                                        <div className="h-8 w-px bg-zinc-200 hidden md:block"></div>
+                                                        <div className="h-8 w-px bg-zinc-200 dark:bg-zinc-800 hidden md:block"></div>
 
                                                         {/* Renewal Date */}
                                                         <div>
@@ -932,9 +948,8 @@ export default function AdminTenants() {
                                                                     className="text-xs border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:border-zinc-400 transition-colors"
                                                                     defaultValue={t.currentPeriodEnd ? new Date(t.currentPeriodEnd).toISOString().split('T')[0] : ''}
                                                                     onBlur={(e) => {
-                                                                        if (e.target.value) {
-                                                                            const confirm = window.confirm(`Update renewal date to ${e.target.value}?`);
-                                                                            if (confirm) handleDateUpdate(t.id, e.target.value);
+                                                                        if (e.target.value && e.target.value !== (t.currentPeriodEnd ? new Date(t.currentPeriodEnd).toISOString().split('T')[0] : '')) {
+                                                                            setRenewalDateChange({ id: t.id, date: e.target.value });
                                                                         }
                                                                     }}
                                                                 />
@@ -952,11 +967,11 @@ export default function AdminTenants() {
 
                                                     {/* Usage Limits - Horizontal */}
                                                     {/* Usage Limits - Horizontal */}
-                                                    <div className="flex items-center gap-6 border-l border-zinc-200 pl-6 border-l-0 md:border-l">
+                                                    <div className="flex items-center gap-6 border-l border-zinc-200 dark:border-zinc-800 pl-6 border-l-0 md:border-l">
                                                         <div>
                                                             <label className="text-[10px] uppercase text-zinc-400 font-bold block mb-1">SMS Limit</label>
                                                             <input type="number"
-                                                                className={`w-20 text-xs border rounded px-2 py-1 ${t.billingExempt ? 'bg-zinc-100 text-zinc-400' : ''}`}
+                                                                className={`w-20 text-xs border rounded px-2 py-1 ${t.billingExempt ? 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-400 dark:text-zinc-500' : 'bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100'}`}
                                                                 defaultValue={t.smsLimit || 0}
                                                                 onBlur={(e) => handleLimitUpdate(t.id, 'smsLimit', parseInt(e.target.value))}
                                                             />
@@ -971,7 +986,7 @@ export default function AdminTenants() {
                                                                             <span>{t.smsUsage || 0} sent</span>
                                                                             <span>{Math.round(((t.smsUsage || 0) / (t.smsLimit || 1)) * 100)}%</span>
                                                                         </div>
-                                                                        <div className="h-1.5 w-24 bg-zinc-100 rounded-full overflow-hidden">
+                                                                        <div className="h-1.5 w-24 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
                                                                             <div
                                                                                 className={`h-full rounded-full transition-all ${(t.smsUsage || 0) >= (t.smsLimit || 0) ? 'bg-red-500' :
                                                                                     ((t.smsUsage || 0) / (t.smsLimit || 1)) > 0.8 ? 'bg-amber-400' : 'bg-emerald-500'
@@ -987,7 +1002,7 @@ export default function AdminTenants() {
                                                         <div>
                                                             <label className="text-[10px] uppercase text-zinc-400 font-bold block mb-1">Email Limit</label>
                                                             <input type="number"
-                                                                className={`w-20 text-xs border rounded px-2 py-1 ${t.billingExempt ? 'bg-zinc-100 text-zinc-400' : ''}`}
+                                                                className={`w-20 text-xs border rounded px-2 py-1 ${t.billingExempt ? 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-400 dark:text-zinc-500' : 'bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100'}`}
                                                                 defaultValue={t.emailLimit || 0}
                                                                 onBlur={(e) => handleLimitUpdate(t.id, 'emailLimit', parseInt(e.target.value))}
                                                             />
@@ -1002,7 +1017,7 @@ export default function AdminTenants() {
                                                                             <span>{t.emailUsage || 0} sent</span>
                                                                             <span>{Math.round(((t.emailUsage || 0) / (t.emailLimit || 1)) * 100)}%</span>
                                                                         </div>
-                                                                        <div className="h-1.5 w-24 bg-zinc-100 rounded-full overflow-hidden">
+                                                                        <div className="h-1.5 w-24 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
                                                                             <div
                                                                                 className={`h-full rounded-full transition-all ${(t.emailUsage || 0) >= (t.emailLimit || 0) ? 'bg-red-500' :
                                                                                     ((t.emailUsage || 0) / (t.emailLimit || 1)) > 0.8 ? 'bg-amber-400' : 'bg-emerald-500'
@@ -1019,11 +1034,11 @@ export default function AdminTenants() {
                                                             <div className="flex items-center gap-2">
                                                                 <input type="checkbox"
                                                                     id={`exempt-${t.id}`}
-                                                                    className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                                                                    className="rounded border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800 text-blue-600 focus:ring-blue-500"
                                                                     defaultChecked={!!t.billingExempt}
                                                                     onChange={(e) => handleLimitUpdate(t.id, 'billingExempt', e.target.checked)}
                                                                 />
-                                                                <label className="text-xs text-zinc-700 cursor-pointer select-none font-medium" htmlFor={`exempt-${t.id}`}>Billing Exempt</label>
+                                                                <label className="text-xs text-zinc-700 dark:text-zinc-300 cursor-pointer select-none font-medium" htmlFor={`exempt-${t.id}`}>Billing Exempt</label>
                                                             </div>
                                                             {t.billingExempt && (
                                                                 <span className="text-[10px] text-zinc-400 pl-5">Limits ignored</span>
@@ -1042,7 +1057,7 @@ export default function AdminTenants() {
                                                 </div>
 
                                                 {/* Lifecycle & Data Export */}
-                                                <div className="bg-white border border-zinc-200 rounded-lg p-4 mt-4 mb-6">
+                                                <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 mt-4 mb-6">
                                                     <div className="flex items-center justify-between mb-4">
                                                         <div className="text-[10px] uppercase text-zinc-500 font-bold">Lifecycle & Data</div>
                                                         <div className="flex gap-2">

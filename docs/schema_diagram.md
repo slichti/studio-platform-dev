@@ -5,6 +5,7 @@ erDiagram
         string id PK
         string email
         json profile
+        enum role
         boolean is_system_admin
         string stripe_customer_id
     }

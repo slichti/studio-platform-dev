@@ -58,6 +58,9 @@ app.get('/', async (c) => {
         });
     }
 
+    // Filter out platform admins from the member list
+    members = members.filter(m => !(m.user as any).isSystemAdmin);
+
     return c.json({ members });
 });
 

@@ -6,6 +6,8 @@ import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { apiRequest } from "../utils/api";
 import { getAuth } from "@clerk/react-router/server";
 import { Globe, ShieldCheck, AlertTriangle, RefreshCw, Trash2, CheckCircle, ExternalLink } from "lucide-react";
+import { toast } from "sonner";
+import { ConfirmationDialog } from "~/components/Dialogs";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { params } = args;
@@ -28,6 +30,7 @@ export default function DomainSettings() {
     const [loading, setLoading] = useState(false);
     const [domainInput, setDomainInput] = useState("");
     const [error, setError] = useState<string | null>(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     // If tenant is not on Scale plan, show upgrade wall
     if (tenant.tier !== 'scale') {
@@ -81,7 +84,10 @@ export default function DomainSettings() {
     };
 
     const handleDeleteDomain = async () => {
-        if (!confirm("Are you sure? This will disconnect your custom domain immediately.")) return;
+        setShowDeleteConfirm(true);
+    };
+
+    const confirmDelete = async () => {
         setLoading(true);
         try {
             const token = await (window as any).Clerk?.session?.getToken();
@@ -91,9 +97,10 @@ export default function DomainSettings() {
             });
             window.location.reload();
         } catch (e: any) {
-            alert(e.message);
+            toast.error(e.message);
         } finally {
             setLoading(false);
+            setShowDeleteConfirm(false);
         }
     };
 
@@ -240,6 +247,16 @@ export default function DomainSettings() {
                     </div>
                 </div>
             )}
+
+            <ConfirmationDialog
+                isOpen={showDeleteConfirm}
+                onClose={() => setShowDeleteConfirm(false)}
+                onConfirm={confirmDelete}
+                title="Disconnect Domain"
+                message="Are you sure? This will disconnect your custom domain immediately. Your studio will revert to the default subdomain."
+                confirmText="Disconnect"
+                isDestructive
+            />
         </div>
     );
 }

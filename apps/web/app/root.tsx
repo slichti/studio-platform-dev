@@ -47,6 +47,8 @@ export async function loader(args: LoaderFunctionArgs) {
     }
 }
 
+import { Toaster } from "sonner";
+
 export default function App() {
     const loaderData = useLoaderData<typeof loader>();
 
@@ -98,6 +100,7 @@ export default function App() {
                     </head>
                     <body className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 font-sans antialiased selection:bg-blue-100 dark:selection:bg-blue-900" suppressHydrationWarning>
                         <Outlet />
+                        <Toaster position="top-right" richColors />
                         <ScrollRestoration />
                         <Scripts />
                     </body>

@@ -7,6 +7,7 @@ import { getAuth } from "@clerk/react-router/server";
 import { formatBytes } from "~/utils/format";
 import { FileVideo, Scissors, Trash2, Upload, X, Image as ImageIcon, Tag, Film, Info, Check, Plus, Save, Folder, Globe, Lock, Users, RefreshCw } from "lucide-react";
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken, userId } = await getAuth(args);
@@ -128,22 +129,22 @@ export default function StudioMediaLibrary() {
     return (
         <div className="flex h-[calc(100vh-64px)] overflow-hidden">
             {/* Main Content */}
-            <div className="flex-1 flex flex-col min-w-0 bg-zinc-50/50">
-                <div className="p-6 border-b border-zinc-200 bg-white">
+            <div className="flex-1 flex flex-col min-w-0 bg-zinc-50/50 dark:bg-zinc-950">
+                <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
                     <div className="flex justify-between items-center mb-6">
                         <div>
-                            <h1 className="text-2xl font-bold text-zinc-900">Media Library</h1>
-                            <p className="text-zinc-500">Manage your class recordings and photo assets.</p>
+                            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Media Library</h1>
+                            <p className="text-zinc-500 dark:text-zinc-400">Manage your class recordings and photo assets.</p>
                         </div>
                         <div className="flex items-center gap-4">
-                            <div className="bg-zinc-100 px-4 py-2 rounded-lg text-sm">
-                                <span className="font-medium text-zinc-600">Storage Used: </span>
-                                <span className="font-bold">{formatBytes(storageUsage)}</span>
+                            <div className="bg-zinc-100 dark:bg-zinc-800 px-4 py-2 rounded-lg text-sm">
+                                <span className="font-medium text-zinc-600 dark:text-zinc-400">Storage Used: </span>
+                                <span className="font-bold text-zinc-900 dark:text-zinc-200">{formatBytes(storageUsage)}</span>
                             </div>
 
                             {!isStudentView && (
                                 currentTab === 'videos' ? (
-                                    <label className={`bg-black text-white px-4 py-2 rounded-lg font-medium cursor-pointer hover:bg-zinc-800 transition flex items-center gap-2 ${uploading ? 'opacity-70 cursor-not-allowed' : ''}`}>
+                                    <label className={`bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 rounded-lg font-medium cursor-pointer hover:bg-zinc-800 dark:hover:bg-zinc-200 transition flex items-center gap-2 ${uploading ? 'opacity-70 cursor-not-allowed' : ''}`}>
                                         <Upload size={18} />
                                         {uploading ? 'Uploading...' : 'Upload Video'}
                                         <input
@@ -155,7 +156,7 @@ export default function StudioMediaLibrary() {
                                         />
                                     </label>
                                 ) : (
-                                    <label className={`bg-black text-white px-4 py-2 rounded-lg font-medium cursor-pointer hover:bg-zinc-800 transition flex items-center gap-2 ${uploading ? 'opacity-70 cursor-not-allowed' : ''}`}>
+                                    <label className={`bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 rounded-lg font-medium cursor-pointer hover:bg-zinc-800 dark:hover:bg-zinc-200 transition flex items-center gap-2 ${uploading ? 'opacity-70 cursor-not-allowed' : ''}`}>
                                         <ImageIcon size={18} />
                                         {uploading ? 'Uploading...' : 'Upload Image'}
                                         <input
@@ -172,22 +173,22 @@ export default function StudioMediaLibrary() {
                     </div>
 
                     {/* Tabs */}
-                    <div className="flex space-x-6 border-b border-zinc-100 -mb-px">
+                    <div className="flex space-x-6 border-b border-zinc-100 dark:border-zinc-800 -mb-px">
                         <button
                             onClick={() => setSearchParams({ tab: 'videos' })}
-                            className={`pb-3 text-sm font-medium flex items-center gap-2 border-b-2 transition ${currentTab === 'videos' ? 'border-zinc-900 text-zinc-900' : 'border-transparent text-zinc-500 hover:text-zinc-700'}`}
+                            className={`pb-3 text-sm font-medium flex items-center gap-2 border-b-2 transition ${currentTab === 'videos' ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100' : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'}`}
                         >
                             <Film size={16} /> Videos ({videos.length})
                         </button>
                         <button
                             onClick={() => setSearchParams({ tab: 'collections' })}
-                            className={`pb-3 text-sm font-medium flex items-center gap-2 border-b-2 transition ${currentTab === 'collections' ? 'border-zinc-900 text-zinc-900' : 'border-transparent text-zinc-500 hover:text-zinc-700'}`}
+                            className={`pb-3 text-sm font-medium flex items-center gap-2 border-b-2 transition ${currentTab === 'collections' ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100' : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'}`}
                         >
                             <Folder size={16} /> Collections ({collections.length})
                         </button>
                         <button
                             onClick={() => setSearchParams({ tab: 'images' })}
-                            className={`pb-3 text-sm font-medium flex items-center gap-2 border-b-2 transition ${currentTab === 'images' ? 'border-zinc-900 text-zinc-900' : 'border-transparent text-zinc-500 hover:text-zinc-700'}`}
+                            className={`pb-3 text-sm font-medium flex items-center gap-2 border-b-2 transition ${currentTab === 'images' ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100' : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'}`}
                         >
                             <ImageIcon size={16} /> Photos ({images.length})
                         </button>
@@ -231,9 +232,9 @@ export default function StudioMediaLibrary() {
 function VideoList({ videos, onSelect, selectedId }: any) {
     if (videos.length === 0) return <div className="text-gray-400 text-center py-20">No videos found.</div>;
     return (
-        <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
             <table className="w-full text-sm text-left">
-                <thead className="bg-zinc-50 border-b font-medium text-zinc-500">
+                <thead className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800 font-medium text-zinc-500 dark:text-zinc-400">
                     <tr>
                         <th className="px-4 py-3">Title</th>
                         <th className="px-4 py-3">Duration</th>
@@ -241,25 +242,25 @@ function VideoList({ videos, onSelect, selectedId }: any) {
                         <th className="px-4 py-3 w-10"></th>
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-100">
+                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                     {videos.map((vid: any) => (
                         <tr
                             key={vid.id}
                             onClick={() => onSelect(vid)}
-                            className={`cursor-pointer hover:bg-zinc-50 transition ${selectedId === vid.id ? 'bg-blue-50/50' : ''}`}
+                            className={`cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition ${selectedId === vid.id ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
                         >
-                            <td className="px-4 py-3 font-medium text-zinc-900">{vid.title}</td>
-                            <td className="px-4 py-3 text-zinc-500">{vid.duration ? Math.floor(vid.duration / 60) + 'm' : '--'}</td>
+                            <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">{vid.title}</td>
+                            <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{vid.duration ? Math.floor(vid.duration / 60) + 'm' : '--'}</td>
                             <td className="px-4 py-3">
                                 <div className="flex flex-wrap gap-1">
                                     {vid.tags?.slice(0, 3).map((t: string) => (
-                                        <span key={t} className="px-1.5 py-0.5 bg-zinc-100 text-zinc-600 rounded text-xs">{t}</span>
+                                        <span key={t} className="px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded text-xs">{t}</span>
                                     ))}
                                     {vid.tags?.length > 3 && <span className="text-xs text-zinc-400">+{vid.tags.length - 3}</span>}
                                 </div>
                             </td>
                             <td className="px-4 py-3 text-right">
-                                <button className="text-zinc-400 hover:text-zinc-600"><Info size={16} /></button>
+                                <button className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"><Info size={16} /></button>
                             </td>
                         </tr>
                     ))}
@@ -275,15 +276,15 @@ function CollectionList({ collections, onCreate }: any) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {collections.map((col: any) => (
                 <Link to={`collections/${col.id}`} key={col.id} className="block group">
-                    <div className="bg-white rounded-lg border border-zinc-200 p-6 hover:border-black transition shadow-sm h-full flex flex-col">
+                    <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-6 hover:border-black dark:hover:border-zinc-400 transition shadow-sm h-full flex flex-col">
                         <div className="flex items-start justify-between mb-4">
-                            <div className="p-3 bg-zinc-100 rounded-lg group-hover:bg-zinc-900 group-hover:text-white transition">
+                            <div className="p-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg group-hover:bg-zinc-900 dark:group-hover:bg-zinc-100 group-hover:text-white dark:group-hover:text-black transition">
                                 <Folder size={24} />
                             </div>
                             <span className="text-xs text-zinc-400 font-mono">#{col.slug}</span>
                         </div>
-                        <h3 className="font-bold text-lg mb-1">{col.title}</h3>
-                        <p className="text-sm text-zinc-500 line-clamp-2 mb-4 flex-1">{col.description || "No description"}</p>
+                        <h3 className="font-bold text-lg mb-1 text-zinc-900 dark:text-zinc-100">{col.title}</h3>
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400 line-clamp-2 mb-4 flex-1">{col.description || "No description"}</p>
                         <div className="text-xs text-zinc-400 font-medium">Click to manage items &rarr;</div>
                     </div>
                 </Link>
@@ -309,7 +310,7 @@ function ImageList({ images, onSelect, selectedId }: any) {
                 <div
                     key={img.id}
                     onClick={() => onSelect(img)}
-                    className={`bg-white rounded border aspect-square relative group cursor-pointer overflow-hidden ${selectedId === img.id ? 'ring-2 ring-blue-500 ring-offset-2' : 'hover:border-zinc-300'}`}
+                    className={`bg-white dark:bg-zinc-900 rounded border aspect-square relative group cursor-pointer overflow-hidden ${selectedId === img.id ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-zinc-900' : 'hover:border-zinc-300 dark:hover:border-zinc-600 border-zinc-200 dark:border-zinc-800'}`}
                 >
                     <img src={img.fileUrl} alt={img.title} className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
@@ -381,7 +382,7 @@ function DetailsSidebar({ item, type, onClose, onUpdate }: any) {
             setPosterUrl(data.url); // Assuming API returns { url: ... }
         } catch (e) {
             console.error(e);
-            alert("Poster upload failed");
+            toast.error("Poster upload failed");
         } finally {
             setUploadingPoster(false);
         }
@@ -409,20 +410,21 @@ function DetailsSidebar({ item, type, onClose, onUpdate }: any) {
                 body: JSON.stringify(payload)
             });
             onUpdate();
+            toast.success("Changes saved.");
         } catch (e) {
             console.error(e);
-            alert("Failed to save changes.");
+            toast.error("Failed to save changes.");
         } finally {
             setSaving(false);
         }
     }
 
     return (
-        <div className="w-80 bg-white border-l border-zinc-200 shadow-xl flex flex-col overflow-hidden animate-in slide-in-from-right-10 duration-200">
+        <div className="w-80 bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 shadow-xl flex flex-col overflow-hidden animate-in slide-in-from-right-10 duration-200">
             {/* Header */}
-            <div className="p-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50">
-                <span className="font-semibold text-sm uppercase text-zinc-500 tracking-wide">{type} Details</span>
-                <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600"><X size={18} /></button>
+            <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center bg-zinc-50 dark:bg-zinc-800/50">
+                <span className="font-semibold text-sm uppercase text-zinc-500 dark:text-zinc-400 tracking-wide">{type} Details</span>
+                <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"><X size={18} /></button>
             </div>
 
             {/* Scrollable Content */}
@@ -468,30 +470,30 @@ function DetailsSidebar({ item, type, onClose, onUpdate }: any) {
                 {/* Fields */}
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-zinc-700 mb-1">Title</label>
+                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Title</label>
                         <input
                             type="text"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                            className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent outline-none"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-zinc-700 mb-1">Description</label>
+                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Description</label>
                         <textarea
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             rows={3}
-                            className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:ring-2 focus:ring-black focus:border-transparent outline-none resize-none"
+                            className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent outline-none resize-none"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-zinc-700 mb-1">Tags / Labels</label>
-                        <div className="min-h-[40px] p-2 border border-zinc-200 rounded-lg bg-white flex flex-wrap gap-2 focus-within:ring-2 focus-within:ring-black focus-within:border-transparent">
+                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Tags / Labels</label>
+                        <div className="min-h-[40px] p-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 flex flex-wrap gap-2 focus-within:ring-2 focus-within:ring-black dark:focus-within:ring-white focus-within:border-transparent">
                             {tags.map(tag => (
-                                <span key={tag} className="inline-flex items-center gap-1 bg-zinc-100 text-zinc-700 px-2 py-1 rounded text-xs font-medium">
+                                <span key={tag} className="inline-flex items-center gap-1 bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 px-2 py-1 rounded text-xs font-medium">
                                     {tag}
                                     <button onClick={() => removeTag(tag)} className="hover:text-red-500"><X size={10} /></button>
                                 </span>
@@ -502,7 +504,7 @@ function DetailsSidebar({ item, type, onClose, onUpdate }: any) {
                                 onChange={(e) => setTagInput(e.target.value)}
                                 onKeyDown={handleAddTag}
                                 placeholder={tags.length === 0 ? "Type and enter..." : ""}
-                                className="flex-1 min-w-[60px] text-sm outline-none bg-transparent"
+                                className="flex-1 min-w-[60px] text-sm outline-none bg-transparent dark:text-white"
                             />
                         </div>
                         <p className="text-xs text-zinc-400 mt-1">Press Enter to add tag</p>
@@ -527,11 +529,11 @@ function DetailsSidebar({ item, type, onClose, onUpdate }: any) {
             </div>
 
             {/* Footer Actions */}
-            <div className="p-4 border-t border-zinc-100 bg-zinc-50">
+            <div className="p-4 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
                 <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="w-full bg-black text-white py-2 rounded-lg font-medium text-sm hover:bg-zinc-800 disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="w-full bg-black dark:bg-zinc-100 text-white dark:text-zinc-900 py-2 rounded-lg font-medium text-sm hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                     {saving ? 'Saving...' : <><Save size={16} /> Save Usage</>}
                 </button>

@@ -32,14 +32,14 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
 export default function PlatformPage() {
     const { page } = useLoaderData<typeof loader>();
     const { user } = useUser();
-    const isSystemAdmin = !!user?.publicMetadata?.isSystemAdmin;
+    const isPlatformAdmin = !!user?.publicMetadata?.isPlatformAdmin;
 
     return (
         <div className="min-h-screen bg-white">
             <Render config={puckConfig} data={page.content} />
 
             {/* Admin Edit Shortcut */}
-            {isSystemAdmin && (
+            {isPlatformAdmin && (
                 <div className="fixed bottom-6 right-6 z-50">
                     <Link
                         to={`/admin/website/edit/${page.id}`}

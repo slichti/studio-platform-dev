@@ -27,8 +27,8 @@ export function ImpersonationBanner({ tenantName, userName, currentRole }: { ten
         localStorage.removeItem("impersonation_token");
         document.cookie = "__impersonate_token=; path=/; max-age=0; SameSite=Lax";
         document.cookie = "__impersonate_role=; path=/; max-age=0; SameSite=Lax";
-        // Perform full Clerk logout
-        await signOut({ redirectUrl: "/admin/users" });
+        // Reload to resume original session (handled by loader fallback)
+        window.location.reload();
     };
 
     // Determine banner color/style based on role

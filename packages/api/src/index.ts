@@ -23,9 +23,12 @@ import appointments from './routes/appointments';
 import payroll from './routes/payroll';
 import marketing from './routes/marketing';
 import substitutions from './routes/substitutions';
+import waitlist from './routes/waitlist';
+import subDispatch from './routes/sub-dispatch';
 import leads from './routes/leads';
 import pos from './routes/pos';
 import giftCards from './routes/gift-cards';
+import bookingRoutes from './routes/bookings';
 import admin from './routes/admin';
 import onboarding from './routes/onboarding';
 import dataImport from './routes/import';
@@ -36,6 +39,7 @@ import commerce from './routes/commerce';
 import refunds from './routes/refunds';
 import platform from './routes/platform';
 import reports from './routes/reports';
+import reportsCustom from './routes/reports.custom';
 import challenges from './routes/challenges';
 import jobs from './routes/jobs';
 import video from './routes/video';
@@ -176,6 +180,8 @@ const studioPaths = [
   '/refunds', '/refunds/*',
   '/platform', '/platform/*',
   '/integrations', '/integrations/*',
+  '/sub-dispatch', '/sub-dispatch/*',
+  '/waitlist', '/waitlist/*',
   '/video-management', '/video-management/*'
 ];
 
@@ -195,6 +201,8 @@ const authenticatedPaths = [
   '/platform', '/platform/*',
   '/tenant', '/tenant/*',
   '/integrations', '/integrations/*',
+  '/sub-dispatch', '/sub-dispatch/*',
+  '/waitlist', '/waitlist/*',
   '/video-management', '/video-management/*'
 ];
 
@@ -221,6 +229,7 @@ const studioApp = new Hono<{ Bindings: Bindings, Variables: Variables }>()
 app.route('/studios', studioRoutes);
 
 // 6. Base Studio Logic
+// GET /info
 studioApp.get('/info', async (c) => {
   const tenant = c.get('tenant');
   if (!tenant) return c.json({ error: "No tenant" }, 404);
@@ -238,6 +247,7 @@ studioApp.get('/info', async (c) => {
     slug: tenant.slug,
     customDomain: tenant.customDomain,
     settings: tenant.settings,
+    mobileAppConfig: tenant.mobileAppConfig, // Added
     stripeAccountId: tenant.stripeAccountId,
     branding: tenant.branding,
     features: Array.from(c.get('features') || []),
@@ -245,126 +255,15 @@ studioApp.get('/info', async (c) => {
   });
 });
 
-studioApp.get('/stats', async (c) => {
-  const tenant = c.get('tenant');
-  const db = createDb(c.env.DB);
-
-  const now = new Date();
-  const firstOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-  const [memberCount, bookingsCount, revenuePos, revenuePacks] = await Promise.all([
-    db.select({ count: count() })
-      .from(tenantMembers)
-      .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
-      .where(and(
-        eq(tenantMembers.tenantId, tenant.id),
-        eq(tenantRoles.role, 'student'),
-        eq(tenantMembers.status, 'active')
-      )).get(),
-
-    db.select({ count: count() })
-      .from(bookings)
-      .innerJoin(classes, eq(bookings.classId, classes.id))
-      .where(and(
-        eq(classes.tenantId, tenant.id),
-        gte(classes.startTime, now)
-      )).get(),
-
-    db.select({ total: sum(posOrders.totalAmount) })
-      .from(posOrders)
-      .where(and(
-        eq(posOrders.tenantId, tenant.id),
-        gte(posOrders.createdAt, firstOfCurrentMonth),
-        eq(posOrders.status, 'completed')
-      )).get(),
-
-    db.select({ total: sum(purchasedPacks.price) })
-      .from(purchasedPacks)
-      .where(and(
-        eq(purchasedPacks.tenantId, tenant.id),
-        gte(purchasedPacks.createdAt, firstOfCurrentMonth)
-      )).get()
-  ]);
-
-  const activeTemplate = await db.query.waiverTemplates.findFirst({
-    where: and(eq(waiverTemplates.tenantId, tenant.id), eq(waiverTemplates.active, true))
-  });
-
-  let signedCount = 0;
-  if (activeTemplate) {
-    const result = await db.select({ count: count() })
-      .from(waiverSignatures)
-      .innerJoin(tenantMembers, eq(waiverSignatures.memberId, tenantMembers.id))
-      .where(and(
-        eq(waiverSignatures.templateId, activeTemplate.id),
-        eq(tenantMembers.status, 'active')
-      )).get();
-    signedCount = (result as any)?.count || 0;
-  }
-
-  const posTotal = Number((revenuePos as any)?.total || 0);
-  const packTotal = Number((revenuePacks as any)?.total || 0);
-
-  return c.json({
-    activeStudents: (memberCount as any)?.count || 0,
-    upcomingBookings: (bookingsCount as any)?.count || 0,
-    monthlyRevenueCents: posTotal + packTotal,
-    waiverCompliance: {
-      signed: signedCount,
-      total: (memberCount as any)?.count || 0,
-      activeWaiver: !!activeTemplate
-    }
-  });
-});
-
-studioApp.get('/search', async (c) => {
-  const tenant = c.get('tenant');
-  const db = createDb(c.env.DB);
-  const q = c.req.query('q')?.toLowerCase();
-  if (!q) return c.json({ students: [], classes: [], orders: [] });
-
-  const [students, upcomingClasses, recentOrders] = await Promise.all([
-    db.select({
-      id: tenantMembers.id,
-      name: users.profile,
-      email: users.email
-    })
-      .from(tenantMembers)
-      .innerJoin(users, eq(tenantMembers.userId, users.id))
-      .where(and(
-        eq(tenantMembers.tenantId, tenant.id),
-        or(
-          like(users.email, `%${q}%`),
-          like(users.profile, `%${q}%`)
-        )
-      ))
-      .limit(10)
-      .all(),
-
-    db.select()
-      .from(classes)
-      .where(and(
-        eq(classes.tenantId, tenant.id),
-        like(classes.title, `%${q}%`)
-      ))
-      .limit(10)
-      .all(),
-
-    db.select()
-      .from(posOrders)
-      .where(and(
-        eq(posOrders.tenantId, tenant.id),
-        like(posOrders.id, `%${q}%`)
-      ))
-      .limit(10)
-      .all()
-  ]);
-
-  return c.json({ students, classes: upcomingClasses, orders: recentOrders });
-});
-
 studioApp.patch('/settings', async (c) => {
   const tenant = c.get('tenant');
+  const roles = c.get('roles') || [];
+
+  // Only Owners/Admins
+  if (!roles.includes('owner') && !roles.includes('admin')) {
+    return c.json({ error: "Unauthorized" }, 403);
+  }
+
   const db = createDb(c.env.DB);
   const body = await c.req.json();
   const updateData: any = {};
@@ -372,6 +271,13 @@ studioApp.patch('/settings', async (c) => {
   if (body.settings) {
     updateData.settings = { ...(tenant.settings || {}), ...body.settings };
   }
+  if (body.mobileAppConfig) {
+    updateData.mobileAppConfig = { ...(tenant.mobileAppConfig || {}), ...body.mobileAppConfig };
+  }
+  if (body.branding) {
+    updateData.branding = { ...(tenant.branding || {}), ...body.branding };
+  }
+
   if (Object.keys(updateData).length === 0) return c.json({ received: true });
   await db.update(tenants).set(updateData).where(eq(tenants.id, tenant.id)).run();
   return c.json({ success: true });
@@ -429,13 +335,17 @@ studioApp.get('/me', (c) => {
     roles,
     user: {
       ...user,
-      isSystemAdmin: user.isSystemAdmin || false
+      isPlatformAdmin: user.isPlatformAdmin || false
     }
   });
 });
 
 studioApp.get('/usage', async (c) => {
   const tenant = c.get('tenant');
+  const roles = c.get('roles') || [];
+  if (!roles.includes('owner') && !roles.includes('admin')) {
+    return c.json({ error: "Unauthorized" }, 403);
+  }
   const db = createDb(c.env.DB);
   const usageService = new UsageService(db, tenant.id);
   const usage = await usageService.getUsage();
@@ -485,6 +395,7 @@ app.route('/classes', classRoutes);
 app.route('/commerce', commerce);
 app.route('/gift-cards', giftCards);
 app.route('/tasks', tasks);
+app.route('/reports/custom', reportsCustom);
 app.route('/refunds', refunds);
 app.route('/challenges', challenges);
 app.route('/platform', platform);
@@ -495,6 +406,7 @@ app.route('/video-management', videoManagement);
 app.route('/tenant', studioApp);
 
 app.route('/users', userRoutes);
+app.route('/bookings', bookingRoutes);
 app.route('/admin', admin);
 app.route('/admin/stats', adminStats); // [NEW] Mount
 app.route('/onboarding', onboarding);
@@ -505,6 +417,8 @@ app.route('/diagnostics', diagnosticsRoutes);
 app.route('/telemetry', telemetryRoutes);
 app.route('/website', websiteRoutes);
 app.route('/chat', chatRoutes);
+app.route('/waitlist', waitlist);
+app.route('/sub-dispatch', subDispatch);
 app.route('/guest', guestRoutes);
 app.route('/platform-pages', platformPagesRoutes);
 

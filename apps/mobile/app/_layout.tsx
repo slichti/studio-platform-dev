@@ -1,13 +1,17 @@
 import '../global.css';
-import { Slot, Stack } from 'expo-router';
+import { Stack } from 'expo-router';
+import { AuthProvider } from '../context/AuthContext';
 import { View } from 'react-native';
 
 export default function RootLayout() {
-  // In a real app, we would wrap this with ClerkProvider
-  // For now, simple layout
   return (
-    <View className="flex-1 bg-white">
-      <Stack screenOptions={{ headerShown: false }} />
-    </View>
+    <AuthProvider>
+      <View className="flex-1 bg-white">
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="login" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
+        </Stack>
+      </View>
+    </AuthProvider>
   );
 }

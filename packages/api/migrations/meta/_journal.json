@@ -302,6 +302,41 @@
       "when": 1768348090500,
       "tag": "0042_public_natasha_romanoff",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "6",
+      "when": 1768400192957,
+      "tag": "0043_large_warhawk",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "6",
+      "when": 1768400955105,
+      "tag": "0044_windy_santa_claus",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "6",
+      "when": 1768401665314,
+      "tag": "0045_late_james_howlett",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "6",
+      "when": 1768416495543,
+      "tag": "0046_harsh_nitro",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "6",
+      "when": 1768420695367,
+      "tag": "0047_sturdy_gunslinger",
+      "breakpoints": true
     }
   ]
 }

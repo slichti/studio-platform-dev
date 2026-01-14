@@ -27,6 +27,8 @@ import {
     Mail,
     CheckCircle
 } from "lucide-react";
+import { toast } from "sonner";
+import { ConfirmationDialog } from "~/components/Dialogs";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken } = await getAuth(args);
@@ -67,6 +69,7 @@ export default function GiftCardsPage() {
     // Issue Modal State (Admin)
     const [issueData, setIssueData] = useState({ amount: "", recipientEmail: "", notes: "" });
     const [issueSuccess, setIssueSuccess] = useState<string | null>(null);
+    const [confirmResendId, setConfirmResendId] = useState<string | null>(null);
 
     // Link Modal State
     const [linkCode, setLinkCode] = useState("");
@@ -100,23 +103,28 @@ export default function GiftCardsPage() {
             setIssueSuccess(`Card Issued: ${res.code}`);
             setIssueData({ amount: "", recipientEmail: "", notes: "" });
             await refreshCards();
-        } catch (e: any) { alert(e.message); } finally { setLoading(false); }
+        } catch (e: any) { toast.error(e.message); } finally { setLoading(false); }
     };
 
-    const handleResend = async (cardId: string) => {
-        if (!confirm("Resend the gift card email to the recipient?")) return;
+    const handleResend = (cardId: string) => {
+        setConfirmResendId(cardId);
+    };
+
+    const confirmResendAction = async () => {
+        if (!confirmResendId) return;
         setLoading(true);
         try {
-            const res: any = await apiRequest(`/gift-cards/${cardId}/resend`, token, {
+            const res: any = await apiRequest(`/gift-cards/${confirmResendId}/resend`, token, {
                 method: "POST",
                 headers: { 'X-Tenant-Slug': slug! }
             });
             if (res.error) throw new Error(res.error);
-            alert("Email resent successfully!");
+            toast.success("Email resent successfully!");
         } catch (e: any) {
-            alert(e.message);
+            toast.error(e.message);
         } finally {
             setLoading(false);
+            setConfirmResendId(null);
         }
     };
 
@@ -134,7 +142,7 @@ export default function GiftCardsPage() {
             setLinkSuccess(true);
             await refreshCards();
             setTimeout(() => { setShowLinkModal(false); setLinkSuccess(false); }, 1500);
-        } catch (e: any) { alert(e.message); } finally { setLoading(false); }
+        } catch (e: any) { toast.error(e.message); } finally { setLoading(false); }
     };
 
     const toggleHistory = async (cardId: string) => {
@@ -317,7 +325,7 @@ export default function GiftCardsPage() {
                                                                         <button onClick={() => { setActiveMenuId(null); handleResend(card.id); }} disabled={loading} className="w-full text-left px-4 py-2.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2">
                                                                             <Mail size={14} /> {loading ? "Sending..." : "Resend Email"}
                                                                         </button>
-                                                                        <button onClick={() => { setActiveMenuId(null); /* Implement Void Logic */ alert("Void feature coming soon"); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 text-red-600 flex items-center gap-2 border-t border-zinc-100 dark:border-zinc-800">
+                                                                        <button onClick={() => { setActiveMenuId(null); /* Implement Void Logic */ toast.info("Void feature coming soon"); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 text-red-600 flex items-center gap-2 border-t border-zinc-100 dark:border-zinc-800">
                                                                             <Ban size={14} /> Void Card
                                                                         </button>
                                                                     </div>
@@ -511,6 +519,15 @@ export default function GiftCardsPage() {
                     </div>
                 </div>
             )}
+
+            <ConfirmationDialog
+                isOpen={!!confirmResendId}
+                onClose={() => setConfirmResendId(null)}
+                onConfirm={confirmResendAction}
+                title="Resend Gift Card"
+                message="Are you sure you want to resend the gift card email to the recipient?"
+                confirmText="Resend Email"
+            />
         </div>
     );
 }

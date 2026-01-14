@@ -32,8 +32,8 @@ app.use('*', async (c, next) => {
         where: eq(users.id, auth.userId)
     });
 
-    if (!user?.isSystemAdmin) {
-        return c.json({ error: 'System Admin privileges required' }, 403);
+    if (user?.role !== 'admin' && !user?.isPlatformAdmin) {
+        return c.json({ error: 'Platform Admin privileges required' }, 403);
     }
     await next();
 });
@@ -134,10 +134,10 @@ app.patch('/users/bulk', async (c) => {
         return c.json({ error: "No users selected" }, 400);
     }
 
-    if (action === 'set_system_admin') {
+    if (action === 'set_platform_admin') {
         const isAdmin = !!value;
         await db.update(users)
-            .set({ isSystemAdmin: isAdmin })
+            .set({ isPlatformAdmin: isAdmin })
             .where(inArray(users.id, userIds))
             .run();
 
@@ -148,6 +148,30 @@ app.patch('/users/bulk', async (c) => {
             actorId: auth.userId,
             targetId: userIds.join(','),
             details: { count: userIds.length, value: isAdmin },
+            ipAddress: c.req.header('CF-Connecting-IP')
+        });
+
+        return c.json({ success: true, updated: userIds.length });
+    }
+
+    if (action === 'set_role') {
+        const role = value; // 'owner', 'admin', 'user'
+        if (!['owner', 'admin', 'user'].includes(role)) {
+            return c.json({ error: "Invalid role" }, 400);
+        }
+
+        await db.update(users)
+            .set({ role })
+            .where(inArray(users.id, userIds))
+            .run();
+
+        // Audit Log
+        await db.insert(auditLogs).values({
+            id: crypto.randomUUID(),
+            action: 'update_user_role_bulk',
+            actorId: auth.userId,
+            targetId: userIds.join(','),
+            details: { count: userIds.length, role },
             ipAddress: c.req.header('CF-Connecting-IP')
         });
 
@@ -210,7 +234,7 @@ app.post('/users', async (c) => {
     const db = createDb(c.env.DB);
     const auth = c.get('auth');
 
-    const { firstName, lastName, email, isSystemAdmin, initialTenantId, initialRole } = await c.req.json();
+    const { firstName, lastName, email, isPlatformAdmin, initialTenantId, initialRole } = await c.req.json();
 
     if (!email) return c.json({ error: "Email is required" }, 400);
 
@@ -229,7 +253,8 @@ app.post('/users', async (c) => {
             id: userId,
             email,
             profile: { firstName, lastName },
-            isSystemAdmin: !!isSystemAdmin,
+            isPlatformAdmin: !!isPlatformAdmin,
+            role: (initialRole === 'owner' || initialRole === 'admin') ? initialRole : 'user', // Basic mapping if initialRole is reused
             createdAt: new Date()
         }).run();
 
@@ -246,7 +271,7 @@ app.post('/users', async (c) => {
 
             await db.insert(tenantRoles).values({
                 memberId,
-                role: (initialRole as any) || 'student'
+                role: (initialRole === 'owner' || initialRole === 'admin') ? 'student' : (initialRole as any) || 'student' // Fallback for studio role if platform role was sent
             }).run();
         }
 
@@ -295,10 +320,16 @@ app.put('/users/:id', async (c) => {
 
     const auth = c.get('auth');
     const userId = c.req.param('id');
-    const { isSystemAdmin } = await c.req.json();
+    const { isPlatformAdmin, role } = await c.req.json();
+
+    const updateData: any = {};
+    if (isPlatformAdmin !== undefined) updateData.isPlatformAdmin = !!isPlatformAdmin;
+    if (role !== undefined) updateData.role = role;
+
+    if (Object.keys(updateData).length === 0) return c.json({ success: true });
 
     await db.update(users)
-        .set({ isSystemAdmin: !!isSystemAdmin })
+        .set(updateData)
         .where(eq(users.id, userId))
         .run();
 
@@ -308,7 +339,7 @@ app.put('/users/:id', async (c) => {
         action: 'update_user_admin',
         actorId: auth.userId,
         targetId: userId,
-        details: { isSystemAdmin: !!isSystemAdmin },
+        details: { isPlatformAdmin, role },
         ipAddress: c.req.header('CF-Connecting-IP')
     });
 
@@ -1527,8 +1558,7 @@ app.post('/videos', async (c) => {
             r2Key: 'stream-direct-upload',
             source: 'upload',
             status: 'processing',
-            sizeBytes: 0,
-            accessLevel: targetTenantId ? 'members' : 'public'
+            sizeBytes: 0
         }).run();
     }
 

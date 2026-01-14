@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Modal } from "~/components/Modal";
 import { Plus, Search, Phone, Mail, User, Clock, AlertCircle, CheckCircle, Calendar, Trash2, Pencil, Save, X } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -75,8 +76,9 @@ export default function LeadsPage() {
             setSelectedLead({ ...selectedLead, ...editFormData });
             setLeads(leads.map((l: any) => l.id === selectedLead.id ? { ...l, ...editFormData } : l));
             setIsEditingLead(false);
+            toast.success("Lead updated");
         } catch (e: any) {
-            alert("Failed to update lead: " + e.message);
+            toast.error("Failed to update lead: " + e.message);
         }
     };
 
@@ -98,8 +100,9 @@ export default function LeadsPage() {
             // Update local state
             setLeadTasks([newTask, ...leadTasks]);
             setNewTaskTitle("");
+            toast.success("Task created");
         } catch (e: any) {
-            alert("Failed to create task: " + e.message);
+            toast.error("Failed to create task: " + e.message);
         }
     };
 
@@ -124,16 +127,17 @@ export default function LeadsPage() {
             });
 
             if (res.error) {
-                alert(res.error);
+                toast.error(res.error);
             } else {
                 // Refresh
                 const refreshed: any = await apiRequest("/leads", token, { headers: { 'X-Tenant-Slug': slug } });
                 setLeads(refreshed.leads || []);
                 setIsAddOpen(false);
                 setFormData({ firstName: "", lastName: "", email: "", phone: "", source: "", notes: "" });
+                toast.success("Lead created");
             }
         } catch (e: any) {
-            alert("Failed to create lead: " + e.message);
+            toast.error("Failed to create lead: " + e.message);
         } finally {
             setLoading(false);
         }
