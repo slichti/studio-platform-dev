@@ -2,6 +2,7 @@ import { type LoaderFunctionArgs, redirect, Outlet, NavLink, useLoaderData } fro
 import { getAuth } from "@clerk/react-router/server";
 import { useUser } from "@clerk/react-router";
 import { LogoutButton } from "../components/LogoutButton";
+import { ThemeToggle } from "../components/ThemeToggle";
 import { apiRequest } from "../utils/api";
 
 // ----------------------------------------------------------------------
@@ -145,6 +146,9 @@ export default function AdminLayout() {
                     </div>
                     <div className="flex items-center gap-4">
                         <span className="text-xs font-mono text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded">v1.0.0-dev</span>
+
+                        <ThemeToggle />
+
                         <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-800 mx-2" />
 
                         {isLoaded && (clerkUser || dbUser) ? (
