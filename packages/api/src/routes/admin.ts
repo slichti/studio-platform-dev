@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { users, tenantMembers, tenantRoles, tenants, subscriptions, auditLogs, emailLogs, smsLogs, brandingAssets, videos, waiverTemplates, waiverSignatures, marketingAutomations, platformConfig, chatRooms } from 'db/src/schema';
+import { users, tenantMembers, tenantRoles, tenants, subscriptions, auditLogs, emailLogs, smsLogs, brandingAssets, videos, videoShares, waiverTemplates, waiverSignatures, marketingAutomations, platformConfig, chatRooms } from 'db/src/schema';
 import { eq, sql, desc, count, or, like, asc, and, inArray } from 'drizzle-orm';
 import { UsageService } from '../services/pricing';
 import { StripeService } from '../services/stripe';
@@ -1152,14 +1152,12 @@ app.get('/billing/preview', async (c) => {
 
     try {
         const allTenants = await db.select().from(tenants).where(eq(tenants.status, 'active')).all();
+        // ... (lines 1154-1171)
         const results = [];
-
         for (const tenant of allTenants) {
             if (tenant.billingExempt) continue;
-
             const usageService = new UsageService(db, tenant.id);
             const { subscription, overages, overageTotal, totalRevenue } = await usageService.calculateBillableUsage();
-
             results.push({
                 tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug, stripeCustomerId: tenant.stripeCustomerId },
                 subscription,
@@ -1167,11 +1165,27 @@ app.get('/billing/preview', async (c) => {
                 total: parseFloat(totalRevenue.toFixed(2)) // Format money
             });
         }
-
         return c.json({ count: results.length, tenants: results, fees: UNIT_COSTS });
     } catch (e: any) {
         console.error("Billing Preview Failed:", e);
         return c.json({ error: e.message || "Billing Preview Failed" }, 500);
+    }
+});
+
+// GET /billing/failed - List subscriptions in Dunning
+app.get('/billing/failed', async (c) => {
+    const db = createDb(c.env.DB);
+    try {
+        const failedSubs = await db.query.subscriptions.findMany({
+            where: inArray(subscriptions.dunningState, ['warning1', 'warning2', 'warning3', 'failed']),
+            with: {
+                tenant: true,
+            },
+            orderBy: (s, { desc }) => [desc(s.lastDunningAt)]
+        });
+        return c.json(failedSubs);
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
     }
 });
 
@@ -1444,17 +1458,15 @@ app.delete('/branding/:id', async (c) => {
 app.post('/videos/upload-url', async (c) => {
     const { targetTenantId, type } = await c.req.json();
 
-    if (!targetTenantId) {
-        return c.json({ error: "Target Tenant ID required" }, 400);
-    }
-
     const accountId = c.env.CLOUDFLARE_ACCOUNT_ID;
     const apiToken = c.env.CLOUDFLARE_API_TOKEN;
 
     const meta = {
-        tenantId: targetTenantId,
+        tenantId: targetTenantId || null,
         type: type || 'vod'
     };
+
+    const creator = targetTenantId ? `tenant:${targetTenantId}` : 'platform';
 
     const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/direct_upload`, {
         method: 'POST',
@@ -1463,7 +1475,7 @@ app.post('/videos/upload-url', async (c) => {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            creator: `tenant:${targetTenantId}`,
+            creator,
             meta
         })
     });
@@ -1471,6 +1483,9 @@ app.post('/videos/upload-url', async (c) => {
     const data: any = await response.json();
 
     if (!data.success) {
+        console.error("Cloudflare Upload Error", JSON.stringify(data));
+        console.log("Account ID:", accountId ? "Present" : "Missing");
+        console.log("API Token:", apiToken ? "Present" : "Missing");
         return c.json({ error: "Failed to generate upload URL", details: data.errors }, 500);
     }
 
@@ -1485,11 +1500,13 @@ app.post('/videos', async (c) => {
     const db = createDb(c.env.DB);
     const { targetTenantId, cloudflareStreamId, title, description, type } = await c.req.json();
 
-    if (!targetTenantId || !cloudflareStreamId || !title) {
+    if (!cloudflareStreamId || !title) {
         return c.json({ error: "Missing required fields" }, 400);
     }
 
     if (type === 'intro' || type === 'outro') {
+        if (!targetTenantId) return c.json({ error: "Branding assets must be linked to a tenant" }, 400);
+
         // Register as Branding Asset
         await db.insert(brandingAssets).values({
             id: crypto.randomUUID(),
@@ -1503,7 +1520,7 @@ app.post('/videos', async (c) => {
         // Register as VOD
         await db.insert(videos).values({
             id: crypto.randomUUID(),
-            tenantId: targetTenantId,
+            tenantId: targetTenantId || null,
             title,
             description,
             cloudflareStreamId,
@@ -1511,7 +1528,34 @@ app.post('/videos', async (c) => {
             source: 'upload',
             status: 'processing',
             sizeBytes: 0,
+            accessLevel: targetTenantId ? 'members' : 'public'
         }).run();
+    }
+
+    return c.json({ success: true });
+});
+
+// POST /videos/:id/share - Share Platform Video with Tenant
+app.post('/videos/:id/share', async (c) => {
+    const db = createDb(c.env.DB);
+    const videoId = c.req.param('id');
+    const { tenantId } = await c.req.json();
+
+    if (!tenantId) return c.json({ error: "Tenant ID required" }, 400);
+
+    // Verify video is platform video (optional policy)
+    // For now allow sharing any video, though usually only platform videos are shared
+
+    try {
+        await db.insert(videoShares).values({
+            id: crypto.randomUUID(),
+            videoId,
+            tenantId,
+            createdAt: new Date()
+        }).run();
+    } catch (e) {
+        // Ignore duplicate shares
+        console.error("Share error", e);
     }
 
     return c.json({ success: true });

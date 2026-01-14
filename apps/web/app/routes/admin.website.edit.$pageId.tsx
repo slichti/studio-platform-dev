@@ -9,6 +9,7 @@ import { Puck } from "@measured/puck";
 import "@measured/puck/puck.css";
 import { puckConfig } from "../components/website/puck-config";
 import { Save, ArrowLeft, Eye } from "lucide-react";
+import { ErrorDialog } from "~/components/Dialogs";
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -37,6 +38,7 @@ export default function PlatformWebsiteEditor() {
     const [saving, setSaving] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
     const [data, setData] = useState(initialPage?.content || { root: { props: {} }, content: [] });
+    const [errorDialog, setErrorDialog] = useState<{ isOpen: boolean, message: string }>({ isOpen: false, message: '' });
 
     const handleSave = async (puckData: any) => {
         setSaving(true);
@@ -48,7 +50,7 @@ export default function PlatformWebsiteEditor() {
             });
             setLastSaved(new Date());
         } catch (e: any) {
-            alert("Failed to save: " + e.message);
+            setErrorDialog({ isOpen: true, message: "Failed to save: " + e.message });
         } finally {
             setSaving(false);
         }
@@ -72,6 +74,11 @@ export default function PlatformWebsiteEditor() {
 
     return (
         <div className="h-screen flex flex-col">
+            <ErrorDialog
+                isOpen={errorDialog.isOpen}
+                onClose={() => setErrorDialog({ ...errorDialog, isOpen: false })}
+                message={errorDialog.message}
+            />
             {/* Editor Header */}
             <div className="bg-white border-b border-zinc-200 px-4 py-3 flex items-center justify-between z-50">
                 <div className="flex items-center gap-4">

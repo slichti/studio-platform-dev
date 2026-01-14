@@ -6,6 +6,7 @@ import { apiRequest } from "../utils/api";
 import { useState } from "react";
 import { useAuth } from "@clerk/react-router";
 import { Plus, Edit2, Trash2, Eye, EyeOff, Globe, FileText, ExternalLink } from "lucide-react";
+import { ConfirmationDialog, ErrorDialog } from "~/components/Dialogs";
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -27,6 +28,10 @@ export default function AdminWebsite() {
     const [creating, setCreating] = useState(false);
     const [newPage, setNewPage] = useState({ title: "", slug: "" });
 
+    // Dialog State
+    const [deleteId, setDeleteId] = useState<string | null>(null);
+    const [errorState, setErrorState] = useState<{ isOpen: boolean, message: string }>({ isOpen: false, message: '' });
+
     const handleCreate = async () => {
         if (!newPage.title || !newPage.slug) return;
 
@@ -40,21 +45,22 @@ export default function AdminWebsite() {
             setCreating(false);
             setNewPage({ title: "", slug: "" });
         } catch (e: any) {
-            alert("Failed to create page: " + e.message);
+            setErrorState({ isOpen: true, message: "Failed to create page: " + e.message });
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm("Delete this page?")) return;
+    const confirmDelete = async () => {
+        if (!deleteId) return;
 
         try {
             const token = await getToken();
-            await apiRequest(`/platform-pages/pages/${id}`, token, {
+            await apiRequest(`/platform-pages/pages/${deleteId}`, token, {
                 method: "DELETE",
             });
-            setPages(pages.filter(p => p.id !== id));
+            setPages(pages.filter(p => p.id !== deleteId));
+            setDeleteId(null);
         } catch (e: any) {
-            alert("Failed to delete: " + e.message);
+            setErrorState({ isOpen: true, message: "Failed to delete: " + e.message });
         }
     };
 
@@ -67,7 +73,7 @@ export default function AdminWebsite() {
             });
             setPages(pages.map(p => p.id === page.id ? { ...p, isPublished: !p.isPublished } : p));
         } catch (e: any) {
-            alert("Failed to update: " + e.message);
+            setErrorState({ isOpen: true, message: "Failed to update: " + e.message });
         }
     };
 
@@ -83,6 +89,22 @@ export default function AdminWebsite() {
 
     return (
         <div className="p-8 max-w-6xl mx-auto">
+            <ConfirmationDialog
+                isOpen={!!deleteId}
+                onClose={() => setDeleteId(null)}
+                onConfirm={confirmDelete}
+                title="Delete Page"
+                message="Are you sure you want to delete this page? This cannot be undone."
+                confirmText="Delete"
+                isDestructive={true}
+            />
+
+            <ErrorDialog
+                isOpen={errorState.isOpen}
+                onClose={() => setErrorState({ ...errorState, isOpen: false })}
+                message={errorState.message}
+            />
+
             <div className="flex items-center justify-between mb-8">
                 <div>
                     <h1 className="text-2xl font-bold text-zinc-900 flex items-center gap-2">
@@ -212,7 +234,7 @@ export default function AdminWebsite() {
                                     <Edit2 size={18} />
                                 </Link>
                                 <button
-                                    onClick={() => handleDelete(page.id)}
+                                    onClick={() => setDeleteId(page.id)}
                                     className="p-2 hover:bg-red-50 rounded-lg text-red-600"
                                 >
                                     <Trash2 size={18} />

@@ -4,7 +4,7 @@ import { apiRequest, API_URL } from "../utils/api";
 import { useState, Fragment } from "react";
 import { useAuth } from "@clerk/react-router";
 import { Modal } from "../components/Modal";
-import { ErrorDialog, ConfirmationDialog } from "../components/Dialogs";
+import { ErrorDialog, ConfirmationDialog, SuccessDialog } from "../components/Dialogs";
 import { ChevronDown, ChevronRight, Activity, CreditCard, Video, Monitor, ShoppingCart, Mail, Settings, AlertTriangle, Smartphone, Globe, MessagesSquare, MessageSquare } from "lucide-react";
 import { PrivacyBlur } from "../components/PrivacyBlur";
 import { DataExportModal } from "../components/DataExportModal";
@@ -98,6 +98,16 @@ export default function AdminTenants() {
     // Dialog State
     const [errorDialog, setErrorDialog] = useState<{ isOpen: boolean, message: string }>({ isOpen: false, message: "" });
     const [successDialog, setSuccessDialog] = useState<{ isOpen: boolean, message: string }>({ isOpen: false, message: "" });
+
+    // Action Confirmation States
+    const [tierChange, setTierChange] = useState<{ id: string, tier: string } | null>(null);
+    const [intervalChange, setIntervalChange] = useState<{ id: string, interval: string } | null>(null);
+    const [waiveUsageId, setWaiveUsageId] = useState<string | null>(null);
+    const [restoreId, setRestoreId] = useState<string | null>(null);
+
+    // Archive State
+    const [archiveId, setArchiveId] = useState<string | null>(null);
+    const [archiveInput, setArchiveInput] = useState("");
 
     const { getToken } = useAuth();
     const navigate = useNavigate();
@@ -244,8 +254,14 @@ export default function AdminTenants() {
         }
     };
 
-    const handleTierChange = async (tenantId: string, newTier: string) => {
-        if (!confirm(`Are you sure you want to change this tenant to ${newTier}?`)) return;
+    const handleTierChange = (tenantId: string, newTier: string) => {
+        setTierChange({ id: tenantId, tier: newTier });
+    };
+
+    const confirmTierChange = async () => {
+        if (!tierChange) return;
+        const { id: tenantId, tier: newTier } = tierChange;
+
         try {
             const token = await getToken();
             const res: any = await apiRequest(`/admin/tenants/${tenantId}/tier`, token, {
@@ -261,11 +277,19 @@ export default function AdminTenants() {
             }
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message || "Failed to update tier." });
+        } finally {
+            setTierChange(null);
         }
     };
 
-    const handleIntervalChange = async (tenantId: string, interval: string) => {
-        if (!confirm(`Switch billing interval to ${interval}? This will update the Stripe Subscription immediately.`)) return;
+    const handleIntervalChange = (tenantId: string, interval: string) => {
+        setIntervalChange({ id: tenantId, interval });
+    };
+
+    const confirmIntervalChange = async () => {
+        if (!intervalChange) return;
+        const { id: tenantId, interval } = intervalChange;
+
         setLoading(true);
         try {
             const token = await getToken();
@@ -282,6 +306,7 @@ export default function AdminTenants() {
             setErrorDialog({ isOpen: true, message: e.message });
         } finally {
             setLoading(false);
+            setIntervalChange(null);
         }
     };
 
@@ -402,24 +427,29 @@ export default function AdminTenants() {
         }
     };
 
-    const handleWaiveUsage = async (tenantId: string) => {
-        if (!confirm("Are you sure you want to WAIVE all current usage for this tenant? This resets counters to 0.")) return;
+    const handleWaiveUsage = (tenantId: string) => {
+        setWaiveUsageId(tenantId);
+    };
+
+    const confirmWaiveUsage = async () => {
+        if (!waiveUsageId) return;
         setLoading(true);
         try {
             const token = await getToken();
-            const res: any = await apiRequest(`/admin/tenants/${tenantId}/billing/waive`, token, {
+            const res: any = await apiRequest(`/admin/tenants/${waiveUsageId}/billing/waive`, token, {
                 method: 'POST'
             });
             if (res.error) throw new Error(res.error);
 
             setSuccessDialog({ isOpen: true, message: "Usage waived and counters reset to 0." });
             setTenants(tenants.map((t: any) =>
-                t.id === tenantId ? { ...t, smsUsage: 0, emailUsage: 0, streamingUsage: 0 } : t
+                t.id === waiveUsageId ? { ...t, smsUsage: 0, emailUsage: 0, streamingUsage: 0 } : t
             ));
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message });
         } finally {
             setLoading(false);
+            setWaiveUsageId(null);
         }
     };
 
@@ -443,7 +473,7 @@ export default function AdminTenants() {
             a.click();
             a.remove();
         } catch (e) {
-            alert("Export failed");
+            setErrorDialog({ isOpen: true, message: "Export failed" });
         } finally {
             setExportLoading(null);
         }
@@ -475,26 +505,44 @@ export default function AdminTenants() {
         }
     };
 
-    const handleArchive = async (tenantId: string) => {
-        const confirmText = "ARCHIVE TENANT?\n\nThis will disable all access and mark the studio as archived.\nData will be retained.";
-        if (prompt(confirmText + "\n\nType 'ARCHIVE' to confirm:") !== 'ARCHIVE') return;
-
-        try {
-            const token = await getToken();
-            const res: any = await apiRequest(`/admin/tenants/${tenantId}/lifecycle/archive`, token, { method: 'POST' });
-            if (res.error) throw new Error(res.error);
-            setTenants(tenants.map((t: any) => t.id === tenantId ? { ...t, status: 'archived', studentAccessDisabled: true } : t));
-        } catch (e: any) { alert(e.message); }
+    const handleArchive = (tenantId: string) => {
+        setArchiveId(tenantId);
+        setArchiveInput("");
     };
 
-    const handleRestore = async (tenantId: string) => {
-        if (!confirm("Restore this tenant to active status?")) return;
+    const confirmArchive = async () => {
+        if (!archiveId || archiveInput !== 'ARCHIVE') return;
+
         try {
             const token = await getToken();
-            const res: any = await apiRequest(`/admin/tenants/${tenantId}/lifecycle/restore`, token, { method: 'POST' });
+            const res: any = await apiRequest(`/admin/tenants/${archiveId}/lifecycle/archive`, token, { method: 'POST' });
             if (res.error) throw new Error(res.error);
-            setTenants(tenants.map((t: any) => t.id === tenantId ? { ...t, status: 'active', studentAccessDisabled: false } : t));
-        } catch (e: any) { alert(e.message); }
+            setTenants(tenants.map((t: any) => t.id === archiveId ? { ...t, status: 'archived', studentAccessDisabled: true } : t));
+            setSuccessDialog({ isOpen: true, message: "Tenant archived successfully." });
+        } catch (e: any) {
+            setErrorDialog({ isOpen: true, message: e.message });
+        } finally {
+            setArchiveId(null);
+        }
+    };
+
+    const handleRestore = (tenantId: string) => {
+        setRestoreId(tenantId);
+    };
+
+    const confirmRestore = async () => {
+        if (!restoreId) return;
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/admin/tenants/${restoreId}/lifecycle/restore`, token, { method: 'POST' });
+            if (res.error) throw new Error(res.error);
+            setTenants(tenants.map((t: any) => t.id === restoreId ? { ...t, status: 'active', studentAccessDisabled: false } : t));
+            setSuccessDialog({ isOpen: true, message: "Tenant restored successfully." });
+        } catch (e: any) {
+            setErrorDialog({ isOpen: true, message: e.message });
+        } finally {
+            setRestoreId(null);
+        }
     };
 
 
@@ -569,6 +617,74 @@ export default function AdminTenants() {
                 confirmText="Done"
                 cancelText="Close"
             />
+
+            <ConfirmationDialog
+                isOpen={!!tierChange}
+                onClose={() => setTierChange(null)}
+                onConfirm={confirmTierChange}
+                title="Change Tenant Tier"
+                message={`Are you sure you want to change this tenant to ${tierChange?.tier}?`}
+                confirmText="Change Tier"
+            />
+
+            <ConfirmationDialog
+                isOpen={!!intervalChange}
+                onClose={() => setIntervalChange(null)}
+                onConfirm={confirmIntervalChange}
+                title="Change Billing Interval"
+                message={`Switch billing interval to ${intervalChange?.interval}? This will update the Stripe Subscription immediately.`}
+                confirmText="Update Interval"
+            />
+
+            <ConfirmationDialog
+                isOpen={!!waiveUsageId}
+                onClose={() => setWaiveUsageId(null)}
+                onConfirm={confirmWaiveUsage}
+                title="Waive Usage"
+                message="Are you sure you want to WAIVE all current usage for this tenant? This resets counters to 0."
+                confirmText="Waive Usage"
+                isDestructive={true}
+            />
+
+            <ConfirmationDialog
+                isOpen={!!restoreId}
+                onClose={() => setRestoreId(null)}
+                onConfirm={confirmRestore}
+                title="Restore Tenant"
+                message="Restore this tenant to active status?"
+                confirmText="Restore"
+            />
+
+            <Modal isOpen={!!archiveId} onClose={() => setArchiveId(null)} title="Archive Tenant">
+                <div className="space-y-4">
+                    <div className="p-4 bg-red-50 text-red-800 rounded-lg text-sm border border-red-100 flex gap-3">
+                        <AlertTriangle className="shrink-0 mt-0.5" size={16} />
+                        <div>
+                            <strong>Warning:</strong> This will disable all access for the tenant. Data will be retained but the studio will be offline.
+                        </div>
+                    </div>
+                    <p className="text-sm text-zinc-600">
+                        To confirm, please type <strong>ARCHIVE</strong> below:
+                    </p>
+                    <input
+                        type="text"
+                        className="w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm"
+                        placeholder="Type ARCHIVE"
+                        value={archiveInput}
+                        onChange={(e) => setArchiveInput(e.target.value)}
+                    />
+                    <div className="flex justify-end gap-2 pt-2">
+                        <button onClick={() => setArchiveId(null)} className="px-4 py-2 text-zinc-600 hover:bg-zinc-100 rounded-lg text-sm">Cancel</button>
+                        <button
+                            onClick={confirmArchive}
+                            disabled={archiveInput !== 'ARCHIVE'}
+                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Archive Tenant
+                        </button>
+                    </div>
+                </div>
+            </Modal>
 
             <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-4">

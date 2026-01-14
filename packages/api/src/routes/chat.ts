@@ -17,29 +17,50 @@ app.use('/*', requireFeature('chat'));
 // --- Chat Rooms ---
 
 // List rooms for tenant (filtered by type and/or routedRole)
+// Role-based visibility:
+// - Admin/Owner: See all rooms
+// - Instructor/Support: See rooms routed to their role OR unrouted rooms
 app.get('/rooms', async (c) => {
     const db = drizzle(c.env.DB, { schema });
     const tenant = c.get('tenant');
     const tenantId = tenant?.id;
     if (!tenantId) return c.json({ error: 'Tenant context missing' }, 500);
+
     const type = c.req.query('type');
-    const routedRole = c.req.query('routedRole');
+    const routedRole = c.req.query('routedRole'); // Explicit filter (for UI dropdown)
+    const userRoles = c.get('roles') || [];
+
+    // Check if user is admin/owner (can see all rooms)
+    const isAdminOrOwner = userRoles.includes('admin') || userRoles.includes('owner');
 
     // Build base query
-    const rooms = await db.query.chatRooms.findMany({
+    let rooms = await db.query.chatRooms.findMany({
         where: type
             ? and(eq(schema.chatRooms.tenantId, tenantId), eq(schema.chatRooms.type, type as any))
             : eq(schema.chatRooms.tenantId, tenantId),
         orderBy: (rooms: any, { desc }: any) => [desc(rooms.createdAt)],
     });
 
-    // Filter by routedRole in metadata (post-filter since it's JSON)
+    // Apply role-based visibility (unless admin/owner)
+    if (!isAdminOrOwner) {
+        rooms = rooms.filter((room: any) => {
+            const meta = room.metadata || {};
+            const roomRoutedRole = meta.routedRole;
+
+            // Show room if:
+            // 1. Room has no routing (unrouted = everyone can see)
+            // 2. Room is routed to a role the user has
+            if (!roomRoutedRole) return true;
+            return userRoles.includes(roomRoutedRole);
+        });
+    }
+
+    // Apply explicit routedRole filter (for UI dropdown)
     if (routedRole) {
-        const filtered = rooms.filter((room: any) => {
+        rooms = rooms.filter((room: any) => {
             const meta = room.metadata || {};
             return meta.routedRole === routedRole;
         });
-        return c.json(filtered);
     }
 
     return c.json(rooms);

@@ -2,7 +2,8 @@ import { Hono } from 'hono';
 import { createDb } from '../db';
 import { ZoomService } from '../services/zoom';
 import { StreamService } from '../services/stream';
-import { classes, users, classPackDefinitions, purchasedPacks, giftCards, giftCardTransactions, tenantMembers, tenants, tenantFeatures, tenantRoles } from 'db/src/schema'; // Added tenantFeatures, tenantRoles
+import * as schema from 'db/src/schema'; // Import all as schema
+import { classes, users, classPackDefinitions, purchasedPacks, giftCards, giftCardTransactions, tenantMembers, tenants, tenantFeatures, tenantRoles } from 'db/src/schema'; // Keep explicit for existing code
 import { eq, and, sql } from 'drizzle-orm';
 // import { verifyWebhookSignature } from '../services/zoom'; 
 
@@ -274,7 +275,84 @@ app.post('/stripe', async (c) => {
         return c.json({ error: `Webhook Error: ${err.message}` }, 400);
     }
 
-    if (event.type === 'checkout.session.completed') {
+    const eventType = event.type;
+    const { DunningService } = await import('../services/dunning');
+
+    // Handle Failed Payments (Dunning)
+    if (eventType === 'invoice.payment_failed') {
+        const invoice = event.data.object as any;
+        const subscriptionId = invoice.subscription;
+        const customerId = invoice.customer;
+
+        // Find tenant associated with this Stripe account (via connect or metadata)
+        // Note: In Connect, the webhook comes to the platform but on behalf of the connected account?
+        // Or if using standard connect, we might rely on metadata in the invoice/subscription.
+        // Assuming subscription has tenantId in metadata or we find it via subscription ID lookup in DB.
+
+        // Finding subscription in our DB to get tenantId
+        const db = createDb(c.env.DB);
+        const sub = await db.query.subscriptions.findFirst({
+            where: eq(schema.subscriptions.stripeSubscriptionId, subscriptionId)
+        });
+
+        if (sub) {
+            const { EmailService } = await import('../services/email');
+
+            // We need tenant settings for email service (branding, etc)
+            const tenant = await db.query.tenants.findFirst({
+                where: eq(schema.tenants.id, sub.tenantId)
+            });
+
+            if (tenant) {
+                const emailService = c.env.RESEND_API_KEY
+                    ? new EmailService(c.env.RESEND_API_KEY, { branding: tenant.branding as any, settings: tenant.settings as any })
+                    : undefined;
+
+                const dunningService = new DunningService(db, sub.tenantId, emailService);
+
+                // Get member email
+                const member = await db.query.tenantMembers.findFirst({
+                    where: eq(schema.tenantMembers.id, sub.memberId as string),
+                    with: { user: true }
+                });
+
+                if (member && member.user && member.user.email) {
+                    const profile = member.user.profile as any || {};
+                    const firstName = profile.first_name || profile.firstName || 'Member';
+
+                    await dunningService.handleFailedPayment({
+                        invoiceId: invoice.id,
+                        customerId: customerId,
+                        subscriptionId: subscriptionId,
+                        amountDue: invoice.amount_due,
+                        currency: invoice.currency,
+                        attemptCount: invoice.attempt_count
+                    }, member.user.email, firstName);
+                }
+            }
+        }
+    }
+
+    // Handle Successful Payments (Recovery)
+    if (eventType === 'invoice.paid') {
+        const invoice = event.data.object as any;
+        const subscriptionId = invoice.subscription;
+
+        if (subscriptionId) {
+            const db = createDb(c.env.DB);
+            // Find subscription to look up tenant
+            const sub = await db.query.subscriptions.findFirst({
+                where: eq(schema.subscriptions.stripeSubscriptionId, subscriptionId)
+            });
+
+            if (sub) {
+                const dunningService = new DunningService(db, sub.tenantId);
+                await dunningService.handlePaymentRecovered(subscriptionId);
+            }
+        }
+    }
+
+    if (eventType === 'checkout.session.completed') {
         const session = event.data.object as any;
         const { metadata, amount_total } = session;
 

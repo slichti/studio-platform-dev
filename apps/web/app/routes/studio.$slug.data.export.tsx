@@ -2,10 +2,12 @@ import { useState } from "react";
 import { useOutletContext } from "react-router";
 import { BarChart3, CreditCard, ShoppingBag, Download } from "lucide-react";
 import { API_URL } from "../utils/api";
+import { ErrorDialog } from "~/components/Dialogs";
 
 export default function DataExport() {
     const { tenant } = useOutletContext<any>();
     const [exportLoading, setExportLoading] = useState<string | null>(null);
+    const [errorDialog, setErrorDialog] = useState<{ isOpen: boolean, message: string }>({ isOpen: false, message: '' });
 
     const handleExport = async (type: 'subscribers' | 'financials' | 'products') => {
         setExportLoading(type);
@@ -32,7 +34,7 @@ export default function DataExport() {
             a.click();
             a.remove();
         } catch (e) {
-            alert("Export failed. Please try again.");
+            setErrorDialog({ isOpen: true, message: "Export failed. Please try again." });
         } finally {
             setExportLoading(null);
         }
@@ -40,6 +42,11 @@ export default function DataExport() {
 
     return (
         <div className="space-y-6">
+            <ErrorDialog
+                isOpen={errorDialog.isOpen}
+                onClose={() => setErrorDialog({ ...errorDialog, isOpen: false })}
+                message={errorDialog.message}
+            />
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
                 <div className="mb-6">
                     <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">

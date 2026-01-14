@@ -4,6 +4,7 @@ import { apiRequest } from "../utils/api";
 import { useState } from "react";
 import { DollarSign, CheckCircle, AlertCircle, RefreshCw, Activity } from "lucide-react";
 import { PrivacyBlur } from "../components/PrivacyBlur";
+import { ConfirmationDialog, ErrorDialog } from "~/components/Dialogs";
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -22,6 +23,10 @@ export default function AdminFinancials() {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<any>(null);
 
+    // Dialog State
+    const [showInvoiceConfirm, setShowInvoiceConfirm] = useState(false);
+    const [showError, setShowError] = useState<{ isOpen: boolean, message: string }>({ isOpen: false, message: '' });
+
     const refreshPreview = async () => {
         setLoading(true);
         try {
@@ -36,8 +41,7 @@ export default function AdminFinancials() {
     };
 
     const handleCharge = async () => {
-        if (!confirm(`Are you sure you want to invoice ${preview?.count} tenants for a total of $${totalRevenue}?`)) return;
-
+        setShowInvoiceConfirm(false);
         setLoading(true);
         try {
             const res = await apiRequest("/admin/billing/charge", token, {
@@ -48,7 +52,7 @@ export default function AdminFinancials() {
             // Wait a sec for DB consistency?
             setTimeout(refreshPreview, 1000);
         } catch (e: any) {
-            alert("Charge failed: " + e.message);
+            setShowError({ isOpen: true, message: "Charge failed: " + e.message });
         } finally {
             setLoading(false);
         }
@@ -62,6 +66,21 @@ export default function AdminFinancials() {
 
     return (
         <div className="max-w-6xl mx-auto pb-20">
+            <ConfirmationDialog
+                isOpen={showInvoiceConfirm}
+                onClose={() => setShowInvoiceConfirm(false)}
+                onConfirm={handleCharge}
+                title="Confirm Invoicing"
+                message={`Are you sure you want to invoice ${tenants.length} tenants for a total of $${totalRevenue}?`}
+                confirmText="Invoice Tenants"
+            />
+
+            <ErrorDialog
+                isOpen={showError.isOpen}
+                onClose={() => setShowError({ ...showError, isOpen: false })}
+                message={showError.message}
+            />
+
             <div className="flex justify-between items-center mb-8">
                 <div>
                     <h1 className="text-2xl font-bold text-zinc-900">Financials & Chargebacks</h1>
@@ -77,7 +96,7 @@ export default function AdminFinancials() {
                         Refresh Preview
                     </button>
                     <button
-                        onClick={handleCharge}
+                        onClick={() => setShowInvoiceConfirm(true)}
                         disabled={loading || tenants.length === 0}
                         className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >

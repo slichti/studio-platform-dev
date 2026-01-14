@@ -279,6 +279,11 @@ export const subscriptions = sqliteTable('subscriptions', {
     tier: text('tier', { enum: ['basic', 'premium'] }).default('basic'), // Deprecated in favor of planId
     currentPeriodEnd: integer('current_period_end', { mode: 'timestamp' }),
     stripeSubscriptionId: text('stripe_subscription_id'),
+
+    // Dunning Automation
+    dunningState: text('dunning_state', { enum: ['active', 'warning1', 'warning2', 'warning3', 'failed', 'recovered'] }),
+    lastDunningAt: integer('last_dunning_at', { mode: 'timestamp' }),
+
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
@@ -778,7 +783,7 @@ export const userChallenges = sqliteTable('user_challenges', {
 // --- Phase 4b: Video Management ---
 export const videos = sqliteTable('videos', {
     id: text('id').primaryKey(),
-    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    tenantId: text('tenant_id').references(() => tenants.id), // Nullable for Platform videos
     title: text('title').notNull(),
     description: text('description'),
 
@@ -793,18 +798,24 @@ export const videos = sqliteTable('videos', {
     source: text('source', { enum: ['zoom', 'livekit', 'upload'] }).default('upload'),
 
     // Non-Destructive Editing
-    trimStart: integer('trim_start').default(0), // Seconds
-    trimEnd: integer('trim_end').default(0), // Seconds (0 means end of file)
-
-    // Linking
-    classId: text('class_id').references(() => classes.id), // Optional link to source class
-    tags: text('tags', { mode: 'json' }), // Added tags
-
-    // Phase 12+: Enhanced Video Management
-    posterUrl: text('poster_url'), // Custom thumbnail
-    accessLevel: text('access_level', { enum: ['public', 'members', 'private'] }).default('members'), // Public=All, Members=Tenant Users, Private=Admins
+    trimStart: integer('trim_start'),
+    trimEnd: integer('trim_end'),
 
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('video_tenant_idx').on(table.tenantId),
+    statusIdx: index('video_status_idx').on(table.status),
+}));
+
+export const videoShares = sqliteTable('video_shares', {
+    id: text('id').primaryKey(),
+    videoId: text('video_id').notNull().references(() => videos.id, { onDelete: 'cascade' }),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    uniqueShare: uniqueIndex('unique_video_share').on(table.videoId, table.tenantId),
+    tenantIdx: index('video_share_tenant_idx').on(table.tenantId),
+}));
 }, (table) => ({
     tenantIdx: index('video_tenant_idx').on(table.tenantId),
 }));
@@ -978,6 +989,10 @@ export const classesRelations = relations(classes, ({ one, many }) => ({
     }),
     bookings: many(bookings),
     substitutions: many(substitutions),
+    series: one(classSeries, {
+        fields: [classes.seriesId],
+        references: [classSeries.id],
+    }),
 }));
 
 export const bookingsRelations = relations(bookings, ({ one }) => ({
@@ -1093,6 +1108,25 @@ export const challengesRelations = relations(challenges, ({ one, many }) => ({
         references: [tenants.id],
     }),
     participants: many(userChallenges),
+}));
+
+// --- Video Shares ---
+export const videoShares = sqliteTable('video_shares', {
+    id: text('id').primaryKey(),
+    videoId: text('video_id').notNull().references(() => videos.id, { onDelete: 'cascade' }),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+});
+
+export const videoSharesRelations = relations(videoShares, ({ one }) => ({
+    video: one(videos, {
+        fields: [videoShares.videoId],
+        references: [videos.id],
+    }),
+    tenant: one(tenants, {
+        fields: [videoShares.tenantId],
+        references: [tenants.id],
+    }),
 }));
 
 export const userChallengesRelations = relations(userChallenges, ({ one }) => ({

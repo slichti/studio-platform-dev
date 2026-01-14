@@ -251,11 +251,12 @@ export class StripeService {
     /**
      * Get Subscription Details
      */
-    async getSubscription(subscriptionId: string) {
+    async getSubscription(subscriptionId: string, connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
         // Expand latest_invoice to get payment_intent
-        return this.stripe.subscriptions.retrieve(subscriptionId, {
+        return client.subscriptions.retrieve(subscriptionId, {
             expand: ['items.data.price.product', 'latest_invoice.payment_intent']
-        });
+        }, options);
     }
 
     async listInvoices(customerId: string, limit = 20) {
@@ -462,5 +463,13 @@ export class StripeService {
             description: params.description,
             metadata: params.metadata
         });
+    }
+
+    /**
+     * Pay an Invoice immediately (Retry Payment)
+     */
+    async payInvoice(connectedAccountId: string, invoiceId: string) {
+        const { client, options } = this.getClient(connectedAccountId);
+        return client.invoices.pay(invoiceId, {}, options);
     }
 }
