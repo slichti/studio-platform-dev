@@ -600,7 +600,7 @@ export default function AdminTenants() {
     // ... (keep Form Code - skipping to return block)
 
     return (
-        <div>
+        <div className="dark:text-zinc-100">
             {/* Dialogs */}
             <ErrorDialog
                 isOpen={errorDialog.isOpen}
@@ -657,24 +657,24 @@ export default function AdminTenants() {
 
             <Modal isOpen={!!archiveId} onClose={() => setArchiveId(null)} title="Archive Tenant">
                 <div className="space-y-4">
-                    <div className="p-4 bg-red-50 text-red-800 rounded-lg text-sm border border-red-100 flex gap-3">
+                    <div className="p-4 bg-red-50 dark:bg-red-950/30 text-red-800 dark:text-red-200 rounded-lg text-sm border border-red-100 dark:border-red-900/50 flex gap-3">
                         <AlertTriangle className="shrink-0 mt-0.5" size={16} />
                         <div>
                             <strong>Warning:</strong> This will disable all access for the tenant. Data will be retained but the studio will be offline.
                         </div>
                     </div>
-                    <p className="text-sm text-zinc-600">
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
                         To confirm, please type <strong>ARCHIVE</strong> below:
                     </p>
                     <input
                         type="text"
-                        className="w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm"
+                        className="w-full border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-red-500 outline-none"
                         placeholder="Type ARCHIVE"
                         value={archiveInput}
                         onChange={(e) => setArchiveInput(e.target.value)}
                     />
                     <div className="flex justify-end gap-2 pt-2">
-                        <button onClick={() => setArchiveId(null)} className="px-4 py-2 text-zinc-600 hover:bg-zinc-100 rounded-lg text-sm">Cancel</button>
+                        <button onClick={() => setArchiveId(null)} className="px-4 py-2 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg text-sm">Cancel</button>
                         <button
                             onClick={confirmArchive}
                             disabled={archiveInput !== 'ARCHIVE'}
@@ -693,7 +693,7 @@ export default function AdminTenants() {
                     {/* Filters */}
                     <div className="flex gap-2 items-center">
                         <select
-                            className="text-sm border border-zinc-300 rounded-md px-2 py-1 bg-white outline-none focus:ring-2 focus:ring-blue-500"
+                            className="text-sm border border-zinc-300 dark:border-zinc-700 rounded-md px-2 py-1 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-blue-500"
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}
                         >
@@ -703,7 +703,7 @@ export default function AdminTenants() {
                             <option value="suspended">Suspended</option>
                         </select>
                         <select
-                            className="text-sm border border-zinc-300 rounded-md px-2 py-1 bg-white outline-none focus:ring-2 focus:ring-blue-500"
+                            className="text-sm border border-zinc-300 dark:border-zinc-700 rounded-md px-2 py-1 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-blue-500"
                             value={tierFilter}
                             onChange={(e) => setTierFilter(e.target.value)}
                         >
@@ -713,16 +713,16 @@ export default function AdminTenants() {
                             <option value="scale">Scale</option>
                         </select>
 
-                        <div className="h-6 w-px bg-zinc-300 mx-2"></div>
+                        <div className="h-6 w-px bg-zinc-300 dark:bg-zinc-700 mx-2"></div>
 
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={toggleFinancials}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${showFinancials ? 'bg-indigo-600' : 'bg-zinc-200'}`}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${showFinancials ? 'bg-indigo-600' : 'bg-zinc-200 dark:bg-zinc-700'}`}
                             >
                                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showFinancials ? 'translate-x-6' : 'translate-x-1'}`} />
                             </button>
-                            <span className="text-sm text-zinc-600 font-medium">
+                            <span className="text-sm text-zinc-600 dark:text-zinc-400 font-medium">
                                 {showFinancials ? 'Financials Visible' : 'Privacy Mode'}
                             </span>
                         </div>
@@ -737,7 +737,7 @@ export default function AdminTenants() {
                 </button>
             </div>
 
-            <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden shadow-sm">
                 {(tenants as any)?.error && (
                     <div className="p-4 bg-red-50 text-red-700 border-b border-red-100 mb-4">
                         <div className="font-bold">Access Denied: {(tenants as any).error}</div>
@@ -750,23 +750,23 @@ export default function AdminTenants() {
                     </div>
                 )}
 
-                <table className="w-full text-left">
-                    <thead className="bg-zinc-50 border-b border-zinc-200">
+                <table className="w-full text-left text-zinc-900 dark:text-zinc-100">
+                    <thead className="bg-zinc-50 dark:bg-zinc-950/50 border-b border-zinc-200 dark:border-zinc-800">
                         <tr>
                             <th className="w-8"></th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider cursor-pointer hover:bg-zinc-100" onClick={() => handleSort('name')}>
+                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => handleSort('name')}>
                                 Tenant {sortField === 'name' && (sortDir === 'asc' ? '↑' : '↓')}
                             </th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider cursor-pointer hover:bg-zinc-100" onClick={() => handleSort('tier')}>
                                 Tier {sortField === 'tier' && (sortDir === 'asc' ? '↑' : '↓')}
                             </th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider text-center cursor-pointer hover:bg-zinc-100" onClick={() => handleSort('stats.owners')}>
+                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => handleSort('stats.owners')}>
                                 People {sortField === 'stats.owners' && (sortDir === 'asc' ? '↑' : '↓')}
                             </th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider text-center cursor-pointer hover:bg-zinc-100" onClick={() => handleSort('storageUsage')}>
                                 Usage {sortField === 'storageUsage' && (sortDir === 'asc' ? '↑' : '↓')}
                             </th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider cursor-pointer hover:bg-zinc-100" onClick={() => handleSort('status')}>
+                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => handleSort('status')}>
                                 Status {sortField === 'status' && (sortDir === 'asc' ? '↑' : '↓')}
                             </th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Actions</th>
@@ -775,22 +775,22 @@ export default function AdminTenants() {
                     <tbody className="divide-y divide-zinc-100">
                         {sortedTenants().map((t: any) => (
                             <Fragment key={t.id}>
-                                <tr className="hover:bg-zinc-50 transition-colors cursor-pointer" onClick={() => toggleTenantExpand(t.id)}>
+                                <tr className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer" onClick={() => toggleTenantExpand(t.id)}>
                                     <td className="pl-4">
                                         {expandedTenant === t.id ? <ChevronDown size={16} className="text-zinc-400" /> : <ChevronRight size={16} className="text-zinc-400" />}
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="font-medium text-zinc-900">{t.name}</div>
-                                        <div className="text-zinc-500 text-xs font-mono mt-0.5 bg-zinc-100 inline-block px-1 rounded">{t.slug}</div>
+                                        <div className="font-medium text-zinc-900 dark:text-zinc-100">{t.name}</div>
+                                        <div className="text-zinc-500 dark:text-zinc-400 text-xs font-mono mt-0.5 bg-zinc-100 dark:bg-zinc-800 inline-block px-1 rounded">{t.slug}</div>
                                     </td>
                                     <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                                         <div className="relative">
                                             <select
                                                 value={t.tier || 'basic'}
                                                 onChange={(e) => handleTierChange(t.id, e.target.value)}
-                                                className={`appearance-none cursor-pointer inline-flex items-center pl-2 pr-6 py-0.5 rounded text-xs font-medium uppercase tracking-wide border outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 ${t.tier === 'scale' ? 'bg-purple-100 text-purple-800 border-purple-200' :
-                                                    t.tier === 'growth' ? 'bg-blue-100 text-blue-800 border-blue-200' :
-                                                        'bg-zinc-100 text-zinc-600 border-zinc-200'
+                                                className={`appearance-none cursor-pointer inline-flex items-center pl-2 pr-6 py-0.5 rounded text-xs font-medium uppercase tracking-wide border outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 ${t.tier === 'scale' ? 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800' :
+                                                    t.tier === 'growth' ? 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800' :
+                                                        'bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700'
                                                     }`}
                                             >
                                                 <option value="basic">Launch</option>
@@ -888,12 +888,12 @@ export default function AdminTenants() {
                                     </td>
                                 </tr>
                                 {expandedTenant === t.id && (
-                                    <tr className="bg-zinc-50/50">
+                                    <tr className="bg-zinc-50/50 dark:bg-zinc-900/30">
                                         <td colSpan={7} className="px-6 pb-6 pt-2">
-                                            <div className="bg-white border border-zinc-200 rounded-lg p-6 shadow-inner space-y-6">
+                                            <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-inner space-y-6">
 
                                                 {/* Subscription & Billing Header - Streamlined & Wide */}
-                                                <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-4 flex flex-col md:flex-row gap-6 justify-between items-center">
+                                                <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 flex flex-col md:flex-row gap-6 justify-between items-center">
 
                                                     {/* Status & Type */}
                                                     <div className="flex items-center gap-4">
@@ -908,7 +908,7 @@ export default function AdminTenants() {
                                                                     {t.subscriptionStatus === 'past_due' ? 'Past Due' : t.subscriptionStatus || 'trialing'}
                                                                 </span>
                                                                 <select
-                                                                    className="text-xs bg-white border border-zinc-300 rounded px-2 py-1 outline-none focus:border-blue-500"
+                                                                    className="text-xs bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1 outline-none focus:border-blue-500 text-zinc-900 dark:text-zinc-100"
                                                                     value={subscriptionDetails[t.id]?.interval || 'monthly'}
                                                                     onChange={(e) => handleIntervalChange(t.id, e.target.value)}
                                                                 >
@@ -929,7 +929,7 @@ export default function AdminTenants() {
                                                             <div className="flex items-center gap-2">
                                                                 <input
                                                                     type="date"
-                                                                    className="text-xs border border-zinc-300 rounded px-2 py-1 bg-white hover:border-zinc-400 transition-colors"
+                                                                    className="text-xs border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:border-zinc-400 transition-colors"
                                                                     defaultValue={t.currentPeriodEnd ? new Date(t.currentPeriodEnd).toISOString().split('T')[0] : ''}
                                                                     onBlur={(e) => {
                                                                         if (e.target.value) {
@@ -940,7 +940,7 @@ export default function AdminTenants() {
                                                                 />
                                                                 <div className="flex text-[10px] gap-1">
                                                                     <button onClick={(e) => { e.stopPropagation(); handleSubscriptionUpdate(t.id, 30); }} className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100">+30d</button>
-                                                                    <button onClick={(e) => { e.stopPropagation(); handleSubscriptionUpdate(t.id, 9999); }} className="px-1.5 py-0.5 bg-zinc-100 text-zinc-600 rounded hover:bg-zinc-200">∞</button>
+                                                                    <button onClick={(e) => { e.stopPropagation(); handleSubscriptionUpdate(t.id, 9999); }} className="px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded hover:bg-zinc-200 dark:hover:bg-zinc-600">∞</button>
                                                                 </div>
                                                             </div>
                                                             <div className="flex gap-2 mt-1">

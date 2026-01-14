@@ -38,10 +38,10 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
 function StatCard({ title, value, status, trend }: { title: string, value: string, status?: "success" | "warning" | "error" | "neutral", trend?: string }) {
     const statusColors = {
-        success: "text-emerald-600",
-        warning: "text-amber-600",
-        error: "text-red-600",
-        neutral: "text-zinc-900"
+        success: "text-emerald-600 dark:text-emerald-400",
+        warning: "text-amber-600 dark:text-amber-400",
+        error: "text-red-600 dark:text-red-400",
+        neutral: "text-zinc-900 dark:text-zinc-100"
     };
 
     return (
@@ -49,11 +49,11 @@ function StatCard({ title, value, status, trend }: { title: string, value: strin
             <CardContent>
                 <div className="flex justify-between items-start">
                     <div>
-                        <p className="text-sm font-medium text-zinc-500">{title}</p>
+                        <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">{title}</p>
                         <h4 className={`text-2xl font-bold mt-2 ${statusColors[status || "neutral"]}`}>{value}</h4>
                     </div>
                     {trend && (
-                        <span className="text-xs font-medium px-2 py-1 bg-zinc-100 rounded-full text-zinc-600">
+                        <span className="text-xs font-medium px-2 py-1 bg-zinc-100 dark:bg-zinc-800 rounded-full text-zinc-600 dark:text-zinc-300">
                             {trend}
                         </span>
                     )}
@@ -65,7 +65,7 @@ function StatCard({ title, value, status, trend }: { title: string, value: strin
 
 function formatLogDetails(log: any) {
     const details = typeof log.details === 'string' ? JSON.parse(log.details) : log.details || {};
-    const target = log.targetId ? <span className="font-mono text-xs bg-zinc-100 px-1 rounded">{log.targetId.substring(0, 8)}...</span> : null;
+    const target = log.targetId ? <span className="font-mono text-xs bg-zinc-100 dark:bg-zinc-800 px-1 rounded">{log.targetId.substring(0, 8)}...</span> : null;
 
     switch (log.action) {
         case 'create_user_manual':
@@ -95,9 +95,9 @@ function formatLogDetails(log: any) {
         default:
             const keys = Object.keys(details).filter(k => !['userAgent', 'ip'].includes(k));
             if (keys.length > 0) {
-                return <span className="text-zinc-500">{keys.map(k => `${k}: ${details[k]}`).join(', ')}</span>;
+                return <span className="text-zinc-500 dark:text-zinc-400">{keys.map(k => `${k}: ${details[k]}`).join(', ')}</span>;
             }
-            return <span className="text-zinc-400 italic">No additional details</span>;
+            return <span className="text-zinc-400 dark:text-zinc-500 italic">No additional details</span>;
     }
 }
 
@@ -107,8 +107,8 @@ export default function AdminIndex() {
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-bold tracking-tight text-zinc-900">Dashboard Overview</h2>
-                <p className="text-zinc-500">System performance and activity monitoring.</p>
+                <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Dashboard Overview</h2>
+                <p className="text-zinc-500 dark:text-zinc-400">System performance and activity monitoring.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -167,15 +167,15 @@ export default function AdminIndex() {
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex flex-col">
-                                                <span className="text-sm font-medium text-zinc-900">{log.actorProfile?.firstName} {log.actorProfile?.lastName}</span>
-                                                <span className="text-xs text-zinc-500">{log.actorEmail}</span>
+                                                <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{log.actorProfile?.firstName} {log.actorProfile?.lastName}</span>
+                                                <span className="text-xs text-zinc-500 dark:text-zinc-400">{log.actorEmail}</span>
                                             </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
                                 {logs.length === 0 && (
                                     <TableRow>
-                                        <TableCell className="text-center text-zinc-500 py-8" colSpan={4}>
+                                        <TableCell className="text-center text-zinc-500 dark:text-zinc-400 py-8" colSpan={4}>
                                             No recent activity found.
                                         </TableCell>
                                     </TableRow>

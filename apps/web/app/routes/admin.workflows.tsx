@@ -6,14 +6,14 @@ export default function AdminWorkflows() {
     return (
         <div className="max-w-7xl mx-auto pb-20 space-y-8">
             <div className="flex flex-col gap-2">
-                <h1 className="text-2xl font-bold text-zinc-900">Process Workflows</h1>
-                <p className="text-zinc-500">Visual documentation of core platform business logic and automated flows.</p>
+                <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Process Workflows</h1>
+                <p className="text-zinc-500 dark:text-zinc-400">Visual documentation of core platform business logic and automated flows.</p>
             </div>
 
             {/* 1. Tenant Creation */}
             <section className="space-y-4">
-                <div className="flex items-center gap-2 text-zinc-800">
-                    <GitBranch className="text-indigo-600" size={20} />
+                <div className="flex items-center gap-2 text-zinc-800 dark:text-zinc-200">
+                    <GitBranch className="text-indigo-600 dark:text-indigo-400" size={20} />
                     <h2 className="text-lg font-semibold">1. Tenant Creation & Onboarding</h2>
                 </div>
                 <MermaidDiagram
@@ -38,9 +38,9 @@ sequenceDiagram
             </section>
 
             {/* 2. Student Sign-up */}
-            <section className="space-y-4 pt-8 border-t border-zinc-200">
-                <div className="flex items-center gap-2 text-zinc-800">
-                    <Users className="text-emerald-600" size={20} />
+            <section className="space-y-4 pt-8 border-t border-zinc-200 dark:border-zinc-800">
+                <div className="flex items-center gap-2 text-zinc-800 dark:text-zinc-200">
+                    <Users className="text-emerald-600 dark:text-emerald-400" size={20} />
                     <h2 className="text-lg font-semibold">2. Student Sign-up & Class Booking</h2>
                 </div>
                 <MermaidDiagram
@@ -87,9 +87,9 @@ sequenceDiagram
             </section>
 
             {/* 3. VOD Ingestion */}
-            <section className="space-y-4 pt-8 border-t border-zinc-200">
-                <div className="flex items-center gap-2 text-zinc-800">
-                    <Video className="text-blue-600" size={20} />
+            <section className="space-y-4 pt-8 border-t border-zinc-200 dark:border-zinc-800">
+                <div className="flex items-center gap-2 text-zinc-800 dark:text-zinc-200">
+                    <Video className="text-blue-600 dark:text-blue-400" size={20} />
                     <h2 className="text-lg font-semibold">3. Zoom File Transfer (VOD Ingestion)</h2>
                 </div>
                 <MermaidDiagram
@@ -126,9 +126,9 @@ sequenceDiagram
             </section>
 
             {/* 4. Live Streaming */}
-            <section className="space-y-4 pt-8 border-t border-zinc-200">
-                <div className="flex items-center gap-2 text-zinc-800">
-                    <Video className="text-red-500" size={20} />
+            <section className="space-y-4 pt-8 border-t border-zinc-200 dark:border-zinc-800">
+                <div className="flex items-center gap-2 text-zinc-800 dark:text-zinc-200">
+                    <Video className="text-red-500 dark:text-red-400" size={20} />
                     <h2 className="text-lg font-semibold">4. Live Streaming Logic</h2>
                 </div>
                 <MermaidDiagram

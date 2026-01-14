@@ -25,11 +25,11 @@ export default function AdminStatus() {
 
     return (
         <div>
-            <h2 className="text-2xl font-bold mb-6">System Status</h2>
+            <h2 className="text-2xl font-bold mb-6 text-zinc-900 dark:text-zinc-100">System Status</h2>
 
             <div className="space-y-6">
                 <div className="bg-white p-6 rounded-lg border border-zinc-200 shadow-sm">
-                    <h3 className="font-semibold text-lg mb-4">Core Services</h3>
+                    <h3 className="font-semibold text-lg mb-4 text-zinc-900 dark:text-zinc-200">Core Services</h3>
                     <div className="space-y-4">
                         <StatusItem name="Database (D1)" status={services.database ? 'operational' : 'degraded'} />
                         <StatusItem name="Authentication (Clerk)" status="operational" />
@@ -50,19 +50,19 @@ export default function AdminStatus() {
                 </div>
 
                 <div className="bg-white p-6 rounded-lg border border-zinc-200 shadow-sm">
-                    <h3 className="font-semibold text-lg mb-4">Environment</h3>
+                    <h3 className="font-semibold text-lg mb-4 text-zinc-900 dark:text-zinc-200">Environment</h3>
                     <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div className="p-3 bg-zinc-50 rounded border border-zinc-100">
-                            <span className="text-zinc-500 block text-xs uppercase tracking-wide">Environment</span>
-                            <span className="font-mono text-zinc-900">
+                        <div className="p-3 bg-zinc-50 dark:bg-zinc-950 rounded border border-zinc-100 dark:border-zinc-800">
+                            <span className="text-zinc-500 dark:text-zinc-400 block text-xs uppercase tracking-wide">Environment</span>
+                            <span className="font-mono text-zinc-900 dark:text-zinc-200">
                                 {typeof window !== 'undefined' && (window.location.hostname.includes('dev') || window.location.hostname.includes('localhost'))
                                     ? "Development"
                                     : "Production"}
                             </span>
                         </div>
-                        <div className="p-3 bg-zinc-50 rounded border border-zinc-100">
-                            <span className="text-zinc-500 block text-xs uppercase tracking-wide">Region</span>
-                            <span className="font-mono text-zinc-900">Auto (Cloudflare)</span>
+                        <div className="p-3 bg-zinc-50 dark:bg-zinc-950 rounded border border-zinc-100 dark:border-zinc-800">
+                            <span className="text-zinc-500 dark:text-zinc-400 block text-xs uppercase tracking-wide">Region</span>
+                            <span className="font-mono text-zinc-900 dark:text-zinc-200">Auto (Cloudflare)</span>
                         </div>
                     </div>
                 </div>
@@ -76,7 +76,7 @@ function StatusItem({ name, status, label }: { name: string, status: 'operationa
         operational: 'bg-green-500',
         degraded: 'bg-yellow-500',
         down: 'bg-red-500',
-        pending_config: 'bg-zinc-300'
+        pending_config: 'bg-zinc-300 dark:bg-zinc-700'
     };
 
     const labels: any = {
@@ -88,10 +88,10 @@ function StatusItem({ name, status, label }: { name: string, status: 'operationa
 
     return (
         <div className="flex items-center justify-between">
-            <div className="font-medium text-zinc-700">{name}</div>
+            <div className="font-medium text-zinc-700 dark:text-zinc-300">{name}</div>
             <div className="flex items-center gap-2">
                 <div className={`w-2.5 h-2.5 rounded-full ${colors[status]}`}></div>
-                <span className={`text-sm ${status === 'operational' ? 'text-green-700' : 'text-zinc-500'}`}>
+                <span className={`text-sm ${status === 'operational' ? 'text-green-700 dark:text-green-400' : 'text-zinc-500 dark:text-zinc-500'}`}>
                     {label || labels[status]}
                 </span>
             </div>

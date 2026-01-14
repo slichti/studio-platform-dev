@@ -149,11 +149,11 @@ export default function AdminProjections() {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-zinc-900 tracking-tight flex items-center gap-2">
+                    <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight flex items-center gap-2">
                         <TrendingUp className="text-indigo-600" />
                         Platform Projections
                     </h1>
-                    <p className="text-zinc-500 mt-1">
+                    <p className="text-zinc-500 dark:text-zinc-400 mt-1">
                         SaaS margins and Unit Economics simulator.
                     </p>
                 </div>
@@ -162,7 +162,7 @@ export default function AdminProjections() {
                     className={`px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition-all flex items-center gap-2
                         ${viralMode
                             ? "bg-purple-600 text-white shadow-purple-500/50 scale-105 animate-pulse"
-                            : "bg-white text-zinc-700 border border-zinc-200 hover:bg-zinc-50"}`}
+                            : "bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700"}`}
                 >
                     <Zap size={16} className={viralMode ? "fill-current" : ""} />
                     {viralMode ? "VIRAL MODE ACTIVE" : "Activate Viral Mode"}
@@ -175,25 +175,25 @@ export default function AdminProjections() {
                     label="Proj. Annual Revenue (ARR)"
                     value={formatCurrency(totalARR)}
                     sub={`End of Year 1 (${Math.round(finalMonth.tenants)} Tenants)`}
-                    color="text-emerald-600"
+                    color="text-emerald-600 dark:text-emerald-400"
                 />
                 <MetricCard
                     label="Monthly Profit (Month 12)"
                     value={formatCurrency(finalMonth.profit)}
                     sub={`${finalMonth.margin.toFixed(1)}% Margin`}
-                    color={finalMonth.profit > 0 ? "text-indigo-600" : "text-red-600"}
+                    color={finalMonth.profit > 0 ? "text-indigo-600 dark:text-indigo-400" : "text-red-600 dark:text-red-400"}
                 />
                 <MetricCard
                     label="Avg Revenue Per Tenant"
                     value={formatCurrency(weightedAvgFee)}
                     sub={`Weighted Avg (Mix)`}
-                    color="text-zinc-900"
+                    color="text-zinc-900 dark:text-zinc-100"
                 />
                 <MetricCard
                     label="Avg Tenant Net (Monthly)"
                     value={formatCurrency(finalMonth.tenantNet)}
                     sub="After Fees & Expenses"
-                    color="text-amber-600"
+                    color="text-amber-600 dark:text-amber-400"
                 />
             </div>
 
@@ -208,23 +208,23 @@ export default function AdminProjections() {
                     </Card>
 
                     <Card title="Pricing Strategy">
-                        <div className="grid grid-cols-3 gap-2 mb-4 text-center text-xs font-medium text-zinc-500">
+                        <div className="grid grid-cols-3 gap-2 mb-4 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400">
                             <div>Basic</div>
                             <div>Growth</div>
                             <div>Scale</div>
                         </div>
                         <div className="grid grid-cols-3 gap-2 mb-6">
-                            <input type="number" value={tierBasicPrice} onChange={e => setTierBasicPrice(Number(e.target.value))} className="w-full text-center border rounded py-1" data-lpignore="true" />
-                            <input type="number" value={tierGrowthPrice} onChange={e => setTierGrowthPrice(Number(e.target.value))} className="w-full text-center border rounded py-1" data-lpignore="true" />
-                            <input type="number" value={tierScalePrice} onChange={e => setTierScalePrice(Number(e.target.value))} className="w-full text-center border rounded py-1" data-lpignore="true" />
+                            <input type="number" value={tierBasicPrice} onChange={e => setTierBasicPrice(Number(e.target.value))} className="w-full text-center border rounded py-1 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-100" data-lpignore="true" />
+                            <input type="number" value={tierGrowthPrice} onChange={e => setTierGrowthPrice(Number(e.target.value))} className="w-full text-center border rounded py-1 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-100" data-lpignore="true" />
+                            <input type="number" value={tierScalePrice} onChange={e => setTierScalePrice(Number(e.target.value))} className="w-full text-center border rounded py-1 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-100" data-lpignore="true" />
                         </div>
 
-                        <label className="text-xs font-bold text-zinc-900 uppercase">Tier Mix</label>
+                        <label className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">Tier Mix</label>
                         <Control label="Basic %" val={mixBasic} set={setMixBasic} min={0} max={100} />
                         <Control label="Growth %" val={mixGrowth} set={setMixGrowth} min={0} max={100} />
-                        <div className="flex justify-between items-center text-sm py-2 px-3 bg-zinc-50 rounded border border-zinc-100 mt-2">
-                            <span className="text-zinc-500">Scale % (Remainder)</span>
-                            <span className="font-mono font-bold">{mixScale}%</span>
+                        <div className="flex justify-between items-center text-sm py-2 px-3 bg-zinc-50 dark:bg-zinc-900 rounded border border-zinc-100 dark:border-zinc-700 mt-2">
+                            <span className="text-zinc-500 dark:text-zinc-400">Scale % (Remainder)</span>
+                            <span className="font-mono font-bold text-zinc-900 dark:text-zinc-100">{mixScale}%</span>
                         </div>
                     </Card>
 
@@ -245,20 +245,20 @@ export default function AdminProjections() {
                         <Control label="Requests (M)" val={requestsPerMonth / 1_000_000} set={(v: number) => setRequestsPerMonth(v * 1_000_000)} step={0.1} min={0} max={50} disabled={!useWorkers} />
                         <Control label="Storage (GB)" val={storageGB} set={setStorageGB} min={0} max={1000} disabled={!useR2} />
 
-                        <div className="my-4 pt-4 border-t border-zinc-100 space-y-4">
-                            <h4 className="text-xs font-bold text-zinc-900 uppercase tracking-wide mb-2">Streaming</h4>
+                        <div className="my-4 pt-4 border-t border-zinc-100 dark:border-zinc-700 space-y-4">
+                            <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wide mb-2">Streaming</h4>
                             <Control label="Mins Stored" val={streamMinutes} set={setStreamMinutes} min={0} max={5000} disabled={!useStream} />
                             <Control label="Viewers/Min" val={avgViewers} set={setAvgViewers} min={1} max={50} disabled={!useStream} />
                         </div>
 
-                        <div className="my-4 pt-4 border-t border-zinc-100 space-y-4">
-                            <h4 className="text-xs font-bold text-zinc-900 uppercase tracking-wide mb-2">Communications</h4>
+                        <div className="my-4 pt-4 border-t border-zinc-100 dark:border-zinc-700 space-y-4">
+                            <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wide mb-2">Communications</h4>
                             <Control label="Emails / Mo" val={emailVol} set={setEmailVol} min={0} max={50000} step={100} disabled={!useComms} />
                             <Control label="SMS / Mo" val={smsVol} set={setSmsVol} min={0} max={5000} step={50} disabled={!useComms} />
                         </div>
                     </Card>
 
-                    <div className="bg-blue-50 text-blue-800 p-4 rounded-xl text-sm opacity-80">
+                    <div className="bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 p-4 rounded-xl text-sm opacity-80">
                         <p className="flex items-center gap-2 font-bold mb-1"><Info size={14} /> Unit Costs:</p>
                         <ul className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs list-disc list-inside">
                             <li>Request: $0.30 / M</li>
@@ -274,8 +274,8 @@ export default function AdminProjections() {
                 {/* Right: Charts */}
                 <div className="lg:col-span-2 space-y-8">
                     {/* Main Area Chart */}
-                    <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm h-[400px]">
-                        <h3 className="font-bold text-zinc-900 mb-4">Projected Profit vs. Cost</h3>
+                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm h-[400px]">
+                        <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-4">Projected Profit vs. Cost</h3>
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={projectionData}>
                                 <defs>
@@ -293,7 +293,7 @@ export default function AdminProjections() {
                                 <YAxis fontSize={12} stroke="#71717A" tickFormatter={(val) => `$${val / 1000}k`} />
                                 <Tooltip
                                     formatter={(value: any) => formatCurrency(Number(value) || 0)}
-                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', backgroundColor: '#18181b', color: '#fff' }}
                                 />
                                 <Area type="monotone" dataKey="revenue" stroke="#10B981" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" name="Revenue" />
                                 <Area type="monotone" dataKey="infraCost" stroke="#EF4444" strokeWidth={2} fillOpacity={1} fill="url(#colorCost)" name="Infra Cost" />
@@ -304,8 +304,8 @@ export default function AdminProjections() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {/* Cost Breakdown */}
-                        <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm h-[300px] flex flex-col">
-                            <h3 className="font-bold text-zinc-900 mb-4">Infra Cost Breakdown</h3>
+                        <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm h-[300px] flex flex-col">
+                            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-4">Infra Cost Breakdown</h3>
                             {costBreakdown.length > 0 ? (
                                 <div className="flex-1 flex text-xs">
                                     <ResponsiveContainer width="60%">
@@ -341,8 +341,8 @@ export default function AdminProjections() {
                         </div>
 
                         {/* Tenant Profitability Chart */}
-                        <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm h-[300px]">
-                            <h3 className="font-bold text-zinc-900 mb-4">Avg Tenant Profit History</h3>
+                        <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm h-[300px]">
+                            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-4">Avg Tenant Profit History</h3>
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={projectionData}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -367,18 +367,18 @@ export default function AdminProjections() {
 
 function MetricCard({ label, value, sub, color }: any) {
     return (
-        <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
-            <h4 className="text-sm font-medium text-zinc-500 mb-1">{label}</h4>
+        <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+            <h4 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">{label}</h4>
             <div className={`text-3xl font-bold tracking-tight ${color}`}>{value}</div>
-            <div className="text-xs text-zinc-400 mt-2">{sub}</div>
+            <div className="text-xs text-zinc-400 dark:text-zinc-500 mt-2">{sub}</div>
         </div>
     );
 }
 
 function Card({ title, children }: any) {
     return (
-        <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
-            <h3 className="font-bold text-zinc-900 mb-6 flex items-center gap-2">
+        <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-6 flex items-center gap-2">
                 <Activity size={18} className="text-zinc-400" />
                 {title}
             </h3>
@@ -394,13 +394,13 @@ function Control({ label, val, set, step = 1, min = 0, max = 100, disabled }: an
     return (
         <div className={`space-y-2 ${disabled ? "opacity-50 pointer-events-none" : ""}`}>
             <div className="flex justify-between items-center">
-                <label className="text-sm font-medium text-zinc-700">{label}</label>
+                <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{label}</label>
                 <input
                     type="number"
                     step={step}
                     value={val}
                     onChange={(e) => set(parseFloat(e.target.value) || 0)}
-                    className="w-24 text-right px-2 py-1 border border-zinc-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
+                    className="w-24 text-right px-2 py-1 border border-zinc-300 dark:border-zinc-700 rounded text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-mono bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                     data-lpignore="true"
                     data-1p-ignore="true"
                     data-bwignore="true"
@@ -416,7 +416,7 @@ function Control({ label, val, set, step = 1, min = 0, max = 100, disabled }: an
                 step={step}
                 value={val}
                 onChange={(e) => set(parseFloat(e.target.value) || 0)}
-                className="w-full accent-indigo-600 h-1.5 bg-zinc-200 rounded-lg appearance-none cursor-pointer"
+                className="w-full accent-indigo-600 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer"
             />
         </div>
     );
@@ -426,7 +426,7 @@ function Toggle({ label, checked, set }: any) {
     return (
         <button
             onClick={() => set(!checked)}
-            className={`flex items-center justify-between p-2 rounded-lg border transition-all w-full text-xs ${checked ? "bg-indigo-50 border-indigo-200 text-indigo-900" : "bg-white border-zinc-200 text-zinc-500"
+            className={`flex items-center justify-between p-2 rounded-lg border transition-all w-full text-xs ${checked ? "bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-800 text-indigo-900 dark:text-indigo-200" : "bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400"
                 }`}
         >
             <span className="font-medium">{label}</span>

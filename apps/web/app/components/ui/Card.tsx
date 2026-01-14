@@ -2,7 +2,7 @@ import React from "react";
 
 export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
     return (
-        <div className={`bg-white rounded-xl border border-zinc-200 shadow-sm overflow-hidden ${className}`}>
+        <div className={`bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden ${className}`}>
             {children}
         </div>
     );
@@ -10,7 +10,7 @@ export function Card({ children, className = "" }: { children: React.ReactNode; 
 
 export function CardHeader({ children, className = "" }: { children: React.ReactNode; className?: string }) {
     return (
-        <div className={`px-6 py-4 border-b border-zinc-100 bg-zinc-50/50 ${className}`}>
+        <div className={`px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 ${className}`}>
             {children}
         </div>
     );
@@ -18,7 +18,7 @@ export function CardHeader({ children, className = "" }: { children: React.React
 
 export function CardTitle({ children, className = "" }: { children: React.ReactNode; className?: string }) {
     return (
-        <h3 className={`font-semibold text-zinc-900 ${className}`}>
+        <h3 className={`font-semibold text-zinc-900 dark:text-zinc-100 ${className}`}>
             {children}
         </h3>
     );
@@ -26,7 +26,7 @@ export function CardTitle({ children, className = "" }: { children: React.ReactN
 
 export function CardDescription({ children, className = "" }: { children: React.ReactNode; className?: string }) {
     return (
-        <p className={`text-sm text-zinc-500 ${className}`}>
+        <p className={`text-sm text-zinc-500 dark:text-zinc-400 ${className}`}>
             {children}
         </p>
     );

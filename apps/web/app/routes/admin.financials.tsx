@@ -65,7 +65,7 @@ export default function AdminFinancials() {
     if (loadError) return <div className="p-8 text-red-600">Error loading billing data: {loadError}</div>;
 
     return (
-        <div className="max-w-6xl mx-auto pb-20">
+        <div className="max-w-6xl mx-auto pb-20 dark:text-zinc-100">
             <ConfirmationDialog
                 isOpen={showInvoiceConfirm}
                 onClose={() => setShowInvoiceConfirm(false)}
@@ -83,14 +83,14 @@ export default function AdminFinancials() {
 
             <div className="flex justify-between items-center mb-8">
                 <div>
-                    <h1 className="text-2xl font-bold text-zinc-900">Financials & Chargebacks</h1>
-                    <p className="text-zinc-500">Review usage and invoice tenants for subscriptions and overages.</p>
+                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Financials & Chargebacks</h1>
+                    <p className="text-zinc-500 dark:text-zinc-400">Review usage and invoice tenants for subscriptions and overages.</p>
                 </div>
                 <div className="flex gap-3">
                     <button
                         onClick={refreshPreview}
                         disabled={loading}
-                        className="px-4 py-2 border border-zinc-200 bg-white rounded-lg hover:bg-zinc-50 text-zinc-600 flex items-center gap-2"
+                        className="px-4 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 flex items-center gap-2"
                     >
                         <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
                         Refresh Preview
@@ -108,35 +108,35 @@ export default function AdminFinancials() {
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-white p-6 rounded-xl border border-zinc-200 shadow-sm">
-                    <div className="text-sm font-medium text-zinc-500 mb-1">Projected Total Revenue</div>
-                    <div className="text-3xl font-bold text-zinc-900"><PrivacyBlur revealed={true}>${totalRevenue}</PrivacyBlur></div>
+                <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                    <div className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">Projected Total Revenue</div>
+                    <div className="text-3xl font-bold text-zinc-900 dark:text-zinc-100"><PrivacyBlur revealed={true}>${totalRevenue}</PrivacyBlur></div>
                     <div className="text-xs text-green-600 mt-2 flex items-center gap-1">
                         <CheckCircle size={12} /> Ready to invoice
                     </div>
                 </div>
-                <div className="bg-white p-6 rounded-xl border border-zinc-200 shadow-sm">
-                    <div className="text-sm font-medium text-zinc-500 mb-1">Active Tenants</div>
-                    <div className="text-3xl font-bold text-zinc-900">{tenants.length}</div>
+                <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                    <div className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">Active Tenants</div>
+                    <div className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">{tenants.length}</div>
                     <div className="text-xs text-zinc-400 mt-2">
                         Managed by platform
                     </div>
                 </div>
-                <div className="bg-white p-6 rounded-xl border border-zinc-200 shadow-sm">
-                    <div className="text-sm font-medium text-zinc-500 mb-1">Fee Schedule</div>
+                <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                    <div className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">Fee Schedule</div>
                     <div className="text-sm space-y-1 mt-2">
-                        <div className="flex justify-between border-b border-zinc-50 pb-1 mb-1"><span className="text-zinc-500">Service Fee</span> <span className="font-mono">{fees.applicationFeePercent ? `${fees.applicationFeePercent * 100}%` : 'Var'}</span></div>
-                        <div className="flex justify-between"><span className="text-zinc-500">SMS</span> <span className="font-mono">${fees.sms}</span></div>
-                        <div className="flex justify-between"><span className="text-zinc-500">Email</span> <span className="font-mono">${fees.email}</span></div>
-                        <div className="flex justify-between"><span className="text-zinc-500">Stream</span> <span className="font-mono">${fees.streaming}/min</span></div>
-                        <div className="flex justify-between"><span className="text-zinc-500">Storage</span> <span className="font-mono">${fees.storage}/GB</span></div>
+                        <div className="flex justify-between border-b border-zinc-50 dark:border-zinc-800 pb-1 mb-1"><span className="text-zinc-500 dark:text-zinc-400">Service Fee</span> <span className="font-mono">{fees.applicationFeePercent ? `${fees.applicationFeePercent * 100}%` : 'Var'}</span></div>
+                        <div className="flex justify-between"><span className="text-zinc-500 dark:text-zinc-400">SMS</span> <span className="font-mono">${fees.sms}</span></div>
+                        <div className="flex justify-between"><span className="text-zinc-500 dark:text-zinc-400">Email</span> <span className="font-mono">${fees.email}</span></div>
+                        <div className="flex justify-between"><span className="text-zinc-500 dark:text-zinc-400">Stream</span> <span className="font-mono">${fees.streaming}/min</span></div>
+                        <div className="flex justify-between"><span className="text-zinc-500 dark:text-zinc-400">Storage</span> <span className="font-mono">${fees.storage}/GB</span></div>
                     </div>
                 </div>
             </div>
 
             {/* Result Message */}
             {result && (
-                <div className={`mb-8 p-4 rounded-lg border ${result.success ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+                <div className={`mb-8 p-4 rounded-lg border ${result.success ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200' : 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'}`}>
                     <h3 className="font-bold flex items-center gap-2">
                         {result.success ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
                         {result.success ? "Invoicing Complete" : "Invoicing Failed"}
@@ -165,10 +165,10 @@ export default function AdminFinancials() {
             )}
 
             {/* Preview Table */}
-            <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-sm">
-                <div className="px-6 py-4 border-b border-zinc-200 bg-zinc-50 flex justify-between items-center">
-                    <h3 className="font-semibold text-zinc-900">Billing Preview</h3>
-                    <span className="text-xs text-zinc-500">Including Base Subscription + Usage Overages</span>
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm">
+                <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/50 flex justify-between items-center">
+                    <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Billing Preview</h3>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">Including Base Subscription + Usage Overages</span>
                 </div>
 
                 {tenants.length === 0 ? (
@@ -178,21 +178,21 @@ export default function AdminFinancials() {
                         <p className="max-w-sm mx-auto mt-1">No active tenants found.</p>
                     </div>
                 ) : (
-                    <table className="w-full text-left">
-                        <thead className="bg-zinc-50 border-b border-zinc-200">
+                    <table className="w-full text-left text-zinc-900 dark:text-zinc-100">
+                        <thead className="bg-zinc-50 dark:bg-zinc-950/50 border-b border-zinc-200 dark:border-zinc-800">
                             <tr>
-                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Tenant</th>
-                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Base Plan</th>
-                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Usage Breakdown</th>
-                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider text-right">Total</th>
+                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Tenant</th>
+                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Base Plan</th>
+                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Usage Breakdown</th>
+                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-right">Total</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-zinc-100">
+                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                             {tenants.map((t: any) => (
-                                <tr key={t.tenant.id} className="hover:bg-zinc-50">
+                                <tr key={t.tenant.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
                                     <td className="px-6 py-4">
-                                        <div className="font-medium text-zinc-900">{t.tenant.name}</div>
-                                        <div className="text-zinc-500 text-xs font-mono">{t.tenant.slug}</div>
+                                        <div className="font-medium text-zinc-900 dark:text-zinc-100">{t.tenant.name}</div>
+                                        <div className="text-zinc-500 dark:text-zinc-400 text-xs font-mono">{t.tenant.slug}</div>
                                         {t.tenant.stripeCustomerId ? (
                                             <div className="text-[10px] text-green-600 mt-1 flex items-center gap-1">
                                                 <CheckCircle size={10} /> Stripe Connected
@@ -206,8 +206,8 @@ export default function AdminFinancials() {
                                     <td className="px-6 py-4">
                                         {t.subscription && (
                                             <div>
-                                                <div className="text-sm font-medium text-zinc-900">{t.subscription.name}</div>
-                                                <div className="text-xs text-zinc-500">${t.subscription.amount.toFixed(2)}/mo</div>
+                                                <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t.subscription.name}</div>
+                                                <div className="text-xs text-zinc-500 dark:text-zinc-400">${t.subscription.amount.toFixed(2)}/mo</div>
                                             </div>
                                         )}
                                     </td>
@@ -218,8 +218,8 @@ export default function AdminFinancials() {
                                             <div className="space-y-1 text-sm">
                                                 {Object.entries(t.costs).map(([key, val]: [string, any]) => (
                                                     <div key={key} className="flex justify-between max-w-[200px]">
-                                                        <span className="text-zinc-600 capitalize">{key}:</span>
-                                                        <span className="font-mono text-zinc-700">
+                                                        <span className="text-zinc-600 dark:text-zinc-400 capitalize">{key}:</span>
+                                                        <span className="font-mono text-zinc-700 dark:text-zinc-300">
                                                             {Math.round(val.quantity).toLocaleString()} units (${val.amount.toFixed(2)})
                                                         </span>
                                                     </div>
@@ -228,7 +228,7 @@ export default function AdminFinancials() {
                                         )}
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <div className="font-bold text-zinc-900">${t.total.toFixed(2)}</div>
+                                        <div className="font-bold text-zinc-900 dark:text-zinc-100">${t.total.toFixed(2)}</div>
                                     </td>
                                 </tr>
                             ))}
@@ -237,7 +237,7 @@ export default function AdminFinancials() {
                 )}
             </div>
 
-            <div className="mt-8 p-4 bg-blue-50 text-blue-800 rounded-lg text-sm border border-blue-100 flex gap-3">
+            <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-lg text-sm border border-blue-100 dark:border-blue-900/50 flex gap-3">
                 <AlertCircle className="shrink-0 mt-0.5" size={16} />
                 <div>
                     <strong>Note on Invoicing:</strong>
