@@ -209,7 +209,9 @@ app.post('/', async (c) => {
             { branding: tenant.branding as any, settings: tenant.settings as any },
             { slug: tenant.slug },
             usageService,
-            isByokEmail
+            isByokEmail,
+            db,
+            tenant.id
         );
 
         for (const r of recipients) {
@@ -428,7 +430,9 @@ app.post('/automations/:id/test', async (c) => {
         { branding: tenant.branding as any, settings: tenant.settings as any },
         { slug: tenant.slug },
         usageService,
-        isByokEmail
+        isByokEmail,
+        db,
+        tenant.id
     );
 
     // TODO: SMS Test support? Currently body only has { email }. 
@@ -502,7 +506,9 @@ app.post('/automations/trigger-debug', async (c) => {
         { branding: tenant.branding, settings: tenant.settings },
         { slug: tenant.slug },
         usageService,
-        isByokEmail
+        isByokEmail,
+        createDb(c.env.DB),
+        tenant.id
     );
 
     const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, createDb(c.env.DB), tenant.id);

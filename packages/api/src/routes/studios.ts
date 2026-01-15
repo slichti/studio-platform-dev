@@ -92,10 +92,18 @@ app.post('/', async (c) => {
     }
 });
 
-app.get('/:id', async (c) => {
+app.get('/:idOrSlug', async (c) => {
     const db = createDb(c.env.DB);
-    const id = c.req.param('id');
-    const result = await db.select().from(tenants).where(eq(tenants.id, id)).get();
+    const idOrSlug = c.req.param('idOrSlug');
+
+    // 1. Try by ID (UUID format)
+    let result = await db.select().from(tenants).where(eq(tenants.id, idOrSlug)).get();
+
+    // 2. Try by Slug (if not found)
+    if (!result) {
+        result = await db.select().from(tenants).where(eq(tenants.slug, idOrSlug)).get();
+    }
+
     if (!result) return c.json({ error: 'Studio not found' }, 404);
     return c.json(result);
 });

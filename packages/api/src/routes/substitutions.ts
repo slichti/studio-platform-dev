@@ -102,10 +102,12 @@ async function sendSubEmail(env: Bindings, tenant: any, to: string, subject: str
     if (!env.RESEND_API_KEY) return;
     try {
         const { EmailService } = await import('../services/email');
+        const db = createDb(env.DB);
         const emailService = new EmailService(env.RESEND_API_KEY, {
             branding: tenant.branding,
             settings: tenant.settings
-        });
+        }, undefined, undefined, false, db, tenant.id);
+
         await emailService.sendGenericEmail(to, subject, html);
     } catch (e) {
         console.error("Failed to send sub email", e);

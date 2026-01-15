@@ -36,6 +36,8 @@ export default function StudioBranding() {
                 })
             });
             setSuccess("Branding saved successfully.");
+            // Reload to update Sidebar icon immediately
+            setTimeout(() => window.location.reload(), 500);
         } catch (e: any) {
             setError(e.message || "Failed to save branding.");
         } finally {
@@ -71,7 +73,7 @@ export default function StudioBranding() {
                         <div className="flex gap-3">
                             <input
                                 type="color"
-                                value={primaryColor}
+                                value={/^#[0-9A-F]{6}$/i.test(primaryColor) ? primaryColor : '#000000'}
                                 onChange={(e) => setPrimaryColor(e.target.value)}
                                 className="w-10 h-10 p-0 border-none rounded cursor-pointer bg-transparent"
                             />

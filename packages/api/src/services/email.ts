@@ -1,5 +1,11 @@
 import { Resend } from 'resend';
 import { UsageService } from './pricing';
+import { DrizzleD1Database } from 'drizzle-orm/d1';
+import * as schema from 'db';
+import { emailLogs } from 'db';
+import { eq } from 'drizzle-orm';
+import { v4 as uuidv4 } from 'uuid';
+
 
 export interface TenantEmailConfig {
     branding?: {
@@ -23,18 +29,24 @@ export class EmailService {
     private config?: TenantEmailConfig;
     private usageService?: UsageService;
     private isByok: boolean = false;
+    private db?: DrizzleD1Database<typeof schema>;
+    private tenantId?: string;
 
     constructor(
         apiKey: string, // Platform Key OR Tenant Key
         config?: TenantEmailConfig,
         domainConfig?: { slug: string, customDomain?: string | null },
         usageService?: UsageService,
-        isByok = false
+        isByok = false,
+        db?: DrizzleD1Database<typeof schema>,
+        tenantId?: string
     ) {
         this.resend = new Resend(apiKey);
         this.config = config;
         this.usageService = usageService;
         this.isByok = isByok;
+        this.db = db;
+        this.tenantId = tenantId;
 
         // Dynamic Sender Logic
         if (domainConfig?.customDomain) {
@@ -83,6 +95,94 @@ export class EmailService {
         }
     }
 
+
+    /**
+     * Retry an email from a log entry
+     */
+    async retryEmail(logId: string): Promise<{ success: boolean; error?: string }> {
+        if (!this.db) return { success: false, error: "Database not available" };
+
+        const log = await this.db.select().from(emailLogs).where(eq(emailLogs.id, logId)).get();
+        if (!log) return { success: false, error: "Log entry not found" };
+
+        if (!log.data) return { success: false, error: "No payload data available for replay" };
+
+        const payload = typeof log.data === 'string' ? JSON.parse(log.data) : log.data;
+        const { templateId, args } = payload; // Assuming log.data stores { templateId, args }
+
+        try {
+            switch (templateId) {
+                case 'invitation':
+                    // Assuming args: { studioName: string, inviteUrl: string }
+                    await this.sendInvitation(log.recipientEmail, args.studioName, args.inviteUrl);
+                    break;
+                case 'booking_confirmation':
+                    // Assuming args: { title: string, startTime: Date, instructorName?: string, locationName?: string, zoomUrl?: string, bookedBy?: string }
+                    await this.sendBookingConfirmation(log.recipientEmail, args);
+                    break;
+                case 'waiver_copy':
+                    // Assuming args: { waiverTitle: string, pdfBuffer: ArrayBuffer }
+                    // Note: pdfBuffer cannot be stored directly in JSON, this case might need special handling or re-fetching the PDF.
+                    // For now, this will likely fail if pdfBuffer is not available or correctly reconstructed.
+                    // A more robust solution would be to store a reference to the PDF.
+                    if (!args.pdfBuffer) {
+                        return { success: false, error: "PDF buffer not available for waiver retry" };
+                    }
+                    await this.sendWaiverCopy(log.recipientEmail, args.waiverTitle, args.pdfBuffer);
+                    break;
+                case 'welcome_member': // Renamed from 'welcome' in the original snippet to match existing method
+                    // Assuming args: { name: string }
+                    await this.sendWelcome(log.recipientEmail, args.name);
+                    break;
+                // Add other cases as needed, ensuring the 'args' match the method signatures
+                /*
+                case 'receipt':
+                    await this.sendReceipt(log.recipientEmail, args.memberName, args.amount, args.currency, args.date, args.items, args.receiptUrl);
+                    break;
+                case 'generic':
+                    await this.sendGenericEmail(log.recipientEmail, log.subject, args.html, args.isNotification);
+                    break;
+                case 'welcome_owner':
+                    await this.sendWelcomeOwner(log.recipientEmail, args.name, args.studioName, args.loginLink);
+                    break;
+                case 'new_tenant_alert':
+                    await this.sendNewTenantAlert(args.email, args.name, args.tenantName, args.plan);
+                    break;
+                case 'subscription_update_owner':
+                    await this.sendSubscriptionUpdateOwner(log.recipientEmail, args.tenantName, args.plan, args.amount, args.nextBillingDate);
+                    break;
+                case 'tenant_upgrade_alert':
+                    await this.sendTenantUpgradeAlert(args.tenantName, args.oldPlan, args.newPlan);
+                    break;
+                */
+                default:
+                    return { success: false, error: `Unknown or unsupported template ID for retry: ${templateId}` };
+            }
+            return { success: true };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    }
+
+    private async logEmail(to: string, subject: string, templateId: string, data: any, status: 'sent' | 'failed', error?: string) {
+        if (!this.db || !this.tenantId) return;
+
+        try {
+            await this.db.insert(emailLogs).values({
+                id: uuidv4(),
+                tenantId: this.tenantId,
+                recipientEmail: to,
+                subject,
+                templateId,
+                data: JSON.stringify(data),
+                status,
+                error,
+            });
+        } catch (e) {
+            console.error('Failed to log email:', e);
+        }
+    }
+
     private wrapHtml(content: string, title?: string): string {
         // If already full HTML, don't wrap
         if (content.trim().toLowerCase().startsWith('<!doctype') || content.trim().toLowerCase().startsWith('<html')) {
@@ -122,7 +222,10 @@ export class EmailService {
     }
 
     async sendInvitation(to: string, studioName: string, inviteUrl: string) {
-        if (!await this.checkAndTrackUsage()) return;
+        if (!await this.checkAndTrackUsage()) {
+            await this.logEmail(to, `Invitation to ${studioName}`, 'invitation', { studioName, inviteUrl }, 'failed', 'Usage limit reached');
+            return;
+        }
 
         const htmlContent = `
             <h1>You've been invited to ${studioName}</h1>
@@ -135,18 +238,21 @@ export class EmailService {
 
         const { bcc } = this.getRecipients(to, 'transactional');
         const options = this.getEmailOptions();
+        const subject = `Invitation to ${studioName}`;
 
         try {
             await this.resend.emails.send({
                 ...options,
                 to,
                 bcc,
-                subject: `Invitation to ${studioName}`,
+                subject,
                 html: this.wrapHtml(htmlContent)
             });
             await this.incrementUsage();
+            await this.logEmail(to, subject, 'invitation', { studioName, inviteUrl }, 'sent');
             console.log(`Invitation email sent to ${to} from ${this.fromEmail}`);
-        } catch (e) {
+        } catch (e: any) {
+            await this.logEmail(to, subject, 'invitation', { studioName, inviteUrl }, 'failed', e.message);
             console.error("Failed to send invitation email", e);
         }
     }
@@ -172,7 +278,10 @@ export class EmailService {
         zoomUrl?: string;
         bookedBy?: string;
     }) {
-        if (!await this.checkAndTrackUsage()) return;
+        if (!await this.checkAndTrackUsage()) {
+            await this.logEmail(to, `Booking Confirmed: ${classDetails.title}`, 'booking_confirmation', classDetails, 'failed', 'Usage limit reached');
+            return;
+        }
 
         const date = new Date(classDetails.startTime).toLocaleString();
 
@@ -189,24 +298,32 @@ export class EmailService {
 
         const { bcc } = this.getRecipients(to, 'transactional');
         const options = this.getEmailOptions();
+        const subject = `Booking Confirmed: ${classDetails.title}`;
 
         try {
             await this.resend.emails.send({
                 ...options,
                 to,
                 bcc,
-                subject: `Booking Confirmed: ${classDetails.title}`,
+                subject,
                 html: this.wrapHtml(htmlContent, "Booking Confirmed")
             });
             await this.incrementUsage();
+            await this.logEmail(to, subject, 'booking_confirmation', classDetails, 'sent');
             console.log(`Booking email sent to ${to}`);
-        } catch (e) {
+        } catch (e: any) {
+            await this.logEmail(to, subject, 'booking_confirmation', classDetails, 'failed', e.message);
             console.error("Failed to send booking email", e);
         }
     }
 
     async sendWaiverCopy(to: string, waiverTitle: string, pdfBuffer: ArrayBuffer) {
-        if (!await this.checkAndTrackUsage()) return;
+        const subject = `Signed Copy: ${waiverTitle}`;
+        // Can't easily serialize pdfBuffer for logging, so we skip it in 'data' or send metadataStr
+        if (!await this.checkAndTrackUsage()) {
+            await this.logEmail(to, subject, 'waiver_copy', { waiverTitle }, 'failed', 'Usage limit reached');
+            return;
+        }
         try {
             const buffer = Buffer.from(pdfBuffer);
             // Waivers are transactional, but maybe don't BCC the PDF to admin? 
@@ -218,7 +335,7 @@ export class EmailService {
                 ...options,
                 to,
                 bcc,
-                subject: `Signed Copy: ${waiverTitle}`,
+                subject,
                 html: this.wrapHtml(`<p>Attached is your signed copy of <strong>${waiverTitle}</strong>.</p>`),
                 attachments: [
                     {
@@ -228,14 +345,19 @@ export class EmailService {
                 ]
             });
             await this.incrementUsage();
+            await this.logEmail(to, subject, 'waiver_copy', { waiverTitle }, 'sent');
             console.log(`Waiver email sent to ${to}`);
-        } catch (e) {
+        } catch (e: any) {
+            await this.logEmail(to, subject, 'waiver_copy', { waiverTitle }, 'failed', e.message);
             console.error("Failed to send waiver email", e);
         }
     }
 
     async sendWelcome(to: string, name: string) {
-        if (!await this.checkAndTrackUsage()) return;
+        if (!await this.checkAndTrackUsage()) {
+            await this.logEmail(to, 'Welcome to Studio Platform!', 'welcome_member', { name }, 'failed', 'Usage limit reached');
+            return;
+        }
 
         const htmlContent = `
             <h1>Welcome, ${name}!</h1>
@@ -245,24 +367,32 @@ export class EmailService {
 
         const { bcc } = this.getRecipients(to, 'transactional');
         const options = this.getEmailOptions();
+        const subject = `Welcome to Studio Platform!`;
 
         try {
             await this.resend.emails.send({
                 ...options,
                 to,
                 bcc,
-                subject: `Welcome to Studio Platform!`,
+                subject,
                 html: this.wrapHtml(htmlContent)
             });
             await this.incrementUsage();
+            await this.logEmail(to, subject, 'welcome_member', { name }, 'sent');
             console.log(`Welcome email sent to ${to}`);
-        } catch (e) {
+        } catch (e: any) {
+            await this.logEmail(to, subject, 'welcome_member', { name }, 'failed', e.message);
             console.error("Failed to send welcome email", e);
         }
     }
 
     async sendGenericEmail(to: string, subject: string, html: string, isNotification = false) {
-        if (!await this.checkAndTrackUsage()) return;
+        // Can't easily replay generic emails without storing full HTML which might be large.
+        // We'll store a snippet or just indicate it was generic.
+        if (!await this.checkAndTrackUsage()) {
+            await this.logEmail(to, subject, 'generic', { isNotification }, 'failed', 'Usage limit reached');
+            return;
+        }
 
         const { bcc } = this.getRecipients(to, isNotification ? 'notification' : 'transactional');
         const options = this.getEmailOptions();
@@ -276,24 +406,19 @@ export class EmailService {
                 html: this.wrapHtml(html)
             });
             await this.incrementUsage();
+            await this.logEmail(to, subject, 'generic', { isNotification }, 'sent');
             console.log(`Generic email sent to ${to}`);
-        } catch (e) {
+        } catch (e: any) {
+            await this.logEmail(to, subject, 'generic', { isNotification }, 'failed', e.message);
             console.error("Failed to send generic email", e);
             throw e;
         }
     }
 
     async notifyOwnerNewStudent(ownerEmail: string, studentName: string) {
-        // Notification to Studio Owner. 
-        // We override 'to' with the configured adminEmail if present, defaulting to the ownerEmail passed in.
         const targetEmail = this.config?.settings?.notifications?.adminEmail || ownerEmail;
 
         if (!this.config?.settings?.notifications?.newStudentAlert) {
-            // Check if alerts explicitly disabled?
-            // The caller might not have checked the setting before calling.
-            // If settings are present and false, skip?
-            // Existing logic didn't have this check.
-            // If config is provided, we should probably respect it.
             if (this.config?.settings?.notifications?.newStudentAlert === false) return;
         }
 
@@ -326,7 +451,10 @@ export class EmailService {
     }
 
     async sendTemplate(to: string, templateId: string, data: any) {
-        if (!await this.checkAndTrackUsage()) return;
+        if (!await this.checkAndTrackUsage()) {
+            await this.logEmail(to, `Template: ${templateId}`, templateId, data, 'failed', 'Usage limit reached');
+            return;
+        }
 
         const { bcc } = this.getRecipients(to, 'transactional');
         const options = this.getEmailOptions();
@@ -345,11 +473,14 @@ export class EmailService {
             } as any);
 
             await this.incrementUsage();
+            await this.logEmail(to, `Template: ${templateId}`, templateId, data, 'sent');
             console.log(`Template email sent to ${to}`);
-        } catch (e) {
+        } catch (e: any) {
+            await this.logEmail(to, `Template: ${templateId}`, templateId, data, 'failed', e.message);
             console.error("Template Send Error", e);
         }
     }
+
     async sendReceipt(to: string, data: {
         amount: number;
         currency: string;
@@ -358,7 +489,11 @@ export class EmailService {
         paymentMethod?: string; // 'Card ending in 4242'
         receiptUrl?: string;
     }) {
-        if (!await this.checkAndTrackUsage()) return;
+        const subject = `Receipt for ${data.description}`;
+        if (!await this.checkAndTrackUsage()) {
+            await this.logEmail(to, subject, 'receipt', data, 'failed', 'Usage limit reached');
+            return;
+        }
 
         const dateStr = data.date.toLocaleString();
         const amountStr = (data.amount / 100).toFixed(2);
@@ -383,13 +518,141 @@ export class EmailService {
                 ...options,
                 to,
                 bcc,
-                subject: `Receipt for ${data.description}`,
+                subject,
                 html: this.wrapHtml(htmlContent)
             });
             await this.incrementUsage();
+            await this.logEmail(to, subject, 'receipt', data, 'sent');
             console.log(`Receipt email sent to ${to}`);
-        } catch (e) {
+        } catch (e: any) {
+            await this.logEmail(to, subject, 'receipt', data, 'failed', e.message);
             console.error("Failed to send receipt email", e);
+        }
+    }
+
+    async sendWelcomeOwner(to: string, name: string, studioName: string, loginUrl: string) {
+        if (!await this.checkAndTrackUsage()) {
+            await this.logEmail(to, `Welcome to Studio Platform - ${studioName}`, 'welcome_owner', { name, studioName, loginUrl }, 'failed', 'Usage limit reached');
+            return;
+        }
+
+        const htmlContent = `
+            <h1>Welcome to Studio Platform!</h1>
+            <p>Hello ${name},</p>
+            <p>Your studio <strong>${studioName}</strong> has been successfully provisioned.</p>
+            <p>You can now log in to your dashboard to start managing your schedule, members, and more.</p>
+            <a href="${loginUrl}" class="button">Go to Dashboard</a>
+        `;
+
+        const options = this.getEmailOptions();
+        const subject = `Welcome to Studio Platform - ${studioName}`;
+
+        try {
+            await this.resend.emails.send({
+                ...options,
+                to,
+                subject,
+                html: this.wrapHtml(htmlContent)
+            });
+            await this.incrementUsage();
+            await this.logEmail(to, subject, 'welcome_owner', { name, studioName, loginUrl }, 'sent');
+            console.log(`Welcome Owner email sent to ${to}`);
+        } catch (e: any) {
+            await this.logEmail(to, subject, 'welcome_owner', { name, studioName, loginUrl }, 'failed', e.message);
+            console.error("Failed to send welcome owner email", e);
+        }
+    }
+
+    async sendNewTenantAlert(adminEmail: string, details: { name: string; slug: string; tier: string; ownerEmail: string }) {
+        const options = this.getEmailOptions();
+        const subject = `[New Tenant] ${details.name} (${details.tier})`;
+
+        const htmlContent = `
+            <h1>New Tenant Alert</h1>
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 20px; border-radius: 8px;">
+                <p><strong>Studio:</strong> ${details.name}</p>
+                <p><strong>Slug:</strong> ${details.slug}</p>
+                <p><strong>Tier:</strong> ${details.tier.toUpperCase()}</p>
+                <p><strong>Owner:</strong> ${details.ownerEmail}</p>
+            </div>
+            <p style="color: #666; font-size: 12px; margin-top: 10px;">Time: ${new Date().toLocaleString()}</p>
+        `;
+
+        try {
+            await this.resend.emails.send({
+                ...options,
+                to: adminEmail,
+                subject,
+                html: this.wrapHtml(htmlContent)
+            });
+            await this.incrementUsage();
+            await this.logEmail(adminEmail, subject, 'alert_new_tenant', details, 'sent');
+            console.log(`New Tenant Alert sent to ${adminEmail}`);
+        } catch (e: any) {
+            await this.logEmail(adminEmail, subject, 'alert_new_tenant', details, 'failed', e.message);
+            console.error("Failed to send new tenant alert", e);
+        }
+    }
+
+    async sendSubscriptionUpdateOwner(to: string, name: string, newTier: string) {
+        const subject = `Your plan has been updated to ${newTier.toUpperCase()}`;
+
+        if (!await this.checkAndTrackUsage()) {
+            await this.logEmail(to, subject, 'subscription_update_owner', { name, newTier }, 'failed', 'Usage limit reached');
+            return;
+        }
+
+        const htmlContent = `
+            <h1>Plan Updated!</h1>
+            <p>Hello ${name},</p>
+            <p>Good news! Your studio plan has been updated to <strong>${newTier.toUpperCase()}</strong>.</p>
+            <p>You now have access to all features included in this tier.</p>
+        `;
+
+        const options = this.getEmailOptions();
+
+        try {
+            await this.resend.emails.send({
+                ...options,
+                to,
+                subject,
+                html: this.wrapHtml(htmlContent)
+            });
+            await this.incrementUsage();
+            await this.logEmail(to, subject, 'subscription_update_owner', { name, newTier }, 'sent');
+            console.log(`Subscription update email sent to ${to}`);
+        } catch (e: any) {
+            await this.logEmail(to, subject, 'subscription_update_owner', { name, newTier }, 'failed', e.message);
+            console.error("Failed to send subscription update email", e);
+        }
+    }
+
+    async sendTenantUpgradeAlert(adminEmail: string, details: { name: string; slug: string; oldTier?: string; newTier: string }) {
+        const options = this.getEmailOptions();
+        const subject = `[Upgrade] ${details.name} -> ${details.newTier.toUpperCase()}`;
+
+        const htmlContent = `
+            <h1>Tenant Upgrade Alert</h1>
+            <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 20px; border-radius: 8px;">
+                <p><strong>Studio:</strong> ${details.name}</p>
+                <p><strong>Slug:</strong> ${details.slug}</p>
+                <p><strong>Change:</strong> ${details.oldTier ? details.oldTier.toUpperCase() : '???'} &rarr; <strong>${details.newTier.toUpperCase()}</strong></p>
+            </div>
+        `;
+
+        try {
+            await this.resend.emails.send({
+                ...options,
+                to: adminEmail,
+                subject,
+                html: this.wrapHtml(htmlContent)
+            });
+            await this.incrementUsage();
+            await this.logEmail(adminEmail, subject, 'alert_tenant_upgrade', details, 'sent');
+            console.log(`Upgrade Alert sent to ${adminEmail}`);
+        } catch (e: any) {
+            await this.logEmail(adminEmail, subject, 'alert_tenant_upgrade', details, 'failed', e.message);
+            console.error("Failed to send upgrade alert", e);
         }
     }
 }

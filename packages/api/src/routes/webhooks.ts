@@ -19,6 +19,7 @@ type Bindings = {
     RESEND_API_KEY: string;
     STRIPE_SECRET_KEY: string;
     STRIPE_WEBHOOK_SECRET: string;
+    PLATFORM_ADMIN_EMAIL?: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -172,7 +173,9 @@ app.post('/clerk', async (c) => {
                             { branding: member.tenant.branding as any, settings: member.tenant.settings as any },
                             { slug: member.tenant.slug },
                             usageService,
-                            isByok
+                            isByok,
+                            db,
+                            member.tenantId
                         );
 
                         const smsService = new SmsService(member.tenant.twilioCredentials as any, c.env, usageService, db, member.tenantId);
@@ -204,7 +207,15 @@ app.post('/clerk', async (c) => {
                 .limit(1).get();
             if (ownerData && c.env.RESEND_API_KEY) {
                 const { EmailService } = await import('../services/email');
-                const emailService = new EmailService(c.env.RESEND_API_KEY, { branding: ownerData.tenant.branding as any, settings: ownerData.tenant.settings as any });
+                const emailService = new EmailService(
+                    c.env.RESEND_API_KEY,
+                    { branding: ownerData.tenant.branding as any, settings: ownerData.tenant.settings as any },
+                    undefined,
+                    undefined,
+                    false,
+                    db,
+                    meta.tenantId as string
+                );
                 c.executionCtx.waitUntil(emailService.notifyOwnerNewStudent(ownerData.email, `${first_name} ${last_name}`));
             }
         }
@@ -305,7 +316,15 @@ app.post('/stripe', async (c) => {
 
             if (tenant) {
                 const emailService = c.env.RESEND_API_KEY
-                    ? new EmailService(c.env.RESEND_API_KEY, { branding: tenant.branding as any, settings: tenant.settings as any })
+                    ? new EmailService(
+                        c.env.RESEND_API_KEY,
+                        { branding: tenant.branding as any, settings: tenant.settings as any },
+                        undefined,
+                        undefined,
+                        false,
+                        db,
+                        sub.tenantId
+                    )
                     : undefined;
 
                 const dunningService = new DunningService(db, sub.tenantId, emailService);
@@ -399,7 +418,7 @@ app.post('/stripe', async (c) => {
                         const usageService = new UsageService(db, tenant.id);
                         const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
                         const isByok = !!(tenant.resendCredentials as any)?.apiKey;
-                        const emailService = new EmailService(resendKey, { branding: tenant.branding as any, settings: tenant.settings as any }, { slug: tenant.slug }, usageService, isByok);
+                        const emailService = new EmailService(resendKey, { branding: tenant.branding as any, settings: tenant.settings as any }, { slug: tenant.slug }, usageService, isByok, db, tenant.id);
                         const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
                         const autoService = new AutomationsService(db, tenant.id, emailService, smsService);
 
@@ -451,7 +470,7 @@ app.post('/stripe', async (c) => {
                     const usageService = new UsageService(db, tenant.id);
                     const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
                     const isByok = !!(tenant.resendCredentials as any)?.apiKey;
-                    const emailService = new EmailService(resendKey, { branding: tenant.branding as any, settings: tenant.settings as any }, { slug: tenant.slug }, usageService, isByok);
+                    const emailService = new EmailService(resendKey, { branding: tenant.branding as any, settings: tenant.settings as any }, { slug: tenant.slug }, usageService, isByok, db, tenant.id);
                     const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
                     const autoService = new AutomationsService(db, tenant.id, emailService, smsService);
 
@@ -469,6 +488,78 @@ app.post('/stripe', async (c) => {
                     }
                 }
             } catch (e) { console.error('Failed to trigger subscription_canceled', e); }
+        } else if (tenantId) {
+            // Handle Tier Change / Upgrade
+            // We need to verify if the Plan ID changed or if this is relevant to tier.
+            const db = createDb(c.env.DB);
+            // Re-fetch tenant to compare current tier vs new tier derived from plan
+            // Wait, we don't have new tier in metadata necessarily unless we put it there?
+            // Usually we map Price ID -> Tier.
+            // Or we check `subscription.items.data[0].price.id`.
+
+            // For MVP: We trust metadata.tier if we set it during checkout/updates?
+            // Or we map known price IDs.
+            // Let's assume metadata isn't always reliable for updates if changed via Portal.
+            // We'll simplisticly check if `tenant.tier` != new derived tier.
+            // Mapping Logic (should be shared):
+            const priceId = subscription.items?.data?.[0]?.price?.id;
+            // Environment variable check is tricky inside webhook if we don't know which env we are in match-wise?
+            // Actually `c.env` has the vars.
+            // But we have MANY price IDs potentially?
+            // Let's rely on metadata OR fetch current tenant and see if Stripe status implies something.
+
+            // Actually, for upgrades via Portal, Stripe sends `customer.subscription.updated` with `items` changed.
+            // We need to MAP `priceId` to `tier`.
+            // Let's use `c.env.STRIPE_PRICE_GROWTH` and `STRIPE_PRICE_SCALE`.
+            let newTier = 'basic';
+            // We need to access env vars from c.env
+            const env = c.env as any;
+            if (priceId === env.STRIPE_PRICE_GROWTH) newTier = 'growth';
+            else if (priceId === env.STRIPE_PRICE_SCALE) newTier = 'scale';
+            else if (priceId === 'free' || !priceId) newTier = 'basic';
+            // If Price ID is unknown, maybe it's legacy or monthly/yearly variant? 
+            // For now assume strictly these env vars.
+
+            const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
+
+            if (tenant && tenant.tier !== newTier) {
+                // UPDATE TIER
+                await db.update(tenants).set({ tier: newTier as any }).where(eq(tenants.id, tenantId)).run();
+                console.log(`Updated Tenant ${tenant.slug} tier to ${newTier}`);
+
+                // NOTIFICATIONS
+                if (c.env.RESEND_API_KEY) {
+                    try {
+                        const { EmailService } = await import('../services/email');
+                        // Use Platform Key for alerts
+                        const emailService = new EmailService(c.env.RESEND_API_KEY, undefined, undefined, undefined, false, db, tenantId);
+
+                        const adminEmail = c.env.PLATFORM_ADMIN_EMAIL || 'slichti@gmail.com';
+                        // Get Owner Info
+                        // We need to find the user associated with this subscription customer
+                        const stripeCustomerId = subscription.customer as string;
+                        const owner = await db.query.users.findFirst({ where: eq(users.stripeCustomerId, stripeCustomerId) });
+
+                        if (owner) {
+                            const profile = owner.profile as any || {};
+                            const ownerName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Valued Customer';
+
+                            // 1. Notify Owner
+                            c.executionCtx.waitUntil(emailService.sendSubscriptionUpdateOwner(owner.email, ownerName, newTier));
+
+                            // 2. Alert Admin
+                            c.executionCtx.waitUntil(emailService.sendTenantUpgradeAlert(adminEmail, {
+                                name: tenant.name,
+                                slug: tenant.slug,
+                                oldTier: tenant.tier,
+                                newTier: newTier
+                            }));
+                        }
+                    } catch (e) {
+                        console.error("Failed to send tier upgrade notifications", e);
+                    }
+                }
+            }
         }
     }
 
@@ -488,7 +579,7 @@ app.post('/stripe', async (c) => {
                     const usageService = new UsageService(db, tenant.id);
                     const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
                     const isByok = !!(tenant.resendCredentials as any)?.apiKey;
-                    const emailService = new EmailService(resendKey, { branding: tenant.branding as any, settings: tenant.settings as any }, { slug: tenant.slug }, usageService, isByok);
+                    const emailService = new EmailService(resendKey, { branding: tenant.branding as any, settings: tenant.settings as any }, { slug: tenant.slug }, usageService, isByok, db, tenant.id);
                     const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
                     const autoService = new AutomationsService(db, tenant.id, emailService, smsService);
 

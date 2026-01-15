@@ -239,6 +239,7 @@ const studioApp = new Hono<{ Bindings: Bindings, Variables: Variables }>()
 // 5. Setup Feature Route sub-apps (will be mounted in next step)
 // 5. Setup Feature Route sub-apps (will be mounted in next step)
 app.route('/studios', studioRoutes);
+app.route('/tenants', studioRoutes); // Alias for legacy frontend compatibility
 
 // 6. Base Studio Logic
 // GET /info
@@ -324,6 +325,48 @@ studioApp.put('/credentials/zoom', async (c) => {
   const { accountId, clientId, clientSecret } = await c.req.json();
   if (!accountId || !clientId || !clientSecret) return c.json({ error: 'Missing credentials' }, 400);
   await db.update(tenants).set({ zoomCredentials: { accountId, clientId, clientSecret } }).where(eq(tenants.id, tenant.id)).run();
+  await db.update(tenants).set({ zoomCredentials: { accountId, clientId, clientSecret } }).where(eq(tenants.id, tenant.id)).run();
+  return c.json({ success: true });
+});
+
+studioApp.post('/features', async (c) => {
+  const tenant = c.get('tenant');
+  const roles = c.get('roles') || [];
+
+  if (!roles.includes('owner') && !roles.includes('admin')) {
+    return c.json({ error: "Unauthorized" }, 403);
+  }
+
+  const { featureKey, enabled } = await c.req.json();
+  // Allowlist of self-service features
+  const ALLOWED_FEATURES = ['sms'];
+
+  if (!ALLOWED_FEATURES.includes(featureKey)) {
+    return c.json({ error: "Feature not available for self-service" }, 400);
+  }
+
+  const db = createDb(c.env.DB);
+
+  if (enabled) {
+    await db.insert(tenantFeatures)
+      .values({
+        id: crypto.randomUUID(),
+        tenantId: tenant.id,
+        featureKey,
+        enabled: true,
+        createdAt: new Date()
+      })
+      .onConflictDoUpdate({
+        target: [tenantFeatures.tenantId, tenantFeatures.featureKey],
+        set: { enabled: true }
+      })
+      .run();
+  } else {
+    await db.delete(tenantFeatures)
+      .where(and(eq(tenantFeatures.tenantId, tenant.id), eq(tenantFeatures.featureKey, featureKey)))
+      .run();
+  }
+
   return c.json({ success: true });
 });
 

@@ -1,6 +1,6 @@
 
 // @ts-ignore
-import { useLoaderData, useSubmit, Link, Form } from "react-router";
+import { useLoaderData, useSubmit, Link, Form, useOutletContext } from "react-router";
 // @ts-ignore
 import { LoaderFunction, ActionFunction } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
@@ -26,15 +26,10 @@ export const action: ActionFunction = async (args) => {
         if (!name) return { error: "Name is required" };
 
         try {
-            // Get tenant ID first? Or assume endpoint handles it?
-            // The endpoint is likely /tenants/:id/locations. 
-            // We need tenant ID. Let's assume we can loop up or pass slug header.
-            // Actually, better to fetch tenant first.
-            const tenantRes = await apiRequest(`/tenants/${tenantSlug}`, token);
             await apiRequest(`/locations`, token, {
                 method: "POST",
+                headers: { 'X-Tenant-Slug': tenantSlug },
                 body: JSON.stringify({
-                    tenantId: tenantRes.id,
                     name,
                     address
                 })
@@ -48,7 +43,10 @@ export const action: ActionFunction = async (args) => {
     if (intent === "delete_location") {
         const id = formData.get("id");
         try {
-            await apiRequest(`/locations/${id}`, token, { method: "DELETE" });
+            await apiRequest(`/locations/${id}`, token, {
+                method: "DELETE",
+                headers: { 'X-Tenant-Slug': tenantSlug }
+            });
             return { success: true };
         } catch (e) {
             return { error: "Failed to delete location" };
@@ -63,17 +61,24 @@ export const loader: LoaderFunction = async (args: any) => {
     const token = await getToken();
     const slug = args.params.slug;
 
+    let locations = [];
     try {
-        const tenant = await apiRequest(`/tenants/${slug}`, token);
-        const locations = await apiRequest(`/tenants/${tenant.id}/locations`, token);
-        return { tenant, locations: locations || [], token };
-    } catch (e) {
-        throw new Response("Tenant not found", { status: 404 });
+        // Use X-Tenant-Slug to avoid pre-fetching tenant by ID
+        const res = await apiRequest(`/locations`, token, {
+            headers: { 'X-Tenant-Slug': slug }
+        });
+        locations = res.locations || [];
+    } catch (e: any) {
+        console.error("Failed to load locations", e);
+        // Non-blocking
     }
+
+    return { locations, token };
 };
 
 export default function SettingsIndex() {
-    const { tenant: initialTenant, locations } = useLoaderData<any>();
+    const { locations } = useLoaderData<any>();
+    const { tenant: initialTenant } = useOutletContext<any>();
     const [tenant, setTenant] = useState(initialTenant);
     const [name, setName] = useState(tenant.name);
     const [loading, setLoading] = useState(false);
@@ -136,8 +141,9 @@ export default function SettingsIndex() {
 
                         try {
                             const token = await (window as any).Clerk?.session?.getToken();
-                            await apiRequest(`/tenants/${tenant.slug}`, token, {
+                            await apiRequest(`/tenant/settings`, token, {
                                 method: "PATCH",
+                                headers: { 'X-Tenant-Slug': tenant.slug },
                                 body: JSON.stringify({ name })
                             });
                             setSuccess("Settings saved successfully");

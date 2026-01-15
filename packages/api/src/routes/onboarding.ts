@@ -5,10 +5,13 @@ import { eq } from 'drizzle-orm';
 import { rateLimit } from '../middleware/rateLimit';
 
 type Bindings = {
-    DB: D1Database;
     STRIPE_SECRET_KEY: string;
     STRIPE_PRICE_GROWTH?: string;
     STRIPE_PRICE_SCALE?: string;
+    CLERK_SECRET_KEY: string;
+    RESEND_API_KEY: string;
+    PLATFORM_ADMIN_EMAIL?: string; // Optional config for alerts
+    DB: D1Database;
 };
 
 type Variables = {
@@ -20,19 +23,50 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 
-// POST /onboarding - Create new tenant & cleanup user
-app.post('/', rateLimit({ limit: 5, window: 300, keyPrefix: 'onboarding' }), async (c) => {
+// POST /studio - Create new tenant & cleanup user
+app.post('/studio', rateLimit({ limit: 5, window: 300, keyPrefix: 'onboarding' }), async (c) => {
     const auth = c.get('auth');
     if (!auth?.userId) {
         return c.json({ error: "Unauthorized" }, 401);
     }
 
     // Enforce Email Verification
-    // Clerk provides 'email_verified' in the session token claims
-    if (!auth.claims?.email_verified) {
+    // 1. Try checking the token claim (fastest)
+    let isVerified = auth.claims?.email_verified;
+
+    // 2. If claim is missing/false, check the Clerk API directly (slower but robust)
+    // This handles cases where the JWT template is missing the 'email_verified' claim (common in default Clerk setups)
+    if (!isVerified) {
+        try {
+            const clerkRes = await fetch(`https://api.clerk.com/v1/users/${auth.userId}`, {
+                headers: {
+                    'Authorization': `Bearer ${c.env.CLERK_SECRET_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (clerkRes.ok) {
+                const clerkUser: any = await clerkRes.json();
+                const primaryEmailId = clerkUser.primary_email_address_id;
+                const primaryEmail = clerkUser.email_addresses.find((e: any) => e.id === primaryEmailId);
+
+                if (primaryEmail?.verification?.status === 'verified') {
+                    isVerified = true;
+                }
+            } else {
+                console.error("Clerk API Verification Check Failed:", await clerkRes.text());
+            }
+        } catch (err) {
+            console.error("Clerk API Fetch Error:", err);
+        }
+    }
+
+    if (!isVerified) {
         return c.json({
             error: "Email verification required",
-            code: "EMAIL_NOT_VERIFIED"
+            code: "EMAIL_NOT_VERIFIED",
+            // Debug info to help diagnose if this persists
+            debug: { claim: auth.claims?.email_verified }
         }, 403);
     }
 
@@ -90,7 +124,7 @@ app.post('/', rateLimit({ limit: 5, window: 300, keyPrefix: 'onboarding' }), asy
 
         if (['growth', 'scale'].includes(tier)) {
             // Check for System Admin Bypass
-            if (user.isSystemAdmin) {
+            if (user.isPlatformAdmin) {
                 subscriptionStatus = 'active';
                 stripeSubscriptionId = 'COMPED_ADMIN';
             } else {
@@ -158,6 +192,50 @@ app.post('/', rateLimit({ limit: 5, window: 300, keyPrefix: 'onboarding' }), asy
         } catch (e) {
             console.error("Failed to log audit event", e);
             // Non-blocking
+        }
+
+        // 6. Notifications
+        if (c.env.RESEND_API_KEY) {
+            try {
+                const { EmailService } = await import('../services/email');
+                // Use Platform API Key for onboarding notifications
+                // Pass db and tenantId for logging
+                const emailService = new EmailService(
+                    c.env.RESEND_API_KEY,
+                    undefined,
+                    undefined,
+                    undefined,
+                    false,
+                    db,
+                    tenantId
+                );
+
+                const profile = user.profile as any || {};
+                const ownerName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Studio Owner';
+                // Construct Login URL - assuming standard subdomain or main app
+                // For dev/test: http://localhost:5173 or similar, but in prod it's ...
+                // Let's use origin logic helper or just hardcode main app URL?
+                // `c.req.url` origin might be API. Web is usually `studio-platform-web.pages.dev`
+                // Let's make a best guess or use env var if we had `WEB_URL`.
+                // For now: https://studio-platform-web.pages.dev
+                const loginUrl = 'https://studio-platform-web.pages.dev/login';
+
+                // 6a. Welcome Owner
+                c.executionCtx.waitUntil(emailService.sendWelcomeOwner(user.email, ownerName, newTenant.name, loginUrl));
+
+                // 6b. Alert Admin
+                // Use configured admin email or fallback to a known hardcoded one for now if ENV missing
+                const adminEmail = c.env.PLATFORM_ADMIN_EMAIL || 'slichti@gmail.com'; // Fallback
+                c.executionCtx.waitUntil(emailService.sendNewTenantAlert(adminEmail, {
+                    name: newTenant.name,
+                    slug: newTenant.slug,
+                    tier: newTenant.tier,
+                    ownerEmail: user.email
+                }));
+
+            } catch (e) {
+                console.error("Failed to send onboarding notifications", e);
+            }
         }
 
         return c.json({ tenant: newTenant }, 201);

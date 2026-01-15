@@ -42,7 +42,16 @@ export class BookingService {
                     branding: member.tenant?.branding as any,
                     settings: member.tenant?.settings as any
                 };
-                const emailService = new EmailService(this.env.RESEND_API_KEY, emailConfig);
+                const emailService = new EmailService(
+                    this.env.RESEND_API_KEY,
+                    emailConfig,
+                    undefined,
+                    undefined,
+                    false,
+                    this.db,
+                    member.tenantId
+                );
+
 
                 await emailService.notifyNoShow(
                     member.user.email,

@@ -107,7 +107,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 };
 
 export default function StudioLayout() {
-    const { slug, tenant, me, isPaused, features } = useLoaderData<typeof loader>();
+    const { slug, tenant, me, isPaused, features, token, isImpersonating } = useLoaderData<typeof loader>();
     const { user: clerkUser } = useUser();
     const featureSet = new Set(features);
 
@@ -158,7 +158,10 @@ export default function StudioLayout() {
             <aside className="w-64 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col fixed inset-y-0 z-20 transition-colors duration-300">
                 <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
                     <Link to={`/studio/${slug}`} prefetch="intent" className="flex items-center gap-2 group">
-                        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold group-hover:scale-105 transition-transform">
+                        <div
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold group-hover:scale-105 transition-transform"
+                            style={{ backgroundColor: tenant.branding?.primaryColor || '#2563eb' }}
+                        >
                             {tenant.name.substring(0, 1)}
                         </div>
                         <div className="flex flex-col">
@@ -252,7 +255,7 @@ export default function StudioLayout() {
 
                 <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex flex-col gap-3">
                     {/* View as Student Toggle */}
-                    {!isStudentView && (me?.roles?.includes('owner') || me?.roles?.includes('admin') || (useLoaderData() as any).me?.user?.isPlatformAdmin || (useLoaderData() as any).isImpersonating) && (
+                    {!isStudentView && (me?.roles?.includes('owner') || me?.roles?.includes('admin') || (me?.user as any)?.isPlatformAdmin || isImpersonating) && (
                         <button
                             onClick={toggleStudentView}
                             className="flex items-center gap-2 text-zinc-500 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 text-xs font-medium transition mb-1"
@@ -263,7 +266,7 @@ export default function StudioLayout() {
                     )}
 
                     {/* System Admin Escape Hatch */}
-                    {((useLoaderData() as any).me?.user?.isPlatformAdmin || (useLoaderData() as any).isImpersonating) && !isStudentView && (
+                    {((me?.user as any)?.isPlatformAdmin || isImpersonating) && !isStudentView && (
                         <a href="/admin" className="flex items-center gap-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 text-xs font-medium transition mb-1"
                         >
                             <Users size={14} />
@@ -290,7 +293,7 @@ export default function StudioLayout() {
             <main className="flex-1 ml-64 flex flex-col min-w-0 relative">
 
                 {/* Impersonation Banner */}
-                {(useLoaderData() as any).isImpersonating && (
+                {isImpersonating && (
                     <ImpersonationBanner
                         tenantName={tenant.name}
                         userName={`${me.firstName} ${me.lastName}`}
@@ -394,7 +397,7 @@ export default function StudioLayout() {
                     <Outlet context={{ tenant, me, features: featureSet, roles: effectiveRoles, isStudentView }} />
                 </div>
                 {!isStudentView && (
-                    <CommandBar token={(useLoaderData() as any).token} />
+                    <CommandBar token={token || ''} />
                 )}
 
                 {/* Tenant Google Analytics */}
@@ -418,6 +421,7 @@ export default function StudioLayout() {
                 userName={`${me.firstName} ${me.lastName}`}
                 enabled={!isStudentView || tenant.settings?.chatEnabled !== false}
                 chatConfig={isStudentView ? tenant.settings?.chatConfig : undefined}
+                apiUrl={(typeof window !== 'undefined' ? (window as any).ENV?.API_URL : '')}
             />
         </div>
     );

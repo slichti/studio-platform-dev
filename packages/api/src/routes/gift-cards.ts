@@ -143,7 +143,7 @@ app.post('/issue', async (c) => {
     // 2. Send Email Notification
     if (recipientEmail) {
         try {
-            const emailService = new EmailService(c.env.RESEND_API_KEY, tenant as any);
+            const emailService = new EmailService(c.env.RESEND_API_KEY, tenant as any, undefined, undefined, false, db, tenant.id);
             await emailService.sendGenericEmail(
                 recipientEmail,
                 `You've received a Gift Card from ${tenant.name}!`,
@@ -312,7 +312,7 @@ app.post('/:id/resend', async (c) => {
     if (!card.recipientEmail) return c.json({ error: 'No recipient email on file' }, 400);
 
     try {
-        const emailService = new EmailService(c.env.RESEND_API_KEY, tenant as any);
+        const emailService = new EmailService(c.env.RESEND_API_KEY, tenant as any, undefined, undefined, false, db, tenant.id);
         await emailService.sendGenericEmail(
             card.recipientEmail,
             `Resent: You've received a Gift Card from ${tenant.name}!`,

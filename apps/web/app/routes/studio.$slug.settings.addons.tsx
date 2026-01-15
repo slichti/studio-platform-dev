@@ -30,17 +30,17 @@ export const loader: LoaderFunction = async (args: any) => {
     // We can get ID from `GET /tenants/lookup?slug=x` or similar.
     // Optimization: Just assume we can toggle via a known endpoint.
 
-    // Let's try to fetch /admin/tenants/current/features if we implemented 'current' alias, or just fetch tenant first.
+    // Use /tenant/info to rely on tenant middleware to resolve context
+    // This returns { features: [...] } which works for us.
     let features: any[] = [];
     let tenantId = "";
     try {
-        const tenantRes = await apiRequest(`/tenants/${slug}`, token);
-        tenantId = tenantRes.id;
-
-        if (tenantId) {
-            const featuresRes = await apiRequest(`/admin/tenants/${tenantId}/features`, token);
-            features = featuresRes || [];
-        }
+        // We use X-Tenant-Slug header to be safe, though /tenant/info normally uses context from domain/path
+        const info = await apiRequest(`/tenant/info`, token, { headers: { 'X-Tenant-Slug': slug } });
+        tenantId = info.id;
+        // Map feature strings to objects if needed, or just check inclusion.
+        // The API returns features: string[]
+        features = (info.features || []).map((f: string) => ({ featureKey: f, enabled: true }));
     } catch (e) {
         console.error("Failed to load addons", e);
     }
@@ -61,19 +61,25 @@ export default function AddonsPage() {
         const newState = !smsEnabled;
 
         try {
-            await apiRequest(`/admin/tenants/${tenantId}/features`, token, {
-                method: "POST", // Upsert
+            await apiRequest(`/tenant/features`, token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': slug },
                 body: JSON.stringify({
                     featureKey: 'sms',
-                    enabled: newState,
-                    source: 'manual' // logic would be 'subscription' in real stripe integ
+                    enabled: newState
                 })
             });
             // Refresh
-            const res = await apiRequest(`/admin/tenants/${tenantId}/features`, token);
-            setFeatures(res);
+            // Optimistic update or reload
+            if (newState) {
+                setFeatures([...features, { featureKey: 'sms', enabled: true }]);
+            } else {
+                setFeatures(features.filter((f: any) => f.featureKey !== 'sms'));
+            }
+            toast.success(`SMS Add-on ${newState ? 'enabled' : 'disabled'}`);
         } catch (e) {
             toast.error("Failed to update add-on");
+            console.error(e);
         } finally {
             setLoading(null);
         }

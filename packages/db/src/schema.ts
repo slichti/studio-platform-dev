@@ -495,8 +495,11 @@ export const emailLogs = sqliteTable('email_logs', {
     campaignId: text('campaign_id'), // Optional, null if transactional
     recipientEmail: text('recipient_email').notNull(),
     subject: text('subject').notNull(),
+    templateId: text('template_id'), // e.g. 'welcome_owner'
+    data: text('data', { mode: 'json' }), // Payload for replay capability
 
     status: text('status', { enum: ['sent', 'failed', 'bounced'] }).default('sent'), // Simulated status
+    error: text('error'), // Failure reason
     sentAt: integer('sent_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 
     metadata: text('metadata', { mode: 'json' }), // Extra debug info

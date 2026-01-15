@@ -95,7 +95,8 @@ app.post('/churn-check', async (c) => {
                         const emailService = new EmailService(c.env.RESEND_API_KEY, {
                             branding: tenant.branding as any,
                             settings: tenant.settings as any
-                        });
+                        }, undefined, undefined, false, db, tenant.id);
+
 
                         const subject = churnSettings.automations?.subject || "We miss you!";
                         const body = churnSettings.automations?.body || "<p>We noticed you haven't visited in a while. Come back soon!</p>";
