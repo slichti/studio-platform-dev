@@ -1,11 +1,12 @@
 
 import { useState } from "react";
 // @ts-ignore
-import { useOutletContext, Form } from "react-router";
+import { useOutletContext, Form, useRevalidator } from "react-router";
 import { apiRequest } from "../utils/api";
 
 export default function StudioBranding() {
     const { tenant } = useOutletContext<any>();
+    const revalidator = useRevalidator();
     const [primaryColor, setPrimaryColor] = useState(tenant.branding?.primaryColor || '#4f46e5');
     const [replyTo, setReplyTo] = useState(tenant.branding?.emailReplyTo || '');
     const [footerText, setFooterText] = useState(tenant.branding?.emailFooterText || '');
@@ -13,6 +14,9 @@ export default function StudioBranding() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+
+    // Normalize tier check to be case-insensitive
+    const isScaleTier = tenant.tier?.toLowerCase() === 'scale';
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -36,8 +40,8 @@ export default function StudioBranding() {
                 })
             });
             setSuccess("Branding saved successfully.");
-            // Reload to update Sidebar icon immediately
-            setTimeout(() => window.location.reload(), 500);
+            // Refresh layout to update Sidebar icon immediately
+            revalidator.revalidate();
         } catch (e: any) {
             setError(e.message || "Failed to save branding.");
         } finally {
@@ -50,6 +54,7 @@ export default function StudioBranding() {
             <div className="mb-8">
                 <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Customize Branding</h1>
                 <p className="text-zinc-500 dark:text-zinc-400">Manage your studio's look and feel.</p>
+                <p className="text-xs text-zinc-400 mt-1">Current tier: <strong className="font-mono">{tenant.tier || 'unknown'}</strong></p>
             </div>
 
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm">
@@ -132,18 +137,18 @@ export default function StudioBranding() {
                                     type="checkbox"
                                     checked={hidePoweredBy}
                                     onChange={(e) => setHidePoweredBy(e.target.checked)}
-                                    disabled={tenant.tier !== 'scale'}
+                                    disabled={!isScaleTier}
                                     className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                                 />
                             </div>
                             <div className="text-sm">
-                                <label htmlFor="hidePoweredBy" className={`font-medium ${tenant.tier !== 'scale' ? 'text-zinc-400' : 'text-zinc-900 dark:text-zinc-100'}`}>
+                                <label htmlFor="hidePoweredBy" className={`font-medium ${!isScaleTier ? 'text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-zinc-100'}`}>
                                     Hide "Powered by StudioPlatform" badge
                                 </label>
                                 <p className="text-zinc-500 dark:text-zinc-400">
                                     Remove the branding badge from your site footer.
-                                    {tenant.tier !== 'scale' && (
-                                        <span className="text-amber-600 dark:text-amber-500 ml-1">
+                                    {!isScaleTier && (
+                                        <span className="text-pink-600 dark:text-pink-400 ml-1 font-medium">
                                             Requires Scale tier.
                                         </span>
                                     )}
