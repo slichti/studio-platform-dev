@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantMembers, tenantRoles, users, auditLogs } from 'db/src/schema'; // Ensure exported
+import { tenants, tenantMembers, tenantRoles, users, auditLogs, websitePages } from 'db/src/schema';
 import { eq } from 'drizzle-orm';
 import { rateLimit } from '../middleware/rateLimit';
 
@@ -172,6 +172,60 @@ app.post('/studio', rateLimit({ limit: 5, window: 300, keyPrefix: 'onboarding' }
             memberId,
             role: 'owner'
         }).run();
+
+        // 4b. Create Default Home Page for Public Access
+        try {
+            const defaultHomePageContent = {
+                root: {
+                    props: {
+                        title: newTenant.name,
+                        chatEnabled: true
+                    }
+                },
+                content: [
+                    {
+                        type: 'Hero',
+                        props: {
+                            title: `Welcome to ${newTenant.name}`,
+                            subtitle: 'Discover your practice with us',
+                            ctaText: 'View Schedule',
+                            ctaLink: `/studio/${newTenant.slug}/classes`,
+                            backgroundImage: ''
+                        }
+                    },
+                    {
+                        type: 'ClassSchedule',
+                        props: {
+                            title: 'Upcoming Classes',
+                            showDays: 7,
+                            tenantSlug: newTenant.slug
+                        }
+                    },
+                    {
+                        type: 'ContactForm',
+                        props: {
+                            title: 'Get in Touch',
+                            email: user.email
+                        }
+                    }
+                ],
+                zones: {}
+            };
+
+            await db.insert(websitePages).values({
+                id: crypto.randomUUID(),
+                tenantId: tenantId,
+                slug: 'home',
+                title: 'Home',
+                content: defaultHomePageContent,
+                isPublished: true,
+                seoTitle: newTenant.name,
+                seoDescription: `Welcome to ${newTenant.name}. View our class schedule and book your next session.`
+            }).run();
+        } catch (e) {
+            console.error('Failed to create default home page', e);
+            // Non-blocking - studio still works, just no public page
+        }
 
         // 5. Admin Audit Log (New Tenant)
         try {
