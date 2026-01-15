@@ -786,7 +786,7 @@ const loader$1i = async ({
     pageSlug
   } = params;
   try {
-    const page = await apiRequest(`/website/pages/${pageSlug}`, null, {
+    const page = await apiRequest(`/website/public/pages/${pageSlug}`, null, {
       headers: {
         "X-Tenant-Slug": slug || ""
       }
