@@ -1,12 +1,13 @@
 
 import { useState } from "react";
 // @ts-ignore
-import { useOutletContext, useLoaderData } from "react-router";
+import { useOutletContext, useLoaderData, useRevalidator } from "react-router";
 import { apiRequest } from "../utils/api";
 import { getAuth } from "@clerk/react-router/server";
 import { Upload, X, Trash2, Video, CheckCircle, Circle, Play, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmationDialog } from "~/components/Dialogs";
+
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -22,6 +23,7 @@ export const loader = async (args: any) => {
 export default function StudioBranding() {
     const { tenant } = useOutletContext<any>();
     const { assets: initialAssets } = useLoaderData();
+    const revalidator = useRevalidator();
     const [assets, setAssets] = useState(initialAssets);
     const [brandingConfirmId, setBrandingConfirmId] = useState<string | null>(null);
 
@@ -60,6 +62,8 @@ export default function StudioBranding() {
                 })
             });
             setSuccess("Branding saved successfully.");
+            // Revalidate to refresh the layout with new branding (e.g., sidebar icon color)
+            revalidator.revalidate();
         } catch (e: any) {
             setError(e.message || "Failed to save branding.");
         } finally {
@@ -284,20 +288,26 @@ export default function StudioBranding() {
                         </div>
                     </div>
                     <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
-                        <div className="flex items-center gap-3">
+                        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Platform Branding</h2>
+                        <div className="flex items-start gap-3">
                             <input
                                 id="hidePoweredBy"
                                 type="checkbox"
                                 checked={hidePoweredBy}
                                 onChange={(e) => setHidePoweredBy(e.target.checked)}
                                 disabled={tenant.tier?.toLowerCase() !== 'scale'}
-                                className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                                className="h-4 w-4 mt-0.5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
                             />
                             <div className="text-sm">
-                                <label htmlFor="hidePoweredBy" className={`font-medium ${tenant.tier?.toLowerCase() !== 'scale' ? 'text-zinc-400' : 'text-zinc-900'}`}>
+                                <label htmlFor="hidePoweredBy" className={`font-medium ${tenant.tier?.toLowerCase() !== 'scale' ? 'text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-zinc-100'}`}>
                                     Hide "Powered by StudioPlatform" badge
                                 </label>
-                                <p className="text-zinc-500 text-xs mt-0.5">Scale tier required.</p>
+                                <p className="text-zinc-500 dark:text-zinc-400 text-xs mt-0.5">
+                                    Remove the branding badge from your site footer.
+                                    {tenant.tier?.toLowerCase() !== 'scale' && (
+                                        <span className="text-pink-600 dark:text-pink-400 ml-1 font-medium">Requires Scale tier.</span>
+                                    )}
+                                </p>
                             </div>
                         </div>
                     </div>
