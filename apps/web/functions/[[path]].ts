@@ -61,6 +61,19 @@ export const onRequest: PagesFunction = async (context) => {
     // Apply subdomain detection and URL rewriting
     const rewrittenRequest = handleSubdomain(context.request);
 
-    // Pass to React Router with potentially rewritten URL
-    return requestHandler(rewrittenRequest, context);
+    // Pass to React Router with enhanced context matching Cloudflare Workers adapter expectations
+    const loadContext = {
+        ...context,
+        cloudflare: {
+            // @ts-ignore
+            cf: rewrittenRequest.cf || context.request.cf,
+            env: context.env,
+            ctx: {
+                waitUntil: context.waitUntil.bind(context),
+                passThroughOnException: context.passThroughOnException.bind(context),
+            }
+        }
+    };
+
+    return requestHandler(rewrittenRequest, loadContext);
 };
