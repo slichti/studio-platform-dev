@@ -216,14 +216,17 @@ export default function GiftCardsPage() {
                         <Gift className="text-blue-600" /> Gift Cards
                     </h1>
                     <p className="text-sm text-zinc-500 mt-1">
-                        {isAdmin ? "Manage store credit and issue cards." : "View your balance or send a gift."}
+                        {isAdmin ? "Issue and manage gift cards. Sell them at checkout via POS." : "View your balance or purchase a gift card."}
                     </p>
                 </div>
 
-                <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
-                    <button onClick={() => setActiveTab('list')} className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'list' ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm' : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400'}`}>{isAdmin ? "Manage Cards" : "My Cards"}</button>
-                    <button onClick={() => setActiveTab('buy')} className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'buy' ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm' : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400'}`}>Purchase Gift Card</button>
-                </div>
+                {/* Only show tabs for non-admin users */}
+                {!isAdmin && (
+                    <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
+                        <button onClick={() => setActiveTab('list')} className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'list' ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm' : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400'}`}>My Cards</button>
+                        <button onClick={() => setActiveTab('buy')} className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'buy' ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm' : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400'}`}>Buy Gift Card</button>
+                    </div>
+                )}
 
                 <div className="flex gap-2">
                     {activeTab === 'list' && !isAdmin && (
@@ -239,7 +242,8 @@ export default function GiftCardsPage() {
                 </div>
             </div>
 
-            {activeTab === 'list' ? (
+            {/* Show list view for admins always, or when list tab selected for non-admins */}
+            {(isAdmin || activeTab === 'list') ? (
                 <div className="space-y-8">
                     {/* Stats */}
                     {isAdmin ? (
@@ -380,7 +384,7 @@ export default function GiftCardsPage() {
                     </div>
                 </div>
             ) : (
-                /* BUY TAB CONTENT (Same as before) */
+                /* BUY TAB CONTENT (Only for non-admin users) */
                 <div className="max-w-3xl mx-auto">
                     <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-xl overflow-hidden">
                         <div className="p-8 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/30">
