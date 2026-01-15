@@ -46,6 +46,8 @@ function handleSubdomain(request: Request): Request {
             headers: request.headers,
             body: request.body,
             redirect: request.redirect,
+            // @ts-ignore - Cloudflare specific
+            cf: (request as any).cf,
         });
     }
 
