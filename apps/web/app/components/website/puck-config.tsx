@@ -23,11 +23,13 @@ const Hero = ({ title, subtitle, ctaText, ctaLink, backgroundImage }: any) => (
     </section>
 );
 
+import DOMPurify from 'isomorphic-dompurify';
+
 // Text Block
 const TextBlock = ({ content, alignment }: any) => (
     <section className="py-12 px-8">
         <div className={`max-w-3xl mx-auto prose prose-lg ${alignment === 'center' ? 'text-center' : ''}`}>
-            <div dangerouslySetInnerHTML={{ __html: content || "<p>Add your content here...</p>" }} />
+            <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content || "<p>Add your content here...</p>") }} />
         </div>
     </section>
 );

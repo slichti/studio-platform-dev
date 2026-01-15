@@ -1,9 +1,6 @@
-import { type LoaderFunctionArgs, type MetaFunction, Link, useLoaderData } from "react-router";
-import { Render } from "@measured/puck";
-import { puckConfig } from "~/components/website/puck-config";
-import { apiRequest } from "~/utils/api";
-import { SignedIn, useUser } from "@clerk/react-router";
-import { Edit2 } from "lucide-react";
+import { type LoaderFunctionArgs, type MetaFunction, useLoaderData } from "react-router";
+import { getStudioPage, getSubdomain } from "~/utils/subdomain.server";
+import { PublicPageRenderer } from "~/components/website/PublicPageRenderer";
 
 export const meta: MetaFunction = ({ data }: any) => {
     if (!data?.page) {
@@ -15,41 +12,34 @@ export const meta: MetaFunction = ({ data }: any) => {
     ];
 };
 
-export const loader = async ({ params }: LoaderFunctionArgs) => {
+export async function loader({ request, params }: LoaderFunctionArgs) {
+    const subdomain = getSubdomain(request);
     const { pageSlug } = params;
 
-    try {
-        // Fetch platform page content (public endpoint)
-        const page = await apiRequest<any>(`/platform-pages/pages/${pageSlug}`, null);
-        return { page };
-    } catch (e: any) {
-        console.error("Failed to load platform page:", e);
-        // Important: throw 404 to let other routes potentially match or show 404 page
+    if (!subdomain) {
+        // Platform domain doesn't have dynamic page routing at root level yet
+        throw new Response("Not Found", { status: 404 });
+    }
+
+    if (!pageSlug) {
+        throw new Response("Not Found", { status: 404 });
+    }
+
+    // info: /classes, /about, etc.
+    const page = await getStudioPage(subdomain, pageSlug);
+
+    if (!page) {
         throw new Response("Page Not Found", { status: 404 });
     }
-};
 
-export default function PlatformPage() {
-    const { page } = useLoaderData<typeof loader>();
-    const { user } = useUser();
-    const isPlatformAdmin = !!user?.publicMetadata?.isPlatformAdmin;
+    return {
+        page,
+        tenantSlug: subdomain
+    };
+}
 
-    return (
-        <div className="min-h-screen bg-white">
-            <Render config={puckConfig} data={page.content} />
+export default function DynamicPage() {
+    const { page, tenantSlug } = useLoaderData<typeof loader>();
 
-            {/* Admin Edit Shortcut */}
-            {isPlatformAdmin && (
-                <div className="fixed bottom-6 right-6 z-50">
-                    <Link
-                        to={`/admin/website/edit/${page.id}`}
-                        className="flex items-center gap-2 bg-zinc-900 text-white px-4 py-2.5 rounded-full shadow-lg hover:bg-zinc-800 transition-transform hover:scale-105"
-                    >
-                        <Edit2 size={16} />
-                        <span className="font-medium text-sm">Edit Platform Page</span>
-                    </Link>
-                </div>
-            )}
-        </div>
-    );
+    return <PublicPageRenderer page={page} tenantSlug={tenantSlug} />;
 }

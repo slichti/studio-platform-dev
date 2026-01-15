@@ -1,13 +1,60 @@
 // @ts-ignore
-import type { MetaFunction } from "react-router";
+import { type LoaderFunctionArgs, type MetaFunction } from "react-router";
 // @ts-ignore
-import { Link } from "react-router";
+import { Link, useLoaderData } from "react-router";
 import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/react-router";
 import { ThemeToggle } from "~/components/ThemeToggle";
 import { ChatWidget } from "~/components/chat/ChatWidget";
+import { getStudioPage, getSubdomain } from "~/utils/subdomain.server";
+import { PublicPageRenderer } from "~/components/website/PublicPageRenderer";
+
+export const meta: MetaFunction = ({ data }: any) => {
+    if (data?.isStudioPage && data?.page) {
+        return [
+            { title: data.page.seoTitle || data.page.title },
+            { name: "description", content: data.page.seoDescription || "" },
+        ];
+    }
+    return [
+        { title: "Studio Platform" },
+        { name: "description", content: "Modern Studio Management Platform" },
+    ];
+};
+
+export async function loader({ request }: LoaderFunctionArgs) {
+    const subdomain = getSubdomain(request);
+
+    if (subdomain) {
+        // Fetch the 'home' page for this studio
+        const page = await getStudioPage(subdomain, 'home');
+        if (page) {
+            return {
+                isStudioPage: true,
+                page,
+                tenantSlug: subdomain
+            };
+        }
+        // If subdomain exists but no home page, we could 404 or fall through
+        // For now, let's returned a limited state or fall through to platform home (maybe with a warning?)
+        // Better to fall through for now if not found, or maybe standard 404?
+        // Let's assume valid studio subdomain should have a home page.
+    }
+
+    return {
+        isStudioPage: false,
+        page: null,
+        tenantSlug: null
+    };
+}
 
 export default function Index() {
     const { user } = useUser();
+    const data = useLoaderData<typeof loader>();
+
+    // If it's a studio page, render that instead of platform home
+    if (data.isStudioPage && data.page) {
+        return <PublicPageRenderer page={data.page} tenantSlug={data.tenantSlug || ""} />;
+    }
 
     return (
         <div className="font-sans min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 transition-colors duration-300">
@@ -151,7 +198,7 @@ export default function Index() {
                 userId={user?.id}
                 userName={user?.fullName || "Guest"}
             />
-        </div >
+        </div>
     );
 }
 
