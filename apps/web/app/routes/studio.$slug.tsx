@@ -217,7 +217,7 @@ export default function StudioLayout() {
                                 <NavItem to={`/studio/${slug}/leads`} icon={<User size={18} />}>Leads</NavItem>
                                 <NavItem to={`/studio/${slug}/tasks`} icon={<ListTodo size={18} />}>Tasks</NavItem>
                                 {(featureSet.has('marketing') || ['growth', 'scale'].includes(tenant.tier)) && (
-                                    <NavItem to={`/studio/${slug}/marketing`} icon={<Mail size={18} />}>Marketing</NavItem>
+                                    <NavItem to={`/studio/${slug}/marketing`} icon={<Mail size={18} />}>Email Automations</NavItem>
                                 )}
                                 {(featureSet.has('loyalty') || ['growth', 'scale'].includes(tenant.tier)) && (
                                     <NavItem to={`/studio/${slug}/loyalty`} icon={<Award size={18} />}>Loyalty</NavItem>

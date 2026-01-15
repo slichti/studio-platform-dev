@@ -6,7 +6,8 @@ import { getAuth } from "@clerk/react-router/server";
 import { useAuth } from "@clerk/react-router";
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";
-import { Send, Mail, CheckCircle, AlertTriangle, Sparkles, Pencil, X, Zap, Clock, Calendar, Plus, Trash2 } from "lucide-react"; // Added Plus, Trash2
+import { useOutletContext } from "react-router";
+import { Send, Mail, CheckCircle, AlertTriangle, Sparkles, Pencil, X, Zap, Clock, Calendar, Plus, Trash2, Settings } from "lucide-react"; // Added Plus, Trash2, Settings
 import { Modal } from "~/components/Modal";
 import { RichTextEditor } from "~/components/RichTextEditor";
 
@@ -34,7 +35,7 @@ export const loader: LoaderFunction = async (args: any) => {
 export default function MarketingPage() {
     const { campaigns: initialCampaigns, automations: initialAutomations, slug } = useLoaderData<any>();
     const { getToken } = useAuth();
-    const [tab, setTab] = useState<'broadcast' | 'automation'>('broadcast');
+    const [tab, setTab] = useState<'broadcast' | 'automation' | 'settings'>('broadcast');
 
     // UI Feedback State
     const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
@@ -79,6 +80,12 @@ export default function MarketingPage() {
         setTimeout(() => setNotification(null), 3000);
     };
     const [testEmail, setTestEmail] = useState("");
+
+    // Email Settings State (from tenant branding)
+    const { tenant } = useOutletContext<any>();
+    const [replyTo, setReplyTo] = useState(tenant?.branding?.emailReplyTo || '');
+    const [footerText, setFooterText] = useState(tenant?.branding?.emailFooterText || '');
+    const [savingSettings, setSavingSettings] = useState(false);
 
     async function handleSendBroadcast(e: React.FormEvent) {
         e.preventDefault();
@@ -268,6 +275,29 @@ export default function MarketingPage() {
         }
     }
 
+    async function handleSaveEmailSettings(e: React.FormEvent) {
+        e.preventDefault();
+        setSavingSettings(true);
+        try {
+            const token = await getToken();
+            await apiRequest(`/tenant/settings`, token, {
+                method: "PATCH",
+                headers: { 'X-Tenant-Slug': slug },
+                body: JSON.stringify({
+                    branding: {
+                        emailReplyTo: replyTo,
+                        emailFooterText: footerText
+                    }
+                })
+            });
+            showNotification("Email settings saved successfully!");
+        } catch (e: any) {
+            showNotification("Failed to save: " + e.message, 'error');
+        } finally {
+            setSavingSettings(false);
+        }
+    }
+
     return (
         <div className="max-w-6xl mx-auto py-8 px-4 relative">
             {/* Notification Toast */}
@@ -281,8 +311,8 @@ export default function MarketingPage() {
             )}
 
             <div className="mb-8">
-                <h1 className="text-3xl font-bold text-zinc-900">Marketing</h1>
-                <p className="text-zinc-500">Engage your students with broadcasts and automations.</p>
+                <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">Email Automations</h1>
+                <p className="text-zinc-500 dark:text-zinc-400">Engage your students with broadcasts, automations, and email settings.</p>
             </div>
 
             {/* Tabs */}
@@ -302,6 +332,14 @@ export default function MarketingPage() {
                 >
                     Automations
                     {tab === 'automation' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600" />}
+                </button>
+                <button
+                    onClick={() => setTab('settings')}
+                    className={`pb-3 px-1 font-medium text-sm transition-colors relative ${tab === 'settings' ? 'text-blue-600' : 'text-zinc-500 hover:text-zinc-700'
+                        }`}
+                >
+                    Settings
+                    {tab === 'settings' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600" />}
                 </button>
             </div>
 
@@ -538,6 +576,65 @@ export default function MarketingPage() {
                                 </div>
                             ))}
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {tab === 'settings' && (
+                <div className="max-w-2xl">
+                    <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg">
+                                <Settings className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div>
+                                <h2 className="font-semibold text-lg text-zinc-900 dark:text-zinc-100">Email Settings</h2>
+                                <p className="text-sm text-zinc-500 dark:text-zinc-400">Configure how your emails appear to students.</p>
+                            </div>
+                        </div>
+
+                        <form onSubmit={handleSaveEmailSettings} className="space-y-5">
+                            <div>
+                                <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">
+                                    Reply-To Address
+                                </label>
+                                <input
+                                    type="email"
+                                    value={replyTo}
+                                    onChange={(e) => setReplyTo(e.target.value)}
+                                    className="w-full bg-transparent text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                    placeholder="hello@yourstudio.com"
+                                />
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                                    This is the email address students will reply to.
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">
+                                    Email Footer Text
+                                </label>
+                                <textarea
+                                    value={footerText}
+                                    onChange={(e) => setFooterText(e.target.value)}
+                                    className="w-full min-h-[80px] bg-transparent text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-y"
+                                    placeholder="e.g. 123 Yoga St, City, ST 12345"
+                                />
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                                    Address or legal text to include at the bottom of every email.
+                                </p>
+                            </div>
+
+                            <div className="pt-2">
+                                <button
+                                    type="submit"
+                                    disabled={savingSettings}
+                                    className={`bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-5 py-2.5 rounded-md font-medium text-sm hover:opacity-90 transition-opacity ${savingSettings ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                >
+                                    {savingSettings ? 'Saving...' : 'Save Settings'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

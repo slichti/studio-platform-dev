@@ -258,35 +258,6 @@ export default function StudioBranding() {
                             </div>
                         </div>
                     </div>
-
-                    <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
-                        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Email Settings</h2>
-
-                        <div className="mb-4">
-                            <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">
-                                Reply-To Address
-                            </label>
-                            <input
-                                type="email"
-                                value={replyTo}
-                                onChange={(e) => setReplyTo(e.target.value)}
-                                className="w-full bg-transparent text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                placeholder="hello@yourstudio.com"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">
-                                Email Footer Text
-                            </label>
-                            <textarea
-                                value={footerText}
-                                onChange={(e) => setFooterText(e.target.value)}
-                                className="w-full min-h-[80px] bg-transparent text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-y"
-                                placeholder="e.g. 123 Yoga St, City, ST"
-                            />
-                        </div>
-                    </div>
                     <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
                         <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Platform Branding</h2>
                         <div className="flex items-start gap-3">
