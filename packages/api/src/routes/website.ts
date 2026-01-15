@@ -7,6 +7,48 @@ import { tenantMiddleware, requireFeature } from '../middleware/tenant';
 
 const app = new Hono<{ Bindings: any; Variables: any }>();
 
+// --- PUBLIC ROUTES (no auth required) ---
+// These must be defined BEFORE the auth middleware is applied
+
+// Get single PUBLISHED page by slug (public access for /site/ route)
+app.get('/public/pages/:slug', async (c) => {
+    const db = drizzle(c.env.DB, { schema });
+    const tenantSlug = c.req.header('X-Tenant-Slug');
+
+    if (!tenantSlug) {
+        return c.json({ error: 'Tenant slug required' }, 400);
+    }
+
+    // First get tenant by slug
+    const tenant = await db.query.tenants.findFirst({
+        where: eq(schema.tenants.slug, tenantSlug),
+    });
+
+    if (!tenant) {
+        return c.json({ error: 'Tenant not found' }, 404);
+    }
+
+    const slug = c.req.param('slug');
+
+    // Only return PUBLISHED pages
+    const page = await db.query.websitePages.findFirst({
+        where: and(
+            eq(schema.websitePages.tenantId, tenant.id),
+            eq(schema.websitePages.slug, slug),
+            eq(schema.websitePages.isPublished, true)
+        ),
+    });
+
+    if (!page) {
+        return c.json({ error: 'Page not found' }, 404);
+    }
+
+    const settings = (tenant.settings as any) || {};
+
+    return c.json({ ...page, tenantSettings: settings });
+});
+
+// --- AUTHENTICATED ROUTES ---
 // Apply auth & tenant middleware
 app.use('/*', authMiddleware);
 app.use('/*', tenantMiddleware);

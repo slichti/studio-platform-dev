@@ -20,10 +20,9 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
     const { slug, pageSlug } = params;
 
     try {
-        // Fetch page content (public endpoint)
+        // Fetch page content (public endpoint - no auth required)
         // We use the tenant slug header to identify the tenant
-        // No auth token needed for public page viewing
-        const page = await apiRequest<any>(`/website/pages/${pageSlug}`, null, {
+        const page = await apiRequest<any>(`/website/public/pages/${pageSlug}`, null, {
             headers: {
                 "X-Tenant-Slug": slug || ""
             }
