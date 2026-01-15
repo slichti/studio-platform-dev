@@ -258,6 +258,8 @@ studioApp.get('/info', async (c) => {
     id: tenant.id,
     name: tenant.name,
     slug: tenant.slug,
+    tier: tenant.tier,
+    status: tenant.status,
     customDomain: tenant.customDomain,
     settings: tenant.settings,
     mobileAppConfig: tenant.mobileAppConfig, // Added
