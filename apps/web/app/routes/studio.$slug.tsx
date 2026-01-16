@@ -36,7 +36,8 @@ import {
     Database,
     Smartphone,
     MessageSquare,
-    CircleHelp
+    CircleHelp,
+    QrCode
 } from "lucide-react";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { CommandBar } from "../components/CommandBar";
@@ -239,6 +240,7 @@ export default function StudioLayout() {
                                 {tenant.platformFeatures?.feature_mobile_app && (
                                     <NavItem to={`/studio/${slug}/settings/mobile`} icon={<Smartphone size={18} />}>Mobile App</NavItem>
                                 )}
+                                <NavItem to={`/studio/${slug}/settings/qr`} icon={<QrCode size={18} />}>QR Codes</NavItem>
                                 <NavItem to={`/studio/${slug}/settings/integrations`} icon={<Terminal size={18} />}>Integrations</NavItem>
                                 <NavItem to={`/studio/${slug}/settings/chat`} icon={<MessageSquare size={18} />}>Chat Settings</NavItem>
                                 <NavItem to={`/studio/${slug}/data`} icon={<Database size={18} />}>Data</NavItem>
