@@ -11,6 +11,7 @@
     "dev": "react-router dev",
     "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
     "start": "wrangler pages dev ./build/client",
+    "deploy": "wrangler pages deploy ./build/client --project-name studio-platform-web",
     "test:e2e": "playwright test",
     "typecheck": "tsc"
   },
@@ -68,7 +69,7 @@
     "typescript": "^5.9.3",
     "vite": "^7.3.0",
     "vite-tsconfig-paths": "^6.0.3",
-    "wrangler": "^4.57.0"
+    "wrangler": "^4.59.2"
   },
   "engines": {
     "node": ">=18.0.0"

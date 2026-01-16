@@ -15,7 +15,7 @@
         "@playwright/test": "^1.57.0",
         "prettier": "latest",
         "turbo": "latest",
-        "wrangler": "^4.58.0"
+        "wrangler": "^4.59.2"
     },
     "packageManager": "npm@11.7.0",
     "dependencies": {

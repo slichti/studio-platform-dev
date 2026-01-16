@@ -1,29 +1,30 @@
 ---
-description: Deploy the web application to Cloudflare Pages
+description: How to deploy the web application to Cloudflare Pages
 ---
+1.  **Build the application:**
+    Run from the root directory:
+    ```bash
+    npm run build
+    ```
+    (This runs `turbo run build`, ensuring all packages including `api` and `web` are built).
 
-> [!IMPORTANT]
-> This application requires `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` to be set in the Cloudflare Pages project.
-> You can set them in the Cloudflare Dashboard under Settings > Environment variables, or via CLI:
-> `npx wrangler pages secret put CLERK_PUBLISHABLE_KEY --project-name studio-platform-web`
-> `npx wrangler pages secret put CLERK_SECRET_KEY --project-name studio-platform-web`
+2.  **Deploy the web app:**
+    Run the deployment command from within the `apps/web` directory or using the workspace script.
+    **Option A (Recommended):**
+    ```bash
+    npm run deploy -w web
+    ```
+    
+    **Option B (Manual):**
+    ```bash
+    cd apps/web
+    npx wrangler pages deploy ./build/client --project-name studio-platform-web
+    ```
 
-1. Build the web application
-// turbo
-```bash
-cd apps/web
-npm run build
-```
+    > **Important:** Running this from the `apps/web` directory is critical so that Cloudflare Wrangler detects the `functions/` directory for Server-Side Rendering.
 
-2. Deploy to Cloudflare Pages
-// turbo
-```bash
-cd apps/web
-npx wrangler pages deploy ./build/client --project-name studio-platform-web
-```
-
-3. Push commits to remote
-// turbo
-```bash
-git push origin main
-```
+3.  **Deploy the API (if changed):**
+    ```bash
+    npm run deploy:api
+    ```
+    (Or `cd packages/api && npm run deploy`)

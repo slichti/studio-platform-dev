@@ -179,3 +179,35 @@ flowchart TD
     EMAIL --> CALENDAR[Calendar Invite]
     CALENDAR --> END([End])
 ```
+
+## Marketing Automation Flow
+
+```mermaid
+flowchart TD
+    START([Event Trigger]) --> EVENT{Type?}
+    
+    EVENT -->|New Student| SIGNUP[Signup Date]
+    EVENT -->|Subscription| SUB[Sub Created Date]
+    EVENT -->|Status Change| UPDATE[Contact Updated]
+    
+    SIGNUP --> DELAY{Has Delay?}
+    SUB --> DELAY
+    UPDATE --> IMM[Immediate]
+    
+    DELAY -->|No| IMM
+    DELAY -->|Yes| QUEUE[Queue for Later]
+    QUEUE --> WAIT[Wait X Days/Hours]
+    WAIT --> CHECK[Re-check Criteria]
+    CHECK -->|Pass| EXEC[Execute]
+    CHECK -->|Fail| DROP([Drop])
+    
+    IMM --> EXEC
+    
+    EXEC --> CHANNEL{Channel?}
+    CHANNEL -->|Email| RESEND[Send Email]
+    CHANNEL -->|SMS| TWILIO[Send SMS]
+    
+    RESEND --> LOG[Log Interaction]
+    TWILIO --> LOG
+    LOG --> END([End])
+```

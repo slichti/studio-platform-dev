@@ -46,8 +46,20 @@ flowchart TB
     WORKERS --> STRIPE
     WORKERS --> ZOOM
     WORKERS --> RESEND
+    WORKERS --> RESEND
     WORKERS --> TWILIO
     WORKERS --> SVIX
+    
+    subgraph "Automation Engine"
+        AUTO[Automation Service]
+        QUEUE[Task Queue]
+        CRON[Cron Triggers]
+    end
+    
+    WORKERS --> AUTO
+    CRON --> AUTO
+    AUTO --> RESEND
+    AUTO --> TWILIO
 ```
 
 ## Multi-Tenant Architecture
