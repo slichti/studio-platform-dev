@@ -16,12 +16,12 @@ diagnostics.get('/', async (c) => {
     const db = createDb(c.env.DB);
     const userId = c.get('auth').userId;
 
-    // Strict Check: System Admin Only
+    // Strict Check: Platform Admin Only
     const user = await db.query.users.findFirst({
         where: eq(users.id, userId as string)
     });
 
-    if (!user || !user.isSystemAdmin) {
+    if (!user || !user.isPlatformAdmin) {
         return c.json({ error: "Unauthorized" }, 403);
     }
 

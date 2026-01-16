@@ -1433,6 +1433,42 @@ app.post('/tenants', async (c) => {
             role: 'owner'
         }).run();
 
+        // Seed Default Home Page
+        const pageId = crypto.randomUUID();
+        await db.insert(schema.websitePages).values({
+            id: pageId,
+            tenantId,
+            slug: 'home',
+            title: 'Home',
+            content: {
+                root: {
+                    props: { title: "Welcome" },
+                    children: [
+                        {
+                            type: "Hero",
+                            props: {
+                                title: `Welcome to ${name}`,
+                                subtitle: "Discover your practice with us",
+                                actions: [{ label: "View Schedule", href: "/schedule", variant: "primary" }]
+                            }
+                        },
+                        {
+                            type: "FeatureGrid",
+                            props: {
+                                title: "Upcoming Classes",
+                                features: [] // Dynamic loading handled by component usually
+                            }
+                        }
+                    ]
+                }
+            },
+            seoTitle: `Home | ${name}`,
+            seoDescription: `Welcome to ${name}. Join us for classes and workshops.`,
+            isPublished: true, // Auto-publish default home
+            createdAt: new Date(),
+            updatedAt: new Date()
+        }).run();
+
         return c.json(newTenant, 201);
     } catch (e: any) {
         if (e.message?.includes('UNIQUE constraint failed')) {

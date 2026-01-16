@@ -124,25 +124,33 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
 
     if (auth && auth.userId) {
         // Global Admin Check (Original User)
-        let isSystemAdmin = false;
+        let isPlatformAdmin = false;
 
-        // Check 1: Is the current (possibly impersonated) user a System Admin?
+        // Check 1: Is the current (possibly impersonated) user a Platform Admin?
         const dbUser = await db.query.users.findFirst({
             where: eq(users.id, auth.userId)
         });
-        isSystemAdmin = dbUser?.isSystemAdmin === true;
 
-        // Check 2: If Impersonating, is the ACTUAL actor (impersonator) a System Admin?
-        if (!isSystemAdmin && auth.claims?.impersonatorId) {
+        console.log(`[DEBUG] TenantMiddleware: User ${auth.userId} found:`, dbUser ? 'YES' : 'NO');
+        if (dbUser) {
+            console.log(`[DEBUG] User Role: ${dbUser.role}, isPlatformAdmin: ${dbUser.isPlatformAdmin}`);
+        }
+
+        const validAdminRoles = ['owner', 'admin', 'system_admin', 'platform_admin'];
+        isPlatformAdmin = dbUser?.isPlatformAdmin === true || (!!dbUser?.role && validAdminRoles.includes(dbUser.role));
+        console.log(`[DEBUG] isPlatformAdmin resolved to: ${isPlatformAdmin}`);
+
+        // Check 2: If Impersonating, is the ACTUAL actor (impersonator) a Platform Admin?
+        if (!isPlatformAdmin && auth.claims?.impersonatorId) {
             const impersonator = await db.query.users.findFirst({
                 where: eq(users.id, auth.claims.impersonatorId)
             });
-            if (impersonator?.isSystemAdmin) {
-                isSystemAdmin = true;
+            if (impersonator?.isPlatformAdmin || (impersonator?.role && validAdminRoles.includes(impersonator.role))) {
+                isPlatformAdmin = true;
             }
         }
 
-        if (isSystemAdmin) {
+        if (isPlatformAdmin) {
             // Check for Role Override (View As)
             const cookieHeader = c.req.header('Cookie');
             let roleOverride = null;
@@ -178,10 +186,10 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
             const dbRoles = rolesResult.map(r => r.role);
 
             // Only merge if NOT overriding as a lower role (student/instructor)
-            if (!isSystemAdmin || !roles.length || roles.includes('owner')) {
+            if (!isPlatformAdmin || !roles.length || roles.includes('owner')) {
                 roles = [...new Set([...roles, ...dbRoles])];
             }
-        } else if (isSystemAdmin) {
+        } else if (isPlatformAdmin) {
             // Synthesize virtual member for system admins who aren't explicitly members
             c.set('member', {
                 id: `virt_${auth.userId}`,
@@ -199,7 +207,7 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
         c.set('roles', roles);
 
         // 4. Lifecycle Checks
-        if (tenant.status === 'archived' && !isSystemAdmin) {
+        if (tenant.status === 'archived' && !isPlatformAdmin) {
             // Archived tenants are inaccessible except to System Admins (for restoration)
             // Note: If Owners need read-only access to archived tenants, this logic needs adjustment.
             // Requirement says "spin it back up in event of audit", implying it is currently offline.
@@ -207,7 +215,7 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
             return c.json({ error: "This studio has been archived." }, 403);
         }
 
-        if (tenant.studentAccessDisabled && !isSystemAdmin) {
+        if (tenant.studentAccessDisabled && !isPlatformAdmin) {
             const hasPrivilegedRole = roles.some(r => ['owner', 'instructor', 'admin'].includes(r));
             if (!hasPrivilegedRole) {
                 return c.json({ error: "Student access is currently disabled for this studio." }, 403);
