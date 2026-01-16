@@ -18,6 +18,7 @@ type Bindings = {
     DB: D1Database;
     CLERK_SECRET_KEY: string;
     CLERK_PEM_PUBLIC_KEY: string;
+    IMPERSONATION_SECRET?: string;
 };
 
 export const authMiddleware = createMiddleware<{ Variables: AuthVariables, Bindings: Bindings }>(async (c, next) => {
@@ -35,9 +36,12 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables, Bindi
 
     try {
         // 1. Check for Impersonation Token (Custom JWT, HS256)
-        // We use dynamic import or assume hono/jwt is available
+        // We prioritize IMPERSONATION_SECRET but fallback to CLERK_SECRET_KEY for backward compatibility
+        const signingSecret = c.env.IMPERSONATION_SECRET || c.env.CLERK_SECRET_KEY;
         try {
-            const payload = await verify(token, (c.env as any).CLERK_SECRET_KEY);
+            // Updated to pass 'HS256' explicit algorithm if required by Hono types, or just check signature
+            // verify(token, secret, alg)
+            const payload = await verify(token, signingSecret, 'HS256');
             if (payload.impersonatorId || payload.role === 'guest') {
                 c.set('auth', {
                     userId: payload.sub as string,
@@ -147,8 +151,11 @@ export const optionalAuthMiddleware = createMiddleware<{ Variables: AuthVariable
 
     try {
         // 1. Check for Impersonation Token (Custom JWT, HS256)
+        // We use dynamic import or assume hono/jwt is available
         try {
-            const payload = await verify(token, (c.env as any).CLERK_SECRET_KEY);
+            // Check implicit secret or explicit IMPERSONATION_SECRET if available on env (cast as any if Bindings not unified yet)
+            const secret = (c.env as any).IMPERSONATION_SECRET || (c.env as any).CLERK_SECRET_KEY;
+            const payload = await verify(token, secret, 'HS256');
             if (payload.impersonatorId || payload.role === 'guest') {
                 c.set('auth', {
                     userId: payload.sub as string,

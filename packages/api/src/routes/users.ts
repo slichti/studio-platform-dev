@@ -332,7 +332,8 @@ app.post('/me/switch-profile', async (c) => {
     // Use dynamic import for hono/jwt if needed, or standard import
     // We imported verify, let's import sign at top if not present, or use dynamic
     const { sign } = await import('hono/jwt');
-    const token = await sign(payload, (c.env as any).CLERK_SECRET_KEY);
+    const secret = (c.env as any).IMPERSONATION_SECRET || (c.env as any).CLERK_SECRET_KEY;
+    const token = await sign(payload, secret);
 
     return c.json({ token });
 });

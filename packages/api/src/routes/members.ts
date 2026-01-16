@@ -123,6 +123,8 @@ app.post('/', async (c) => {
     }).run();
 
     // 5. Send Invitation Email
+    let emailWarning: string | undefined;
+
     if (c.env.RESEND_API_KEY) {
         try {
             const { EmailService } = await import('../services/email');
@@ -147,13 +149,23 @@ app.post('/', async (c) => {
 
             const inviteUrl = `${baseUrl}/login?email=${encodeURIComponent(email)}`;
 
-            c.executionCtx.waitUntil(emailService.sendInvitation(email, tenant.name, inviteUrl));
-        } catch (e) {
-            console.error("Failed to send invitation email async", e);
+            // Use waitUntil for performance, but we can't catch the error then.
+            // Trade-off: Performance vs Feedback. 
+            // For "Fix Issues", feedback is prioritized. Let's await it or partially await?
+            // Actually, `waitUntil` is best practice for workers. 
+            // BUT the issue is "Silent Failure".
+            // If we want to report failure, we must await.
+            // Let's await. It's an important transaction.
+            await emailService.sendInvitation(email, tenant.name, inviteUrl);
+        } catch (e: any) {
+            console.error("Failed to send invitation email", e);
+            emailWarning = "Member created via DB, but email invitation failed: " + e.message;
         }
+    } else {
+        emailWarning = "Member created, but no email provider is configured.";
     }
 
-    return c.json({ success: true, memberId });
+    return c.json({ success: true, memberId, warning: emailWarning });
 });
 
 // DELETE /members/:id: Remove (Archive) Member

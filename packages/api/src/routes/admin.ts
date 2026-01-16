@@ -20,6 +20,8 @@ type Bindings = {
     CLOUDFLARE_ACCOUNT_ID: string;
     CLOUDFLARE_API_TOKEN: string;
     STRIPE_SECRET_KEY?: string;
+    IMPERSONATION_SECRET?: string;
+    PLATFORM_ADMIN_EMAIL?: string;
 };
 
 const app = new Hono<HonoContext>();
@@ -622,7 +624,7 @@ app.get('/communications/logs', async (c) => {
             like(emailLogs.subject, `%${search}%`)
         ));
     }
-    if (type === 'transactional') filters.push(eq(emailLogs.campaignId, null));
+    if (type === 'transactional') filters.push(isNull(emailLogs.campaignId));
     else if (type === 'campaign') filters.push(sql`${emailLogs.campaignId} IS NOT NULL`);
 
     const whereClause = filters.length > 0 ? and(...filters) : undefined;
@@ -690,7 +692,7 @@ app.post('/communications/resend/:id', async (c) => {
 
     // We'll use the platform key + tenant branding if available.
     const emailService = new EmailService(
-        c.env.RESEND_API_KEY,
+        c.env.RESEND_API_KEY || '',
         tenant ? { branding: tenant.branding as any, settings: tenant.settings as any } : undefined,
         undefined,
         undefined,
@@ -1230,7 +1232,7 @@ app.post('/impersonate', async (c) => {
 
         const { sign } = await import('hono/jwt');
         // Fallback to a know secret or env
-        const secret = c.env.CLERK_SECRET_KEY || 'dev_secret';
+        const secret = c.env.IMPERSONATION_SECRET || c.env.CLERK_SECRET_KEY || 'dev_secret';
         // Note: Real Clerk middleware validates with public keys, so signing with Secret Key won't work if it expects JWKS.
         // BUT, if `authMiddleware` checks for a custom header or fallback, we might be ok.
         // Let's implement a simple JWT sign here and assume `authMiddleware` (or client) can handle it.
