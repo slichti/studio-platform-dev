@@ -12,21 +12,30 @@ export default function StudioQRCodes() {
         }
     }, []);
 
-    // Construct URLs
+    // Construct URLs with UTM parameters
+    const utmParams = "?utm_source=qr&utm_medium=offline";
+
     // 1. Public Website
-    const publicUrl = tenant.customDomain
+    const publicUrl = (tenant.customDomain
+        ? `https://${tenant.customDomain}`
+        : `${baseUrl}/site/${tenant.slug}`) + utmParams;
+
+    // 2. Class Schedule (Direct Link)
+    const scheduleUrl = `${publicUrl}/classes${utmParams}`; // Already has params, correct? No publicUrl has it. 
+    // Wait, publicUrl + utmParams + /classes + utmParams is wrong.
+    // Let's keep base URLs clean and append params at the end.
+
+    // Clean Base Public URL
+    const cleanPublicUrl = tenant.customDomain
         ? `https://${tenant.customDomain}`
         : `${baseUrl}/site/${tenant.slug}`;
 
-    // 2. Class Schedule (Direct Link)
-    // Assuming /site/:slug/classes matches the likely public route, or fallback to internal if public paths enabled
-    const scheduleUrl = `${publicUrl}/classes`;
+    const publicUrlWithUtm = `${cleanPublicUrl}${utmParams}`;
+    const scheduleUrlWithUtm = `${cleanPublicUrl}/classes${utmParams}`;
+    const kioskUrlWithUtm = `${baseUrl}/studio/${tenant.slug}/checkin/kiosk${utmParams}`;
 
-    // 3. Kiosk Mode (Internal but shared)
-    const kioskUrl = `${baseUrl}/studio/${tenant.slug}/checkin/kiosk`;
-
-    // 4. Mobile App (Placeholder)
-    const appUrl = tenant.mobileAppConfig?.publicDownloadUrl || "";
+    // Mobile Link might need different handling (Draftbit/Expo), but we'll append query for now.
+    const appUrl = tenant.mobileAppConfig?.publicDownloadUrl ? `${tenant.mobileAppConfig.publicDownloadUrl}${utmParams}` : "";
 
     if (!baseUrl) return null; // Hydration wait
 
@@ -41,21 +50,21 @@ export default function StudioQRCodes() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <QRCodeDisplay
-                    value={publicUrl}
+                    value={publicUrlWithUtm}
                     title="Studio Website"
                     description="Direct link to your studio's home page."
                     color={tenant.branding?.primaryColor || "#000000"}
                 />
 
                 <QRCodeDisplay
-                    value={kioskUrl}
+                    value={kioskUrlWithUtm}
                     title="Kiosk Check-in"
                     description="Display this at your front desk for quick student check-ins."
                     color={tenant.branding?.primaryColor || "#000000"}
                 />
 
                 <QRCodeDisplay
-                    value={scheduleUrl}
+                    value={scheduleUrlWithUtm}
                     title="Class Schedule"
                     description="Direct link for students to view classes and book."
                     color={tenant.branding?.primaryColor || "#000000"}

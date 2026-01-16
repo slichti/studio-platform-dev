@@ -188,6 +188,15 @@ app.post('/clerk', async (c) => {
                             lastName: last_name,
                             data: { memberId: member.id, changes: evt.data }
                         }));
+
+                        // Explicitly trigger contact_updated for profile changes
+                        c.executionCtx.waitUntil(autoService.dispatchTrigger('contact_updated', {
+                            userId: id,
+                            email: email,
+                            firstName: first_name,
+                            lastName: last_name,
+                            data: { memberId: member.id, changes: evt.data }
+                        }));
                     } catch (e) {
                         console.error(`Failed to dispatch student.updated for tenant ${member.tenantId}`, e);
                     }

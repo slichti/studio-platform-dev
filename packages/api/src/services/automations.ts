@@ -79,12 +79,10 @@ export class AutomationsService {
                 case 'subscription_renewing':
                     await this.processSubscriptionTiming(auto, now);
                     break;
-                case 'new_student':
-                case 'subscription_created':
-                    // Special Case: "Delayed" Welcome or Nudge triggers 
-                    // (e.g. 7 days after sign up)
+                default:
+                    // Generic handling for Delayed Triggers (new_student, subscription_created, etc)
                     if (auto.timingType === 'delay') {
-                        await this.processDelayedNudge(auto, now);
+                        await this.processDelayedTriggers(auto, now);
                     }
                     break;
             }
@@ -231,32 +229,59 @@ export class AutomationsService {
         }
     }
 
-    private async processDelayedNudge(auto: any, now: Date) {
-        // trigger: 'new_student' (Sign up)
-        // timing: 'delay' 48 hours.
-        // Look for TenantMembers joinedAt between [48h ago, 49h ago].
-
+    private async processDelayedTriggers(auto: any, now: Date) {
+        // Generic Delay Handler looking for creation time based on event type
         const hoursDelay = auto.timingValue || 24;
         const targetTime = new Date(now.getTime() - (hoursDelay * 60 * 60 * 1000));
         const windowEnd = new Date(targetTime.getTime() + (1 * 60 * 60 * 1000)); // 1 hour window
 
-        const members = await this.db.select()
-            .from(tenantMembers)
-            .where(and(
-                eq(tenantMembers.tenantId, this.tenantId),
-                ge(tenantMembers.joinedAt, targetTime), // >= 
-                le(tenantMembers.joinedAt, windowEnd)   // <=
-            )).all();
+        let candidates: { userId: string, email?: string, firstName?: string, data?: any }[] = [];
 
-        for (const m of members) {
-            const user = await this.db.query.users.findFirst({ where: eq(users.id, m.userId) });
-            if (user) {
-                await this.executeAutomation(auto, {
-                    userId: user.id,
-                    email: user.email,
-                    firstName: (user.profile as any)?.firstName
-                });
+        if (auto.triggerEvent === 'new_student') {
+            const members = await this.db.select()
+                .from(tenantMembers)
+                .where(and(
+                    eq(tenantMembers.tenantId, this.tenantId),
+                    ge(tenantMembers.joinedAt, targetTime),
+                    le(tenantMembers.joinedAt, windowEnd)
+                )).all();
+
+            for (const m of members) {
+                // Optimization: We could batch fetch users, but for now loop is fine for reliable N
+                const user = await this.db.query.users.findFirst({ where: eq(users.id, m.userId) });
+                if (user) candidates.push({ userId: user.id, email: user.email, firstName: (user.profile as any)?.firstName });
             }
+
+        } else if (auto.triggerEvent === 'subscription_created') {
+            const subs = await this.db.select()
+                .from(subscriptions)
+                .where(and(
+                    eq(subscriptions.tenantId, this.tenantId),
+                    ge(subscriptions.createdAt, targetTime),
+                    le(subscriptions.createdAt, windowEnd)
+                )).all();
+
+            for (const s of subs) {
+                const user = await this.db.query.users.findFirst({ where: eq(users.id, s.userId) });
+                if (user) {
+                    candidates.push({
+                        userId: user.id,
+                        email: user.email,
+                        firstName: (user.profile as any)?.firstName,
+                        data: { planId: s.planId, status: s.status }
+                    });
+                }
+            }
+        }
+
+        // Execute
+        for (const c of candidates) {
+            await this.executeAutomation(auto, {
+                userId: c.userId,
+                email: c.email,
+                firstName: c.firstName,
+                data: c.data
+            });
         }
     }
 
