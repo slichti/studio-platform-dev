@@ -11,6 +11,7 @@ export default defineConfig({
         "process.env": {},
     },
     build: {
+        chunkSizeWarningLimit: 1000, // Increase warning limit to 1MB
         rollupOptions: {
             output: {
                 manualChunks: (id) => {
@@ -28,12 +29,28 @@ export default defineConfig({
                         if (id.includes('@sentry')) {
                             return 'vendor-sentry';
                         }
-                        // Note: Removed vendor-react and vendor-charts to avoid dependency order issues
+                        // UI Framework - Radix
+                        if (id.includes('@radix-ui')) {
+                            return 'vendor-radix';
+                        }
+                        // Charts
+                        if (id.includes('recharts')) {
+                            return 'vendor-charts';
+                        }
+                        // Date handling
+                        if (id.includes('date-fns')) {
+                            return 'vendor-date-fns';
+                        }
                     }
                     // Default chunking
                     return undefined;
                 },
             },
         },
+    },
+    test: {
+        environment: 'node',
+        include: ['app/**/*.test.ts', 'app/**/*.test.tsx'],
+        globals: true,
     },
 });

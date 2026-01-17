@@ -17,6 +17,8 @@ export interface Bindings {
     R2: R2Bucket;
     RATE_LIMITER: DurableObjectNamespace;
     METRICS: DurableObjectNamespace;
+    PLATFORM_ADMIN_EMAIL?: string;
+    IMPERSONATION_SECRET?: string;
 }
 
 export interface Variables {

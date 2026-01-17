@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { users, tenantMembers, tenantRoles, tenants, subscriptions, auditLogs, emailLogs, smsLogs, brandingAssets, videos, videoShares, waiverTemplates, waiverSignatures, marketingAutomations, platformConfig, chatRooms } from 'db/src/schema';
+import { users, tenantMembers, tenantRoles, tenants, subscriptions, auditLogs, emailLogs, smsLogs, brandingAssets, videos, videoShares, waiverTemplates, waiverSignatures, marketingAutomations, platformConfig, chatRooms, tenantFeatures, websitePages } from 'db/src/schema';
 import { eq, sql, desc, count, or, like, asc, and, inArray, isNull } from 'drizzle-orm';
 
 import { UsageService } from '../services/pricing';
@@ -11,18 +11,6 @@ import { ExportService } from '../services/export';
 import type { HonoContext } from '../types';
 import { authMiddleware } from '../middleware/auth';
 import tenantFeaturesRouter from './admin.features';
-
-type Bindings = {
-    DB: D1Database;
-    CLERK_SECRET_KEY?: string;
-    RESEND_API_KEY?: string;
-    TWILIO_ACCOUNT_SID?: string;
-    CLOUDFLARE_ACCOUNT_ID: string;
-    CLOUDFLARE_API_TOKEN: string;
-    STRIPE_SECRET_KEY?: string;
-    IMPERSONATION_SECRET?: string;
-    PLATFORM_ADMIN_EMAIL?: string;
-};
 
 const app = new Hono<HonoContext>();
 
@@ -939,7 +927,7 @@ app.patch('/tenants/:id/tier', async (c) => {
 app.get('/tenants', async (c) => {
     const db = createDb(c.env.DB);
 
-    const [allTenants, ownerCounts, instructorCounts, subscriberCounts] = await Promise.all([
+    const [allTenants, ownerCounts, instructorCounts, subscriberCounts, allFeatures] = await Promise.all([
         db.select().from(tenants).all(),
         // Owners Grouped
         db.select({ tenantId: tenantMembers.tenantId, count: count(tenantMembers.id) })
@@ -960,7 +948,9 @@ app.get('/tenants', async (c) => {
             .from(subscriptions)
             .where(eq(subscriptions.status, 'active'))
             .groupBy(subscriptions.tenantId)
-            .all()
+            .all(),
+        // Features
+        db.select().from(tenantFeatures).all()
     ]);
 
     // Create lookup maps
@@ -968,8 +958,18 @@ app.get('/tenants', async (c) => {
     const instructorMap = new Map(instructorCounts.map(i => [i.tenantId, i.count]));
     const subscriberMap = new Map(subscriberCounts.map(s => [s.tenantId, s.count]));
 
+    // Group features by tenant
+    const featuresMap = new Map();
+    allFeatures.forEach(f => {
+        if (!featuresMap.has(f.tenantId)) {
+            featuresMap.set(f.tenantId, {});
+        }
+        featuresMap.get(f.tenantId)[f.featureKey] = { enabled: f.enabled, source: f.source };
+    });
+
     const enriched = allTenants.map(t => ({
         ...t,
+        features: featuresMap.get(t.id) || {},
         stats: {
             owners: ownerMap.get(t.id) || 0,
             instructors: instructorMap.get(t.id) || 0,
@@ -1435,7 +1435,7 @@ app.post('/tenants', async (c) => {
 
         // Seed Default Home Page
         const pageId = crypto.randomUUID();
-        await db.insert(schema.websitePages).values({
+        await db.insert(websitePages).values({
             id: pageId,
             tenantId,
             slug: 'home',

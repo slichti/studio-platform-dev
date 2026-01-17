@@ -355,8 +355,7 @@ studioApp.post('/features', async (c) => {
         id: crypto.randomUUID(),
         tenantId: tenant.id,
         featureKey,
-        enabled: true,
-        createdAt: new Date()
+        enabled: true
       })
       .onConflictDoUpdate({
         target: [tenantFeatures.tenantId, tenantFeatures.featureKey],

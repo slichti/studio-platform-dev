@@ -83,16 +83,16 @@ export default function AdminTenants() {
     const [exportModal, setExportModal] = useState<{ isOpen: boolean; tenantId: string; tenantName: string; dataType: 'subscribers' | 'financials' | 'products' } | null>(null);
 
     const FEATURES = [
-        { key: 'mobile_app', label: 'White-Label Mobile App', icon: Smartphone },
-        { key: 'website_builder', label: 'Website Builder', icon: Globe },
-        { key: 'chat', label: 'Chat System', icon: MessagesSquare },
-        { key: 'financials', label: 'Financials & Payouts', icon: CreditCard },
-        { key: 'vod', label: 'Video on Demand', icon: Video },
-        { key: 'zoom', label: 'Zoom Integration', icon: Monitor },
-        { key: 'pos', label: 'POS & Retail', icon: ShoppingCart },
-        { key: 'sms', label: 'SMS Messaging', icon: MessageSquare },
-        { key: 'marketing', label: 'Marketing & CRM', icon: Mail },
-        { key: 'payroll', label: 'Payroll & Compensation', icon: CreditCard },
+        { key: 'mobile_app', label: 'White-Label Mobile App', icon: Smartphone, sections: 'Settings > Mobile App' },
+        { key: 'website_builder', label: 'Website Builder', icon: Globe, sections: 'Settings > Website Widgets' },
+        { key: 'chat', label: 'Chat System', icon: MessagesSquare, sections: 'Settings > Chat Settings, Chat Widget' },
+        { key: 'financials', label: 'Financials & Payouts', icon: CreditCard, sections: 'Management > Finances, My Payouts' },
+        { key: 'vod', label: 'Video on Demand', icon: Video, sections: 'Operations > Media Library' },
+        { key: 'zoom', label: 'Zoom Integration', icon: Monitor, sections: 'Backend Integrations' },
+        { key: 'pos', label: 'POS & Retail', icon: ShoppingCart, sections: 'Commerce > POS, Coupons, Gift Cards' },
+        { key: 'sms', label: 'SMS Messaging', icon: MessageSquare, sections: 'Backend Capability (Notifications)' },
+        { key: 'marketing', label: 'Marketing & CRM', icon: Mail, sections: 'CRM > Email Automations' },
+        { key: 'payroll', label: 'Payroll & Compensation', icon: CreditCard, sections: 'Management > Payroll Admin' },
     ];
 
     // Dialog State
@@ -1270,7 +1270,7 @@ export default function AdminTenants() {
                                                     <div className="space-y-6">
                                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                                             {FEATURES.map(f => {
-                                                                const state = tenantFeatures[f.key] || { enabled: false, source: 'manual' };
+                                                                const state = (tenantFeatures[t.id] || {})[f.key] || { enabled: false, source: 'manual' };
 
                                                                 // Check Global Status - Map tenant feature key to platform config key
                                                                 const globalKey = `feature_${f.key}`;
@@ -1288,6 +1288,8 @@ export default function AdminTenants() {
                                                                             <div>
                                                                                 <div className={`text-sm font-medium ${isDisabledByPlatform ? 'text-zinc-500' : 'text-zinc-900'}`}>{f.label}</div>
                                                                                 <div className="text-xs text-zinc-500">{isDisabledByPlatform ? 'Disabled by Platform' : `Source: ${state.source}`}</div>
+                                                                                {/* @ts-ignore */}
+                                                                                <div className="text-[10px] text-zinc-400 mt-0.5 truncate max-w-[180px]" title={f.sections}>{(f as any).sections}</div>
                                                                             </div>
                                                                         </div>
                                                                         <div className="flex items-center gap-2">

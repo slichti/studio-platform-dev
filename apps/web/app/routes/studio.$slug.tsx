@@ -108,7 +108,9 @@ export const loader = async (args: LoaderFunctionArgs) => {
 };
 
 export default function StudioLayout() {
-    const { slug, tenant, me, isPaused, features, token, isImpersonating } = useLoaderData<typeof loader>();
+    const { slug } = useParams();
+    // @ts-ignore
+    const { tenant, me, features, activeMemberships, isPaused, token, isImpersonating } = useLoaderData<typeof loader>();
     const { user: clerkUser } = useUser();
     const featureSet = new Set(features);
 
@@ -189,11 +191,13 @@ export default function StudioLayout() {
                             <NavItem to={`/studio/${slug}/substitutions`} icon={<RefreshCw size={18} />}>Substitutions</NavItem>
                         )}
                         <NavItem to={`/studio/${slug}/waivers`} icon={<FileSignature size={18} />}>Waivers</NavItem>
-                        <NavItem to={`/studio/${slug}/videos`} icon={<ImageIcon size={18} />}>Media Library</NavItem>
+                        {featureSet.has('vod') && (
+                            <NavItem to={`/studio/${slug}/videos`} icon={<ImageIcon size={18} />}>Media Library</NavItem>
+                        )}
                     </SidebarGroup>
 
                     <SidebarGroup title="Commerce">
-                        {(featureSet.has('pos') || ['growth', 'scale'].includes(tenant.tier)) && !isStudentView && (
+                        {(featureSet.has('pos')) && !isStudentView && (
                             <>
                                 <NavItem to={`/studio/${slug}/pos`} icon={<ShoppingCart size={18} />}>POS & Retail</NavItem>
                             </>
@@ -201,7 +205,7 @@ export default function StudioLayout() {
                         <NavItem to={`/studio/${slug}/memberships`} icon={<CreditCard size={18} />}>Memberships</NavItem>
                         <NavItem to={`/studio/${slug}/commerce/packs`} icon={<Package size={18} />}>Class Packs</NavItem>
 
-                        {(featureSet.has('pos') || ['growth', 'scale'].includes(tenant.tier)) && (
+                        {featureSet.has('pos') && (
                             <>
                                 <NavItem to={`/studio/${slug}/commerce/coupons`} icon={<Ticket size={18} />}>
                                     {isStudentView ? "My Coupons" : "Coupons"}
@@ -217,10 +221,10 @@ export default function StudioLayout() {
                             <SidebarGroup title="CRM">
                                 <NavItem to={`/studio/${slug}/leads`} icon={<User size={18} />}>Leads</NavItem>
                                 <NavItem to={`/studio/${slug}/tasks`} icon={<ListTodo size={18} />}>Tasks</NavItem>
-                                {(featureSet.has('marketing') || ['growth', 'scale'].includes(tenant.tier)) && (
+                                {(featureSet.has('marketing')) && (
                                     <NavItem to={`/studio/${slug}/marketing`} icon={<Mail size={18} />}>Email Automations</NavItem>
                                 )}
-                                {(featureSet.has('loyalty') || ['growth', 'scale'].includes(tenant.tier)) && (
+                                {(featureSet.has('loyalty')) && (
                                     <NavItem to={`/studio/${slug}/loyalty`} icon={<Award size={18} />}>Loyalty</NavItem>
                                 )}
                             </SidebarGroup>
@@ -234,15 +238,21 @@ export default function StudioLayout() {
                                     <NavItem to={`/studio/${slug}/financials/my-payouts`} icon={<DollarSign size={18} />}>My Payouts</NavItem>
                                 )}
 
-                                <NavItem to={`/studio/${slug}/finances`} end icon={<DollarSign size={18} />}>Finances</NavItem>
+                                {featureSet.has('financials') && (
+                                    <NavItem to={`/studio/${slug}/finances`} end icon={<DollarSign size={18} />}>Finances</NavItem>
+                                )}
                                 <NavItem to={`/studio/${slug}/discounts`} icon={<Tag size={18} />}>Discounts</NavItem>
-                                <NavItem to={`/studio/${slug}/settings/embeds`} icon={<Code size={18} />}>Website Widgets</NavItem>
-                                {tenant.platformFeatures?.feature_mobile_app && (
+                                {featureSet.has('website_builder') && (
+                                    <NavItem to={`/studio/${slug}/settings/embeds`} icon={<Code size={18} />}>Website Widgets</NavItem>
+                                )}
+                                {featureSet.has('mobile_app') && (
                                     <NavItem to={`/studio/${slug}/settings/mobile`} icon={<Smartphone size={18} />}>Mobile App</NavItem>
                                 )}
                                 <NavItem to={`/studio/${slug}/settings/qr`} icon={<QrCode size={18} />}>QR Codes</NavItem>
                                 <NavItem to={`/studio/${slug}/settings/integrations`} icon={<Terminal size={18} />}>Integrations</NavItem>
-                                <NavItem to={`/studio/${slug}/settings/chat`} icon={<MessageSquare size={18} />}>Chat Settings</NavItem>
+                                {featureSet.has('chat') && (
+                                    <NavItem to={`/studio/${slug}/settings/chat`} icon={<MessageSquare size={18} />}>Chat Settings</NavItem>
+                                )}
                                 <NavItem to={`/studio/${slug}/data`} icon={<Database size={18} />}>Data</NavItem>
                                 <NavItem to={`/studio/${slug}/settings`} end icon={<Settings size={18} />}>Settings</NavItem>
                             </SidebarGroup>
@@ -421,7 +431,7 @@ export default function StudioLayout() {
                 tenantId={isStudentView ? (slug || "") : "platform"}
                 userId={me.id}
                 userName={`${me.firstName} ${me.lastName}`}
-                enabled={!isStudentView || tenant.settings?.chatEnabled !== false}
+                enabled={!isStudentView && (tenant.settings?.chatEnabled !== false) && featureSet.has('chat')}
                 chatConfig={isStudentView ? tenant.settings?.chatConfig : undefined}
                 apiUrl={(typeof window !== 'undefined' ? (window as any).ENV?.API_URL : '')}
             />

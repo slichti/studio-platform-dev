@@ -34,10 +34,13 @@ describe('Diagnostics Integration', () => {
         });
 
         // Use the worker's fetch handler with the integration environment
+        const waitUntils: Promise<any>[] = [];
         const response = await worker.fetch(req, env, {
-            waitUntil: () => { },
+            waitUntil: (p: Promise<any>) => waitUntils.push(p),
             passThroughOnException: () => { }
         } as any);
+
+        await Promise.all(waitUntils);
 
         expect(response.status).toBe(200);
 

@@ -40,9 +40,10 @@ describe('Reports API', () => {
     });
 
     const createTestApp = () => {
-        const testApp = new Hono<{ Bindings: { DB: any }, Variables: { tenant: { id: string } } }>();
+        const testApp = new Hono<{ Bindings: { DB: any }, Variables: { tenant: { id: string }, roles: string[] } }>();
         testApp.use('*', async (c, next) => {
             c.set('tenant', { id: 'tenant_123' });
+            c.set('roles', ['owner']);
             await next();
         });
         testApp.route('/', reportsApp);

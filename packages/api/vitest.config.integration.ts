@@ -7,7 +7,6 @@ export default defineWorkersConfig({
             workers: {
                 wrangler: { configPath: './wrangler.toml' },
                 miniflare: {
-                    // Add any specific miniflare options here if needed, e.g. bindings
                     kvNamespaces: ['KV'],
                     d1Databases: ['DB'],
                     r2Buckets: ['R2'],

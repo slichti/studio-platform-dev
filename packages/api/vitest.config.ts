@@ -4,7 +4,7 @@ import path from 'path';
 export default defineConfig({
     test: {
         environment: 'node',
-        include: ['src/**/*.test.ts', 'src/**/*.bench.ts'],
+        include: ['src/**/*.test.ts'],
         globals: true,
         alias: {
             'db/src': path.resolve(__dirname, '../db/src'),

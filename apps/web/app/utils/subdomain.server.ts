@@ -7,9 +7,15 @@ export function getSubdomain(request: Request): string | null {
     const url = new URL(request.url);
     const hostname = url.hostname;
 
-    if (hostname.endsWith(BASE_DOMAIN) && hostname !== BASE_DOMAIN) {
-        const subdomain = hostname.replace(`.${BASE_DOMAIN}`, '');
-        if (RESERVED_SUBDOMAINS.includes(subdomain.toLowerCase())) {
+    const normalizedHostname = hostname.toLowerCase();
+
+    // Exact match for base domain -> no subdomain
+    if (normalizedHostname === BASE_DOMAIN) return null;
+
+    // Must end with .BASE_DOMAIN to be a subdomain
+    if (normalizedHostname.endsWith(`.${BASE_DOMAIN}`)) {
+        const subdomain = normalizedHostname.slice(0, -1 * (BASE_DOMAIN.length + 1)); // Remove .BASE_DOMAIN
+        if (RESERVED_SUBDOMAINS.includes(subdomain)) {
             return null;
         }
         return subdomain;
