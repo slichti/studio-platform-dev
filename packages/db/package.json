@@ -8,13 +8,18 @@
     },
     "scripts": {
         "generate": "drizzle-kit generate",
-        "up": "drizzle-kit up:sqlite"
+        "up": "drizzle-kit up:sqlite",
+        "seed:tenant": "tsx seed-tenant.ts"
     },
     "devDependencies": {
         "drizzle-kit": "^0.31.8",
+        "tsx": "^4.21.0",
         "typescript": "^5.9.3"
     },
     "dependencies": {
+        "@faker-js/faker": "^10.2.0",
+        "@libsql/client": "^0.17.0",
+        "dotenv": "^16.4.7",
         "drizzle-orm": "^0.45.1"
     }
 }

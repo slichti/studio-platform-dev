@@ -732,6 +732,39 @@ app.get('/tenants/:id/stats', async (c) => {
     });
 });
 
+// POST /tenants/seed - Create a test tenant with realistic data
+app.post('/tenants/seed', async (c) => {
+    const db = createDb(c.env.DB);
+    const auth = c.get('auth');
+
+    try {
+        // Dynamic import to keep init clean
+        const { seedTenant } = await import('../utils/seeding');
+
+        // Generate unique slug
+        const suffix = Math.floor(Math.random() * 10000);
+        const name = "Test Studio " + suffix;
+        const slug = "test-studio-" + suffix;
+
+        const tenant = await seedTenant(db, name, slug);
+
+        // Audit Log
+        const audit = new AuditService(db);
+        await audit.log({
+            actorId: auth.userId,
+            action: 'seed_test_tenant',
+            targetId: tenant.id,
+            details: { name, slug },
+            ipAddress: c.req.header('CF-Connecting-IP')
+        });
+
+        return c.json({ success: true, tenant });
+    } catch (e: any) {
+        console.error("Seeding Failed:", e);
+        return c.json({ error: e.message || "Seeding failed" }, 500);
+    }
+});
+
 // PATCH /tenants/:id/quotas - Override limits
 app.patch('/tenants/:id/quotas', async (c) => {
     const db = createDb(c.env.DB);

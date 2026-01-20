@@ -58,6 +58,7 @@ export default function AdminTenants() {
     const [tenants, setTenants] = useState(initialTenants);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [seedingLoading, setSeedingLoading] = useState(false);
 
     // Feature Toggles State
     const [expandedTenants, setExpandedTenants] = useState<Set<string>>(new Set());
@@ -792,6 +793,36 @@ export default function AdminTenants() {
                                 className="text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-md transition-colors"
                             >
                                 {expandedTenants.size === sortedTenants().length && sortedTenants().length > 0 ? 'Collapse All' : 'Expand All'}
+                            </button>
+                        </div>
+
+                        <div className="h-6 w-px bg-zinc-300 dark:bg-zinc-700 mx-2"></div>
+
+
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={async () => {
+                                    setSeedingLoading(true);
+                                    try {
+                                        const token = await getToken();
+                                        const res: any = await apiRequest("/admin/tenants/seed", token, { method: "POST" });
+                                        if (res.error) throw new Error(res.error);
+
+                                        // Refresh list
+                                        const updated = await apiRequest("/admin/tenants", token);
+                                        setTenants(updated);
+                                        setSuccessDialog({ isOpen: true, message: `Test Tenant "${res.tenant?.name}" created successfully!` });
+                                    } catch (e: any) {
+                                        setErrorDialog({ isOpen: true, message: e.message || "Seeding failed" });
+                                    } finally {
+                                        setSeedingLoading(false);
+                                    }
+                                }}
+                                disabled={seedingLoading}
+                                className="text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1 rounded-md transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                            >
+                                {seedingLoading ? <Activity className="animate-spin" size={12} /> : <Activity size={12} />}
+                                Seed Test Tenant
                             </button>
                         </div>
 
