@@ -8,7 +8,16 @@ export type FeatureKey =
     | 'ai_churn'
     | 'ai_content'
     | 'payroll'
-    | 'livestream';
+    | 'livestream'
+    | 'mobile_app'
+    | 'website_builder'
+    | 'chat'
+    | 'financials'
+    | 'vod'
+    | 'zoom'
+    | 'pos'
+    | 'sms'
+    | 'marketing';
 
 const TIER_DEFAULTS: Record<string, FeatureKey[]> = {
     'basic': [],

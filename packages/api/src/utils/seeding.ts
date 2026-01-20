@@ -6,6 +6,7 @@ import {
     membershipPlans, classSeries, classes, bookings,
     products, posOrders, posOrderItems, tenantFeatures
 } from 'db/src/schema';
+import { FeatureKey } from './features';
 
 
 export interface SeedOptions {
@@ -15,7 +16,7 @@ export interface SeedOptions {
     instructorCount?: number;
     studentCount?: number;
     tier?: 'basic' | 'growth' | 'scale';
-    features?: string[];
+    features?: FeatureKey[];
 }
 
 export async function seedTenant(db: any, options: SeedOptions = {}) {
