@@ -1036,6 +1036,22 @@ export const classesRelations = relations(classes, ({ one, many }) => ({
     }),
 }));
 
+export const classSeriesRelations = relations(classSeries, ({ one, many }) => ({
+    tenant: one(tenants, {
+        fields: [classSeries.tenantId],
+        references: [tenants.id],
+    }),
+    instructor: one(tenantMembers, {
+        fields: [classSeries.instructorId],
+        references: [tenantMembers.id],
+    }),
+    location: one(locations, {
+        fields: [classSeries.locationId],
+        references: [locations.id],
+    }),
+    classes: many(classes),
+}));
+
 export const bookingsRelations = relations(bookings, ({ one }) => ({
     class: one(classes, {
         fields: [bookings.classId],
