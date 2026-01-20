@@ -59,6 +59,26 @@ export default function AdminTenants() {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [seedingLoading, setSeedingLoading] = useState(false);
+    const [seedModalOpen, setSeedModalOpen] = useState(false);
+    const [seedOptions, setSeedOptions] = useState<{
+        tenantName: string;
+        tenantSlug: string;
+        ownerCount: number;
+        instructorCount: number;
+        studentCount: number;
+        tier: 'basic' | 'growth' | 'scale';
+        features: string[]; // 'all', 'none', or array of keys
+        featureMode: 'all' | 'none' | 'custom';
+    }>({
+        tenantName: '',
+        tenantSlug: '',
+        ownerCount: 1,
+        instructorCount: 2,
+        studentCount: 10,
+        tier: 'growth',
+        features: [],
+        featureMode: 'all'
+    });
 
     // Feature Toggles State
     const [expandedTenants, setExpandedTenants] = useState<Set<string>>(new Set());
@@ -107,9 +127,16 @@ export default function AdminTenants() {
     const [restoreId, setRestoreId] = useState<string | null>(null);
     const [renewalDateChange, setRenewalDateChange] = useState<{ id: string, date: string } | null>(null);
 
+    // Delete State
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [tenantToDelete, setTenantToDelete] = useState<string | null>(null);
+    const [deleteInput, setDeleteInput] = useState("");
+    const [deleteLoading, setDeleteLoading] = useState(false);
+
     // Archive State
     const [archiveId, setArchiveId] = useState<string | null>(null);
     const [archiveInput, setArchiveInput] = useState("");
+    const [archiveLoading, setArchiveLoading] = useState(false);
 
     const { getToken } = useAuth();
     const navigate = useNavigate();
@@ -590,10 +617,10 @@ export default function AdminTenants() {
             // Wait, original code `setExpandedTenant(tenantId)` (single). So replacing state was fine for single view.
 
             // FIX: We need robust `Record<tenantId, FeatureMap>`.
-            setTenantFeatures(prev => ({ ...prev, [tenantId]: featuresRes.features }));
-            setTenantStats(prev => ({ ...prev, [tenantId]: statsRes }));
-            setSubscriptionDetails(prev => ({ ...prev, [tenantId]: billingRes }));
-            setInvoices(prev => ({ ...prev, [tenantId]: historyRes.invoices || [] }));
+            setTenantFeatures((prev: any) => ({ ...prev, [tenantId]: featuresRes.features }));
+            setTenantStats((prev: any) => ({ ...prev, [tenantId]: statsRes }));
+            setSubscriptionDetails((prev: any) => ({ ...prev, [tenantId]: billingRes }));
+            setInvoices((prev: any) => ({ ...prev, [tenantId]: historyRes.invoices || [] }));
         } catch (e) {
             console.error(e);
         } finally {
@@ -660,6 +687,88 @@ export default function AdminTenants() {
         }
     };
 
+    const handleSeedConfirm = async () => {
+        setSeedingLoading(true);
+        try {
+            const token = await getToken();
+
+            // Prepare features list based on mode
+            let featuresToSeed: string[] = [];
+            if (seedOptions.featureMode === 'all') {
+                featuresToSeed = FEATURES.map(f => f.key);
+            } else if (seedOptions.featureMode === 'custom') {
+                featuresToSeed = seedOptions.features;
+            }
+
+            const res: any = await apiRequest("/admin/tenants/seed", token, {
+                method: "POST",
+                body: JSON.stringify({
+                    ...seedOptions,
+                    features: featuresToSeed
+                })
+            });
+            if (res.error) throw new Error(res.error);
+
+            // Refresh list
+            const updated = await apiRequest("/admin/tenants", token);
+            setTenants(updated);
+            setSuccessDialog({ isOpen: true, message: `Test Tenant "${res.tenant?.name}" created successfully!` });
+            setSeedModalOpen(false);
+            // Reset options
+            setSeedOptions({
+                tenantName: '', tenantSlug: '', ownerCount: 1, instructorCount: 2, studentCount: 10,
+                tier: 'growth', features: [], featureMode: 'all'
+            });
+        } catch (e: any) {
+            setErrorDialog({ isOpen: true, message: e.message || "Seeding failed" });
+        } finally {
+            setSeedingLoading(false);
+        }
+    };
+
+    const handleDeleteTenant = async () => {
+        if (!tenantToDelete) return;
+        setDeleteLoading(true);
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/admin/tenants/${tenantToDelete}`, token, { method: "DELETE" });
+            if (res.error) throw new Error(res.error);
+
+            setTenants(tenants.filter((t: any) => t.id !== tenantToDelete));
+            setSuccessDialog({ isOpen: true, message: "Tenant deleted successfully." });
+            setDeleteModalOpen(false);
+            setTenantToDelete(null);
+            setDeleteInput("");
+        } catch (e: any) {
+            setErrorDialog({ isOpen: true, message: e.message || "Deletion failed" });
+        } finally {
+            setDeleteLoading(false);
+        }
+    };
+
+    const handleArchiveConfirm = async () => {
+        if (!archiveId) return;
+        setArchiveLoading(true);
+        try {
+            const token = await getToken();
+            await apiRequest(`/admin/tenants/${archiveId}/status`, token, {
+                method: 'PUT',
+                body: JSON.stringify({ status: 'archived' })
+            });
+
+            // Refresh list or update local state
+            const updated = await apiRequest("/admin/tenants", token);
+            setTenants(updated);
+            setSuccessDialog({ isOpen: true, message: "Tenant archived successfully." });
+            setArchiveId(null);
+            setArchiveInput("");
+        } catch (e: any) {
+            setErrorDialog({ isOpen: true, message: e.message || "Archive failed" });
+        } finally {
+            setArchiveLoading(false);
+        }
+    };
+
     // ... (keep Form Code - skipping to return block)
 
     return (
@@ -671,15 +780,21 @@ export default function AdminTenants() {
                 title="Error"
                 message={errorDialog.message}
             />
-            <ConfirmationDialog
-                isOpen={successDialog.isOpen}
-                onClose={() => setSuccessDialog({ ...successDialog, isOpen: false })}
-                onConfirm={() => setSuccessDialog({ ...successDialog, isOpen: false })}
-                title="Success"
-                message={successDialog.message}
-                confirmText="Done"
-                cancelText="Close"
-            />
+            <Modal isOpen={successDialog.isOpen} onClose={() => setSuccessDialog({ ...successDialog, isOpen: false })} title="Success">
+                <div className="space-y-4">
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                        {successDialog.message}
+                    </p>
+                    <div className="flex justify-end">
+                        <button
+                            onClick={() => setSuccessDialog({ ...successDialog, isOpen: false })}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+                        >
+                            Dismiss
+                        </button>
+                    </div>
+                </div>
+            </Modal>
 
             <ConfirmationDialog
                 isOpen={!!tierChange}
@@ -746,13 +861,183 @@ export default function AdminTenants() {
                         onChange={(e) => setArchiveInput(e.target.value)}
                     />
                     <div className="flex justify-end gap-2 pt-2">
-                        <button onClick={() => setArchiveId(null)} className="px-4 py-2 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg text-sm">Cancel</button>
+                        <button onClick={() => { setArchiveInput(""); setArchiveId(null); }} className="px-3 py-2 text-zinc-600 dark:text-zinc-400 text-sm">Cancel</button>
                         <button
-                            onClick={confirmArchive}
-                            disabled={archiveInput !== 'ARCHIVE'}
-                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={handleArchiveConfirm}
+                            disabled={archiveInput !== 'ARCHIVE' || archiveLoading}
+                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium disabled:opacity-50 flex items-center gap-2"
                         >
+                            {archiveLoading && <Activity className="animate-spin" size={14} />}
                             Archive Tenant
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal isOpen={deleteModalOpen} onClose={() => { setDeleteModalOpen(false); setTenantToDelete(null); setDeleteInput(""); }} title="Delete Tenant">
+                <div className="space-y-4">
+                    <div className="p-3 bg-red-50 text-red-700 text-sm rounded border border-red-100 flex items-start gap-2">
+                        <AlertTriangle className="shrink-0 mt-0.5" size={16} />
+                        <div>
+                            <span className="font-bold block mb-1">Danger: Irreversible Action</span>
+                            This will explicitly delete the tenant and all associated data.
+                        </div>
+                    </div>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                        To confirm, please type <strong>DELETE</strong> below:
+                    </p>
+                    <input
+                        type="text"
+                        className="w-full text-sm border border-zinc-300 dark:border-zinc-700 rounded px-3 py-2 bg-white dark:bg-zinc-800"
+                        placeholder="DELETE"
+                        value={deleteInput}
+                        onChange={(e) => setDeleteInput(e.target.value)}
+                    />
+                    <div className="flex justify-end gap-2 pt-2">
+                        <button onClick={() => { setDeleteModalOpen(false); setTenantToDelete(null); setDeleteInput(""); }} className="px-3 py-2 text-zinc-600 dark:text-zinc-400 text-sm">Cancel</button>
+                        <button
+                            onClick={handleDeleteTenant}
+                            disabled={deleteInput !== 'DELETE' || deleteLoading}
+                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+                        >
+                            {deleteLoading && <Activity className="animate-spin" size={14} />}
+                            Delete Tenant
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal isOpen={seedModalOpen} onClose={() => setSeedModalOpen(false)} title="Seed Test Tenant">
+                <div className="space-y-4">
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                        Configure the parameters for the generated test tenant.
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">Tenant Name (Optional)</label>
+                            <input
+                                type="text"
+                                className="w-full text-sm border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 bg-white dark:bg-zinc-800"
+                                placeholder="Auto-generated"
+                                value={seedOptions.tenantName}
+                                onChange={(e) => setSeedOptions({ ...seedOptions, tenantName: e.target.value })}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">Slug (Optional)</label>
+                            <input
+                                type="text"
+                                className="w-full text-sm border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 bg-white dark:bg-zinc-800"
+                                placeholder="Auto-generated"
+                                value={seedOptions.tenantSlug}
+                                onChange={(e) => setSeedOptions({ ...seedOptions, tenantSlug: e.target.value })}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-3 pt-2">
+                        <div>
+                            <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">Tier</label>
+                            <select
+                                className="w-full text-sm border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 bg-white dark:bg-zinc-800"
+                                value={seedOptions.tier}
+                                onChange={(e) => setSeedOptions({ ...seedOptions, tier: e.target.value as any })}
+                            >
+                                <option value="basic">Launch</option>
+                                <option value="growth">Growth</option>
+                                <option value="scale">Scale</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <div className="flex justify-between items-center mb-1">
+                                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">Features</label>
+                                <div className="flex gap-2 text-xs">
+                                    <button
+                                        className={`px-2 py-0.5 rounded border ${seedOptions.featureMode === 'all' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-transparent border-zinc-200 text-zinc-500'}`}
+                                        onClick={() => setSeedOptions({ ...seedOptions, featureMode: 'all' })}
+                                    >All</button>
+                                    <button
+                                        className={`px-2 py-0.5 rounded border ${seedOptions.featureMode === 'none' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-transparent border-zinc-200 text-zinc-500'}`}
+                                        onClick={() => setSeedOptions({ ...seedOptions, featureMode: 'none' })}
+                                    >None</button>
+                                    <button
+                                        className={`px-2 py-0.5 rounded border ${seedOptions.featureMode === 'custom' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-transparent border-zinc-200 text-zinc-500'}`}
+                                        onClick={() => setSeedOptions({ ...seedOptions, featureMode: 'custom' })}
+                                    >Custom</button>
+                                </div>
+                            </div>
+
+                            {seedOptions.featureMode === 'custom' && (
+                                <div className="grid grid-cols-2 gap-2 p-2 bg-zinc-50 dark:bg-zinc-800/50 rounded border border-zinc-100 dark:border-zinc-800 h-24 overflow-y-auto">
+                                    {FEATURES.map(f => (
+                                        <label key={f.key} className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                                                checked={seedOptions.features.includes(f.key)}
+                                                onChange={(e) => {
+                                                    const newFeatures = e.target.checked
+                                                        ? [...seedOptions.features, f.key]
+                                                        : seedOptions.features.filter(k => k !== f.key);
+                                                    setSeedOptions({ ...seedOptions, features: newFeatures });
+                                                }}
+                                            />
+                                            <span className="text-xs text-zinc-600 dark:text-zinc-400">{f.label}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div>
+                            <div className="flex justify-between text-xs font-medium mb-1">
+                                <span>Owners</span>
+                                <span>{seedOptions.ownerCount}</span>
+                            </div>
+                            <input
+                                type="range" min="1" max="5" step="1"
+                                className="w-full accent-blue-600 h-1.5 bg-zinc-200 rounded-lg appearance-none cursor-pointer dark:bg-zinc-700"
+                                value={seedOptions.ownerCount}
+                                onChange={(e) => setSeedOptions({ ...seedOptions, ownerCount: parseInt(e.target.value) })}
+                            />
+                        </div>
+                        <div>
+                            <div className="flex justify-between text-xs font-medium mb-1">
+                                <span>Instructors</span>
+                                <span>{seedOptions.instructorCount}</span>
+                            </div>
+                            <input
+                                type="range" min="0" max="10" step="1"
+                                className="w-full accent-blue-600 h-1.5 bg-zinc-200 rounded-lg appearance-none cursor-pointer dark:bg-zinc-700"
+                                value={seedOptions.instructorCount}
+                                onChange={(e) => setSeedOptions({ ...seedOptions, instructorCount: parseInt(e.target.value) })}
+                            />
+                        </div>
+                        <div>
+                            <div className="flex justify-between text-xs font-medium mb-1">
+                                <span>Customers (Students)</span>
+                                <span>{seedOptions.studentCount}</span>
+                            </div>
+                            <input
+                                type="range" min="0" max="50" step="1"
+                                className="w-full accent-blue-600 h-1.5 bg-zinc-200 rounded-lg appearance-none cursor-pointer dark:bg-zinc-700"
+                                value={seedOptions.studentCount}
+                                onChange={(e) => setSeedOptions({ ...seedOptions, studentCount: parseInt(e.target.value) })}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-4">
+                        <button onClick={() => setSeedModalOpen(false)} className="px-3 py-2 text-zinc-600 dark:text-zinc-400 text-sm">Cancel</button>
+                        <button
+                            onClick={handleSeedConfirm}
+                            disabled={seedingLoading}
+                            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+                        >
+                            {seedingLoading && <Activity className="animate-spin" size={14} />}
+                            Generate Tenant
                         </button>
                     </div>
                 </div>
@@ -765,14 +1050,15 @@ export default function AdminTenants() {
                     {/* Filters */}
                     <div className="flex gap-2 items-center">
                         <select
-                            className="text-sm border border-zinc-300 dark:border-zinc-700 rounded-md px-2 py-1 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-blue-500"
+                            className="text-xs border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1 bg-white dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}
                         >
-                            <option value="all">All Status</option>
+                            <option value="all">Status: All</option>
                             <option value="active">Active</option>
                             <option value="paused">Paused</option>
                             <option value="suspended">Suspended</option>
+                            <option value="archived">Archived</option>
                         </select>
                         <select
                             className="text-sm border border-zinc-300 dark:border-zinc-700 rounded-md px-2 py-1 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-blue-500"
@@ -801,23 +1087,7 @@ export default function AdminTenants() {
 
                         <div className="flex items-center gap-2">
                             <button
-                                onClick={async () => {
-                                    setSeedingLoading(true);
-                                    try {
-                                        const token = await getToken();
-                                        const res: any = await apiRequest("/admin/tenants/seed", token, { method: "POST" });
-                                        if (res.error) throw new Error(res.error);
-
-                                        // Refresh list
-                                        const updated = await apiRequest("/admin/tenants", token);
-                                        setTenants(updated);
-                                        setSuccessDialog({ isOpen: true, message: `Test Tenant "${res.tenant?.name}" created successfully!` });
-                                    } catch (e: any) {
-                                        setErrorDialog({ isOpen: true, message: e.message || "Seeding failed" });
-                                    } finally {
-                                        setSeedingLoading(false);
-                                    }
-                                }}
+                                onClick={() => setSeedModalOpen(true)}
                                 disabled={seedingLoading}
                                 className="text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1 rounded-md transition-colors flex items-center gap-1.5 disabled:opacity-50"
                             >
@@ -924,7 +1194,7 @@ export default function AdminTenants() {
                                                 <span className="text-sm font-bold text-zinc-700">{t.stats?.instructors || 0}</span>
                                             </div>
                                             <div className="flex flex-col items-center" title="Subscribers">
-                                                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">Subs</span>
+                                                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">Cust</span>
                                                 <PrivacyBlur revealed={showFinancials} placeholder="***">
                                                     <span className="text-sm font-bold text-blue-600">{t.stats?.subscribers || 0}</span>
                                                 </PrivacyBlur>
@@ -966,35 +1236,50 @@ export default function AdminTenants() {
                                             </Link>
                                             <div className="h-4 w-px bg-zinc-200"></div>
 
-                                            {t.status === 'paused' ? (
-                                                <button
-                                                    className="text-emerald-600 hover:text-emerald-700 text-xs font-medium transition-colors"
-                                                    onClick={(e) => { e.stopPropagation(); handleStatusChange(t.id, 'active'); }}
-                                                >
-                                                    Resume
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    className="text-zinc-500 hover:text-amber-600 text-xs font-medium transition-colors"
-                                                    onClick={(e) => { e.stopPropagation(); handleStatusChange(t.id, 'paused'); }}
-                                                >
-                                                    Pause
-                                                </button>
-                                            )}
+                                            {/* Pause/Resume Logic - Only show if NOT archived or suspended (unless suspended tenants can be paused? assuming no) */
+                                                (t.status === 'active' || t.status === 'paused') && (
+                                                    t.status === 'paused' ? (
+                                                        <button
+                                                            className="text-emerald-600 hover:text-emerald-700 text-xs font-medium transition-colors"
+                                                            onClick={(e) => { e.stopPropagation(); handleStatusChange(t.id, 'active'); }}
+                                                        >
+                                                            Resume
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            className="text-zinc-500 hover:text-amber-600 text-xs font-medium transition-colors"
+                                                            onClick={(e) => { e.stopPropagation(); handleStatusChange(t.id, 'paused'); }}
+                                                        >
+                                                            Pause
+                                                        </button>
+                                                    )
+                                                )}
 
-                                            {t.status === 'suspended' ? (
+                                            {/* Suspend/Activate Logic - Show for active, paused, suspended. Hide for archived. */
+                                                (t.status === 'active' || t.status === 'paused' || t.status === 'suspended') && (
+                                                    t.status === 'suspended' ? (
+                                                        <button
+                                                            className="text-emerald-600 hover:text-emerald-700 text-xs font-medium transition-colors"
+                                                            onClick={(e) => { e.stopPropagation(); handleStatusChange(t.id, 'active'); }}
+                                                        >
+                                                            Activate
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            className="text-zinc-500 hover:text-red-600 text-xs font-medium transition-colors"
+                                                            onClick={(e) => { e.stopPropagation(); handleStatusChange(t.id, 'suspended'); }}
+                                                        >
+                                                            Suspend
+                                                        </button>
+                                                    )
+                                                )}
+
+                                            {t.status === 'archived' && (
                                                 <button
-                                                    className="text-emerald-600 hover:text-emerald-700 text-xs font-medium transition-colors"
-                                                    onClick={(e) => { e.stopPropagation(); handleStatusChange(t.id, 'active'); }}
+                                                    className="text-red-600 hover:text-red-800 text-xs font-medium transition-colors bg-red-50 px-2 py-0.5 rounded border border-red-100"
+                                                    onClick={(e) => { e.stopPropagation(); setTenantToDelete(t.id); setDeleteModalOpen(true); }}
                                                 >
-                                                    Activate
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    className="text-zinc-500 hover:text-red-600 text-xs font-medium transition-colors"
-                                                    onClick={(e) => { e.stopPropagation(); handleStatusChange(t.id, 'suspended'); }}
-                                                >
-                                                    Suspend
+                                                    Delete
                                                 </button>
                                             )}
                                         </div>

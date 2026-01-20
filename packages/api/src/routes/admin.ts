@@ -1,6 +1,14 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { users, tenantMembers, tenantRoles, tenants, subscriptions, auditLogs, emailLogs, smsLogs, brandingAssets, videos, videoShares, waiverTemplates, waiverSignatures, marketingAutomations, platformConfig, chatRooms, tenantFeatures, websitePages } from 'db/src/schema';
+import {
+    users, tenantMembers, tenantRoles, tenants, subscriptions, auditLogs, emailLogs, smsLogs, brandingAssets, videos, videoShares,
+    waiverTemplates, waiverSignatures, marketingAutomations, platformConfig, chatRooms, tenantFeatures, websitePages,
+    bookings, waitlist, substitutions, subRequests, posOrderItems, posOrders, payrollItems, payouts,
+    videoCollectionItems, videoCollections, usageLogs, automationLogs, giftCardTransactions, giftCards,
+    appointments, purchasedPacks, couponRedemptions, classes, classSeries, products, classPackDefinitions,
+    membershipPlans, coupons, marketingCampaigns, challenges, userChallenges, locations, availabilities,
+    appointmentServices, smsConfig, studentNotes, leads, uploads
+} from 'db/src/schema';
 import { eq, sql, desc, count, or, like, asc, and, inArray, isNull } from 'drizzle-orm';
 
 import { UsageService } from '../services/pricing';
@@ -83,10 +91,10 @@ app.get('/users', async (c) => {
             const conditions = [];
             if (search) {
                 conditions.push(or(
-                    like(users.email, `%${search}%`),
-                    like(users.id, `%${search}%`),
-                    sql`LOWER(json_extract(${users.profile}, '$.firstName')) LIKE ${`%${search.toLowerCase()}%`}`,
-                    sql`LOWER(json_extract(${users.profile}, '$.lastName')) LIKE ${`%${search.toLowerCase()}%`}`
+                    like(users.email, `% ${search}% `),
+                    like(users.id, `% ${search}% `),
+                    sql`LOWER(json_extract(${users.profile}, '$.firstName')) LIKE ${`%${search.toLowerCase()}%`} `,
+                    sql`LOWER(json_extract(${users.profile}, '$.lastName')) LIKE ${`%${search.toLowerCase()}%`} `
                 ));
             }
             if (tenantId) {
@@ -608,8 +616,8 @@ app.get('/communications/logs', async (c) => {
     if (status) filters.push(eq(emailLogs.status, status as any));
     if (search) {
         filters.push(or(
-            like(emailLogs.recipientEmail, `%${search}%`),
-            like(emailLogs.subject, `%${search}%`)
+            like(emailLogs.recipientEmail, `% ${search}% `),
+            like(emailLogs.subject, `% ${search}% `)
         ));
     }
     if (type === 'transactional') filters.push(isNull(emailLogs.campaignId));
@@ -713,7 +721,7 @@ app.post('/communications/resend/:id', async (c) => {
 // Let's create an "enrichment" endpoint or just one for specific tenant details.
 
 // For the "Feature View", the user asked to see features on the list.
-// The frontend likely calls `GET /admin/tenants`. We should verify if that endpoint returns feature flags/email stats.
+// The frontend likely calls `GET / admin / tenants`. We should verify if that endpoint returns feature flags/email stats.
 // If not, we should update IT, rather than making a new one here.
 // But I will provide raw stats endpoint here just in case.
 
@@ -741,12 +749,25 @@ app.post('/tenants/seed', async (c) => {
         // Dynamic import to keep init clean
         const { seedTenant } = await import('../utils/seeding');
 
-        // Generate unique slug
-        const suffix = Math.floor(Math.random() * 10000);
-        const name = "Test Studio " + suffix;
-        const slug = "test-studio-" + suffix;
+        let body: any = {};
+        try {
+            body = await c.req.json();
+        } catch (e) { } // Handle empty body
 
-        const tenant = await seedTenant(db, name, slug);
+        // Generate default if not provided
+        const suffix = Math.floor(Math.random() * 10000);
+        const name = body.tenantName || ("Test Studio " + suffix);
+        const slug = body.tenantSlug || ("test-studio-" + suffix);
+
+        const tenant = await seedTenant(db, {
+            tenantName: name,
+            tenantSlug: slug,
+            ownerCount: body.ownerCount,
+            instructorCount: body.instructorCount,
+            studentCount: body.studentCount,
+            tier: body.tier,
+            features: body.features
+        });
 
         // Audit Log
         const audit = new AuditService(db);
@@ -754,7 +775,7 @@ app.post('/tenants/seed', async (c) => {
             actorId: auth.userId,
             action: 'seed_test_tenant',
             targetId: tenant.id,
-            details: { name, slug },
+            details: { name, slug, options: body },
             ipAddress: c.req.header('CF-Connecting-IP')
         });
 
@@ -764,6 +785,169 @@ app.post('/tenants/seed', async (c) => {
         return c.json({ error: e.message || "Seeding failed" }, 500);
     }
 });
+
+// DELETE /tenants/:id - Permanently delete a tenant (Use with caution)
+// DELETE /tenants/:id - Permanently delete a tenant (Use with caution)
+app.delete('/tenants/:id', async (c) => {
+    const tenantId = c.req.param('id');
+    const db = createDb(c.env.DB);
+    const auth = c.get('auth');
+
+    try {
+        const tenant = await db.select().from(tenants).where(eq(tenants.id, tenantId)).get();
+        if (!tenant) return c.json({ error: 'Tenant not found' }, 404);
+
+        // --- Manual Cascade Delete ---
+        // 1. Get List of Classes to Delete (Robust check: Tenant's classes OR Series' classes)
+        // We fetch IDs first to avoid complex nested subqueries in DELETE statements which can fail in some SQLite environments
+        // --- Manual Cascade Delete ---
+        // 1. Get List of Classes to Delete (Robust check: Tenant's classes OR Series' classes)
+        // Use Relational Query API (db.query) to ensure D1 compatibility and bypass builder issues
+        const tenantSeries = await db.query.classSeries.findMany({
+            where: eq(classSeries.tenantId, tenantId),
+            columns: { id: true }
+        });
+        const tenantSeriesIds = tenantSeries.map(s => s.id);
+
+        const classesToDelete = await db.query.classes.findMany({
+            where: or(
+                eq(classes.tenantId, tenantId),
+                tenantSeriesIds.length > 0 ? inArray(classes.seriesId, tenantSeriesIds) : undefined
+            ),
+            columns: { id: true }
+        });
+        const classIdsToDelete = classesToDelete.map(c => c.id);
+
+        // 2. Deep Dependencies (No tenantId, linked via parent)
+        if (classIdsToDelete.length > 0) {
+            // Bookings, Waitlists, Substitutions (via Classes)
+            await db.delete(bookings).where(inArray(bookings.classId, classIdsToDelete));
+            await db.delete(waitlist).where(inArray(waitlist.classId, classIdsToDelete));
+            await db.delete(substitutions).where(inArray(substitutions.classId, classIdsToDelete));
+            await db.delete(subRequests).where(inArray(subRequests.classId, classIdsToDelete));
+        }
+
+        // POS Items (via Orders)
+        await db.delete(posOrderItems).where(inArray(posOrderItems.orderId, db.select({ id: posOrders.id }).from(posOrders).where(eq(posOrders.tenantId, tenantId))));
+
+        // Payroll Items (via Payouts)
+        await db.delete(payrollItems).where(inArray(payrollItems.payoutId, db.select({ id: payouts.id }).from(payouts).where(eq(payouts.tenantId, tenantId))));
+
+        // Tenant Roles (via Members)
+        await db.delete(tenantRoles).where(inArray(tenantRoles.memberId, db.select({ id: tenantMembers.id }).from(tenantMembers).where(eq(tenantMembers.tenantId, tenantId))));
+
+        // Waiver Signatures (via Templates)
+        await db.delete(waiverSignatures).where(inArray(waiverSignatures.templateId, db.select({ id: waiverTemplates.id }).from(waiverTemplates).where(eq(waiverTemplates.tenantId, tenantId))));
+
+        // Video Collection Items (via Collections)
+        await db.delete(videoCollectionItems).where(inArray(videoCollectionItems.collectionId, db.select({ id: videoCollections.id }).from(videoCollections).where(eq(videoCollections.tenantId, tenantId))));
+
+
+        // 3. Direct Tenant Dependencies (Leafs & Logs)
+        await db.delete(auditLogs).where(eq(auditLogs.tenantId, tenantId));
+        await db.delete(emailLogs).where(eq(emailLogs.tenantId, tenantId));
+        await db.delete(smsLogs).where(eq(smsLogs.tenantId, tenantId));
+        await db.delete(usageLogs).where(eq(usageLogs.tenantId, tenantId));
+        await db.delete(automationLogs).where(eq(automationLogs.tenantId, tenantId));
+        await db.delete(giftCardTransactions).where(
+            inArray(giftCardTransactions.giftCardId, db.select({ id: giftCards.id }).from(giftCards).where(eq(giftCards.tenantId, tenantId)))
+        );
+
+        // 4. Transactions & Operations
+        await db.delete(posOrders).where(eq(posOrders.tenantId, tenantId));
+        await db.delete(payouts).where(eq(payouts.tenantId, tenantId));
+        await db.delete(giftCards).where(eq(giftCards.tenantId, tenantId));
+        await db.delete(appointments).where(eq(appointments.tenantId, tenantId));
+        await db.delete(purchasedPacks).where(eq(purchasedPacks.tenantId, tenantId));
+        await db.delete(couponRedemptions).where(eq(couponRedemptions.tenantId, tenantId));
+
+        // 5. Core Entities (Classes, Products, etc)
+        // Delete classes using self-contained ID list
+        if (classIdsToDelete.length > 0) {
+            await db.delete(classes).where(inArray(classes.id, classIdsToDelete));
+        }
+        await db.delete(classSeries).where(eq(classSeries.tenantId, tenantId));
+        await db.delete(products).where(eq(products.tenantId, tenantId));
+        await db.delete(classPackDefinitions).where(eq(classPackDefinitions.tenantId, tenantId));
+        await db.delete(membershipPlans).where(eq(membershipPlans.tenantId, tenantId));
+        await db.delete(coupons).where(eq(coupons.tenantId, tenantId));
+        await db.delete(waiverTemplates).where(eq(waiverTemplates.tenantId, tenantId));
+        await db.delete(marketingAutomations).where(eq(marketingAutomations.tenantId, tenantId));
+        await db.delete(marketingCampaigns).where(eq(marketingCampaigns.tenantId, tenantId));
+        await db.delete(challenges).where(eq(challenges.tenantId, tenantId));
+        await db.delete(userChallenges).where(eq(userChallenges.tenantId, tenantId));
+
+        // 5. Assets & Configs
+        await db.delete(videos).where(eq(videos.tenantId, tenantId));
+        await db.delete(videoCollections).where(eq(videoCollections.tenantId, tenantId));
+        await db.delete(videoShares).where(eq(videoShares.tenantId, tenantId));
+        await db.delete(brandingAssets).where(eq(brandingAssets.tenantId, tenantId));
+        await db.delete(locations).where(eq(locations.tenantId, tenantId));
+        await db.delete(availabilities).where(eq(availabilities.tenantId, tenantId));
+        await db.delete(appointmentServices).where(eq(appointmentServices.tenantId, tenantId));
+        await db.delete(smsConfig).where(eq(smsConfig.tenantId, tenantId));
+
+        // 6. People (Members, Leads)
+        await db.delete(studentNotes).where(eq(studentNotes.tenantId, tenantId));
+        await db.delete(leads).where(eq(leads.tenantId, tenantId));
+        await db.delete(subscriptions).where(eq(subscriptions.tenantId, tenantId)); // Delete subs before members
+        await db.delete(tenantMembers).where(eq(tenantMembers.tenantId, tenantId));
+
+        // 7. System
+        await db.delete(uploads).where(eq(uploads.tenantId, tenantId));
+        await db.delete(tenantFeatures).where(eq(tenantFeatures.tenantId, tenantId));
+
+        // 8. Finally, Tenant
+        await db.delete(tenants).where(eq(tenants.id, tenantId));
+
+        // Audit Log
+        const audit = new AuditService(db);
+        await audit.log({
+            actorId: auth.userId,
+            action: 'delete_tenant',
+            targetId: tenantId,
+            details: { name: tenant.name, slug: tenant.slug },
+            ipAddress: c.req.header('CF-Connecting-IP')
+        });
+
+        return c.json({ success: true });
+    } catch (e: any) {
+        console.error("Delete Failed:", e);
+        return c.json({ error: e.message || "Deletion failed" }, 500);
+    }
+});
+
+// PUT /tenants/:id/status - Update tenant status (active, paused, suspended, archived)
+app.put('/tenants/:id/status', async (c) => {
+    const tenantId = c.req.param('id');
+    const db = createDb(c.env.DB);
+    const auth = c.get('auth');
+    const { status } = await c.req.json();
+
+    if (!['active', 'paused', 'suspended', 'archived'].includes(status)) {
+        return c.json({ error: "Invalid status" }, 400);
+    }
+
+    await db.update(tenants)
+        .set({ status })
+        .where(eq(tenants.id, tenantId))
+        .run();
+
+    // Audit
+    const audit = new AuditService(db);
+    await audit.log({
+        actorId: auth.userId,
+        action: 'update_tenant_status',
+        targetId: tenantId,
+        details: { status },
+        ipAddress: c.req.header('CF-Connecting-IP')
+    });
+
+    return c.json({ success: true, status });
+});
+
+// PATCH /tenants/:id/settings/features - Enable/Disable features manually
+// (This endpoint might already exist or be handled by generic feature routes, adding here just in case)
 
 // PATCH /tenants/:id/quotas - Override limits
 app.patch('/tenants/:id/quotas', async (c) => {
@@ -1415,7 +1599,7 @@ app.post('/billing/charge', async (c) => {
                 results.push({ tenantId: tenant.id, name: tenant.name, items: res.items, total: res.total });
             }
         } catch (e: any) {
-            console.error(`Billing Failed for ${tenant.slug}:`, e);
+            console.error(`Billing Failed for ${tenant.slug}: `, e);
             results.push({ tenantId: tenant.id, error: e.message });
         }
     }
@@ -1480,7 +1664,7 @@ app.post('/tenants', async (c) => {
                         {
                             type: "Hero",
                             props: {
-                                title: `Welcome to ${name}`,
+                                title: `Welcome to ${name} `,
                                 subtitle: "Discover your practice with us",
                                 actions: [{ label: "View Schedule", href: "/schedule", variant: "primary" }]
                             }
@@ -1495,7 +1679,7 @@ app.post('/tenants', async (c) => {
                     ]
                 }
             },
-            seoTitle: `Home | ${name}`,
+            seoTitle: `Home | ${name} `,
             seoDescription: `Welcome to ${name}. Join us for classes and workshops.`,
             isPublished: true, // Auto-publish default home
             createdAt: new Date(),
@@ -1622,9 +1806,9 @@ app.delete('/videos/:id', async (c) => {
     if (video?.r2Key) {
         try {
             await c.env.R2.delete(video.r2Key);
-            console.log(`Deleted R2 object: ${video.r2Key}`);
+            console.log(`Deleted R2 object: ${video.r2Key} `);
         } catch (e) {
-            console.error(`Failed to delete R2 object ${video.r2Key}`, e);
+            console.error(`Failed to delete R2 object ${video.r2Key} `, e);
         }
     }
 
@@ -1700,7 +1884,7 @@ app.post('/videos/upload-url', async (c) => {
         type: type || 'vod'
     };
 
-    const creator = targetTenantId ? `tenant:${targetTenantId}` : 'platform';
+    const creator = targetTenantId ? `tenant:${targetTenantId} ` : 'platform';
 
     const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/direct_upload`, {
         method: 'POST',
