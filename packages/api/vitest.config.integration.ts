@@ -10,6 +10,8 @@ export default defineWorkersConfig({
                     kvNamespaces: ['KV'],
                     d1Databases: ['DB'],
                     r2Buckets: ['R2'],
+                    durableObjects: { RATE_LIMITER: 'RateLimiter' },
+                    bindings: { ENVIRONMENT: 'test' },
                     compatibilityFlags: ['nodejs_compat'],
                 },
             },

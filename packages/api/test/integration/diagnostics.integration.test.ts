@@ -30,7 +30,10 @@ describe('Diagnostics Integration', () => {
 
     it('should return 200 OK and database status', async () => {
         const req = new Request('http://localhost/diagnostics', {
-            method: 'GET'
+            method: 'GET',
+            headers: {
+                'TEST-AUTH': 'platform_admin' // Mocks authentication
+            }
         });
 
         // Use the worker's fetch handler with the integration environment

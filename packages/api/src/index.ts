@@ -227,8 +227,14 @@ const publicStudioPaths = [
 // 3. Apply Middleware
 
 // first, identify the user (Auth)
+// first, identify the user (Auth)
 publicStudioPaths.forEach(path => app.use(path, optionalAuthMiddleware));
-authenticatedPaths.forEach(path => app.use(path, authMiddleware));
+authenticatedPaths.forEach(path => {
+  app.use(path, authMiddleware);
+  // [NEW] Granular Rate Limit for Authenticated Users (Higher limit: 600 req/min)
+  // This runs AFTER authMiddleware, so it will use the user ID as the key.
+  app.use(path, rateLimitMiddleware(600, 60));
+});
 
 // then, establish studio context and member status (Tenant)
 studioPaths.forEach(path => app.use(path, tenantMiddleware));

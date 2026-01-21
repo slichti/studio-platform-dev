@@ -28,6 +28,17 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables, Bindi
     if (authHeader && authHeader.startsWith('Bearer ')) {
         token = authHeader.split(' ')[1];
     } else {
+        // [TEST MOCKING] Allow header bypass in test environment
+        if ((c.env as any).ENVIRONMENT === 'test' && c.req.header('TEST-AUTH')) {
+            const mockUserId = c.req.header('TEST-AUTH');
+            c.set('auth', {
+                userId: mockUserId,
+                claims: { sub: mockUserId, role: 'mock' }
+            });
+            c.set('isImpersonating', false);
+            return await next();
+        }
+
         // Security: Query parameter tokens removed to prevent exposure in logs/history
         return c.json({ error: 'Unauthorized' }, 401);
     }

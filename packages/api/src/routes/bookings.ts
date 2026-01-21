@@ -12,7 +12,10 @@ type Bindings = {
 
 type Variables = {
     tenant: typeof tenants.$inferSelect;
-    user: any; // User from auth
+    auth: {
+        userId: string | null;
+        claims: any;
+    };
     member?: any;
 };
 
@@ -106,7 +109,7 @@ app.delete('/:id', async (c) => {
     // [SECURITY] Permission Check (Own Booking OR Owner/Admin)
     // 1. Resolve Current Member
     const currentMember = await db.select().from(tenantMembers)
-        .where(and(eq(tenantMembers.userId, c.get('user').id), eq(tenantMembers.tenantId, tenant.id)))
+        .where(and(eq(tenantMembers.userId, c.get('auth').userId), eq(tenantMembers.tenantId, tenant.id)))
         .get();
 
     if (!currentMember) return c.json({ error: "Unauthorized" }, 401);

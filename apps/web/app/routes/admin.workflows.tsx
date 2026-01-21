@@ -1,154 +1,279 @@
 
-import { MermaidDiagram } from "~/components/MermaidDiagram";
-import { GitBranch, BookOpen, Video, Users } from "lucide-react";
+import { useLoaderData, useFetcher } from "@remix-run/react";
+import { json, LoaderFunction, ActionFunction } from "@remix-run/cloudflare";
+import { useState } from "react";
+import {
+    Cake,
+    UserPlus,
+    CalendarClock,
+    AlertCircle,
+    Plus,
+    MoreHorizontal,
+    Pencil,
+    Trash2,
+    Play,
+    CheckCircle2,
+    XCircle,
+    Clock
+} from "lucide-react";
+import { Button } from "~/components/ui/button";
+import { Switch } from "~/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "~/components/ui/dialog";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import { Textarea } from "~/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
+import { Badge } from "~/components/ui/badge";
+import { api } from "~/utils/api";
+
+export const loader: LoaderFunction = async ({ request, context }) => {
+    const response = await api(request, context).get('/studios/marketing/automations');
+    if (!response.ok) throw new Response("Failed to load automations", { status: response.status });
+    return json(await response.json());
+};
+
+export const action: ActionFunction = async ({ request, context }) => {
+    const formData = await request.formData();
+    const actionType = formData.get('_action');
+    const client = api(request, context);
+
+    if (actionType === 'create') {
+        const data = {
+            triggerEvent: formData.get('triggerEvent'),
+            subject: formData.get('subject'),
+            content: formData.get('content'),
+            timingType: formData.get('timingType'),
+            timingValue: Number(formData.get('timingValue'))
+        };
+        await client.post('/studios/marketing/automations', data);
+    } else if (actionType === 'update') {
+        const id = formData.get('id') as string;
+        const data: any = {};
+        if (formData.has('isEnabled')) data.isEnabled = formData.get('isEnabled') === 'true';
+        if (formData.has('subject')) data.subject = formData.get('subject');
+        if (formData.has('content')) data.content = formData.get('content');
+        if (formData.has('timingType')) data.timingType = formData.get('timingType');
+        if (formData.has('timingValue')) data.timingValue = Number(formData.get('timingValue'));
+
+        await client.patch(`/studios/marketing/automations/${id}`, data);
+    } else if (actionType === 'delete') {
+        const id = formData.get('id') as string;
+        await client.delete(`/studios/marketing/automations/${id}`);
+    } else if (actionType === 'test') {
+        const id = formData.get('id') as string;
+        const email = formData.get('email') as string;
+        await client.post(`/studios/marketing/automations/${id}/test`, { email });
+    }
+
+    return json({ success: true });
+};
 
 export default function AdminWorkflows() {
+    const { automations } = useLoaderData<any>();
+    const fetcher = useFetcher();
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+    const getIcon = (type: string) => {
+        switch (type) {
+            case 'birthday': return <Cake className="text-pink-500" />;
+            case 'new_student': return <UserPlus className="text-emerald-500" />;
+            case 'absent': return <CalendarClock className="text-amber-500" />;
+            case 'trial_ending': return <AlertCircle className="text-indigo-500" />;
+            default: return <Clock className="text-blue-500" />;
+        }
+    };
+
+    const getTimingLabel = (auto: any) => {
+        if (auto.timingType === 'immediate') return 'Sends Immediately';
+        if (auto.timingType === 'delay') return `Wait ${auto.timingValue} hours`;
+        if (auto.timingType === 'before') return `${auto.timingValue} hours Before`;
+        if (auto.timingType === 'after') return `${auto.timingValue} hours After`;
+        return 'Custom Schedule';
+    };
+
     return (
-        <div className="max-w-7xl mx-auto pb-20 space-y-8">
-            <div className="flex flex-col gap-2">
-                <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Process Workflows</h1>
-                <p className="text-zinc-500 dark:text-zinc-400">Visual documentation of core platform business logic and automated flows.</p>
+        <div className="max-w-5xl mx-auto pb-20 space-y-8">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Marketing Workflows</h1>
+                    <p className="text-zinc-500 dark:text-zinc-400">Automate your student communication lifecycle.</p>
+                </div>
+                <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                    <DialogTrigger asChild>
+                        <Button><Plus className="w-4 h-4 mr-2" /> New Workflow</Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-lg">
+                        <DialogHeader>
+                            <DialogTitle>Create Workflow</DialogTitle>
+                        </DialogHeader>
+                        <WorkflowForm
+                            onSubmit={(formData) => {
+                                formData.append('_action', 'create');
+                                fetcher.submit(formData, { method: 'post' });
+                                setIsCreateOpen(false);
+                            }}
+                        />
+                    </DialogContent>
+                </Dialog>
             </div>
 
-            {/* 1. Tenant Creation */}
-            <section className="space-y-4">
-                <div className="flex items-center gap-2 text-zinc-800 dark:text-zinc-200">
-                    <GitBranch className="text-indigo-600 dark:text-indigo-400" size={20} />
-                    <h2 className="text-lg font-semibold">1. Tenant Creation & Onboarding</h2>
-                </div>
-                <MermaidDiagram
-                    title="Tenant Provisioning Flow"
-                    chart={`
-sequenceDiagram
-    participant Admin as Platform Admin
-    participant API as Platform API
-    participant DB as Database
-    participant Stripe
-    participant R2 as Cloudflare R2
+            <div className="grid gap-4">
+                {automations.map((auto: any) => (
+                    <div key={auto.id} className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 flex flex-col sm:flex-row sm:items-center gap-6 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="p-3 bg-zinc-50 dark:bg-zinc-800 rounded-full shrink-0">
+                            {getIcon(auto.triggerEvent)}
+                        </div>
 
-    Admin->>API: POST /tenants (name, slug, tier)
-    API->>DB: Check Slug Uniqueness
-    API->>Stripe: Create Customer (Platform Billing)
-    API->>DB: Insert Tenant (status=active)
-    API->>DB: Insert Admin Member (Owner)
-    API->>R2: Initialize Storage Bucket Path
-    API-->>Admin: Returns { tenantId, slug }
-`}
-                />
-            </section>
+                        <div className="flex-1 space-y-1">
+                            <div className="flex items-center gap-3">
+                                <h3 className="font-semibold text-lg text-zinc-900 dark:text-zinc-100">{auto.subject}</h3>
+                                <Badge variant={auto.isEnabled ? "default" : "secondary"}>
+                                    {auto.isEnabled ? "Active" : "Paused"}
+                                </Badge>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-zinc-500">
+                                <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {getTimingLabel(auto)}
+                                </span>
+                                <span className="capitalize px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs">
+                                    Trigger: {auto.triggerEvent.replace('_', ' ')}
+                                </span>
+                            </div>
+                        </div>
 
-            {/* 2. Student Sign-up */}
-            <section className="space-y-4 pt-8 border-t border-zinc-200 dark:border-zinc-800">
-                <div className="flex items-center gap-2 text-zinc-800 dark:text-zinc-200">
-                    <Users className="text-emerald-600 dark:text-emerald-400" size={20} />
-                    <h2 className="text-lg font-semibold">2. Student Sign-up & Class Booking</h2>
-                </div>
-                <MermaidDiagram
-                    title="Student Registration & Booking Flow"
-                    chart={`
-sequenceDiagram
-    participant User as Student
-    participant Web as Studio Site
-    participant API
-    participant DB
-    participant Stripe
+                        <div className="flex items-center gap-4 pt-4 sm:pt-0 border-t sm:border-0 border-zinc-100 dark:border-zinc-800">
+                            <div className="flex items-center gap-2">
+                                <Label htmlFor={`toggle-${auto.id}`} className="sr-only">Enable</Label>
+                                <Switch
+                                    id={`toggle-${auto.id}`}
+                                    checked={auto.isEnabled}
+                                    onCheckedChange={(checked) => {
+                                        fetcher.submit(
+                                            { _action: 'update', id: auto.id, isEnabled: String(checked) },
+                                            { method: 'post' }
+                                        );
+                                    }}
+                                />
+                            </div>
 
-    User->>Web: Visiting /studio/[slug]/classes
-    User->>Web: Click "Book" on Class
-    Web->>API: GET /classes/[id]
-    
-    alt Not Logged In
-        Web-->>User: Redirect to Sign In/Up
-        User->>Web: Sign Up (Clerk)
-        Web->>API: POST /users (Create Global User)
-        API->>DB: Create User Record
-    end
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button variant="outline" size="sm">
+                                        <Pencil className="w-4 h-4 mr-2" /> Edit
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-lg">
+                                    <DialogHeader>
+                                        <DialogTitle>Edit "{auto.subject}"</DialogTitle>
+                                    </DialogHeader>
+                                    <WorkflowForm
+                                        initialData={auto}
+                                        onSubmit={(formData) => {
+                                            formData.append('_action', 'update');
+                                            formData.append('id', auto.id);
+                                            fetcher.submit(formData, { method: 'post' });
+                                        }}
+                                    />
+                                </DialogContent>
+                            </Dialog>
 
-    Web->>API: POST /bookings (classId)
-    API->>DB: Check Member Status
-    
-    alt No Credits
-        API-->>Web: 402 Payment Required
-        Web->>User: Show "Buy Class Pack" Modal
-        User->>Web: Select 5-Class Pack
-        Web->>Stripe: Checkout Session
-        Stripe-->>Web: Payment Success
-        Web->>API: Webhook (invoice.paid)
-        API->>DB: Add Credits to Member
-    end
-
-    Web->>API: Retry POST /bookings
-    API->>DB: Deduct Credit
-    API->>DB: Create Booking (status=confirmed)
-    API-->>Web: Success
-    Web->>User: "You are booked!"
-`}
-                />
-            </section>
-
-            {/* 3. VOD Ingestion */}
-            <section className="space-y-4 pt-8 border-t border-zinc-200 dark:border-zinc-800">
-                <div className="flex items-center gap-2 text-zinc-800 dark:text-zinc-200">
-                    <Video className="text-blue-600 dark:text-blue-400" size={20} />
-                    <h2 className="text-lg font-semibold">3. Zoom File Transfer (VOD Ingestion)</h2>
-                </div>
-                <MermaidDiagram
-                    title="Automated VOD Ingestion Pipeline"
-                    chart={`
-sequenceDiagram
-    participant Zoom
-    participant Webhook as API Webhook
-    participant Worker as Download Worker
-    participant R2 as R2 Storage
-    participant CF as Cloudflare Stream
-    participant DB
-
-    Zoom->>Webhook: POST /webhooks/zoom (recording.completed)
-    Webhook->>DB: Log Webhook Event
-    Webhook->>Worker: Trigger Async Job
-    
-    loop Download Worker
-        Worker->>Zoom: Get Download URL
-        Worker->>R2: Stream Upload (MP4)
-        Worker->>DB: Update Video Status (downloaded)
-    end
-
-    Worker->>CF: Direct Upload from R2 URL
-    CF-->>Worker: Stream ID
-    Worker->>DB: Update Video (processing)
-    
-    loop Stream Webhook
-        CF->>Webhook: POST /webhooks/stream (ready)
-        Webhook->>DB: Update Video (status=ready)
-    end
-`}
-                />
-            </section>
-
-            {/* 4. Live Streaming */}
-            <section className="space-y-4 pt-8 border-t border-zinc-200 dark:border-zinc-800">
-                <div className="flex items-center gap-2 text-zinc-800 dark:text-zinc-200">
-                    <Video className="text-red-500 dark:text-red-400" size={20} />
-                    <h2 className="text-lg font-semibold">4. Live Streaming Logic</h2>
-                </div>
-                <MermaidDiagram
-                    title="Live Stream Access Control"
-                    chart={`
-graph TD
-    A[Instructor] -->|Starts Stream| B(LiveKit Room)
-    B -->|Webhook| C{API Gatekeeper}
-    C -->|Valid Token?| D[Connect Instructor]
-    C -->|Invalid?| E[Reject]
-
-    F[Student] -->|Join Class| G(Web Player)
-    G -->|Request Token| H[API /token]
-    H -->|Check Booking| I{Has Booking?}
-    I -->|Yes| J[Return Token]
-    I -->|No| K[Error: Book First]
-    J --> B
-`}
-                />
-            </section>
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-red-500">
+                                        <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>Delete Workflow?</DialogTitle>
+                                    </DialogHeader>
+                                    <p className="text-zinc-500">This action cannot be undone. Typically we recommend pausing instead.</p>
+                                    <DialogFooter>
+                                        <Button variant="destructive" onClick={() => {
+                                            fetcher.submit({ _action: 'delete', id: auto.id }, { method: 'post' });
+                                        }}>Delete</Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
+                        </div>
+                    </div>
+                ))}
+            </div>
         </div>
+    );
+}
+
+function WorkflowForm({ initialData, onSubmit }: { initialData?: any, onSubmit: (data: FormData) => void }) {
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
+        onSubmit(formData);
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label>Trigger Event</Label>
+                    <Select name="triggerEvent" defaultValue={initialData?.triggerEvent || "new_student"} disabled={!!initialData}>
+                        <SelectTrigger>
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="new_student">New Student Signup</SelectItem>
+                            <SelectItem value="birthday">Birthday</SelectItem>
+                            <SelectItem value="absent">Student Absent (Re-engage)</SelectItem>
+                            <SelectItem value="trial_ending">Trial Ending Soon</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-2">
+                    <Label>Timing</Label>
+                    <div className="flex gap-2">
+                        <Select name="timingType" defaultValue={initialData?.timingType || "immediate"}>
+                            <SelectTrigger className="w-[140px]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="immediate">Immediately</SelectItem>
+                                <SelectItem value="delay">Wait (Delay)</SelectItem>
+                                <SelectItem value="before">Before Event</SelectItem>
+                                <SelectItem value="after">After Event</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Input
+                            name="timingValue"
+                            type="number"
+                            defaultValue={initialData?.timingValue || 0}
+                            placeholder="Hours"
+                            className="w-20"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <div className="space-y-2">
+                <Label>Subject Line</Label>
+                <Input name="subject" defaultValue={initialData?.subject} required placeholder="e.g. Welcome to the family!" />
+            </div>
+
+            <div className="space-y-2">
+                <Label>Email Content</Label>
+                <Textarea
+                    name="content"
+                    defaultValue={initialData?.content}
+                    required
+                    placeholder="Hello {firstname}..."
+                    className="h-32 font-mono text-sm"
+                />
+                <p className="text-xs text-zinc-500">Supported variables: {'{firstname}'}, {'{lastname}'}.</p>
+            </div>
+
+            <DialogFooter>
+                <Button type="submit">Save Workflow</Button>
+            </DialogFooter>
+        </form>
     );
 }
