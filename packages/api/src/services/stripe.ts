@@ -208,24 +208,26 @@ export class StripeService {
     /**
      * Create Subscription (SaaS)
      */
-    async createSubscription(customerId: string, priceId: string, trialDays?: number) {
-        return this.stripe.subscriptions.create({
+    async createSubscription(customerId: string, priceId: string, trialDays?: number, connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        return client.subscriptions.create({
             customer: customerId,
             items: [{ price: priceId }],
             trial_period_days: trialDays,
             payment_behavior: 'default_incomplete',
             expand: ['latest_invoice.payment_intent'],
-        });
+        }, options);
     }
 
     /**
      * Cancel Subscription
      */
-    async cancelSubscription(subscriptionId: string, atPeriodEnd: boolean = true) {
+    async cancelSubscription(subscriptionId: string, atPeriodEnd: boolean = true, connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
         if (atPeriodEnd) {
-            return this.stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: true });
+            return client.subscriptions.update(subscriptionId, { cancel_at_period_end: true }, options);
         } else {
-            return this.stripe.subscriptions.cancel(subscriptionId);
+            return client.subscriptions.cancel(subscriptionId, {}, options);
         }
     }
 
@@ -233,19 +235,20 @@ export class StripeService {
      * Update Subscription (Change Price/Interval)
      * Note: This assumes swapping the single item in the subscription.
      */
-    async updateSubscription(subscriptionId: string, newPriceId: string) {
+    async updateSubscription(subscriptionId: string, newPriceId: string, connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
         // 1. Get subscription to find item ID
-        const subscription = await this.stripe.subscriptions.retrieve(subscriptionId);
+        const subscription = await client.subscriptions.retrieve(subscriptionId, {}, options);
         const itemId = subscription.items.data[0].id;
 
         // 2. Update the item
-        return this.stripe.subscriptions.update(subscriptionId, {
+        return client.subscriptions.update(subscriptionId, {
             items: [{
                 id: itemId,
                 price: newPriceId,
             }],
             proration_behavior: 'create_prorations', // Default behavior
-        });
+        }, options);
     }
 
     /**
@@ -259,13 +262,14 @@ export class StripeService {
         }, options);
     }
 
-    async listInvoices(customerId: string, limit = 20) {
-        return this.stripe.invoices.list({
+    async listInvoices(customerId: string, limit = 20, connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        return client.invoices.list({
             customer: customerId,
             limit,
             status: 'paid', // Or all? Usually paid for history.
             expand: ['data.payment_intent']
-        });
+        }, options);
     }
 
     /**

@@ -317,7 +317,7 @@ app.get('/google/connect', async (c) => {
         tenantId,
         userId: auth.userId,
         exp: Math.floor(Date.now() / 1000) + 600 // 10 minutes expiry
-    }, c.env.ENCRYPTION_SECRET);
+    }, c.env.ENCRYPTION_SECRET, 'HS256');
 
     return c.redirect(service.getAuthUrl(state));
 });
@@ -336,7 +336,7 @@ app.get('/google/callback', async (c) => {
     // [SECURITY] Verify State
     let tenantId: string;
     try {
-        const payload = await verify(state, c.env.ENCRYPTION_SECRET);
+        const payload = await verify(state, c.env.ENCRYPTION_SECRET, 'HS256');
         if (payload.userId !== auth.userId) {
             return c.json({ error: "Security Check Failed: User mismatch" }, 403);
         }
