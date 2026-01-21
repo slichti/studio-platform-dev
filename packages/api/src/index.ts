@@ -193,7 +193,8 @@ const studioPaths = [
   '/integrations', '/integrations/*',
   '/sub-dispatch', '/sub-dispatch/*',
   '/waitlist', '/waitlist/*',
-  '/video-management', '/video-management/*'
+  '/video-management', '/video-management/*',
+  '/bookings', '/bookings/*'
 ];
 
 const authenticatedPaths = [
@@ -215,6 +216,7 @@ const authenticatedPaths = [
   '/sub-dispatch', '/sub-dispatch/*',
   '/waitlist', '/waitlist/*',
   '/video-management', '/video-management/*',
+  '/bookings', '/bookings/*',
   '/diagnostics', '/diagnostics/*'  // Security: Require auth for diagnostics
 ];
 

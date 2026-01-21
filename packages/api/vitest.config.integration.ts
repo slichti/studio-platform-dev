@@ -11,7 +11,7 @@ export default defineWorkersConfig({
                     d1Databases: ['DB'],
                     r2Buckets: ['R2'],
                     durableObjects: { RATE_LIMITER: 'RateLimiter' },
-                    bindings: { ENVIRONMENT: 'test' },
+                    bindings: { ENVIRONMENT: 'test', ENCRYPTION_SECRET: 'test-secret-must-be-32-chars-lng' },
                     compatibilityFlags: ['nodejs_compat'],
                 },
             },

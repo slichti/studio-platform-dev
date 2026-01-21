@@ -1,6 +1,9 @@
 
-import { useLoaderData, useFetcher } from "@remix-run/react";
-import { json, LoaderFunction, ActionFunction } from "@remix-run/cloudflare";
+// @ts-ignore
+import { useLoaderData, useFetcher } from "react-router";
+// @ts-ignore
+import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
+import { getAuth } from "@clerk/react-router/server";
 import { useState } from "react";
 import {
     Cake,
@@ -8,70 +11,105 @@ import {
     CalendarClock,
     AlertCircle,
     Plus,
-    MoreHorizontal,
     Pencil,
     Trash2,
-    Play,
-    CheckCircle2,
-    XCircle,
     Clock
 } from "lucide-react";
-import { Button } from "~/components/ui/button";
-import { Switch } from "~/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "~/components/ui/dialog";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
-import { Textarea } from "~/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
-import { Badge } from "~/components/ui/badge";
-import { api } from "~/utils/api";
+// Import only existing components
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "../components/ui/dialog";
+import { Badge } from "../components/ui/Badge";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Select } from "../components/ui/select";
+import { Textarea } from "../components/ui/textarea";
+import { Switch } from "../components/ui/switch";
+import { apiRequest } from "../utils/api";
 
-export const loader: LoaderFunction = async ({ request, context }) => {
-    const response = await api(request, context).get('/studios/marketing/automations');
-    if (!response.ok) throw new Response("Failed to load automations", { status: response.status });
-    return json(await response.json());
+interface Automation {
+    id: string;
+    triggerEvent: 'new_student' | 'birthday' | 'absent' | 'trial_ending';
+    subject: string;
+    content: string;
+    timingType: 'immediate' | 'delay' | 'before' | 'after';
+    timingValue: number;
+    isEnabled: boolean;
+}
+
+export const loader = async (args: LoaderFunctionArgs) => {
+    const { getToken } = await getAuth(args);
+    const token = await getToken();
+    const env = (args.context as any).cloudflare?.env || (args.context as any).env || {};
+    const apiUrl = env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev";
+
+    try {
+        const automations = await apiRequest<Automation[]>('/studios/marketing/automations', token, {}, apiUrl);
+        return { automations: automations || [] };
+    } catch (e: any) {
+        console.error("Failed to load automations", e);
+        return { automations: [], error: e.message };
+    }
 };
 
-export const action: ActionFunction = async ({ request, context }) => {
+export const action = async (args: ActionFunctionArgs) => {
+    const { request, context } = args;
+    const { getToken } = await getAuth(args);
+    const token = await getToken();
+    const env = (context as any).cloudflare?.env || (context as any).env || {};
+    const apiUrl = env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev";
+
     const formData = await request.formData();
     const actionType = formData.get('_action');
-    const client = api(request, context);
 
-    if (actionType === 'create') {
-        const data = {
-            triggerEvent: formData.get('triggerEvent'),
-            subject: formData.get('subject'),
-            content: formData.get('content'),
-            timingType: formData.get('timingType'),
-            timingValue: Number(formData.get('timingValue'))
-        };
-        await client.post('/studios/marketing/automations', data);
-    } else if (actionType === 'update') {
-        const id = formData.get('id') as string;
-        const data: any = {};
-        if (formData.has('isEnabled')) data.isEnabled = formData.get('isEnabled') === 'true';
-        if (formData.has('subject')) data.subject = formData.get('subject');
-        if (formData.has('content')) data.content = formData.get('content');
-        if (formData.has('timingType')) data.timingType = formData.get('timingType');
-        if (formData.has('timingValue')) data.timingValue = Number(formData.get('timingValue'));
+    try {
+        if (actionType === 'create') {
+            const data = {
+                triggerEvent: formData.get('triggerEvent'),
+                subject: formData.get('subject'),
+                content: formData.get('content'),
+                timingType: formData.get('timingType'),
+                timingValue: Number(formData.get('timingValue'))
+            };
+            await apiRequest('/studios/marketing/automations', token, {
+                method: 'POST',
+                body: JSON.stringify(data)
+            }, apiUrl);
+        } else if (actionType === 'update') {
+            const id = formData.get('id') as string;
+            const data: any = {};
+            if (formData.has('isEnabled')) data.isEnabled = formData.get('isEnabled') === 'true';
+            if (formData.has('subject')) data.subject = formData.get('subject');
+            if (formData.has('content')) data.content = formData.get('content');
+            if (formData.has('timingType')) data.timingType = formData.get('timingType');
+            if (formData.has('timingValue')) data.timingValue = Number(formData.get('timingValue'));
 
-        await client.patch(`/studios/marketing/automations/${id}`, data);
-    } else if (actionType === 'delete') {
-        const id = formData.get('id') as string;
-        await client.delete(`/studios/marketing/automations/${id}`);
-    } else if (actionType === 'test') {
-        const id = formData.get('id') as string;
-        const email = formData.get('email') as string;
-        await client.post(`/studios/marketing/automations/${id}/test`, { email });
+            await apiRequest(`/studios/marketing/automations/${id}`, token, {
+                method: 'PATCH',
+                body: JSON.stringify(data)
+            }, apiUrl);
+        } else if (actionType === 'delete') {
+            const id = formData.get('id') as string;
+            await apiRequest(`/studios/marketing/automations/${id}`, token, {
+                method: 'DELETE'
+            }, apiUrl);
+        } else if (actionType === 'test') {
+            const id = formData.get('id') as string;
+            const email = formData.get('email') as string;
+            await apiRequest(`/studios/marketing/automations/${id}/test`, token, {
+                method: 'POST',
+                body: JSON.stringify({ email })
+            }, apiUrl);
+        }
+
+        return { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.message };
     }
-
-    return json({ success: true });
 };
 
 export default function AdminWorkflows() {
-    const { automations } = useLoaderData<any>();
+    const { automations } = useLoaderData<{ automations: Automation[] }>();
     const fetcher = useFetcher();
-    const [editingId, setEditingId] = useState<string | null>(null);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
 
     const getIcon = (type: string) => {
@@ -84,7 +122,7 @@ export default function AdminWorkflows() {
         }
     };
 
-    const getTimingLabel = (auto: any) => {
+    const getTimingLabel = (auto: Automation) => {
         if (auto.timingType === 'immediate') return 'Sends Immediately';
         if (auto.timingType === 'delay') return `Wait ${auto.timingValue} hours`;
         if (auto.timingType === 'before') return `${auto.timingValue} hours Before`;
@@ -119,7 +157,7 @@ export default function AdminWorkflows() {
             </div>
 
             <div className="grid gap-4">
-                {automations.map((auto: any) => (
+                {automations.map((auto) => (
                     <div key={auto.id} className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 flex flex-col sm:flex-row sm:items-center gap-6 shadow-sm hover:shadow-md transition-shadow">
                         <div className="p-3 bg-zinc-50 dark:bg-zinc-800 rounded-full shrink-0">
                             {getIcon(auto.triggerEvent)}
@@ -128,7 +166,7 @@ export default function AdminWorkflows() {
                         <div className="flex-1 space-y-1">
                             <div className="flex items-center gap-3">
                                 <h3 className="font-semibold text-lg text-zinc-900 dark:text-zinc-100">{auto.subject}</h3>
-                                <Badge variant={auto.isEnabled ? "default" : "secondary"}>
+                                <Badge variant={auto.isEnabled ? "default" : "outline"}>
                                     {auto.isEnabled ? "Active" : "Paused"}
                                 </Badge>
                             </div>
@@ -147,7 +185,6 @@ export default function AdminWorkflows() {
                             <div className="flex items-center gap-2">
                                 <Label htmlFor={`toggle-${auto.id}`} className="sr-only">Enable</Label>
                                 <Switch
-                                    id={`toggle-${auto.id}`}
                                     checked={auto.isEnabled}
                                     onCheckedChange={(checked) => {
                                         fetcher.submit(
@@ -160,7 +197,7 @@ export default function AdminWorkflows() {
 
                             <Dialog>
                                 <DialogTrigger asChild>
-                                    <Button variant="outline" size="sm">
+                                    <Button variant="outline">
                                         <Pencil className="w-4 h-4 mr-2" /> Edit
                                     </Button>
                                 </DialogTrigger>
@@ -181,15 +218,17 @@ export default function AdminWorkflows() {
 
                             <Dialog>
                                 <DialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-red-500">
+                                    <Button variant="ghost" className="text-zinc-400 hover:text-red-500 hover:bg-zinc-100">
                                         <Trash2 className="w-4 h-4" />
                                     </Button>
                                 </DialogTrigger>
                                 <DialogContent>
                                     <DialogHeader>
                                         <DialogTitle>Delete Workflow?</DialogTitle>
+                                        <DialogDescription>
+                                            This action cannot be undone. Typically we recommend pausing instead.
+                                        </DialogDescription>
                                     </DialogHeader>
-                                    <p className="text-zinc-500">This action cannot be undone. Typically we recommend pausing instead.</p>
                                     <DialogFooter>
                                         <Button variant="destructive" onClick={() => {
                                             fetcher.submit({ _action: 'delete', id: auto.id }, { method: 'post' });
@@ -205,7 +244,12 @@ export default function AdminWorkflows() {
     );
 }
 
-function WorkflowForm({ initialData, onSubmit }: { initialData?: any, onSubmit: (data: FormData) => void }) {
+interface WorkflowFormProps {
+    initialData?: Automation;
+    onSubmit: (formData: FormData) => void;
+}
+
+function WorkflowForm({ initialData, onSubmit }: WorkflowFormProps) {
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
@@ -217,31 +261,29 @@ function WorkflowForm({ initialData, onSubmit }: { initialData?: any, onSubmit: 
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <Label>Trigger Event</Label>
-                    <Select name="triggerEvent" defaultValue={initialData?.triggerEvent || "new_student"} disabled={!!initialData}>
-                        <SelectTrigger>
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="new_student">New Student Signup</SelectItem>
-                            <SelectItem value="birthday">Birthday</SelectItem>
-                            <SelectItem value="absent">Student Absent (Re-engage)</SelectItem>
-                            <SelectItem value="trial_ending">Trial Ending Soon</SelectItem>
-                        </SelectContent>
+                    <Select
+                        name="triggerEvent"
+                        defaultValue={initialData?.triggerEvent || "new_student"}
+                        disabled={!!initialData}
+                    >
+                        <option value="new_student">New Student Signup</option>
+                        <option value="birthday">Birthday</option>
+                        <option value="absent">Student Absent (Re-engage)</option>
+                        <option value="trial_ending">Trial Ending Soon</option>
                     </Select>
                 </div>
                 <div className="space-y-2">
                     <Label>Timing</Label>
                     <div className="flex gap-2">
-                        <Select name="timingType" defaultValue={initialData?.timingType || "immediate"}>
-                            <SelectTrigger className="w-[140px]">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="immediate">Immediately</SelectItem>
-                                <SelectItem value="delay">Wait (Delay)</SelectItem>
-                                <SelectItem value="before">Before Event</SelectItem>
-                                <SelectItem value="after">After Event</SelectItem>
-                            </SelectContent>
+                        <Select
+                            name="timingType"
+                            defaultValue={initialData?.timingType || "immediate"}
+                            className="w-[140px]"
+                        >
+                            <option value="immediate">Immediately</option>
+                            <option value="delay">Wait (Delay)</option>
+                            <option value="before">Before Event</option>
+                            <option value="after">After Event</option>
                         </Select>
                         <Input
                             name="timingValue"
@@ -256,7 +298,12 @@ function WorkflowForm({ initialData, onSubmit }: { initialData?: any, onSubmit: 
 
             <div className="space-y-2">
                 <Label>Subject Line</Label>
-                <Input name="subject" defaultValue={initialData?.subject} required placeholder="e.g. Welcome to the family!" />
+                <Input
+                    name="subject"
+                    defaultValue={initialData?.subject}
+                    required
+                    placeholder="e.g. Welcome to the family!"
+                />
             </div>
 
             <div className="space-y-2">
@@ -266,12 +313,12 @@ function WorkflowForm({ initialData, onSubmit }: { initialData?: any, onSubmit: 
                     defaultValue={initialData?.content}
                     required
                     placeholder="Hello {firstname}..."
-                    className="h-32 font-mono text-sm"
+                    className="h-32 font-mono"
                 />
                 <p className="text-xs text-zinc-500">Supported variables: {'{firstname}'}, {'{lastname}'}.</p>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="mt-4">
                 <Button type="submit">Save Workflow</Button>
             </DialogFooter>
         </form>

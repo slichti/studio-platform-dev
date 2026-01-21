@@ -116,69 +116,81 @@ app.post('/pdf', async (c) => {
 });
 
 app.get('/:key{.+}', async (c) => {
-    const key = c.req.param('key');
-    const object = await c.env.R2.get(key);
+    try {
+        const key = c.req.param('key');
+        const object = await c.env.R2.get(key);
 
-    if (!object) {
-        return c.json({ error: 'File not found' }, 404);
-    }
+        if (!object) {
+            return c.json({ error: 'File not found' }, 404);
+        }
 
-    const tenant = c.get('tenant');
-    // const isSystemAdmin = c.get('roles')?.includes('owner'); 
+        const tenant = c.get('tenant');
+        if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
-    // Assuming 'user' and 'userHasRole' are defined elsewhere or will be added.
-    // The provided instruction seems to be inserting a new conditional check.
-    // For now, I'm inserting the line as provided, correcting the syntax.
-    // If user context and userHasRole function are not available, this line will cause errors.
-    // if (!userHasRole(roles, ['owner', 'admin']) && !user?.isPlatformAdmin && user.id !== upload.uploadedBy) {
-    //     // This block was empty in the instruction, assuming it's a placeholder for future logic.
-    // }
+        // [SECURITY] Tenant Isolation
+        // Ensure the requested key belongs to this tenant's folder structure
+        if (key.startsWith('tenants/') && !key.startsWith(`tenants/${tenant.slug}/`)) {
+            return c.json({ error: 'Access Denied: Tenant Isolation Violation' }, 403);
+        }
 
-    if (key.startsWith('tenants/') && !key.startsWith(`tenants/${tenant.slug}/`)) {
-        return c.json({ error: 'Access Denied: Tenant Isolation Violation' }, 403);
-    }
+        // [SECURITY] Protect Sensitive Files
+        // convention: /waivers/, /contracts/, /private/ are protected
+        const isSensitive = key.includes('/waivers/') || key.includes('/contracts/') || key.includes('/private/');
 
-    // [SECURITY] Protect Sensitive Files (Waivers)
-    if (key.includes('/waivers/')) {
-        const auth = c.get('auth');
-        if (!auth?.userId) return c.json({ error: "Unauthorized" }, 401);
+        if (isSensitive) {
+            const auth = c.get('auth');
+            if (!auth?.userId) return c.json({ error: "Unauthorized" }, 401);
 
-        const db = createDb(c.env.DB);
+            const db = createDb(c.env.DB);
 
-        // Check if user is the uploader OR has privileged role
-        const metadata = await db.select().from(uploads)
-            .where(and(eq(uploads.fileKey, key), eq(uploads.tenantId, tenant.id)))
-            .get();
-
-        const isUploader = metadata && metadata.uploadedBy === auth.userId;
-
-        if (!isUploader) {
-            // Check roles
-            const membership = await db.select().from(tenantMembers)
-                .where(and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id)))
+            // Check if user is the uploader
+            const metadata = await db.select().from(uploads)
+                .where(and(eq(uploads.fileKey, key), eq(uploads.tenantId, tenant.id)))
                 .get();
 
-            if (!membership) return c.json({ error: "Forbidden" }, 403);
+            // If we have metadata, check ownership
+            const isUploader = metadata && metadata.uploadedBy === auth.userId;
 
-            const { tenantRoles } = await import('db/src/schema');
-            const roles = await db.select().from(tenantRoles).where(eq(tenantRoles.memberId, membership.id)).all();
-            const hasPrivilege = roles.some(r => r.role === 'owner' || r.role === 'admin');
+            if (!isUploader) {
+                // Check for privileged roles (Owner/Admin)
+                // We need to find the member record for this user in this tenant
+                const membership = await db.select().from(tenantMembers)
+                    .where(and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id)))
+                    .get();
 
-            if (!hasPrivilege) {
-                return c.json({ error: "Forbidden: Access denied to sensitive document." }, 403);
+                if (!membership) return c.json({ error: "Forbidden" }, 403);
+
+                // Fetch roles for this member
+                // We need to import tenantRoles. It should be imported at top level, but for now using the existing pattern if needed or fixing imports.
+                // Let's assume we fix imports in a separate step or rely on what's available.
+                // Actually, I will update imports in a separate step to be clean.
+                // For now, I will use dynamic import as it was there, or better yet, I should have updated the top imports.
+                // I'll stick to the existing dynamic import pattern for safely within this block if I don't change top of file yet,
+                // or just use the variable if I can.
+                // Wait, I can't verify if I added it to top imports yet in this single tool call standard.
+                // I will use dynamic import to be safe and avoid breaking if I missed top edit.
+                const { tenantRoles } = await import('db/src/schema');
+
+                const roles = await db.select().from(tenantRoles).where(eq(tenantRoles.memberId, membership.id)).all();
+                const hasPrivilege = roles.some(r => r.role === 'owner' || r.role === 'admin');
+
+                if (!hasPrivilege) {
+                    return c.json({ error: "Forbidden: Access denied to sensitive document." }, 403);
+                }
             }
         }
+
+        const headers = new Headers();
+        object.writeHttpMetadata(headers);
+        headers.set('etag', object.httpEtag);
+
+        return new Response(object.body, {
+            headers,
+        });
+    } catch (e: any) {
+        console.error("GET /uploads/:key error", e);
+        return c.json({ error: e.message, stack: e.stack }, 500);
     }
-
-    const headers = new Headers();
-    object.writeHttpMetadata(headers);
-    // Force download for PDFs to prevent inline execution of malicious content?
-    // headers.set('Content-Disposition', 'attachment'); 
-    headers.set('etag', object.httpEtag);
-
-    return new Response(object.body, {
-        headers,
-    });
 });
 
 // Generic Image Upload to R2 (e.g. for membership cards)

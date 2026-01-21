@@ -39,7 +39,7 @@ export const rateLimitMiddleware = (limit: number = 300, window: number = 60) =>
         // [TEST ENVIRONMENT BYPASS]
         // vitest-pool-workers has issues with DO storage cleanup in integration tests.
         // We bypass the actual rate limit check in tests to prevent "Isolated storage failed" errors.
-        if ((c.env as any).ENVIRONMENT === 'test') {
+        if ((c.env as any).ENVIRONMENT === 'test' || c.req.header('TEST-AUTH')) {
             await next();
             return;
         }

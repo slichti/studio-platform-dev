@@ -89,7 +89,7 @@ export default function AdminLayout() {
         { label: "Projections", href: "/admin/projections", icon: "📈" },
         { label: "Communications", href: "/admin/comms", icon: "📡" },
         { label: "Activity Logs", href: "/admin/logs", icon: "📋" },
-        { label: "System Users", href: "/admin/users", icon: "👥" },
+        { label: "Global User Directory", href: "/admin/users", icon: "👥" },
         { label: "Video Manager", href: "/admin/videos", icon: "🎬" },
         { label: "Website Builder", href: "/admin/website", icon: "🌐" },
         { label: "Chat System", href: "/admin/chat", icon: "💬" },

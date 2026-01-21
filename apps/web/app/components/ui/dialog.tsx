@@ -5,8 +5,20 @@ import { X } from 'lucide-react'
 // Adapting to: <Dialog> <DialogTrigger> <DialogContent> ...
 const DialogContext = createContext<any>(null);
 
-function Dialog({ children }: any) {
-    const [isOpen, setIsOpen] = useState(false);
+interface DialogProps {
+    children: React.ReactNode;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+}
+
+function Dialog({ children, open: controlledOpen, onOpenChange: setControlledOpen }: DialogProps) {
+    const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+
+    // Use controlled state if provided, otherwise internal state
+    const isControlled = controlledOpen !== undefined;
+    const isOpen = isControlled ? controlledOpen : uncontrolledOpen;
+    const setIsOpen = isControlled ? setControlledOpen : setUncontrolledOpen;
+
     return (
         <DialogContext.Provider value={{ isOpen, setIsOpen }}>
             {children}
@@ -87,4 +99,13 @@ function DialogDescription({ children, className }: any) {
     return <p className={`text-sm text-zinc-500 dark:text-zinc-400 ${className}`}>{children}</p>
 }
 
-export { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription }
+export { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription }
+
+function DialogFooter({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) {
+    return (
+        <div
+            className={`flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 ${className}`}
+            {...props}
+        />
+    )
+}
