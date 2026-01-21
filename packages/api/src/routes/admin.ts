@@ -9,7 +9,7 @@ import {
     membershipPlans, coupons, marketingCampaigns, challenges, userChallenges, locations, availabilities,
     appointmentServices, smsConfig, studentNotes, leads, uploads
 } from 'db/src/schema';
-import { eq, sql, desc, count, or, like, asc, and, inArray, isNull } from 'drizzle-orm';
+import { eq, sql, desc, count, or, like, asc, and, inArray, isNull, exists } from 'drizzle-orm';
 
 import { UsageService } from '../services/pricing';
 
@@ -91,16 +91,21 @@ app.get('/users', async (c) => {
             const conditions = [];
             if (search) {
                 conditions.push(or(
-                    like(users.email, `% ${search}% `),
-                    like(users.id, `% ${search}% `),
-                    sql`LOWER(json_extract(${users.profile}, '$.firstName')) LIKE ${`%${search.toLowerCase()}%`} `,
-                    sql`LOWER(json_extract(${users.profile}, '$.lastName')) LIKE ${`%${search.toLowerCase()}%`} `
+                    like(users.email, `%${search}%`),
+                    like(users.id, `%${search}%`),
+                    sql`LOWER(json_extract(${users.profile}, '$.firstName')) LIKE ${`%${search.toLowerCase()}%`}`,
+                    sql`LOWER(json_extract(${users.profile}, '$.lastName')) LIKE ${`%${search.toLowerCase()}%`}`
                 ));
             }
             if (tenantId) {
-                // This is a bit tricky with findMany and relations if we want to filter the ROOT users by their memberships.
-                // We'll handle tenant filtering after fetching or via a more complex where clause if needed.
-                // For now, let's keep it simple and filter in memory if tenantId is provided or use a subquery.
+                conditions.push(exists(
+                    db.select()
+                        .from(tenantMembers)
+                        .where(and(
+                            eq(tenantMembers.userId, users.id),
+                            eq(tenantMembers.tenantId, tenantId)
+                        ))
+                ));
             }
             return conditions.length > 0 ? and(...conditions) : undefined;
         },
@@ -113,12 +118,7 @@ app.get('/users', async (c) => {
         limit: 100
     });
 
-    let result = await query;
-
-    // Filter by tenant if requested
-    if (tenantId) {
-        result = result.filter(u => u.memberships.some(m => m.tenantId === tenantId));
-    }
+    const result = await query;
 
     return c.json(result);
 });

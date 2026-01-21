@@ -3,14 +3,32 @@ import { Hono } from 'hono';
 import { createDb } from '../db';
 import { tenants, tenantMembers, users } from 'db/src/schema'; // Ensure imports
 import { count, eq, gt } from 'drizzle-orm';
-
+import { authMiddleware } from '../middleware/auth';
 type Bindings = {
     DB: D1Database;
     STRIPE_SECRET_KEY: string;
     METRICS: DurableObjectNamespace;
 };
 
-const app = new Hono<{ Bindings: Bindings }>();
+import type { HonoContext } from '../types';
+
+const app = new Hono<HonoContext>();
+
+// Protect all stats routes
+app.use('*', authMiddleware);
+app.use('*', async (c, next) => {
+    const auth = c.get('auth');
+    const db = createDb(c.env.DB);
+
+    const user = await db.query.users.findFirst({
+        where: eq(users.id, auth.userId)
+    });
+
+    if (user?.role !== 'admin' && !user?.isPlatformAdmin) {
+        return c.json({ error: 'Platform Admin privileges required' }, 403);
+    }
+    await next();
+});
 
 app.get('/architecture', async (c) => {
     const db = createDb(c.env.DB);
