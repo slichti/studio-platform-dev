@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { tenants } from 'db/src/schema'; // Ensure proper export from db/src/index.ts
 import { createDb } from '../db';
 import { eq } from 'drizzle-orm';
+import { sign, verify } from 'hono/jwt';
 import { tenantMiddleware } from '../middleware/tenant';
 import { authMiddleware } from '../middleware/auth';
 
@@ -307,8 +308,16 @@ app.get('/google/connect', async (c) => {
     const tenantId = c.req.query('tenantId');
     if (!tenantId) return c.json({ error: 'Tenant ID required' }, 400);
 
-    // State should be secure
-    const state = tenantId;
+    const auth = c.get('auth');
+    if (!auth?.userId) return c.json({ error: "Unauthorized" }, 401);
+
+    // [SECURITY] Generate Signed State (CSRF Protection)
+    // We expect state to return unchanged. We embed tenantId and userId to verify ownership on return.
+    const state = await sign({
+        tenantId,
+        userId: auth.userId,
+        exp: Math.floor(Date.now() / 1000) + 600 // 10 minutes expiry
+    }, c.env.ENCRYPTION_SECRET);
 
     return c.redirect(service.getAuthUrl(state));
 });
@@ -320,6 +329,21 @@ app.get('/google/callback', async (c) => {
 
     if (error) return c.json({ error }, 400);
     if (!code || !state) return c.json({ error: 'Missing code or state' }, 400);
+
+    const auth = c.get('auth');
+    if (!auth?.userId) return c.json({ error: "Unauthorized" }, 401);
+
+    // [SECURITY] Verify State
+    let tenantId: string;
+    try {
+        const payload = await verify(state, c.env.ENCRYPTION_SECRET);
+        if (payload.userId !== auth.userId) {
+            return c.json({ error: "Security Check Failed: User mismatch" }, 403);
+        }
+        tenantId = payload.tenantId as string;
+    } catch (e) {
+        return c.json({ error: "Invalid or expired state token" }, 400);
+    }
 
     const { GoogleCalendarService } = await import('../services/google-calendar');
     const clientId = c.env.GOOGLE_CLIENT_ID;
@@ -352,7 +376,7 @@ app.get('/google/callback', async (c) => {
         }
 
         // We need to fetch existing to merge refresh token if not present?
-        const existing = await db.select().from(tenants).where(eq(tenants.id, state)).get();
+        const existing = await db.select().from(tenants).where(eq(tenants.id, tenantId)).get();
         if (existing?.googleCalendarCredentials) {
             const existingCreds = existing.googleCalendarCredentials as any;
             if (!credentials.refreshToken && existingCreds.refreshToken) {
@@ -362,7 +386,7 @@ app.get('/google/callback', async (c) => {
 
         await db.update(tenants)
             .set({ googleCalendarCredentials: credentials })
-            .where(eq(tenants.id, state))
+            .where(eq(tenants.id, tenantId))
             .run();
 
         return c.text('Google Calendar connected! You can close this window.');
