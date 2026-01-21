@@ -5,6 +5,7 @@ import * as schema from 'db/src/schema'; // Import all schema
 // Import specific tables for usage
 import { tenants, classes, classSeries, tenantMembers, users, bookings, purchasedPacks } from 'db/src/schema';
 import { eq, and, gte, lte, desc, asc, sql } from 'drizzle-orm';
+import { rateLimit } from '../middleware/rateLimit';
 
 const app = new Hono<{ Bindings: any }>();
 
@@ -47,7 +48,7 @@ app.get('/schedule/:slug', async (c) => {
 });
 
 // POST /booking - Guest Booking
-app.post('/booking', async (c) => {
+app.post('/booking', rateLimit({ limit: 5, window: 60, keyPrefix: 'guest_booking' }), async (c) => {
     const db = createDb(c.env.DB);
     const body = await c.req.json();
     const { token, classId, tenantId, guestDetails } = body;
@@ -172,7 +173,7 @@ app.post('/booking', async (c) => {
 
 
 // Existing Token Endpoint (kept for reference/usage)
-app.post('/token', async (c) => {
+app.post('/token', rateLimit({ limit: 5, window: 60, keyPrefix: 'guest_token' }), async (c) => {
     const { name, email } = await c.req.json<{ name: string; email: string }>();
 
     if (!email) return c.json({ error: "Email required" }, 400);
