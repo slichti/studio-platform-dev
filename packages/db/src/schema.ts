@@ -149,7 +149,7 @@ export const tenantMembers = sqliteTable('tenant_members', {
 // A member can have multiple roles in a tenant (e.g. Owner + Instructor)
 export const tenantRoles = sqliteTable('tenant_roles', {
     memberId: text('member_id').notNull().references(() => tenantMembers.id),
-    role: text('role', { enum: ['owner', 'instructor', 'student'] }).notNull(),
+    role: text('role', { enum: ['owner', 'admin', 'instructor', 'student'] }).notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     pk: primaryKey({ columns: [table.memberId, table.role] }),

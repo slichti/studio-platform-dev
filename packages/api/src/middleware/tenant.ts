@@ -161,7 +161,7 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
                 }
             }
 
-            if (roleOverride && ['owner', 'instructor', 'student'].includes(roleOverride)) {
+            if (roleOverride && ['owner', 'admin', 'instructor', 'student'].includes(roleOverride)) {
                 roles = [roleOverride];
             } else {
                 roles.push('owner');

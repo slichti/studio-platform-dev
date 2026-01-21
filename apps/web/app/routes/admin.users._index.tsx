@@ -434,6 +434,7 @@ export default function AdminUsers() {
                                 >
                                     <option value="student">Student</option>
                                     <option value="instructor">Instructor</option>
+                                    <option value="admin">Admin</option>
                                     <option value="owner">Owner</option>
                                 </select>
                             </div>
