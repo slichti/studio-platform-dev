@@ -1,6 +1,6 @@
 
 import { faker } from '@faker-js/faker';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import {
     tenants, users, tenantMembers, tenantRoles, locations,
     membershipPlans, classSeries, classes, bookings,
@@ -34,101 +34,155 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
 
     const now = new Date();
 
-    // 1. Create Tenant
-    let tenant = await db.select().from(tenants).where(eq(tenants.slug, tenantSlug)).get();
-    if (!tenant) {
-        console.log("Creating tenant...");
-        tenant = (await db.insert(tenants).values({
-            id: 'tenant_' + faker.string.uuid(),
-            slug: tenantSlug,
-            name: tenantName,
-            status: 'active',
-            tier: TIER,
-            currency: 'usd',
-            settings: { enableStudentRegistration: true },
-            branding: { primaryColor: '#000000' },
-            createdAt: now
-        }).returning().get());
-    } else {
-        console.log("Tenant already exists.");
-    }
-    const tenantId = tenant.id;
+    return await db.transaction(async (tx: any) => {
+        // 1. Create Tenant
+        let tenant = await tx.select().from(tenants).where(eq(tenants.slug, tenantSlug)).get();
+        if (!tenant) {
+            console.log("Creating tenant...");
+            tenant = (await tx.insert(tenants).values({
+                id: 'tenant_' + faker.string.uuid(),
+                slug: tenantSlug,
+                name: tenantName,
+                status: 'active',
+                tier: TIER,
+                currency: 'usd',
+                settings: { enableStudentRegistration: true },
+                branding: { primaryColor: '#000000' },
+                createdAt: now
+            }).returning().get());
+        } else {
+            console.log("Tenant already exists.");
+        }
+        const tenantId = tenant.id;
 
-    // 1b. Assign Features
-    if (options.features && options.features.length > 0) {
-        console.log(`   Enabling features: ${options.features.join(', ')}`);
-        for (const featureKey of options.features) {
-            await db.insert(tenantFeatures).values({
+        // 1b. Assign Features
+        if (options.features && options.features.length > 0) {
+            console.log(`   Enabling features: ${options.features.join(', ')}`);
+            const featureValues = options.features.map(featureKey => ({
                 id: 'feat_' + faker.string.uuid(),
                 tenantId: tenantId,
                 featureKey: featureKey,
                 enabled: true,
                 source: 'manual'
-            }).onConflictDoNothing();
-        }
-    }
-
-    // 2. Create Global Users (Owners)
-    for (let i = 0; i < OWNER_COUNT; i++) {
-        const ownerEmail = `owner${i > 0 ? i : ''}@${tenantSlug}.com`;
-        let ownerUser = await db.select().from(users).where(eq(users.email, ownerEmail)).get();
-        if (!ownerUser) {
-            ownerUser = (await db.insert(users).values({
-                id: 'user_' + faker.string.uuid(),
-                email: ownerEmail,
-                profile: { firstName: faker.person.firstName(), lastName: 'Owner' },
-                role: 'owner',
-                createdAt: now
-            }).returning().get());
+            }));
+            await tx.insert(tenantFeatures).values(featureValues).onConflictDoNothing();
         }
 
-        let ownerMember = await db.select().from(tenantMembers)
-            .where(eq(tenantMembers.userId, ownerUser.id))
-            .get();
+        // 2 & 6 & 8. Create All Users (Owners, Instructors, Students)
+        console.log("Creating users & members...");
 
-        if (!ownerMember) {
-            ownerMember = (await db.insert(tenantMembers).values({
-                id: 'member_' + faker.string.uuid(),
-                tenantId: tenantId,
-                userId: ownerUser.id,
-                status: 'active',
-                profile: { bio: "I own this place" },
-                joinedAt: now
-            }).returning().get());
+        const ownerEmails = Array.from({ length: OWNER_COUNT }, (_, i) => `owner${i > 0 ? i : ''}@${tenantSlug}.com`);
+        const instructorEmails = Array.from({ length: INSTRUCTOR_COUNT }, (_, i) => `instructor${i}@${tenantSlug}.com`);
+        const studentEmails = Array.from({ length: STUDENT_COUNT }, (_, i) => `student${i}@${tenantSlug}.com`);
 
-            await db.insert(tenantRoles).values({
-                memberId: ownerMember.id,
-                role: 'owner',
-                createdAt: now
-            });
-        }
-    }
+        const allEmails = [...ownerEmails, ...instructorEmails, ...studentEmails];
+        const uniqueEmails = [...new Set(allEmails)];
 
-    // 4. Create Locations
-    let location = await db.select().from(locations).where(eq(locations.tenantId, tenantId)).get();
-    if (!location) {
-        console.log("Creating main location...");
-        location = (await db.insert(locations).values({
-            id: 'loc_' + faker.string.uuid(),
-            tenantId: tenantId,
-            name: "Main Studio",
-            address: "123 Yoga Lane",
-            isPrimary: true,
-            isActive: true,
+        // 2a. Upsert Users
+        const userValues = uniqueEmails.map(email => ({
+            id: 'user_' + faker.string.uuid(),
+            email: email,
+            profile: { firstName: faker.person.firstName(), lastName: faker.person.lastName() },
+            role: 'user', // Global role
             createdAt: now
-        }).returning().get());
-    }
-    const locationId = location.id;
+        }));
 
-    // 5. Create Membership Plans
-    const plans = [
-        { name: "Unlimited Month", price: 15000, interval: 'month' },
-        { name: "10 Class Pack", price: 12000, interval: 'one_time' },
-        { name: "Drop In", price: 2500, interval: 'one_time' }
-    ];
+        // Insert ignoring duplicates (D1 doesn't support returning on ignore well in all drivers, so we fetch after)
+        if (userValues.length > 0) {
+            await tx.insert(users).values(userValues).onConflictDoNothing();
+        }
 
-    for (const p of plans) {
-        await db.insert(membershipPlans).values({
+        // 2b. Fetch all users to get IDs
+        const existingUsers = await tx.select().from(users).where(inArray(users.email, uniqueEmails));
+        const userMap = new Map<string, any>(existingUsers.map((u: any) => [u.email, u]));
+
+        // 2c. Prepare Members & Roles
+        const memberValues: any[] = [];
+        const roleValues: any[] = [];
+        const students: any[] = [];
+        const instructors: any[] = [];
+
+        // Owners
+        for (const email of ownerEmails) {
+            const user = userMap.get(email);
+            if (!user) continue;
+            const memberId = 'member_' + faker.string.uuid();
+            memberValues.push({
+                id: memberId,
+                tenantId: tenantId,
+                userId: user.id,
+                status: 'active',
+                profile: { bio: "Owner" },
+                joinedAt: now
+            });
+            roleValues.push({ memberId, role: 'owner', createdAt: now });
+        }
+
+        // Instructors
+        for (const email of instructorEmails) {
+            const user = userMap.get(email);
+            if (!user) continue;
+            const memberId = 'member_' + faker.string.uuid();
+            const member = {
+                id: memberId,
+                tenantId: tenantId,
+                userId: user.id,
+                status: 'active',
+                profile: { bio: "Yoga Teacher" },
+                joinedAt: now
+            };
+            memberValues.push(member);
+            instructors.push(member);
+            roleValues.push({ memberId, role: 'instructor', createdAt: now });
+        }
+
+        // Students
+        for (const email of studentEmails) {
+            const user = userMap.get(email);
+            if (!user) continue;
+            const memberId = 'member_' + faker.string.uuid();
+            const member = {
+                id: memberId,
+                tenantId: tenantId,
+                userId: user.id,
+                status: 'active',
+                joinedAt: now
+            };
+            memberValues.push(member);
+            students.push(member);
+            roleValues.push({ memberId, role: 'student', createdAt: now });
+        }
+
+        // Batch Insert Members & Roles
+        if (memberValues.length > 0) {
+            await tx.insert(tenantMembers).values(memberValues).onConflictDoNothing();
+            await tx.insert(tenantRoles).values(roleValues).onConflictDoNothing();
+        }
+
+        // 4. Create Locations
+        let location = await tx.select().from(locations).where(eq(locations.tenantId, tenantId)).get();
+        if (!location) {
+            console.log("Creating main location...");
+            location = (await tx.insert(locations).values({
+                id: 'loc_' + faker.string.uuid(),
+                tenantId: tenantId,
+                name: "Main Studio",
+                address: "123 Yoga Lane",
+                isPrimary: true,
+                isActive: true,
+                createdAt: now
+            }).returning().get());
+        }
+        const locationId = location.id;
+
+        // 5. Create Membership Plans
+        const plans = [
+            { name: "Unlimited Month", price: 15000, interval: 'month' },
+            { name: "10 Class Pack", price: 12000, interval: 'one_time' },
+            { name: "Drop In", price: 2500, interval: 'one_time' }
+        ];
+
+        const planValues = plans.map(p => ({
             id: 'plan_' + faker.string.uuid(),
             tenantId: tenantId,
             name: p.name,
@@ -136,137 +190,94 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
             interval: p.interval as any,
             active: true,
             createdAt: now
-        }).onConflictDoNothing();
-    }
+        }));
+        await tx.insert(membershipPlans).values(planValues).onConflictDoNothing();
 
-    // 6. Create Staff (Instructors)
-    const instructors: any[] = [];
-    for (let i = 0; i < INSTRUCTOR_COUNT; i++) {
-        const email = `instructor${i}@${tenantSlug}.com`;
-        let user = await db.select().from(users).where(eq(users.email, email)).get();
-        if (!user) {
-            user = (await db.insert(users).values({
-                id: 'user_' + faker.string.uuid(),
-                email: email,
-                profile: { firstName: faker.person.firstName(), lastName: faker.person.lastName() },
-                role: 'user', // Global role is user
-                createdAt: now
-            }).returning().get());
+        // 7. Create Classes (Schedule)
+        console.log("Creating schedule...");
+        const classTypes = ["Vinyasa Flow", "Power Yoga", "Restorative", "Meditation"];
+        const classValues: any[] = [];
+        const classesList: any[] = []; // Keep track for bookings
+
+        if (instructors.length > 0) {
+            for (let d = 0; d < 7; d++) {
+                const date = new Date(now);
+                date.setDate(date.getDate() + d);
+                date.setHours(9, 0, 0, 0); // 9 AM class
+
+                const title = faker.helpers.arrayElement(classTypes);
+                const instructor = faker.helpers.arrayElement(instructors);
+                const classId = 'class_' + faker.string.uuid();
+
+                const cls = {
+                    id: classId,
+                    tenantId: tenantId,
+                    instructorId: instructor.id,
+                    locationId: locationId,
+                    title: title,
+                    startTime: date,
+                    durationMinutes: 60,
+                    capacity: 20,
+                    status: 'active',
+                    createdAt: now
+                };
+                classValues.push(cls);
+                classesList.push(cls);
+            }
         }
 
-        let member = await db.select().from(tenantMembers).where(eq(tenantMembers.userId, user.id)).get();
-        if (!member) {
-            member = (await db.insert(tenantMembers).values({
-                id: 'member_' + faker.string.uuid(),
+        if (classValues.length > 0) {
+            await tx.insert(classes).values(classValues);
+        }
+
+        // 9. Create Bookings (Randomly)
+        console.log("Creating bookings...");
+        const bookingValues: any[] = [];
+
+        // We use the just-created classes. If we needed historical classes we'd query, 
+        // but for seeding new ID layout, this is fine.
+        for (const cls of classesList) {
+            const attendees = faker.helpers.arrayElements(students, faker.number.int({ min: 0, max: Math.min(3, students.length) }));
+            for (const student of attendees) {
+                bookingValues.push({
+                    id: 'booking_' + faker.string.uuid(),
+                    classId: cls.id,
+                    memberId: student.id,
+                    status: 'confirmed',
+                    attendanceType: 'in_person',
+                    createdAt: now
+                });
+            }
+        }
+
+        if (bookingValues.length > 0) {
+            await tx.insert(bookings).values(bookingValues).onConflictDoNothing();
+        }
+
+        // 10. Retail Products
+        console.log("Creating retail products...");
+        const productValues = [
+            {
+                id: 'prod_' + faker.string.uuid(),
                 tenantId: tenantId,
-                userId: user.id,
-                status: 'active',
-                profile: { bio: "Yoga Teacher" },
-                joinedAt: now
-            }).returning().get());
-
-            await db.insert(tenantRoles).values({ memberId: member.id, role: 'instructor', createdAt: now }).onConflictDoNothing();
-        }
-        instructors.push(member);
-    }
-
-    // 7. Create Classes (Schedule)
-    console.log("Creating schedule...");
-    const classTypes = ["Vinyasa Flow", "Power Yoga", "Restorative", "Meditation"];
-
-    // Generate classes for next 7 days
-    if (instructors.length > 0) {
-        for (let d = 0; d < 7; d++) {
-            const date = new Date(now);
-            date.setDate(date.getDate() + d);
-            date.setHours(9, 0, 0, 0); // 9 AM class
-
-            const title = faker.helpers.arrayElement(classTypes);
-            const instructor = faker.helpers.arrayElement(instructors);
-
-            await db.insert(classes).values({
-                id: 'class_' + faker.string.uuid(),
+                name: "Yoga Mat",
+                price: 8000,
+                stockQuantity: 50,
+                isActive: true,
+                createdAt: now
+            },
+            {
+                id: 'prod_' + faker.string.uuid(),
                 tenantId: tenantId,
-                instructorId: instructor.id,
-                locationId: locationId,
-                title: title,
-                startTime: date,
-                durationMinutes: 60,
-                capacity: 20,
-                status: 'active',
+                name: "Water Bottle",
+                price: 2500,
+                stockQuantity: 100,
+                isActive: true,
                 createdAt: now
-            });
-        }
-    }
+            }
+        ];
+        await tx.insert(products).values(productValues).onConflictDoNothing();
 
-    // 8. Create Students
-    console.log("Creating students...");
-    const students: any[] = [];
-    for (let i = 0; i < STUDENT_COUNT; i++) {
-        const email = `student${i}@${tenantSlug}.com`;
-        let user = await db.select().from(users).where(eq(users.email, email)).get();
-        if (!user) {
-            user = (await db.insert(users).values({
-                id: 'user_' + faker.string.uuid(),
-                email: email,
-                profile: { firstName: faker.person.firstName(), lastName: faker.person.lastName() },
-                role: 'user',
-                createdAt: now
-            }).returning().get());
-        }
-
-        let member = await db.select().from(tenantMembers).where(eq(tenantMembers.userId, user.id)).get();
-        if (!member) {
-            member = (await db.insert(tenantMembers).values({
-                id: 'member_' + faker.string.uuid(),
-                tenantId: tenantId,
-                userId: user.id,
-                status: 'active',
-                joinedAt: now
-            }).returning().get());
-            await db.insert(tenantRoles).values({ memberId: member.id, role: 'student', createdAt: now }).onConflictDoNothing();
-        }
-        students.push(member);
-    }
-
-    // 9. Create Bookings (Randomly)
-    console.log("Creating bookings...");
-    const recentClasses = await db.select().from(classes).where(eq(classes.tenantId, tenantId)).limit(20);
-    for (const cls of recentClasses) {
-        // Book 0-3 random students
-        const attendees = faker.helpers.arrayElements(students, faker.number.int({ min: 0, max: Math.min(3, students.length) }));
-        for (const student of attendees) {
-            await db.insert(bookings).values({
-                id: 'booking_' + faker.string.uuid(),
-                classId: cls.id,
-                memberId: student.id,
-                status: 'confirmed',
-                attendanceType: 'in_person',
-                createdAt: now
-            }).onConflictDoNothing();
-        }
-    }
-
-    // 10. Retail Products
-    console.log("Creating retail products...");
-    await db.insert(products).values({
-        id: 'prod_' + faker.string.uuid(),
-        tenantId: tenantId,
-        name: "Yoga Mat",
-        price: 8000,
-        stockQuantity: 50,
-        isActive: true,
-        createdAt: now
-    }).onConflictDoNothing();
-    await db.insert(products).values({
-        id: 'prod_' + faker.string.uuid(),
-        tenantId: tenantId,
-        name: "Water Bottle",
-        price: 2500,
-        stockQuantity: 100,
-        isActive: true,
-        createdAt: now
-    }).onConflictDoNothing();
-
-    return tenant;
+        return tenant;
+    });
 }
