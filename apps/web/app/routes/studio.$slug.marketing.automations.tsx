@@ -6,6 +6,7 @@ import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";
 import { Zap, Plus, Play, Pause, Trash2, Mail, MessageSquare, Users, Clock, ChevronRight, X, Settings, Calendar, Target, Bell } from "lucide-react";
+import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken, userId } = await getAuth(args);
@@ -100,14 +101,20 @@ export default function AutomatedCampaigns() {
     const { automations, stats } = useLoaderData<typeof loader>();
     const submit = useSubmit();
     const [isCreating, setIsCreating] = useState(false);
+    const [automationToDelete, setAutomationToDelete] = useState<string | null>(null);
 
     const handleToggle = (id: string) => {
         submit({ intent: 'toggle', id }, { method: 'post' });
     };
 
     const handleDelete = (id: string) => {
-        if (confirm("Delete this automation?")) {
-            submit({ intent: 'delete', id }, { method: 'post' });
+        setAutomationToDelete(id);
+    };
+
+    const handleConfirmDelete = () => {
+        if (automationToDelete) {
+            submit({ intent: 'delete', id: automationToDelete }, { method: 'post' });
+            setAutomationToDelete(null);
         }
     };
 
@@ -226,6 +233,17 @@ export default function AutomatedCampaigns() {
                     }}
                 />
             )}
+            )}
+
+            <ConfirmDialog
+                open={!!automationToDelete}
+                onOpenChange={(open) => !open && setAutomationToDelete(null)}
+                onConfirm={handleConfirmDelete}
+                title="Delete Automation"
+                description="Are you sure you want to delete this automation? This action cannot be undone."
+                confirmText="Delete"
+                variant="destructive"
+            />
         </div>
     );
 }

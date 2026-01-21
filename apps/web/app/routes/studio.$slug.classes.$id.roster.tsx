@@ -6,6 +6,7 @@ import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { useState, useEffect } from "react";
 import { Check, X, FileText, AlertTriangle, MessageSquare, StickyNote, Plus, Trash2, UserPlus, Search } from "lucide-react";
+import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
 
 type Booking = {
     id: string;
@@ -121,6 +122,16 @@ export default function StudioClassRoster() {
     const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
     const [notesOpen, setNotesOpen] = useState(false);
     const [addStudentOpen, setAddStudentOpen] = useState(false);
+
+    // Confirm States
+    const [bookingToCancel, setBookingToCancel] = useState<string | null>(null);
+
+    const handleConfirmCancel = () => {
+        if (bookingToCancel) {
+            fetcher.submit({ intent: "cancel_booking", bookingId: bookingToCancel }, { method: "post" });
+            setBookingToCancel(null);
+        }
+    };
 
     // Selected Student Metadata
     const selectedBooking = bookings.find((b: Booking) => b.memberId === selectedStudentId);
@@ -239,19 +250,14 @@ export default function StudioClassRoster() {
                                     </fetcher.Form>
                                 </td>
                                 <td className="px-6 py-4 text-right">
-                                    <fetcher.Form
-                                        method="post"
-                                        onSubmit={(e: React.FormEvent) => {
-                                            if (!confirm("Are you sure you want to cancel this booking?")) e.preventDefault();
-                                        }}
+                                    <button
+                                        type="button"
+                                        onClick={() => setBookingToCancel(booking.id)}
+                                        className="text-red-600 hover:text-red-800 text-xs font-medium inline-flex items-center gap-1"
                                     >
-                                        <input type="hidden" name="intent" value="cancel_booking" />
-                                        <input type="hidden" name="bookingId" value={booking.id} />
-                                        <button className="text-red-600 hover:text-red-800 text-xs font-medium inline-flex items-center gap-1">
-                                            <X size={12} />
-                                            Cancel
-                                        </button>
-                                    </fetcher.Form>
+                                        <X size={12} />
+                                        Cancel
+                                    </button>
                                 </td>
                             </tr>
                         ))}
@@ -320,11 +326,13 @@ export default function StudioClassRoster() {
                                                     Promote
                                                 </button>
                                             </fetcher.Form>
-                                            <fetcher.Form method="post" onSubmit={(e: React.FormEvent) => !confirm("Remove?") && e.preventDefault()}>
-                                                <input type="hidden" name="intent" value="cancel_booking" />
-                                                <input type="hidden" name="bookingId" value={booking.id} />
-                                                <button className="text-red-600 hover:text-red-800 text-xs font-medium">Remove</button>
-                                            </fetcher.Form>
+                                            <button
+                                                type="button"
+                                                onClick={() => setBookingToCancel(booking.id)}
+                                                className="text-red-600 hover:text-red-800 text-xs font-medium"
+                                            >
+                                                Remove
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -352,6 +360,17 @@ export default function StudioClassRoster() {
                     slug={slug!}
                 />
             )}
+            )}
+
+            <ConfirmDialog
+                open={!!bookingToCancel}
+                onOpenChange={(open) => !open && setBookingToCancel(null)}
+                onConfirm={handleConfirmCancel}
+                title="Cancel Booking"
+                description="Are you sure you want to cancel this booking? The student will be removed from the roster."
+                confirmText="Cancel Booking"
+                variant="destructive"
+            />
         </div>
     );
 }
@@ -470,6 +489,7 @@ function NotesModal({ memberId, studentName, onClose, slug }: { memberId: string
     const [loading, setLoading] = useState(true);
     const [newNote, setNewNote] = useState("");
     const [submitting, setSubmitting] = useState(false);
+    const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
 
     useEffect(() => {
         loadNotes();
@@ -509,15 +529,20 @@ function NotesModal({ memberId, studentName, onClose, slug }: { memberId: string
         }
     };
 
-    const handleDelete = async (noteId: string) => {
-        if (!confirm("Delete note?")) return;
+    const handleDelete = (noteId: string) => {
+        setNoteToDelete(noteId);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!noteToDelete) return;
         try {
             const token = await (window as any).Clerk?.session?.getToken();
-            await apiRequest(`/members/${memberId}/notes/${noteId}`, token, {
+            await apiRequest(`/members/${memberId}/notes/${noteToDelete}`, token, {
                 method: "DELETE",
                 headers: { 'X-Tenant-Slug': slug }
             });
-            setNotes(notes.filter(n => n.id !== noteId));
+            setNotes(notes.filter(n => n.id !== noteToDelete));
+            setNoteToDelete(null);
         } catch (e) { }
     };
 
@@ -571,5 +596,16 @@ function NotesModal({ memberId, studentName, onClose, slug }: { memberId: string
                 </div>
             </div>
         </div>
-    );
+            </div >
+
+        <ConfirmDialog
+            open={!!noteToDelete}
+            onOpenChange={(open) => !open && setNoteToDelete(null)}
+            onConfirm={handleConfirmDelete}
+            title="Delete Note"
+            description="Are you sure you want to delete this note?"
+            confirmText="Delete"
+            variant="destructive"
+        />
+        </div >
 }

@@ -1,7 +1,7 @@
 // @ts-ignore
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 // @ts-ignore
-import { useLoaderData, useOutletContext, Form, useNavigation, Link } from "react-router";
+import { useLoaderData, useOutletContext, Form, useNavigation, Link, useSubmit } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest, API_URL } from "../utils/api";
 import { useState } from "react";
@@ -11,6 +11,7 @@ import {
     User, Mail, Calendar, CreditCard, FileText,
     MoreHorizontal, Check, X, Plus, Pencil, Trash2, Camera
 } from "lucide-react";
+import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
 
 type Member = {
     id: string;
@@ -90,7 +91,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
     if (!memberId) throw new Error("Member ID is required");
 
     try {
-        const [memberRes, notesRes, packsRes] = await Promise.all([
+
+        const [memberData, notesData, packsData, couponsData] = await Promise.all([
             apiRequest(`/members/${memberId}`, token, {
                 headers: { 'X-Tenant-Slug': params.slug! }
             }),
@@ -103,15 +105,15 @@ export const loader = async (args: LoaderFunctionArgs) => {
             apiRequest(`/members/${memberId}/coupons`, token, {
                 headers: { 'X-Tenant-Slug': params.slug! }
             })
-        ]) as [any, any, any, any];
+        ]);
 
-        if (memberRes.error) throw new Error(memberRes.error);
+        if (memberData.error) throw new Error(memberData.error);
 
         return {
-            member: memberRes.member as Member,
-            notes: (notesRes.notes || []) as Note[],
-            availablePacks: (packsRes.packs || []) as PackDefinition[],
-            coupons: (args[3]?.coupons || []) as any[] // result is at index 3
+            member: memberData.member as Member,
+            notes: (notesData.notes || []) as Note[],
+            availablePacks: (packsData.packs || []) as PackDefinition[],
+            coupons: (couponsData?.coupons || []) as any[]
         };
     } catch (e: any) {
         console.error("Failed to load student", e);
@@ -265,8 +267,9 @@ export const action = async (args: ActionFunctionArgs) => {
 
 export default function StudentProfile() {
     const { member, notes, availablePacks, coupons } = useLoaderData() as any as { member: Member, notes: Note[], availablePacks: PackDefinition[], coupons: any[] };
-    const { tenant } = useOutletContext<any>();
+    const { isStudentView, tenant } = useOutletContext<any>() as any;
     const navigation = useNavigation();
+    const submit = useSubmit();
     const userProfile = member.user.profile || {};
     const [activeTab, setActiveTab] = useState("overview");
     const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -276,6 +279,7 @@ export default function StudentProfile() {
     const [isSendingEmail, setIsSendingEmail] = useState(false);
     const [isDeactivating, setIsDeactivating] = useState(false);
     const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+    const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
 
     const fullName = [userProfile.firstName, userProfile.lastName].filter(Boolean).join(" ") || member.user.email;
     const rolesStr = member.roles.map(r => r.role).join(", ") || "Student";
@@ -929,21 +933,14 @@ export default function StudentProfile() {
                                                     >
                                                         <Pencil className="h-3.5 w-3.5" />
                                                     </button>
-                                                    <Form method="post" onSubmit={(e: React.FormEvent) => {
-                                                        if (!confirm("Are you sure you want to delete this note?")) {
-                                                            e.preventDefault();
-                                                        }
-                                                    }}>
-                                                        <input type="hidden" name="intent" value="delete_note" />
-                                                        <input type="hidden" name="noteId" value={note.id} />
-                                                        <button
-                                                            type="submit"
-                                                            className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-zinc-50 rounded"
-                                                            title="Delete"
-                                                        >
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </button>
-                                                    </Form>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setNoteToDelete(note.id)}
+                                                        className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-zinc-50 rounded"
+                                                        title="Delete"
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </button>
                                                 </div>
 
                                                 <div className="mt-3 flex items-center justify-between text-xs text-zinc-400 border-t border-zinc-50 pt-2">
@@ -963,7 +960,22 @@ export default function StudentProfile() {
                     </div>
                 )}
             </div>
-        </div>
+
+            <ConfirmDialog
+                open={!!noteToDelete}
+                onOpenChange={(open) => !open && setNoteToDelete(null)}
+                onConfirm={() => {
+                    if (noteToDelete) {
+                        submit({ intent: 'delete_note', noteId: noteToDelete }, { method: 'post' });
+                        setNoteToDelete(null);
+                    }
+                }}
+                title="Delete Note"
+                description="Are you sure you want to delete this note?"
+                confirmText="Delete"
+                variant="destructive"
+            />
+        </div >
     );
 }
 

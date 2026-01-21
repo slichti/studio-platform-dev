@@ -6,6 +6,7 @@ import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";
 import { ArrowLeft, Plus, Trash2, GripVertical, Save, Search, X, Check, MoreVertical } from "lucide-react";
+import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
 import { formatDuration } from "~/utils/format";
 
 export const loader = async (args: LoaderFunctionArgs) => {
@@ -89,6 +90,7 @@ export default function CollectionDetails() {
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [editing, setEditing] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     // Filter available videos (exclude already in collection)
     const existingVideoIds = new Set(collection.items.map((i: any) => i.videoId));
@@ -98,9 +100,11 @@ export default function CollectionDetails() {
     );
 
     const handleDelete = () => {
-        if (confirm("Are you sure you want to delete this collection?")) {
-            submit({ intent: 'delete_collection' }, { method: 'post' });
-        }
+        setShowDeleteConfirm(true);
+    }
+
+    const handleConfirmDelete = () => {
+        submit({ intent: 'delete_collection' }, { method: 'post' });
     }
 
     const handleAddItem = (videoId: string) => {
@@ -271,6 +275,16 @@ export default function CollectionDetails() {
                     </div>
                 </div>
             )}
+
+            <ConfirmDialog
+                open={showDeleteConfirm}
+                onOpenChange={setShowDeleteConfirm}
+                onConfirm={handleConfirmDelete}
+                title="Delete Collection"
+                description="Are you sure you want to delete this collection? This action cannot be undone."
+                confirmText="Delete"
+                variant="destructive"
+            />
         </div>
     );
 }

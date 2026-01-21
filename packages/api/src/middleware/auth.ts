@@ -46,25 +46,32 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables, Bindi
     if (!token) return c.json({ error: 'Unauthorized' }, 401);
 
     try {
+        // 0. Decode header to determine strategy (prevent algorithm mismatch errors)
+        const { decode } = await import('hono/jwt');
+        const { header } = decode(token);
+
         // 1. Check for Impersonation Token (Custom JWT, HS256)
-        // We prioritize IMPERSONATION_SECRET but fallback to CLERK_SECRET_KEY for backward compatibility
-        const signingSecret = c.env.IMPERSONATION_SECRET || c.env.CLERK_SECRET_KEY;
-        try {
-            // Updated to pass 'HS256' explicit algorithm if required by Hono types, or just check signature
-            // verify(token, secret, alg)
-            const payload = await verify(token, signingSecret, 'HS256');
-            if (payload.impersonatorId || payload.role === 'guest') {
-                c.set('auth', {
-                    userId: payload.sub as string,
-                    claims: payload as any,
-                });
-                // Flag as impersonated/guest session
-                c.set('isImpersonating', true);
-                return await next();
+        if (header.alg === 'HS256') {
+            const signingSecret = c.env.IMPERSONATION_SECRET || c.env.CLERK_SECRET_KEY;
+            try {
+                const payload = await verify(token, signingSecret, 'HS256');
+                if (payload.impersonatorId || payload.role === 'guest') {
+                    c.set('auth', {
+                        userId: payload.sub as string,
+                        claims: payload as any,
+                    });
+                    c.set('isImpersonating', true);
+                    return await next();
+                }
+            } catch (e: any) {
+                console.error("Impersonation Token Verification Failed:", e.message);
+                return c.json({ error: "Invalid Impersonation Token", details: e.message }, 401);
             }
-        } catch (ignore) {
-            // Not a custom token, proceed to Clerk
         }
+
+        // If alg is HS256 but we failed above, we returned.
+        // If alg is NOT HS256 (e.g. RS256), we proceed to Clerk verification.
+
 
         // 3. Clerk Verification (RS256) using Web Crypto (hono/jwt)
         // Note: verifyToken from @clerk/backend is incompatible with Workers.
@@ -161,21 +168,34 @@ export const optionalAuthMiddleware = createMiddleware<{ Variables: AuthVariable
     }
 
     try {
+        // 0. Decode header to determine strategy (prevent algorithm mismatch errors)
+        const { decode } = await import('hono/jwt');
+        const { header } = decode(token);
+
         // 1. Check for Impersonation Token (Custom JWT, HS256)
-        // We use dynamic import or assume hono/jwt is available
-        try {
+        if (header.alg === 'HS256') {
+
             // Check implicit secret or explicit IMPERSONATION_SECRET if available on env (cast as any if Bindings not unified yet)
             const secret = (c.env as any).IMPERSONATION_SECRET || (c.env as any).CLERK_SECRET_KEY;
-            const payload = await verify(token, secret, 'HS256');
-            if (payload.impersonatorId || payload.role === 'guest') {
-                c.set('auth', {
-                    userId: payload.sub as string,
-                    claims: payload as any,
-                });
-                c.set('isImpersonating', true);
-                return await next();
+            try {
+                const payload = await verify(token, secret, 'HS256');
+                if (payload.impersonatorId || payload.role === 'guest') {
+                    c.set('auth', {
+                        userId: payload.sub as string,
+                        claims: payload as any,
+                    });
+                    c.set('isImpersonating', true);
+                    return await next();
+                }
+            } catch (e) {
+                // If it fails verification but claims to be HS256, it's invalid.
+                // But since this is optional auth, we just proceed anonymously or log?
+                // actually optional auth implies we just continue if auth fails.
             }
-        } catch (ignore) { }
+        }
+
+        // If alg is HS256 but we failed above (or caught), we fall through.
+        // If alg is RS256, we proceed to Clerk.
 
         // 3. Clerk Verification (RS256)
         let publicKey = (c.env as any).CLERK_PEM_PUBLIC_KEY;

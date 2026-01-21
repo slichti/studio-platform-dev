@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { Modal } from "../components/Modal";
 import { CardCreator } from "../components/CardCreator";
 import { useAuth } from "@clerk/react-router";
+import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
 
 // Loader: Fetch plans and subscriptions
 export const loader = async (args: LoaderFunctionArgs) => {
@@ -103,7 +104,9 @@ export default function StudioMemberships() {
     const [cardData, setCardData] = useState<{ image: Blob | null, title: string, subtitle: string, previewUrl: string }>({
         image: null, title: '', subtitle: '', previewUrl: ''
     });
+
     const [uploading, setUploading] = useState(false);
+    const [planToDelete, setPlanToDelete] = useState<string | null>(null);
 
     useEffect(() => {
         if (actionData?.success && !isSubmitting) {
@@ -256,15 +259,14 @@ export default function StudioMemberships() {
                                         >
                                             Edit Plan
                                         </button>
-                                        <Form method="post" onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
-                                            if (!confirm("Are you sure? This cannot be undone.")) e.preventDefault();
-                                        }}>
-                                            <input type="hidden" name="intent" value="delete_plan" />
-                                            <input type="hidden" name="planId" value={plan.id} />
-                                            <button type="submit" className="w-full mt-2 text-red-600 hover:text-red-800 dark:hover:text-red-400 text-xs font-medium">
-                                                Delete Plan
-                                            </button>
-                                        </Form>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPlanToDelete(plan.id)}
+                                            className="w-full mt-2 text-red-600 hover:text-red-800 dark:hover:text-red-400 text-xs font-medium"
+                                        >
+                                            Delete Plan
+                                        </button>
+
                                     </>
                                 )}
                             </div>
@@ -416,6 +418,21 @@ export default function StudioMemberships() {
                     </Form>
                 </div>
             </Modal>
-        </div>
+
+            <ConfirmDialog
+                open={!!planToDelete}
+                onOpenChange={(open) => !open && setPlanToDelete(null)}
+                onConfirm={() => {
+                    if (planToDelete) {
+                        submit({ intent: 'delete_plan', planId: planToDelete }, { method: "post" });
+                        setPlanToDelete(null);
+                    }
+                }}
+                title="Delete Membership Plan"
+                description="Are you sure you want to delete this plan? This cannot be undone and may affect existing subscriptions."
+                confirmText="Delete Plan"
+                variant="destructive"
+            />
+        </div >
     );
 }

@@ -5,6 +5,7 @@ import { apiRequest } from "~/utils/api";
 import { useState } from "react";
 import { Modal } from "~/components/Modal";
 import { Plus, Search, CheckCircle, Clock, Calendar, User, Filter, Trash2, MoreVertical, Pencil, X } from "lucide-react";
+import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
 import { format } from "date-fns";
 
 export const loader = async (args: any) => {
@@ -32,7 +33,9 @@ export default function TasksPage() {
     const [filterAssignee, setFilterAssignee] = useState<'all' | 'mine'>('all');
 
     // Edit State
+    // Edit State
     const [editingTask, setEditingTask] = useState<any>(null);
+    const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
 
     const [formData, setFormData] = useState({
         title: "",
@@ -88,15 +91,20 @@ export default function TasksPage() {
         }
     };
 
-    const handleDelete = async (taskId: string) => {
-        if (!confirm("Delete this task?")) return;
+    const handleDelete = (taskId: string) => {
+        setTaskToDelete(taskId);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!taskToDelete) return;
         try {
-            await apiRequest(`/tasks/${taskId}`, token, {
+            await apiRequest(`/tasks/${taskToDelete}`, token, {
                 method: "DELETE",
                 headers: { 'X-Tenant-Slug': slug }
             });
-            setTasks(tasks.filter((t: any) => t.id !== taskId));
-            if (editingTask?.id === taskId) setIsAddOpen(false);
+            setTasks(tasks.filter((t: any) => t.id !== taskToDelete));
+            if (editingTask?.id === taskToDelete) setIsAddOpen(false);
+            setTaskToDelete(null);
         } catch (e) {
             console.error(e);
         }
@@ -335,6 +343,17 @@ export default function TasksPage() {
                     </div>
                 </form>
             </Modal>
-        </div>
+            </Modal>
+
+            <ConfirmDialog
+                open={!!taskToDelete}
+                onOpenChange={(open) => !open && setTaskToDelete(null)}
+                onConfirm={handleConfirmDelete}
+                title="Delete Task"
+                description="Are you sure you want to delete this task? This cannot be undone."
+                confirmText="Delete"
+                variant="destructive"
+            />
+        </div >
     );
 }

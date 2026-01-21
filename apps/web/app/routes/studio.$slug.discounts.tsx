@@ -6,6 +6,7 @@ import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";
 import { Tag, Plus, Trash } from "lucide-react";
+import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
 
 export const loader: LoaderFunction = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -31,6 +32,7 @@ export default function DiscountsPage() {
     // Create Form
     const [form, setForm] = useState({ code: "", type: "percent", value: "10" });
     const [loading, setLoading] = useState(false);
+    const [couponToDelete, setCouponToDelete] = useState<string | null>(null);
 
     async function handleCreate(e: React.FormEvent) {
         e.preventDefault();
@@ -64,14 +66,19 @@ export default function DiscountsPage() {
     }
 
     async function handleDelete(id: string) {
-        if (!confirm("Are you sure? This will deactivate the code.")) return;
+        setCouponToDelete(id);
+    }
+
+    async function handleConfirmDelete() {
+        if (!couponToDelete) return;
         try {
-            await apiRequest(`/commerce/coupons/${id}`, token, {
+            await apiRequest(`/commerce/coupons/${couponToDelete}`, token, {
                 method: "DELETE",
                 headers: { 'X-Tenant-Slug': slug },
             });
             // Optimistic remove
-            setCoupons((prev: any[]) => prev.filter(c => c.id !== id));
+            setCoupons((prev: any[]) => prev.filter(c => c.id !== couponToDelete));
+            setCouponToDelete(null);
         } catch (e) {
             console.error(e);
         }
@@ -189,6 +196,16 @@ export default function DiscountsPage() {
                     </tbody>
                 </table>
             </div>
+
+            <ConfirmDialog
+                open={!!couponToDelete}
+                onOpenChange={(open) => !open && setCouponToDelete(null)}
+                onConfirm={handleConfirmDelete}
+                title="Deactivate Coupon"
+                description="Are you sure? This will deactivate the code and prevent future uses."
+                confirmText="Deactivate"
+                variant="destructive"
+            />
         </div>
     );
 }

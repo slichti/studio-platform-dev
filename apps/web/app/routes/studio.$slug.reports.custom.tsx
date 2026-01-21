@@ -6,6 +6,7 @@ import {
     BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { Loader2, Plus, Save, Trash2, Filter, BarChart3 } from "lucide-react";
+import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
 
 export default function CustomReports() {
     const { tenant } = useOutletContext<any>() || {};
@@ -22,6 +23,7 @@ export default function CustomReports() {
     // Result State
     const [activeResult, setActiveResult] = useState<any>(null);
     const [reportName, setReportName] = useState('');
+    const [reportToDelete, setReportToDelete] = useState<string | null>(null);
 
     useEffect(() => {
         loadSavedReports();
@@ -108,12 +110,17 @@ export default function CustomReports() {
         }
     };
 
-    const deleteReport = async (id: string, e: any) => {
+    const deleteReport = (id: string, e: any) => {
         e.stopPropagation();
-        if (!confirm("Delete report?")) return;
+        setReportToDelete(id);
+    };
+
+    const confirmDeleteReport = async () => {
+        if (!reportToDelete) return;
         const token = await (window as any).Clerk?.session?.getToken();
-        await apiRequest(`/reports/custom/${id}`, token, { method: 'DELETE' });
+        await apiRequest(`/reports/custom/${reportToDelete}`, token, { method: 'DELETE' });
         loadSavedReports();
+        setReportToDelete(null);
     };
 
     return (
@@ -276,6 +283,17 @@ export default function CustomReports() {
                     </div>
                 </div>
             </div>
-        </div>
+            </div>
+
+            <ConfirmDialog
+                open={!!reportToDelete}
+                onOpenChange={(open) => !open && setReportToDelete(null)}
+                onConfirm={confirmDeleteReport}
+                title="Delete Report"
+                description="Are you sure you want to delete this saved report?"
+                confirmText="Delete"
+                variant="destructive"
+            />
+        </div >
     );
 }

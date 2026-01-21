@@ -9,6 +9,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Select } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "../components/ui/dialog";
+import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 
 interface Tenant {
     id: string;
@@ -18,7 +19,8 @@ interface Tenant {
 
 interface Membership {
     tenantId: string;
-    role: string;
+    role?: string;
+    roles?: { role: string }[];
     tenant: Tenant;
 }
 
@@ -110,6 +112,9 @@ export default function AdminUsers() {
         initialRole: "student"
     });
 
+    const [impersonateTargetId, setImpersonateTargetId] = useState<string | null>(null);
+    const [userToDelete, setUserToDelete] = useState<User | null>(null);
+
     // Computed Data
     const usersList = Array.isArray(users) ? users : [];
 
@@ -119,14 +124,23 @@ export default function AdminUsers() {
 
         const groups: Record<string, { tenant: Tenant, users: User[] }> = {};
 
+        // Initialize Platform Admins group
+        groups['platform_admins'] = { tenant: { id: 'platform_admins', name: 'Platform Administrators' }, users: [] };
+
         usersList.forEach((u) => {
+            if (u.isPlatformAdmin) {
+                groups['platform_admins'].users.push(u);
+                // Continue to add to tenant groups if applicable
+            }
+
             if (u.memberships && u.memberships.length > 0) {
                 u.memberships.forEach((m) => {
                     const tId = m.tenant.id;
                     if (!groups[tId]) {
                         groups[tId] = { tenant: m.tenant, users: [] };
                     }
-                    groups[tId].users.push({ ...u, contextRole: m.role });
+                    const userRole = m.roles?.[0]?.role || m.role || 'member';
+                    groups[tId].users.push({ ...u, contextRole: userRole });
                 });
             } else {
                 if (!groups['unassigned']) {
@@ -135,6 +149,11 @@ export default function AdminUsers() {
                 groups['unassigned'].users.push(u);
             }
         });
+
+        // Remove empty admin group if no admins (optional, but cleaner to keep if that's the point)
+        if (groups['platform_admins'].users.length === 0) {
+            delete groups['platform_admins'];
+        }
 
         return groups;
     }, [usersList, groupByTenant]);
@@ -223,13 +242,14 @@ export default function AdminUsers() {
         }
     };
 
-    const handleImpersonate = async (userId: string) => {
-        if (!confirm("Are you sure you want to sign in as this user?")) return;
+    const handleConfirmImpersonate = async () => {
+        if (!impersonateTargetId) return;
+
         try {
             const token = await getToken();
             const res = await apiRequest<ApiError>("/admin/impersonate", token, {
                 method: "POST",
-                body: JSON.stringify({ targetUserId: userId })
+                body: JSON.stringify({ targetUserId: impersonateTargetId })
             });
 
             if (res.error) throw new Error(res.error);
@@ -239,7 +259,7 @@ export default function AdminUsers() {
                 document.cookie = `__impersonate_token=${res.token}; path=/; max-age=3600; samesite=lax; secure`;
 
                 // Redirect to first available studio or dashboard
-                const user = usersList.find((u) => u.id === userId);
+                const user = usersList.find((u) => u.id === impersonateTargetId);
                 if (user && user.memberships && user.memberships.length > 0) {
                     window.location.href = `/studio/${user.memberships[0].tenant.slug}`;
                 } else {
@@ -249,22 +269,35 @@ export default function AdminUsers() {
         } catch (e: unknown) {
             const message = e instanceof Error ? e.message : "An error occurred";
             setStatusDialog({ isOpen: true, type: 'error', title: 'Impersonation Failed', message });
+        } finally {
+            setImpersonateTargetId(null);
         }
     };
 
-    const handleDeleteUser = async (user: User) => {
-        if (!confirm(`Are you sure you want to PERMANENTLY delete user ${user.email}? This cannot be undone.`)) return;
+    const handleImpersonate = (userId: string) => {
+        setImpersonateTargetId(userId);
+    };
 
+
+    const handleDeleteUser = (user: User) => {
+        setUserToDelete(user);
+    };
+
+    const handleConfirmDeleteUser = async () => {
+        if (!userToDelete) return;
         try {
             const token = await getToken();
-            const res = await apiRequest<ApiError>(`/admin/users/${user.id}`, token, {
+            const res = await apiRequest<ApiError>(`/admin/users/${userToDelete.id}`, token, {
                 method: "DELETE"
             });
             if (res.error) throw new Error(res.error);
             submit(searchParams);
+            setStatusDialog({ isOpen: true, type: 'success', title: 'User Deleted', message: `User ${userToDelete.email} has been deleted.` });
         } catch (e: unknown) {
             const message = e instanceof Error ? e.message : "An error occurred";
             setStatusDialog({ isOpen: true, type: 'error', title: 'Deletion Failed', message });
+        } finally {
+            setUserToDelete(null);
         }
     };
 
@@ -387,7 +420,7 @@ export default function AdminUsers() {
                                             toggle={() => toggleUser(u.id)}
                                             contextRole={u.contextRole}
                                             currentUserId={userId}
-                                            showCheckbox={false}
+                                            showCheckbox={true}
                                         />
                                     ))}
                                 </div>
@@ -522,6 +555,36 @@ export default function AdminUsers() {
                         <Button onClick={() => setStatusDialog({ ...statusDialog, isOpen: false })}>
                             Close
                         </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <ConfirmDialog
+                open={!!userToDelete}
+                onOpenChange={(open) => !open && setUserToDelete(null)}
+                onConfirm={handleConfirmDeleteUser}
+                title="Delete User"
+                description={<>Are you sure you want to PERMANENTLY delete user <strong>{userToDelete?.email}</strong>? This cannot be undone.</>}
+                confirmText="Delete"
+                variant="destructive"
+            />
+
+            {/* Impersonation Confirmation Dialog */}
+            <Dialog open={!!impersonateTargetId} onOpenChange={(open) => !open && setImpersonateTargetId(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Confirm Impersonation</DialogTitle>
+                        <DialogDescription>
+                            You are about to sign in as another user. This action will be logged.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 text-zinc-600 dark:text-zinc-300">
+                        <p>Are you sure you want to sign in as <strong>{usersList.find(u => u.id === impersonateTargetId)?.email}</strong>?</p>
+                        <p className="mt-2 text-xs text-zinc-500">You will need to log out to return to your admin account.</p>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setImpersonateTargetId(null)}>Cancel</Button>
+                        <Button onClick={handleConfirmImpersonate}>Sign In as User</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

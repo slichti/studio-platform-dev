@@ -110,10 +110,17 @@ app.get('/users', async (c) => {
             return conditions.length > 0 ? and(...conditions) : undefined;
         },
         orderBy: (users, { desc, asc }) => {
-            if (sort === 'name_asc') return [asc(sql`json_extract(${users.profile}, '$.firstName')`)];
-            if (sort === 'name_desc') return [desc(sql`json_extract(${users.profile}, '$.firstName')`)];
-            if (sort === 'joined_asc') return [asc(users.createdAt)];
-            return [desc(users.createdAt)];
+            const orderByClause = [];
+
+            // Always prioritize Platform Admins at the top
+            orderByClause.push(desc(users.isPlatformAdmin));
+
+            if (sort === 'name_asc') orderByClause.push(asc(sql`json_extract(${users.profile}, '$.firstName')`));
+            else if (sort === 'name_desc') orderByClause.push(desc(sql`json_extract(${users.profile}, '$.firstName')`));
+            else if (sort === 'joined_asc') orderByClause.push(asc(users.createdAt));
+            else orderByClause.push(desc(users.createdAt));
+
+            return orderByClause;
         },
         limit: 100
     });

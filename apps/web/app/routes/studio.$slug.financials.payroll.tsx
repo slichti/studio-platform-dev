@@ -6,7 +6,8 @@ import { Loader2, DollarSign, Calendar, CheckCircle2, AlertCircle } from "lucide
 import { format } from "date-fns";
 import {
     Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger
-} from "../components/ui/dialog";
+} from "~/components/ui/dialog";
+import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
 
 // We'll need rudimentary UI components, if not present we'll use standard HTML/Tailwind
 
@@ -57,6 +58,7 @@ function RunPayroll({ token }: { token: string }) {
     const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd')); // Today
     const [preview, setPreview] = useState<any[] | null>(null);
     const [loading, setLoading] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
 
     const handlePreview = async () => {
         setLoading(true);
@@ -75,7 +77,10 @@ function RunPayroll({ token }: { token: string }) {
     };
 
     const handleCommit = async () => {
-        if (!confirm("Are you sure? This will generate payout records.")) return;
+        setShowConfirm(true);
+    };
+
+    const confirmCommit = async () => {
         setLoading(true);
         try {
             const res = await apiRequest('/payroll/generate', token, {
@@ -154,6 +159,7 @@ function RunPayroll({ token }: { token: string }) {
 
 function PayrollHistory({ token }: { token: string }) {
     const [history, setHistory] = useState<any[]>([]);
+    const [itemToPay, setItemToPay] = useState<string | null>(null);
 
     const fetchHistory = async () => {
         const res = await apiRequest('/payroll/history', token) as any;
@@ -162,10 +168,15 @@ function PayrollHistory({ token }: { token: string }) {
 
     useEffect(() => { fetchHistory() }, []);
 
-    const markPaid = async (id: string) => {
-        if (!confirm("Mark this as paid manually?")) return;
-        await apiRequest(`/payroll/${id}/approve`, token, { method: 'POST' });
+    const markPaid = (id: string) => {
+        setItemToPay(id);
+    };
+
+    const confirmMarkPaid = async () => {
+        if (!itemToPay) return;
+        await apiRequest(`/payroll/${itemToPay}/approve`, token, { method: 'POST' });
         fetchHistory();
+        setItemToPay(null);
     };
 
     return (
@@ -214,7 +225,17 @@ function PayrollHistory({ token }: { token: string }) {
                     {history.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-zinc-500">No history found.</td></tr>}
                 </tbody>
             </table>
-        </div>
+
+
+            <ConfirmDialog
+                open={!!itemToPay}
+                onOpenChange={(open) => !open && setItemToPay(null)}
+                onConfirm={confirmMarkPaid}
+                title="Mark as Paid"
+                description="Are you sure you want to manually mark this record as paid?"
+                confirmText="Mark Paid"
+            />
+        </div >
     )
 }
 
