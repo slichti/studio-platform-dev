@@ -103,7 +103,22 @@ app.delete('/:id', async (c) => {
 
     if (!classData) return c.json({ error: "Booking not found" }, 404);
 
-    // Permission check related code omitted for brevity but assumed checked via user/member context
+    // [SECURITY] Permission Check (Own Booking OR Owner/Admin)
+    // 1. Resolve Current Member
+    const currentMember = await db.select().from(tenantMembers)
+        .where(and(eq(tenantMembers.userId, c.get('user').id), eq(tenantMembers.tenantId, tenant.id)))
+        .get();
+
+    if (!currentMember) return c.json({ error: "Unauthorized" }, 401);
+
+    const isOwnBooking = booking.memberId === currentMember.id;
+    const { tenantRoles } = await import('db/src/schema');
+    const roles = await db.select().from(tenantRoles).where(eq(tenantRoles.memberId, currentMember.id)).all();
+    const hasPrivilege = roles.some(r => r.role === 'owner' || r.role === 'admin' || r.role === 'instructor'); // Instructors can cancel too? Let's say yes for now.
+
+    if (!isOwnBooking && !hasPrivilege) {
+        return c.json({ error: "Forbidden: You can only cancel your own bookings." }, 403);
+    }
 
     await db.delete(bookings)
         .where(eq(bookings.id, bookingId))
@@ -133,6 +148,26 @@ app.patch('/:id', async (c) => {
         .get();
 
     if (!classData) return c.json({ error: "Not found" }, 404);
+
+    // [SECURITY] Permission Check
+    const currentMember = await db.select().from(tenantMembers)
+        .where(and(eq(tenantMembers.userId, c.get('user').id), eq(tenantMembers.tenantId, tenant.id)))
+        .get();
+
+    if (!currentMember) return c.json({ error: "Unauthorized" }, 401);
+
+    // Only Owners/Admins/Instructors can change attendance type for others?
+    // Or users can switch their own?
+    // Let's allow users to switch their own.
+    const isOwnBooking = booking.memberId === currentMember.id;
+    // ... fetch roles ...
+    const { tenantRoles } = await import('db/src/schema');
+    const roles = await db.select().from(tenantRoles).where(eq(tenantRoles.memberId, currentMember.id)).all();
+    const hasPrivilege = roles.some(r => r.role === 'owner' || r.role === 'admin' || r.role === 'instructor');
+
+    if (!isOwnBooking && !hasPrivilege) {
+        return c.json({ error: "Forbidden" }, 403);
+    }
 
     await db.update(bookings)
         .set({ attendanceType }) // No updatedAt

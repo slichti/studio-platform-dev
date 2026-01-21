@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import { tenants } from 'db/src/schema'; // Ensure proper export from db/src/index.ts
+import { tenants, tenantMembers, users, tenantRoles } from 'db/src/schema'; // Ensure proper export from db/src/index.ts
 import { createDb } from '../db';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { sign, verify } from 'hono/jwt';
 import { tenantMiddleware } from '../middleware/tenant';
 import { authMiddleware } from '../middleware/auth';
@@ -29,22 +29,71 @@ app.get('/stripe/connect', async (c) => {
     const clientId = c.env.STRIPE_CLIENT_ID;
     const redirectUri = `${new URL(c.req.url).origin}/studios/stripe/callback`;
 
-    // Use a random state (in production, store and verify this to prevent CSRF)
-    const state = crypto.randomUUID();
     const tenantId = c.req.query('tenantId');
     if (!tenantId) return c.json({ error: 'Tenant ID required' }, 400);
 
-    const url = stripe.getConnectUrl(clientId, redirectUri, tenantId);
+    const auth = c.get('auth'); // Provided by authMiddleware if applied?
+    // Note: authMiddleware might NOT be applied to this specific route if it's top-level or grouped. 
+    // studios.ts usually mounted under /studios, check index.ts? 
+    // Assuming authMiddleware is applied. If not, we need to check c.get('auth').
+
+    if (!auth?.userId) return c.json({ error: "Unauthorized" }, 401);
+
+    const db = createDb(c.env.DB);
+
+    // [SECURITY] Authorization Check (Platform Admin or Tenant Owner/Admin)
+    const { tenantMembers, users, tenantRoles } = await import('db/src/schema');
+    const { and } = await import('drizzle-orm');
+
+    const currentUser = await db.select().from(users).where(eq(users.id, auth.userId)).get();
+    const isPlatformAdmin = currentUser?.isPlatformAdmin === true;
+
+    if (!isPlatformAdmin) {
+        const membership = await db.select()
+            .from(tenantMembers)
+            .where(and(
+                eq(tenantMembers.tenantId, tenantId),
+                eq(tenantMembers.userId, auth.userId)
+            ))
+            .get();
+
+        if (!membership) return c.json({ error: "Forbidden" }, 403);
+
+        const roles = await db.select().from(tenantRoles).where(eq(tenantRoles.memberId, membership.id)).all();
+        const hasPermission = roles.some(r => r.role === 'owner' || r.role === 'admin');
+        if (!hasPermission) {
+            return c.json({ error: "Forbidden: Only Owners/Admins can link Stripe." }, 403);
+        }
+    }
+
+    // [SECURITY] Generate Signed State
+    const state = await sign({
+        tenantId,
+        userId: auth.userId,
+        exp: Math.floor(Date.now() / 1000) + 600 // 10 minutes
+    }, c.env.ENCRYPTION_SECRET, 'HS256');
+
+    const url = stripe.getConnectUrl(clientId, redirectUri, state);
     return c.redirect(url);
 });
 
 app.get('/stripe/callback', async (c) => {
     const code = c.req.query('code');
-    const state = c.req.query('state'); // tenantId
+    const state = c.req.query('state');
     const error = c.req.query('error');
 
     if (error) return c.json({ error }, 400);
     if (!code || !state) return c.json({ error: 'Missing code or state' }, 400);
+
+    // [SECURITY] Verify State
+    let tenantId: string;
+    try {
+        const payload = await verify(state, c.env.ENCRYPTION_SECRET, 'HS256');
+        tenantId = payload.tenantId as string;
+        // Optionally verify payload.userId matches current session if we want strict session binding
+    } catch (e) {
+        return c.json({ error: "Invalid or expired state token. Please try again." }, 400);
+    }
 
     const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
     const db = createDb(c.env.DB);
@@ -54,7 +103,7 @@ app.get('/stripe/callback', async (c) => {
 
         await db.update(tenants)
             .set({ stripeAccountId })
-            .where(eq(tenants.id, state))
+            .where(eq(tenants.id, tenantId))
             .run();
 
         return c.text('Stripe account connected! You can close this window and refresh your dashboard.');
@@ -82,11 +131,30 @@ app.post('/', async (c) => {
     const id = crypto.randomUUID();
 
     try {
-        await db.insert(tenants).values({
+        const newTenant = await db.insert(tenants).values({
             id,
             name,
             slug,
-        });
+        }).returning().get();
+
+        // [SECURITY] Assign Creator as Owner
+        const auth = c.get('auth');
+        if (auth && auth.userId) {
+            const memberId = crypto.randomUUID();
+            await db.insert(tenantMembers).values({
+                id: memberId,
+                tenantId: id,
+                userId: auth.userId,
+                status: 'active',
+                joinedAt: new Date(),
+            });
+
+            await db.insert(tenantRoles).values({
+                memberId: memberId,
+                role: 'owner'
+            });
+        }
+
         return c.json({ id, name, slug }, 201);
     } catch (e: any) {
         return c.json({ error: e.message }, 500);
@@ -134,20 +202,35 @@ app.put('/:id/integrations', async (c) => {
         return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    // Check membership
-    const { tenantMembers } = await import('db/src/schema');
+    // Check membership or Platform Admin
+    const { tenantMembers, users } = await import('db/src/schema');
     const { and } = await import('drizzle-orm');
 
-    const membership = await db.select()
-        .from(tenantMembers)
-        .where(and(
-            eq(tenantMembers.tenantId, id),
-            eq(tenantMembers.userId, auth.userId)
-        ))
-        .get();
+    // 1. Check if Platform Admin
+    // Import tenantRoles table alias to avoid conflict if needed, or rely on distinct imports
+    const { tenantRoles: tenantRolesTable } = await import('db/src/schema');
+    const currentUser = await db.select().from(users).where(eq(users.id, auth.userId)).get();
+    const isPlatformAdmin = currentUser?.isPlatformAdmin === true;
 
-    if (!membership) {
-        return c.json({ error: 'Forbidden: You do not have permission to manage this studio.' }, 403);
+    if (!isPlatformAdmin) {
+        const membership = await db.select()
+            .from(tenantMembers)
+            .where(and(
+                eq(tenantMembers.tenantId, id),
+                eq(tenantMembers.userId, auth.userId)
+            ))
+            .get();
+
+        if (!membership) {
+            return c.json({ error: 'Forbidden: You do not have permission to manage this studio.' }, 403);
+        }
+
+        // [SECURITY] RBAC Check (Owner/Admin Only)
+        const tenantRoles = await db.select().from(tenantRolesTable).where(eq(tenantRolesTable.memberId, membership.id)).all();
+        const hasPermission = tenantRoles.some(r => r.role === 'owner' || r.role === 'admin');
+        if (!hasPermission) {
+            return c.json({ error: "Forbidden: Only Studio Owners and Admins can manage integrations." }, 403);
+        }
     }
 
 
@@ -311,6 +394,33 @@ app.get('/google/connect', async (c) => {
     const auth = c.get('auth');
     if (!auth?.userId) return c.json({ error: "Unauthorized" }, 401);
 
+    const db = createDb(c.env.DB);
+
+    // [SECURITY] Authorization Check (Member or Admin)
+    const currentUser = await db.select().from(users).where(eq(users.id, auth.userId)).get();
+    const isPlatformAdmin = currentUser?.isPlatformAdmin === true;
+
+    if (!isPlatformAdmin) {
+        const membership = await db.select()
+            .from(tenantMembers)
+            .where(and(
+                eq(tenantMembers.tenantId, tenantId),
+                eq(tenantMembers.userId, auth.userId)
+            ))
+            .get();
+
+        if (!membership) {
+            return c.json({ error: "Forbidden: You do not have permission to link this studio." }, 403);
+        }
+
+        // [SECURITY] RBAC Check (Owner/Admin Only)
+        const roles = await db.select().from(tenantRoles).where(eq(tenantRoles.memberId, membership.id)).all();
+        const hasPermission = roles.some(r => r.role === 'owner' || r.role === 'admin');
+        if (!hasPermission) {
+            return c.json({ error: "Forbidden: Only Studio Owners and Admins can manage integrations." }, 403);
+        }
+    }
+
     // [SECURITY] Generate Signed State (CSRF Protection)
     // We expect state to return unchanged. We embed tenantId and userId to verify ownership on return.
     const state = await sign({
@@ -398,7 +508,33 @@ app.get('/google/callback', async (c) => {
 app.delete('/:id/integrations/google', async (c) => {
     const db = createDb(c.env.DB);
     const id = c.req.param('id');
-    // Verify auth?
+    const auth = c.get('auth');
+
+    if (!auth?.userId) return c.json({ error: "Unauthorized" }, 401);
+
+    // [SECURITY] Authorization Check
+    const currentUser = await db.select().from(users).where(eq(users.id, auth.userId)).get();
+    const isPlatformAdmin = currentUser?.isPlatformAdmin === true;
+
+    if (!isPlatformAdmin) {
+        const membership = await db.select()
+            .from(tenantMembers)
+            .where(and(
+                eq(tenantMembers.tenantId, id),
+                eq(tenantMembers.userId, auth.userId)
+            ))
+            .get();
+
+        if (!membership) return c.json({ error: "Forbidden" }, 403);
+
+        // [SECURITY] RBAC Check (Owner/Admin Only)
+        const { tenantRoles } = await import('db/src/schema');
+        const roles = await db.select().from(tenantRoles).where(eq(tenantRoles.memberId, membership.id)).all();
+        const hasPermission = roles.some(r => r.role === 'owner' || r.role === 'admin');
+        if (!hasPermission) {
+            return c.json({ error: "Forbidden: Only Studio Owners and Admins can manage integrations." }, 403);
+        }
+    }
 
     await db.update(tenants)
         .set({ googleCalendarCredentials: null })

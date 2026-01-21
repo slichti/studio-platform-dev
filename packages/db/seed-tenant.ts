@@ -7,7 +7,8 @@ import { eq } from 'drizzle-orm';
 import {
     tenants, users, tenantMembers, tenantRoles, locations,
     membershipPlans, classSeries, classes, bookings,
-    products, posOrders, posOrderItems
+    products, posOrders, posOrderItems,
+    coupons, classPackDefinitions, giftCards
 } from './src/schema';
 
 dotenv.config();
@@ -105,6 +106,24 @@ async function main() {
             name: p.name,
             price: p.price,
             interval: p.interval as any,
+            active: true
+        }).onConflictDoNothing();
+    }
+
+    // 5b. Create Class Packs
+    const packs = [
+        { name: "5 Class Pack", price: 6000, credits: 5, expirationDays: 90 },
+        { name: "20 Class Pack", price: 22000, credits: 20, expirationDays: 180 }
+    ];
+
+    for (const p of packs) {
+        await db.insert(classPackDefinitions).values({
+            id: 'pack_' + faker.string.uuid(),
+            tenantId: tenantId,
+            name: p.name,
+            price: p.price,
+            credits: p.credits,
+            expirationDays: p.expirationDays,
             active: true
         }).onConflictDoNothing();
     }
@@ -233,6 +252,68 @@ async function main() {
         stockQuantity: 50,
         isActive: true
     }).onConflictDoNothing();
+
+    await db.insert(products).values({
+        id: 'prod_' + faker.string.uuid(),
+        tenantId: tenantId,
+        name: "Yoga Block",
+        price: 1500,
+        stockQuantity: 30,
+        isActive: true
+    }).onConflictDoNothing();
+
+    await db.insert(products).values({
+        id: 'prod_' + faker.string.uuid(),
+        tenantId: tenantId,
+        name: "Studio T-Shirt",
+        price: 3500,
+        stockQuantity: 100,
+        isActive: true
+    }).onConflictDoNothing();
+
+    await db.insert(products).values({
+        id: 'prod_' + faker.string.uuid(),
+        tenantId: tenantId,
+        name: "Essential Oil",
+        price: 2000,
+        stockQuantity: 50,
+        isActive: true
+    }).onConflictDoNothing();
+
+    // 11. Create Coupons
+    console.log("Creating coupons...");
+    await db.insert(coupons).values({
+        id: 'coupon_' + faker.string.uuid(),
+        tenantId: tenantId,
+        code: "WELCOME20",
+        type: 'percent',
+        value: 20,
+        active: true
+    }).onConflictDoNothing();
+
+    await db.insert(coupons).values({
+        id: 'coupon_' + faker.string.uuid(),
+        tenantId: tenantId,
+        code: "SAVE10",
+        type: 'amount',
+        value: 1000, // $10.00
+        active: true
+    }).onConflictDoNothing();
+
+    // 12. Create Gift Cards
+    console.log("Creating gift cards...");
+    for (let i = 0; i < 5; i++) {
+        await db.insert(giftCards).values({
+            id: 'gc_' + faker.string.uuid(),
+            tenantId: tenantId,
+            code: faker.string.alphanumeric({ length: 12, casing: 'upper' }),
+            initialValue: 5000, // $50
+            currentBalance: 5000,
+            status: 'active',
+            recipientEmail: faker.internet.email(),
+            notes: "Seeded gift card"
+        });
+    }
     await db.insert(products).values({
         id: 'prod_' + faker.string.uuid(),
         tenantId: tenantId,

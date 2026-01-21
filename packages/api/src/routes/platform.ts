@@ -41,6 +41,11 @@ app.post('/hardware/orders', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner') && !roles.includes('admin')) {
+        return c.json({ error: "Unauthorized: Only owners can purchase hardware" }, 403);
+    }
+
     const { skuId, quantity, shipping } = await c.req.json();
 
     if (!skuId || !quantity || !shipping) return c.json({ error: 'Missing required fields' }, 400);

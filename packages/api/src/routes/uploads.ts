@@ -138,8 +138,42 @@ app.get('/:key{.+}', async (c) => {
         return c.json({ error: 'Access Denied: Tenant Isolation Violation' }, 403);
     }
 
+    // [SECURITY] Protect Sensitive Files (Waivers)
+    if (key.includes('/waivers/')) {
+        const auth = c.get('auth');
+        if (!auth?.userId) return c.json({ error: "Unauthorized" }, 401);
+
+        const db = createDb(c.env.DB);
+
+        // Check if user is the uploader OR has privileged role
+        const metadata = await db.select().from(uploads)
+            .where(and(eq(uploads.fileKey, key), eq(uploads.tenantId, tenant.id)))
+            .get();
+
+        const isUploader = metadata && metadata.uploadedBy === auth.userId;
+
+        if (!isUploader) {
+            // Check roles
+            const membership = await db.select().from(tenantMembers)
+                .where(and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id)))
+                .get();
+
+            if (!membership) return c.json({ error: "Forbidden" }, 403);
+
+            const { tenantRoles } = await import('db/src/schema');
+            const roles = await db.select().from(tenantRoles).where(eq(tenantRoles.memberId, membership.id)).all();
+            const hasPrivilege = roles.some(r => r.role === 'owner' || r.role === 'admin');
+
+            if (!hasPrivilege) {
+                return c.json({ error: "Forbidden: Access denied to sensitive document." }, 403);
+            }
+        }
+    }
+
     const headers = new Headers();
     object.writeHttpMetadata(headers);
+    // Force download for PDFs to prevent inline execution of malicious content?
+    // headers.set('Content-Disposition', 'attachment'); 
     headers.set('etag', object.httpEtag);
 
     return new Response(object.body, {

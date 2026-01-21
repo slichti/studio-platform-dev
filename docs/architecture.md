@@ -105,7 +105,25 @@ flowchart TD
         STU -.->|Can| BOOK[Book Classes]
         STU -.->|Can| VIDEOS[Watch Videos]
     end
+    end
 ```
+
+## Security Implementation
+
+### Role-Based Access Control (RBAC)
+*   **Platform Admin**: Global system access. Validated via `users.isPlatformAdmin`.
+*   **Studio Owner**: Full access to tenant data and settings. Validated via `tenantRoles`.
+*   **Instructor**: Limited management of classes, members, and bookings.
+*   **Student**: Restricted to own profile, bookings, and public data.
+
+### Threat Mitigation
+*   **IDOR Prevention**:
+    *   **Bookings**: Operations like cancellation/modification enforce ownership checks (`booking.memberId === currentMember.id`) or Admin/Owner role.
+    *   **Uploads**: Sensitive files (e.g., waivers) are protected by ownership or role checks.
+*   **CSRF Protection**:
+    *   **Stripe Connect**: Usage of **Signed State Tokens (JWT)** prevents CSRF attacks during the OAuth flow. The `state` parameter is cryptographically verifiable.
+*   **Tenant Isolation**:
+    *   All queries are scoped by `tenantId` derived from the request hostname/header via strict middleware.
 
 ## API Layer Structure
 
