@@ -37,7 +37,8 @@ import {
     Smartphone,
     MessageSquare,
     CircleHelp,
-    QrCode
+    QrCode,
+    Trophy
 } from "lucide-react";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { CommandBar } from "../components/CommandBar";
@@ -186,6 +187,7 @@ export default function StudioLayout() {
                         <NavItem to={`/studio/${slug}/checkin`} icon={<CheckCircle2 size={18} />}>
                             {isStudentView ? "Attendance History" : "Check-in"}
                         </NavItem>
+                        <NavItem to={`/studio/${slug}/challenges`} icon={<Trophy size={18} />}>Challenges</NavItem>
                         {/* Only show Substitutions to Instructors/Admins */}
                         {!isStudentView && (
                             <NavItem to={`/studio/${slug}/substitutions`} icon={<RefreshCw size={18} />}>Substitutions</NavItem>

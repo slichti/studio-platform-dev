@@ -46,22 +46,6 @@ export const action = async (args: ActionFunctionArgs) => {
         });
     }
 
-    if (intent === 'create') {
-        await apiRequest('/challenges', token, {
-            method: 'POST',
-            headers: { 'X-Tenant-Slug': slug },
-            body: JSON.stringify({
-                title: formData.get("title"),
-                description: formData.get("description"),
-                type: formData.get("type"),
-                goal: parseInt(formData.get("goal") as string || "10"),
-                startDate: formData.get("startDate"),
-                endDate: formData.get("endDate"),
-                rewardPoints: parseInt(formData.get("rewardPoints") as string || "100")
-            })
-        });
-    }
-
     return { success: true };
 };
 
@@ -92,12 +76,7 @@ export default function ChallengesPrograms() {
                             <p className="text-white/80">Complete challenges and earn rewards</p>
                         </div>
                     </div>
-                    <button
-                        onClick={() => setIsCreating(true)}
-                        className="px-4 py-2 bg-white text-amber-600 rounded-lg font-medium hover:bg-amber-50 flex items-center gap-2"
-                    >
-                        <Plus size={16} /> Create Challenge
-                    </button>
+
                 </div>
 
                 {/* Tabs */}

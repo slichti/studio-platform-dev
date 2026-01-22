@@ -50,13 +50,26 @@ export const action = async (args: ActionFunctionArgs) => {
     }
 
     if (intent === "create") {
+        const rewardType = formData.get("rewardType");
+        let rewardValue = {};
+
+        if (rewardType === 'retail_credit') {
+            rewardValue = { creditAmount: formData.get("creditAmount") };
+        } else if (formData.get("rewardValue")) {
+            try {
+                rewardValue = JSON.parse(formData.get("rewardValue") as string);
+            } catch (e) { }
+        }
+
         const data = {
             title: formData.get("title"),
             description: formData.get("description"),
-            type: formData.get("type"), // 'count'
-            targetValue: parseInt(formData.get("targetValue") as string),
-            rewardType: formData.get("rewardType"), // 'badge', 'coupon'
-            rewardValue: formData.get("rewardValue") ? JSON.parse(formData.get("rewardValue") as string) : {},
+            type: formData.get("type"),
+            targetValue: parseInt(formData.get("targetValue") as string || "0"),
+            frequency: parseInt(formData.get("frequency") as string || "1"),
+            period: formData.get("period"),
+            rewardType,
+            rewardValue,
             startDate: formData.get("startDate"),
             endDate: formData.get("endDate")
         };
@@ -237,27 +250,89 @@ export default function LoyaltyPage() {
                                 <div>
                                     <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Goal Type</label>
                                     <div className="relative">
-                                        <select name="type" className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                                        <select
+                                            name="type"
+                                            className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                const targetInput = document.getElementById('targetValue-group');
+                                                const streakInput = document.getElementById('streak-group');
+                                                if (val === 'streak') {
+                                                    if (targetInput) targetInput.style.display = 'none';
+                                                    if (streakInput) streakInput.style.display = 'grid';
+                                                } else {
+                                                    if (targetInput) targetInput.style.display = 'block';
+                                                    if (streakInput) streakInput.style.display = 'none';
+                                                }
+                                            }}
+                                        >
                                             <option value="count">Total Classes</option>
                                             <option value="minutes">Total Minutes</option>
-                                            <option value="streak">Streak (Days)</option>
+                                            <option value="streak">Streak</option>
                                         </select>
                                         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
                                             <Target size={14} />
                                         </div>
                                     </div>
                                 </div>
-                                <div>
+                                <div id="targetValue-group">
                                     <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Target Value</label>
-                                    <input name="targetValue" type="number" required defaultValue="10" min="1" className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" />
+                                    <input name="targetValue" type="number" defaultValue="10" min="1" className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" />
                                 </div>
                             </div>
+
+                            {/* Streak Options (Hidden by default unless Streak selected - simpler to just show all for now or use React state but I am editing static TSX mostly. Actually, I can use a simple script or just assume React re-renders if I converted to controlled. Since I am replacing the block, I'll use controlled state for Type if possible, but I don't want to rewrite the whole component state. I'll rely on server handling or just show them all.) 
+                            Let's use a cleaner approach: plain fields, but clearer labels. */}
+
+                            <div id="streak-group" className="hidden grid-cols-2 gap-4 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-100 dark:border-zinc-800">
+                                <div className="col-span-2 text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Streak Settings</div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Frequency</label>
+                                    <input name="frequency" type="number" defaultValue="3" min="1" className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                                    <p className="text-xs text-zinc-500 mt-1">Times per period</p>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Period</label>
+                                    <select name="period" className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+                                        <option value="week">Weekly</option>
+                                        <option value="month">Monthly</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* JS to toggle visibility - simple hack since I can't easily add state without replacing the whole file function body */}
+                            <script dangerouslySetInnerHTML={{
+                                __html: `
+                                document.querySelector('select[name="type"]').addEventListener('change', function(e) {
+                                    const val = e.target.value;
+                                    const streakGroup = document.getElementById('streak-group');
+                                    const targetGroup = document.getElementById('targetValue-group');
+                                    if(val === 'streak') {
+                                        streakGroup.classList.remove('hidden');
+                                        streakGroup.classList.add('grid');
+                                        targetGroup.classList.add('hidden');
+                                    } else {
+                                        streakGroup.classList.add('hidden');
+                                        streakGroup.classList.remove('grid');
+                                        targetGroup.classList.remove('hidden');
+                                    }
+                                });
+                             `}} />
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Reward Type</label>
                                     <div className="relative">
-                                        <select name="rewardType" className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                                        <select
+                                            name="rewardType"
+                                            className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                const creditInput = document.getElementById('credit-input');
+                                                if (val === 'retail_credit' && creditInput) creditInput.classList.remove('hidden');
+                                                else if (creditInput) creditInput.classList.add('hidden');
+                                            }}
+                                        >
                                             <option value="badge">Digital Badge</option>
                                             <option value="coupon">Discount Coupon</option>
                                             <option value="retail_credit">Retail Credit</option>
@@ -271,6 +346,11 @@ export default function LoyaltyPage() {
                                     <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">End Date</label>
                                     <input name="endDate" type="date" className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" />
                                 </div>
+                            </div>
+
+                            <div id="credit-input" className="hidden">
+                                <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Credit Amount ($)</label>
+                                <input name="creditAmount" type="number" min="1" className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" placeholder="e.g. 50" />
                             </div>
 
                             <div className="pt-6 flex justify-end gap-3 border-t border-zinc-100 dark:border-zinc-800 mt-2">

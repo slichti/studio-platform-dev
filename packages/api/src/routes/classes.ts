@@ -1622,183 +1622,20 @@ app.patch('/:id/bookings/:bookingId/check-in', async (c) => {
                     const tenant = await db.select().from(tenants).where(eq(tenants.id, member.tenantId)).get();
 
                     if (tenant && isFeatureEnabled(tenant, 'loyalty')) {
-                        const activeChallenges = await db.select()
-                            .from(challenges)
-                            .where(and(
-                                eq(challenges.tenantId, member.tenantId),
-                                eq(challenges.active, true)
-                            ))
-                            .all();
+                        // Fetch Class Info for Duration
+                        const classInfo = await db.select({ durationMinutes: classes.durationMinutes })
+                            .from(classes)
+                            .where(eq(classes.id, classId))
+                            .get();
 
-                        for (const challenge of activeChallenges) {
-                            // Calculate Increment based on Type
-                            let increment = 0;
-                            if (challenge.type === 'count') {
-                                increment = 1;
-                            } else if (challenge.type === 'minutes') {
-                                const classInfo = await db.select({ durationMinutes: classes.durationMinutes })
-                                    .from(classes)
-                                    .where(eq(classes.id, classId))
-                                    .get();
-                                increment = classInfo?.durationMinutes || 0;
-                            }
+                        const duration = classInfo?.durationMinutes || 0;
 
-                            if (increment > 0 || challenge.type === 'streak') {
-                                // Find or Create User Challenge progress
-                                let userProgress = await db.select()
-                                    .from(userChallenges)
-                                    .where(and(
-                                        eq(userChallenges.userId, member.userId),
-                                        eq(userChallenges.challengeId, challenge.id)
-                                    ))
-                                    .get();
-
-                                if (!userProgress) {
-                                    // Initialize
-                                    userProgress = await db.insert(userChallenges).values({
-                                        id: crypto.randomUUID(),
-                                        tenantId: member.tenantId,
-                                        userId: member.userId,
-                                        challengeId: challenge.id,
-                                        progress: 0,
-                                        status: 'active',
-                                        metadata: { currentCount: 0, streakCount: 0 }
-                                    }).returning().get();
-                                }
-
-                                if (userProgress.status === 'active') {
-                                    let newProgress = userProgress.progress;
-                                    let shouldUpdate = false;
-                                    let metadata: any = userProgress.metadata || {};
-
-                                    if (challenge.type === 'streak') {
-                                        // STREAK LOGIC
-                                        if (isFeatureEnabled(tenant, 'streaks')) {
-                                            const now = new Date();
-                                            const period = challenge.period || 'week';
-                                            const frequency = challenge.frequency || 1;
-
-                                            // Determine Current Period Key
-                                            let currentPeriodKey = '';
-                                            if (period === 'week') {
-                                                const oneJan = new Date(now.getFullYear(), 0, 1);
-                                                const days = Math.floor((now.getTime() - oneJan.getTime()) / 86400000);
-                                                const week = Math.ceil((now.getDay() + 1 + days) / 7);
-                                                currentPeriodKey = `${now.getFullYear()}-W${week}`;
-                                            } else if (period === 'month') {
-                                                currentPeriodKey = `${now.getFullYear()}-M${now.getMonth() + 1}`;
-                                            } else {
-                                                currentPeriodKey = now.toISOString().split('T')[0];
-                                            }
-
-                                            // Period Transition
-                                            if (metadata.currentPeriod !== currentPeriodKey) {
-                                                let isBroken = false;
-
-                                                if (metadata.currentPeriod) {
-                                                    // 1. Did we complete the last period we attempted?
-                                                    if (!metadata.periodCompleted) {
-                                                        isBroken = true;
-                                                    } else {
-                                                        // 2. Gap Check (Did we skip a week/month?)
-                                                        if (period === 'week') {
-                                                            const [prevYear, prevWeek] = metadata.currentPeriod.split('-W').map(Number);
-                                                            const [currYear, currWeek] = currentPeriodKey.split('-W').map(Number);
-                                                            const diff = ((currYear * 52) + currWeek) - ((prevYear * 52) + prevWeek);
-                                                            if (diff > 1) isBroken = true;
-                                                        } else if (period === 'month') {
-                                                            const [prevYear, prevMonth] = metadata.currentPeriod.split('-M').map(Number);
-                                                            const [currYear, currMonth] = currentPeriodKey.split('-M').map(Number);
-                                                            const diff = ((currYear * 12) + currMonth) - ((prevYear * 12) + prevMonth);
-                                                            if (diff > 1) isBroken = true;
-                                                        } else if (period === 'day') {
-                                                            const prevDate = new Date(metadata.currentPeriod);
-                                                            const currDate = new Date(currentPeriodKey);
-                                                            const diffDays = (currDate.getTime() - prevDate.getTime()) / (1000 * 3600 * 24);
-                                                            if (diffDays > 1) isBroken = true;
-                                                        }
-                                                    }
-                                                }
-
-                                                if (isBroken) {
-                                                    newProgress = 0; // Break streak
-                                                }
-
-                                                // Reset counters for new period
-                                                metadata.currentPeriod = currentPeriodKey;
-                                                metadata.currentCount = 0;
-                                                metadata.periodCompleted = false;
-                                                shouldUpdate = true;
-                                            }
-
-                                            // Increment for this period
-                                            metadata.currentCount = (metadata.currentCount || 0) + 1;
-                                            shouldUpdate = true;
-
-                                            // Check Completion
-                                            if (metadata.currentCount >= frequency && !metadata.periodCompleted) {
-                                                metadata.periodCompleted = true;
-                                                newProgress += 1;
-                                                shouldUpdate = true;
-                                            }
-                                        }
-                                    } else {
-                                        // Count / Minutes
-                                        newProgress += increment;
-                                        shouldUpdate = true;
-                                    }
-
-                                    if (shouldUpdate) {
-                                        const isCompleted = newProgress >= challenge.targetValue;
-
-                                        await db.update(userChallenges)
-                                            .set({
-                                                progress: newProgress,
-                                                status: isCompleted ? 'completed' : 'active',
-                                                metadata: metadata,
-                                                completedAt: isCompleted ? new Date() : null,
-                                                updatedAt: new Date()
-                                            })
-                                            .where(eq(userChallenges.id, userProgress.id))
-                                            .run();
-
-                                        if (isCompleted) {
-                                            console.log(`User ${member.userId} completed challenge ${challenge.title}!`);
-
-                                            // Reward Fulfillment
-                                            if (challenge.rewardType === 'retail_credit') {
-                                                const val = challenge.rewardValue as any;
-                                                const creditAmount = parseInt(val?.creditAmount || '0');
-                                                if (creditAmount > 0) {
-                                                    const code = `REW-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-
-                                                    const card = await db.insert(giftCards).values({
-                                                        id: crypto.randomUUID(),
-                                                        tenantId: member.tenantId,
-                                                        code,
-                                                        initialValue: creditAmount,
-                                                        currentBalance: creditAmount,
-                                                        status: 'active',
-                                                        recipientMemberId: member.id,
-                                                        notes: `Reward for challenge: ${challenge.title}`,
-                                                        createdAt: new Date(),
-                                                        updatedAt: new Date()
-                                                    }).returning().get();
-
-                                                    await db.insert(giftCardTransactions).values({
-                                                        id: crypto.randomUUID(),
-                                                        giftCardId: card.id,
-                                                        amount: creditAmount,
-                                                        type: 'adjustment',
-                                                        referenceId: userProgress.id,
-                                                        createdAt: new Date()
-                                                    });
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                        try {
+                            const { ChallengeService } = await import('../services/challenges');
+                            const challengeService = new ChallengeService(db, member.tenantId);
+                            await challengeService.processClassAttendance(member.userId, classId, duration);
+                        } catch (e) {
+                            console.error("Failed to process challenges for check-in", e);
                         }
                     }
                 }

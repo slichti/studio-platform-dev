@@ -19,6 +19,18 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 
+// GET /leaderboard - Get tenant-wide leaderboard
+app.get('/leaderboard', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const { ChallengeService } = await import('../services/challenges');
+    const service = new ChallengeService(db, tenant.id);
+    const leaderboard = await service.getLeaderboard();
+    return c.json(leaderboard);
+});
+
 // GET /challenges - List all challenges for the tenant
 app.get('/', async (c) => {
     const db = createDb(c.env.DB);
@@ -126,39 +138,15 @@ app.post('/:id/join', async (c) => {
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
     if (!member) return c.json({ error: 'Member context required' }, 401);
 
-    // 1. Verify Challenge Exists & Active
-    const challenge = await db.select().from(challenges)
-        .where(and(
-            eq(challenges.id, challengeId),
-            eq(challenges.tenantId, tenant.id),
-            eq(challenges.active, true)
-        ))
-        .get();
-
-    if (!challenge) return c.json({ error: 'Challenge not found or inactive' }, 404);
-
-    // 2. Check overlap? (Optional, maybe allowed multiple times? Schema has uniqueIndex)
-    const existing = await db.select().from(userChallenges)
-        .where(and(
-            eq(userChallenges.userId, member.userId), // Global user ID
-            eq(userChallenges.challengeId, challengeId)
-        ))
-        .get();
-
-    if (existing) return c.json({ error: 'Already joined this challenge' }, 400);
-
-    // 3. Join
-    await db.insert(userChallenges).values({
-        id: crypto.randomUUID(),
-        tenantId: tenant.id,
-        userId: member.userId,
-        challengeId: challengeId,
-        progress: 0,
-        status: 'active',
-        createdAt: new Date()
-    });
-
-    return c.json({ success: true });
+    // Use ChallengeService for consistent logic
+    try {
+        const { ChallengeService } = await import('../services/challenges');
+        const service = new ChallengeService(db, tenant.id);
+        await service.joinChallenge(member.userId, challengeId);
+        return c.json({ success: true });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 400);
+    }
 });
 
 export default app;
