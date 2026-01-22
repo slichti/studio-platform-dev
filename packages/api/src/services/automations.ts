@@ -456,6 +456,7 @@ export class AutomationsService {
     }
 
     private processTemplate(text: string, context: any, couponCode: string | null) {
+        // Core Variables
         let processed = text
             .replace(/{{first_name}}/g, context.firstName || 'Friend')
             .replace(/{{firstName}}/g, context.firstName || 'Friend') // Support both
@@ -466,9 +467,22 @@ export class AutomationsService {
             .replace(/{{studioName}}/g, context.title || '') // Alias
             .replace(/{{address}}/g, context.address || '');
 
+        // Coupon
         if (couponCode) {
             processed = processed.replace(/{{coupon_code}}/g, couponCode);
         }
+
+        // Context Data Variables (Deep check in context.data)
+        const data = context.data || {};
+
+        // Class/Booking specific
+        if (data.classTitle) processed = processed.replace(/{{classTitle}}/g, data.classTitle);
+        if (data.startTime) {
+            const date = new Date(data.startTime);
+            processed = processed.replace(/{{classDate}}/g, date.toLocaleDateString());
+            processed = processed.replace(/{{classTime}}/g, date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+        }
+        if (data.feeAmount) processed = processed.replace(/{{feeAmount}}/g, String(data.feeAmount));
 
         return processed;
     }

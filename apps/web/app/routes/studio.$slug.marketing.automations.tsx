@@ -233,7 +233,6 @@ export default function AutomatedCampaigns() {
                     }}
                 />
             )}
-            )}
 
             <ConfirmDialog
                 open={!!automationToDelete}
@@ -248,15 +247,31 @@ export default function AutomatedCampaigns() {
     );
 }
 
+const TIMING_TYPES = [
+    { id: 'immediate', label: 'Immediately' },
+    { id: 'delay', label: 'Delay (Hours)' },
+    { id: 'before', label: 'Before Event (Hours)' },
+];
+
 function CreateAutomationModal({ onClose, onSave }: { onClose: () => void; onSave: (data: any) => void }) {
     const [step, setStep] = useState(1);
     const [name, setName] = useState("");
     const [trigger, setTrigger] = useState("new_student");
 
+    // Timing
+    const [timingType, setTimingType] = useState("immediate");
+    const [timingValue, setTimingValue] = useState("0");
+
     // Audience
     const [audienceType, setAudienceType] = useState("all"); // all, filter
     const [ageMin, setAgeMin] = useState("");
     const [ageMax, setAgeMax] = useState("");
+
+    // Coupon
+    const [addCoupon, setAddCoupon] = useState(false);
+    const [couponType, setCouponType] = useState("percent"); // percent, amount
+    const [couponValue, setCouponValue] = useState("10");
+    const [couponValidity, setCouponValidity] = useState("7");
 
     // Content
     const [contentType, setContentType] = useState("simple"); // simple, template
@@ -264,13 +279,17 @@ function CreateAutomationModal({ onClose, onSave }: { onClose: () => void; onSav
     const [content, setContent] = useState("");
     const [templateId, setTemplateId] = useState("");
 
+    const totalSteps = 4;
+
     const handleSubmit = () => {
         const payload: any = {
             name,
             trigger,
             triggerConfig: {}, // Default
             actions: [], // Legacy/Unused
-            isActive: true
+            isActive: true,
+            timingType,
+            timingValue: parseInt(timingValue) || 0
         };
 
         // Audience
@@ -278,6 +297,15 @@ function CreateAutomationModal({ onClose, onSave }: { onClose: () => void; onSav
             payload.audienceFilter = {};
             if (ageMin) payload.audienceFilter.ageMin = parseInt(ageMin);
             if (ageMax) payload.audienceFilter.ageMax = parseInt(ageMax);
+        }
+
+        // Coupon
+        if (addCoupon) {
+            payload.couponConfig = {
+                type: couponType,
+                value: parseInt(couponValue),
+                validityDays: parseInt(couponValidity)
+            };
         }
 
         // Content
@@ -303,6 +331,13 @@ function CreateAutomationModal({ onClose, onSave }: { onClose: () => void; onSav
                 </div>
 
                 <div className="p-6">
+                    {/* Progress Bar */}
+                    <div className="flex gap-2 mb-6">
+                        {[1, 2, 3, 4].map(s => (
+                            <div key={s} className={`h-1 flex-1 rounded-full ${s <= step ? 'bg-purple-600' : 'bg-zinc-100'}`} />
+                        ))}
+                    </div>
+
                     {step === 1 && (
                         <div className="space-y-4">
                             <div>
@@ -311,7 +346,7 @@ function CreateAutomationModal({ onClose, onSave }: { onClose: () => void; onSav
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-zinc-700 mb-2">Trigger</label>
-                                <div className="grid grid-cols-2 gap-2 h-64 overflow-y-auto">
+                                <div className="grid grid-cols-2 gap-2 h-48 overflow-y-auto pr-1">
                                     {TRIGGERS.map((t) => (
                                         <button
                                             key={t.id}
@@ -323,6 +358,32 @@ function CreateAutomationModal({ onClose, onSave }: { onClose: () => void; onSav
                                         </button>
                                     ))}
                                 </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 mb-2">Timing</label>
+                                <div className="flex bg-zinc-100 p-1 rounded-lg mb-2">
+                                    {TIMING_TYPES.map(t => (
+                                        <button
+                                            key={t.id}
+                                            onClick={() => setTimingType(t.id)}
+                                            className={`flex-1 py-1.5 text-xs font-medium rounded-md ${timingType === t.id ? 'bg-white shadow text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}
+                                        >
+                                            {t.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                {timingType !== 'immediate' && (
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            value={timingValue}
+                                            onChange={(e) => setTimingValue(e.target.value)}
+                                            className="w-24 px-3 py-2 border border-zinc-200 rounded-lg"
+                                        />
+                                        <span className="text-sm text-zinc-500">hours</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
@@ -358,6 +419,46 @@ function CreateAutomationModal({ onClose, onSave }: { onClose: () => void; onSav
 
                     {step === 3 && (
                         <div className="space-y-4">
+                            <h3 className="font-medium text-zinc-900">Sweeteners</h3>
+                            <div className="p-4 border border-zinc-200 rounded-lg">
+                                <label className="flex items-center justify-between cursor-pointer">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`w-5 h-5 rounded border flex items-center justify-center ${addCoupon ? 'bg-purple-600 border-purple-600' : 'border-zinc-300'}`}>
+                                            {addCoupon && <CheckIcon size={12} className="text-white" />}
+                                        </div>
+                                        <div>
+                                            <span className="font-medium text-sm">Generate Unique Coupon</span>
+                                            <p className="text-xs text-zinc-500">Include a single-use code in the email.</p>
+                                        </div>
+                                    </div>
+                                    <input type="checkbox" checked={addCoupon} onChange={(e) => setAddCoupon(e.target.checked)} className="hidden" />
+                                </label>
+
+                                {addCoupon && (
+                                    <div className="mt-4 pt-4 border-t border-zinc-100 grid grid-cols-2 gap-4">
+                                        <div className="col-span-2 flex bg-zinc-100 p-1 rounded-lg">
+                                            <button onClick={() => setCouponType('percent')} className={`flex-1 py-1 text-xs font-medium rounded-md ${couponType === 'percent' ? 'bg-white shadow' : 'text-zinc-500'}`}>Percentage Off</button>
+                                            <button onClick={() => setCouponType('amount')} className={`flex-1 py-1 text-xs font-medium rounded-md ${couponType === 'amount' ? 'bg-white shadow' : 'text-zinc-500'}`}>Flat Amount</button>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-zinc-500 mb-1">Value</label>
+                                            <div className="relative">
+                                                <input type="number" value={couponValue} onChange={(e) => setCouponValue(e.target.value)} className="w-full pl-8 pr-3 py-2 border border-zinc-200 rounded-lg" />
+                                                <span className="absolute left-3 top-2 text-zinc-400 text-sm">{couponType === 'percent' ? '%' : '$'}</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-zinc-500 mb-1">Expires In (Days)</label>
+                                            <input type="number" value={couponValidity} onChange={(e) => setCouponValidity(e.target.value)} className="w-full px-3 py-2 border border-zinc-200 rounded-lg" />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {step === 4 && (
+                        <div className="space-y-4">
                             <h3 className="font-medium text-zinc-900">Email Content</h3>
 
                             {/* Subject is always needed (at least as fallback/title) */}
@@ -392,7 +493,7 @@ function CreateAutomationModal({ onClose, onSave }: { onClose: () => void; onSav
                 <div className="p-4 border-t border-zinc-200 flex justify-between">
                     {step > 1 && <button onClick={() => setStep(step - 1)} className="px-4 py-2 text-sm text-zinc-500">Back</button>}
 
-                    {step < 3 ? (
+                    {step < 4 ? (
                         <button onClick={() => setStep(step + 1)} disabled={!name && step === 1} className="ml-auto px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm disabled:opacity-50">Next</button>
                     ) : (
                         <button onClick={handleSubmit} disabled={contentType === 'simple' ? !content : !templateId} className="ml-auto px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm disabled:opacity-50">Create Automation</button>
@@ -401,4 +502,12 @@ function CreateAutomationModal({ onClose, onSave }: { onClose: () => void; onSav
             </div>
         </div>
     );
+}
+
+function CheckIcon({ size, className }: { size?: number, className?: string }) {
+    return (
+        <svg width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+            <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+    )
 }

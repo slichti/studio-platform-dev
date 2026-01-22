@@ -283,7 +283,7 @@ export default function CustomReports() {
                     </div>
                 </div>
             </div>
-            </div>
+
 
             <ConfirmDialog
                 open={!!reportToDelete}

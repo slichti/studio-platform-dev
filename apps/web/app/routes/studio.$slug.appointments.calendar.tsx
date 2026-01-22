@@ -217,7 +217,7 @@ export default function AppointmentsCalendar() {
                     instructors={instructors}
                     defaultSlot={selectedSlot}
                     onClose={() => { setIsCreating(false); setSelectedSlot(null); }}
-                    onSave={(data) => {
+                    onSave={(data: any) => {
                         const formData = new FormData();
                         formData.append("intent", "create");
                         Object.entries(data).forEach(([k, v]) => formData.append(k, String(v)));
@@ -233,7 +233,7 @@ export default function AppointmentsCalendar() {
                 <AppointmentDetailModal
                     appointment={selectedAppointment}
                     onClose={() => setSelectedAppointment(null)}
-                    onUpdateStatus={(id, status) => {
+                    onUpdateStatus={(id: any, status: any) => {
                         submit({ intent: 'update-status', id, status }, { method: 'post' });
                         setSelectedAppointment(null);
                     }}

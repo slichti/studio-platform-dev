@@ -14,7 +14,7 @@ import {
     Legend
 } from 'recharts';
 import { Calculator, TrendingUp, DollarSign, Users, Save, FolderOpen, Trash2, Calendar, ArrowRight } from 'lucide-react';
-import { Toast } from './Toast'; // Assuming standard Toast or simple alert fallback
+
 
 export function ProjectionsCalculator() {
     // Mode: 'static' (Profitability Curve) or 'growth' (Time Series)
@@ -367,7 +367,7 @@ export function ProjectionsCalculator() {
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#E4E4E7" />
                                 <Tooltip
                                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                                    formatter={(val: any, name: string) => [name === 'Students' ? val : `$${Number(val).toLocaleString()}`, name]}
+                                    formatter={(val: any, name: any) => [name === 'Students' ? val : `$${Number(val).toLocaleString()}`, name]}
                                 />
                                 <Legend />
                                 <Line yAxisId="left" type="monotone" dataKey="revenue" name="Revenue" stroke="#3B82F6" strokeWidth={3} dot={false} />
@@ -410,7 +410,7 @@ function InputGroup({ label, value, onChange }: { label: string, value: number, 
             <input
                 type="number"
                 value={value}
-                onChange={e => onChange(e.target.value)}
+                onChange={(e: any) => onChange(e.target.value)}
                 className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
             />
         </div>

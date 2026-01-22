@@ -15,8 +15,8 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
             fetch(`${API_URL}/contracts/definitions`, { headers: { 'X-Tenant-Slug': slug as string } })
         ]);
 
-        const packsData = packsRes.ok ? await packsRes.json() : { packs: [] };
-        const membershipsData = membershipsRes.ok ? await membershipsRes.json() : { definitions: [] };
+        const packsData: any = packsRes.ok ? await packsRes.json() : { packs: [] };
+        const membershipsData: any = membershipsRes.ok ? await membershipsRes.json() : { definitions: [] };
 
         return {
             packs: packsData.packs || [],

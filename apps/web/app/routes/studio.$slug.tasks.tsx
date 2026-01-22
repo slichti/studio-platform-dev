@@ -343,7 +343,7 @@ export default function TasksPage() {
                     </div>
                 </form>
             </Modal>
-            </Modal>
+
 
             <ConfirmDialog
                 open={!!taskToDelete}

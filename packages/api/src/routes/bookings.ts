@@ -8,6 +8,7 @@ import { authMiddleware } from '../middleware/auth';
 
 type Bindings = {
     DB: D1Database;
+    RESEND_API_KEY: string;
 };
 
 type Variables = {
@@ -27,7 +28,8 @@ app.use('*', authMiddleware);
 app.post('/', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const user = c.get('user');
+    const auth = c.get('auth');
+    if (!auth.userId) return c.json({ error: "Unauthorized" }, 401);
 
     const body = await c.req.json();
     const { classId, attendanceType, memberId } = body;
@@ -43,7 +45,7 @@ app.post('/', async (c) => {
     } else {
         // Find existing member for this user
         const member = await db.select().from(tenantMembers)
-            .where(and(eq(tenantMembers.userId, user.id), eq(tenantMembers.tenantId, tenant.id)))
+            .where(and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id)))
             .get();
         if (!member) return c.json({ error: "Must be a member to book" }, 403);
         targetMemberId = member.id;
@@ -84,6 +86,53 @@ app.post('/', async (c) => {
         createdAt: new Date()
     });
 
+    // Trigger Automation
+    try {
+        const { AutomationsService } = await import('../services/automations');
+        const { EmailService } = await import('../services/email');
+        const { SmsService } = await import('../services/sms');
+        const { UsageService } = await import('../services/pricing');
+
+        // Need user details
+        const memberInfo = await db.query.tenantMembers.findFirst({
+            where: eq(tenantMembers.id, targetMemberId),
+            with: { user: true }
+        });
+
+        if (memberInfo && memberInfo.user) {
+            const usageService = new UsageService(db, tenant.id);
+            const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
+            const isByok = !!(tenant.resendCredentials as any)?.apiKey;
+
+            const emailService = new EmailService(
+                resendKey,
+                { branding: tenant.branding as any, settings: tenant.settings as any },
+                { slug: tenant.slug },
+                usageService,
+                isByok,
+                db,
+                tenant.id
+            );
+
+            const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
+            const autoService = new AutomationsService(db, tenant.id, emailService, smsService);
+
+            c.executionCtx.waitUntil(autoService.dispatchTrigger('class_booked', {
+                userId: memberInfo.user.id,
+                email: memberInfo.user.email,
+                firstName: (memberInfo.user.profile as any)?.firstName,
+                data: {
+                    classId,
+                    classTitle: classData.title,
+                    startTime: classData.startTime,
+                    bookingId: id
+                }
+            }));
+        }
+    } catch (e) {
+        console.error("Failed to dispatch class_booked trigger", e);
+    }
+
     return c.json({ success: true, id });
 });
 
@@ -108,8 +157,11 @@ app.delete('/:id', async (c) => {
 
     // [SECURITY] Permission Check (Own Booking OR Owner/Admin)
     // 1. Resolve Current Member
+    const auth = c.get('auth');
+    if (!auth.userId) return c.json({ error: "Unauthorized" }, 401);
+
     const currentMember = await db.select().from(tenantMembers)
-        .where(and(eq(tenantMembers.userId, c.get('auth').userId), eq(tenantMembers.tenantId, tenant.id)))
+        .where(and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id)))
         .get();
 
     if (!currentMember) return c.json({ error: "Unauthorized" }, 401);
@@ -153,8 +205,11 @@ app.patch('/:id', async (c) => {
     if (!classData) return c.json({ error: "Not found" }, 404);
 
     // [SECURITY] Permission Check
+    const auth = c.get('auth');
+    if (!auth.userId) return c.json({ error: "Unauthorized" }, 401);
+
     const currentMember = await db.select().from(tenantMembers)
-        .where(and(eq(tenantMembers.userId, c.get('user').id), eq(tenantMembers.tenantId, tenant.id)))
+        .where(and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id)))
         .get();
 
     if (!currentMember) return c.json({ error: "Unauthorized" }, 401);

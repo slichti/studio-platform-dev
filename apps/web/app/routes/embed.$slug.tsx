@@ -19,7 +19,7 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
 };
 
 export default function EmbedLayout() {
-    const { tenant } = useLoaderData<typeof loader>();
+    const { tenant } = useLoaderData<typeof loader>() as any;
 
     // Apply Branding
     const style = tenant.branding ? {

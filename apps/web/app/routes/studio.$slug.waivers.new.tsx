@@ -134,6 +134,7 @@ export default function NewWaiverTemplate() {
                                         const data = await res.json();
 
                                         const input = document.getElementById('pdf-url-input') as HTMLInputElement;
+                                        // @ts-ignore
                                         if (input) input.value = data.url;
                                         toast.success("PDF Uploaded successfully!");
                                     } catch (err: any) {

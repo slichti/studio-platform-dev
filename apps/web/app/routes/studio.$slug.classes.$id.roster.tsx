@@ -360,7 +360,6 @@ export default function StudioClassRoster() {
                     slug={slug!}
                 />
             )}
-            )}
 
             <ConfirmDialog
                 open={!!bookingToCancel}
@@ -595,17 +594,16 @@ function NotesModal({ memberId, studentName, onClose, slug }: { memberId: string
                     </form>
                 </div>
             </div>
-        </div>
-            </div >
 
-        <ConfirmDialog
-            open={!!noteToDelete}
-            onOpenChange={(open) => !open && setNoteToDelete(null)}
-            onConfirm={handleConfirmDelete}
-            title="Delete Note"
-            description="Are you sure you want to delete this note?"
-            confirmText="Delete"
-            variant="destructive"
-        />
-        </div >
+            <ConfirmDialog
+                open={!!noteToDelete}
+                onOpenChange={(open) => !open && setNoteToDelete(null)}
+                onConfirm={handleConfirmDelete}
+                title="Delete Note"
+                description="Are you sure you want to delete this note?"
+                confirmText="Delete"
+                variant="destructive"
+            />
+        </div>
+    );
 }

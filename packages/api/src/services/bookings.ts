@@ -42,6 +42,11 @@ export class BookingService {
                     branding: member.tenant?.branding as any,
                     settings: member.tenant?.settings as any
                 };
+
+                // Usage Service needed for SmsService?
+                const { UsageService } = await import('./pricing');
+                const usageService = new UsageService(this.db, member.tenantId);
+
                 const emailService = new EmailService(
                     this.env.RESEND_API_KEY,
                     emailConfig,
@@ -52,6 +57,36 @@ export class BookingService {
                     member.tenantId
                 );
 
+                const { SmsService } = await import('./sms');
+                const smsService = new SmsService(
+                    member.tenant.twilioCredentials as any,
+                    this.env,
+                    usageService,
+                    this.db,
+                    member.tenantId
+                );
+
+                const { AutomationsService } = await import('./automations');
+                const autoService = new AutomationsService(this.db, member.tenantId, emailService, smsService);
+
+                // Dispatch Automation Trigger
+                await autoService.dispatchTrigger('class_missed', {
+                    userId: member.user.id,
+                    email: member.user.email,
+                    firstName: (member.user.profile as any)?.firstName,
+                    data: {
+                        classId: booking.classId,
+                        classTitle: classInfo?.title || 'Class',
+                        feeAmount: settings.noShowFeeAmount
+                    }
+                });
+
+                // Fallback: Legacy Notification if no automation matched?
+                // For now, let's keep the manual notification IF we want to ensure it goes out even without automation.
+                // But usually automation replaces it. 
+                // Let's assume the legacy behavior is "system notification" and automation is "marketing".
+                // Actually, "No Show Fee" notification is transactional.
+                // Let's keep the direct email for the FEE NOTICE, but use automation for "We missed you".
 
                 await emailService.notifyNoShow(
                     member.user.email,

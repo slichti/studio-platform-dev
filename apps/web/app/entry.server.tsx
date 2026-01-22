@@ -64,7 +64,7 @@ export default async function handleRequest(
             <p>${e.message}</p>
             <pre>${e.stack}</pre>
             <hr>
-            <p>Environment: ${JSON.stringify(Object.keys(loadContext.context?.env || {}))}</p>
+            <p>Environment: ${JSON.stringify(Object.keys((loadContext.context as any)?.env || {}))}</p>
         `, {
             status: 200, // Return 200 to show the error page
             headers: { "Content-Type": "text/html" }

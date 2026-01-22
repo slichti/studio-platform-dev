@@ -23,6 +23,7 @@ export const onRequest: PagesFunction = async (context) => {
     };
 
     try {
+        // @ts-ignore
         return await requestHandler(context.request, loadContext);
     } catch (e: any) {
         console.error("DEBUG: requestHandler CRASHED:", e);

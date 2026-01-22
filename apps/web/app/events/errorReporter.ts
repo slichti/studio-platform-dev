@@ -33,7 +33,7 @@ export const reportError = async (error: Error | string, extraInfo: Record<strin
 
     try {
         // Use beacon if available for non-blocking
-        if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+        if (typeof navigator !== 'undefined' && (navigator as any).sendBeacon) {
             const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
             // Needs absolute URL or relative if on same domain. 
             // Since API is separate, we need API_URL.

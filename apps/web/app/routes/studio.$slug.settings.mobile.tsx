@@ -32,7 +32,7 @@ export default function MobileAppSettings() {
             });
 
             if (res.url) {
-                setConfig(prev => ({ ...prev, [type + 'Url']: res.url }));
+                setConfig((prev: any) => ({ ...prev, [type + 'Url']: res.url }));
                 setMessage({ type: 'success', text: `${type === 'icon' ? 'Icon' : 'Splash Screen'} uploaded successfully.` });
             } else {
                 throw new Error("Upload failed, no URL returned.");
