@@ -32,9 +32,9 @@ app.use('*', async (c, next) => {
 
 app.get('/architecture', async (c) => {
     const db = createDb(c.env.DB);
-    const start = performance.now();
 
-    // 1. Database Latency Check
+    // 1. Database Latency Check (Keep separate for accurate isolated measurement)
+    const start = performance.now();
     try {
         await db.select({ count: count() }).from(users).get();
     } catch (e) {
@@ -42,70 +42,74 @@ app.get('/architecture', async (c) => {
     }
     const dbLatency = Math.round(performance.now() - start);
 
-    // 2. Connected Users (Active in last 15 minutes)
-    // 2. Connected Users (Realtime via Metrics DO)
-    let connectedUsers = 0;
-    if (c.env.METRICS) {
-        try {
-            const doId = c.env.METRICS.idFromName('global');
-            const stub = c.env.METRICS.get(doId);
-            const res = await stub.fetch('http://do/stats');
-            const data: any = await res.json();
-            connectedUsers = data.activeUsers || 0;
-        } catch (e) {
-            console.error("Failed to fetch active users from DO", e);
-        }
-    } else {
-        // Fallback to DB
-        try {
-            const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
-            const result = await db.select({ count: count() })
-                .from(users)
-                .where(gt(users.lastActiveAt, fifteenMinutesAgo))
-                .get();
-            connectedUsers = result?.count || 0;
-        } catch (e) { }
-    }
-
-    // 3. User Geography (Real)
-    const activeUsersWithLocation = await db.select({
-        location: users.lastLocation
-    })
-        .from(users)
-        .where(gt(users.lastActiveAt, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))) // Active in last 30 days
-        .all();
-
-    const regionMap = new Map();
-
-    for (const u of activeUsersWithLocation) {
-        const loc = u.location as any;
-        if (loc && loc.country) {
-            const key = loc.country;
-            if (!regionMap.has(key)) {
-                regionMap.set(key, {
-                    code: loc.country,
-                    name: loc.country, // Full name if available, else code
-                    count: 0,
-                    lat: loc.lat || 0,
-                    lng: loc.lng || 0
-                });
+    // Run heavier queries in parallel
+    const [connectedUsers, userRegions, tenantCount] = await Promise.all([
+        // 2. Connected Users
+        (async () => {
+            if (c.env.METRICS) {
+                try {
+                    const doId = c.env.METRICS.idFromName('global');
+                    const stub = c.env.METRICS.get(doId);
+                    const res = await stub.fetch('http://do/stats');
+                    const data: any = await res.json();
+                    return data.activeUsers || 0;
+                } catch (e) {
+                    console.error("Failed to fetch active users from DO", e);
+                    return 0;
+                }
+            } else {
+                try {
+                    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+                    const result = await db.select({ count: count() })
+                        .from(users)
+                        .where(gt(users.lastActiveAt, fifteenMinutesAgo))
+                        .get();
+                    return result?.count || 0;
+                } catch (e) { return 0; }
             }
-            regionMap.get(key).count++;
-        }
-    }
+        })(),
 
-    const userRegions = Array.from(regionMap.values())
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10);
+        // 3. User Geography
+        (async () => {
+            const activeUsersWithLocation = await db.select({
+                location: users.lastLocation
+            })
+                .from(users)
+                .where(gt(users.lastActiveAt, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))) // Active in last 30 days
+                .all();
 
-    // 4. Tenant Count
-    let tenantCount = 0;
-    try {
-        const result = await db.select({ count: count() }).from(tenants).get();
-        tenantCount = result?.count || 0;
-    } catch (e) {
-        // ignore
-    }
+            const regionMap = new Map();
+
+            for (const u of activeUsersWithLocation) {
+                const loc = u.location as any;
+                if (loc && loc.country) {
+                    const key = loc.country;
+                    if (!regionMap.has(key)) {
+                        regionMap.set(key, {
+                            code: loc.country,
+                            name: loc.country,
+                            count: 0,
+                            lat: loc.lat || 0,
+                            lng: loc.lng || 0
+                        });
+                    }
+                    regionMap.get(key).count++;
+                }
+            }
+
+            return Array.from(regionMap.values())
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 10);
+        })(),
+
+        // 4. Tenant Count
+        (async () => {
+            try {
+                const result = await db.select({ count: count() }).from(tenants).get();
+                return result?.count || 0;
+            } catch (e) { return 0; }
+        })()
+    ]);
 
     // 5. Service Status
     const services = {
