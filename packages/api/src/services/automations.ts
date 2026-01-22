@@ -1,5 +1,5 @@
 import { createDb } from '../db';
-import { eq, and, lt, gt, or, isNull, sql } from 'drizzle-orm';
+import { eq, and, lt, gt, gte, lte, or, isNull, sql } from 'drizzle-orm';
 import { marketingAutomations, automationLogs, subscriptions, tenantMembers, users, tenants, coupons, bookings, posOrders, classes, locations } from 'db/src/schema'; // Added bookings, posOrders, locations
 import { EmailService } from './email';
 import { SmsService } from './sms'; // Active
@@ -80,8 +80,9 @@ export class AutomationsService {
                     await this.processSubscriptionTiming(auto, now);
                     break;
                 default:
-                    // Generic handling for Delayed Triggers (new_student, subscription_created, etc)
-                    if (auto.timingType === 'delay') {
+                    if (auto.timingType === 'before') {
+                        await this.processBeforeEventTriggers(auto, now);
+                    } else if (auto.timingType === 'delay') {
                         await this.processDelayedTriggers(auto, now);
                     }
                     break;
@@ -233,7 +234,7 @@ export class AutomationsService {
         // Generic Delay Handler looking for creation time based on event type
         const hoursDelay = auto.timingValue || 24;
         const targetTime = new Date(now.getTime() - (hoursDelay * 60 * 60 * 1000));
-        const windowEnd = new Date(targetTime.getTime() + (1 * 60 * 60 * 1000)); // 1 hour window
+        const windowStart = new Date(targetTime.getTime() - (1 * 60 * 60 * 1000)); // Look for events between Delay+1h and Delay ago
 
         let candidates: { userId: string, email?: string, firstName?: string, data?: any }[] = [];
 
@@ -242,12 +243,11 @@ export class AutomationsService {
                 .from(tenantMembers)
                 .where(and(
                     eq(tenantMembers.tenantId, this.tenantId),
-                    ge(tenantMembers.joinedAt, targetTime),
-                    le(tenantMembers.joinedAt, windowEnd)
+                    gte(tenantMembers.joinedAt, windowStart),
+                    lte(tenantMembers.joinedAt, targetTime)
                 )).all();
 
             for (const m of members) {
-                // Optimization: We could batch fetch users, but for now loop is fine for reliable N
                 const user = await this.db.query.users.findFirst({ where: eq(users.id, m.userId) });
                 if (user) candidates.push({ userId: user.id, email: user.email, firstName: (user.profile as any)?.firstName });
             }
@@ -257,8 +257,8 @@ export class AutomationsService {
                 .from(subscriptions)
                 .where(and(
                     eq(subscriptions.tenantId, this.tenantId),
-                    ge(subscriptions.createdAt, targetTime),
-                    le(subscriptions.createdAt, windowEnd)
+                    gte(subscriptions.createdAt, windowStart),
+                    lte(subscriptions.createdAt, targetTime)
                 )).all();
 
             for (const s of subs) {
@@ -272,6 +272,39 @@ export class AutomationsService {
                     });
                 }
             }
+        } else if (auto.triggerEvent === 'class_booked') {
+            const newBookings = await this.db.select()
+                .from(bookings)
+                .where(and(
+                    eq(bookings.status, 'confirmed'),
+                    gte(bookings.createdAt, windowStart),
+                    lte(bookings.createdAt, targetTime)
+                )).all();
+
+            for (const b of newBookings) {
+                const cls = await this.db.query.classes.findFirst({
+                    where: and(eq(classes.id, b.classId), eq(classes.tenantId, this.tenantId)),
+                    with: { series: true }
+                });
+                if (!cls) continue;
+
+                const member = await this.db.query.tenantMembers.findFirst({
+                    where: eq(tenantMembers.id, b.memberId),
+                    with: { user: true }
+                });
+                if (!member || !member.user) continue;
+
+                candidates.push({
+                    userId: member.user.id,
+                    email: member.user.email,
+                    firstName: (member.user.profile as any)?.firstName,
+                    data: {
+                        classTitle: cls.title,
+                        startTime: cls.startTime,
+                        bookingId: b.id
+                    }
+                });
+            }
         }
 
         // Execute
@@ -282,6 +315,71 @@ export class AutomationsService {
                 firstName: c.firstName,
                 data: c.data
             });
+        }
+    }
+
+    private async processBeforeEventTriggers(auto: any, now: Date) {
+        // "Before Event" implies upcoming scheduled item.
+        // Currently mostly applies to 'class_booked' (Reminder) or 'appointment'
+        // But the triggerEvent in DB is 'class_booked'. 
+        // A "Before Class" automation is essentially:
+        // Event: class_booked (conceptually "Class Participation")
+        // Timing: Before X hours.
+
+        // We scan for Bookings where associated Class StartTime is (Now + X hours).
+
+        const hoursBefore = auto.timingValue || 24;
+        const targetTime = new Date(now.getTime() + (hoursBefore * 60 * 60 * 1000));
+        const windowEnd = new Date(targetTime.getTime() + (1 * 60 * 60 * 1000)); // 1 hour window scan? 
+        // Actually crons run every 15 mins? 
+        // We should just check [targetTime, targetTime + 15m]? 
+        // Logic: class.startTime is between [targetTime, targetTime + window]
+
+        // Let's assume window is 1 hour to be safe against missed crons, relying on idempotency.
+
+        if (auto.triggerEvent === 'class_booked') {
+            // Find bookings where class starts soon
+            // Join bookings -> classes
+
+            // We need to construct a complex query or manual loop.
+            // Manual loop over future classes?
+
+            // Find classes starting in window
+            const upcomingClasses = await this.db.select().from(classes)
+                .where(and(
+                    eq(classes.tenantId, this.tenantId),
+                    gt(classes.startTime, targetTime),
+                    lt(classes.startTime, windowEnd),
+                    eq(classes.status, 'active')
+                )).all();
+
+            for (const cls of upcomingClasses) {
+                // Get participants
+                const participants = await this.db.select().from(bookings)
+                    .where(and(
+                        eq(bookings.classId, cls.id),
+                        eq(bookings.status, 'confirmed')
+                    )).all();
+
+                for (const b of participants) {
+                    const member = await this.db.query.tenantMembers.findFirst({
+                        where: eq(tenantMembers.id, b.memberId),
+                        with: { user: true }
+                    });
+                    if (!member || !member.user) continue;
+
+                    await this.executeAutomation(auto, {
+                        userId: member.user.id,
+                        email: member.user.email,
+                        firstName: (member.user.profile as any)?.firstName,
+                        data: {
+                            classTitle: cls.title,
+                            startTime: cls.startTime,
+                            bookingId: b.id
+                        }
+                    });
+                }
+            }
         }
     }
 

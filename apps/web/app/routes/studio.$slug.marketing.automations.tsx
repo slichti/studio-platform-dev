@@ -5,7 +5,7 @@ import { useLoaderData, useSubmit, Form, redirect } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";
-import { Zap, Plus, Play, Pause, Trash2, Mail, MessageSquare, Users, Clock, ChevronRight, X, Settings, Calendar, Target, Bell } from "lucide-react";
+import { Zap, Plus, Play, Pause, Trash2, Mail, MessageSquare, Users, Clock, ChevronRight, X, Settings, Calendar, Target, Bell, Pencil } from "lucide-react";
 import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
 
 export const loader = async (args: LoaderFunctionArgs) => {
@@ -37,7 +37,7 @@ export const action = async (args: ActionFunctionArgs) => {
     const intent = formData.get("intent");
     const tenantSlug = slug || '';
 
-    if (intent === 'create') {
+    if (intent === 'create' || intent === 'update') {
         const data: any = {};
         for (const [key, val] of formData.entries()) {
             if (key === 'intent') continue;
@@ -47,11 +47,21 @@ export const action = async (args: ActionFunctionArgs) => {
                 data[key] = val;
             }
         }
-        await apiRequest('/marketing/automations', token, {
-            method: 'POST',
-            headers: { 'X-Tenant-Slug': tenantSlug },
-            body: JSON.stringify(data)
-        });
+
+        if (intent === 'update') {
+            const id = data.id;
+            await apiRequest(`/marketing/automations/${id}`, token, {
+                method: 'PATCH',
+                headers: { 'X-Tenant-Slug': tenantSlug },
+                body: JSON.stringify(data)
+            });
+        } else {
+            await apiRequest('/marketing/automations', token, {
+                method: 'POST',
+                headers: { 'X-Tenant-Slug': tenantSlug },
+                body: JSON.stringify(data)
+            });
+        }
         return { success: true };
     }
 
@@ -102,6 +112,7 @@ export default function AutomatedCampaigns() {
     const submit = useSubmit();
     const [isCreating, setIsCreating] = useState(false);
     const [automationToDelete, setAutomationToDelete] = useState<string | null>(null);
+    const [editingAutomation, setEditingAutomation] = useState<any>(null);
 
     const handleToggle = (id: string) => {
         submit({ intent: 'toggle', id }, { method: 'post' });
@@ -118,6 +129,16 @@ export default function AutomatedCampaigns() {
         }
     };
 
+    const openCreate = () => {
+        setEditingAutomation(null);
+        setIsCreating(true);
+    };
+
+    const openEdit = (auto: any) => {
+        setEditingAutomation(auto);
+        setIsCreating(true);
+    };
+
     return (
         <div className="flex flex-col h-full bg-zinc-50">
             {/* Header */}
@@ -131,7 +152,7 @@ export default function AutomatedCampaigns() {
                         </div>
                     </div>
                     <button
-                        onClick={() => setIsCreating(true)}
+                        onClick={openCreate}
                         className="px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800 flex items-center gap-2"
                     >
                         <Plus size={16} /> Create Automation
@@ -167,12 +188,12 @@ export default function AutomatedCampaigns() {
                     <div className="text-center py-20 bg-white rounded-xl border border-zinc-200">
                         <Zap size={48} className="mx-auto mb-4 text-zinc-300" />
                         <p className="text-zinc-500 mb-4">No automations yet</p>
-                        <button onClick={() => setIsCreating(true)} className="text-sm text-zinc-900 underline">Create your first</button>
+                        <button onClick={openCreate} className="text-sm text-zinc-900 underline">Create your first</button>
                     </div>
                 ) : (
                     <div className="space-y-4">
                         {automations.map((auto: any) => {
-                            const trigger = TRIGGERS.find(t => t.id === auto.trigger);
+                            const trigger = TRIGGERS.find(t => t.id === auto.triggerEvent || t.id === auto.trigger); // Support both naming just in case
                             const TriggerIcon = trigger?.icon || Zap;
 
                             return (
@@ -184,19 +205,30 @@ export default function AutomatedCampaigns() {
                                             </div>
                                             <div>
                                                 <div className="flex items-center gap-2">
-                                                    <h3 className="font-bold text-zinc-900">{auto.name}</h3>
+                                                    <h3 className="font-bold text-zinc-900">{auto.name || auto.subject}</h3>
                                                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${auto.isActive ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
                                                         {auto.isActive ? 'Active' : 'Paused'}
                                                     </span>
                                                 </div>
-                                                <p className="text-sm text-zinc-500 mt-1">Trigger: {trigger?.label || auto.trigger}</p>
+                                                <p className="text-sm text-zinc-500 mt-1">Trigger: {trigger?.label || auto.triggerEvent}</p>
+                                                {auto.timingType !== 'immediate' && (
+                                                    <p className="text-xs text-zinc-400 mt-1">
+                                                        Timing: {auto.timingType === 'delay' ? `Delay ${auto.timingValue}h` : `Before ${auto.timingValue}h`}
+                                                    </p>
+                                                )}
                                                 <div className="flex items-center gap-4 mt-2 text-xs text-zinc-400">
-                                                    <span>Actions: {auto.actions?.length || 0}</span>
                                                     <span>Runs: {auto.runCount || 0}</span>
                                                 </div>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => openEdit(auto)}
+                                                className="p-2 hover:bg-zinc-100 rounded-lg text-zinc-500"
+                                                title="Edit"
+                                            >
+                                                <Pencil size={16} />
+                                            </button>
                                             <button
                                                 onClick={() => handleToggle(auto.id)}
                                                 className={`p-2 rounded-lg ${auto.isActive ? 'hover:bg-yellow-50 text-yellow-600' : 'hover:bg-green-50 text-green-600'}`}
@@ -214,13 +246,16 @@ export default function AutomatedCampaigns() {
                 )}
             </div>
 
-            {/* Create Modal */}
+            {/* Create/Edit Modal */}
             {isCreating && (
                 <CreateAutomationModal
+                    initialData={editingAutomation}
                     onClose={() => setIsCreating(false)}
                     onSave={(data: any) => {
                         const formData = new FormData();
-                        formData.append("intent", "create");
+                        formData.append("intent", editingAutomation ? "update" : "create");
+                        if (editingAutomation) formData.append("id", editingAutomation.id);
+
                         for (const key of Object.keys(data)) {
                             if (typeof data[key] === 'object') {
                                 formData.append(key, JSON.stringify(data[key]));
@@ -253,7 +288,9 @@ const TIMING_TYPES = [
     { id: 'before', label: 'Before Event (Hours)' },
 ];
 
-function CreateAutomationModal({ onClose, onSave }: { onClose: () => void; onSave: (data: any) => void }) {
+import { useEffect } from "react";
+
+function CreateAutomationModal({ onClose, onSave, initialData }: { onClose: () => void; onSave: (data: any) => void; initialData?: any }) {
     const [step, setStep] = useState(1);
     const [name, setName] = useState("");
     const [trigger, setTrigger] = useState("new_student");
@@ -278,6 +315,41 @@ function CreateAutomationModal({ onClose, onSave }: { onClose: () => void; onSav
     const [subject, setSubject] = useState("");
     const [content, setContent] = useState("");
     const [templateId, setTemplateId] = useState("");
+
+    useEffect(() => {
+        if (initialData) {
+            setName(initialData.name || initialData.subject || "");
+            setTrigger(initialData.triggerEvent || "new_student");
+            setTimingType(initialData.timingType || "immediate");
+            setTimingValue(String(initialData.timingValue || 0));
+
+            // Audience
+            if (initialData.audienceFilter) {
+                setAudienceType("filter");
+                setAgeMin(initialData.audienceFilter.ageMin ? String(initialData.audienceFilter.ageMin) : "");
+                setAgeMax(initialData.audienceFilter.ageMax ? String(initialData.audienceFilter.ageMax) : "");
+            }
+
+            // Coupon
+            if (initialData.couponConfig) {
+                setAddCoupon(true);
+                setCouponType(initialData.couponConfig.type || "percent");
+                setCouponValue(String(initialData.couponConfig.value || 10));
+                setCouponValidity(String(initialData.couponConfig.validityDays || 7));
+            }
+
+            // Content
+            if (initialData.templateId) {
+                setContentType("template");
+                setTemplateId(initialData.templateId);
+                setSubject(initialData.subject || "");
+            } else {
+                setContentType("simple");
+                setSubject(initialData.subject || "");
+                setContent(initialData.content || "");
+            }
+        }
+    }, [initialData]);
 
     const totalSteps = 4;
 
@@ -326,7 +398,7 @@ function CreateAutomationModal({ onClose, onSave }: { onClose: () => void; onSav
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <div className="bg-white rounded-xl shadow-xl max-w-lg w-full animate-in fade-in zoom-in duration-200">
                 <div className="p-4 border-b border-zinc-200 flex justify-between items-center">
-                    <h2 className="text-lg font-bold">Create Automation</h2>
+                    <h2 className="text-lg font-bold">{initialData ? 'Edit Automation' : 'Create Automation'}</h2>
                     <button onClick={onClose}><X size={20} className="text-zinc-400 hover:text-zinc-600" /></button>
                 </div>
 
@@ -496,7 +568,7 @@ function CreateAutomationModal({ onClose, onSave }: { onClose: () => void; onSav
                     {step < 4 ? (
                         <button onClick={() => setStep(step + 1)} disabled={!name && step === 1} className="ml-auto px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm disabled:opacity-50">Next</button>
                     ) : (
-                        <button onClick={handleSubmit} disabled={contentType === 'simple' ? !content : !templateId} className="ml-auto px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm disabled:opacity-50">Create Automation</button>
+                        <button onClick={handleSubmit} disabled={contentType === 'simple' ? !content : !templateId} className="ml-auto px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm disabled:opacity-50">{initialData ? 'Save Changes' : 'Create Automation'}</button>
                     )}
                 </div>
             </div>
