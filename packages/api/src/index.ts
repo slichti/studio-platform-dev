@@ -27,6 +27,7 @@ import waitlist from './routes/waitlist';
 import subDispatch from './routes/sub-dispatch';
 import leads from './routes/leads';
 import pos from './routes/pos';
+import coupons from './routes/coupons';
 import giftCards from './routes/gift-cards';
 import bookingRoutes from './routes/bookings';
 import admin from './routes/admin';
