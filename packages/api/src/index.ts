@@ -448,6 +448,7 @@ app.route('/waivers', waivers);
 app.route('/appointments', appointments);
 app.route('/payroll', payroll);
 app.route('/marketing', marketing);
+app.route('/coupons', coupons);
 app.route('/substitutions', substitutions);
 app.route('/leads', leads);
 app.route('/pos', pos);

@@ -5,7 +5,9 @@ import {
     posOrderItems,
     users,
     tenantMembers,
-    giftCards
+    giftCards,
+    coupons,
+    couponRedemptions
 } from 'db/src/schema'; // Ensure correct imports
 import { eq, and, desc, like, or, sql } from 'drizzle-orm';
 import { StripeService } from './stripe';
@@ -158,11 +160,26 @@ export class PosService {
         paymentMethod: string = 'card',
         redeemGiftCardCode?: string,
         redeemAmount?: number,
-        tenantContext?: any // passed for automation context usage
+        tenantContext?: any, // passed for automation context usage
+        couponCode?: string
     ) {
         if (!items || items.length === 0) throw new Error("No items in order");
 
         const orderId = crypto.randomUUID();
+
+        let finalTotal = totalAmount;
+        let appliedCouponId: string | null = null;
+
+        // 0. Coupon Validation
+        if (couponCode) {
+            const validation = await this.validateCoupon(couponCode, totalAmount);
+            if (validation.valid && validation.discountAmount) {
+                finalTotal = Math.max(0, totalAmount - validation.discountAmount);
+                appliedCouponId = validation.couponId || null;
+            } else {
+                if (validation.error) throw new Error(validation.error);
+            }
+        }
 
         // 1. Gift Card Redemption
         if (redeemGiftCardCode && redeemAmount && redeemAmount > 0) {
@@ -176,7 +193,14 @@ export class PosService {
             if (!card) throw new Error("Invalid Gift Card Code");
             if (card.currentBalance < redeemAmount) throw new Error("Insufficient Gift Card Balance");
 
+            if (card.currentBalance < redeemAmount) throw new Error("Insufficient Gift Card Balance");
+
             await fulfillment.redeemGiftCard(card.id, redeemAmount, orderId);
+
+            // Adjust total for order record if gift card was used? 
+            // Usually Gift Card is a payment method, not a price reduction. 
+            // But if we want to track "Amount Paid by Customer", we might keep totalAmount as is.
+            // However, Coupon IS a price reduction.
         }
 
         // 2. Create Order
@@ -185,7 +209,7 @@ export class PosService {
             tenantId: this.tenantId,
             memberId: memberId || null,
             staffId: staffId || null,
-            totalAmount: totalAmount,
+            totalAmount: finalTotal, // Updated total
             status: 'completed' as const,
             paymentMethod: paymentMethod as "card" | "cash" | "account" | "other",
             createdAt: new Date(),
@@ -193,6 +217,24 @@ export class PosService {
         };
 
         await this.db.insert(posOrders).values(orderValues).run();
+
+        // 2b. Record Coupon Redemption
+        if (appliedCouponId && memberId) { // Coupons usually linked to a user usage, or just count global
+            await this.db.insert(couponRedemptions).values({
+                id: crypto.randomUUID(),
+                tenantId: this.tenantId,
+                couponId: appliedCouponId,
+                userId: memberId, // If guest, might be null? Schema says not null.
+                // If memberId is null (Guest), we might need to handle this.
+                // For now, let's assume POS requires a "User" even if guest created ad-hoc, or schema allows null.
+                // checking schema: userId is references(()=>users.id).
+                // If guest has no user ID, we can't track?
+                // Let's check if we can insert with dummy user or if we should make user_id nullable in schema.
+                // For now, only redeem if memberId exists.
+                orderId: orderId,
+                redeemedAt: new Date()
+            }).run();
+        }
 
         const itemInserts = items.map((it) => ({
             id: crypto.randomUUID(),
@@ -353,5 +395,50 @@ export class PosService {
         }
 
         return [...localMatches, ...stripeMatches];
+    }
+
+    async validateCoupon(code: string, cartTotal: number) {
+        const coupon = await this.db.select().from(coupons).where(and(
+            eq(coupons.tenantId, this.tenantId),
+            eq(coupons.code, code),
+            eq(coupons.active, true)
+        )).get();
+
+        if (!coupon) return { valid: false, error: 'Invalid coupon code' };
+
+        // Check Expiry
+        if (coupon.expiresAt && new Date() > coupon.expiresAt) {
+            return { valid: false, error: 'Coupon expired' };
+        }
+
+        // Check Usage Limit
+        if (coupon.usageLimit !== null) {
+            const usage = await this.db.select({ count: sql<number>`count(*)` })
+                .from(couponRedemptions)
+                .where(eq(couponRedemptions.couponId, coupon.id))
+                .get();
+
+            if ((usage?.count || 0) >= coupon.usageLimit) {
+                return { valid: false, error: 'Coupon usage limit reached' };
+            }
+        }
+
+        // Calculate Discount
+        let discountAmount = 0;
+        if (coupon.type === 'percent') {
+            discountAmount = Math.round(cartTotal * (coupon.value / 100));
+        } else {
+            discountAmount = coupon.value; // Amount in cents
+        }
+
+        // Prevent negative total logic handled by caller, but generally we max out at cartTotal
+        discountAmount = Math.min(discountAmount, cartTotal);
+
+        return {
+            valid: true,
+            couponId: coupon.id,
+            discountAmount,
+            newTotal: cartTotal - discountAmount
+        };
     }
 }

@@ -28,6 +28,7 @@
         "@cloudflare/vitest-pool-workers": "^0.12.1",
         "@cloudflare/workers-types": "^4.20251231.0",
         "@types/papaparse": "^5.5.2",
+        "@types/uuid": "^10.0.0",
         "typescript": "^5.9.3",
         "vitest": "^3.2.4",
         "wrangler": "^4.57.0"

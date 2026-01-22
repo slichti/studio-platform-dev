@@ -77,6 +77,12 @@ export default function POSTerminal() {
     const [searchingCustomer, setSearchingCustomer] = useState(false);
     const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
 
+    // Coupon State
+    const [couponCode, setCouponCode] = useState("");
+    const [discountAmount, setDiscountAmount] = useState(0);
+    const [couponError, setCouponError] = useState("");
+    const [activeCoupon, setActiveCoupon] = useState<{ code: string; id: string } | null>(null);
+
     // Load Products
     useEffect(() => {
         loadProducts();
@@ -172,7 +178,54 @@ export default function POSTerminal() {
         setCart(prev => prev.filter(p => p.productId !== productId));
     };
 
-    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const total = Math.max(0, subtotal - discountAmount);
+
+    // Coupon Handler
+    const handleApplyCoupon = async () => {
+        if (!couponCode) return;
+        setProcessing(true);
+        setCouponError("");
+        try {
+            const res = await apiRequest('/pos/validate-coupon', token, {
+                method: 'POST',
+                body: JSON.stringify({ code: couponCode, cartTotal: subtotal })
+            });
+
+            if (res.valid) {
+                setDiscountAmount(res.discountAmount);
+                setActiveCoupon({ code: couponCode, id: res.couponId });
+                setCouponError("");
+            } else {
+                setCouponError(res.error || "Invalid coupon");
+                setDiscountAmount(0);
+                setActiveCoupon(null);
+            }
+        } catch (e: any) {
+            setCouponError(e.message);
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    // Reset coupon if cart changes significantly? 
+    // Usually keep it, but re-validate on checkout or if total changes.
+    // For simple POS, let's clear if cart emptied.
+    useEffect(() => {
+        if (cart.length === 0) {
+            setDiscountAmount(0);
+            setActiveCoupon(null);
+            setCouponCode("");
+        } else if (activeCoupon) {
+            // Re-validate if cart total changed? 
+            // For now, let's just re-calculate discount if it was percentage based? 
+            // The backend calculation was one-off. 
+            // Better UX: triggers re-validation.
+            handleApplyCoupon();
+        }
+    }, [cart.length]); // Simple dependency on cart length or cart content changes
 
     // --- Checkout ---
     const handleCheckout = async (paymentMethod: 'card' | 'cash' | 'terminal') => {
@@ -237,7 +290,8 @@ export default function POSTerminal() {
                 items: cart,
                 memberId: memberId || null,
                 paymentMethod: method,
-                totalAmount: total,
+                totalAmount: total, // uses discounted total
+                couponCode: activeCoupon?.code
                 // stripePaymentIntentId: paymentRef 
             })
         });
@@ -414,6 +468,29 @@ export default function POSTerminal() {
                 </div>
 
                 <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 space-y-3">
+                    {/* Coupon Input */}
+                    <div className="flex gap-2">
+                        <input
+                            className="flex-1 px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm uppercase font-mono"
+                            placeholder="PROMO CODE"
+                            value={couponCode}
+                            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                            disabled={!!activeCoupon}
+                        />
+                        {activeCoupon ? (
+                            <button onClick={() => { setActiveCoupon(null); setDiscountAmount(0); setCouponCode(""); }} className="px-3 py-2 bg-red-100 text-red-600 rounded-lg text-sm font-medium hover:bg-red-200">Remove</button>
+                        ) : (
+                            <button onClick={handleApplyCoupon} disabled={!couponCode || cart.length === 0} className="px-3 py-2 bg-zinc-900 dark:bg-zinc-700 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">Apply</button>
+                        )}
+                    </div>
+                    {couponError && <div className="text-xs text-red-500 font-medium">{couponError}</div>}
+                    {activeCoupon && <div className="text-xs text-green-600 font-medium flex justify-between"><span>Coupon applied: {activeCoupon.code}</span> <span>-${(discountAmount / 100).toFixed(2)}</span></div>}
+
+                    <div className="flex justify-between items-center text-sm text-zinc-500">
+                        <span>Subtotal</span>
+                        <span>${(subtotal / 100).toFixed(2)}</span>
+                    </div>
+
                     <div className="flex justify-between items-center text-lg font-bold text-zinc-900 dark:text-zinc-100">
                         <span>Total</span>
                         <span>${(total / 100).toFixed(2)}</span>

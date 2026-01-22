@@ -531,4 +531,21 @@ app.post('/products/images', async (c) => {
     }
 });
 
+// POST /validate-coupon
+app.post('/validate-coupon', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+
+    const { code, cartTotal } = await c.req.json<{ code: string; cartTotal: number }>();
+    if (!code) return c.json({ error: "Coupon code required" }, 400);
+
+    const service = new PosService(db, tenant.id, c.env);
+    const result = await service.validateCoupon(code, cartTotal || 0);
+
+    // If validation fails, return 200 with error details or 400? 
+    // Usually 200 with `valid: false` is easier for frontend handling.
+    return c.json(result);
+});
+
 export default app;
