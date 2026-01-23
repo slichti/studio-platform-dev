@@ -8,6 +8,10 @@ import { apiRequest } from "../utils/api";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { LogoutButton } from "../components/LogoutButton";
 
+import Fuse from "fuse.js";
+import { docsIndex } from "../utils/docsIndex";
+import { useNavigate } from "react-router";
+
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken, userId } = await getAuth(args);
     const token = await getToken();
@@ -26,9 +30,6 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
         return { user, token };
     } catch (e: any) {
-        // Fallback or redirect if API fails?
-        // For now, allow access but with limited views if API fails, or strictly redirect.
-        // Let's strictly redirect to be safe.
         console.error("Help Loader Error:", e);
         return redirect("/sign-in?redirect_url=/documentation");
     }
@@ -40,7 +41,29 @@ export default function HelpLayout() {
     const loaderData = useLoaderData<typeof loader>();
     const dbUser = loaderData?.user;
 
+    const [searchQuery, setSearchQuery] = useState("");
+    const [searchResults, setSearchResults] = useState<typeof docsIndex>([]);
+    const [showResults, setShowResults] = useState(false);
+    const navigate = useNavigate();
+
     const isPlatformAdmin = dbUser?.isPlatformAdmin || dbUser?.role === 'owner' || dbUser?.role === 'admin';
+
+    const fuse = new Fuse(docsIndex, {
+        keys: ["title", "content", "category"],
+        threshold: 0.3,
+    });
+
+    const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const query = e.target.value;
+        setSearchQuery(query);
+        if (query.length > 1) {
+            const results = fuse.search(query).map(result => result.item);
+            setSearchResults(results);
+            setShowResults(true);
+        } else {
+            setShowResults(false);
+        }
+    };
 
     // Navigation Data
     const navigation = [
@@ -118,15 +141,41 @@ export default function HelpLayout() {
                         <span className="hidden sm:inline">Internal Docs</span>
                     </Link>
 
-                    {/* Search (Mock) */}
-                    <div className="flex-1 max-w-md hidden md:flex items-center relative">
-                        <Search className="absolute left-3 text-zinc-400" size={16} />
+                    {/* Search (Real) */}
+                    <div className="flex-1 max-w-md hidden md:flex items-center relative group">
+                        <Search className="absolute left-3 text-zinc-400 group-focus-within:text-blue-500 transition-colors" size={16} />
                         <input
                             type="text"
+                            value={searchQuery}
+                            onChange={handleSearch}
+                            onFocus={() => { if (searchQuery.length > 1) setShowResults(true); }}
+                            onBlur={() => setTimeout(() => setShowResults(false), 200)} // Delay to allow click
                             placeholder="Search documentation..."
                             className="w-full bg-zinc-100 dark:bg-zinc-900 border-none rounded-full py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder-zinc-400"
                         />
+
+                        {/* Results Dropdown */}
+                        {showResults && searchResults.length > 0 && (
+                            <div className="absolute top-full mt-2 left-0 right-0 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden z-50">
+                                {searchResults.map((result, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => {
+                                            navigate(result.href);
+                                            setShowResults(false);
+                                            setSearchQuery("");
+                                        }}
+                                        className="w-full text-left px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+                                    >
+                                        <div className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-0.5">{result.category}</div>
+                                        <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{result.title}</div>
+                                        <div className="text-xs text-zinc-500 truncate mt-1">{result.content}</div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
+
 
                     <div className="ml-auto flex items-center gap-4">
                         <ThemeToggle />

@@ -19,7 +19,7 @@ export default function StudioOverview() {
                     { label: "Create Class", icon: Calendar, href: "/documentation/classes", color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-900/20" },
                     { label: "Connect Stripe", icon: CreditCard, href: "/documentation/setup", color: "text-green-500", bg: "bg-green-50 dark:bg-green-900/20" },
                     { label: "Get Mobile App", icon: Users, href: "/documentation/mobile-builder", color: "text-purple-500", bg: "bg-purple-50 dark:bg-purple-900/20" },
-                    { label: "View Reports", icon: BarChart3, href: "/documentation", color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-900/20" },
+                    { label: "View Reports", icon: BarChart3, href: "/documentation/reports", color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-900/20" },
                 ].map((action, i) => (
                     <Link
                         key={i}

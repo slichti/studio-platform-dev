@@ -1,7 +1,13 @@
-
+import { useEffect } from "react";
+import mermaid from "mermaid";
 import { Mail, MessageSquare, Award, UserPlus } from "lucide-react";
 
 export default function CRMDocs() {
+    useEffect(() => {
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+        mermaid.contentLoaded();
+    }, []);
+
     return (
         <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div>
@@ -22,15 +28,16 @@ export default function CRMDocs() {
                     </p>
                     <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-lg border border-blue-200 dark:border-blue-800/50">
                         <h4 className="font-bold text-blue-800 dark:text-blue-300 mb-2">Lead Stages</h4>
-                        <div className="flex gap-2 items-center text-sm flex-wrap">
-                            <span className="px-3 py-1 bg-white dark:bg-zinc-800 rounded shadow-sm border border-zinc-200 dark:border-zinc-700">New</span>
-                            <span>→</span>
-                            <span className="px-3 py-1 bg-white dark:bg-zinc-800 rounded shadow-sm border border-zinc-200 dark:border-zinc-700">Contacted</span>
-                            <span>→</span>
-                            <span className="px-3 py-1 bg-white dark:bg-zinc-800 rounded shadow-sm border border-zinc-200 dark:border-zinc-700">Trial</span>
-                            <span>→</span>
-                            <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded shadow-sm border border-green-200 dark:border-green-800">Converted</span>
-                        </div>
+                        <pre className="mermaid bg-transparent">
+                            {`
+                            graph LR
+                                A[New Lead] --> B[Contacted]
+                                B --> C[Trial Started]
+                                C --> D[Converted Member]
+                                C --> E[Lost]
+                                E -.->|Win-Back Campaign| B
+                            `}
+                        </pre>
                     </div>
                 </section>
 

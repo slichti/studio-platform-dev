@@ -1,8 +1,15 @@
 
 import { useOutletContext, Navigate } from "react-router";
 import { Server, Database, Cloud, Shield, Globe, Lock } from "lucide-react";
+import { useEffect } from "react";
+import mermaid from "mermaid";
 
 export default function PlatformArchitecture() {
+    useEffect(() => {
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+        mermaid.contentLoaded();
+    }, []);
+
     const { isPlatformAdmin } = useOutletContext<{ isPlatformAdmin: boolean }>();
 
     // Guard: Only platform admins can view this
@@ -36,6 +43,18 @@ export default function PlatformArchitecture() {
                             <li>• <strong>API Layer:</strong> Cloudflare Workers (Hono framework).</li>
                             <li>• <strong>Edge Runtime:</strong> Code runs within milliseconds of users globally.</li>
                         </ul>
+                        <div className="mt-4">
+                            <pre className="mermaid">
+                                {`
+                                graph TD
+                                    User[User Browser] -->|HTTPS| CF[Cloudflare Network]
+                                    CF -->|Asset Request| Pages[Pages (Static Assets)]
+                                    CF -->|API Request| Worker[Worker (Hono API)]
+                                    Worker -->|Query| D1[(D1 Database)]
+                                    Worker -->|Upload| R2[(R2 Storage)]
+                                `}
+                            </pre>
+                        </div>
                     </div>
 
                     <div className="p-6 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
