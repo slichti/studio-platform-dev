@@ -452,6 +452,85 @@ app.post('/automations/:id/test', async (c) => {
     }
 });
 
+// POST /automations/ai/generate - Generate automation email content with AI
+app.post('/automations/ai/generate', async (c) => {
+    const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+
+    if (!roles.includes('owner')) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
+
+    const { trigger, context } = await c.req.json<{ trigger: string; context?: string }>();
+    if (!trigger) return c.json({ error: 'Trigger type required' }, 400);
+
+    const apiKey = c.env.GEMINI_API_KEY;
+    if (!apiKey) return c.json({ error: 'AI Config missing' }, 500);
+
+    const triggerDescriptions: Record<string, string> = {
+        'new_member': 'A new member just signed up',
+        'class_booked': 'A member just booked a class',
+        'class_missed': 'A member missed their scheduled class (no-show)',
+        'inactive_days': 'A member has been inactive for several days',
+        'birthday': 'It is the member\'s birthday',
+        'membership_expiring': 'A member\'s membership is about to expire',
+        'product_purchase': 'A member just purchased a product',
+        'subscription_canceled': 'A member canceled their subscription',
+        'subscription_terminated': 'A member\'s subscription was terminated',
+        'student_updated': 'A student\'s profile was updated'
+    };
+
+    const triggerDescription = triggerDescriptions[trigger] || trigger;
+
+    try {
+        const prompt = `You are a marketing assistant for a boutique fitness studio called "${tenant.name}".
+
+Generate an automation email for the following trigger event: ${triggerDescription}
+
+${context ? `Additional context: ${context}` : ''}
+
+Requirements:
+- Be warm, professional, and encouraging
+- Keep the email concise (under 150 words for body)
+- Include a clear call-to-action when appropriate
+- Use {{firstName}} as a placeholder for the recipient's name
+
+Respond in this exact JSON format:
+{
+    "subject": "Your email subject line here",
+    "content": "Your email body content here with {{firstName}} placeholder"
+}`;
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: 'application/json'
+                }
+            })
+        });
+
+        const data: any = await response.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+
+        try {
+            const parsed = JSON.parse(text);
+            return c.json({
+                success: true,
+                subject: parsed.subject || '',
+                content: parsed.content || ''
+            });
+        } catch (parseError) {
+            // If JSON parsing fails, return raw text
+            return c.json({ success: true, subject: '', content: text });
+        }
+    } catch (e: any) {
+        return c.json({ error: 'AI Generation failed: ' + e.message }, 500);
+    }
+});
+
 // POST /content/generate - AI Content Assistant
 app.post('/content/generate', async (c) => {
     const tenant = c.get('tenant');

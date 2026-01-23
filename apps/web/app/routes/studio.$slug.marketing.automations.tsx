@@ -5,7 +5,7 @@ import { useLoaderData, useSubmit, Form, redirect } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";
-import { Zap, Plus, Play, Pause, Trash2, Mail, MessageSquare, Users, Clock, ChevronRight, X, Settings, Calendar, Target, Bell, Pencil } from "lucide-react";
+import { Zap, Plus, Play, Pause, Trash2, Mail, MessageSquare, Users, Clock, ChevronRight, X, Settings, Calendar, Target, Bell, Pencil, Sparkles, Loader2 } from "lucide-react";
 import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
 
 export const loader = async (args: LoaderFunctionArgs) => {
@@ -315,6 +315,38 @@ function CreateAutomationModal({ onClose, onSave, initialData }: { onClose: () =
     const [subject, setSubject] = useState("");
     const [content, setContent] = useState("");
     const [templateId, setTemplateId] = useState("");
+    const [aiGenerating, setAiGenerating] = useState(false);
+
+    const handleAiGenerate = async () => {
+        setAiGenerating(true);
+        try {
+            // @ts-ignore
+            const token = await window.Clerk?.session?.getToken();
+            const slug = window.location.pathname.split('/')[2]; // Extract slug from URL
+            const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/marketing/automations/ai/generate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    'X-Tenant-Slug': slug
+                },
+                body: JSON.stringify({ trigger })
+            });
+            const data = await response.json() as { success?: boolean; subject?: string; content?: string; error?: string };
+            if (data.success && data.subject && data.content) {
+                setSubject(data.subject);
+                setContent(data.content);
+                setContentType('simple');
+            } else {
+                alert(data.error || 'AI generation failed');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('AI generation failed');
+        } finally {
+            setAiGenerating(false);
+        }
+    };
 
     useEffect(() => {
         if (initialData) {
@@ -531,7 +563,17 @@ function CreateAutomationModal({ onClose, onSave, initialData }: { onClose: () =
 
                     {step === 4 && (
                         <div className="space-y-4">
-                            <h3 className="font-medium text-zinc-900">Email Content</h3>
+                            <div className="flex items-center justify-between">
+                                <h3 className="font-medium text-zinc-900">Email Content</h3>
+                                <button
+                                    onClick={handleAiGenerate}
+                                    disabled={aiGenerating}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 shadow-sm"
+                                >
+                                    {aiGenerating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                                    {aiGenerating ? 'Generating...' : 'Generate with AI'}
+                                </button>
+                            </div>
 
                             {/* Subject is always needed (at least as fallback/title) */}
                             <div>

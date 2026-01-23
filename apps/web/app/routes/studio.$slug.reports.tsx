@@ -17,7 +17,7 @@ import {
     AreaChart,
     Area
 } from 'recharts';
-import { Loader2, DollarSign, Users, TrendingUp, CheckCircle2 } from "lucide-react";
+import { Loader2, DollarSign, Users, TrendingUp, CheckCircle2, Download } from "lucide-react";
 import { PrivacyBlur } from "../components/PrivacyBlur";
 import { useAdminPrivacy } from "../hooks/useAdminPrivacy";
 
@@ -28,6 +28,7 @@ export default function StudioReports() {
     const [revenueData, setRevenueData] = useState<any>(null);
     const [attendanceData, setAttendanceData] = useState<any>(null);
     const [dateRange, setDateRange] = useState('30d'); // 30d, 90d, 1y
+    const [exporting, setExporting] = useState(false);
 
     // Privacy Logic
     const [impersonating, setImpersonating] = useState(false);
@@ -69,6 +70,36 @@ export default function StudioReports() {
         }
     };
 
+    const handleExportJournal = async () => {
+        setExporting(true);
+        const end = new Date();
+        const start = new Date();
+        if (dateRange === '30d') start.setDate(end.getDate() - 30);
+        if (dateRange === '90d') start.setDate(end.getDate() - 90);
+        if (dateRange === '1y') start.setFullYear(end.getFullYear() - 1);
+
+        const token = await (window as any).Clerk?.session?.getToken();
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/reports/accounting/journal?format=csv&startDate=${start.toISOString()}&endDate=${end.toISOString()}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'X-Tenant-Slug': tenant.slug
+                }
+            });
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `journal_${start.toISOString().split('T')[0]}_${end.toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error("Failed to export journal", e);
+        } finally {
+            setExporting(false);
+        }
+    };
+
     if (loading && !revenueData && !attendanceData) {
         return <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-zinc-400" /></div>;
     }
@@ -81,6 +112,14 @@ export default function StudioReports() {
                     <p className="text-zinc-500 dark:text-zinc-400">Performance metrics and insights.</p>
                 </div>
                 <div className="flex gap-4">
+                    <button
+                        onClick={handleExportJournal}
+                        disabled={exporting}
+                        className="px-4 py-2 text-sm font-medium rounded-md bg-emerald-600 text-white shadow hover:bg-emerald-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                    >
+                        <Download size={16} />
+                        {exporting ? 'Exporting...' : 'Export Journal'}
+                    </button>
                     <Link
                         to="custom"
                         className="px-4 py-2 text-sm font-medium rounded-md bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow hover:opacity-90 transition-opacity"

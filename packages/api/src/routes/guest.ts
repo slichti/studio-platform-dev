@@ -192,4 +192,106 @@ app.post('/token', rateLimit({ limit: 5, window: 60, keyPrefix: 'guest_token' })
     return c.json({ token, user: { id: guestId, email, name, role: 'guest' } });
 });
 
+// POST /public/chat/start - Start a guest support chat
+app.post('/chat/start', rateLimit({ limit: 3, window: 60, keyPrefix: 'guest_chat_start' }), async (c) => {
+    const db = createDb(c.env.DB);
+    const body = await c.req.json<{
+        tenantSlug: string;
+        name: string;
+        email: string;
+        message: string;
+    }>();
+
+    if (!body.tenantSlug || !body.email || !body.message) {
+        return c.json({ error: 'Missing required fields' }, 400);
+    }
+
+    // 1. Find tenant
+    const tenant = await db.query.tenants.findFirst({
+        where: eq(tenants.slug, body.tenantSlug)
+    });
+
+    if (!tenant) return c.json({ error: 'Studio not found' }, 404);
+
+    // 2. Find or create guest user
+    let user = await db.query.users.findFirst({
+        where: eq(users.email, body.email)
+    });
+
+    if (!user) {
+        const userId = `guest_u_${crypto.randomUUID()}`;
+        await db.insert(users).values({
+            id: userId,
+            email: body.email,
+            profile: { firstName: body.name || 'Guest' },
+            createdAt: new Date()
+        }).run();
+        user = await db.query.users.findFirst({
+            where: eq(users.email, body.email)
+        });
+    }
+
+    if (!user) return c.json({ error: 'Failed to create user' }, 500);
+
+    // 3. Find or create tenant membership
+    let member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.userId, user.id), eq(tenantMembers.tenantId, tenant.id))
+    });
+
+    if (!member) {
+        const memberId = `guest_m_${crypto.randomUUID()}`;
+        await db.insert(tenantMembers).values({
+            id: memberId,
+            tenantId: tenant.id,
+            userId: user.id,
+            joinedAt: new Date(),
+            status: 'active'
+        }).run();
+        member = await db.query.tenantMembers.findFirst({
+            where: and(eq(tenantMembers.userId, user.id), eq(tenantMembers.tenantId, tenant.id))
+        });
+    }
+
+    // 4. Create chat room
+    const { chatRooms, chatMessages } = await import('db/src/schema');
+    const roomId = crypto.randomUUID();
+    await db.insert(chatRooms).values({
+        id: roomId,
+        tenantId: tenant.id,
+        type: 'support',
+        name: body.name || 'Guest',
+        customerEmail: body.email,
+        status: 'open',
+        priority: 'normal',
+        metadata: { source: 'widget', guestName: body.name }
+    }).run();
+
+    // 5. Insert initial message
+    const messageId = crypto.randomUUID();
+    await db.insert(chatMessages).values({
+        id: messageId,
+        roomId: roomId,
+        userId: user.id,
+        content: body.message
+    }).run();
+
+    // 6. Generate guest token for WebSocket
+    const { sign } = await import('hono/jwt');
+    const guestToken = await sign({
+        sub: user.id,
+        email: body.email,
+        name: body.name || 'Guest',
+        role: 'guest',
+        tenantId: tenant.id,
+        exp: Math.floor(Date.now() / 1000) + (60 * 60), // 1 hour
+    }, c.env.CLERK_SECRET_KEY);
+
+    return c.json({
+        success: true,
+        roomId,
+        guestToken,
+        user: { id: user.id, email: body.email, name: body.name }
+    });
+});
+
 export default app;
