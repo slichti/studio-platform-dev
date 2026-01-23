@@ -4,6 +4,7 @@ import { apiRequest } from "../utils/api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Loader2, DollarSign, Calendar, CheckCircle2, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import {
     Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger
 } from "~/components/ui/dialog";
@@ -70,7 +71,7 @@ function RunPayroll({ token }: { token: string }) {
             setPreview(res.preview);
         } catch (e) {
             console.error(e);
-            alert("Failed to generate preview");
+            toast.error("Failed to generate preview");
         } finally {
             setLoading(false);
         }
@@ -88,12 +89,12 @@ function RunPayroll({ token }: { token: string }) {
                 body: JSON.stringify({ startDate, endDate, commit: true })
             }) as any;
             if (res.success) {
-                alert(`Successfully generated ${res.count} payouts.`);
+                toast.success(`Successfully generated ${res.count} payouts.`);
                 setPreview(null);
             }
         } catch (e) {
             console.error(e);
-            alert("Failed to commit payroll");
+            toast.error("Failed to commit payroll");
         } finally {
             setLoading(false);
         }
@@ -191,13 +192,13 @@ function PayrollHistory({ token }: { token: string }) {
         try {
             const res: any = await apiRequest(`/payroll/${processPaymentId}/pay`, token, { method: 'POST' });
             if (res.error) {
-                alert("Payment Failed: " + res.error);
+                toast.error("Payment Failed: " + res.error);
             } else {
-                alert("Payment Successful! Transfer ID: " + res.transferId);
+                toast.success("Payment Successful! Transfer ID: " + res.transferId);
                 fetchHistory();
             }
         } catch (e: any) {
-            alert("Payment Error: " + e.message);
+            toast.error("Payment Error: " + e.message);
         } finally {
             setProcessing(false);
             setProcessPaymentId(null);

@@ -7,6 +7,7 @@ import { apiRequest } from "~/utils/api";
 import { useState } from "react";
 import { Zap, Plus, Play, Pause, Trash2, Mail, MessageSquare, Users, Clock, ChevronRight, X, Settings, Calendar, Target, Bell, Pencil, Sparkles, Loader2 } from "lucide-react";
 import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
+import { toast } from "sonner";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken, userId } = await getAuth(args);
@@ -338,11 +339,11 @@ function CreateAutomationModal({ onClose, onSave, initialData }: { onClose: () =
                 setContent(data.content);
                 setContentType('simple');
             } else {
-                alert(data.error || 'AI generation failed');
+                toast.error(data.error || 'AI generation failed');
             }
         } catch (e) {
             console.error(e);
-            alert('AI generation failed');
+            toast.error('AI generation failed');
         } finally {
             setAiGenerating(false);
         }

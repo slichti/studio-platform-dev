@@ -325,4 +325,54 @@ app.post('/stripe', async (c) => {
     return c.json({ received: true });
 });
 
+// Twilio SMS Webhook - Handle STOP opt-outs (TCPA Compliance)
+app.post('/twilio/sms', async (c) => {
+    // Twilio sends form-urlencoded data
+    const formData = await c.req.formData();
+    const from = formData.get('From') as string;
+    const body = (formData.get('Body') as string || '').trim().toUpperCase();
+
+    console.log(`[Twilio SMS] Received from ${from}: ${body}`);
+
+    // Handle STOP keyword for opt-out
+    if (['STOP', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT'].includes(body)) {
+        const db = createDb(c.env.DB);
+        const { SmsService } = await import('../services/sms');
+
+        // Create a minimal SmsService just for opt-out handling
+        const smsService = new SmsService(undefined, c.env, undefined, db, 'system');
+        const result = await smsService.handleOptOut(from);
+
+        console.log(`[Twilio SMS] Opt-out processed for ${from}: ${result.membersUpdated} members updated`);
+
+        // TwiML response confirming opt-out
+        return new Response(
+            `<?xml version="1.0" encoding="UTF-8"?>
+            <Response>
+                <Message>You have been unsubscribed from SMS messages. Reply START to re-subscribe.</Message>
+            </Response>`,
+            { headers: { 'Content-Type': 'text/xml' } }
+        );
+    }
+
+    // Handle START keyword for re-subscription
+    if (['START', 'YES', 'UNSTOP'].includes(body)) {
+        // Note: Re-subscription would require finding and updating the user
+        // For now, we just acknowledge the intent
+        return new Response(
+            `<?xml version="1.0" encoding="UTF-8"?>
+            <Response>
+                <Message>To re-subscribe to SMS messages, please update your preferences in your account settings.</Message>
+            </Response>`,
+            { headers: { 'Content-Type': 'text/xml' } }
+        );
+    }
+
+    // Default: Empty TwiML response (no reply needed for other messages)
+    return new Response(
+        `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
+        { headers: { 'Content-Type': 'text/xml' } }
+    );
+});
+
 export default app;
