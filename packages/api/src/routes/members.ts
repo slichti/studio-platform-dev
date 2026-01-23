@@ -887,6 +887,162 @@ app.get('/:id/coupons', async (c) => {
     return c.json({ coupons: list });
 });
 
+// POST /members/bulk: Bulk operations on multiple members (Owner only)
+app.post('/bulk', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    const { action, memberIds, data } = await c.req.json();
+
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+    if (!roles.includes('owner')) {
+        return c.json({ error: 'Access Denied: Only Owners can perform bulk actions' }, 403);
+    }
+    if (!Array.isArray(memberIds) || memberIds.length === 0) {
+        return c.json({ error: 'memberIds array is required' }, 400);
+    }
+    if (memberIds.length > 100) {
+        return c.json({ error: 'Maximum 100 members per bulk operation' }, 400);
+    }
+
+    // Verify all members belong to this tenant
+    const { inArray } = await import('drizzle-orm');
+    const members = await db.select({
+        id: tenantMembers.id,
+        userId: tenantMembers.userId,
+        tenantId: tenantMembers.tenantId
+    }).from(tenantMembers)
+        .where(and(
+            inArray(tenantMembers.id, memberIds),
+            eq(tenantMembers.tenantId, tenant.id)
+        )).all();
+
+    if (members.length !== memberIds.length) {
+        return c.json({ error: 'Some members not found or do not belong to this tenant' }, 400);
+    }
+
+    let result: any = { success: true, affected: members.length };
+
+    switch (action) {
+        case 'email': {
+            // Send email to all selected members
+            if (!data?.subject || !data?.body) {
+                return c.json({ error: 'Email requires subject and body' }, 400);
+            }
+
+            const { EmailService } = await import('../services/email');
+            const { UsageService } = await import('../services/pricing');
+
+            const usageService = new UsageService(db, tenant.id);
+            const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
+            const isByok = !!(tenant.resendCredentials as any)?.apiKey;
+
+            const emailService = new EmailService(
+                resendKey,
+                { settings: tenant.settings as any, branding: tenant.branding as any },
+                { slug: tenant.slug },
+                usageService,
+                isByok,
+                db,
+                tenant.id
+            );
+
+            // Get emails from member userIds
+            const memberUsers = await db.select({
+                id: users.id,
+                email: users.email
+            }).from(users)
+                .where(inArray(users.id, members.map(m => m.userId)))
+                .all();
+
+            const html = `<div style="font-family: sans-serif; padding: 20px;">
+                <p>${data.body.replace(/\n/g, '<br/>')}</p>
+                <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;" />
+                <p style="color: #888; font-size: 12px;">Sent from ${tenant.name}</p>
+            </div>`;
+
+            let sent = 0;
+            let failed = 0;
+
+            for (const user of memberUsers) {
+                try {
+                    await emailService.sendGenericEmail(user.email, data.subject, html);
+                    sent++;
+                } catch (e) {
+                    console.error(`Bulk email failed for ${user.email}`, e);
+                    failed++;
+                }
+            }
+
+            result = { success: true, sent, failed, total: memberUsers.length };
+            break;
+        }
+
+        case 'status': {
+            // Update status for all selected members
+            if (!data?.status || !['active', 'inactive', 'archived'].includes(data.status)) {
+                return c.json({ error: 'Valid status (active, inactive, archived) required' }, 400);
+            }
+
+            await db.update(tenantMembers)
+                .set({ status: data.status })
+                .where(inArray(tenantMembers.id, memberIds))
+                .run();
+
+            result = { success: true, affected: members.length, status: data.status };
+            break;
+        }
+
+        case 'export': {
+            // Export member data as CSV
+            const fullMembers = await db.query.tenantMembers.findMany({
+                where: inArray(tenantMembers.id, memberIds),
+                with: { user: true, roles: true }
+            });
+
+            const csv = [
+                ['ID', 'Email', 'First Name', 'Last Name', 'Status', 'Role', 'Joined'],
+                ...fullMembers.map(m => [
+                    m.id,
+                    m.user?.email || '',
+                    (m.user?.profile as any)?.firstName || '',
+                    (m.user?.profile as any)?.lastName || '',
+                    m.status,
+                    m.roles?.map((r: any) => r.role).join(', ') || 'student',
+                    m.joinedAt ? new Date(m.joinedAt).toISOString() : ''
+                ])
+            ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+
+            result = { success: true, csv, count: fullMembers.length };
+            break;
+        }
+
+        case 'sms_consent': {
+            // Update SMS consent
+            if (typeof data?.consent !== 'boolean') {
+                return c.json({ error: 'consent (boolean) required' }, 400);
+            }
+
+            await db.update(tenantMembers)
+                .set({
+                    smsConsent: data.consent,
+                    smsConsentAt: data.consent ? new Date() : null,
+                    smsOptOutAt: !data.consent ? new Date() : null
+                })
+                .where(inArray(tenantMembers.id, memberIds))
+                .run();
+
+            result = { success: true, affected: members.length, consent: data.consent };
+            break;
+        }
+
+        default:
+            return c.json({ error: `Unknown action: ${action}` }, 400);
+    }
+
+    return c.json(result);
+});
+
 
 
 export default app;

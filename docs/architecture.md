@@ -175,3 +175,51 @@ flowchart TB
 *   **Financial System of Record**: Stripe is treated as the sole system of record for financial data. The platform does **not** store sensitive cardholder data (PAN, CVV) or bank account numbers.
 *   **Stripe Connect Only**: The platform exclusively uses Stripe Standard Connect for tenant payments. "Bring Your Own Key" (Custom Stripe Keys) is not supported to minimize PCI-DSS scope.
 *   **Encryption**: All sensitive integration credentials (e.g., Zoom, Resend) are encrypted at rest using AES-GCM-256.
+
+## Regulatory Compliance
+
+### CAN-SPAM Act
+Email marketing compliance is enforced through the `EmailService`:
+*   **Physical Address**: Configurable via `branding.physicalAddress` in tenant settings
+*   **Unsubscribe Link**: Auto-included footer with `settings.unsubscribeUrl`
+*   **List-Unsubscribe Header**: RFC 8058 compliant one-click unsubscribe
+
+### TCPA (Telephone Consumer Protection Act)
+SMS marketing compliance is enforced through the `SmsService`:
+*   **Consent Tracking**: `tenantMembers.smsConsent`, `smsConsentAt`, `smsOptOutAt` fields
+*   **Time Restrictions**: SMS blocked outside 8am-9pm recipient local time (EST default)
+*   **Opt-Out Handling**: `/webhooks/twilio/sms` processes STOP/UNSUBSCRIBE keywords
+*   **Re-subscription**: START keyword handling with user confirmation
+
+### SOC 2 Type II Readiness
+*   **Audit Logging**: All administrative actions logged to `auditLogs` table
+*   **Log Export**: CSV export available in Admin Portal
+*   **Session Tracking**: Login/logout events captured via Clerk webhooks
+*   **Retention**: Audit logs retained for 365 days
+
+### Michigan Identity Theft Protection Act
+*   **Data Minimization**: No storage of SSN, driver's license, or financial account numbers
+*   **Breach Notification**: Incident response workflow supports 45-day notification requirement
+
+### ADA / WCAG 2.1
+*   **Semantic HTML**: Proper heading hierarchy, ARIA labels
+*   **Keyboard Navigation**: All interactive elements accessible
+*   **Color Contrast**: Minimum 4.5:1 ratio for text
+
+```mermaid
+flowchart LR
+    subgraph "Compliance Architecture"
+        EMAIL[Email Service] --> CANSPAM{CAN-SPAM}
+        SMS[SMS Service] --> TCPA{TCPA}
+        AUDIT[Audit Logs] --> SOC2{SOC 2}
+        STRIPE[Stripe Connect] --> PCI{PCI-DSS}
+    end
+
+    CANSPAM --> |"Physical Address"| FOOTER[Email Footer]
+    CANSPAM --> |"List-Unsubscribe"| HEADERS[Email Headers]
+    TCPA --> |"Consent Check"| CONSENT[DB: smsConsent]
+    TCPA --> |"Time Restrict"| TIME[8am-9pm EST]
+    TCPA --> |"STOP Handler"| WEBHOOK[Twilio Webhook]
+    SOC2 --> |"CSV Export"| EXPORT[Admin Portal]
+    PCI --> |"No Card Data"| MINIMAL[Data Minimization]
+```

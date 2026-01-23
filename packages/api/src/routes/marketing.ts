@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { marketingCampaigns, marketingAutomations, emailLogs, tenants, tenantMembers, users, userRelationships } from 'db/src/schema'; // Ensure these are exported from schema
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, sql, gte } from 'drizzle-orm';
 import { UsageService } from '../services/pricing';
 import { EmailService } from '../services/email';
 import { SmsService } from '../services/sms';
@@ -597,6 +597,89 @@ app.post('/automations/trigger-debug', async (c) => {
     await service.processTimeBasedAutomations();
 
     return c.json({ success: true, message: "Triggered automations check" });
+});
+
+// GET /email-stats - Email delivery analytics for monitoring dashboard
+app.get('/email-stats', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+
+    if (!roles.includes('owner')) {
+        return c.json({ error: "Unauthorized" }, 403);
+    }
+
+    // Get date range (default: last 30 days)
+    const periodDays = parseInt(c.req.query('days') || '30');
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - periodDays);
+
+    // Get all email logs for this tenant in the period
+    const logs = await db.select({
+        status: emailLogs.status,
+        templateId: emailLogs.templateId,
+        sentAt: emailLogs.sentAt
+    }).from(emailLogs)
+        .where(and(
+            eq(emailLogs.tenantId, tenant.id),
+            gte(emailLogs.sentAt, startDate)
+        ))
+        .all();
+
+    // Calculate stats - use string comparison since status is enum
+    const total = logs.length;
+    const sent = logs.filter(l => l.status === 'sent').length;
+    const failed = logs.filter(l => l.status === 'failed').length;
+    const bounced = logs.filter(l => l.status === 'bounced').length;
+    // Note: delivered, opened, clicked require webhook updates from email provider
+    const delivered = 0; // Would be updated via Resend webhooks
+    const opened = 0;
+    const clicked = 0;
+
+    // Group by template
+    const byTemplate: Record<string, number> = {};
+    logs.forEach(l => {
+        byTemplate[l.templateId || 'unknown'] = (byTemplate[l.templateId || 'unknown'] || 0) + 1;
+    });
+
+    // Group by day for chart
+    const byDay: Record<string, { sent: number; failed: number }> = {};
+    logs.forEach(l => {
+        if (l.sentAt) {
+            const day = new Date(l.sentAt).toISOString().split('T')[0];
+            if (!byDay[day]) byDay[day] = { sent: 0, failed: 0 };
+            if (l.status === 'sent') {
+                byDay[day].sent++;
+            } else if (l.status === 'failed' || l.status === 'bounced') {
+                byDay[day].failed++;
+            }
+        }
+    });
+
+    // Calculate rates (using sent as base for delivery rate)
+    const deliveryRate = total > 0 ? (sent / total * 100).toFixed(1) : '0';
+    const bounceRate = total > 0 ? (bounced / total * 100).toFixed(1) : '0';
+
+    return c.json({
+        period: { days: periodDays, start: startDate.toISOString() },
+        summary: {
+            total,
+            sent,
+            failed,
+            delivered,
+            opened,
+            clicked,
+            bounced
+        },
+        rates: {
+            delivery: `${deliveryRate}%`,
+            open: 'N/A',
+            click: 'N/A',
+            bounce: `${bounceRate}%`
+        },
+        byTemplate: Object.entries(byTemplate).map(([template, count]) => ({ template, count })),
+        byDay: Object.entries(byDay).sort(([a], [b]) => a.localeCompare(b)).map(([date, data]) => ({ date, ...data }))
+    });
 });
 
 export default app;
