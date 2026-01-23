@@ -45,18 +45,8 @@ interface User {
 
 interface LoaderData {
     users: User[];
-    // ... (skip lines)
-    <div className = "col-span-2 flex items-center gap-1 cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors" onClick = { () => {
-                        const current = searchParams.get('sort');
-                        const newSort = current === 'joined_asc' ? 'joined_desc' : 'joined_asc';
-setSearchParams((prev: URLSearchParams) => { prev.set('sort', newSort); return prev; });
-                    }}>
-    Joined { searchParams.get('sort')?.includes('joined') && (searchParams.get('sort')?.includes('desc') ? '↓' : '↑') }
-                    </div >
-                    <div className="col-span-1">MFA</div>
-                    <div className="col-span-1 text-right">Actions</div>
-tenants: Tenant[];
-error: string | null;
+    tenants: Tenant[];
+    error: string | null;
 }
 
 interface ApiError {
