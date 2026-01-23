@@ -1482,3 +1482,25 @@ export const customReports = sqliteTable('custom_reports', {
 }, (table) => ({
     tenantReportIdx: index('custom_reports_tenant_idx').on(table.tenantId),
 }));
+// --- Scheduled Reports ---
+export const scheduledReports = sqliteTable('scheduled_reports', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+    reportType: text('report_type', { enum: ['revenue', 'attendance', 'journal'] }).notNull(),
+    frequency: text('frequency', { enum: ['daily', 'weekly', 'monthly'] }).notNull(),
+    recipients: text('recipients', { mode: 'json' }).notNull(), // Array of emails
+    lastSent: integer('last_sent', { mode: 'timestamp' }),
+    nextRun: integer('next_run', { mode: 'timestamp' }).notNull(),
+    status: text('status', { enum: ['active', 'paused'] }).default('active').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('scheduled_reports_tenant_idx').on(table.tenantId),
+}));
+
+export const scheduledReportsRelations = relations(scheduledReports, ({ one }) => ({
+    tenant: one(tenants, {
+        fields: [scheduledReports.tenantId],
+        references: [tenants.id],
+    }),
+}));

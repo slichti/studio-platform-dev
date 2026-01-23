@@ -1,7 +1,9 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { ReportService } from '../services/reports';
-import { tenants } from 'db/src/schema';
+import { tenants, scheduledReports } from 'db/src/schema';
+import { eq, and } from 'drizzle-orm';
+import { v4 as uuidv4 } from 'uuid';
 
 type Bindings = {
     DB: D1Database;
@@ -121,6 +123,88 @@ app.get('/accounting/journal', async (c) => {
         period: { start, end },
         journal: journalData
     });
+});
+
+// --- Scheduled Reports CRUD ---
+
+// GET /schedules
+app.get('/schedules', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner')) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
+
+    const schedules = await db.select()
+        .from(scheduledReports)
+        .where(eq(scheduledReports.tenantId, tenant.id))
+        .all();
+
+    return c.json(schedules);
+});
+
+// POST /schedules
+app.post('/schedules', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner')) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
+
+    const { reportType, frequency, recipients } = await c.req.json();
+
+    if (!reportType || !frequency || !recipients || !Array.isArray(recipients)) {
+        return c.json({ error: "Missing required fields: reportType, frequency, recipients (array)" }, 400);
+    }
+
+    // Calculate nextRun
+    const now = new Date();
+    let nextRun = new Date();
+    if (frequency === 'daily') nextRun.setDate(now.getDate() + 1);
+    else if (frequency === 'weekly') nextRun.setDate(now.getDate() + 7);
+    else if (frequency === 'monthly') nextRun.setMonth(now.getMonth() + 1);
+
+    const newSchedule = {
+        id: uuidv4(),
+        tenantId: tenant.id,
+        reportType,
+        frequency,
+        recipients,
+        nextRun,
+        status: 'active'
+    };
+
+    await db.insert(scheduledReports).values(newSchedule as any).run();
+
+    return c.json(newSchedule);
+});
+
+// DELETE /schedules/:id
+app.delete('/schedules/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner')) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
+
+    const id = c.req.param('id');
+    await db.delete(scheduledReports)
+        .where(and(
+            eq(scheduledReports.id, id),
+            eq(scheduledReports.tenantId, tenant.id)
+        ))
+        .run();
+
+    return c.json({ success: true });
 });
 
 export default app;

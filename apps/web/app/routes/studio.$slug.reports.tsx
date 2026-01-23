@@ -17,9 +17,10 @@ import {
     AreaChart,
     Area
 } from 'recharts';
-import { Loader2, DollarSign, Users, TrendingUp, CheckCircle2, Download } from "lucide-react";
+import { Loader2, DollarSign, Users, TrendingUp, CheckCircle2, Download, Calendar, Mail, Trash2, X, Plus } from "lucide-react";
 import { PrivacyBlur } from "../components/PrivacyBlur";
 import { useAdminPrivacy } from "../hooks/useAdminPrivacy";
+import { toast } from "sonner";
 
 export default function StudioReports() {
     const { tenant } = useOutletContext<any>();
@@ -29,6 +30,10 @@ export default function StudioReports() {
     const [attendanceData, setAttendanceData] = useState<any>(null);
     const [dateRange, setDateRange] = useState('30d'); // 30d, 90d, 1y
     const [exporting, setExporting] = useState(false);
+    const [showSchedules, setShowSchedules] = useState(false);
+    const [schedules, setSchedules] = useState<any[]>([]);
+    const [isCreatingSchedule, setIsCreatingSchedule] = useState(false);
+    const [newSchedule, setNewSchedule] = useState({ reportType: 'revenue', frequency: 'weekly', recipients: '' });
 
     // Privacy Logic
     const [impersonating, setImpersonating] = useState(false);
@@ -42,7 +47,49 @@ export default function StudioReports() {
 
     useEffect(() => {
         fetchData();
-    }, [activeTab, dateRange]);
+        if (showSchedules) fetchSchedules();
+    }, [activeTab, dateRange, showSchedules]);
+
+    const fetchSchedules = async () => {
+        const token = await (window as any).Clerk?.session?.getToken();
+        try {
+            const res = await apiRequest('/reports/schedules', token);
+            setSchedules(res);
+        } catch (e) {
+            console.error("Failed to fetch schedules", e);
+        }
+    };
+
+    const handleCreateSchedule = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsCreatingSchedule(true);
+        const token = await (window as any).Clerk?.session?.getToken();
+        try {
+            const recipients = newSchedule.recipients.split(',').map(r => r.trim()).filter(r => !!r);
+            await apiRequest('/reports/schedules', token, {
+                method: 'POST',
+                body: JSON.stringify({ ...newSchedule, recipients })
+            });
+            toast.success("Schedule created");
+            fetchSchedules();
+            setNewSchedule({ reportType: 'revenue', frequency: 'weekly', recipients: '' });
+        } catch (e: any) {
+            toast.error(e.message);
+        } finally {
+            setIsCreatingSchedule(false);
+        }
+    };
+
+    const handleDeleteSchedule = async (id: string) => {
+        const token = await (window as any).Clerk?.session?.getToken();
+        try {
+            await apiRequest(`/reports/schedules/${id}`, token, { method: 'DELETE' });
+            toast.success("Schedule deleted");
+            fetchSchedules();
+        } catch (e: any) {
+            toast.error(e.message);
+        }
+    };
 
     const fetchData = async () => {
         setLoading(true);
@@ -147,6 +194,113 @@ export default function StudioReports() {
                         </button>
                     </div>
                 </div>
+            </div>
+
+            {/* Scheduled Reports Management Card */}
+            <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 border border-blue-100 dark:border-blue-900/20 p-6 rounded-xl shadow-sm">
+                <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-white dark:bg-zinc-800 rounded-lg shadow-sm">
+                            <Calendar className="text-blue-600" size={20} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Scheduled Reports</h3>
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400">Automated summaries delivered to your inbox.</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => setShowSchedules(!showSchedules)}
+                        className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                        {showSchedules ? 'Hide Management' : 'Manage Schedules'}
+                    </button>
+                </div>
+
+                {showSchedules && (
+                    <div className="mt-6 space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {/* Create Schedule Form */}
+                            <div className="bg-white dark:bg-zinc-900 p-5 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                <h4 className="font-semibold mb-4 text-sm flex items-center gap-2">
+                                    <Plus size={16} /> New Schedule
+                                </h4>
+                                <form onSubmit={handleCreateSchedule} className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-medium text-zinc-500 mb-1">Report Type</label>
+                                            <select
+                                                value={newSchedule.reportType}
+                                                onChange={e => setNewSchedule({ ...newSchedule, reportType: e.target.value })}
+                                                className="w-full text-sm border rounded-md p-2 dark:bg-zinc-800"
+                                            >
+                                                <option value="revenue">Revenue</option>
+                                                <option value="attendance">Attendance</option>
+                                                <option value="journal">Journal</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-zinc-500 mb-1">Frequency</label>
+                                            <select
+                                                value={newSchedule.frequency}
+                                                onChange={e => setNewSchedule({ ...newSchedule, frequency: e.target.value })}
+                                                className="w-full text-sm border rounded-md p-2 dark:bg-zinc-800"
+                                            >
+                                                <option value="daily">Daily</option>
+                                                <option value="weekly">Weekly</option>
+                                                <option value="monthly">Monthly</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-zinc-500 mb-1">Recipients (comma separated)</label>
+                                        <input
+                                            placeholder="owner@example.com, manager@example.com"
+                                            value={newSchedule.recipients}
+                                            onChange={e => setNewSchedule({ ...newSchedule, recipients: e.target.value })}
+                                            className="w-full text-sm border rounded-md p-2 dark:bg-zinc-800"
+                                            required
+                                        />
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        disabled={isCreatingSchedule}
+                                        className="w-full bg-blue-600 text-white rounded-md py-2 text-sm font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                    >
+                                        {isCreatingSchedule ? 'Creating...' : 'Create Email Schedule'}
+                                    </button>
+                                </form>
+                            </div>
+
+                            {/* Existing Schedules */}
+                            <div className="space-y-3">
+                                <h4 className="font-semibold text-sm">Active Schedules</h4>
+                                {schedules.length === 0 ? (
+                                    <div className="text-zinc-400 text-sm italic py-8 text-center border-2 border-dashed rounded-lg">No schedules configured.</div>
+                                ) : (
+                                    schedules.map(s => (
+                                        <div key={s.id} className="bg-white dark:bg-zinc-900 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800 flex justify-between items-center shadow-sm">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-zinc-50 dark:bg-zinc-800 rounded-full flex items-center justify-center text-blue-600">
+                                                    <Mail size={18} />
+                                                </div>
+                                                <div>
+                                                    <div className="text-sm font-bold capitalize">{s.reportType} {s.frequency}</div>
+                                                    <div className="text-xs text-zinc-500 truncate max-w-[200px]">{s.recipients.join(', ')}</div>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => handleDeleteSchedule(s.id)}
+                                                className="p-2 text-zinc-400 hover:text-red-500 transition-colors"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Key Metrics Cards */}

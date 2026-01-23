@@ -450,4 +450,49 @@ export class ReportService {
 
         return result;
     }
+
+    async generateEmailSummary(reportType: 'revenue' | 'attendance' | 'journal') {
+        const end = new Date();
+        const start = new Date();
+        start.setDate(end.getDate() - 7); // Default to last 7 days for summary
+
+        if (reportType === 'revenue') {
+            const data = await this.getRevenue(start, end);
+            return `
+                <h2 style="color: #111827;">Revenue Summary</h2>
+                <p style="font-size: 24px; font-weight: bold; color: #059669;">$${(data.grossVolume / 100).toFixed(2)}</p>
+                <p style="color: #6B7280; font-size: 14px;">Period: ${start.toLocaleDateString()} - ${end.toLocaleDateString()}</p>
+                <ul style="color: #374151; font-size: 14px; padding-left: 20px;">
+                    <li>Retail: $${(data.breakdown.retail / 100).toFixed(2)}</li>
+                    <li>Packs: $${(data.breakdown.packs / 100).toFixed(2)}</li>
+                    <li>MRR: $${(data.mrr / 100).toFixed(2)}</li>
+                </ul>
+            `;
+        } else if (reportType === 'attendance') {
+            const data = await this.getAttendance(start, end);
+            return `
+                <h2 style="color: #111827;">Attendance Summary</h2>
+                <p style="font-size: 24px; font-weight: bold; color: #2563EB;">${data.totalBookings} Bookings</p>
+                <p style="color: #6B7280; font-size: 14px;">Period: ${start.toLocaleDateString()} - ${end.toLocaleDateString()}</p>
+                <ul style="color: #374151; font-size: 14px; padding-left: 20px;">
+                    <li>Check-ins: ${data.totalCheckins} (${((data.totalCheckins / (data.totalBookings || 1)) * 100).toFixed(0)}%)</li>
+                    <li>Top Class: ${data.topClasses[0]?.title || 'N/A'} (${data.topClasses[0]?.attendees || 0} attendees)</li>
+                </ul>
+            `;
+        } else if (reportType === 'journal') {
+            const data = await this.getJournal(start, end, 'json', 'USD') as any[];
+            const debits = data.reduce((sum, item) => sum + (item.debit || 0), 0);
+            const credits = data.reduce((sum, item) => sum + (item.credit || 0), 0);
+            return `
+                <h2 style="color: #111827;">Accounting Journal Summary</h2>
+                <p style="color: #6B7280; font-size: 14px;">Period: ${start.toLocaleDateString()} - ${end.toLocaleDateString()}</p>
+                <div style="background: #F9FAFB; padding: 15px; border-radius: 8px;">
+                     <p style="margin: 0; font-size: 14px;"><strong>Total Debits:</strong> $${debits.toFixed(2)}</p>
+                     <p style="margin: 5px 0 0 0; font-size: 14px;"><strong>Total Credits:</strong> $${credits.toFixed(2)}</p>
+                </div>
+                <p style="font-size: 12px; color: #9CA3AF; margin-top: 10px;">Login to the platform to download the full CSV export.</p>
+            `;
+        }
+        return `<p>Report summary generated.</p>`;
+    }
 }

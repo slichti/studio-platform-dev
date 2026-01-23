@@ -1,7 +1,8 @@
 import { createDb } from './db';
-import { tenants, classes, bookings, tenantMembers, marketingAutomations, users, emailLogs, purchasedPacks, tenantRoles, subscriptions, membershipPlans } from 'db/src/schema'; // Ensure imports
+import { tenants, classes, bookings, tenantMembers, marketingAutomations, users, emailLogs, purchasedPacks, tenantRoles, subscriptions, membershipPlans, scheduledReports } from 'db/src/schema'; // Ensure imports
 import { and, eq, lte, gt, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 import { BookingService } from './services/bookings';
+import { ReportService } from './services/reports';
 
 import { AutomationsService } from './services/automations';
 import { EmailService } from './services/email';
@@ -264,6 +265,65 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
 
     // 5. Billing Renewal Notifications
     await processRenewals(db, env);
+
+    // 6. Scheduled Reports
+    const dueReports = await db.query.scheduledReports.findMany({
+        where: and(
+            lte(scheduledReports.nextRun, now),
+            eq(scheduledReports.status, 'active')
+        ),
+        with: {
+            tenant: true
+        }
+    });
+
+    for (const report of dueReports) {
+        console.log(`Processing Scheduled Report: ${report.reportType} for Tenant ${report.tenantId}`);
+        const reportService = new ReportService(db, report.tenantId);
+        const emailService = new EmailService(env.RESEND_API_KEY, {
+            branding: report.tenant.branding as any,
+            settings: report.tenant.settings as any
+        });
+
+        try {
+            const summaryHtml = await reportService.generateEmailSummary(report.reportType as any);
+            const recipients = report.recipients as string[];
+
+            for (const recipient of recipients) {
+                await emailService.sendGenericEmail(
+                    recipient,
+                    `Scheduled Report: ${report.reportType.charAt(0).toUpperCase() + report.reportType.slice(1)}`,
+                    `
+                    <div style="font-family: sans-serif; color: #374151;">
+                        <p>Hello,</p>
+                        <p>This is your scheduled <strong>${report.reportType}</strong> report for <strong>${report.tenant.name}</strong>.</p>
+                        ${summaryHtml}
+                        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #E5E7EB;" />
+                        <p style="font-size: 12px; color: #9CA3AF;">You received this because you are subscribed to scheduled reports for ${report.tenant.name}.</p>
+                    </div>
+                    `
+                );
+            }
+
+            // Update schedule
+            let nextRun = new Date(report.nextRun);
+            if (report.frequency === 'daily') nextRun.setDate(nextRun.getDate() + 1);
+            else if (report.frequency === 'weekly') nextRun.setDate(nextRun.getDate() + 7);
+            else if (report.frequency === 'monthly') nextRun.setMonth(nextRun.getMonth() + 1);
+
+            await db.update(scheduledReports)
+                .set({
+                    lastSent: now,
+                    nextRun: nextRun,
+                    updatedAt: now
+                })
+                .where(eq(scheduledReports.id, report.id))
+                .run();
+
+        } catch (e) {
+            console.error(`Failed to process scheduled report ${report.id}`, e);
+        }
+    }
 };
 
 async function processRenewals(db: any, env: any) {
