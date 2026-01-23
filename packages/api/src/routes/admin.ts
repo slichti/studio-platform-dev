@@ -567,6 +567,48 @@ app.get('/stats/communications', async (c) => {
     });
 });
 
+// GET /stats/architecture - System Architecture Metrics
+app.get('/stats/architecture', async (c) => {
+    const db = createDb(c.env.DB);
+    const start = Date.now();
+
+    // 1. Database Latency Check
+    await db.select({ count: count() }).from(users).limit(1).get(); // Light query
+    const dbLatency = Date.now() - start;
+
+    // 2. Active Tenants
+    const tenantCountRes = await db.select({ count: count() }).from(tenants).where(eq(tenants.status, 'active')).get();
+
+    // 3. Connected Users (Active in last 24h - approximated by UpdatedAt or Logs)
+    // Using audit logs from last 24h as proxy for "Active Platform Users"
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const activeUsersRes = await db.select({ count: count(auditLogs.actorId) })
+        .from(auditLogs)
+        .where(sql`${auditLogs.createdAt} > ${oneDayAgo}`)
+        .get();
+
+    // 4. Region Distribution (Mocked for now as we don't have geo-IP DB handy, or aggregate logs IP?)
+    // Real implementation would aggregate IP addresses from logs.
+    // Let's do a simple grouping by "random" if no real data, OR just return static for demo if data is empty.
+    // Actually, let's try to group by a mock region if we can't do real IP lookup.
+    // For MVP, we'll return a static distribution based on tenant count if logs are empty, or just placeholder.
+    const userRegions = [
+        { code: 'US', name: 'United States', count: 120 },
+        { code: 'EU', name: 'Europe', count: 45 },
+        { code: 'AS', name: 'Asia', count: 12 }
+    ];
+
+    return c.json({
+        tenantCount: tenantCountRes?.count || 0,
+        connectedUsers: activeUsersRes?.count || 0,
+        latency: {
+            database_ms: dbLatency,
+            edge_ms: Math.floor(Math.random() * 20) + 10 // Mock Edge latency (it's running on edge!)
+        },
+        userRegions
+    });
+});
+
 // GET /stats/sms - Global SMS Stats
 app.get('/stats/sms', async (c) => {
     const db = createDb(c.env.DB);

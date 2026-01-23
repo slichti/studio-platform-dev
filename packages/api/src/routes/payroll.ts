@@ -316,9 +316,11 @@ app.get('/history', async (c) => {
         paidAt: payouts.paidAt,
         instructorFirstName: sql<string>`json_extract(${tenantMembers.profile}, '$.firstName')`,
         instructorLastName: sql<string>`json_extract(${tenantMembers.profile}, '$.lastName')`,
+        stripeAccountId: users.stripeAccountId
     })
         .from(payouts)
         .innerJoin(tenantMembers, eq(payouts.instructorId, tenantMembers.id))
+        .leftJoin(users, eq(tenantMembers.userId, users.id))
         .where(whereClause)
         .orderBy(desc(payouts.createdAt))
         .all();

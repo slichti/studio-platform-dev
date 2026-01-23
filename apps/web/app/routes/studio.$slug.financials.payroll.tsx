@@ -160,6 +160,8 @@ function RunPayroll({ token }: { token: string }) {
 function PayrollHistory({ token }: { token: string }) {
     const [history, setHistory] = useState<any[]>([]);
     const [itemToPay, setItemToPay] = useState<string | null>(null);
+    const [processPaymentId, setProcessPaymentId] = useState<string | null>(null);
+    const [processing, setProcessing] = useState(false);
 
     const fetchHistory = async () => {
         const res = await apiRequest('/payroll/history', token) as any;
@@ -177,6 +179,29 @@ function PayrollHistory({ token }: { token: string }) {
         await apiRequest(`/payroll/${itemToPay}/approve`, token, { method: 'POST' });
         fetchHistory();
         setItemToPay(null);
+    };
+
+    const handlePayNow = (id: string) => {
+        setProcessPaymentId(id);
+    };
+
+    const confirmPayNow = async () => {
+        if (!processPaymentId) return;
+        setProcessing(true);
+        try {
+            const res: any = await apiRequest(`/payroll/${processPaymentId}/pay`, token, { method: 'POST' });
+            if (res.error) {
+                alert("Payment Failed: " + res.error);
+            } else {
+                alert("Payment Successful! Transfer ID: " + res.transferId);
+                fetchHistory();
+            }
+        } catch (e: any) {
+            alert("Payment Error: " + e.message);
+        } finally {
+            setProcessing(false);
+            setProcessPaymentId(null);
+        }
     };
 
     return (
@@ -198,7 +223,8 @@ function PayrollHistory({ token }: { token: string }) {
                                 {new Date(row.periodStart).toLocaleDateString()} - {new Date(row.periodEnd).toLocaleDateString()}
                             </td>
                             <td className="p-4 font-medium">
-                                {row.instructorFirstName} {row.instructorLastName}
+                                <div>{row.instructorFirstName} {row.instructorLastName}</div>
+                                {row.stripeAccountId && <div className="text-[10px] text-green-600 font-mono">Connected</div>}
                             </td>
                             <td className="p-4 font-mono font-medium">
                                 ${(row.amount / 100).toFixed(2)}
@@ -210,11 +236,18 @@ function PayrollHistory({ token }: { token: string }) {
                                     {row.status.toUpperCase()}
                                 </span>
                             </td>
-                            <td className="p-4">
+                            <td className="p-4 flex gap-2">
                                 {row.status !== 'paid' && (
-                                    <button onClick={() => markPaid(row.id)} className="text-blue-600 hover:text-blue-500 text-xs font-medium border border-blue-200 rounded px-2 py-1">
-                                        Mark Paid
-                                    </button>
+                                    <>
+                                        <button onClick={() => markPaid(row.id)} className="text-zinc-600 hover:text-zinc-900 text-xs font-medium border border-zinc-200 rounded px-2 py-1">
+                                            Mark Paid (Manual)
+                                        </button>
+                                        {row.stripeAccountId && (
+                                            <button onClick={() => handlePayNow(row.id)} className="text-white bg-green-600 hover:bg-green-700 text-xs font-medium rounded px-2 py-1 shadow-sm flex items-center gap-1">
+                                                <DollarSign size={12} /> Pay Now
+                                            </button>
+                                        )}
+                                    </>
                                 )}
                                 {row.status === 'paid' && row.paidAt && (
                                     <span className="text-xs text-zinc-400">Paid {new Date(row.paidAt).toLocaleDateString()}</span>
@@ -234,6 +267,15 @@ function PayrollHistory({ token }: { token: string }) {
                 title="Mark as Paid"
                 description="Are you sure you want to manually mark this record as paid?"
                 confirmText="Mark Paid"
+            />
+
+            <ConfirmDialog
+                open={!!processPaymentId}
+                onOpenChange={(open) => !open && setProcessPaymentId(null)}
+                onConfirm={confirmPayNow}
+                title="Process Stripe Transfer"
+                description="This will instantly transfer funds from your platform balance to the instructor's connected Stripe account. This cannot be undone."
+                confirmText={processing ? "Processing..." : "Pay Now"}
             />
         </div >
     )
