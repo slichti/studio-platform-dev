@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useAuth } from "@clerk/react-router";
 import { toast } from "sonner";
 import { ConfirmationDialog } from "~/components/Dialogs";
+import { Mail, UserMinus, ShieldCheck, Download, X } from "lucide-react";
 
 type Student = {
     id: string; // Member ID
@@ -54,6 +55,26 @@ export default function StudioStudents() {
     const [editingMember, setEditingMember] = useState<any | null>(null);
     const [pendingRoleChange, setPendingRoleChange] = useState<{ memberId: string, newRole: string } | null>(null);
     const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+
+    // Bulk Action State
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [bulkAction, setBulkAction] = useState<'email' | 'status' | 'sms_consent' | null>(null);
+    const [isProcessingBulk, setIsProcessingBulk] = useState(false);
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === filteredMembers.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(filteredMembers.map((m: any) => m.id)));
+        }
+    };
+
+    const toggleSelect = (id: string) => {
+        const next = new Set(selectedIds);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        setSelectedIds(next);
+    };
 
     // Filter members
     const filteredMembers = (members || []).filter((m: any) => {
@@ -165,6 +186,48 @@ export default function StudioStudents() {
         }
     };
 
+    const handleBulkAction = async (action: string, data?: any) => {
+        if (selectedIds.size === 0) return;
+
+        setIsProcessingBulk(true);
+        try {
+            const token = await getToken();
+            const res = await apiRequest(`/members/bulk`, token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': slug! },
+                body: JSON.stringify({
+                    action,
+                    memberIds: Array.from(selectedIds),
+                    data
+                })
+            }) as any;
+
+            if (res.error) {
+                toast.error(res.error);
+            } else if (action === 'export' && res.csv) {
+                // Download CSV
+                const blob = new Blob([res.csv], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.setAttribute('hidden', '');
+                a.setAttribute('href', url);
+                a.setAttribute('download', `members_export_${new Date().getTime()}.csv`);
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                toast.success("Export started");
+            } else {
+                toast.success("Bulk action completed successfully");
+                window.location.reload();
+            }
+        } catch (e: any) {
+            toast.error(e.message);
+        } finally {
+            setIsProcessingBulk(false);
+            setBulkAction(null);
+        }
+    };
+
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
@@ -200,6 +263,14 @@ export default function StudioStudents() {
                 <table className="w-full text-left">
                     <thead className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
                         <tr>
+                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider w-10">
+                                <input
+                                    type="checkbox"
+                                    className="rounded border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-blue-600 focus:ring-blue-500"
+                                    checked={filteredMembers.length > 0 && selectedIds.size === filteredMembers.length}
+                                    onChange={toggleSelectAll}
+                                />
+                            </th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Name</th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Email</th>
                             <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Role</th>
@@ -222,7 +293,15 @@ export default function StudioStudents() {
                             </tr>
                         ) : (
                             filteredMembers.map((member: any) => (
-                                <tr key={member.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                                <tr key={member.id} className={`hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors ${selectedIds.has(member.id) ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
+                                    <td className="px-6 py-4">
+                                        <input
+                                            type="checkbox"
+                                            className="rounded border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-blue-600 focus:ring-blue-500"
+                                            checked={selectedIds.has(member.id)}
+                                            onChange={() => toggleSelect(member.id)}
+                                        />
+                                    </td>
                                     <td className="px-6 py-4 font-medium text-zinc-900 dark:text-zinc-100">
                                         <div className="flex items-center gap-3">
                                             <div className="h-8 w-8 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center text-xs font-bold uppercase ring-1 ring-blue-200 dark:ring-blue-800">
@@ -404,6 +483,108 @@ export default function StudioStudents() {
                 message={`Are you sure you want to change this user's role to ${pendingRoleChange?.newRole}?`}
                 confirmText="Change Role"
             />
+
+            {/* Floating Action Bar */}
+            {selectedIds.size > 0 && (
+                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-6 py-4 rounded-full shadow-2xl z-50 animate-in slide-in-from-bottom-8 duration-300 ring-1 ring-white/10 dark:ring-black/10">
+                    <div className="flex items-center gap-3 pr-4 border-r border-zinc-700 dark:border-zinc-300">
+                        <span className="text-sm font-bold truncate max-w-[100px]">{selectedIds.size} Selected</span>
+                        <button
+                            onClick={() => setSelectedIds(new Set())}
+                            className="bg-zinc-800 dark:bg-zinc-200 p-1 rounded-full hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-colors"
+                        >
+                            <X size={14} />
+                        </button>
+                    </div>
+
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setBulkAction('email')}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-zinc-800 dark:hover:bg-zinc-200 text-sm font-medium transition-colors"
+                        >
+                            <Mail size={16} />
+                            <span>Email</span>
+                        </button>
+                        <button
+                            onClick={() => setBulkAction('status')}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-zinc-800 dark:hover:bg-zinc-200 text-sm font-medium transition-colors"
+                        >
+                            <ShieldCheck size={16} />
+                            <span>Status</span>
+                        </button>
+                        <button
+                            onClick={() => handleBulkAction('export')}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-zinc-800 dark:hover:bg-zinc-200 text-sm font-medium transition-colors"
+                        >
+                            <Download size={16} />
+                            <span>Export</span>
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Bulk Action Modals */}
+            {bulkAction === 'email' && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 w-full max-w-lg shadow-2xl border border-zinc-200 dark:border-zinc-700">
+                        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                            <Mail className="text-blue-500" />
+                            Bulk Email
+                        </h2>
+                        <form onSubmit={(e) => {
+                            e.preventDefault();
+                            const formData = new FormData(e.currentTarget);
+                            handleBulkAction('email', {
+                                subject: formData.get('subject'),
+                                body: formData.get('body')
+                            });
+                        }}>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Subject</label>
+                                    <input name="subject" required className="w-full px-3 py-2 border rounded-md dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100" placeholder="Important Update" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Message</label>
+                                    <textarea name="body" required rows={5} className="w-full px-3 py-2 border rounded-md dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100" placeholder="Hello students..." />
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-3 mt-6">
+                                <button type="button" onClick={() => setBulkAction(null)} className="px-4 py-2 text-sm border rounded-md">Cancel</button>
+                                <button type="submit" disabled={isProcessingBulk} className="px-4 py-2 text-sm bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-md font-bold disabled:opacity-50">
+                                    {isProcessingBulk ? "Sending..." : "Send to Selected"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {bulkAction === 'status' && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 w-full max-w-sm shadow-2xl border border-zinc-200 dark:border-zinc-700">
+                        <h2 className="text-xl font-bold mb-4">Update Status</h2>
+                        <p className="text-sm text-zinc-500 mb-6">Select a new status for the {selectedIds.size} selected members.</p>
+                        <form onSubmit={(e) => {
+                            e.preventDefault();
+                            const formData = new FormData(e.currentTarget);
+                            handleBulkAction('status', { status: formData.get('status') });
+                        }}>
+                            <select name="status" className="w-full px-3 py-2 border rounded-md dark:bg-zinc-800 mb-6 text-zinc-900 dark:text-zinc-100">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="archived">Archived</option>
+                            </select>
+                            <div className="flex justify-end gap-3">
+                                <button type="button" onClick={() => setBulkAction(null)} className="px-4 py-2 text-sm border rounded-md">Cancel</button>
+                                <button type="submit" disabled={isProcessingBulk} className="px-4 py-2 text-sm bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-md font-bold">
+                                    Apply Changes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div >
     );
 }

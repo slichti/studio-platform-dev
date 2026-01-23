@@ -9,7 +9,7 @@ import {
     membershipPlans, coupons, marketingCampaigns, challenges, userChallenges, locations, availabilities,
     appointmentServices, smsConfig, studentNotes, leads, uploads
 } from 'db/src/schema';
-import { eq, sql, desc, count, or, like, asc, and, inArray, isNull, exists } from 'drizzle-orm';
+import { eq, sql, desc, count, or, like, asc, and, inArray, isNull, exists, not } from 'drizzle-orm';
 
 import { UsageService } from '../services/pricing';
 
@@ -867,6 +867,14 @@ app.delete('/tenants/:id', async (c) => {
         });
         const classIdsToDelete = classesToDelete.map(c => c.id);
 
+        // --- 2.5 Orphaned User Tracking ---
+        // Collect all unique user IDs enrolled in this tenant BEFORE deleting memberships
+        const tenantUserIds = await db.select({ userId: tenantMembers.userId })
+            .from(tenantMembers)
+            .where(eq(tenantMembers.tenantId, tenantId))
+            .all();
+        const candidateIds = [...new Set(tenantUserIds.map(u => u.userId))];
+
         // 2. Deep Dependencies (No tenantId, linked via parent)
         if (classIdsToDelete.length > 0) {
             // Bookings, Waitlists, Substitutions (via Classes)
@@ -948,6 +956,32 @@ app.delete('/tenants/:id', async (c) => {
 
         // 8. Finally, Tenant
         await db.delete(tenants).where(eq(tenants.id, tenantId));
+
+        // 9. Orphaned User Cleanup
+        // Since memberships were deleted in Step 6, we check candidate users for other tenant associations
+        if (candidateIds.length > 0) {
+            for (const userId of candidateIds) {
+                // Check if user has any OTHER memberships left
+                const otherMember = await db.select({ id: tenantMembers.id })
+                    .from(tenantMembers)
+                    .where(eq(tenantMembers.userId, userId))
+                    .limit(1)
+                    .get();
+
+                if (!otherMember) {
+                    // Check if they are a platform admin
+                    const userRecord = await db.select({ isPlatformAdmin: users.isPlatformAdmin, role: users.role })
+                        .from(users)
+                        .where(eq(users.id, userId))
+                        .get();
+
+                    if (userRecord && !userRecord.isPlatformAdmin && userRecord.role !== 'admin') {
+                        // User is truly orphaned and not an admin - delete from global directory
+                        await db.delete(users).where(eq(users.id, userId));
+                    }
+                }
+            }
+        }
 
         // Audit Log
         const audit = new AuditService(db);
