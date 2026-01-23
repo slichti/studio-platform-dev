@@ -168,23 +168,53 @@ export class PosService {
 
         const orderId = crypto.randomUUID();
 
-        let finalTotal = totalAmount;
+        // 0. Recalculate Total from DB (Security Fix)
+        let calculatedTotal = 0;
+        const itemInserts = [];
+
+        for (const item of items) {
+            const product = await this.db.select().from(products)
+                .where(and(eq(products.id, item.productId), eq(products.tenantId, this.tenantId)))
+                .get();
+
+            if (!product) throw new Error(`Product not found: ${item.productId}`);
+
+            // Check Stock
+            if (product.stockQuantity < item.quantity) {
+                throw new Error(`Insufficient stock for ${product.name}`);
+            }
+
+            const lineTotal = product.price * item.quantity;
+            calculatedTotal += lineTotal;
+
+            itemInserts.push({
+                id: crypto.randomUUID(),
+                orderId: orderId,
+                productId: item.productId,
+                quantity: item.quantity,
+                unitPrice: product.price, // Use DB price
+                totalPrice: lineTotal
+            });
+        }
+
+        let finalTotal = calculatedTotal;
         let appliedCouponId: string | null = null;
 
-        // 0. Coupon Validation
+        // 1. Coupon Validation
         if (couponCode) {
-            const validation = await this.validateCoupon(couponCode, totalAmount);
+            const validation = await this.validateCoupon(couponCode, calculatedTotal);
             if (validation.valid && validation.discountAmount) {
-                finalTotal = Math.max(0, totalAmount - validation.discountAmount);
+                finalTotal = Math.max(0, calculatedTotal - validation.discountAmount);
                 appliedCouponId = validation.couponId || null;
             } else {
                 if (validation.error) throw new Error(validation.error);
             }
         }
 
-        // 1. Gift Card Redemption
+        // 2. Gift Card Redemption
         if (redeemGiftCardCode && redeemAmount && redeemAmount > 0) {
             const fulfillment = new FulfillmentService(this.db, this.env.RESEND_API_KEY);
+            // Verify card exists first for better error message, but rely on atomic redeem
             const card = await this.db.select().from(giftCards).where(and(
                 eq(giftCards.tenantId, this.tenantId),
                 eq(giftCards.code, redeemGiftCardCode),
@@ -192,25 +222,18 @@ export class PosService {
             )).get();
 
             if (!card) throw new Error("Invalid Gift Card Code");
-            if (card.currentBalance < redeemAmount) throw new Error("Insufficient Gift Card Balance");
 
-            if (card.currentBalance < redeemAmount) throw new Error("Insufficient Gift Card Balance");
-
+            // Atomic redemption handled in FulfillmentService
             await fulfillment.redeemGiftCard(card.id, redeemAmount, orderId);
-
-            // Adjust total for order record if gift card was used? 
-            // Usually Gift Card is a payment method, not a price reduction. 
-            // But if we want to track "Amount Paid by Customer", we might keep totalAmount as is.
-            // However, Coupon IS a price reduction.
         }
 
-        // 2. Create Order
+        // 3. Create Order
         const orderValues = {
             id: orderId,
             tenantId: this.tenantId,
             memberId: memberId || null,
             staffId: staffId || null,
-            totalAmount: finalTotal, // Updated total
+            totalAmount: finalTotal,
             status: 'completed' as const,
             paymentMethod: paymentMethod as "card" | "cash" | "account" | "other",
             createdAt: new Date(),
@@ -219,32 +242,17 @@ export class PosService {
 
         await this.db.insert(posOrders).values(orderValues).run();
 
-        // 2b. Record Coupon Redemption
-        if (appliedCouponId && memberId) { // Coupons usually linked to a user usage, or just count global
+        // 3b. Record Coupon
+        if (appliedCouponId && memberId) {
             await this.db.insert(couponRedemptions).values({
                 id: crypto.randomUUID(),
                 tenantId: this.tenantId,
                 couponId: appliedCouponId,
-                userId: memberId, // If guest, might be null? Schema says not null.
-                // If memberId is null (Guest), we might need to handle this.
-                // For now, let's assume POS requires a "User" even if guest created ad-hoc, or schema allows null.
-                // checking schema: userId is references(()=>users.id).
-                // If guest has no user ID, we can't track?
-                // Let's check if we can insert with dummy user or if we should make user_id nullable in schema.
-                // For now, only redeem if memberId exists.
+                userId: memberId,
                 orderId: orderId,
                 redeemedAt: new Date()
             }).run();
         }
-
-        const itemInserts = items.map((it) => ({
-            id: crypto.randomUUID(),
-            orderId: orderId,
-            productId: it.productId,
-            quantity: it.quantity,
-            unitPrice: it.unitPrice,
-            totalPrice: it.unitPrice * it.quantity
-        }));
 
         for (const item of itemInserts) {
             await this.db.insert(posOrderItems).values(item).run();

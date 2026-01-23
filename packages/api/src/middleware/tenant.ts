@@ -215,12 +215,34 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
             const hasMfa = (Array.isArray(amr) && (amr.includes('mfa') || amr.includes('otp') || amr.includes('totp'))) || auth.claims?.mfa === true;
 
             if (!hasMfa) {
-                console.log(`[Security] MFA Enforcement: Blocking owner access for ${auth.userId} (No MFA claim)`);
-                return c.json({
-                    error: "Multi-Factor Authentication Required",
-                    code: "mfa_required",
-                    message: "Access to owner-level operations requires Two-Factor Authentication. Please enable MFA in your account settings."
-                }, 403);
+                // Grace Period: Allow 7 days for new owners to set up MFA
+                const GRACE_PERIOD_MS = 7 * 24 * 60 * 60 * 1000;
+                const userCreated = dbUser?.createdAt ? new Date(dbUser.createdAt).getTime() : 0;
+                const timeSinceCreation = Date.now() - userCreated;
+
+                // Exception: Allow /me endpoint so frontend can bootstrap user context to show MFA-setup UI
+                if (c.req.path.endsWith('/me') && c.req.method === 'GET') {
+                    // Proceed
+                } else if (userCreated && timeSinceCreation < GRACE_PERIOD_MS) {
+                    // Allow with warning
+                    c.header('X-MFA-Warning', 'MFA setup required within 7 days');
+                    console.log(`[Security] MFA Grace Period Active for ${auth.userId} (${7 - Math.floor(timeSinceCreation / 86400000)} days remaining)`);
+                } else {
+                    return c.json({
+                        error: "Multi-Factor Authentication Required",
+                        code: "mfa_required",
+                        message: "Access to owner-level operations requires Two-Factor Authentication. Please enable MFA in your account settings."
+                    }, 403);
+                }
+            } else {
+                // Happy Path: User HAS MFA. 
+                // Sync this status to DB if needed (so Admin dashboard sees it)
+                if (dbUser && dbUser.mfaEnabled !== true) {
+                    // Fire and forget update
+                    c.executionCtx.waitUntil(
+                        db.update(users).set({ mfaEnabled: true, lastActiveAt: new Date() }).where(eq(users.id, auth.userId)).run()
+                    );
+                }
             }
         }
 

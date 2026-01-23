@@ -100,6 +100,7 @@ export const users = sqliteTable('users', {
     isMinor: integer('is_minor', { mode: 'boolean' }).default(false),
     stripeCustomerId: text('stripe_customer_id'), // Platform-level Stripe Customer ID
     stripeAccountId: text('stripe_account_id'), // Instructor's Stripe Connect Account ID
+    mfaEnabled: integer('mfa_enabled', { mode: 'boolean' }).default(false), // Tracked from Clerk/Auth Token
     lastActiveAt: integer('last_active_at', { mode: 'timestamp' }), // Timestamp of last API request
     lastLocation: text('last_location', { mode: 'json' }), // JSON: { city, country, lat, lng }
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),

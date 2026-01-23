@@ -40,12 +40,23 @@ interface User {
     profile?: UserProfile;
     memberships?: Membership[];
     contextRole?: string; // For grouped display
+    mfaEnabled?: boolean;
 }
 
 interface LoaderData {
     users: User[];
-    tenants: Tenant[];
-    error: string | null;
+    // ... (skip lines)
+    <div className = "col-span-2 flex items-center gap-1 cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors" onClick = { () => {
+                        const current = searchParams.get('sort');
+                        const newSort = current === 'joined_asc' ? 'joined_desc' : 'joined_asc';
+setSearchParams((prev: URLSearchParams) => { prev.set('sort', newSort); return prev; });
+                    }}>
+    Joined { searchParams.get('sort')?.includes('joined') && (searchParams.get('sort')?.includes('desc') ? '↓' : '↑') }
+                    </div >
+                    <div className="col-span-1">MFA</div>
+                    <div className="col-span-1 text-right">Actions</div>
+tenants: Tenant[];
+error: string | null;
 }
 
 interface ApiError {
@@ -390,6 +401,7 @@ export default function AdminUsers() {
                     }}>
                         Joined {searchParams.get('sort')?.includes('joined') && (searchParams.get('sort')?.includes('desc') ? '↓' : '↑')}
                     </div>
+                    <div className="col-span-1">MFA</div>
                     <div className="col-span-1 text-right">Actions</div>
                 </div>
 
@@ -676,6 +688,20 @@ function UserRow({ user, selected, toggle, showCheckbox, currentUserId, contextR
                 <span className="text-zinc-300 dark:text-zinc-600 flex gap-1">
                     Joined <ClientDateOnly date={user.createdAt} />
                 </span>
+            </div>
+            <div className="col-span-1 flex items-center">
+                {user.mfaEnabled ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20 dark:bg-green-400/10 dark:text-green-400 dark:ring-green-400/20" title="MFA Enabled">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+                            <path fillRule="evenodd" d="M8 1a3.5 3.5 0 0 0-3.5 3.5V7A1.5 1.5 0 0 0 3 8.5v5A1.5 1.5 0 0 0 4.5 15h7a1.5 1.5 0 0 0 1.5-1.5v-5A1.5 1.5 0 0 0 11.5 7V4.5A3.5 3.5 0 0 0 8 1Zm2 6V4.5a2 2 0 1 0-4 0V7h4Z" clipRule="evenodd" />
+                        </svg>
+                        MFA
+                    </span>
+                ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600 ring-1 ring-inset ring-zinc-500/10 dark:bg-zinc-400/10 dark:text-zinc-400 dark:ring-zinc-400/20 opacity-50">
+                        None
+                    </span>
+                )}
             </div>
             <div className="col-span-1">
                 <div className="flex gap-3 justify-end items-center">

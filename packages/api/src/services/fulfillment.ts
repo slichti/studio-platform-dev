@@ -156,22 +156,30 @@ export class FulfillmentService {
     async redeemGiftCard(giftCardId: string, amount: number, referenceId: string) {
         if (amount <= 0) return;
 
-        const card = await this.db.select().from(giftCards).where(eq(giftCards.id, giftCardId)).get();
-        if (!card) throw new Error("Gift card not found");
+        // Atomic Update: Decrement balance ONLY if it's sufficient
+        // Using sql tagging for safe parameter interpolation
+        const result = await this.db.run(sql`
+            UPDATE gift_cards 
+            SET current_balance = current_balance - ${amount}, 
+                updated_at = ${new Date().toISOString()}
+            WHERE id = ${giftCardId} 
+              AND current_balance >= ${amount}
+        `);
 
-        const newBalance = card.currentBalance - amount;
-        if (newBalance < 0) throw new Error("Insufficient balance");
+        if (!result.meta.changes) {
+            // If no rows changed, it means balance was insufficient or ID not found
+            // Check which one it was for better error
+            const exists = await this.db.select().from(giftCards).where(eq(giftCards.id, giftCardId)).get();
+            if (!exists) throw new Error("Gift card not found");
+            throw new Error("Insufficient balance (Atomic check failed)");
+        }
 
-        const newStatus = newBalance === 0 ? 'exhausted' : 'active';
-
-        await this.db.update(giftCards)
-            .set({
-                currentBalance: newBalance,
-                status: newStatus,
-                updatedAt: new Date()
-            })
-            .where(eq(giftCards.id, giftCardId))
-            .run();
+        // Check if balance hit 0 to update status (optional, can do in same query or separate)
+        // Since sqlite doesn't return RETURNING easily in D1 without specific syntax or multiple queries,
+        // we can assume if it succeeded, we might want to set status='exhausted' if it's 0.
+        // But let's run a cleanup query or just leave it 'active' with 0 balance until explicitly closed.
+        // Actually, let's try to update status if 0.
+        await this.db.run(sql`UPDATE gift_cards SET status = 'exhausted' WHERE id = ${giftCardId} AND current_balance = 0`);
 
         await this.db.insert(giftCardTransactions).values({
             id: crypto.randomUUID(),
