@@ -460,6 +460,7 @@ app.post('/classes', async (c) => {
             try {
                 const { GoogleCalendarService } = await import('../services/google-calendar');
                 const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
+                if (!tenant) throw new Error("Tenant required for Google Sync");
                 const creds = tenant.googleCalendarCredentials as any;
 
                 // Decrypt access token
@@ -537,7 +538,7 @@ app.patch('/classes/:id', async (c) => {
 
     const [updated] = await db.update(classes)
         .set(updateData)
-        .where(and(eq(classes.id, id), eq(classes.tenantId, tenant.id)))
+        .where(and(eq(classes.id, id), eq(classes.tenantId, tenant!.id)))
         .returning();
 
     return c.json(updated);
@@ -793,11 +794,11 @@ app.delete('/:id', async (c) => {
         }
 
         // Notify Instructor
-        if (existingClass!.instructorId) {
+        if (existingClass && existingClass.instructorId) {
             const instructor = await db.select({ email: users.email })
                 .from(tenantMembers)
                 .innerJoin(users, eq(tenantMembers.userId, users.id))
-                .where(eq(tenantMembers.id, existingClass.instructorId))
+                .where(eq(tenantMembers.id, existingClass.instructorId!))
                 .get();
 
             if (instructor?.email) {

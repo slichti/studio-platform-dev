@@ -9,20 +9,25 @@ type AuthVariables = {
 };
 
 export const optionalAuthMiddleware = createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
+    let token: string | undefined;
     const authHeader = c.req.header('Authorization');
 
-    // If no header, just proceed as Guest (no auth set)
-    if (!authHeader?.startsWith('Bearer ')) {
-        return await next();
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+    } else if (c.req.query('token')) {
+        token = c.req.query('token');
     }
 
-    const token = authHeader.split(' ')[1];
+    // If no token, just proceed
+    if (!token) {
+        return await next();
+    }
 
     try {
         // 1. Check for Impersonation Token
         const { verify } = await import('hono/jwt');
         try {
-            const payload = await verify(token, (c.env as any).CLERK_SECRET_KEY);
+            const payload = await verify(token, (c.env as any).CLERK_SECRET_KEY, 'HS256');
             if (payload.impersonatorId) {
                 c.set('auth', {
                     userId: payload.sub as string,

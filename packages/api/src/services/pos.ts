@@ -17,7 +17,6 @@ import { AutomationsService } from './automations';
 import { EmailService } from './email';
 import { SmsService } from './sms';
 import { UsageService } from './pricing';
-import type { ServiceContext } from '../types'; // Assuming we have a context type or similar
 
 interface CartItem {
     productId: string;
@@ -25,13 +24,15 @@ interface CartItem {
     unitPrice: number;
 }
 
+import * as schema from 'db/src/schema';
+
 export class PosService {
-    private db: DrizzleD1Database<any>;
+    private db: DrizzleD1Database<typeof schema>;
     private tenantId: string;
     private stripeService?: StripeService;
     private env: any; // Ideally typed Env
 
-    constructor(db: DrizzleD1Database<any>, tenantId: string, env: any, stripeService?: StripeService) {
+    constructor(db: DrizzleD1Database<typeof schema>, tenantId: string, env: any, stripeService?: StripeService) {
         this.db = db;
         this.tenantId = tenantId;
         this.env = env;

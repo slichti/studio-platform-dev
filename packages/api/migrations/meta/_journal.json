@@ -344,6 +344,13 @@
       "when": 1768433115176,
       "tag": "0048_sudden_jack_murdock",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "6",
+      "when": 1769124876562,
+      "tag": "0049_condemned_lady_mastermind",
+      "breakpoints": true
     }
   ]
 }

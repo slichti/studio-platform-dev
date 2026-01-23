@@ -195,11 +195,20 @@ export default function AdminFinancials() {
                                         <div className="text-zinc-500 dark:text-zinc-400 text-xs font-mono">{t.tenant.slug}</div>
                                         {t.tenant.stripeCustomerId ? (
                                             <div className="text-[10px] text-green-600 mt-1 flex items-center gap-1">
-                                                <CheckCircle size={10} /> Stripe Connected
+                                                <CheckCircle size={10} /> Billing Active
                                             </div>
                                         ) : (
                                             <div className="text-[10px] text-red-500 mt-1 flex items-center gap-1">
                                                 <AlertCircle size={10} /> No Billing ID
+                                            </div>
+                                        )}
+                                        {t.tenant.stripeAccountId ? (
+                                            <div className="text-[10px] text-blue-600 mt-0.5 flex items-center gap-1">
+                                                <CheckCircle size={10} /> Payouts Active
+                                            </div>
+                                        ) : (
+                                            <div className="text-[10px] text-amber-500 mt-0.5 flex items-center gap-1">
+                                                <AlertCircle size={10} /> Payouts Pending
                                             </div>
                                         )}
                                     </td>

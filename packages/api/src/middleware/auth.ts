@@ -30,7 +30,7 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables, Bindi
     } else {
         // [TEST MOCKING] Allow header bypass in test environment
         if ((c.env as any).ENVIRONMENT === 'test' && c.req.header('TEST-AUTH')) {
-            const mockUserId = c.req.header('TEST-AUTH');
+            const mockUserId = c.req.header('TEST-AUTH') || 'mock-user';
             c.set('auth', {
                 userId: mockUserId,
                 claims: { sub: mockUserId, role: 'mock' }

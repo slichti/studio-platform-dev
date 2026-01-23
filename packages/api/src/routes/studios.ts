@@ -183,9 +183,6 @@ app.put('/:id/integrations', async (c) => {
     const body = await c.req.json();
     // Support partial updates
     const {
-        paymentProvider,
-        stripePublishableKey,
-        stripeSecretKey,
         resendApiKey,
         twilioAccountSid,
         twilioAuthToken,
@@ -240,25 +237,10 @@ app.put('/:id/integrations', async (c) => {
     }
     const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
 
-    // 1. Stripe Configuration
-    if (paymentProvider) {
-        updateData.paymentProvider = paymentProvider;
-    }
-
+    // 1. Marketing Provider Configuration
     const { marketingProvider } = body;
     if (marketingProvider) {
         updateData.marketingProvider = marketingProvider;
-    }
-
-    if (stripePublishableKey && stripeSecretKey) {
-        // Only update if both provided, or handle partial? 
-        // Let's assume frontend sends both for now on update.
-        // In real app, might want to allow updating just one but that's rare for keys.
-        const encryptedSecret = await encryption.encrypt(stripeSecretKey);
-        updateData.stripeCredentials = {
-            publishableKey: stripePublishableKey,
-            secretKey: encryptedSecret // Encrypt Secret Key!
-        };
     }
 
     // 2. Resend Configuration (Email)

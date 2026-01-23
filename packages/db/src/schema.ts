@@ -16,9 +16,7 @@ export const tenants = sqliteTable('tenants', {
     currentPeriodEnd: integer('current_period_end', { mode: 'timestamp' }),
 
     // Phase 15: Flexible Payments (Connect vs BYOK)
-    paymentProvider: text('payment_provider', { enum: ['connect', 'custom'] }).default('connect').notNull(),
     marketingProvider: text('marketing_provider', { enum: ['system', 'mailchimp', 'flodesk'] }).default('system').notNull(),
-    stripeCredentials: text('stripe_credentials', { mode: 'json' }), // Encrypted JSON: { publishableKey, secretKey }
 
     // Phase 16: Secure BYOK (Email/SMS)
     resendCredentials: text('resend_credentials', { mode: 'json' }), // Encrypted JSON: { apiKey }
@@ -798,8 +796,12 @@ export const videos = sqliteTable('videos', {
 
     // Metadata
     duration: integer('duration').default(0), // Seconds
+    width: integer('width'),
+    height: integer('height'),
     sizeBytes: integer('size_bytes').default(0),
-    status: text('status', { enum: ['processing', 'ready', 'error'] }).default('processing'),
+
+    // Status
+    status: text('status', { enum: ['processing', 'ready', 'error'] }).default('processing').notNull(),
     source: text('source', { enum: ['zoom', 'livekit', 'upload'] }).default('upload'),
 
     // Non-Destructive Editing
@@ -811,10 +813,20 @@ export const videos = sqliteTable('videos', {
     trimEnd: integer('trim_end'),
 
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     tenantIdx: index('video_tenant_idx').on(table.tenantId),
     statusIdx: index('video_status_idx').on(table.status),
 }));
+
+// --- Webhook Security (Idempotency) ---
+export const processedWebhooks = sqliteTable('processed_webhooks', {
+    id: text('id').primaryKey(), // Event ID from Stripe/Clerk
+    type: text('type').notNull(), // 'stripe', 'clerk'
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+});
+
+
 
 // --- Phase 12: Smart Waitlists ---
 export const waitlist = sqliteTable('waitlist', {

@@ -123,7 +123,7 @@ app.post('/', async (c) => {
         let finalStatus = 'pending';
 
         // If we have a Stripe Payment ID, use it.
-        if (stripePaymentId && tenant.stripeCredentials && tenant.stripeAccountId) {
+        if (stripePaymentId && tenant.stripeAccountId) {
             const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
 
             try {

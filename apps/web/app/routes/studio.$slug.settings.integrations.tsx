@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useParams, useOutletContext } from "react-router";
 import { apiRequest } from "~/utils/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/Card";
-import { Trash2, Terminal, Loader2, Key, MessageSquare, Mail, Save, CreditCard, CheckCircle, Smartphone, Send } from "lucide-react";
+import { Trash2, Terminal, Loader2, Key, MessageSquare, Mail, Save, CreditCard, CheckCircle, Smartphone, Send, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmationDialog } from "~/components/Dialogs";
 
@@ -154,62 +154,22 @@ export default function IntegrationsPage() {
                         </span>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div
-                            onClick={() => {
-                                if (tenant.paymentProvider !== 'connect') {
-                                    setPendingPaymentProvider('connect');
-                                }
-                            }}
-                            className={`relative cursor-pointer border rounded-lg p-4 transition-all ${tenant.paymentProvider === 'connect' ? 'border-blue-500 ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300'}`}
-                        >
-                            {tenant.paymentProvider === 'connect' && <div className="absolute top-2 right-2 text-blue-600"><CheckCircle size={20} className="fill-blue-100" /></div>}
-                            <div className="font-bold text-sm text-zinc-900 dark:text-zinc-100 mb-1">Platform Managed</div>
-                            <div className="text-xs text-zinc-500">We handle billing complexity. Standard fees. Recommended for most studios.</div>
-                            {tenant.paymentProvider === 'connect' && !tenant.stripeAccountId && (
-                                <a href={`${import.meta.env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev"}/studios/stripe/connect?tenantId=${tenant.id}`} className="mt-4 block w-full py-2 text-center bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700">Connect Stripe Account &rarr;</a>
-                            )}
-                            {tenant.paymentProvider === 'connect' && tenant.stripeAccountId && (
-                                <div className="mt-4 pt-4 border-t border-blue-200 dark:border-blue-800">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <span className="text-[10px] uppercase font-bold text-blue-700">Hardware</span>
-                                    </div>
-                                    <button onClick={() => setShowOrderReader(true)} className="w-full flex items-center justify-center gap-2 py-2 border border-blue-300 text-blue-700 rounded text-xs font-bold hover:bg-blue-100 transition-colors">
-                                        <Smartphone size={14} /> Order Terminal Reader
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-
-                        <div
-                            onClick={() => {
-                                if (tenant.paymentProvider !== 'custom') {
-                                    updateIntegration({ paymentProvider: 'custom' });
-                                }
-                            }}
-                            className={`relative cursor-pointer border rounded-lg p-4 transition-all ${tenant.paymentProvider === 'custom' ? 'border-blue-500 ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300'}`}
-                        >
-                            {tenant.paymentProvider === 'custom' && <div className="absolute top-2 right-2 text-blue-600"><CheckCircle size={20} className="fill-blue-100" /></div>}
-                            <div className="font-bold text-sm text-zinc-900 dark:text-zinc-100 mb-1">Self Managed (BYOK)</div>
-                            <div className="text-xs text-zinc-500">Use your own Stripe keys. No platform fees. You handle compliance.</div>
+                    <div className="mt-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded p-4">
+                        <h4 className="flex items-center gap-2 text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                            <Shield className="h-4 w-4" /> Financial Privacy & Security
+                        </h4>
+                        <div className="text-xs text-blue-800 dark:text-blue-200 space-y-2">
+                            <p>
+                                <strong>Your Money, Your Account:</strong> You retain full legal ownership of your Stripe account and funds. We cannot access your bank account or withdraw funds without your permission.
+                            </p>
+                            <p>
+                                <strong>Limited Visibility:</strong> We only track transactions processed through this platform (e.g., class bookings). We do not access unrelated financial data from your Stripe account.
+                            </p>
+                            <p>
+                                <strong>Bank-Grade Security:</strong> Sensitive financial data is stored securely by Stripe. We do not store credit card numbers or bank account details.
+                            </p>
                         </div>
                     </div>
-
-                    {tenant.paymentProvider === 'custom' && (
-                        <form onSubmit={(e) => {
-                            e.preventDefault();
-                            const formData = new FormData(e.currentTarget);
-                            updateIntegration({
-                                paymentProvider: 'custom',
-                                stripePublishableKey: formData.get("stripePublishableKey"),
-                                stripeSecretKey: formData.get("stripeSecretKey")
-                            });
-                        }} className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded border border-zinc-200 dark:border-zinc-700 space-y-3 animate-in slide-in-from-top-2">
-                            <input name="stripePublishableKey" placeholder="Publishable Key (pk_...)" className="w-full text-sm border-zinc-300 rounded px-3 py-2" />
-                            <input name="stripeSecretKey" type="password" placeholder="Secret Key (sk_...)" className="w-full text-sm border-zinc-300 rounded px-3 py-2" />
-                            <button type="submit" className="text-xs bg-zinc-900 text-white px-3 py-1.5 rounded">Save Stripe Keys</button>
-                        </form>
-                    )}
                 </div>
 
                 {/* Email (Resend) */}

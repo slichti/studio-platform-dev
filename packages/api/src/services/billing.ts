@@ -40,7 +40,7 @@ export class BillingService {
 
     async syncUsageToStripe(tenantId: string) {
         const usageService = new UsageService(this.db, tenantId);
-        const { costs, total } = await usageService.calculateBillableUsage();
+        const { costs, total } = await usageService.calculateBillableUsage() as any;
 
         if (total <= 0) return { total: 0, items: [] };
 

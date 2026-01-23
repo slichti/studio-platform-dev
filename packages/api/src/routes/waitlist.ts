@@ -5,7 +5,7 @@ import { createDb } from '../db';
 import { waitlist, classes, bookings, users, tenants } from 'db/src/schema'; // Ensure this path matches
 import { authMiddleware } from '../middleware/auth';
 import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator';
+// import { zValidator } from '@hono/zod-validator';
 
 const app = new Hono();
 
@@ -16,10 +16,10 @@ app.use('*', authMiddleware);
 app.post('/:classId/join', async (c) => {
     const classId = c.req.param('classId');
     // @ts-ignore
-    const tenant = c.get('tenant');
+    const tenant = c.get('tenant') as any;
     // @ts-ignore
-    const user = c.get('user');
-    const db = createDb(c.env.DB);
+    const user = c.get('user') as any;
+    const db = createDb(c.env as any);
 
     // 1. Check if class exists and is full
     const classData = await db.select().from(classes)

@@ -170,3 +170,8 @@ flowchart TB
 | **Email** | Resend |
 | **SMS** | Twilio |
 | **Video Calls** | Zoom API |
+
+## Compliance & Data Minimization
+*   **Financial System of Record**: Stripe is treated as the sole system of record for financial data. The platform does **not** store sensitive cardholder data (PAN, CVV) or bank account numbers.
+*   **Stripe Connect Only**: The platform exclusively uses Stripe Standard Connect for tenant payments. "Bring Your Own Key" (Custom Stripe Keys) is not supported to minimize PCI-DSS scope.
+*   **Encryption**: All sensitive integration credentials (e.g., Zoom, Resend) are encrypted at rest using AES-GCM-256.

@@ -280,7 +280,7 @@ app.post('/clerk', async (c) => {
 
 app.post('/stripe', async (c) => {
     const signature = c.req.header('stripe-signature');
-    const secret = (c.env as any).STRIPE_WEBHOOK_SECRET;
+    const secret = c.env.STRIPE_WEBHOOK_SECRET;
 
     if (!signature || !secret || !c.env.STRIPE_SECRET_KEY) return c.json({ error: 'Configuration Error' }, 500);
 
@@ -295,318 +295,31 @@ app.post('/stripe', async (c) => {
         return c.json({ error: `Webhook Error: ${err.message}` }, 400);
     }
 
-    const eventType = event.type;
-    const { DunningService } = await import('../services/dunning');
+    const db = createDb(c.env.DB);
+    const { processedWebhooks } = await import('db/src/schema');
 
-    // Handle Failed Payments (Dunning)
-    if (eventType === 'invoice.payment_failed') {
-        const invoice = event.data.object as any;
-        const subscriptionId = invoice.subscription;
-        const customerId = invoice.customer;
-
-        // Find tenant associated with this Stripe account (via connect or metadata)
-        // Note: In Connect, the webhook comes to the platform but on behalf of the connected account?
-        // Or if using standard connect, we might rely on metadata in the invoice/subscription.
-        // Assuming subscription has tenantId in metadata or we find it via subscription ID lookup in DB.
-
-        // Finding subscription in our DB to get tenantId
-        const db = createDb(c.env.DB);
-        const sub = await db.query.subscriptions.findFirst({
-            where: eq(schema.subscriptions.stripeSubscriptionId, subscriptionId)
-        });
-
-        if (sub) {
-            const { EmailService } = await import('../services/email');
-
-            // We need tenant settings for email service (branding, etc)
-            const tenant = await db.query.tenants.findFirst({
-                where: eq(schema.tenants.id, sub.tenantId)
-            });
-
-            if (tenant) {
-                const emailService = c.env.RESEND_API_KEY
-                    ? new EmailService(
-                        c.env.RESEND_API_KEY,
-                        { branding: tenant.branding as any, settings: tenant.settings as any },
-                        undefined,
-                        undefined,
-                        false,
-                        db,
-                        sub.tenantId
-                    )
-                    : undefined;
-
-                const dunningService = new DunningService(db, sub.tenantId, emailService);
-
-                // Get member email
-                const member = await db.query.tenantMembers.findFirst({
-                    where: eq(schema.tenantMembers.id, sub.memberId as string),
-                    with: { user: true }
-                });
-
-                if (member && member.user && member.user.email) {
-                    const profile = member.user.profile as any || {};
-                    const firstName = profile.first_name || profile.firstName || 'Member';
-
-                    await dunningService.handleFailedPayment({
-                        invoiceId: invoice.id,
-                        customerId: customerId,
-                        subscriptionId: subscriptionId,
-                        amountDue: invoice.amount_due,
-                        currency: invoice.currency,
-                        attemptCount: invoice.attempt_count
-                    }, member.user.email, firstName);
-                }
-            }
-        }
+    // Idempotency Check
+    const existing = await db.select().from(processedWebhooks).where(eq(processedWebhooks.id, event.id)).get();
+    if (existing) {
+        return c.json({ received: true });
     }
 
-    // Handle Successful Payments (Recovery)
-    if (eventType === 'invoice.paid') {
-        const invoice = event.data.object as any;
-        const subscriptionId = invoice.subscription;
+    // Process Event
+    try {
+        const { StripeWebhookHandler } = await import('../services/stripe-webhook');
+        const handler = new StripeWebhookHandler(c.env);
+        await handler.process(event);
 
-        if (subscriptionId) {
-            const db = createDb(c.env.DB);
-            // Find subscription to look up tenant
-            const sub = await db.query.subscriptions.findFirst({
-                where: eq(schema.subscriptions.stripeSubscriptionId, subscriptionId)
-            });
+        // Mark as Processed
+        await db.insert(processedWebhooks).values({ id: event.id, type: 'stripe' }).run();
 
-            if (sub) {
-                const dunningService = new DunningService(db, sub.tenantId);
-                await dunningService.handlePaymentRecovered(subscriptionId);
-            }
-        }
-    }
-
-    if (eventType === 'checkout.session.completed') {
-        const session = event.data.object as any;
-        const { metadata, amount_total } = session;
-
-        if (metadata && metadata.tenantId) {
-            const db = createDb(c.env.DB);
-            const { FulfillmentService } = await import('../services/fulfillment');
-            const fulfillment = new FulfillmentService(db, c.env.RESEND_API_KEY);
-
-            // 1. Pack Purchase Logic
-            if (metadata.packId) {
-                await fulfillment.fulfillPackPurchase(metadata, session.payment_intent as string, amount_total);
-            }
-
-            // 2. Gift Card Purchase Logic
-            if (metadata.type === 'gift_card_purchase') {
-                const amount = parseInt(metadata.amount || '0');
-                if (amount > 0) {
-                    await fulfillment.fulfillGiftCardPurchase(metadata, session.payment_intent as string, amount);
-                }
-            }
-
-            // 3. Gift Card Redemption Logic
-            if (metadata.usedGiftCardId && metadata.creditApplied) {
-                const creditUsed = parseInt(metadata.creditApplied);
-                if (creditUsed > 0) {
-                    await fulfillment.redeemGiftCard(metadata.usedGiftCardId, creditUsed, session.payment_intent as string);
-                }
-            }
-
-            // 4. General Product Purchase Logic (Trigger Automation)
-            // If items are present in metadata (passed from POS or Checkout)
-            // Trigger 'product_purchase'
-            // We need to resolve User ID. `session.customer` is Stripe Customer ID.
-            // We need to find the local user linked to this Stripe Customer or Email.
-            if (metadata.tenantId) {
-                const { AutomationsService } = await import('../services/automations');
-                const { EmailService } = await import('../services/email');
-                const { SmsService } = await import('../services/sms');
-                const { UsageService } = await import('../services/pricing');
-
-                try {
-                    const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, metadata.tenantId) });
-                    if (tenant) {
-                        const usageService = new UsageService(db, tenant.id);
-                        const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
-                        const isByok = !!(tenant.resendCredentials as any)?.apiKey;
-                        const emailService = new EmailService(resendKey, { branding: tenant.branding as any, settings: tenant.settings as any }, { slug: tenant.slug }, usageService, isByok, db, tenant.id);
-                        const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
-                        const autoService = new AutomationsService(db, tenant.id, emailService, smsService);
-
-                        // Resolve User
-                        let userId = null;
-                        const stripeCustomerId = session.customer as string;
-                        const email = session.customer_details?.email;
-
-                        if (stripeCustomerId) {
-                            const u = await db.query.users.findFirst({ where: eq(users.stripeCustomerId, stripeCustomerId) });
-                            if (!u && email) {
-                                userId = (await db.query.users.findFirst({ where: eq(users.email, email) }))?.id;
-                            } else {
-                                userId = u?.id;
-                            }
-                        } else if (email) {
-                            userId = (await db.query.users.findFirst({ where: eq(users.email, email) }))?.id;
-                        }
-
-                        if (userId) {
-                            c.executionCtx.waitUntil(autoService.dispatchTrigger('product_purchase', {
-                                userId,
-                                email: email || '',
-                                firstName: session.customer_details?.name?.split(' ')[0] || 'Friend',
-                                data: { amount: amount_total, metadata: metadata }
-                            }));
-                        }
-                    }
-                } catch (e) { console.error('Failed to trigger product_purchase', e); }
-            }
-        }
-    }
-
-    if (event.type === 'customer.subscription.updated') {
-        const subscription = event.data.object as any;
-        const tenantId = subscription.metadata?.tenantId;
-
-        // Check for Cancellation
-        if (subscription.cancel_at_period_end && tenantId) {
-            const db = createDb(c.env.DB);
-            const { AutomationsService } = await import('../services/automations');
-            const { EmailService } = await import('../services/email');
-            const { SmsService } = await import('../services/sms');
-            const { UsageService } = await import('../services/pricing');
-
-            try {
-                const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
-                if (tenant) {
-                    const usageService = new UsageService(db, tenant.id);
-                    const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
-                    const isByok = !!(tenant.resendCredentials as any)?.apiKey;
-                    const emailService = new EmailService(resendKey, { branding: tenant.branding as any, settings: tenant.settings as any }, { slug: tenant.slug }, usageService, isByok, db, tenant.id);
-                    const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
-                    const autoService = new AutomationsService(db, tenant.id, emailService, smsService);
-
-                    // Resolve User
-                    const stripeCustomerId = subscription.customer as string;
-                    const user = await db.query.users.findFirst({ where: eq(users.stripeCustomerId, stripeCustomerId) });
-
-                    if (user) {
-                        c.executionCtx.waitUntil(autoService.dispatchTrigger('subscription_canceled', {
-                            userId: user.id,
-                            email: user.email,
-                            firstName: (user.profile as any)?.firstName,
-                            data: { planId: subscription.metadata?.planId, subscriptionId: subscription.id }
-                        }));
-                    }
-                }
-            } catch (e) { console.error('Failed to trigger subscription_canceled', e); }
-        } else if (tenantId) {
-            // Handle Tier Change / Upgrade
-            // We need to verify if the Plan ID changed or if this is relevant to tier.
-            const db = createDb(c.env.DB);
-            // Re-fetch tenant to compare current tier vs new tier derived from plan
-            // Wait, we don't have new tier in metadata necessarily unless we put it there?
-            // Usually we map Price ID -> Tier.
-            // Or we check `subscription.items.data[0].price.id`.
-
-            // For MVP: We trust metadata.tier if we set it during checkout/updates?
-            // Or we map known price IDs.
-            // Let's assume metadata isn't always reliable for updates if changed via Portal.
-            // We'll simplisticly check if `tenant.tier` != new derived tier.
-            // Mapping Logic (should be shared):
-            const priceId = subscription.items?.data?.[0]?.price?.id;
-            // Environment variable check is tricky inside webhook if we don't know which env we are in match-wise?
-            // Actually `c.env` has the vars.
-            // But we have MANY price IDs potentially?
-            // Let's rely on metadata OR fetch current tenant and see if Stripe status implies something.
-
-            // Actually, for upgrades via Portal, Stripe sends `customer.subscription.updated` with `items` changed.
-            // We need to MAP `priceId` to `tier`.
-            // Let's use `c.env.STRIPE_PRICE_GROWTH` and `STRIPE_PRICE_SCALE`.
-            let newTier = 'basic';
-            // We need to access env vars from c.env
-            const env = c.env as any;
-            if (priceId === env.STRIPE_PRICE_GROWTH) newTier = 'growth';
-            else if (priceId === env.STRIPE_PRICE_SCALE) newTier = 'scale';
-            else if (priceId === 'free' || !priceId) newTier = 'basic';
-            // If Price ID is unknown, maybe it's legacy or monthly/yearly variant? 
-            // For now assume strictly these env vars.
-
-            const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
-
-            if (tenant && tenant.tier !== newTier) {
-                // UPDATE TIER
-                await db.update(tenants).set({ tier: newTier as any }).where(eq(tenants.id, tenantId)).run();
-                console.log(`Updated Tenant ${tenant.slug} tier to ${newTier}`);
-
-                // NOTIFICATIONS
-                if (c.env.RESEND_API_KEY) {
-                    try {
-                        const { EmailService } = await import('../services/email');
-                        // Use Platform Key for alerts
-                        const emailService = new EmailService(c.env.RESEND_API_KEY, undefined, undefined, undefined, false, db, tenantId);
-
-                        const adminEmail = c.env.PLATFORM_ADMIN_EMAIL || 'slichti@gmail.com';
-                        // Get Owner Info
-                        // We need to find the user associated with this subscription customer
-                        const stripeCustomerId = subscription.customer as string;
-                        const owner = await db.query.users.findFirst({ where: eq(users.stripeCustomerId, stripeCustomerId) });
-
-                        if (owner) {
-                            const profile = owner.profile as any || {};
-                            const ownerName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Valued Customer';
-
-                            // 1. Notify Owner
-                            c.executionCtx.waitUntil(emailService.sendSubscriptionUpdateOwner(owner.email, ownerName, newTier));
-
-                            // 2. Alert Admin
-                            c.executionCtx.waitUntil(emailService.sendTenantUpgradeAlert(adminEmail, {
-                                name: tenant.name,
-                                slug: tenant.slug,
-                                oldTier: tenant.tier,
-                                newTier: newTier
-                            }));
-                        }
-                    } catch (e) {
-                        console.error("Failed to send tier upgrade notifications", e);
-                    }
-                }
-            }
-        }
-    }
-
-    if (event.type === 'customer.subscription.deleted') {
-        const subscription = event.data.object as any;
-        const tenantId = subscription.metadata?.tenantId;
-        if (tenantId) {
-            const db = createDb(c.env.DB);
-            const { AutomationsService } = await import('../services/automations');
-            const { EmailService } = await import('../services/email');
-            const { SmsService } = await import('../services/sms');
-            const { UsageService } = await import('../services/pricing');
-
-            try {
-                const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
-                if (tenant) {
-                    const usageService = new UsageService(db, tenant.id);
-                    const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
-                    const isByok = !!(tenant.resendCredentials as any)?.apiKey;
-                    const emailService = new EmailService(resendKey, { branding: tenant.branding as any, settings: tenant.settings as any }, { slug: tenant.slug }, usageService, isByok, db, tenant.id);
-                    const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
-                    const autoService = new AutomationsService(db, tenant.id, emailService, smsService);
-
-                    // Resolve User
-                    const stripeCustomerId = subscription.customer as string;
-                    const user = await db.query.users.findFirst({ where: eq(users.stripeCustomerId, stripeCustomerId) });
-
-                    if (user) {
-                        c.executionCtx.waitUntil(autoService.dispatchTrigger('subscription_terminated', {
-                            userId: user.id,
-                            email: user.email,
-                            firstName: (user.profile as any)?.firstName,
-                            data: { planId: subscription.metadata?.planId }
-                        }));
-                    }
-                }
-            } catch (e) { console.error('Failed to trigger subscription_terminated', e); }
-        }
+    } catch (err) {
+        console.error('Webhook Processing Failed:', err);
+        // We return 200 to Stripe to stop retries if it's a logic error we can't fix, 
+        // OR 500 if we want retry. Secure default is usually 200 + alert, but standard pattern is 500 for retry.
+        // Given we are logging errors in Handler, let's return 200 if we want to suppress noise, or 500 if critical.
+        // Let's return 500 to allow retry for transient issues.
+        return c.json({ error: 'Internal Server Error' }, 500);
     }
 
     return c.json({ received: true });

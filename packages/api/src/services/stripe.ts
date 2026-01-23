@@ -282,7 +282,7 @@ export class StripeService {
         amount: number;
         currency: string;
         destination: string; // The Instructor's Stripe Account ID
-        sourceAccountId: string; // The Studio's Stripe Account ID
+        sourceAccountId?: string; // The Studio's Stripe Account ID (Optional)
         description?: string;
     }) {
         // This moves funds from the Platform's balance to the destination account.

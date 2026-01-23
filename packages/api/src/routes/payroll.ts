@@ -18,6 +18,7 @@ import { tenants } from 'db/src/schema'; // We need this for the generic type lo
 // Re-using the pattern from reports.ts for Bindings/Variables
 type Bindings = {
     DB: D1Database;
+    STRIPE_SECRET_KEY: string;
 };
 
 type Variables = {
@@ -340,6 +341,62 @@ app.post('/:id/approve', async (c) => {
         .run();
 
     return c.json({ success: true });
+});
+
+// POST /:id/pay - Execute Payout via Stripe
+app.post('/:id/pay', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner')) return c.json({ error: 'Unauthorized' }, 403);
+
+    const id = c.req.param('id');
+    const payout = await db.select().from(payouts).where(and(eq(payouts.id, id), eq(payouts.tenantId, tenant.id))).get();
+
+    if (!payout) return c.json({ error: "Payout not found" }, 404);
+    if (payout.status === 'paid') return c.json({ error: "Already paid" }, 400);
+
+    // Get Instructor User ID to find Stripe Account
+    const instructor = await db.query.tenantMembers.findFirst({
+        where: eq(tenantMembers.id, payout.instructorId),
+        with: {
+            user: true
+        }
+    });
+
+    if (!instructor || !instructor.user.stripeAccountId) {
+        return c.json({ error: "Instructor has no connected Stripe Account" }, 400);
+    }
+
+    try {
+        const { StripeService } = await import('../services/stripe');
+        const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
+
+        const transfer = await stripe.createTransfer({
+            amount: payout.amount,
+            currency: payout.currency || 'usd',
+            destination: instructor.user.stripeAccountId,
+            sourceAccountId: tenant.stripeAccountId || undefined, // Pass source if available (wrapper logic pending)
+            description: `Payout ${payout.id} from ${tenant.name}`
+        });
+
+        await db.update(payouts)
+            .set({
+                status: 'paid',
+                paidAt: new Date(),
+                stripeTransferId: transfer.id,
+                notes: 'Paid via Stripe Transfer'
+            })
+            .where(eq(payouts.id, id))
+            .run();
+
+        // Audit? (Implicit in Payout Record)
+
+        return c.json({ success: true, transferId: transfer.id });
+    } catch (e: any) {
+        console.error("Payout Transfer Failed", e);
+        return c.json({ error: e.message || "Transfer Failed" }, 500);
+    }
 });
 
 export default app;

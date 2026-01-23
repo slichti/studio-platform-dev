@@ -1548,7 +1548,13 @@ app.get('/billing/preview', async (c) => {
             const usageService = new UsageService(db, tenant.id);
             const { subscription, overages, overageTotal, totalRevenue } = await usageService.calculateBillableUsage();
             results.push({
-                tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug, stripeCustomerId: tenant.stripeCustomerId },
+                tenant: {
+                    id: tenant.id,
+                    name: tenant.name,
+                    slug: tenant.slug,
+                    stripeCustomerId: tenant.stripeCustomerId,
+                    stripeAccountId: tenant.stripeAccountId
+                },
                 subscription,
                 costs: overages,
                 total: parseFloat(totalRevenue.toFixed(2)) // Format money

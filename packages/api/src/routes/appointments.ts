@@ -481,7 +481,7 @@ app.post('/', async (c) => {
                 const creds = tenant.googleCalendarCredentials as any;
                 const accessToken = await encryption.decrypt(creds.accessToken);
 
-                const service = new GoogleCalendarService(c.env.GOOGLE_CLIENT_ID, c.env.GOOGLE_CLIENT_SECRET, '');
+                const gService = new GoogleCalendarService(c.env.GOOGLE_CLIENT_ID, c.env.GOOGLE_CLIENT_SECRET, '');
 
                 const event = {
                     summary: `Appointment: ${service.title}`, // From scope? No, service variable is 'service' (db row)
@@ -490,7 +490,7 @@ app.post('/', async (c) => {
                     end: { dateTime: end.toISOString() }
                 };
 
-                const gEvent = await service.createEvent(accessToken, 'primary', event);
+                const gEvent = await gService.createEvent(accessToken, 'primary', event);
 
                 if (gEvent.id) {
                     await db.update(appointments)
