@@ -48,8 +48,8 @@ export default function CRMDocs() {
                             <Mail className="text-purple-500" /> Email Automations
                         </h2>
                         <ul className="space-y-3 text-zinc-600 dark:text-zinc-400 text-sm">
-                            <li><strong>Welcome Drip:</strong> Send a sequence of emails to new signups.</li>
-                            <li><strong>Win-Back:</strong> Automatically email students who haven't visited in 30 days.</li>
+                            <li><strong>Welcome Drip:</strong> Automatically implemented for new students (Immediate or Delayed).</li>
+                            <li><strong>Win-Back:</strong> Logic scanning for members inactive more than 30 days (default).</li>
                             <li><strong>Birthday Wishes:</strong> Send a discount code on their special day.</li>
                             <li><strong>Membership Expiry:</strong> Remind students to renew 7 days before expiration.</li>
                         </ul>

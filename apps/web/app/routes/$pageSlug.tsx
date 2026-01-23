@@ -9,6 +9,14 @@ export const meta: MetaFunction = ({ data }: any) => {
     return [
         { title: data.page.seoTitle || data.page.title },
         { name: "description", content: data.page.seoDescription || "" },
+
+        // Open Graph / Social
+        { property: "og:title", content: data.page.seoTitle || data.page.title },
+        { property: "og:description", content: data.page.seoDescription || "" },
+        { property: "og:type", content: "website" },
+        // If the page has a hero image or main image, we could pull it? 
+        // For now, let's look for a generic ogImage if available, or fallback.
+        ...(data.page.ogImage ? [{ property: "og:image", content: data.page.ogImage }] : [])
     ];
 };
 

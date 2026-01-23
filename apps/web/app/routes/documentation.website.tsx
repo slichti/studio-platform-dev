@@ -31,6 +31,9 @@ export default function WebsiteDocs() {
                         <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700">
                             <strong>Pricing Tables:</strong> clear comparison of your membership options.
                         </div>
+                        <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700 col-span-full md:col-span-1">
+                            <strong>Testimonials:</strong> Horizontal scroll carousel for student success stories.
+                        </div>
                     </div>
                 </section>
 
@@ -42,7 +45,7 @@ export default function WebsiteDocs() {
                         </h2>
                         <ul className="space-y-2 text-zinc-600 dark:text-zinc-400 text-sm">
                             <li className="flex gap-2"><span className="text-blue-500">✓</span> Custom Meta Titles & Descriptions</li>
-                            <li className="flex gap-2"><span className="text-blue-500">✓</span> Open Graph (Social Sharing) Images</li>
+                            <li className="flex gap-2"><span className="text-blue-500">✓</span> Open Graph Tags (Title, Description, Image) for beautiful social shares</li>
                             <li className="flex gap-2"><span className="text-blue-500">✓</span> Automatic Sitemap Generation</li>
                             <li className="flex gap-2"><span className="text-blue-500">✓</span> Fast Loading (Edge Cached)</li>
                         </ul>

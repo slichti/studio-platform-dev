@@ -186,6 +186,44 @@ const Testimonials = ({ testimonials, backgroundColor, textColor }: any) => (
     </section>
 );
 
+// Testimonial Carousel
+// Uses CSS scroll snap for simplicity and performance
+const TestimonialCarousel = ({ testimonials, backgroundColor, textColor }: any) => (
+    <section
+        className="py-24 px-8 transition-colors overflow-hidden"
+        style={{ backgroundColor: backgroundColor || 'transparent', color: textColor || 'inherit' }}
+    >
+        <div className="max-w-7xl mx-auto">
+            <h2 className="text-5xl font-black text-center mb-16 tracking-tight italic">"Student Stories"</h2>
+
+            <div className="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-12 -mx-8 px-8 scrollbar-hide">
+                {(testimonials || [{ quote: "Incredible atmosphere!", author: "Member since 2024" }, { quote: "Best instructors in town.", author: "Jane D." }, { quote: "I love the community here.", author: "Mike T." }]).map((t: any, i: number) => (
+                    <div
+                        key={i}
+                        className="snap-center shrink-0 w-[85vw] md:w-[400px] bg-zinc-50 dark:bg-zinc-900 p-10 rounded-[2.5rem] relative flex flex-col justify-between border border-zinc-100 dark:border-zinc-800"
+                    >
+                        <div className="text-6xl text-blue-600 opacity-20 font-serif mb-4">“</div>
+                        <p className="text-xl font-bold text-zinc-800 dark:text-zinc-100 mb-8 italic leading-relaxed">
+                            {t.quote}
+                        </p>
+                        <div className="flex items-center gap-3 mt-auto">
+                            <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 font-bold text-sm">
+                                {t.author?.[0] || "?"}
+                            </div>
+                            <span className="font-bold text-sm uppercase tracking-wider text-zinc-500">{t.author}</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+            <div className="flex justify-center gap-2 mt-4 opacity-30">
+                <div className="h-1 w-12 bg-current rounded-full" />
+                <div className="h-1 w-2 bg-current rounded-full" />
+                <div className="h-1 w-2 bg-current rounded-full" />
+            </div>
+        </div>
+    </section>
+);
+
 // Contact Form
 const ContactForm = ({ title, email, backgroundColor }: any) => (
     <section
@@ -472,6 +510,30 @@ export const puckConfig: Config = {
                 ],
             },
             render: Testimonials,
+        },
+        TestimonialCarousel: {
+            label: "Testimonial Carousel",
+            fields: {
+                testimonials: {
+                    type: "array",
+                    arrayFields: {
+                        quote: { type: "textarea" },
+                        author: { type: "text" },
+                    }
+                },
+                backgroundColor: { type: "text" },
+                textColor: { type: "text" },
+            },
+            defaultProps: {
+                testimonials: [
+                    { quote: "An absolute game changer for my fitness.", author: "Sarah J." },
+                    { quote: "The community is so welcoming.", author: "David B." },
+                    { quote: "Expert guidance in every class.", author: "Emily R." },
+                ],
+                backgroundColor: "#ffffff",
+                textColor: "#000000"
+            },
+            render: TestimonialCarousel,
         },
         ContactForm: {
             label: "Contact Form",

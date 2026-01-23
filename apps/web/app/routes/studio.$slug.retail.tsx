@@ -119,6 +119,7 @@ export const action = async (args: ActionFunctionArgs) => {
             sku: formData.get("sku"),
             price: parseInt(formData.get("price") as string || "0"),
             stockQuantity: parseInt(formData.get("stockQuantity") as string || "0"),
+            lowStockThreshold: parseInt(formData.get("lowStockThreshold") as string || "5"),
             imageUrl: formData.get("imageUrl"),
             isActive: formData.get("isActive") === "true"
         };
@@ -272,7 +273,10 @@ export default function RetailManagement() {
                                         <span className="text-lg font-bold text-zinc-900">{formatPrice(product.price)}</span>
                                     </div>
                                     <div className="mt-3 flex items-center justify-between text-xs text-zinc-500">
-                                        <span className="flex items-center gap-1"><Box size={12} /> {product.stockQuantity} in stock</span>
+                                        <span className={`flex items-center gap-1 ${(product.stockQuantity <= (product.lowStockThreshold || 5)) ? 'text-amber-600 font-medium' : ''}`}>
+                                            <Box size={12} /> {product.stockQuantity} in stock
+                                            {(product.stockQuantity <= (product.lowStockThreshold || 5)) && <span className="text-[10px] bg-amber-100 px-1 rounded border border-amber-200">LOW</span>}
+                                        </span>
                                         {product.sku && <span className="font-mono">{product.sku}</span>}
                                     </div>
                                 </div>
@@ -335,6 +339,7 @@ function ProductModal({ product, onClose, onSave }: { product?: any, onClose: ()
     const [sku, setSku] = useState(product?.sku || "");
     const [price, setPrice] = useState(product?.price ? (product.price / 100).toFixed(2) : "");
     const [stockQuantity, setStockQuantity] = useState(product?.stockQuantity?.toString() || "0");
+    const [lowStockThreshold, setLowStockThreshold] = useState(product?.lowStockThreshold?.toString() || "5");
     const [imageUrl, setImageUrl] = useState(product?.imageUrl || "");
     const [isActive, setIsActive] = useState(product?.isActive !== false);
 
@@ -369,6 +374,7 @@ function ProductModal({ product, onClose, onSave }: { product?: any, onClose: ()
             sku,
             price: Math.round(parseFloat(price || "0") * 100),
             stockQuantity: parseInt(stockQuantity || "0"),
+            lowStockThreshold: parseInt(lowStockThreshold || "5"),
             imageUrl,
             isActive
         });
@@ -394,6 +400,10 @@ function ProductModal({ product, onClose, onSave }: { product?: any, onClose: ()
                         <div>
                             <label className="block text-sm font-medium text-zinc-700 mb-1">Stock</label>
                             <input type="number" value={stockQuantity} onChange={(e) => setStockQuantity(e.target.value)} className="w-full px-3 py-2 border border-zinc-200 rounded-lg outline-none focus:ring-2 focus:ring-black/5" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-700 mb-1">Low Warning At</label>
+                            <input type="number" value={lowStockThreshold} onChange={(e) => setLowStockThreshold(e.target.value)} className="w-full px-3 py-2 border border-zinc-200 rounded-lg outline-none focus:ring-2 focus:ring-black/5" />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-zinc-700 mb-1">Category</label>

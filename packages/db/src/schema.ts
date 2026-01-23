@@ -658,6 +658,7 @@ export const products = sqliteTable('products', {
     price: integer('price').default(0).notNull(), // in cents
     currency: text('currency').default('usd'),
     stockQuantity: integer('stock_quantity').default(0).notNull(),
+    lowStockThreshold: integer('low_stock_threshold').default(5),
     imageUrl: text('image_url'),
     stripeProductId: text('stripe_product_id'),
     stripePriceId: text('stripe_price_id'),

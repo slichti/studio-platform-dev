@@ -52,6 +52,9 @@ export default function PlatformArchitecture() {
                                     CF -->|API Request| Worker[Worker (Hono API)]
                                     Worker -->|Query| D1[(D1 Database)]
                                     Worker -->|Upload| R2[(R2 Storage)]
+                                    Worker -.->|Payment| Stripe[Stripe Connect]
+                                    Worker -.->|Email| Resend[Resend / SMTP]
+                                    Worker -.->|SMS| Twilio[Twilio]
                                 `}
                             </pre>
                         </div>
@@ -114,7 +117,7 @@ export default function PlatformArchitecture() {
             <section className="space-y-6">
                 <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Key Services</h2>
                 <div className="grid md:grid-cols-3 gap-4">
-                    {['Billing (Stripe Connect)', 'Realtime Chat (Durable Objects)', 'Video Processing (R2 + Workers)', 'Email (Resend/System)', 'SMS (Twilio)', 'Scheduled Tasks (Cron Triggers)'].map((service, i) => (
+                    {['Billing (Stripe Connect)', 'Realtime Chat (Durable Objects)', 'Video Processing (R2 + Workers)', 'Email (Resend/System)', 'SMS (Twilio)', 'Marketing Automations (Crons)', 'Inventory Management (Retail)'].map((service, i) => (
                         <div key={i} className="px-4 py-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm font-medium text-zinc-700 dark:text-zinc-300">
                             {service}
                         </div>

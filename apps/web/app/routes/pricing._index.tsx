@@ -28,6 +28,8 @@ const TIERS = [
             '5GB Storage',
             'Basic Financials & Reporting',
             'Waiver Management',
+            'Visual Website Builder',
+            'Retail Point of Sale (POS)',
             'Transactional Email Notifications',
             'Class Packs & Drop-ins'
         ],
@@ -49,7 +51,8 @@ const TIERS = [
             '50GB Storage',
             'Zoom Integration (Auto-Meeting)',
             'Video on Demand (VOD)',
-            'Automations (No-Show Fees)',
+            'Marketing Automations (Win-back, Welcome)',
+            'Inventory Tracking & Low Stock Alerts',
             'SMS Notifications & Marketing',
             'Recurring Memberships'
         ],

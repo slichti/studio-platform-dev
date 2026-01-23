@@ -128,56 +128,53 @@ export class AutomationsService {
     }
 
     private async processAbsent(auto: any, now: Date) {
-        // Trigger: Absent X Days.
-        // We look for members whose `lastActiveAt` (on User? or need Member stats?)
-        // `users.lastActiveAt` is platform wide. 
-        // We really need `tenantMembers.last_visit`. 
-        // Let's rely on Booking History. Find latest `checkedInAt`.
-
-        // This is expensive to query raw bookings every time.
-        // Optimized: We should have `lastVisitDate` on `tenantMembers` or query `bookings` with MAX().
-        // For MVP, we'll try a subquery or join.
-
-        const daysThreshold = auto.timingValue || 30; // Default 30 days
+        // Trigger: Absent X Days (Win-back)
+        const daysThreshold = auto.timingValue || 30;
         const cutoffDate = new Date(now.getTime() - (daysThreshold * 24 * 60 * 60 * 1000));
 
-        // Find members who HAVE attended before, but NOT after cutoffDate.
-        // AND have not cancelled?
+        // Find members who are active but haven't attended since cutoffDate
+        // We select members where the MOST RECENT booking check-in is before cutoffDate.
 
-        // 1. Find members active
+        // Step 1: Get all active members likely to be candidates (optimization: restrict by joinedAt < cutoffDate)
         const candidates = await this.db.select({
             memberId: tenantMembers.id,
             userId: users.id,
             email: users.email,
-            profile: users.profile
+            profile: users.profile,
+            joinedAt: tenantMembers.joinedAt
         })
             .from(tenantMembers)
             .innerJoin(users, eq(tenantMembers.userId, users.id))
             .where(and(
                 eq(tenantMembers.tenantId, this.tenantId),
-                eq(tenantMembers.status, 'active')
+                eq(tenantMembers.status, 'active'),
+                lte(tenantMembers.joinedAt, cutoffDate)
             )).all();
 
         for (const c of candidates) {
-            // Get Last Check-in
+            // Find their LAST confirmed booking time
+            // We use findFirst + orderBy desc to get the latest
             const lastBooking = await this.db.query.bookings.findFirst({
                 where: and(
                     eq(bookings.memberId, c.memberId),
-                    eq(bookings.status, 'confirmed') // or 'checked_in' if we track that religiously
+                    eq(bookings.status, 'confirmed'),
+                    // We only care about past classes to determine absence, not future bookings
+                    lt(bookings.createdAt, now) // using createdAt as proxy if startTime not indexed, but ideally startTime of class
                 ),
-                orderBy: (bookings: any, { desc }: any) => [desc(bookings.checkedInAt || bookings.classId)], // fallback
+                orderBy: (bookings: any, { desc }: any) => [desc(bookings.checkedInAt)],
             });
 
-            // If checkedInAt exists
-            if (lastBooking && lastBooking.checkedInAt) {
+            // If they have NEVER booked, we might want to skip or treat as absent?
+            // "Absent" usually means "Stopped coming". If they never came, that's "New Member Nudge".
+            if (!lastBooking) continue;
+
+            // If last check-in was recorded
+            if (lastBooking.checkedInAt) {
                 const lastDate = new Date(lastBooking.checkedInAt);
                 if (lastDate < cutoffDate) {
-                    // Check range? (e.g. between 30 and 31 days to avoid spamming every hour?)
-                    // We rely on AutomationLog idempotency for "Once per X period"?
-                    // Or just check if we sent it recently.
-
-                    // Optimization: Check idempotency FIRST to avoid unnecessary work?
-                    // But we already did the specific check.
+                    // Double check we haven't sent this automations RECENTLY (e.g. within last 30 days)
+                    // executeAutomation handles "any log exists", so we might want to relax that check for "Absent"
+                    // to allow re-sending every X months.
 
                     await this.executeAutomation(auto, {
                         userId: c.userId,
@@ -581,6 +578,16 @@ export class AutomationsService {
             processed = processed.replace(/{{classTime}}/g, date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
         }
         if (data.feeAmount) processed = processed.replace(/{{feeAmount}}/g, String(data.feeAmount));
+
+
+        // Helper: Generic Metadata Replacer (if available)
+        if (data && typeof data === 'object') {
+            for (const [key, val] of Object.entries(data)) {
+                if (typeof val === 'string' || typeof val === 'number') {
+                    processed = processed.replace(new RegExp(`{{${key}}}`, 'g'), String(val));
+                }
+            }
+        }
 
         return processed;
     }

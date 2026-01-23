@@ -56,8 +56,8 @@ export default function CommerceDocs() {
                         <li className="flex gap-3">
                             <div className="bg-green-100 dark:bg-green-900/30 p-1 rounded text-green-600"><Tag size={16} /></div>
                             <div>
-                                <span className="font-bold text-zinc-900 dark:text-zinc-100">Quick Checkout:</span>
-                                <span className="text-zinc-500 ml-2">Search for a student, add items to cart, and charge their card on file.</span>
+                                <span className="font-bold text-zinc-900 dark:text-zinc-100">Quick Checkout & Inventory:</span>
+                                <span className="text-zinc-500 ml-2">Search products, view real-time stock levels, and get "Low Stock" alerts (adjustable threshold).</span>
                             </div>
                         </li>
                         <li className="flex gap-3">
