@@ -295,11 +295,11 @@ export default function StudioLayout() {
                     )}
 
                     <Link
-                        to="/help"
+                        to="/documentation"
                         className="flex items-center gap-2 text-zinc-500 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 text-xs font-medium transition mb-1"
                     >
                         <CircleHelp size={14} />
-                        <span>Help & Support</span>
+                        <span>Documentation</span>
                     </Link>
 
 
@@ -365,8 +365,8 @@ export default function StudioLayout() {
                         </button>
 
                         <Link
-                            to="/help"
-                            title="Help Center"
+                            to="/documentation"
+                            title="Documentation"
                             className="p-2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
                         >
                             <CircleHelp size={20} />

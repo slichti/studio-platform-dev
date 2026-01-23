@@ -1,0 +1,128 @@
+
+import { useOutletContext, Navigate } from "react-router";
+import { Users, CreditCard, ToggleLeft, Activity, ShieldAlert, BarChart3 } from "lucide-react";
+
+export default function PlatformTenants() {
+    const { isPlatformAdmin } = useOutletContext<{ isPlatformAdmin: boolean }>();
+
+    if (!isPlatformAdmin) {
+        return <Navigate to="/documentation" replace />;
+    }
+
+    return (
+        <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div>
+                <h1 className="text-4xl font-bold text-zinc-900 dark:text-zinc-50 mb-4 font-serif">Tenant Management Guide</h1>
+                <p className="text-xl text-zinc-600 dark:text-zinc-400 leading-relaxed max-w-3xl">
+                    Detailed instructions for managing studios, billing tiers, and feature flags across the platform.
+                </p>
+            </div>
+
+            <div className="grid gap-8">
+                {/* Onboarding */}
+                <section className="bg-white dark:bg-zinc-900 p-8 rounded-2xl border border-zinc-200 dark:border-zinc-800">
+                    <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-6 flex items-center gap-3">
+                        <Users className="text-blue-500" /> Tenant Provisioning
+                    </h2>
+                    <div className="prose dark:prose-invert max-w-none text-zinc-600 dark:text-zinc-400">
+                        <p>
+                            New tenants are typically created via the self-service signup flow at <code>/create-studio</code>. However, admins can manually provision or modify tenants via the <strong>Tenants</strong> dashboard.
+                        </p>
+                        <h4 className="font-semibold text-zinc-900 dark:text-zinc-100 mt-4 mb-2">Key Properties</h4>
+                        <ul className="grid md:grid-cols-2 gap-4 list-none pl-0">
+                            <li className="flex items-start gap-2">
+                                <span className="font-mono bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded text-sm">slug</span>
+                                <span>Unique subdomain identifier (e.g. <code>yoga-studio</code>)</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="font-mono bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded text-sm">ownerId</span>
+                                <span>Clerk ID of the primary owner</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="font-mono bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded text-sm">tier</span>
+                                <span>Billing tier (Basic, Growth, Scale)</span>
+                            </li>
+                        </ul>
+                    </div>
+                </section>
+
+                {/* Feature Flags */}
+                <section className="bg-white dark:bg-zinc-900 p-8 rounded-2xl border border-zinc-200 dark:border-zinc-800">
+                    <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-6 flex items-center gap-3">
+                        <ToggleLeft className="text-purple-500" /> Feature Gating
+                    </h2>
+                    <p className="text-zinc-600 dark:text-zinc-400 mb-6">
+                        Features can be gated globally (Platform Config) or per-tenant (Tenant Features).
+                    </p>
+
+                    <div className="grid md:grid-cols-2 gap-6">
+                        <div className="bg-zinc-50 dark:bg-zinc-800/50 p-6 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                            <h3 className="font-bold text-lg mb-2">Global Flags</h3>
+                            <p className="text-sm text-zinc-500 mb-4">Controlled via <code>platformConfig</code>. Affects ALL tenants.</p>
+                            <ul className="space-y-1 text-sm font-mono text-zinc-700 dark:text-zinc-300">
+                                <li>feature_webhooks</li>
+                                <li>feature_beta_ui</li>
+                                <li>maintenance_mode</li>
+                            </ul>
+                        </div>
+                        <div className="bg-zinc-50 dark:bg-zinc-800/50 p-6 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                            <h3 className="font-bold text-lg mb-2">Tenant Flags</h3>
+                            <p className="text-sm text-zinc-500 mb-4">Controlled via <code>tenantFeatures</code>.</p>
+                            <ul className="space-y-1 text-sm font-mono text-zinc-700 dark:text-zinc-300">
+                                <li>financials</li>
+                                <li>website_builder</li>
+                                <li>mobile_app</li>
+                                <li>vod_streaming</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Billing & Status */}
+                <section className="grid md:grid-cols-2 gap-6">
+                    <div className="bg-white dark:bg-zinc-900 p-8 rounded-2xl border border-zinc-200 dark:border-zinc-800">
+                        <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-3">
+                            <CreditCard className="text-green-500" /> Billing Tiers
+                        </h2>
+                        <ul className="space-y-4">
+                            {[
+                                { name: "Basic", desc: "Essential features, limited seats" },
+                                { name: "Growth", desc: "Advanced reporting, more seats" },
+                                { name: "Scale", desc: "Unlimited seats, dedicated support" }
+                            ].map((tier, i) => (
+                                <li key={i} className="flex justify-between items-center border-b border-zinc-100 dark:border-zinc-800 pb-2 last:border-0 last:pb-0">
+                                    <span className="font-bold truncate">{tier.name}</span>
+                                    <span className="text-sm text-zinc-500">{tier.desc}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+
+                    <div className="bg-white dark:bg-zinc-900 p-8 rounded-2xl border border-zinc-200 dark:border-zinc-800">
+                        <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-3">
+                            <Activity className="text-orange-500" /> Lifecycle Status
+                        </h2>
+                        <ul className="space-y-3 text-sm">
+                            <li className="flex items-center gap-3">
+                                <span className="w-2 h-2 rounded-full bg-green-500" />
+                                <strong>Active:</strong> Fully operational.
+                            </li>
+                            <li className="flex items-center gap-3">
+                                <span className="w-2 h-2 rounded-full bg-yellow-500" />
+                                <strong>Paused:</strong> Access restricted, data preserved.
+                            </li>
+                            <li className="flex items-center gap-3">
+                                <span className="w-2 h-2 rounded-full bg-red-500" />
+                                <strong>Suspended:</strong> Access blocked (billing failure/TOS).
+                            </li>
+                            <li className="flex items-center gap-3">
+                                <span className="w-2 h-2 rounded-full bg-zinc-500" />
+                                <strong>Archived:</strong> Scheduled for deletion.
+                            </li>
+                        </ul>
+                    </div>
+                </section>
+            </div>
+        </div>
+    );
+}
