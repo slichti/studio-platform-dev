@@ -179,7 +179,7 @@ app.post('/generate', async (c) => {
 
                 const revenue = (cls.price || 0) * (bookingCount?.count || 0);
                 amount = Math.round(revenue * (config.rate / 10000)); // Rate is basis points (5000 = 50%)
-                details = `${(config.rate / 100)}% of $${(revenue / 100).toFixed(2)} revenue`;
+                details = `${(config.rate / 100)}% of $${(revenue / 100).toFixed(2)} (Est. Revenue)`;
             }
 
             if (amount > 0) {

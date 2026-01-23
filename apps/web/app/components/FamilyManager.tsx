@@ -40,6 +40,14 @@ export function FamilyManager({ token }: { token: string | null }) {
     }, [fetcher.data]);
 
 
+    // Session State
+    const [session, setSession] = useState<{ isImpersonating: boolean, impersonatorId?: string } | null>(null);
+
+    useEffect(() => {
+        if (!token) return;
+        apiRequest('/users/session-info', token).then(setSession).catch(console.error);
+    }, [token]);
+
     // Switch Profile Logic
     const switchProfile = async (targetUserId: string) => {
         try {
@@ -52,7 +60,11 @@ export function FamilyManager({ token }: { token: string | null }) {
                 // Set Impersonation Cookie & Storage
                 document.cookie = `__impersonate_token=${res.token}; path=/; SameSite=Lax`;
                 localStorage.setItem("impersonation_token", res.token);
-                // Reload to refresh context
+                window.location.reload();
+            } else if (res.isSelf) {
+                // Clear Impersonation
+                document.cookie = `__impersonate_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+                localStorage.removeItem("impersonation_token");
                 window.location.reload();
             }
         } catch (e: any) {
@@ -68,12 +80,22 @@ export function FamilyManager({ token }: { token: string | null }) {
                     <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Family Members</h3>
                     <p className="text-sm text-zinc-500 dark:text-zinc-400">Manage household accounts and dependents.</p>
                 </div>
-                <button
-                    onClick={() => setIsAdding(!isAdding)}
-                    className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
-                >
-                    {isAdding ? 'Cancel' : '+ Add Child'}
-                </button>
+                <div className="flex gap-2">
+                    {session?.isImpersonating && session.impersonatorId && (
+                        <button
+                            onClick={() => switchProfile(session.impersonatorId!)}
+                            className="text-sm font-medium text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 transition-colors bg-amber-50 dark:bg-amber-900/20 px-3 py-1.5 rounded-md border border-amber-200 dark:border-amber-800"
+                        >
+                            Back to Parent
+                        </button>
+                    )}
+                    <button
+                        onClick={() => setIsAdding(!isAdding)}
+                        className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+                    >
+                        {isAdding ? 'Cancel' : '+ Add Child'}
+                    </button>
+                </div>
             </div>
 
             {error && (

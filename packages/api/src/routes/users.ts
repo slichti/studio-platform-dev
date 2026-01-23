@@ -290,8 +290,10 @@ app.post('/me/switch-profile', async (c) => {
 
     if (!targetUserId) return c.json({ error: 'Target User ID required' }, 400);
 
-    // If switching back to self
-    if (targetUserId === auth.userId) {
+    const realUserId = auth.claims.impersonatorId || auth.userId;
+
+    // If switching back to self/parent (the real authenticated user)
+    if (targetUserId === realUserId || targetUserId === auth.userId) {
         // Just return a success, frontend should clear cookies
         return c.json({ token: null, isSelf: true });
     }
@@ -305,7 +307,8 @@ app.post('/me/switch-profile', async (c) => {
     // We need the REAL underlying user ID if we are already impersonating? 
     // Actually authMiddleware sets `userId` to the *effective* user.
     // But `claims.impersonatorId` has the real one.
-    const realUserId = auth.claims.impersonatorId || auth.userId;
+    // But `claims.impersonatorId` has the real one.
+    // const realUserId = auth.claims.impersonatorId || auth.userId; (Already defined above)
 
     const relationship = await db.query.userRelationships.findFirst({
         where: and(

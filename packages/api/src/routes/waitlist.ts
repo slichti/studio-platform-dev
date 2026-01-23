@@ -73,10 +73,11 @@ app.post('/:classId/join', async (c) => {
 // Helper: Trigger Auto Promotion (Internal or Admin trigger)
 export const checkAndPromoteWaitlist = async (classId: string, tenantId: string, env: any) => {
     const db = createDb(env.DB);
-    // 1. specific logic to check capacity
+    // 1. Get Class & Tenant Data
     const classData = await db.select().from(classes).where(eq(classes.id, classId)).get();
     if (!classData || !classData.capacity) return;
 
+    // 2. Check Capacity
     const bookingCount = await db.select({ count: sql<number>`count(*)` })
         .from(bookings)
         .where(and(eq(bookings.classId, classId), eq(bookings.status, 'confirmed')))
@@ -85,29 +86,68 @@ export const checkAndPromoteWaitlist = async (classId: string, tenantId: string,
     const spotsAvailable = classData.capacity - (bookingCount?.count || 0);
 
     if (spotsAvailable > 0) {
-        // Find next eligible person
-        const candidates = await db.select().from(waitlist)
-            .where(and(
+        // 3. Find Candidates
+        const candidates = await db.query.waitlist.findMany({
+            where: and(
                 eq(waitlist.classId, classId),
                 eq(waitlist.status, 'pending')
-            ))
-            .orderBy(asc(waitlist.position))
-            .limit(spotsAvailable)
-            .all();
+            ),
+            orderBy: asc(waitlist.position),
+            limit: spotsAvailable,
+            with: {
+                user: true // Ensure we get user details
+            }
+        });
+
+        if (candidates.length === 0) return;
+
+        // 4. Initialize Services
+        const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
+        if (!tenant) return;
+
+        // Dynamic Imports to avoid circular deps or context issues
+        const { EmailService } = await import('../services/email');
+        const { UsageService } = await import('../services/pricing');
+
+        const usageService = new UsageService(db, tenant.id);
+        const resendKey = (tenant.resendCredentials as any)?.apiKey || env.RESEND_API_KEY;
+        const isByok = !!(tenant.resendCredentials as any)?.apiKey;
+
+        const emailService = new EmailService(
+            resendKey,
+            { branding: tenant.branding as any, settings: tenant.settings as any },
+            { slug: tenant.slug },
+            usageService,
+            isByok,
+            db,
+            tenant.id
+        );
 
         for (const candidate of candidates) {
             // Offer spot
             await db.update(waitlist)
                 .set({
                     status: 'offered',
-                    // offers expire in 2 hours
-                    offerExpiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
+                    offerExpiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 Hours
                     updatedAt: new Date()
                 })
                 .where(eq(waitlist.id, candidate.id));
 
-            // TODO: Send Notification (Push/SMS)
-            console.log(`[Waitlist] Offered spot to user ${candidate.userId} for class ${classId}`);
+            console.log(`[Waitlist] Offered spot to user ${candidate.userId} for class ${classData.title}`);
+
+            // Send Notification
+            const user = candidate.user as any;
+            if (user && user.email) {
+                await emailService.sendGenericEmail(
+                    user.email,
+                    `Spot Open: ${classData.title}`,
+                    `<h1>Good news! A spot opened up!</h1>
+                    <p>Hi ${(user.profile as any)?.firstName || 'there'},</p>
+                    <p>A spot has become available in <strong>${classData.title}</strong> on ${new Date(classData.startTime).toLocaleDateString()}.</p>
+                    <p>You have 2 hours to claim this spot before it is offered to the next person.</p>
+                    <p><a href="https://${tenant.slug}.studio.platform/schedule">Claim Spot Now</a></p>`
+                );
+            }
         }
     }
 };
