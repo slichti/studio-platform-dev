@@ -211,3 +211,23 @@ flowchart TD
     TWILIO --> LOG
     LOG --> END([End])
 ```
+
+## Waitlist Automation Flow
+
+```mermaid
+flowchart TD
+    START([Trigger: Spot Opens]) --> CHECK{Waitlist Empty?}
+    CHECK -->|Yes| END1([End])
+    CHECK -->|No| GET[Get Next User]
+    
+    GET --> PROMOTE[Update Status: Confirmed/Offered]
+    PROMOTE --> NOTIFY[Send Notification]
+    NOTIFY --> USER{User Action}
+    
+    USER -->|Accepts| CONFIRM[Confirm Booking]
+    CONFIRM --> END2([End])
+    
+    USER -->|Declines| NEXT[Get Next User]
+    USER -->|Timeout| NEXT
+    NEXT --> PROMOTE
+```

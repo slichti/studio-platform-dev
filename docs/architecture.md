@@ -6,7 +6,7 @@
 flowchart TB
     subgraph "Client Layer"
         WEB[Web App<br/>React Router + SSR]
-        MOBILE[Mobile App<br/>Future]
+        MOBILE[Mobile App<br/>Expo / React Native]
         WIDGET[Booking Widget<br/>Embed]
     end
 
@@ -21,6 +21,7 @@ flowchart TB
 
     subgraph "Authentication"
         CLERK[Clerk<br/>Auth Provider]
+        STORE[AuthStore<br/>Mobile Secure Store]
     end
 
     subgraph "External Services"
@@ -29,37 +30,31 @@ flowchart TB
         RESEND[Resend<br/>Email]
         TWILIO[Twilio<br/>SMS]
         SVIX[Svix<br/>Webhooks]
+        EXPO[Expo<br/>Push Notifications]
     end
 
     WEB --> PAGES
     WEB --> WORKERS
     WIDGET --> WORKERS
-    MOBILE -.-> WORKERS
+    MOBILE --> WORKERS
 
     PAGES --> CLERK
+    MOBILE --> STORE
     WORKERS --> D1
-    WORKERS --> R2
-    WORKERS --> STREAM
-    WORKERS --> IMAGES
-    WORKERS --> CLERK
-
-    WORKERS --> STRIPE
-    WORKERS --> ZOOM
-    WORKERS --> RESEND
-    WORKERS --> RESEND
-    WORKERS --> TWILIO
-    WORKERS --> SVIX
+    
+    WORKERS --> EXPO
     
     subgraph "Automation Engine"
         AUTO[Automation Service]
         QUEUE[Task Queue]
-        CRON[Cron Triggers]
+        CRON[Cron Triggers<br/>*/15 * * * *]
     end
     
     WORKERS --> AUTO
     CRON --> AUTO
     AUTO --> RESEND
     AUTO --> TWILIO
+    AUTO --> EXPO
 ```
 
 ## Multi-Tenant Architecture
