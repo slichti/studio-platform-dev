@@ -138,6 +138,11 @@ export const tenantMembers = sqliteTable('tenant_members', {
     // Member Engagement Scoring
     engagementScore: integer('engagement_score').default(50), // 0-100 (higher = more engaged)
     lastEngagementCalc: integer('last_engagement_calc', { mode: 'timestamp' }),
+
+    // TCPA SMS Consent (Compliance)
+    smsConsent: integer('sms_consent', { mode: 'boolean' }).default(false), // Has user opted-in to SMS?
+    smsConsentAt: integer('sms_consent_at', { mode: 'timestamp' }), // When consent was given
+    smsOptOutAt: integer('sms_opt_out_at', { mode: 'timestamp' }), // When user opted out (STOP)
 }, (table) => ({
     tenantUserIdx: index('tenant_user_idx').on(table.tenantId, table.userId),
     engagementIdx: index('member_engagement_idx').on(table.engagementScore),

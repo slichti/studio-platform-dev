@@ -13,6 +13,7 @@ export interface TenantEmailConfig {
         emailFooterText?: string;
         primaryColor?: string; // Could be used for styling
         logoUrl?: string; // Future use
+        physicalAddress?: string; // CAN-SPAM: Required physical mailing address
     };
     settings?: {
         notifications?: {
@@ -20,6 +21,7 @@ export interface TenantEmailConfig {
             enableBcc?: boolean;
             newStudentAlert?: boolean;
         };
+        unsubscribeUrl?: string; // CAN-SPAM: URL for email preferences
     };
 }
 
@@ -63,13 +65,20 @@ export class EmailService {
     }
 
     private getEmailOptions() {
-        const headers: any = {};
+        const headers: Record<string, string> = {};
         const options: any = {
             from: this.fromEmail,
         };
 
         if (this.config?.branding?.emailReplyTo) {
             options.reply_to = this.config.branding.emailReplyTo;
+        }
+
+        // CAN-SPAM: Add List-Unsubscribe header if unsubscribe URL is configured
+        if (this.config?.settings?.unsubscribeUrl) {
+            headers['List-Unsubscribe'] = `<${this.config.settings.unsubscribeUrl}>`;
+            headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
+            options.headers = headers;
         }
 
         return options;
@@ -190,9 +199,31 @@ export class EmailService {
         }
 
         const footerText = this.config?.branding?.emailFooterText;
-        const footerHtml = footerText
-            ? `<div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eaeaea; font-size: 12px; color: #666; white-space: pre-wrap;">${footerText}</div>`
-            : '';
+        const physicalAddress = this.config?.branding?.physicalAddress;
+        const unsubscribeUrl = this.config?.settings?.unsubscribeUrl;
+
+        // Build CAN-SPAM compliant footer
+        let footerHtml = '';
+
+        if (footerText || physicalAddress || unsubscribeUrl) {
+            footerHtml = `<div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eaeaea; font-size: 12px; color: #666;">`;
+
+            if (footerText) {
+                footerHtml += `<div style="white-space: pre-wrap; margin-bottom: 10px;">${footerText}</div>`;
+            }
+
+            // CAN-SPAM: Physical address (required)
+            if (physicalAddress) {
+                footerHtml += `<div style="margin-bottom: 10px;">${physicalAddress}</div>`;
+            }
+
+            // CAN-SPAM: Unsubscribe link (required for marketing emails)
+            if (unsubscribeUrl) {
+                footerHtml += `<div><a href="${unsubscribeUrl}" style="color: #666; text-decoration: underline;">Unsubscribe or manage email preferences</a></div>`;
+            }
+
+            footerHtml += `</div>`;
+        }
 
         return `
             <!DOCTYPE html>

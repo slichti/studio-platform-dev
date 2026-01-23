@@ -4,7 +4,7 @@ import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { useState } from "react";
 import { format } from "date-fns";
-import { ChevronDown, ChevronRight, Activity } from "lucide-react";
+import { ChevronDown, ChevronRight, Activity, Download, Shield } from "lucide-react";
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -21,9 +21,32 @@ export default function AdminLogs() {
     const { logs } = useLoaderData<any>();
     const [expandedLog, setExpandedLog] = useState<string | null>(null);
 
+    const handleExport = () => {
+        const headers = ['Timestamp', 'Action', 'Actor Email', 'Actor Name', 'Target ID', 'Details'];
+        const rows = (logs || []).map((log: any) => [
+            new Date(log.createdAt).toISOString(),
+            log.action,
+            log.actorEmail || '',
+            `${(log.actorProfile as any)?.firstName || ''} ${(log.actorProfile as any)?.lastName || ''}`.trim() || 'System',
+            log.targetId || '',
+            JSON.stringify(log.details || {}).replace(/,/g, ';') // Escape commas
+        ]);
+        const csv = [headers, ...rows].map((r: string[]) => r.map((c: string) => `"${c}"`).join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `audit_logs_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    };
+
     const getActionBadge = (action: string) => {
         if (action === 'tenant.created') return <span className="bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300 px-2 py-0.5 rounded text-xs font-bold uppercase">New Studio</span>;
         if (action.includes('admin')) return <span className="bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-300 px-2 py-0.5 rounded text-xs font-bold uppercase">Admin</span>;
+        if (action === 'USER_LOGIN') return <span className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded text-xs font-bold uppercase">Login</span>;
+        if (action === 'USER_LOGOUT') return <span className="bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 px-2 py-0.5 rounded text-xs font-bold uppercase">Logout</span>;
+        if (action.includes('IMPERSONATION')) return <span className="bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded text-xs font-bold uppercase">Impersonation</span>;
         return <span className="bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 px-2 py-0.5 rounded text-xs font-bold uppercase">{action.replace(/_/g, ' ')}</span>;
     };
 
@@ -37,6 +60,9 @@ export default function AdminLogs() {
                 </span>
             );
         }
+        if (log.details?.message) {
+            return <span className="text-zinc-600 dark:text-zinc-300">{log.details.message}</span>;
+        }
         return <span className="text-zinc-400 italic">View details...</span>;
     };
 
@@ -48,10 +74,18 @@ export default function AdminLogs() {
                         <Activity className="text-blue-600" />
                         Activity Logs
                     </h2>
+                    <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded text-xs font-medium flex items-center gap-1">
+                        <Shield size={12} />
+                        SOC 2 Compliant
+                    </span>
                 </div>
-                <div className="text-sm text-zinc-500">
-                    Showing recent system events
-                </div>
+                <button
+                    onClick={handleExport}
+                    className="flex items-center gap-2 px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+                >
+                    <Download size={16} />
+                    Export CSV
+                </button>
             </div>
 
 

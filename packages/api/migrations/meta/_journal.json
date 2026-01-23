@@ -351,6 +351,13 @@
       "when": 1769124876562,
       "tag": "0049_condemned_lady_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "6",
+      "when": 1769133360756,
+      "tag": "0050_add_sms_consent",
+      "breakpoints": true
     }
   ]
 }
