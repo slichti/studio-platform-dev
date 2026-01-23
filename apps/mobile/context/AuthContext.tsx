@@ -21,11 +21,70 @@ export function useAuth() {
     return useContext(AuthContext);
 }
 
+import { Platform } from 'react-native';
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
+import { apiRequest } from '../lib/api';
+
+Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+    }),
+});
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [token, setToken] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
     const segments = useSegments();
+
+    const registerForPushNotificationsAsync = async () => {
+        if (Platform.OS === 'android') {
+            await Notifications.setNotificationChannelAsync('default', {
+                name: 'default',
+                importance: Notifications.AndroidImportance.MAX,
+                vibrationPattern: [0, 250, 250, 250],
+                lightColor: '#FF231F7C',
+            });
+        }
+
+        if (Device.isDevice) {
+            const { status: existingStatus } = await Notifications.getPermissionsAsync();
+            let finalStatus = existingStatus;
+            if (existingStatus !== 'granted') {
+                const { status } = await Notifications.requestPermissionsAsync();
+                finalStatus = status;
+            }
+            if (finalStatus !== 'granted') {
+                console.log('Failed to get push token for push notification!');
+                return;
+            }
+            const pushTokenString = (
+                await Notifications.getExpoPushTokenAsync({
+                    projectId: 'your-project-id', // TODO: Add project ID if using managed workflow
+                })
+            ).data;
+
+            // Send to backend
+            try {
+                // We use the imported apiRequest which handles Auth header
+                // But we must ensure token is set in AuthStore already.
+                await apiRequest('/users/push-token', {
+                    method: 'POST',
+                    body: JSON.stringify({ token: pushTokenString })
+                });
+                console.log('Push token registered:', pushTokenString);
+            } catch (e) {
+                console.error('Failed to register push token with backend:', e);
+            }
+        } else {
+            console.log('Must use physical device for Push Notifications');
+        }
+    };
 
     useEffect(() => {
         // Check for stored token on mount
@@ -33,13 +92,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const storedToken = await AuthStore.getToken();
 
             if (storedToken) {
-                // Optional: Validate token with API or check expiration
-                // For now, assume valid.
-
-                // Try Biometric re-auth if configured?
-                // const bioSuccess = await AuthStore.authenticateBiometric();
-                // if (bioSuccess) setToken(storedToken);
                 setToken(storedToken);
+                // Register push on load if authorized
+                registerForPushNotificationsAsync();
             }
             setIsLoading(false);
         };
@@ -64,6 +119,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const signIn = async (newToken: string) => {
         await AuthStore.saveToken(newToken);
         setToken(newToken);
+        // Register push on sign in
+        registerForPushNotificationsAsync();
     };
 
     const signOut = async () => {

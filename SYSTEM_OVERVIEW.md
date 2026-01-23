@@ -7,7 +7,8 @@ The Studio Platform is a multi-tenant SaaS built on Cloudflare's edge network.
 ```mermaid
 graph TD
     Client[Web Client (React Router v7)]
-    Auth[Clerk Auth]
+    Mobile[Mobile App (Expo / React Native)]
+    Auth[Clerk Auth / AuthStore]
     
     subgraph "Cloudflare Edge"
         Pages[Cloudflare Pages (Web)]
@@ -19,19 +20,30 @@ graph TD
     subgraph "External Services"
         Stripe[Stripe (Payments/Connect)]
         Resend[Resend (Email)]
+        Expo[Expo Push Service]
     end
 
     Client -->|Auths with| Auth
+    Mobile -->|Auths with| Auth
     Client -->|Serves Assets| Pages
     Client -->|API Requests| Worker
+    Mobile -->|API Requests| Worker
     
     Worker -->|CRUD| D1
     Worker -->|PDFs/Images| R2
     Worker -->|Process Payments| Stripe
     Worker -->|Send Emails| Resend
+    Worker -->|Push Notifications| Expo
 ```
 
 ## Core Workflows
+
+### 0. Automations (Cron Triggers)
+The system uses Cloudflare Cron Triggers (`*/15 * * * *`) to handle time-sensitive tasks:
+- **No-Show Marking**: Automatically marks bookings as "No Show" if not checked in after class ends.
+- **Low Enrollment Cancellation**: Cancels classes with insufficient students X hours before start.
+- **Waitlist Promotion**: (Event-driven & Scheduled) Promotes users when spots open.
+- **Scheduled Reports**: Sends daily/weekly/monthly reports to admins.
 
 ### 1. Member Invitation & Onboarding
 User Roles:

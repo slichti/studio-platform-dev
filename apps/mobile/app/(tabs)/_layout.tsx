@@ -1,6 +1,6 @@
 
 import { Tabs } from 'expo-router';
-import { Home, Calendar, User } from 'lucide-react-native';
+import { Home, Calendar, User, Trophy } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
@@ -39,6 +39,13 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color }) => <User size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="challenges"
+        options={{
+          title: 'Challenges',
+          tabBarIcon: ({ color }) => <Trophy size={24} color={color} />,
         }}
       />
     </Tabs>

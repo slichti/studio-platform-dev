@@ -137,16 +137,42 @@ export const checkAndPromoteWaitlist = async (classId: string, tenantId: string,
 
             // Send Notification
             const user = candidate.user as any;
-            if (user && user.email) {
-                await emailService.sendGenericEmail(
-                    user.email,
-                    `Spot Open: ${classData.title}`,
-                    `<h1>Good news! A spot opened up!</h1>
-                    <p>Hi ${(user.profile as any)?.firstName || 'there'},</p>
-                    <p>A spot has become available in <strong>${classData.title}</strong> on ${new Date(classData.startTime).toLocaleDateString()}.</p>
-                    <p>You have 2 hours to claim this spot before it is offered to the next person.</p>
-                    <p><a href="https://${tenant.slug}.studio.platform/schedule">Claim Spot Now</a></p>`
-                );
+            if (user) {
+                // Email
+                if (user.email) {
+                    await emailService.sendGenericEmail(
+                        user.email,
+                        `Spot Open: ${classData.title}`,
+                        `<h1>Good news! A spot opened up!</h1>
+                        <p>Hi ${(user.profile as any)?.firstName || 'there'},</p>
+                        <p>A spot has become available in <strong>${classData.title}</strong> on ${new Date(classData.startTime).toLocaleDateString()}.</p>
+                        <p>You have 2 hours to claim this spot before it is offered to the next person.</p>
+                        <p><a href="https://${tenant.slug}.studio.platform/schedule">Claim Spot Now</a></p>`
+                    );
+                }
+
+                // Push Notification
+                if (user.pushToken) {
+                    try {
+                        await fetch('https://exp.host/--/api/v2/push/send', {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                to: user.pushToken,
+                                sound: 'default',
+                                title: 'Spot Available! 🎉',
+                                body: `A spot opened up in ${classData.title}. Tap to claim it!`,
+                                data: { classId: classData.id, action: 'claim_spot' },
+                            }),
+                        });
+                        console.log(`[Waitlist] Push sent to ${user.id}`);
+                    } catch (pushErr) {
+                        console.error("[Waitlist] Push Failed", pushErr);
+                    }
+                }
             }
         }
     }

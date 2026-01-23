@@ -352,4 +352,21 @@ app.get('/session-info', (c) => {
     });
 });
 
+// POST /push-token - Register Device Token
+app.post('/push-token', async (c) => {
+    const auth = c.get('auth');
+    if (!auth?.userId) return c.json({ error: 'Unauthorized' }, 401);
+
+    const { token } = await c.req.json();
+    if (!token) return c.json({ error: 'Token required' }, 400);
+
+    const db = createDb(c.env.DB);
+    await db.update(users)
+        .set({ pushToken: token })
+        .where(eq(users.id, auth.userId))
+        .run();
+
+    return c.json({ success: true });
+});
+
 export default app;
