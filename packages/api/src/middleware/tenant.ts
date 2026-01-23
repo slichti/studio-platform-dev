@@ -19,6 +19,7 @@ type Variables = {
     features: Set<string>;
     emailApiKey?: string;
     twilioCredentials?: { accountSid: string; authToken: string; fromNumber: string };
+    isImpersonating?: boolean;
 };
 
 export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variables: Variables }>, next: Next) => {
@@ -205,6 +206,23 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
         }
 
         c.set('roles', roles);
+
+        // --- 2FA Enforcement for Owners ---
+        // Requirement: Owners must have MFA enabled/verified.
+        // Impersonators are exempted as they are assumed to have satisfied platform-level security.
+        if (roles.includes('owner') && !c.get('isImpersonating')) {
+            const amr = auth.claims?.amr;
+            const hasMfa = (Array.isArray(amr) && (amr.includes('mfa') || amr.includes('otp') || amr.includes('totp'))) || auth.claims?.mfa === true;
+
+            if (!hasMfa) {
+                console.log(`[Security] MFA Enforcement: Blocking owner access for ${auth.userId} (No MFA claim)`);
+                return c.json({
+                    error: "Multi-Factor Authentication Required",
+                    code: "mfa_required",
+                    message: "Access to owner-level operations requires Two-Factor Authentication. Please enable MFA in your account settings."
+                }, 403);
+            }
+        }
 
         // 4. Lifecycle Checks
         if (tenant.status === 'archived' && !isPlatformAdmin) {

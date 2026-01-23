@@ -114,6 +114,7 @@ export default function AdminUsers() {
 
     const [impersonateTargetId, setImpersonateTargetId] = useState<string | null>(null);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
+    const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
     // Computed Data
     const usersList = Array.isArray(users) ? users : [];
@@ -358,11 +359,7 @@ export default function AdminUsers() {
                         <button onClick={() => executeBulk('set_role', 'user')} className="hover:text-zinc-300 text-sm font-medium transition-colors">Demote</button>
                         <div className="w-px h-4 bg-zinc-700 mx-2"></div>
                         <button
-                            onClick={() => {
-                                if (confirm(`Are you sure you want to PERMANENTLY delete ${selectedUsers.size} users?`)) {
-                                    executeBulk('delete', true);
-                                }
-                            }}
+                            onClick={() => setShowBulkDeleteConfirm(true)}
                             className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors"
                         >
                             Delete Selected
@@ -566,6 +563,19 @@ export default function AdminUsers() {
                 title="Delete User"
                 description={<>Are you sure you want to PERMANENTLY delete user <strong>{userToDelete?.email}</strong>? This cannot be undone.</>}
                 confirmText="Delete"
+                variant="destructive"
+            />
+
+            <ConfirmDialog
+                open={showBulkDeleteConfirm}
+                onOpenChange={setShowBulkDeleteConfirm}
+                onConfirm={() => {
+                    executeBulk('delete', true);
+                    setShowBulkDeleteConfirm(false);
+                }}
+                title="Delete Multiple Users"
+                description={`Are you sure you want to PERMANENTLY delete ${selectedUsers.size} users? This action cannot be undone.`}
+                confirmText="Delete Users"
                 variant="destructive"
             />
 

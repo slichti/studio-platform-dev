@@ -105,20 +105,22 @@ export default function AdminWebsite() {
                 message={errorState.message}
             />
 
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center justify-between mb-10">
                 <div>
-                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                        <Globe className="text-blue-600" />
+                    <h1 className="text-3xl font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-3 tracking-tight">
+                        <div className="p-2 bg-blue-600 rounded-xl shadow-lg shadow-blue-500/20">
+                            <Globe size={24} className="text-white" />
+                        </div>
                         Platform Website Builder
                     </h1>
-                    <p className="text-zinc-500 dark:text-zinc-400 mt-1">Manage main site pages (Home, Pricing, About, etc.)</p>
+                    <p className="text-zinc-500 dark:text-zinc-400 mt-2 font-medium">Design and manage the core presence of the Studio Platform.</p>
                 </div>
                 <button
                     onClick={() => setCreating(true)}
-                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                    className="flex items-center gap-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-6 py-3 rounded-xl hover:scale-105 transition-all shadow-xl font-bold"
                 >
-                    <Plus size={18} />
-                    New Page
+                    <Plus size={20} />
+                    Create Page
                 </button>
             </div>
 

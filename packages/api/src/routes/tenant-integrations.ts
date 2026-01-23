@@ -1,7 +1,8 @@
 
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { webhookEndpoints, tenants } from 'db/src/schema'; // Ensure imports
+import * as schema from 'db/src/schema';
+import { webhookEndpoints, tenants } from 'db/src/schema'; // Keep explicit for some existing code if needed
 import { eq, and } from 'drizzle-orm';
 
 type Bindings = {
@@ -23,6 +24,21 @@ app.get('/webhooks', async (c) => {
 
     if (!tenant) return c.json({ error: "Tenant context required" }, 400);
 
+    // 0. Gating Checks
+    const globalConfig = await db.query.platformConfig.findFirst({
+        where: eq(schema.platformConfig.key, 'feature_webhooks')
+    });
+    if (!globalConfig?.enabled) {
+        return c.json({ error: "Webhooks are disabled at the platform level" }, 403);
+    }
+
+    const feature = await db.query.tenantFeatures.findFirst({
+        where: and(eq(schema.tenantFeatures.tenantId, tenant.id), eq(schema.tenantFeatures.featureKey, 'webhooks'), eq(schema.tenantFeatures.enabled, true))
+    });
+    if (!feature) {
+        return c.json({ error: "Webhook feature not enabled for this tenant" }, 403);
+    }
+
     const endpoints = await db.select().from(webhookEndpoints).where(
         and(eq(webhookEndpoints.tenantId, tenant.id))
     ).all();
@@ -37,6 +53,18 @@ app.post('/webhooks', async (c) => {
     const { url, events, description } = await c.req.json();
 
     if (!tenant) return c.json({ error: "Tenant context required" }, 400);
+
+    // 0. Gating Checks
+    const globalConfig = await db.query.platformConfig.findFirst({
+        where: eq(schema.platformConfig.key, 'feature_webhooks')
+    });
+    if (!globalConfig?.enabled) return c.json({ error: "Webhooks disabled globally" }, 403);
+
+    const feature = await db.query.tenantFeatures.findFirst({
+        where: and(eq(schema.tenantFeatures.tenantId, tenant.id), eq(schema.tenantFeatures.featureKey, 'webhooks'), eq(schema.tenantFeatures.enabled, true))
+    });
+    if (!feature) return c.json({ error: "Webhook feature not enabled for tenant" }, 403);
+
     if (!url || !events) return c.json({ error: "URL and Events required" }, 400);
 
     const secret = crypto.randomUUID().replace(/-/g, ''); // Simple 32-char hex-like
@@ -54,6 +82,29 @@ app.post('/webhooks', async (c) => {
     } as any).run();
 
     return c.json({ success: true, id, secret, endpoint: { id, url, events, description, secret } });
+});
+
+// PATCH /webhooks/:id - Update endpoint
+app.patch('/webhooks/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const id = c.req.param('id');
+    const { url, events, description, isActive } = await c.req.json();
+
+    if (!tenant) return c.json({ error: "Tenant context required" }, 400);
+
+    const updateData: any = { updatedAt: new Date() };
+    if (url !== undefined) updateData.url = url;
+    if (events !== undefined) updateData.events = events;
+    if (description !== undefined) updateData.description = description;
+    if (isActive !== undefined) updateData.isActive = isActive;
+
+    await db.update(webhookEndpoints)
+        .set(updateData)
+        .where(and(eq(webhookEndpoints.id, id), eq(webhookEndpoints.tenantId, tenant.id)))
+        .run();
+
+    return c.json({ success: true });
 });
 
 // DELETE /webhooks/:id

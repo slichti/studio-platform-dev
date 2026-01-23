@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useParams, useOutletContext } from "react-router";
 import { apiRequest } from "~/utils/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/Card";
-import { Trash2, Terminal, Loader2, Key, MessageSquare, Mail, Save, CreditCard, CheckCircle, Smartphone, Send, Shield } from "lucide-react";
+import { Trash2, Loader2, Key, MessageSquare, Mail, Save, CreditCard, CheckCircle, Smartphone, Send, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmationDialog } from "~/components/Dialogs";
 
@@ -11,63 +11,15 @@ export default function IntegrationsPage() {
     const { slug } = useParams();
     const { tenant } = useOutletContext<any>() || {};
 
-    // Developer Settings State
-    const [endpoints, setEndpoints] = useState<any[]>([]);
-    const [loadingDev, setLoadingDev] = useState(true);
-    const [createUrl, setCreateUrl] = useState("");
-    const [createEvents, setCreateEvents] = useState("booking.created, order.completed");
-    const [isCreating, setIsCreating] = useState(false);
-
     // Integration Credentials State (For BYOK forms)
     const [credentials, setCredentials] = useState<any>(null);
-    const [saving, setSaving] = useState(false);
     const [twilioForm, setTwilioForm] = useState({ accountSid: '', authToken: '', fromNumber: '' });
     const [resendForm, setResendForm] = useState({ apiKey: '' });
-    const [showOrderReader, setShowOrderReader] = useState(false);
 
     // Confirmation States
-    const [deleteWebhookId, setDeleteWebhookId] = useState<string | null>(null);
     const [disconnectGoogle, setDisconnectGoogle] = useState(false);
     const [chatToggle, setChatToggle] = useState<boolean | null>(null);
     const [pendingPaymentProvider, setPendingPaymentProvider] = useState<string | null>(null);
-
-    // Removed local API_URL definition to use apiRequest utility
-
-    useEffect(() => {
-        loadDevData();
-    }, [slug]);
-
-    const loadDevData = async () => {
-        setLoadingDev(true);
-        try {
-            const token = (window as any).Clerk?.session?.getToken ? await (window as any).Clerk.session.getToken() : localStorage.getItem('token');
-            // apiRequest handles token if passed
-
-            const [webhooksData, credsData] = await Promise.all([
-                apiRequest("/integrations/webhooks", token, { headers: { 'X-Tenant-Slug': slug || '' } }),
-                apiRequest("/integrations/credentials", token, { headers: { 'X-Tenant-Slug': slug || '' } })
-            ]);
-
-            setEndpoints((webhooksData as any).endpoints || []);
-            setCredentials(credsData);
-
-            // Pre-fill forms (only public parts)
-            setTwilioForm({
-                accountSid: (credsData as any).twilio?.accountSid || '',
-                authToken: '', // Never return auth token
-                fromNumber: (credsData as any).twilio?.fromNumber || ''
-            });
-            setResendForm({
-                apiKey: (credsData as any).resend?.apiKey || ''
-            });
-        } catch (e: any) {
-            console.error("Failed to load data", e);
-        } finally {
-            setLoadingDev(false);
-        }
-    };
-
-
 
     // Helper to use the Settings-style API call for credentials
     const updateIntegration = async (body: any) => {
@@ -85,50 +37,30 @@ export default function IntegrationsPage() {
         }
     };
 
-    const handleCreateWebhook = async () => {
-        if (!createUrl) return;
-        setIsCreating(true);
+    useEffect(() => {
+        loadDevData();
+    }, [slug]);
+
+    const loadDevData = async () => {
         try {
-            const token = await (window as any).Clerk?.session?.getToken();
-            await apiRequest("/integrations/webhooks", token, {
-                method: 'POST',
-                headers: { 'X-Tenant-Slug': slug || '' },
-                body: JSON.stringify({
-                    url: createUrl,
-                    events: createEvents.split(',').map(s => s.trim()),
-                    description: "Manual created"
-                })
+            const token = (window as any).Clerk?.session?.getToken ? await (window as any).Clerk.session.getToken() : localStorage.getItem('token');
+            // apiRequest handles token if passed
+
+            const credsData = await apiRequest("/integrations/credentials", token, { headers: { 'X-Tenant-Slug': slug || '' } });
+
+            setCredentials(credsData);
+
+            // Pre-fill forms (only public parts)
+            setTwilioForm({
+                accountSid: (credsData as any).twilio?.accountSid || '',
+                authToken: '', // Never return auth token
+                fromNumber: (credsData as any).twilio?.fromNumber || ''
             });
-
-            setCreateUrl("");
-            loadDevData();
-        } catch (e: any) {
-            console.error(e);
-            toast.error("Failed to create webhook: " + e.message);
-        } finally {
-            setIsCreating(false);
-        }
-    };
-
-    const handleDeleteWebhook = (id: string) => {
-        setDeleteWebhookId(id);
-    };
-
-    const confirmDeleteWebhook = async () => {
-        if (!deleteWebhookId) return;
-        try {
-            const token = await (window as any).Clerk?.session?.getToken();
-            await apiRequest(`/integrations/webhooks/${deleteWebhookId}`, token, {
-                method: 'DELETE',
-                headers: { 'X-Tenant-Slug': slug || '' }
+            setResendForm({
+                apiKey: (credsData as any).resend?.apiKey || ''
             });
-            setEndpoints(endpoints.filter(e => e.id !== deleteWebhookId));
-            toast.success("Webhook deleted");
         } catch (e: any) {
-            console.error(e);
-            toast.error("Failed to delete webhook: " + e.message);
-        } finally {
-            setDeleteWebhookId(null);
+            console.error("Failed to load data", e);
         }
     };
 
@@ -279,180 +211,7 @@ export default function IntegrationsPage() {
                 </div>
             </div>
 
-            {/* --- SECTION 2: DEVELOPER TOOLS (FROM DEVELOPERS) --- */}
-            <div className="space-y-6">
-                <div className="flex items-center gap-2 mb-2">
-                    <Terminal className="text-zinc-900 dark:text-zinc-100" />
-                    <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Developer Tools</h2>
-                </div>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            Outgoing Webhooks
-                        </CardTitle>
-                        <CardDescription>
-                            Receive real-time JSON payloads when events happen in your studio.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        {/* List */}
-                        {loadingDev ? (
-                            <div className="flex items-center justify-center p-8">
-                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                            </div>
-                        ) : (
-                            <div className="border rounded-md divide-y">
-                                {endpoints.length === 0 && (
-                                    <div className="p-8 text-center text-muted-foreground text-sm">
-                                        No webhooks configured.
-                                    </div>
-                                )}
-                                {endpoints.map(ep => (
-                                    <div key={ep.id} className="p-4 flex items-center justify-between">
-                                        <div className="grid gap-1">
-                                            <div className="font-mono text-sm font-medium">{ep.url}</div>
-                                            <div className="text-xs text-muted-foreground">
-                                                {Array.isArray(ep.events) ? ep.events.join(', ') : ep.events}
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-4">
-                                            <code className="text-[10px] bg-muted px-2 py-1 rounded text-muted-foreground hidden sm:inline-block">
-                                                {ep.secret.slice(0, 8)}...
-                                            </code>
-                                            <button className="p-2 hover:bg-red-50 text-red-600 rounded" onClick={() => handleDeleteWebhook(ep.id)}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                        {/* Create New */}
-                        <div className="p-4 border rounded-md bg-muted/20 bg-zinc-50 dark:bg-zinc-900 space-y-4">
-                            <h4 className="font-medium text-sm">Add New Endpoint</h4>
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Endpoint URL</label>
-                                    <input
-                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                        placeholder="https://hooks.zapier.com/..."
-                                        value={createUrl}
-                                        onChange={e => setCreateUrl(e.target.value)}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Events (comma separated)</label>
-                                    <input
-                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                        value={createEvents}
-                                        onChange={e => setCreateEvents(e.target.value)}
-                                    />
-                                    <div className="text-[10px] text-muted-foreground">
-                                        Available: booking.created, order.completed, student.created
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="flex justify-end">
-                                <button
-                                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary bg-zinc-900 text-white hover:bg-zinc-800 h-10 px-4 py-2"
-                                    onClick={handleCreateWebhook}
-                                    disabled={!createUrl || isCreating}
-                                >
-                                    {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Add Webhook
-                                </button>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <svg role="img" viewBox="0 0 24 24" className="h-5 w-5 fill-current">
-                                <path d="M12 24c6.627 0 12-5.373 12-12S18.627 0 12 0 0 5.373 0 12s5.373 12 12 12z" fill="#fff" />
-                                <path d="M12.48 4.75c-1.39 0-2.68.74-3.35 1.83l-2.03 3.32h5.38V4.75zm-6.26 2.06c-.53 1.1-.82 2.34-.82 3.65 0 1.25.26 2.43.74 3.5l2.03-3.32L6.22 6.81zm-.74 7.15c.67 1.09 1.96 1.83 3.35 1.83h2.69v-4.38H6.15l-.67 2.55zm5.71 1.83c1.39 0 2.68-.74 3.35-1.83l2.03-3.32H11.2v4.38v.77zm6.26-2.06c.53-1.1.82-2.34.82-3.65 0-1.25-.26-2.43-.74-3.5l-2.03 3.32 2.7 3.83zm.74-7.15c-.67-1.09-1.96-1.83-3.35-1.83h-2.69v4.38h5.38l.66-2.55z" fill="#4285F4" />
-                            </svg>
-                            Google Calendar
-                        </CardTitle>
-                        <CardDescription>
-                            Sync your classes and appointments to your primary Google Calendar.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex items-center justify-between">
-                            <div className="text-sm">
-                                {tenant.googleCalendarCredentials ? (
-                                    <div className="flex items-center text-green-600 gap-2">
-                                        <CheckCircle className="h-4 w-4" />
-                                        <span>Connected</span>
-                                    </div>
-                                ) : (
-                                    <div className="text-muted-foreground">Not connected</div>
-                                )}
-                            </div>
-                            <div>
-                                {tenant.googleCalendarCredentials ? (
-                                    <button
-                                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                                        onClick={() => setDisconnectGoogle(true)}
-                                    >
-                                        Disconnect
-                                    </button>
-                                ) : (
-                                    <a
-                                        href={`${import.meta.env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev"}/studios/google/connect?tenantId=${tenant.id}`}
-                                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
-                                    >
-                                        Connect Google Calendar
-                                    </a>
-                                )}
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Studio API Credentials</CardTitle>
-                        <CardDescription>
-                            Use these credentials to authenticate API requests.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-4">
-                            <div className="grid gap-2">
-                                <label className="text-sm font-medium">Studio ID (Tenant ID)</label>
-                                <div className="flex gap-2">
-                                    <input
-                                        readOnly
-                                        value={tenant.id || "Loading..."}
-                                        className="font-mono bg-muted flex h-10 w-full rounded-md border border-input px-3"
-                                    />
-                                    <button
-                                        onClick={() => navigator.clipboard.writeText(tenant.id)}
-                                        className="border rounded px-3 text-sm hover:bg-gray-100 dark:hover:bg-zinc-800">
-                                        Copy
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
             {/* Confirmation Dialogs */}
-            <ConfirmationDialog
-                isOpen={!!deleteWebhookId}
-                onClose={() => setDeleteWebhookId(null)}
-                onConfirm={confirmDeleteWebhook}
-                title="Delete Webhook"
-                message="Are you sure you want to delete this webhook?"
-                isDestructive={true}
-                confirmText="Delete"
-            />
-
             <ConfirmationDialog
                 isOpen={disconnectGoogle}
                 onClose={() => setDisconnectGoogle(false)}
@@ -504,6 +263,7 @@ export default function IntegrationsPage() {
                 message={`Switch to ${pendingPaymentProvider === 'connect' ? 'Platform Managed' : 'Self Managed'} payments?`}
                 confirmText="Switch"
             />
-        </div >
+        </div>
     );
 }
+

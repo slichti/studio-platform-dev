@@ -7,6 +7,29 @@ export class WebhookService {
     constructor(private db: DrizzleD1Database<typeof schema>) { }
 
     async dispatch(tenantId: string, eventType: string, payload: any) {
+        // 0. Gating Checks
+        // a. Platform Level
+        const globalConfig = await this.db.query.platformConfig.findFirst({
+            where: eq(schema.platformConfig.key, 'feature_webhooks')
+        });
+        if (!globalConfig?.enabled) {
+            console.log(`[Webhooks] Platform-level webhooks disabled. Skipping dispatch.`);
+            return;
+        }
+
+        // b. Tenant Level
+        const tenantFeature = await this.db.query.tenantFeatures.findFirst({
+            where: and(
+                eq(schema.tenantFeatures.tenantId, tenantId),
+                eq(schema.tenantFeatures.featureKey, 'webhooks'),
+                eq(schema.tenantFeatures.enabled, true)
+            )
+        });
+        if (!tenantFeature) {
+            console.log(`[Webhooks] Tenant-level webhooks disabled for ${tenantId}. Skipping dispatch.`);
+            return;
+        }
+
         // 1. Find active endpoints for this tenant that subscribe to this event
         const endpoints = await this.db.query.webhookEndpoints.findMany({
             where: and(

@@ -9,6 +9,7 @@ import { SmsService } from './sms';
 import { UsageService } from './pricing';
 import { DunningService } from './dunning';
 import { FulfillmentService } from './fulfillment';
+import { WebhookService } from './webhooks';
 
 type Bindings = {
     DB: D1Database;
@@ -180,6 +181,15 @@ export class StripeWebhookHandler {
         if (sub) {
             const dunningService = new DunningService(this.db, sub.tenantId);
             await dunningService.handlePaymentRecovered(subscriptionId);
+
+            // Dispatch Webhook
+            const hook = new WebhookService(this.db);
+            await hook.dispatch(sub.tenantId, 'payment.succeeded', {
+                subscriptionId,
+                customerId: invoice.customer,
+                amount: invoice.amount_paid,
+                currency: invoice.currency
+            });
         }
     }
 

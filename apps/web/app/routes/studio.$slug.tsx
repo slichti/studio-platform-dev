@@ -28,6 +28,7 @@ import {
     ListTodo,
     BarChart3,
     Search,
+    Globe,
     Award,
     Code,
     Terminal,
@@ -231,12 +232,23 @@ export default function StudioLayout() {
                                 )}
                             </SidebarGroup>
 
+                            <SidebarGroup title="Online Presence">
+                                {featureSet.has('website_builder') && (
+                                    <NavItem to={`/studio/${slug}/website/pages`} icon={<Globe size={18} />}>Website Builder</NavItem>
+                                )}
+                                <NavItem to={`/studio/${slug}/settings/embeds`} icon={<Code size={18} />}>Website Widgets</NavItem>
+                                {featureSet.has('mobile_app') && (
+                                    <NavItem to={`/studio/${slug}/settings/mobile`} icon={<Smartphone size={18} />}>Mobile App</NavItem>
+                                )}
+                                <NavItem to={`/studio/${slug}/settings/qr`} icon={<QrCode size={18} />}>QR Codes</NavItem>
+                            </SidebarGroup>
+
                             <SidebarGroup title="Management">
                                 <NavItem to={`/studio/${slug}/students`} icon={<Users size={18} />}>People</NavItem>
                                 {(['scale'].includes(tenant.tier) || featureSet.has('payroll')) && (
                                     <NavItem to={`/studio/${slug}/financials/payroll`} icon={<CreditCard size={18} />}>Payroll Admin</NavItem>
                                 )}
-                                {(effectiveRoles.some((r: string) => ['instructor', 'admin', 'owner'].includes(r))) && (
+                                {(['instructor', 'admin', 'owner'].some(r => effectiveRoles.includes(r))) && (
                                     <NavItem to={`/studio/${slug}/financials/my-payouts`} icon={<DollarSign size={18} />}>My Payouts</NavItem>
                                 )}
 
@@ -244,14 +256,8 @@ export default function StudioLayout() {
                                     <NavItem to={`/studio/${slug}/finances`} end icon={<DollarSign size={18} />}>Finances</NavItem>
                                 )}
                                 <NavItem to={`/studio/${slug}/discounts`} icon={<Tag size={18} />}>Discounts</NavItem>
-                                {featureSet.has('website_builder') && (
-                                    <NavItem to={`/studio/${slug}/settings/embeds`} icon={<Code size={18} />}>Website Widgets</NavItem>
-                                )}
-                                {featureSet.has('mobile_app') && (
-                                    <NavItem to={`/studio/${slug}/settings/mobile`} icon={<Smartphone size={18} />}>Mobile App</NavItem>
-                                )}
-                                <NavItem to={`/studio/${slug}/settings/qr`} icon={<QrCode size={18} />}>QR Codes</NavItem>
-                                <NavItem to={`/studio/${slug}/settings/integrations`} icon={<Terminal size={18} />}>Integrations</NavItem>
+                                <NavItem to={`/studio/${slug}/settings/integrations`} icon={<Smartphone size={18} />}>Integrations</NavItem>
+                                <NavItem to={`/studio/${slug}/settings/developers`} icon={<Terminal size={18} />}>Developers</NavItem>
                                 {featureSet.has('chat') && (
                                     <NavItem to={`/studio/${slug}/settings/chat`} icon={<MessageSquare size={18} />}>Chat Settings</NavItem>
                                 )}
