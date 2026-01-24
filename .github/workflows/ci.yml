@@ -17,6 +17,8 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run lint
+        env:
+          ESLINT_USE_FLAT_CONFIG: false
       - run: npm run typecheck --workspace=apps/web
       - run: npm run typecheck --workspace=packages/api
       - run: npm test
