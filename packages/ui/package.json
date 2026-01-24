@@ -5,7 +5,6 @@
     "types": "./index.tsx",
     "license": "MIT",
     "scripts": {
-        "lint": "eslint --config .eslintrc.json .",
         "typecheck": "tsc --noEmit"
     },
     "peerDependencies": {
