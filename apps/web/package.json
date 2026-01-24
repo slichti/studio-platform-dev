@@ -9,7 +9,7 @@
   "scripts": {
     "build": "react-router build && rm -f build/client/index.html && cp build/server/index.js functions/_server.js",
     "dev": "react-router dev",
-    "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
+    "lint": "eslint --config .eslintrc.json .",
     "start": "wrangler pages dev ./build/client",
     "deploy": "wrangler pages deploy ./build/client --project-name studio-platform-web",
     "test": "vitest",
