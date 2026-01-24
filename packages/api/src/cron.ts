@@ -1,5 +1,5 @@
 import { createDb } from './db';
-import { tenants, classes, bookings, tenantMembers, marketingAutomations, users, emailLogs, purchasedPacks, tenantRoles, subscriptions, membershipPlans, scheduledReports } from 'db/src/schema'; // Ensure imports
+import { tenants, classes, bookings, tenantMembers, marketingAutomations, users, emailLogs, purchasedPacks, tenantRoles, subscriptions, membershipPlans, scheduledReports } from '@studio/db/src/schema'; // Ensure imports
 import { and, eq, lte, gt, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 import { BookingService } from './services/bookings';
 import { ReportService } from './services/reports';

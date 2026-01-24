@@ -68,7 +68,7 @@ export const optionalAuthMiddleware = createMiddleware<{ Variables: AuthVariable
             c.executionCtx.waitUntil((async () => {
                 try {
                     const { createDb } = await import('../db');
-                    const { users } = await import('db/src/schema');
+                    const { users } = await import('@studio/db/src/schema');
                     const { eq } = await import('drizzle-orm');
                     const db = createDb((c.env as any).DB);
                     await db.update(users).set({ lastActiveAt: new Date() }).where(eq(users.id, userId)).run();

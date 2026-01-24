@@ -2,7 +2,7 @@
 import { Hono } from 'hono';
 import { eq, and, sql, desc, asc } from 'drizzle-orm';
 import { createDb } from '../db';
-import { waitlist, classes, bookings, users, tenants } from 'db/src/schema'; // Ensure this path matches
+import { waitlist, classes, bookings, users, tenants } from '@studio/db/src/schema'; // Ensure this path matches
 import { authMiddleware } from '../middleware/auth';
 import { z } from 'zod';
 // import { zValidator } from '@hono/zod-validator';

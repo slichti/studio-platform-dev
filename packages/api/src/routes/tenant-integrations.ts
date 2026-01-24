@@ -1,8 +1,8 @@
 
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import * as schema from 'db/src/schema';
-import { webhookEndpoints, tenants } from 'db/src/schema'; // Keep explicit for some existing code if needed
+import * as schema from '@studio/db/src/schema';
+import { webhookEndpoints, tenants } from '@studio/db/src/schema'; // Keep explicit for some existing code if needed
 import { eq, and } from 'drizzle-orm';
 
 type Bindings = {

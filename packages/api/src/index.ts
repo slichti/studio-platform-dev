@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { createDb } from './db';
-import { tenants, tenantMembers, tenantFeatures, users, classes, bookings, posOrders, purchasedPacks, waiverTemplates, waiverSignatures, tenantRoles, platformConfig } from 'db/src/schema';
+import { tenants, tenantMembers, tenantFeatures, users, classes, bookings, posOrders, purchasedPacks, waiverTemplates, waiverSignatures, tenantRoles, platformConfig } from '@studio/db/src/schema';
 import { eq, and, count, sum, gte, like, or } from 'drizzle-orm';
 import { UsageService } from './services/pricing';
 import { StripeService } from './services/stripe';

@@ -1,7 +1,7 @@
 
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants } from 'db/src/schema'; // Ensure imports
+import { tenants } from '@studio/db/src/schema'; // Ensure imports
 import { eq, like, and, or } from 'drizzle-orm';
 import { StripeService } from '../services/stripe';
 

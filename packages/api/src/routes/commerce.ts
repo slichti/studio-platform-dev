@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantMembers, coupons, couponRedemptions, classPackDefinitions, giftCards, membershipPlans } from 'db/src/schema'; // Ensure exported
+import { tenants, tenantMembers, coupons, couponRedemptions, classPackDefinitions, giftCards, membershipPlans } from '@studio/db/src/schema'; // Ensure exported
 import { eq, and, gt, sql } from 'drizzle-orm';
 import { rateLimit } from '../middleware/rateLimit';
 
@@ -137,7 +137,7 @@ app.patch('/coupons/:id/reactivate', async (c) => {
 app.get('/packs', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    // const { classPackDefinitions } = await import('db/src/schema');
+    // const { classPackDefinitions } = await import('@studio/db/src/schema');
 
     const packs = await db.select().from(classPackDefinitions)
         .where(and(
@@ -163,7 +163,7 @@ app.post('/packs', async (c) => {
     const { name, credits, price, expirationDays, imageUrl, vodEnabled } = await c.req.json();
     if (!name || !credits) return c.json({ error: "Missing fields" }, 400);
 
-    const { classPackDefinitions } = await import('db/src/schema');
+    const { classPackDefinitions } = await import('@studio/db/src/schema');
     const id = crypto.randomUUID();
 
     await db.insert(classPackDefinitions).values({
@@ -374,7 +374,7 @@ app.post('/checkout/session', rateLimit({ limit: 10, window: 60, keyPrefix: 'che
         let stripeCustomerId = undefined;
 
         if (user?.userId) {
-            const { users, userRelationships } = await import('db/src/schema');
+            const { users, userRelationships } = await import('@studio/db/src/schema');
             const userRecord = await db.select({ email: users.email, stripeCustomerId: users.stripeCustomerId }).from(users).where(eq(users.id, user.userId)).get();
 
             if (userRecord) {
@@ -610,7 +610,7 @@ app.post('/failed-payments/:id/retry', async (c) => {
     if (!role?.includes('owner') && !role?.includes('admin')) return c.json({ error: "Unauthorized" }, 403);
 
     const subscriptionId = c.req.param('id');
-    const { subscriptions } = await import('db/src/schema');
+    const { subscriptions } = await import('@studio/db/src/schema');
 
     // 1. Get Subscription
     const sub = await db.select().from(subscriptions)

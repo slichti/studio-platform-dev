@@ -1,5 +1,5 @@
 import { createDb } from '../db';
-import { tenants, users, tenantMembers, membershipPlans, subscriptions, classes, usageLogs } from 'db/src/schema';
+import { tenants, users, tenantMembers, membershipPlans, subscriptions, classes, usageLogs } from '@studio/db/src/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import Papa from 'papaparse';
 

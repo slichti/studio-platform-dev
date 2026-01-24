@@ -1,6 +1,6 @@
 
 import { createDb } from '../db';
-import * as schema from 'db/src/schema';
+import * as schema from '@studio/db/src/schema';
 import { eq, and } from 'drizzle-orm';
 import Stripe from 'stripe';
 import { EmailService } from './email'; // Lazy import in methods or top level?

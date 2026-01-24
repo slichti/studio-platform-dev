@@ -1,6 +1,6 @@
 import type { Twilio } from 'twilio';
 import { UsageService } from './pricing';
-import { smsLogs } from 'db/src/schema';
+import { smsLogs } from '@studio/db/src/schema';
 
 interface TwilioCredentials {
     accountSid: string;
@@ -80,7 +80,7 @@ export class SmsService {
 
         // TCPA: Check consent if memberId is provided (for marketing messages)
         if (!skipConsentCheck && memberId && this.db) {
-            const { tenantMembers } = await import('db/src/schema');
+            const { tenantMembers } = await import('@studio/db/src/schema');
             const { eq } = await import('drizzle-orm');
 
             const member = await this.db.select({
@@ -154,7 +154,7 @@ export class SmsService {
         if (!this.db) return { success: false, membersUpdated: 0 };
 
         try {
-            const { tenantMembers, users } = await import('db/src/schema');
+            const { tenantMembers, users } = await import('@studio/db/src/schema');
             const { eq, and, sql } = await import('drizzle-orm');
 
             // Find user by phone number

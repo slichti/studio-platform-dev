@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { auditLogs, users } from 'db/src/schema'; // Reuse audit logs for now
+import { auditLogs, users } from '@studio/db/src/schema'; // Reuse audit logs for now
 import { eq } from 'drizzle-orm';
 import type { HonoContext } from '../types';
 import { optionalAuthMiddleware } from '../middleware/auth';

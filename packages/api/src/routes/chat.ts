@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { eq, and, desc } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
-import * as schema from 'db/src/schema';
+import * as schema from '@studio/db/src/schema';
 import { authMiddleware } from '../middleware/auth';
 import { tenantMiddleware, requireFeature } from '../middleware/tenant';
 import { EmailService } from '../services/email';

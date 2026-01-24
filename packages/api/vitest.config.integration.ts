@@ -17,8 +17,8 @@ export default defineWorkersConfig({
             },
         },
         alias: {
-            'db/src': join(__dirname, '../db/src'),
-            'db': join(__dirname, '../db'),
+            '@studio/db/src': join(__dirname, '../db/src'),
+            '@studio/db': join(__dirname, '../db'),
         },
         include: ['**/*.integration.test.ts'],
     },

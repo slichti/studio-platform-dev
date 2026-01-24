@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
 import { sign } from 'hono/jwt';
 import { createDb } from '../db';
-import * as schema from 'db/src/schema'; // Import all schema
+import * as schema from '@studio/db/src/schema'; // Import all schema
 // Import specific tables for usage
-import { tenants, classes, classSeries, tenantMembers, users, bookings, purchasedPacks } from 'db/src/schema';
+import { tenants, classes, classSeries, tenantMembers, users, bookings, purchasedPacks } from '@studio/db/src/schema';
 import { eq, and, gte, lte, desc, asc, sql } from 'drizzle-orm';
 import { rateLimit } from '../middleware/rateLimit';
 
@@ -253,7 +253,7 @@ app.post('/chat/start', rateLimit({ limit: 3, window: 60, keyPrefix: 'guest_chat
     }
 
     // 4. Create chat room
-    const { chatRooms, chatMessages } = await import('db/src/schema');
+    const { chatRooms, chatMessages } = await import('@studio/db/src/schema');
     const roomId = crypto.randomUUID();
     await db.insert(chatRooms).values({
         id: roomId,

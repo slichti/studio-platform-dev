@@ -4,7 +4,7 @@ import { env } from 'cloudflare:test';
 import { ChallengeService } from '../../src/services/challenges';
 import { createDb } from '../../src/db';
 import { v4 as uuidv4 } from 'uuid';
-import { challenges, userChallenges, giftCards } from 'db/src/schema';
+import { challenges, userChallenges, giftCards } from '@studio/db/src/schema';
 
 describe('Loyalty Integration', () => {
     const TENANT_ID = 'loyalty_tenant_1';

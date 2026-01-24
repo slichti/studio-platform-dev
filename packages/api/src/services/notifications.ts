@@ -1,9 +1,9 @@
 import { createDb } from '../db';
-import { emailLogs, smsLogs, smsConfig, tenantFeatures, tenantMembers } from 'db/src/schema'; // Ensure sms exported
+import { emailLogs, smsLogs, smsConfig, tenantFeatures, tenantMembers } from '@studio/db/src/schema'; // Ensure sms exported
 import { eq, and } from 'drizzle-orm';
 import type { Twilio } from 'twilio';
 import { UsageService } from './pricing';
-import { tenants } from 'db/src/schema';
+import { tenants } from '@studio/db/src/schema';
 
 // Minimal Email Service stub from before, identifying needing update?
 // We will unify notification usage here if possible.

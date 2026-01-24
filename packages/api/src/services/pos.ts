@@ -8,7 +8,7 @@ import {
     giftCards,
     coupons,
     couponRedemptions
-} from 'db/src/schema'; // Ensure correct imports
+} from '@studio/db/src/schema'; // Ensure correct imports
 import { eq, and, desc, like, or, sql } from 'drizzle-orm';
 import { StripeService } from './stripe';
 import { WebhookService } from './webhooks';
@@ -24,7 +24,7 @@ interface CartItem {
     unitPrice: number;
 }
 
-import * as schema from 'db/src/schema';
+import * as schema from '@studio/db/src/schema';
 
 export class PosService {
     private db: DrizzleD1Database<typeof schema>;

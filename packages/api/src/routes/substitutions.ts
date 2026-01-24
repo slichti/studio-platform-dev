@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { substitutions, classes, tenantMembers, users, tenants, tenantRoles } from 'db/src/schema'; // Ensure these match schema exports
+import { substitutions, classes, tenantMembers, users, tenants, tenantRoles } from '@studio/db/src/schema'; // Ensure these match schema exports
 import { eq, and, desc } from 'drizzle-orm';
 
 type Bindings = {

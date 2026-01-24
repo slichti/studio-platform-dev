@@ -1,7 +1,7 @@
 
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { customReports, tenants } from 'db/src/schema';
+import { customReports, tenants } from '@studio/db/src/schema';
 import { ReportService } from '../services/reports';
 import { eq, and, desc } from 'drizzle-orm';
 import { authMiddleware } from '../middleware/auth';

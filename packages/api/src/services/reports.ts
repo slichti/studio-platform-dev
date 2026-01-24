@@ -11,7 +11,7 @@ import {
     waiverSignatures,
     waiverTemplates,
     classPackDefinitions
-} from 'db/src/schema'; // Ensure correct imports
+} from '@studio/db/src/schema'; // Ensure correct imports
 import { and, between, eq, sql, desc, count, gte, lte } from 'drizzle-orm';
 
 export class ReportService {

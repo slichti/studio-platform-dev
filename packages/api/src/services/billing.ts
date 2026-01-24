@@ -1,6 +1,6 @@
 import { StripeService } from './stripe';
 import { UsageService } from './pricing';
-import { tenants } from 'db/src/schema';
+import { tenants } from '@studio/db/src/schema';
 import { eq } from 'drizzle-orm';
 import { createDb } from '../db'; // Assuming access to db factory or we pass it in
 

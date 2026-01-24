@@ -8,7 +8,7 @@ import {
     appointments, purchasedPacks, couponRedemptions, classes, classSeries, products, classPackDefinitions,
     membershipPlans, coupons, marketingCampaigns, challenges, userChallenges, locations, availabilities,
     appointmentServices, smsConfig, studentNotes, leads, uploads
-} from 'db/src/schema';
+} from '@studio/db/src/schema';
 import { eq, sql, desc, count, or, like, asc, and, inArray, isNull, exists, not } from 'drizzle-orm';
 
 import { UsageService } from '../services/pricing';
@@ -2296,7 +2296,7 @@ app.get('/tenants/:id/products', async (c) => {
     const tenantId = c.req.param('id');
 
     // Import products schema
-    const { products } = await import('db/src/schema');
+    const { products } = await import('@studio/db/src/schema');
 
     const prods = await db.query.products.findMany({
         where: eq(products.tenantId, tenantId),

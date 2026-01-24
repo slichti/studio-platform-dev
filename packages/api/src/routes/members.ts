@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { eq, and, desc, sql } from 'drizzle-orm';
-import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings, tenants, marketingAutomations, emailLogs, coupons, automationLogs } from 'db/src/schema';
+import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings, tenants, marketingAutomations, emailLogs, coupons, automationLogs } from '@studio/db/src/schema';
 
 type Bindings = {
     DB: D1Database;

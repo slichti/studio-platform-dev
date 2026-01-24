@@ -1,11 +1,11 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { sql, eq, desc } from 'drizzle-orm';
-import { auditLogs } from 'db/src/schema';
+import { auditLogs } from '@studio/db/src/schema';
 import type { HonoContext } from '../types';
 
 import { authMiddleware } from '../middleware/auth';
-import { users } from 'db/src/schema';
+import { users } from '@studio/db/src/schema';
 
 const diagnostics = new Hono<HonoContext>();
 

@@ -2,8 +2,8 @@ import { Hono } from 'hono';
 import { createDb } from '../db';
 import { ZoomService } from '../services/zoom';
 import { StreamService } from '../services/stream';
-import * as schema from 'db/src/schema'; // Import all as schema
-import { classes, users, classPackDefinitions, purchasedPacks, giftCards, giftCardTransactions, tenantMembers, tenants, tenantFeatures, tenantRoles } from 'db/src/schema'; // Keep explicit for existing code
+import * as schema from '@studio/db/src/schema'; // Import all as schema
+import { classes, users, classPackDefinitions, purchasedPacks, giftCards, giftCardTransactions, tenantMembers, tenants, tenantFeatures, tenantRoles } from '@studio/db/src/schema'; // Keep explicit for existing code
 import { eq, and, sql } from 'drizzle-orm';
 // import { verifyWebhookSignature } from '../services/zoom'; 
 
@@ -206,7 +206,7 @@ app.post('/clerk', async (c) => {
 
         const meta = evt.data.unsafe_metadata || evt.data.public_metadata;
         if (meta && meta.tenantId) {
-            const { tenantRoles, tenantMembers, tenants } = await import('db/src/schema');
+            const { tenantRoles, tenantMembers, tenants } = await import('@studio/db/src/schema');
             const ownerData = await db.select({ email: users.email, tenant: tenants })
                 .from(tenantMembers)
                 .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
@@ -260,7 +260,7 @@ app.post('/clerk', async (c) => {
         // Clerk payload might have context? Usually not deep. We just log the event.
 
         const action = eventType === 'session.created' ? 'USER_LOGIN' : 'USER_LOGOUT';
-        const { auditLogs } = await import('db/src/schema');
+        const { auditLogs } = await import('@studio/db/src/schema');
 
         await db.insert(auditLogs).values({
             id: crypto.randomUUID(),
@@ -296,7 +296,7 @@ app.post('/stripe', async (c) => {
     }
 
     const db = createDb(c.env.DB);
-    const { processedWebhooks } = await import('db/src/schema');
+    const { processedWebhooks } = await import('@studio/db/src/schema');
 
     // Idempotency Check
     const existing = await db.select().from(processedWebhooks).where(eq(processedWebhooks.id, event.id)).get();

@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantMembers, tenantRoles, users, auditLogs, websitePages } from 'db/src/schema';
+import { tenants, tenantMembers, tenantRoles, users, auditLogs, websitePages } from '@studio/db/src/schema';
 import { eq } from 'drizzle-orm';
 import { rateLimit } from '../middleware/rateLimit';
 

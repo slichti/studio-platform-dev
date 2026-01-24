@@ -1,7 +1,7 @@
 
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantMembers, users } from 'db/src/schema'; // Ensure imports
+import { tenants, tenantMembers, users } from '@studio/db/src/schema'; // Ensure imports
 import { count, eq, gt } from 'drizzle-orm';
 import { authMiddleware } from '../middleware/auth';
 type Bindings = {

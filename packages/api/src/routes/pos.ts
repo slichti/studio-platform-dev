@@ -7,7 +7,7 @@ import { AutomationsService } from '../services/automations';
 import { EmailService } from '../services/email';
 import { SmsService } from '../services/sms';
 import { UsageService } from '../services/pricing';
-import { users } from 'db/src/schema';
+import { users } from '@studio/db/src/schema';
 import { eq } from 'drizzle-orm';
 
 interface CartItem {

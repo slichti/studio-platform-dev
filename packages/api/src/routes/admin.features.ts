@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantFeatures } from 'db/src/schema'; // Ensure correct import
+import { tenants, tenantFeatures } from '@studio/db/src/schema'; // Ensure correct import
 import { eq, and } from 'drizzle-orm';
 
 // Bindings and Variables should match index.ts or be imported

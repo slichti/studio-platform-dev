@@ -2,8 +2,8 @@
 import { D1Database } from '@cloudflare/workers-types';
 import { drizzle, DrizzleD1Database } from 'drizzle-orm/d1';
 import { eq, and, desc, sql, gte, lte } from 'drizzle-orm';
-import * as schema from 'db/src/schema';
-import { challenges, userChallenges, users, giftCards } from 'db/src/schema';
+import * as schema from '@studio/db/src/schema';
+import { challenges, userChallenges, users, giftCards } from '@studio/db/src/schema';
 
 type Env = {
     DB: D1Database;

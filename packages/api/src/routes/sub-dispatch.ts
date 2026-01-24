@@ -2,7 +2,7 @@
 import { Hono } from 'hono';
 import { eq, and, sql, desc, ne } from 'drizzle-orm';
 import { createDb } from '../db';
-import { subRequests, classes, tenantMembers, tenantRoles, tenants } from 'db/src/schema';
+import { subRequests, classes, tenantMembers, tenantRoles, tenants } from '@studio/db/src/schema';
 import { authMiddleware } from '../middleware/auth';
 import { z } from 'zod';
 

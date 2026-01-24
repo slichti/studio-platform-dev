@@ -5,7 +5,7 @@ import { AutomationsService } from '../../src/services/automations';
 import { EmailService } from '../../src/services/email';
 import { createDb } from '../../src/db';
 import { v4 as uuidv4 } from 'uuid';
-import { bookings } from 'db/src/schema';
+import { bookings } from '@studio/db/src/schema';
 
 describe('Automations Integration', () => {
     const TENANT_ID = 'auto_tenant_1';

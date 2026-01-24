@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { AccessToken, WebhookReceiver } from 'livekit-server-sdk';
 import { createDb } from '../db';
-import { classes, tenantMembers, users } from 'db/src/schema';
+import { classes, tenantMembers, users } from '@studio/db/src/schema';
 import { eq, and } from 'drizzle-orm';
 
 const app = new Hono<{ Bindings: any, Variables: any }>();

@@ -7,8 +7,8 @@ export default defineConfig({
         include: ['src/**/*.test.ts'],
         globals: true,
         alias: {
-            'db/src': path.resolve(__dirname, '../db/src'),
-            'db': path.resolve(__dirname, '../db'),
+            '@studio/db/src': path.resolve(__dirname, '../db/src'),
+            '@studio/db': path.resolve(__dirname, '../db'),
         },
     },
 });

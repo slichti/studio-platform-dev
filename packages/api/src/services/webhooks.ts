@@ -1,6 +1,6 @@
 
 import { DrizzleD1Database } from "drizzle-orm/d1";
-import * as schema from "db/src/schema";
+import * as schema from "@studio/db/src/schema";
 import { eq, and } from "drizzle-orm";
 
 export class WebhookService {

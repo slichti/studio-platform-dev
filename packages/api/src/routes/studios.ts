@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { tenants, tenantMembers, users, tenantRoles } from 'db/src/schema'; // Ensure proper export from db/src/index.ts
+import { tenants, tenantMembers, users, tenantRoles } from '@studio/db/src/schema'; // Ensure proper export from db/src/index.ts
 import { createDb } from '../db';
 import { eq, and } from 'drizzle-orm';
 import { sign, verify } from 'hono/jwt';
@@ -42,7 +42,7 @@ app.get('/stripe/connect', async (c) => {
     const db = createDb(c.env.DB);
 
     // [SECURITY] Authorization Check (Platform Admin or Tenant Owner/Admin)
-    const { tenantMembers, users, tenantRoles } = await import('db/src/schema');
+    const { tenantMembers, users, tenantRoles } = await import('@studio/db/src/schema');
     const { and } = await import('drizzle-orm');
 
     const currentUser = await db.select().from(users).where(eq(users.id, auth.userId)).get();
@@ -200,12 +200,12 @@ app.put('/:id/integrations', async (c) => {
     }
 
     // Check membership or Platform Admin
-    const { tenantMembers, users } = await import('db/src/schema');
+    const { tenantMembers, users } = await import('@studio/db/src/schema');
     const { and } = await import('drizzle-orm');
 
     // 1. Check if Platform Admin
     // Import tenantRoles table alias to avoid conflict if needed, or rely on distinct imports
-    const { tenantRoles: tenantRolesTable } = await import('db/src/schema');
+    const { tenantRoles: tenantRolesTable } = await import('@studio/db/src/schema');
     const currentUser = await db.select().from(users).where(eq(users.id, auth.userId)).get();
     const isPlatformAdmin = currentUser?.isPlatformAdmin === true;
 
@@ -510,7 +510,7 @@ app.delete('/:id/integrations/google', async (c) => {
         if (!membership) return c.json({ error: "Forbidden" }, 403);
 
         // [SECURITY] RBAC Check (Owner/Admin Only)
-        const { tenantRoles } = await import('db/src/schema');
+        const { tenantRoles } = await import('@studio/db/src/schema');
         const roles = await db.select().from(tenantRoles).where(eq(tenantRoles.memberId, membership.id)).all();
         const hasPermission = roles.some(r => r.role === 'owner' || r.role === 'admin');
         if (!hasPermission) {

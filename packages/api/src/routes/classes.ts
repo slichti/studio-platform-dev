@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { classes, bookings, tenantMembers, users, tenantRoles, subscriptions, purchasedPacks, userRelationships, challenges, userChallenges, tenants, classSeries, waiverTemplates, waiverSignatures, membershipPlans, classPackDefinitions, giftCards, giftCardTransactions, studentNotes, locations, waitlist } from 'db/src/schema'; // Ensure imports
+import { classes, bookings, tenantMembers, users, tenantRoles, subscriptions, purchasedPacks, userRelationships, challenges, userChallenges, tenants, classSeries, waiverTemplates, waiverSignatures, membershipPlans, classPackDefinitions, giftCards, giftCardTransactions, studentNotes, locations, waitlist } from '@studio/db/src/schema'; // Ensure imports
 import { eq, and, sql, lt, ne, gt, inArray, desc, gte, lte } from 'drizzle-orm'; // Added inArray, desc
 import { ZoomService } from '../services/zoom';
 import { EncryptionUtils } from '../utils/encryption';
@@ -1224,7 +1224,7 @@ app.get('/:id/bookings', async (c) => {
 
     try {
         // 1. Get Active Waiver Template
-        const { waiverTemplates, waiverSignatures, studentNotes } = await import('db/src/schema');
+        const { waiverTemplates, waiverSignatures, studentNotes } = await import('@studio/db/src/schema');
         const tenant = c.get('tenant');
         if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 

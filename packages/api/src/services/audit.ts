@@ -1,5 +1,5 @@
 import { createDb } from '../db';
-import { auditLogs, tenants, users } from 'db/src/schema'; // adjustments might be needed based on actual export
+import { auditLogs, tenants, users } from '@studio/db/src/schema'; // adjustments might be needed based on actual export
 import { eq } from 'drizzle-orm';
 
 export class AuditService {

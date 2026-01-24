@@ -1,7 +1,7 @@
 
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { coupons, couponRedemptions } from 'db/src/schema'; // Updated imports
+import { coupons, couponRedemptions } from '@studio/db/src/schema'; // Updated imports
 import { eq, desc, and, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import type { Bindings } from '../types';

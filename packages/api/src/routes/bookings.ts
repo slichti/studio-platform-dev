@@ -1,7 +1,7 @@
 
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { bookings, classes, tenantMembers, users, tenants } from 'db/src/schema'; // Ensure imports
+import { bookings, classes, tenantMembers, users, tenants } from '@studio/db/src/schema'; // Ensure imports
 import { eq, and, sql } from 'drizzle-orm';
 import { checkAndPromoteWaitlist } from './waitlist';
 import { authMiddleware } from '../middleware/auth';
@@ -241,7 +241,7 @@ app.delete('/:id', async (c) => {
     if (!currentMember) return c.json({ error: "Unauthorized" }, 401);
 
     const isOwnBooking = booking.memberId === currentMember.id;
-    const { tenantRoles } = await import('db/src/schema');
+    const { tenantRoles } = await import('@studio/db/src/schema');
     const roles = await db.select().from(tenantRoles).where(eq(tenantRoles.memberId, currentMember.id)).all();
     const hasPrivilege = roles.some(r => r.role === 'owner' || r.role === 'admin' || r.role === 'instructor'); // Instructors can cancel too? Let's say yes for now.
 
@@ -293,7 +293,7 @@ app.patch('/:id', zValidator('json', UpdateAttendanceSchema), async (c) => {
     // Let's allow users to switch their own.
     const isOwnBooking = booking.memberId === currentMember.id;
     // ... fetch roles ...
-    const { tenantRoles } = await import('db/src/schema');
+    const { tenantRoles } = await import('@studio/db/src/schema');
     const roles = await db.select().from(tenantRoles).where(eq(tenantRoles.memberId, currentMember.id)).all();
     const hasPrivilege = roles.some(r => r.role === 'owner' || r.role === 'admin' || r.role === 'instructor');
 

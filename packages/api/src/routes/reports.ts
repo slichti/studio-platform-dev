@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { ReportService } from '../services/reports';
-import { tenants, scheduledReports } from 'db/src/schema';
+import { tenants, scheduledReports } from '@studio/db/src/schema';
 import { eq, and } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 

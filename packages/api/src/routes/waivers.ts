@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { waiverTemplates, waiverSignatures, tenants, tenantMembers, users } from 'db/src/schema'; // Added users
+import { waiverTemplates, waiverSignatures, tenants, tenantMembers, users } from '@studio/db/src/schema'; // Added users
 import { createDb } from '../db';
 import { eq, and } from 'drizzle-orm';
 
@@ -87,7 +87,7 @@ app.get('/', async (c) => {
         });
 
         // 3. Get family members to allow signing for them
-        const { userRelationships } = await import('db/src/schema');
+        const { userRelationships } = await import('@studio/db/src/schema');
         const relationships = await db.query.userRelationships.findMany({
             where: eq(userRelationships.parentUserId, member.userId)
         });
@@ -190,7 +190,7 @@ app.post('/:id/sign', async (c) => {
 
     // 1. Check if signing for child
     if (onBehalfOfMemberId && onBehalfOfMemberId !== member.id) {
-        const { userRelationships } = await import('db/src/schema');
+        const { userRelationships } = await import('@studio/db/src/schema');
 
         // Find target member to get their userId
         const targetMember = await db.query.tenantMembers.findFirst({

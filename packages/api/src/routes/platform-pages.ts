@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
-import * as schema from 'db/src/schema';
+import * as schema from '@studio/db/src/schema';
 import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
 
 const app = new Hono<{ Bindings: any; Variables: any }>();

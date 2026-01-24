@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantMembers, tenantRoles, users, subscriptions, membershipPlans, purchasedPacks, classPackDefinitions, classes, locations } from 'db/src/schema';
+import { tenants, tenantMembers, tenantRoles, users, subscriptions, membershipPlans, purchasedPacks, classPackDefinitions, classes, locations } from '@studio/db/src/schema';
 import { eq, and } from 'drizzle-orm';
 import Papa from 'papaparse';
 

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 
-import { tenants, tenantMembers, uploads } from 'db/src/schema';
+import { tenants, tenantMembers, uploads } from '@studio/db/src/schema';
 import { sql, eq, desc, like, and } from 'drizzle-orm';
 
 type Bindings = {
@@ -169,7 +169,7 @@ app.get('/:key{.+}', async (c) => {
                 // or just use the variable if I can.
                 // Wait, I can't verify if I added it to top imports yet in this single tool call standard.
                 // I will use dynamic import to be safe and avoid breaking if I missed top edit.
-                const { tenantRoles } = await import('db/src/schema');
+                const { tenantRoles } = await import('@studio/db/src/schema');
 
                 const roles = await db.select().from(tenantRoles).where(eq(tenantRoles.memberId, membership.id)).all();
                 const hasPrivilege = roles.some(r => r.role === 'owner' || r.role === 'admin');
@@ -354,7 +354,7 @@ app.post('/logo', async (c) => {
 
 // --- Portrait Upload (Instructor/Member photos) ---
 // Uploads to Cloudflare Images and saves URL to member profile
-import { users } from 'db/src/schema';
+import { users } from '@studio/db/src/schema';
 
 app.post('/portrait', async (c) => {
     try {

@@ -1,6 +1,6 @@
 
 import { createDb } from '../src/db';
-import { users } from 'db/src/schema';
+import { users } from '@studio/db/src/schema';
 import { desc } from 'drizzle-orm';
 
 // Mock Env for script usage if needed, or rely on Wrangler to inject

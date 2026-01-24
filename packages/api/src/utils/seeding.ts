@@ -5,7 +5,7 @@ import {
     tenants, users, tenantMembers, tenantRoles, locations,
     membershipPlans, classSeries, classes, bookings,
     products, posOrders, posOrderItems, tenantFeatures
-} from 'db/src/schema';
+} from '@studio/db/src/schema';
 import { FeatureKey } from './features';
 
 

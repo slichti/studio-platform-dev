@@ -1,7 +1,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { StripeWebhookHandler } from './stripe-webhook';
-import { processedWebhooks } from 'db/src/schema'; // Ensure this matches path
+import { processedWebhooks } from '@studio/db/src/schema'; // Ensure this matches path
 
 // Mock DB
 const mockDb = {

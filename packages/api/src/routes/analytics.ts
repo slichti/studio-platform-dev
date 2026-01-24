@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { bookings, users, tenantMembers, tenants, classes } from 'db/src/schema'; // Import necessary schema
+import { bookings, users, tenantMembers, tenants, classes } from '@studio/db/src/schema'; // Import necessary schema
 import { eq, and, sql, desc, gte, lt } from 'drizzle-orm';
 import { authMiddleware } from '../middleware/auth';
 

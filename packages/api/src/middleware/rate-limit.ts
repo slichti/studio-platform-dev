@@ -1,7 +1,7 @@
 
 import { Context, Next } from 'hono';
 import { createDb } from '../db';
-import { auditLogs } from 'db/src/schema';
+import { auditLogs } from '@studio/db/src/schema';
 
 export const rateLimitMiddleware = (limit: number = 300, window: number = 60) => {
     return async (c: Context, next: Next) => {
