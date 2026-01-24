@@ -1,4 +1,4 @@
-import { BarChart3, TrendingUp, Users, Heatmap } from "lucide-react";
+import { BarChart3, TrendingUp, Users } from "lucide-react";
 
 export default function DocumentationAnalytics() {
     return (
