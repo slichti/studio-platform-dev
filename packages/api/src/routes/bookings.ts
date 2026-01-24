@@ -14,10 +14,11 @@ type Bindings = {
 type Variables = {
     tenant: typeof tenants.$inferSelect;
     auth: {
-        userId: string | null;
+        userId: string;
         claims: any;
     };
     member?: any;
+    validated_json?: any;
 };
 
 import { zValidator } from '../middleware/validator';

@@ -5,7 +5,8 @@
         "dev": "wrangler dev src/index.ts",
         "deploy": "wrangler deploy --minify src/index.ts",
         "test": "vitest",
-        "test:integration": "vitest --config vitest.config.integration.ts"
+        "test:integration": "vitest --config vitest.config.integration.ts",
+        "typecheck": "tsc --noEmit"
     },
     "dependencies": {
         "@clerk/backend": "^2.29.0",

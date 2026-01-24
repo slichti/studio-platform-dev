@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { bookings, users, tenantMembers, tenants } from 'db/src/schema'; // Import necessary schema
+import { bookings, users, tenantMembers, tenants, classes } from 'db/src/schema'; // Import necessary schema
 import { eq, and, sql, desc, gte, lt } from 'drizzle-orm';
 import { authMiddleware } from '../middleware/auth';
 
@@ -8,7 +8,9 @@ type Bindings = {
     DB: D1Database;
 };
 
-const app = new Hono<{ Bindings: Bindings }>();
+import { Variables } from '../index'; // Import centralized types
+
+const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 
 app.use('*', authMiddleware);
 
@@ -29,15 +31,11 @@ app.get('/utilization', async (c) => {
         count: sql<number>`count(*)`
     })
         .from(bookings)
+        .innerJoin(classes, eq(bookings.classId, classes.id))
         .where(and(
-            eq(bookings.status, 'confirmed')
-            // Join with classes to ensure tenant? 
-            // Bookings don't have tenantId directly, need join class.
-            // For simplicity/perf in this demo, let's assume we join or just query if schema allowed.
-            // Schema: bookings -> class -> tenantId
+            eq(bookings.status, 'confirmed'),
+            eq(classes.tenantId, tenant.id)
         ))
-        .innerJoin(bookings.class, eq(bookings.class.id, bookings.classId))
-        .where(eq(bookings.class.tenantId, tenant.id))
         .groupBy(sql`strftime('%w', ${bookings.createdAt})`, sql`strftime('%H', ${bookings.createdAt})`)
         .all();
 

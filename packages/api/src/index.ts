@@ -78,7 +78,7 @@ type Bindings = {
   METRICS: DurableObjectNamespace;
 };
 
-type Variables = {
+export type Variables = {
   tenant: typeof tenants.$inferSelect;
   member?: any; // Includes user relation from 'with' query
   roles?: string[];
@@ -88,6 +88,7 @@ type Variables = {
   };
   features: Set<string>;
   isImpersonating?: boolean;
+  validated_json?: any;
 };
 
 import { traceMiddleware } from './middleware/trace';

@@ -2,7 +2,7 @@ import { ActionFunctionArgs, LoaderFunctionArgs, redirect } from "react-router";
 import { Outlet, Link, useLoaderData, useLocation, useOutletContext, NavLink } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
-import { Layout, LayoutHeader, LayoutSidebar } from "~/components/Layout"; // Assuming generic components exist or we build new ones
+// Removed unused Layout imports
 import { Home, Calendar, User, LogOut, Ticket, Award, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { cn } from "~/utils/cn";
@@ -125,8 +125,12 @@ export default function StudentPortalLayout() {
                                         : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:translate-x-1"
                                 )}
                             >
-                                <item.icon size={20} className={({ isActive }: any) => isActive ? "" : "text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300"} />
-                                {item.label}
+                                {({ isActive }) => (
+                                    <>
+                                        <item.icon size={20} className={isActive ? "" : "text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300"} />
+                                        {item.label}
+                                    </>
+                                )}
                             </NavLink>
                         ))}
                     </nav>

@@ -19,6 +19,7 @@ type Variables = {
         id: string;
     };
     isImpersonating?: boolean;
+    validated_json?: any;
 };
 
 import { zValidator } from '../middleware/validator';
@@ -39,6 +40,8 @@ const SwitchProfileSchema = z.object({
 const PushTokenSchema = z.object({
     token: z.string().min(1)
 });
+
+type PushTokenInput = z.infer<typeof PushTokenSchema>;
 
 // GET /users/me - Get full user profile including tenants
 // GET /users/me - Get full user profile including tenants
