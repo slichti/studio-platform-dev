@@ -12,7 +12,8 @@
     "lint": "eslint --config .eslintrc.json .",
     "start": "wrangler pages dev ./build/client",
     "deploy": "wrangler pages deploy ./build/client --project-name studio-platform-web",
-    "test": "vitest",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:e2e": "playwright test",
     "typecheck": "tsc"
   },

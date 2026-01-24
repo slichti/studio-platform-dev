@@ -4,7 +4,8 @@
     "scripts": {
         "dev": "wrangler dev src/index.ts",
         "deploy": "wrangler deploy --minify src/index.ts",
-        "test": "vitest",
+        "test": "vitest run",
+        "test:watch": "vitest",
         "test:integration": "vitest --config vitest.config.integration.ts",
         "typecheck": "tsc --noEmit"
     },

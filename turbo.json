@@ -12,6 +12,7 @@
             ]
         },
         "lint": {},
+        "test": {},
         "type-check": {},
         "dev": {
             "cache": false,
