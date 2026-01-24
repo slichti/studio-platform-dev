@@ -1,7 +1,7 @@
 import { AuthStore } from "./auth";
 
 // Replace with your local IP if testing on device, or localhost for simulator
-const API_URL = 'http://localhost:8787';
+export const API_URL = 'https://studio-platform-api.slichti.workers.dev';
 
 export async function apiRequest(path: string, options: RequestInit = {}) {
     const token = await AuthStore.getToken();

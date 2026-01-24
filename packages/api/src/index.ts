@@ -53,6 +53,7 @@ import chatRoutes from './routes/chat';
 import platformPagesRoutes from './routes/platform-pages';
 import guestRoutes from './routes/guest';
 import adminStats from './routes/admin-stats'; // [NEW] Import
+import analytics from './routes/analytics'; // [NEW] Analytics
 
 type Bindings = {
   DB: D1Database;
@@ -301,6 +302,9 @@ studioApp.patch('/settings', async (c) => {
   if (body.branding) {
     updateData.branding = { ...(tenant.branding || {}), ...body.branding };
   }
+  if (typeof body.isPublic === 'boolean') {
+    updateData.isPublic = body.isPublic;
+  }
 
   if (Object.keys(updateData).length === 0) return c.json({ received: true });
   await db.update(tenants).set(updateData).where(eq(tenants.id, tenant.id)).run();
@@ -455,6 +459,7 @@ app.route('/leads', leads);
 app.route('/pos', pos);
 app.route('/uploads', uploadRoutes);
 app.route('/reports', reports);
+app.route('/analytics', analytics); // [NEW] Analytics
 app.route('/payroll', payroll);
 
 app.route('/classes', classRoutes);

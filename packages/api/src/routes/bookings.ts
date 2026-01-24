@@ -20,9 +20,22 @@ type Variables = {
     member?: any;
 };
 
+import { zValidator } from '../middleware/validator';
+import { z } from 'zod';
+
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 
 app.use('*', authMiddleware);
+
+const CreateBookingSchema = z.object({
+    classId: z.string().uuid(),
+    attendanceType: z.enum(['in_person', 'zoom']).optional(),
+    memberId: z.string().optional()
+});
+
+const UpdateAttendanceSchema = z.object({
+    attendanceType: z.enum(['in_person', 'zoom'])
+});
 
 
 
@@ -49,27 +62,36 @@ app.get('/my-upcoming', async (c) => {
             // TODO: filter by class startTime >= now
         ),
         with: {
-            class: true
+            class: {
+                with: {
+                    instructor: {
+                        with: { user: true }
+                    }
+                }
+            }
         },
         limit: 50,
-        orderBy: (bookings, { desc }) => [desc(bookings.createdAt)], // Ideally order by class startTime
+        orderBy: (bookings, { desc }) => [desc(bookings.createdAt)],
     });
 
-    // Filter and Sort in memory if needed or refine query
-    // Let's rely on the result for now.
-    // Transform specifically for mobile
-    const result = myBookings.map(b => ({
-        id: b.id,
-        status: b.status,
-        waitlistPosition: b.waitlistPosition,
-        waitlistNotifiedAt: b.waitlistNotifiedAt,
-        class: {
-            title: b.class.title,
-            startTime: b.class.startTime,
-            endTime: b.class.endTime,
-            instructor: b.class.instructorName || "Staff" // Assuming instructorName exists or is handled
-        }
-    }));
+    const result = myBookings.map(b => {
+        const startTime = new Date(b.class.startTime);
+        const endTime = new Date(startTime.getTime() + b.class.durationMinutes * 60000);
+        const instructorName = (b.class.instructor?.user?.profile as any)?.firstName || "Staff";
+
+        return {
+            id: b.id,
+            status: b.status,
+            waitlistPosition: b.waitlistPosition,
+            waitlistNotifiedAt: b.waitlistNotifiedAt,
+            class: {
+                title: b.class.title,
+                startTime: b.class.startTime,
+                endTime: endTime.toISOString(),
+                instructor: instructorName
+            }
+        };
+    });
 
     // Sort by startTime
     result.sort((a, b) => new Date(a.class.startTime).getTime() - new Date(b.class.startTime).getTime());
@@ -78,16 +100,14 @@ app.get('/my-upcoming', async (c) => {
 });
 
 // POST / - Create Booking
-app.post('/', async (c) => {
+app.post('/', zValidator('json', CreateBookingSchema), async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     const auth = c.get('auth');
     if (!auth.userId) return c.json({ error: "Unauthorized" }, 401);
 
-    const body = await c.req.json();
+    const body = c.get('validated_json') as z.infer<typeof CreateBookingSchema>;
     const { classId, attendanceType, memberId } = body;
-
-    if (!classId) return c.json({ error: "Missing classId" }, 400);
 
     // 1. Resolve Member
     let targetMemberId;
@@ -239,11 +259,11 @@ app.delete('/:id', async (c) => {
 });
 
 // PATCH /:id - Switch Attendance
-app.patch('/:id', async (c) => {
+app.patch('/:id', zValidator('json', UpdateAttendanceSchema), async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     const bookingId = c.req.param('id');
-    const { attendanceType } = await c.req.json();
+    const { attendanceType } = c.get('validated_json') as z.infer<typeof UpdateAttendanceSchema>;
 
     const booking = await db.select().from(bookings)
         .where(eq(bookings.id, bookingId))

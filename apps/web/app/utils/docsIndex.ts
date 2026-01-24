@@ -59,5 +59,16 @@ export const docsIndex = [
         href: "/documentation/team",
         content: "Payroll, Substitutions, Permissions, Roles, Instructors, Front Desk",
         category: "Team"
+    {
+        title: "Advanced Analytics",
+        href: "/documentation/studio/analytics",
+        content: "Cohort Analysis, Retention, LTV, Lifetime Value, Heatmap, Utilization, Data, Insights, Trends",
+        category: "Growth"
+    },
+    {
+        title: "Student Portal",
+        href: "/documentation/studio/portal",
+        content: "Student View, Scheduling, Profile, Achievements, Progress, History, Bookings",
+        category: "Student Experience"
     }
 ];

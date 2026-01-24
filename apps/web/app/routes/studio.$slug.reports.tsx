@@ -173,6 +173,12 @@ export default function StudioReports() {
                     >
                         Custom Query
                     </Link>
+                    <Link
+                        to="advanced"
+                        className="ml-2 px-4 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white shadow hover:bg-indigo-700 transition-colors"
+                    >
+                        Advanced
+                    </Link>
                     <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg">
                         <button
                             onClick={() => setActiveTab('financials')}

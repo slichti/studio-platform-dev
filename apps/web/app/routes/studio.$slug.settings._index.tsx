@@ -240,6 +240,52 @@ export default function SettingsIndex() {
                 </div>
             </div>
 
+            {/* Marketplace Visibility */}
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm mb-8">
+                <div className="flex justify-between items-start mb-4">
+                    <div>
+                        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                            <Globe className="h-5 w-5 text-blue-500" />
+                            Marketplace Discovery
+                        </h2>
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Allow new students to find your studio in the global app.</p>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                    <div>
+                        <div className="font-medium text-zinc-900 dark:text-zinc-100">Public Marketplace Listing</div>
+                        <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                            {tenant.isPublic
+                                ? "Your studio is visible in search results."
+                                : "Your studio is hidden from search."}
+                        </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={tenant.isPublic || false}
+                            onChange={async (e) => {
+                                const checked = e.target.checked;
+                                try {
+                                    const token = await (window as any).Clerk?.session?.getToken();
+                                    await apiRequest(`/tenant/settings`, token, {
+                                        method: "PATCH",
+                                        headers: { 'X-Tenant-Slug': tenant.slug },
+                                        body: JSON.stringify({ isPublic: checked })
+                                    });
+                                    window.location.reload();
+                                } catch (err) {
+                                    toast.error("Failed to update marketplace setting");
+                                }
+                            }}
+                        />
+                        <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+            </div>
+
             {/* Registration Controls */}
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm mb-8">
                 <div className="flex justify-between items-start mb-4">

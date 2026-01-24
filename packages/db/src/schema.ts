@@ -34,6 +34,9 @@ export const tenants = sqliteTable('tenants', {
     tier: text('tier', { enum: ['basic', 'growth', 'scale'] }).default('basic').notNull(),
     subscriptionStatus: text('subscription_status', { enum: ['active', 'past_due', 'canceled', 'trialing'] }).default('active').notNull(),
 
+    // Marketplace
+    isPublic: integer('is_public', { mode: 'boolean' }).default(false).notNull(),
+
     // Quotas (Reset monthly)
     smsUsage: integer('sms_usage').default(0).notNull(),
     emailUsage: integer('email_usage').default(0).notNull(),
@@ -107,6 +110,7 @@ export const users = sqliteTable('users', {
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     emailIdx: index('email_idx').on(table.email),
+    stripeCustomerIdx: index('user_stripe_customer_idx').on(table.stripeCustomerId), // Fast webhook lookup
 }));
 
 // --- User Relationships (Family) ---
@@ -260,6 +264,7 @@ export const classes = sqliteTable('classes', {
 }, (table) => ({
     tenantTimeIdx: index('tenant_time_idx').on(table.tenantId, table.startTime),
     seriesIdx: index('series_idx').on(table.seriesId),
+    tenantStartIdx: index('class_tenant_start_idx').on(table.tenantId, table.startTime), // Optimize schedule queries
 }));
 
 // --- Student Notes (CRM) ---
@@ -323,6 +328,7 @@ export const bookings = sqliteTable('bookings', {
 }, (table) => ({
     memberClassIdx: index('member_class_idx').on(table.memberId, table.classId),
     waitlistIdx: index('booking_waitlist_idx').on(table.classId, table.waitlistPosition),
+    classStatusIdx: index('booking_class_status_idx').on(table.classId, table.status), // Fast roster fetch
 }));
 
 // --- Appointments (Private Sessions) ---
@@ -583,6 +589,7 @@ export const purchasedPacks = sqliteTable('purchased_packs', {
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     memberPackIdx: index('member_pack_idx').on(table.memberId),
+    memberCreditsIdx: index('pack_member_credits_idx').on(table.memberId, table.remainingCredits), // Fast credit check
 }));
 
 // --- Phase 4: Discounts ---

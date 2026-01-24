@@ -51,6 +51,7 @@ import { ChatWidget } from "../components/chat/ChatWidget";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { params, request } = args;
+    const url = request.url;
     const { userId, getToken } = await getAuth(args);
 
     if (!userId) {
@@ -86,9 +87,27 @@ export const loader = async (args: LoaderFunctionArgs) => {
             throw new Response(`Studio Not Found: ${msg}`, { status: 404 });
         }
 
-        // Status Enforcement
-        if (tenantInfo.status === 'suspended') {
-            throw new Response("This studio has been suspended by the platform administrator.", { status: 403 });
+        // Role-based Redirect
+        // If user is ONLY a student (not owner/admin/instructor/platform_admin) and NOT impersonating
+        // Redirect to /portal/:slug
+        const hasAdminRole = me.roles.some((r: string) => ['owner', 'admin', 'instructor'].includes(r));
+        const isPlatformAdmin = me.user?.isPlatformAdmin;
+
+        if (!hasAdminRole && !isPlatformAdmin && !isImpersonating && !url.includes('/join')) { // Allow join/public pages if any
+            return redirect(`/portal/${slug}`);
+        }
+
+        // Onboarding Enforcement
+        // Only for owners/admins who have an explicit onboarding step < 4
+        // Legacy tenants with undefined onboardingStep are skipped (assumed complete)
+        const onboardingStep = tenantInfo.settings?.onboardingStep;
+        if (
+            (me.roles.includes('owner') || me.roles.includes('admin')) &&
+            onboardingStep &&
+            onboardingStep < 4 &&
+            !url.includes('/onboarding')
+        ) {
+            return redirect(`/studio/${slug}/onboarding`);
         }
 
         return {

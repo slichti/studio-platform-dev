@@ -415,6 +415,4 @@ async function processRenewals(db: any, env: any) {
             }
         }
     }
-
-
 }

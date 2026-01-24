@@ -21,7 +21,24 @@ type Variables = {
     isImpersonating?: boolean;
 };
 
+import { zValidator } from '../middleware/validator';
+import { z } from 'zod';
+
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
+
+const FamilyMemberSchema = z.object({
+    firstName: z.string().min(1),
+    lastName: z.string().optional(),
+    dob: z.string().optional() // Could tighten to date string regex
+});
+
+const SwitchProfileSchema = z.object({
+    targetUserId: z.string().min(1)
+});
+
+const PushTokenSchema = z.object({
+    token: z.string().min(1)
+});
 
 // GET /users/me - Get full user profile including tenants
 // GET /users/me - Get full user profile including tenants
@@ -217,16 +234,13 @@ app.get('/me/family', async (c) => {
 });
 
 // POST /users/me/family - Create a new child
-app.post('/me/family', async (c) => {
+app.post('/me/family', zValidator('json', FamilyMemberSchema), async (c) => {
     const auth = c.get('auth');
     if (!auth?.userId) return c.json({ error: 'Unauthorized' }, 401);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: 'Tenant context required to add family member' }, 400);
 
-    const body = await c.req.json();
-    const { firstName, lastName, dob } = body;
-
-    if (!firstName) return c.json({ error: 'First Name is required' }, 400);
+    const { firstName, lastName, dob } = c.get('validated_json') as z.infer<typeof FamilyMemberSchema>;
 
     const db = createDb(c.env.DB);
 
@@ -281,14 +295,11 @@ app.post('/me/family', async (c) => {
 });
 
 // POST /users/me/switch-profile - Switch context to a family member
-app.post('/me/switch-profile', async (c) => {
+app.post('/me/switch-profile', zValidator('json', SwitchProfileSchema), async (c) => {
     const auth = c.get('auth');
     if (!auth?.userId) return c.json({ error: 'Unauthorized' }, 401);
 
-    const body = await c.req.json();
-    const { targetUserId } = body;
-
-    if (!targetUserId) return c.json({ error: 'Target User ID required' }, 400);
+    const { targetUserId } = c.get('validated_json') as z.infer<typeof SwitchProfileSchema>;
 
     const realUserId = auth.claims.impersonatorId || auth.userId;
 
@@ -353,12 +364,11 @@ app.get('/session-info', (c) => {
 });
 
 // POST /push-token - Register Device Token
-app.post('/push-token', async (c) => {
+app.post('/push-token', zValidator('json', PushTokenSchema), async (c) => {
     const auth = c.get('auth');
     if (!auth?.userId) return c.json({ error: 'Unauthorized' }, 401);
 
-    const { token } = await c.req.json();
-    if (!token) return c.json({ error: 'Token required' }, 400);
+    const { token } = c.get('validated_json') as z.infer<typeof PushTokenSchema>;
 
     const db = createDb(c.env.DB);
     await db.update(users)

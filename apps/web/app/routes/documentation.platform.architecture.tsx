@@ -55,6 +55,11 @@ export default function PlatformArchitecture() {
                                     Worker -.->|Payment| Stripe[Stripe Connect]
                                     Worker -.->|Email| Resend[Resend / SMTP]
                                     Worker -.->|SMS| Twilio[Twilio]
+                                    
+                                    subgraph "New Capabilities"
+                                    Worker -->|Aggregations| Analytics[Analytics Engine (SQLite)]
+                                    Worker -.->|Push| Expo[Expo Push Notifications]
+                                    end
                                 `}
                             </pre>
                         </div>
@@ -69,6 +74,7 @@ export default function PlatformArchitecture() {
                             <li>• <strong>Database:</strong> Cloudflare D1 (SQLite at the edge).</li>
                             <li>• <strong>Object Storage:</strong> Cloudflare R2 (Images, Videos, Assets).</li>
                             <li>• <strong>ORM:</strong> Drizzle ORM for type-safe database queries.</li>
+                            <li>• <strong>Analytics:</strong> Optimized group-by queries for Reporting.</li>
                         </ul>
                     </div>
                 </div>
