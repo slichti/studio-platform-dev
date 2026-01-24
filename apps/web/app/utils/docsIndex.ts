@@ -59,6 +59,7 @@ export const docsIndex = [
         href: "/documentation/team",
         content: "Payroll, Substitutions, Permissions, Roles, Instructors, Front Desk",
         category: "Team"
+    },
     {
         title: "Advanced Analytics",
         href: "/documentation/studio/analytics",
