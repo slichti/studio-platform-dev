@@ -5,16 +5,17 @@
     "types": "./index.tsx",
     "license": "MIT",
     "scripts": {
-        "lint": "eslint .",
+        "lint": "eslint --config .eslintrc.json .",
         "typecheck": "tsc --noEmit"
     },
     "peerDependencies": {
+        "nativewind": "*",
         "react": "*",
-        "react-native": "*",
-        "nativewind": "*"
+        "react-native": "*"
     },
     "devDependencies": {
-        "typescript": "^5.0.0",
-        "react": "^19.0.0"
+        "eslint": "^8.57.1",
+        "react": "^19.0.0",
+        "typescript": "^5.0.0"
     }
 }
