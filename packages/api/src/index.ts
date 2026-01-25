@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { createDb } from './db';
-import { tenants, tenantMembers, tenantFeatures, users, classes, bookings, posOrders, purchasedPacks, waiverTemplates, waiverSignatures, tenantRoles, platformConfig } from '@studio/db/src/schema';
+import { tenants, tenantMembers, tenantFeatures, users, classes, bookings, posOrders, purchasedPacks, waiverTemplates, waiverSignatures, tenantRoles, platformConfig, customRoles, memberCustomRoles } from '@studio/db/src/schema';
 import { eq, and, count, sum, gte, like, or } from 'drizzle-orm';
 import { UsageService } from './services/pricing';
 import { StripeService } from './services/stripe';
@@ -45,6 +45,7 @@ import challenges from './routes/challenges';
 import jobs from './routes/jobs';
 import video from './routes/video';
 import kioskRoutes from './routes/kiosk'; // [NEW] Kiosk
+import rolesRoutes from './routes/roles'; // [NEW] RBAC
 import videoManagement from './routes/video-management';
 import tenantIntegrations from './routes/tenant-integrations';
 import diagnosticsRoutes from './routes/diagnostics';
@@ -518,6 +519,7 @@ app.route('/video', video);
 app.route('/video-management', videoManagement);
 
 app.route('/tenant', studioApp);
+studioApp.route('/roles', rolesRoutes); // [NEW] RBAC Management
 
 app.route('/users', userRoutes);
 app.route('/bookings', bookingRoutes);

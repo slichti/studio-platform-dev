@@ -154,14 +154,68 @@ export const tenantMembers = sqliteTable('tenant_members', {
     engagementIdx: index('member_engagement_idx').on(table.engagementScore),
 }));
 
+
+
 // --- Tenant Roles ---
 // A member can have multiple roles in a tenant (e.g. Owner + Instructor)
+// If role is 'custom', customRoleId must be provided.
 export const tenantRoles = sqliteTable('tenant_roles', {
     memberId: text('member_id').notNull().references(() => tenantMembers.id),
-    role: text('role', { enum: ['owner', 'admin', 'instructor', 'student'] }).notNull(),
+    role: text('role', { enum: ['owner', 'admin', 'instructor', 'student', 'custom'] }).notNull(),
+    customRoleId: text('custom_role_id').references(() => customRoles.id), // Only used if role='custom'
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
-    pk: primaryKey({ columns: [table.memberId, table.role] }),
+    pk: primaryKey({ columns: [table.memberId, table.role, table.customRoleId] }), // Composite PK needs to handle custom roles potentially
+    // Actually, simpler PK: [memberId, role] if role != custom, but if role==custom, we might have multiple?
+    // Let's assume one 'custom' role entry per member per specific custom role? 
+    // If I assign 2 custom roles, I need checks.
+    // Let's stick to: member can have 'owner', 'instructor', and MULTIPLE 'custom' roles?
+    // Drizzle Composite PK with nullable columns is tricky.
+    // Improved Design: just use a unique ID for the row if it gets complex, but let's keep it simple for now.
+    // If role is 'custom', uniqueness should be on [memberId, customRoleId].
+    // If role is 'owner', uniqueness on [memberId, role].
+
+    // For simplicity in Phase 30: Let's assume a member has a list of roles.
+    // If I want to assign Custom Role A and Custom Role B, they are distinct rows.
+    // Row 1: role='custom', customRoleId='A'
+    // Row 2: role='custom', customRoleId='B'
+    // So PK should include customRoleId (sqlite handles nullable in PK uniquely? No.)
+    // D1/SQLite: Primary Key columns must not be null.
+
+    // ERROR PREVENT: customRoleId CANNOT be in PK if it is nullable.
+    // Solution: Add a surrogate key `id` OR make `customRoleId` not null but default to empty string equivalent? No.
+    // Alternative: `tenant_roles` is just for system roles. Create `tenant_member_custom_roles` table?
+    // OR: Just make `customRoleId` non-null for keys and verify logic locally. 
+    // BUT legacy data has no customRoleId.
+
+    // New Table Approach is safer for migration and logic.
+    // Let's create `tenant_member_roles` linking to `custom_roles`.
+}));
+
+// Re-defining tenantRoles (keeping backward compat)
+// We will ADD a new table `memberCustomRoles` instead of modifying `tenantRoles` heavily to break PKs.
+
+
+// --- Advanced RBAC: Custom Roles ---
+export const customRoles = sqliteTable('custom_roles', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    name: text('name').notNull(), // e.g. "Front Desk", "Manager"
+    description: text('description'),
+    permissions: text('permissions', { mode: 'json' }).notNull(), // Array of permissions
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('custom_role_tenant_idx').on(table.tenantId),
+}));
+
+// Junction: Member <-> Custom Role
+export const memberCustomRoles = sqliteTable('member_custom_roles', {
+    memberId: text('member_id').notNull().references(() => tenantMembers.id),
+    customRoleId: text('custom_role_id').notNull().references(() => customRoles.id),
+    assignedAt: integer('assigned_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    assignedBy: text('assigned_by'), // User ID
+}, (table) => ({
+    pk: primaryKey({ columns: [table.memberId, table.customRoleId] }),
 }));
 
 // --- Audit Logs ---

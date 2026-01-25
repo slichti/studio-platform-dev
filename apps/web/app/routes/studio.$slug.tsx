@@ -300,6 +300,10 @@ export default function StudioLayout() {
                                     <NavItem to={`/studio/${slug}/financials/my-payouts`} icon={<DollarSign size={18} />}>My Payouts</NavItem>
                                 )}
 
+                                {(['admin', 'owner'].some(r => effectiveRoles.includes(r))) && (
+                                    <NavItem to={`/studio/${slug}/settings/roles`} icon={<Users size={18} />}>Roles & Permissions</NavItem>
+                                )}
+
                                 {featureSet.has('financials') && (
                                     <NavItem to={`/studio/${slug}/finances`} end icon={<DollarSign size={18} />}>Finances</NavItem>
                                 )}
