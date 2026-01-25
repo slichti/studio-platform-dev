@@ -286,6 +286,94 @@ export default function SettingsIndex() {
                 </div>
             </div>
 
+            {/* Kiosk Mode Settings */}
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm mb-8">
+                <div className="flex justify-between items-start mb-4">
+                    <div>
+                        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                            <CreditCard className="h-5 w-5 text-purple-500" />
+                            Kiosk Mode
+                        </h2>
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Enable self-service check-in for your front desk.</p>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700 mb-4">
+                    <div>
+                        <div className="font-medium text-zinc-900 dark:text-zinc-100">Enable Kiosk App</div>
+                        <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                            {tenant.features?.includes('kiosk')
+                                ? "Kiosk is active. Access it at /kiosk/your-slug."
+                                : "Kiosk is currently disabled."}
+                        </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={tenant.features?.includes('kiosk') || false}
+                            onChange={async (e) => {
+                                const checked = e.target.checked;
+                                try {
+                                    const token = await (window as any).Clerk?.session?.getToken();
+                                    await apiRequest(`/studios/${tenant.id}/features`, token, {
+                                        method: "POST",
+                                        body: JSON.stringify({ featureKey: 'kiosk', enabled: checked })
+                                    });
+                                    window.location.reload();
+                                } catch (err) {
+                                    toast.error("Failed to toggle Kiosk mode");
+                                }
+                            }}
+                        />
+                        <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                    </label>
+                </div>
+
+                {tenant.features?.includes('kiosk') && (
+                    <div className="ml-1 p-4 border border-zinc-100 dark:border-zinc-700 rounded-lg">
+                        <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">
+                            Kiosk PIN
+                        </label>
+                        <div className="flex gap-4 items-center">
+                            <input
+                                type="text"
+                                maxLength={6}
+                                defaultValue={tenant.settings?.kioskPin || ''}
+                                placeholder="123456"
+                                className="w-40 bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 rounded text-sm px-3 py-2 text-center tracking-widest font-mono"
+                                onBlur={async (e) => {
+                                    const val = e.target.value;
+                                    if (val.length < 4) return;
+                                    try {
+                                        const token = await (window as any).Clerk?.session?.getToken();
+                                        await apiRequest(`/tenant/settings`, token, {
+                                            method: "PATCH",
+                                            headers: { 'X-Tenant-Slug': tenant.slug },
+                                            body: JSON.stringify({ kioskPin: val })
+                                        });
+                                        toast.success("Kiosk PIN updated");
+                                    } catch (err) {
+                                        toast.error("Failed to save PIN");
+                                    }
+                                }}
+                            />
+                            <a
+                                href={`/kiosk/${tenant.slug}/login`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+                            >
+                                Open Kiosk App &rarr;
+                            </a>
+                        </div>
+                        <p className="text-xs text-zinc-400 mt-2">
+                            This PIN is required to unlock the Kiosk on your tablet. Keep it secret from students.
+                        </p>
+                    </div>
+                )}
+            </div>
+
             {/* Registration Controls */}
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm mb-8">
                 <div className="flex justify-between items-start mb-4">

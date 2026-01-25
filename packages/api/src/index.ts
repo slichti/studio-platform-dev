@@ -44,6 +44,7 @@ import reportsCustom from './routes/reports.custom';
 import challenges from './routes/challenges';
 import jobs from './routes/jobs';
 import video from './routes/video';
+import kioskRoutes from './routes/kiosk'; // [NEW] Kiosk
 import videoManagement from './routes/video-management';
 import tenantIntegrations from './routes/tenant-integrations';
 import diagnosticsRoutes from './routes/diagnostics';
@@ -260,9 +261,11 @@ app.route('/studios', studioRoutes);
 app.route('/tenants', studioRoutes); // Alias for legacy frontend compatibility
 
 // 6. Base Studio Logic
+// 6. Base Studio Logic
 // GET /info
 studioApp.get('/info', async (c) => {
   const tenant = c.get('tenant');
+  const roles = c.get('roles') || [];
   if (!tenant) return c.json({ error: "No tenant" }, 404);
 
   const db = createDb(c.env.DB);
@@ -272,6 +275,27 @@ studioApp.get('/info', async (c) => {
     return acc;
   }, {} as Record<string, boolean>);
 
+  // [SECURITY] Filter sensitive settings
+  const settings = (tenant.settings || {}) as any;
+  const isOwner = roles.includes('owner') || roles.includes('admin');
+
+  // Publicly safe settings
+  const safeSettings = {
+    ...settings,
+    googleTagManagerId: settings.googleTagManagerId,
+    // Add other public settings here
+  };
+
+  // Only expose Kiosk PIN to owners
+  if (!isOwner && safeSettings.kioskPin) {
+    delete safeSettings.kioskPin;
+  }
+
+  // Check if Kiosk Mode is globally enabled
+  const kioskFeature = await db.select().from(tenantFeatures)
+    .where(and(eq(tenantFeatures.tenantId, tenant.id), eq(tenantFeatures.featureKey, 'kiosk')))
+    .get();
+
   return c.json({
     id: tenant.id,
     name: tenant.name,
@@ -279,8 +303,9 @@ studioApp.get('/info', async (c) => {
     tier: tenant.tier,
     status: tenant.status,
     customDomain: tenant.customDomain,
-    settings: tenant.settings,
-    mobileAppConfig: tenant.mobileAppConfig, // Added
+    settings: safeSettings, // Use filtered settings
+    kioskEnabled: !!kioskFeature?.enabled, // Helper flag
+    mobileAppConfig: tenant.mobileAppConfig,
     stripeAccountId: tenant.stripeAccountId,
     branding: tenant.branding,
     features: Array.from(c.get('features') || []),
@@ -301,9 +326,18 @@ studioApp.patch('/settings', async (c) => {
   const body = await c.req.json();
   const updateData: any = {};
   if (body.name) updateData.name = body.name;
+
+  // Settings Merge Logic
   if (body.settings) {
     updateData.settings = { ...(tenant.settings || {}), ...body.settings };
   }
+
+  // Kiosk PIN Shortcut (can also be passed inside body.settings)
+  if (body.kioskPin !== undefined) {
+    const currentSettings = (tenant.settings || {}) as any;
+    updateData.settings = { ...currentSettings, kioskPin: body.kioskPin };
+  }
+
   if (body.mobileAppConfig) {
     updateData.mobileAppConfig = { ...(tenant.mobileAppConfig || {}), ...body.mobileAppConfig };
   }
@@ -362,7 +396,7 @@ studioApp.post('/features', async (c) => {
 
   const { featureKey, enabled } = await c.req.json();
   // Allowlist of self-service features
-  const ALLOWED_FEATURES = ['sms', 'webhooks'];
+  const ALLOWED_FEATURES = ['sms', 'webhooks', 'kiosk'];
 
   if (!ALLOWED_FEATURES.includes(featureKey)) {
     return c.json({ error: "Feature not available for self-service" }, 400);
@@ -478,6 +512,7 @@ app.route('/reports/custom', reportsCustom);
 app.route('/refunds', refunds);
 app.route('/challenges', challenges);
 app.route('/platform', platform);
+app.route('/kiosk', kioskRoutes); // [NEW] Mount
 app.route('/jobs', jobs);
 app.route('/video', video);
 app.route('/video-management', videoManagement);

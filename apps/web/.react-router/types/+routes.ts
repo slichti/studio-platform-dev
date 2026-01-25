@@ -461,6 +461,21 @@ type Pages = {
       "slug": string;
     };
   };
+  "/kiosk/:slug": {
+    params: {
+      "slug": string;
+    };
+  };
+  "/kiosk/:slug/login": {
+    params: {
+      "slug": string;
+    };
+  };
+  "/kiosk/:slug/mode": {
+    params: {
+      "slug": string;
+    };
+  };
   "/:pageSlug": {
     params: {
       "pageSlug": string;
@@ -578,7 +593,7 @@ type Pages = {
 type RouteFiles = {
   "root.tsx": {
     id: "root";
-    page: "/" | "/site/:slug/:pageSlug" | "/pricing/compare" | "/pricing" | "/:slug/support" | "/accept-invite" | "/create-studio" | "/documentation" | "/documentation/platform/architecture" | "/documentation/platform/tenants" | "/documentation/studio/analytics" | "/documentation/studio/overview" | "/documentation/mobile-builder" | "/documentation/studio/portal" | "/documentation/commerce" | "/documentation/classes" | "/documentation/reports" | "/documentation/website" | "/documentation/setup" | "/documentation/team" | "/documentation/crm" | "/portal/:slug" | "/portal/:slug/classes" | "/portal/:slug/profile" | "/studio/:slug" | "/studio/:slug/videos/collections/:id" | "/studio/:slug/website/editor/:pageId" | "/studio/:slug/financials/my-payouts" | "/studio/:slug/videos/edit/:videoId" | "/studio/:slug/commerce/gift-cards" | "/studio/:slug/financials/payroll" | "/studio/:slug/financials" | "/studio/:slug/commerce/coupons" | "/studio/:slug/commerce/packs" | "/studio/:slug/substitutions" | "/studio/:slug/videos" | "/studio/:slug/website/pages" | "/studio/:slug/appointments" | "/studio/:slug/appointments/calendar" | "/studio/:slug/memberships" | "/studio/:slug/challenges" | "/studio/:slug/instructor" | "/studio/:slug/instructor/schedule" | "/studio/:slug/instructor/payroll" | "/studio/:slug/onboarding" | "/studio/:slug/dashboard" | "/studio/:slug/discounts" | "/studio/:slug/marketing" | "/studio/:slug/marketing/automations" | "/studio/:slug/marketing/referrals" | "/studio/:slug/branding" | "/studio/:slug/checkout" | "/studio/:slug/checkout/return" | "/studio/:slug/finances" | "/studio/:slug/schedule" | "/studio/:slug/settings" | "/studio/:slug/settings/integrations" | "/studio/:slug/settings/developers" | "/studio/:slug/settings/locations" | "/studio/:slug/settings/branding" | "/studio/:slug/settings/hardware" | "/studio/:slug/settings/billing" | "/studio/:slug/settings/addons" | "/studio/:slug/settings/domain" | "/studio/:slug/settings/embeds" | "/studio/:slug/settings/mobile" | "/studio/:slug/settings/chat" | "/studio/:slug/settings/qr" | "/studio/:slug/students" | "/studio/:slug/students/:id" | "/studio/:slug/checkin" | "/studio/:slug/classes" | "/studio/:slug/classes/:classId/live" | "/studio/:slug/classes/:id/roster" | "/studio/:slug/loyalty" | "/studio/:slug/profile" | "/studio/:slug/reports" | "/studio/:slug/reports/advanced" | "/studio/:slug/reports/custom" | "/studio/:slug/waivers" | "/studio/:slug/waivers/new" | "/studio/:slug/retail" | "/studio/:slug/leads" | "/studio/:slug/tasks" | "/studio/:slug/chat" | "/studio/:slug/chat/:roomId" | "/studio/:slug/data" | "/studio/:slug/data/export" | "/studio/:slug/data/import" | "/studio/:slug/pos" | "/embed/:slug" | "/embed/:slug/calendar" | "/embed/:slug/pricing" | "/embed/:slug/book" | "/embed/:slug/chat" | "/embed/:slug/shop" | "/:pageSlug" | "/dashboard" | "/dashboard/classes" | "/dashboard/classes/:id/roster" | "/dashboard/classes/:id/watch" | "/dashboard/profile" | "/debug-ssr" | "/sign-in/*" | "/sign-up/*" | "/admin" | "/admin/website/edit/:pageId" | "/admin/communications/logs" | "/admin/coupons" | "/admin/website" | "/admin/users/:userId" | "/admin/architecture" | "/admin/users" | "/admin/diagnostics" | "/admin/diagnostics/run" | "/admin/projections" | "/admin/financials" | "/admin/financials/failed" | "/admin/workflows" | "/admin/features" | "/admin/tenants" | "/admin/emails" | "/admin/status" | "/admin/videos" | "/admin/comms" | "/admin/chat" | "/admin/chat/:roomId" | "/admin/logs";
+    page: "/" | "/site/:slug/:pageSlug" | "/pricing/compare" | "/pricing" | "/:slug/support" | "/accept-invite" | "/create-studio" | "/documentation" | "/documentation/platform/architecture" | "/documentation/platform/tenants" | "/documentation/studio/analytics" | "/documentation/studio/overview" | "/documentation/mobile-builder" | "/documentation/studio/portal" | "/documentation/commerce" | "/documentation/classes" | "/documentation/reports" | "/documentation/website" | "/documentation/setup" | "/documentation/team" | "/documentation/crm" | "/portal/:slug" | "/portal/:slug/classes" | "/portal/:slug/profile" | "/studio/:slug" | "/studio/:slug/videos/collections/:id" | "/studio/:slug/website/editor/:pageId" | "/studio/:slug/financials/my-payouts" | "/studio/:slug/videos/edit/:videoId" | "/studio/:slug/commerce/gift-cards" | "/studio/:slug/financials/payroll" | "/studio/:slug/financials" | "/studio/:slug/commerce/coupons" | "/studio/:slug/commerce/packs" | "/studio/:slug/substitutions" | "/studio/:slug/videos" | "/studio/:slug/website/pages" | "/studio/:slug/appointments" | "/studio/:slug/appointments/calendar" | "/studio/:slug/memberships" | "/studio/:slug/challenges" | "/studio/:slug/instructor" | "/studio/:slug/instructor/schedule" | "/studio/:slug/instructor/payroll" | "/studio/:slug/onboarding" | "/studio/:slug/dashboard" | "/studio/:slug/discounts" | "/studio/:slug/marketing" | "/studio/:slug/marketing/automations" | "/studio/:slug/marketing/referrals" | "/studio/:slug/branding" | "/studio/:slug/checkout" | "/studio/:slug/checkout/return" | "/studio/:slug/finances" | "/studio/:slug/schedule" | "/studio/:slug/settings" | "/studio/:slug/settings/integrations" | "/studio/:slug/settings/developers" | "/studio/:slug/settings/locations" | "/studio/:slug/settings/branding" | "/studio/:slug/settings/hardware" | "/studio/:slug/settings/billing" | "/studio/:slug/settings/addons" | "/studio/:slug/settings/domain" | "/studio/:slug/settings/embeds" | "/studio/:slug/settings/mobile" | "/studio/:slug/settings/chat" | "/studio/:slug/settings/qr" | "/studio/:slug/students" | "/studio/:slug/students/:id" | "/studio/:slug/checkin" | "/studio/:slug/classes" | "/studio/:slug/classes/:classId/live" | "/studio/:slug/classes/:id/roster" | "/studio/:slug/loyalty" | "/studio/:slug/profile" | "/studio/:slug/reports" | "/studio/:slug/reports/advanced" | "/studio/:slug/reports/custom" | "/studio/:slug/waivers" | "/studio/:slug/waivers/new" | "/studio/:slug/retail" | "/studio/:slug/leads" | "/studio/:slug/tasks" | "/studio/:slug/chat" | "/studio/:slug/chat/:roomId" | "/studio/:slug/data" | "/studio/:slug/data/export" | "/studio/:slug/data/import" | "/studio/:slug/pos" | "/embed/:slug" | "/embed/:slug/calendar" | "/embed/:slug/pricing" | "/embed/:slug/book" | "/embed/:slug/chat" | "/embed/:slug/shop" | "/kiosk/:slug" | "/kiosk/:slug/login" | "/kiosk/:slug/mode" | "/:pageSlug" | "/dashboard" | "/dashboard/classes" | "/dashboard/classes/:id/roster" | "/dashboard/classes/:id/watch" | "/dashboard/profile" | "/debug-ssr" | "/sign-in/*" | "/sign-up/*" | "/admin" | "/admin/website/edit/:pageId" | "/admin/communications/logs" | "/admin/coupons" | "/admin/website" | "/admin/users/:userId" | "/admin/architecture" | "/admin/users" | "/admin/diagnostics" | "/admin/diagnostics/run" | "/admin/projections" | "/admin/financials" | "/admin/financials/failed" | "/admin/workflows" | "/admin/features" | "/admin/tenants" | "/admin/emails" | "/admin/status" | "/admin/videos" | "/admin/comms" | "/admin/chat" | "/admin/chat/:roomId" | "/admin/logs";
   };
   "routes/site.$slug.$pageSlug.tsx": {
     id: "routes/site.$slug.$pageSlug";
@@ -992,6 +1007,18 @@ type RouteFiles = {
     id: "routes/embed.$slug.shop";
     page: "/embed/:slug/shop";
   };
+  "routes/kiosk.$slug.tsx": {
+    id: "routes/kiosk.$slug";
+    page: "/kiosk/:slug" | "/kiosk/:slug/login" | "/kiosk/:slug/mode";
+  };
+  "routes/kiosk.$slug.login.tsx": {
+    id: "routes/kiosk.$slug.login";
+    page: "/kiosk/:slug/login";
+  };
+  "routes/kiosk.$slug.mode.tsx": {
+    id: "routes/kiosk.$slug.mode";
+    page: "/kiosk/:slug/mode";
+  };
   "routes/$pageSlug.tsx": {
     id: "routes/$pageSlug";
     page: "/:pageSlug";
@@ -1243,6 +1270,9 @@ type RouteModules = {
   "routes/embed.$slug.book": typeof import("./app/routes/embed.$slug.book.tsx");
   "routes/embed.$slug.chat": typeof import("./app/routes/embed.$slug.chat.tsx");
   "routes/embed.$slug.shop": typeof import("./app/routes/embed.$slug.shop.tsx");
+  "routes/kiosk.$slug": typeof import("./app/routes/kiosk.$slug.tsx");
+  "routes/kiosk.$slug.login": typeof import("./app/routes/kiosk.$slug.login.tsx");
+  "routes/kiosk.$slug.mode": typeof import("./app/routes/kiosk.$slug.mode.tsx");
   "routes/$pageSlug": typeof import("./app/routes/$pageSlug.tsx");
   "routes/dashboard": typeof import("./app/routes/dashboard.tsx");
   "routes/dashboard.classes": typeof import("./app/routes/dashboard.classes.tsx");
