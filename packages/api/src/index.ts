@@ -187,9 +187,15 @@ const studioPaths = [
   '/leads', '/leads/*',
   '/pos', '/pos/*',
   '/uploads', '/uploads/*',
+  '/marketing', '/marketing/*',
+  '/substitutions', '/substitutions/*',
+  '/leads', '/leads/*',
+  '/pos', '/pos/*',
+  '/uploads', '/uploads/*',
   '/tenant', '/tenant/*',
   '/classes', '/classes/*',
   '/commerce', '/commerce/*',
+  '/coupons', '/coupons/*',  // [FIX] Added
   '/gift-cards', '/gift-cards/*',
   '/refunds', '/refunds/*',
   '/platform', '/platform/*',
@@ -213,6 +219,7 @@ const authenticatedPaths = [
   '/pos', '/pos/*',
   '/uploads', '/uploads/*',
   '/refunds', '/refunds/*',
+  '/coupons', '/coupons/*', // [FIX] Added
   '/platform', '/platform/*',
   '/tenant', '/tenant/*',
   '/integrations', '/integrations/*',

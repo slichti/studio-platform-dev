@@ -9,7 +9,9 @@ import type { Bindings } from '../types';
 const app = new Hono<{ Bindings: Bindings; Variables: { tenantId: string } }>();
 
 app.get('/', async (c) => {
-    const tenantId = c.get('tenantId') as string;
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 500);
+    const tenantId = tenant.id;
     const db = createDb(c.env.DB);
 
     const results = await db.select({

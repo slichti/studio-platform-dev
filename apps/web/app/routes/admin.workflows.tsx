@@ -16,7 +16,7 @@ import {
     Clock
 } from "lucide-react";
 // Import only existing components
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "../components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription, DialogClose } from "../components/ui/dialog";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -318,7 +318,10 @@ function WorkflowForm({ initialData, onSubmit }: WorkflowFormProps) {
                 <p className="text-xs text-zinc-500">Supported variables: {'{firstname}'}, {'{lastname}'}.</p>
             </div>
 
-            <DialogFooter className="mt-4">
+            <DialogFooter className="mt-4 flex justify-end gap-2">
+                <DialogClose asChild>
+                    <Button type="button" variant="outline">Cancel</Button>
+                </DialogClose>
                 <Button type="submit">Save Workflow</Button>
             </DialogFooter>
         </form>

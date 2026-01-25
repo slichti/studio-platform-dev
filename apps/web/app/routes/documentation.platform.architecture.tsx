@@ -2,12 +2,17 @@
 import { useOutletContext, Navigate } from "react-router";
 import { Server, Database, Cloud, Shield, Globe, Lock } from "lucide-react";
 import { useEffect } from "react";
-import mermaid from "mermaid";
+import { useOutletContext, Navigate } from "react-router";
+import { Server, Database, Cloud, Shield, Globe, Lock } from "lucide-react";
+import { useEffect } from "react";
 
 export default function PlatformArchitecture() {
     useEffect(() => {
-        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
-        mermaid.contentLoaded();
+        // Dynamically import mermaid to avoid SSR/Hydration mismatches (global style injection)
+        import("mermaid").then((mermaid) => {
+            mermaid.default.initialize({ startOnLoad: true, theme: 'neutral' });
+            mermaid.default.contentLoaded();
+        });
     }, []);
 
     const { isPlatformAdmin } = useOutletContext<{ isPlatformAdmin: boolean }>();
