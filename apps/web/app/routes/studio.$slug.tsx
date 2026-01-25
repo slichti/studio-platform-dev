@@ -52,7 +52,34 @@ import { ChatWidget } from "../components/chat/ChatWidget";
 export const loader = async (args: LoaderFunctionArgs) => {
     const { params, request } = args;
     const url = request.url;
-    const { userId, getToken } = await getAuth(args);
+
+    // [E2E BYPASS] Allow impersonation/bypass for testing
+    let userId: string | null = null;
+    let token: string | null = null;
+    let getToken: (() => Promise<string | null>) | null = null;
+
+    const cookie = request.headers.get("Cookie");
+
+    // [SECURITY CRITICAL] ONLY allow bypass in Development/Test environments
+    // This prevents production exploitation of the bypass cookie
+    // @ts-ignore
+    const isDev = import.meta.env.DEV || process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+
+    if (isDev && cookie?.includes("__e2e_bypass_user_id=")) {
+        const match = cookie.match(/__e2e_bypass_user_id=([^;]+)/);
+        if (match) {
+            userId = match[1];
+            token = userId; // [CRITICAL] Set token for API bypass
+            console.warn(`[SECURITY WARNING] E2E Bypass Active for User: ${userId}`);
+        }
+    }
+
+    // Only call getAuth if we didn't bypass
+    if (!userId) {
+        const authResult = await getAuth(args);
+        userId = authResult.userId;
+        getToken = authResult.getToken;
+    }
 
     if (!userId) {
         return redirect(`/sign-in?redirect_url=${request.url}`);
@@ -61,7 +88,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const { slug } = params;
     if (!slug) return redirect("/");
 
-    let token = await getToken();
+    if (!token && getToken) token = await getToken();
 
     // Check for server-side impersonation (Cookie)
     const cookieHeader = request.headers.get("Cookie");
@@ -175,6 +202,8 @@ export default function StudioLayout() {
     const effectiveRoles = isStudentView ? ['student'] : (me?.roles || []);
     // Also override 'me' slightly to reflect restricted permissions if needed downstream
     // But 'roles' is the main gatekeeper for the Sidebar and children.
+
+    console.log('[RENDER] StudioLayout', { slug, meName: displayName, roles: effectiveRoles });
 
     return (
         <div className="flex h-screen bg-zinc-50 dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100 transition-colors duration-300">

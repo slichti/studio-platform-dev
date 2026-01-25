@@ -1,23 +1,31 @@
 import { useState, useEffect } from "react";
 import { format, startOfWeek, addDays, isSameDay } from "date-fns";
 
-export function BookingWidget({ tenantSlug }: { tenantSlug: string }) {
+export function BookingWidget({ tenantSlug, apiUrl }: { tenantSlug: string, apiUrl?: string }) {
     const [schedule, setSchedule] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [selectedClass, setSelectedClass] = useState<any>(null);
     const [guestForm, setGuestForm] = useState({ name: '', email: '' });
     const [bookingStatus, setBookingStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+    const [isMounted, setIsMounted] = useState(false);
+
+    // Determine effective API URL
+    const effectiveApiUrl = apiUrl || (typeof window !== 'undefined' ? (window as any).ENV?.API_URL : '') || 'https://studio-platform-api.slichti.workers.dev';
 
     useEffect(() => {
+        setIsMounted(true);
         fetchSchedule();
     }, [tenantSlug, selectedDate]);
+
+    // Prevent hydration mismatch by limiting render to client
+    if (!isMounted) return <div className="p-8 text-center text-zinc-400">Loading...</div>;
 
     const fetchSchedule = async () => {
         setLoading(true);
         try {
             const start = startOfWeek(selectedDate).toISOString();
-            const res = await fetch(`https://studio-platform-api.slichti.workers.dev/guest/schedule/${tenantSlug}?start=${start}`);
+            const res = await fetch(`${effectiveApiUrl}/guest/schedule/${tenantSlug}?start=${start}`);
             const data = await res.json() as { classes: any[] };
             setSchedule(data.classes || []);
         } catch (e) {
@@ -30,7 +38,7 @@ export function BookingWidget({ tenantSlug }: { tenantSlug: string }) {
     const handleBook = async () => {
         setBookingStatus('submitting');
         try {
-            const res = await fetch(`https://studio-platform-api.slichti.workers.dev/guest/booking`, {
+            const res = await fetch(`${effectiveApiUrl}/guest/booking`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

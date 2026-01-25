@@ -132,8 +132,9 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-zinc-700 mb-1">Class Name</label>
+                        <label htmlFor="className" className="block text-sm font-medium text-zinc-700 mb-1">Class Name</label>
                         <input
+                            id="className"
                             type="text"
                             required
                             className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
@@ -143,8 +144,9 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-zinc-700 mb-1">Instructor</label>
+                        <label htmlFor="instructor" className="block text-sm font-medium text-zinc-700 mb-1">Instructor</label>
                         <select
+                            id="instructor"
                             required
                             className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                             value={formData.instructorId}
@@ -205,8 +207,9 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-zinc-700 mb-1">Start Time</label>
+                        <label htmlFor="startTime" className="block text-sm font-medium text-zinc-700 mb-1">Start Time</label>
                         <input
+                            id="startTime"
                             type="datetime-local"
                             required
                             step="600"
@@ -216,8 +219,9 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-zinc-700 mb-1">Duration (min)</label>
+                        <label htmlFor="duration" className="block text-sm font-medium text-zinc-700 mb-1">Duration (min)</label>
                         <input
+                            id="duration"
                             type="number"
                             required
                             min="15"
@@ -230,8 +234,9 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-zinc-700 mb-1">Capacity</label>
+                        <label htmlFor="capacity" className="block text-sm font-medium text-zinc-700 mb-1">Capacity</label>
                         <input
+                            id="capacity"
                             type="number"
                             required
                             min="1"
@@ -241,8 +246,9 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-zinc-700 mb-1">Price ($)</label>
+                        <label htmlFor="price" className="block text-sm font-medium text-zinc-700 mb-1">Price ($)</label>
                         <input
+                            id="price"
                             type="number"
                             required
                             min="0"

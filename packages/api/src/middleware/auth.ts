@@ -25,6 +25,8 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables, Bindi
     let token: string | undefined;
     const authHeader = c.req.header('Authorization');
 
+    console.log(`[AUTH] ${c.req.method} ${c.req.url} - Auth: ${authHeader}`); // DEBUG LOG
+
     if (authHeader && authHeader.startsWith('Bearer ')) {
         token = authHeader.split(' ')[1];
     } else {
@@ -44,6 +46,17 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables, Bindi
     }
 
     if (!token) return c.json({ error: 'Unauthorized' }, 401);
+
+    // [E2E BYPASS] Allow raw user IDs in Dev/Test
+    // If token starts with 'user_' and we are in dev/test, treat it as the ID.
+    const env = (c.env as any).ENVIRONMENT || 'local';
+    if (token.startsWith('user_') && ['test', 'dev', 'local'].includes(env)) {
+        c.set('auth', { userId: token, claims: { sub: token } });
+        // Mock isImpersonating to allow logic that depends on it or strict checks?
+        // No, just set auth is enough for standard endpoints.
+        c.set('isImpersonating', false);
+        return await next();
+    }
 
     try {
         // 0. Decode header to determine strategy (prevent algorithm mismatch errors)

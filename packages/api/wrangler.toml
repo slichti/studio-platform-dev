@@ -2,6 +2,7 @@ name = "studio-platform-api"
 compatibility_date = "2024-12-30"
 compatibility_flags = ["nodejs_compat"]
 main = "src/index.ts"
+crons = ["*/15 * * * *"]
 
 [vars]
 ENVIRONMENT = "dev"
@@ -10,6 +11,7 @@ ENVIRONMENT = "dev"
 binding = "DB"
 database_name = "studio-platform-db"
 database_id = "41de24ac-e5d7-4a7a-b49b-f55f46dc81b8"
+migrations_dir = "migrations"
 
 [[r2_buckets]]
 binding = "R2"
@@ -38,4 +40,4 @@ new_classes = []
 tag = "v4"
 new_sqlite_classes = ["Metrics"]
 
-crons = ["*/15 * * * *"]
+

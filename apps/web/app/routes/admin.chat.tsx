@@ -201,7 +201,7 @@ export default function AdminChat() {
                 </div>
                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
                     <div className="text-3xl font-bold text-green-600 dark:text-green-400">
-                        {tenants?.filter((t: any) => t.features?.includes('chat'))?.length || 0}
+                        {tenants?.filter((t: any) => Array.isArray(t.features) && t.features.includes('chat'))?.length || 0}
                     </div>
                     <div className="text-sm text-zinc-500 dark:text-zinc-400">With Chat Enabled</div>
                 </div>
@@ -237,7 +237,7 @@ export default function AdminChat() {
                                         <h3 className="font-medium text-zinc-900 dark:text-zinc-100">{tenant.name}</h3>
                                         <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
                                             <span>{tenant.slug}</span>
-                                            {tenant.features?.includes('chat') && (
+                                            {Array.isArray(tenant.features) && tenant.features.includes('chat') && (
                                                 <span className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded text-[10px] font-bold">CHAT ACTIVE</span>
                                             )}
                                         </div>

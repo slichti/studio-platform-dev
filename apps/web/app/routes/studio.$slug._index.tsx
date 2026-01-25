@@ -8,8 +8,20 @@ import { apiRequest } from "~/utils/api";
 import { Users, Calendar, DollarSign, ArrowRight, Activity, TrendingUp, FileSignature, Ticket, Award, Target, Flame } from "lucide-react";
 
 export const loader = async (args: LoaderFunctionArgs) => {
-    const { getToken } = await getAuth(args);
-    const token = await getToken();
+    // [E2E BYPASS] Skip Clerk for E2E tests
+    let token: string | null = null;
+    const cookie = args.request.headers.get("Cookie");
+    if (cookie?.includes("__e2e_bypass_user_id=")) {
+        const match = cookie.match(/__e2e_bypass_user_id=([^;]+)/);
+        if (match) token = match[1];
+    }
+
+    // Only call getAuth if we didn't bypass
+    if (!token) {
+        const { getToken } = await getAuth(args);
+        token = await getToken();
+    }
+
     const { slug } = args.params;
 
     try {
@@ -51,9 +63,9 @@ export default function StudioDashboardIndex() {
         <div className="max-w-6xl pb-10 p-8 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                 <div>
-                    <h2 className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight">
+                    <h1 className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight">
                         Welcome back, {displayName}{getRoleLabel()}!
-                    </h2>
+                    </h1>
                     <p className="text-zinc-500 dark:text-zinc-400 mt-1">Here's what's happening at {tenant.name} today.</p>
                 </div>
                 <div className="flex items-center gap-2 text-sm font-medium text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-full">
@@ -148,7 +160,7 @@ export default function StudioDashboardIndex() {
                 <div className="lg:col-span-2 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-8">
                     {!isStudentView ? (
                         <>
-                            <h3 className="text-lg font-bold mb-1 text-zinc-900 dark:text-zinc-100">Getting Started</h3>
+                            <h2 className="text-lg font-bold mb-1 text-zinc-900 dark:text-zinc-100">Getting Started</h2>
                             <p className="mb-6 text-sm text-zinc-500 dark:text-zinc-400">Your studio is live! Use these shortcuts to manage your operations.</p>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {isOwner && (

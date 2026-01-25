@@ -27,16 +27,26 @@ export const links: LinksFunction = () => [
 
 export const meta: MetaFunction = () => [
     { title: "Studio Platform" },
-    { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" },
+    { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#18181B" },
     { name: "mobile-web-app-capable", content: "yes" },
     { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
 ];
 
 export async function loader(args: LoaderFunctionArgs) {
+    console.log('[ROOT] Loader Start'); // DEBUG
+
     try {
         return await rootAuthLoader(args, ({ request }) => {
-            return { message: "Auth Loaded" };
+            console.log('[ROOT] AuthLoader Callback'); // DEBUG
+            return {
+                message: "Auth Loaded",
+                env: {
+                    VITE_API_URL: process.env.VITE_API_URL,
+                    VITE_CLERK_PUBLISHABLE_KEY: process.env.VITE_CLERK_PUBLISHABLE_KEY,
+                    VITE_GA_ID: process.env.VITE_GA_ID
+                }
+            };
         });
     } catch (e: any) {
         if (e instanceof Response) {
@@ -103,6 +113,9 @@ export default function App() {
                         <Toaster position="top-right" richColors />
                         <ScrollRestoration />
                         <Scripts />
+                        <script dangerouslySetInnerHTML={{
+                            __html: `window.ENV = ${JSON.stringify((loaderData as any)?.env || {})}`
+                        }} />
                     </body>
                 </html>
             </ThemeProvider>

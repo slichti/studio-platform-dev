@@ -5,30 +5,13 @@ import type { LoaderFunctionArgs } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { useState, useCallback } from "react";
-import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
-import { format } from "date-fns/format";
-import { parse } from "date-fns/parse";
-import { startOfWeek } from "date-fns/startOfWeek";
-import { getDay } from "date-fns/getDay";
-import { enUS } from "date-fns/locale/en-US";
-import "react-big-calendar/lib/css/react-big-calendar.css";
+import { WeeklyCalendar } from "../components/schedule/WeeklyCalendar";
 import { CreateClassModal } from "../components/CreateClassModal";
 import { ClassDetailModal } from "../components/ClassDetailModal";
 import { BookingModal } from "../components/BookingModal";
 import { Plus } from "lucide-react";
 
-// Setup Localizer
-const locales = {
-    "en-US": enUS,
-};
 
-const localizer = dateFnsLocalizer({
-    format,
-    parse,
-    startOfWeek,
-    getDay,
-    locales,
-});
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { params } = args;
@@ -165,28 +148,12 @@ export default function StudioSchedule() {
                 </div>
             )}
 
-            <div className="flex-1 bg-white dark:bg-zinc-900 rounded-lg shadow border border-zinc-200 dark:border-zinc-800 p-4">
-                <Calendar
-                    localizer={localizer}
+            <div className="flex-1 overflow-hidden">
+                <WeeklyCalendar
                     events={events}
-                    startAccessor="start"
-                    endAccessor="end"
-                    style={{ height: '100%' }}
-                    views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
-                    defaultView={Views.WEEK}
-                    selectable
-                    onSelectSlot={handleSelectSlot}
                     onSelectEvent={handleSelectEvent}
-                    eventPropGetter={(event) => ({
-                        style: {
-                            backgroundColor: 'var(--calendar-event-bg, #eff6ff)', // Use var or specific color
-                            border: '1px solid var(--calendar-event-border, #bfdbfe)',
-                            color: 'var(--calendar-event-text, #1e40af)',
-                            fontSize: '0.85rem',
-                            borderRadius: '4px'
-                        },
-                        className: "dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-200"
-                    })}
+                    onSelectSlot={handleSelectSlot}
+                    defaultDate={new Date()}
                 />
             </div>
 

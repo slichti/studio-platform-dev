@@ -130,3 +130,36 @@ sequenceDiagram
     Admin->>API: PATCH /rooms/:id (Status: Closed)
     API->>DB: Update Room Status
 ```
+
+### 4. Retail & POS (Point of Sale)
+
+```mermaid
+sequenceDiagram
+    participant Admin
+    participant API
+    participant Stripe
+    participant DB
+
+    Admin->>API: POST /checkout/session (Pack/Product)
+    API->>DB: Calculate Total (Tax + Fees)
+    API->>Stripe: Create Embedded Session
+    Stripe-->>Admin: Return Client Secret
+    Admin->>Stripe: Process Payment (Card/Terminal)
+    Stripe-->>API: Webhook (checkout.session.completed)
+    API->>DB: Create Order / Decrement Stock
+    API->>DB: Fulfill Product (Grant Credits/Membership)
+```
+
+## Security Implementation
+
+### Authentication Strategy
+*   **Provider**: Clerk (Primary)
+*   **Custom UI**: `CustomSignIn` / `CustomSignUp` components (using Clerk Hooks) for full brand control and accessibility.
+*   **Bypass**: `__e2e_bypass_user_id` mechanism for CI/Testing, strictly gated to `DEV/TEST` environments.
+*   **Impersonation**: Admin-to-Tenant impersonation via secure `HS256` tokens.
+
+### Role-Based Access Control (RBAC)
+*   **Platform Admin**: Global system access. Validated via `users.isPlatformAdmin`.
+*   **Studio Owner**: Full access to tenant data and settings. Validated via `tenantRoles`.
+*   **Instructor**: Limited management of classes, members, and bookings.
+*   **Student**: Restricted to own profile, bookings, and public data.

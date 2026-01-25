@@ -29,7 +29,7 @@ async function main() {
     if (!tenant) {
         console.log("Creating tenant...");
         tenant = (await db.insert(tenants).values({
-            id: 'tenant_' + faker.string.uuid(),
+            id: 'tenant_test_fixed_id', // Fixed ID for E2E
             slug: TENANT_SLUG,
             name: TENANT_NAME,
             status: 'active',
@@ -49,7 +49,7 @@ async function main() {
     if (!ownerUser) {
         console.log("Creating owner user...");
         ownerUser = (await db.insert(users).values({
-            id: 'user_' + faker.string.uuid(),
+            id: 'user_owner_fixed_id', // Fixed ID for E2E
             email: ownerEmail,
             profile: { firstName: 'Otis', lastName: 'Owner' },
             role: 'owner'
@@ -134,18 +134,21 @@ async function main() {
         const email = `instructor${i}@${TENANT_SLUG}.com`;
         let user = await db.select().from(users).where(eq(users.email, email)).get();
         if (!user) {
+            // FIXED ID for first instructor for E2E
+            const userId = i === 0 ? 'user_instructor_fixed_id' : 'user_' + faker.string.uuid();
             user = (await db.insert(users).values({
-                id: 'user_' + faker.string.uuid(),
+                id: userId,
                 email: email,
-                profile: { firstName: faker.person.firstName(), lastName: faker.person.lastName() },
+                profile: { firstName: i === 0 ? 'Ian' : faker.person.firstName(), lastName: i === 0 ? 'Instructor' : faker.person.lastName() },
                 role: 'user' // Global role is user
             }).returning().get());
         }
 
         let member = await db.select().from(tenantMembers).where(eq(tenantMembers.userId, user.id)).get();
         if (!member) {
+            const memberId = i === 0 ? 'member_instructor_fixed_id' : 'member_' + faker.string.uuid();
             member = (await db.insert(tenantMembers).values({
-                id: 'member_' + faker.string.uuid(),
+                id: memberId,
                 tenantId: tenantId,
                 userId: user.id,
                 status: 'active',
@@ -204,18 +207,21 @@ async function main() {
         const email = `student${i}@${TENANT_SLUG}.com`;
         let user = await db.select().from(users).where(eq(users.email, email)).get();
         if (!user) {
+            // FIXED ID for first student for E2E
+            const userId = i === 0 ? 'user_student_fixed_id' : 'user_' + faker.string.uuid();
             user = (await db.insert(users).values({
-                id: 'user_' + faker.string.uuid(),
+                id: userId,
                 email: email,
-                profile: { firstName: faker.person.firstName(), lastName: faker.person.lastName() },
+                profile: { firstName: i === 0 ? 'Sam' : faker.person.firstName(), lastName: i === 0 ? 'Student' : faker.person.lastName() },
                 role: 'user'
             }).returning().get());
         }
 
         let member = await db.select().from(tenantMembers).where(eq(tenantMembers.userId, user.id)).get();
         if (!member) {
+            const memberId = i === 0 ? 'member_student_fixed_id' : 'member_' + faker.string.uuid();
             member = (await db.insert(tenantMembers).values({
-                id: 'member_' + faker.string.uuid(),
+                id: memberId,
                 tenantId: tenantId,
                 userId: user.id,
                 status: 'active'

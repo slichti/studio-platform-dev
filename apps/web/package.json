@@ -55,8 +55,9 @@
   },
   "devDependencies": {
     "@alloc/quick-lru": "^5.2.0",
+    "@axe-core/playwright": "^4.11.0",
     "@cloudflare/workers-types": "^4.20251231.0",
-    "@playwright/test": "^1.57.0",
+    "@playwright/test": "^1.58.0",
     "@react-router/cloudflare": "^7.11.0",
     "@react-router/fs-routes": "^7.11.0",
     "@tailwindcss/postcss": "^4.1.18",
