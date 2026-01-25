@@ -34,7 +34,9 @@ app.get('/', async (c) => {
 });
 
 app.post('/', async (c) => {
-    const tenantId = c.get('tenantId') as string;
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 500);
+    const tenantId = tenant.id;
     const db = createDb(c.env.DB);
     const body = await c.req.json();
 
@@ -69,7 +71,9 @@ app.post('/', async (c) => {
 });
 
 app.put('/:id', async (c) => {
-    const tenantId = c.get('tenantId') as string;
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 500);
+    const tenantId = tenant.id;
     const db = createDb(c.env.DB);
     const id = c.req.param('id');
     const body = await c.req.json();
@@ -86,7 +90,9 @@ app.put('/:id', async (c) => {
 });
 
 app.delete('/:id', async (c) => {
-    const tenantId = c.get('tenantId') as string;
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 500);
+    const tenantId = tenant.id;
     const db = createDb(c.env.DB);
     const id = c.req.param('id');
 
