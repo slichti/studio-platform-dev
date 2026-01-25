@@ -99,7 +99,16 @@ function DialogDescription({ children, className }: any) {
     return <p className={`text-sm text-zinc-500 dark:text-zinc-400 ${className}`}>{children}</p>
 }
 
-export { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription }
+function DialogClose({ children }: any) {
+    const { setIsOpen } = useContext(DialogContext);
+    return (
+        <div onClick={() => setIsOpen(false)} className="inline-block cursor-pointer">
+            {children}
+        </div>
+    )
+}
+
+export { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription, DialogClose }
 
 function DialogFooter({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) {
     return (

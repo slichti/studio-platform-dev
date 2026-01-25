@@ -2,9 +2,6 @@
 import { useOutletContext, Navigate } from "react-router";
 import { Server, Database, Cloud, Shield, Globe, Lock } from "lucide-react";
 import { useEffect } from "react";
-import { useOutletContext, Navigate } from "react-router";
-import { Server, Database, Cloud, Shield, Globe, Lock } from "lucide-react";
-import { useEffect } from "react";
 
 export default function PlatformArchitecture() {
     useEffect(() => {
