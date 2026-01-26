@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
-// @ts-ignore
 import { useLoaderData, useOutletContext, Form } from "react-router";
-// @ts-ignore
 import type { MetaFunction } from "react-router";
 import { apiRequest } from "~/utils/api";
 import {
@@ -18,10 +16,15 @@ export const meta: MetaFunction = () => {
     return [{ title: "Custom Reports | Studio Platform" }];
 };
 
+interface OutletContext {
+    tenant: any;
+    me: any;
+}
+
 export default function CustomReportsPage() {
-    // @ts-ignore
-    const { me, tenant } = useOutletContext();
+    const { me, tenant } = useOutletContext<OutletContext>();
     const token = null; // In client-side logic we rely on cookie auth mostly for loaders, but here we might need apiRequest
+
     // Note: apiRequest handles token automatically via Clerk/Cookie if configured, or we pass it? 
     // Usually standard pattern here is straightforward fetch or loader.
     // We'll use local state for the builder.
