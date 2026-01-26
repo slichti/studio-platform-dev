@@ -8,6 +8,7 @@ import { apiRequest } from "../utils/api";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { LogoutButton } from "../components/LogoutButton";
 
+// @ts-ignore
 import Fuse from "fuse.js";
 import { docsIndex } from "../utils/docsIndex";
 import { useNavigate } from "react-router";
@@ -123,6 +124,13 @@ export default function HelpLayout() {
             category: "Student Experience",
             items: [
                 { name: "Student Portal", href: "/documentation/studio/portal", icon: Layout },
+            ]
+        },
+        {
+            category: "How-to Guides",
+            items: [
+                { name: "Create a Waiver", href: "/documentation/guides/waiver", icon: FileText },
+                { name: "Setup Class Packs", href: "/documentation/guides/class-packs", icon: ShoppingCart },
             ]
         }
     ];

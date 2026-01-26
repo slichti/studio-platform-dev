@@ -49,9 +49,9 @@ export default function CreateStudio() {
             });
 
             if (res.tenant) {
-                // Success! Redirect to dashboard
-                // For paid tiers (growth/scale), ideally redirect to billing setup, but for now dashboard is fine
-                navigate(`/studio/${res.tenant.slug}/dashboard`);
+                // Success! Redirect to onboarding wizard to complete setup
+                // For paid tiers (growth/scale), ideally redirect to billing setup, but for now onboarding is fine
+                navigate(`/studio/${res.tenant.slug}/onboarding`);
             } else if (res.error) {
                 setError(res.error);
             }
