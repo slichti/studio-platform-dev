@@ -213,6 +213,7 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
         if (roles.includes('owner') && !c.get('isImpersonating')) {
             const amr = auth.claims?.amr;
             const hasMfa = (Array.isArray(amr) && (amr.includes('mfa') || amr.includes('otp') || amr.includes('totp'))) || auth.claims?.mfa === true;
+            const isDev = (c.env as any).ENVIRONMENT === 'dev' || (c.env as any).ENVIRONMENT === 'development';
 
             if (!hasMfa) {
                 // Grace Period: Allow 7 days for new owners to set up MFA
@@ -223,10 +224,12 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
                 // Exception: Allow /me endpoint so frontend can bootstrap user context to show MFA-setup UI
                 if (c.req.path.endsWith('/me') && c.req.method === 'GET') {
                     // Proceed
-                } else if (userCreated && timeSinceCreation < GRACE_PERIOD_MS) {
-                    // Allow with warning
-                    c.header('X-MFA-Warning', 'MFA setup required within 7 days');
-                    console.log(`[Security] MFA Grace Period Active for ${auth.userId} (${7 - Math.floor(timeSinceCreation / 86400000)} days remaining)`);
+                } else if ((userCreated && timeSinceCreation < GRACE_PERIOD_MS) || isDev) {
+                    // Allow with warning (Grace Period OR Dev Env)
+                    c.header('X-MFA-Warning', isDev ? 'MFA enforcement disabled in DEV' : 'MFA setup required within 7 days');
+                    if (!isDev) {
+                        console.log(`[Security] MFA Grace Period Active for ${auth.userId} (${7 - Math.floor(timeSinceCreation / 86400000)} days remaining)`);
+                    }
                 } else {
                     return c.json({
                         error: "Multi-Factor Authentication Required",
