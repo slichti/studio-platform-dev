@@ -96,7 +96,8 @@ export default function AdminLayout() {
         { label: "Platform Features", href: "/admin/features", icon: "⚙️" },
         { label: "System Status", href: "/admin/status", icon: "🟢" },
         { label: "Architecture", href: "/admin/architecture", icon: "🏗️" },
-        { label: "Process Workflows", href: "/admin/workflows", icon: "📋" }, // [NEW] Link
+        { label: "Process Workflows", href: "/admin/workflows", icon: "📋" },
+        { label: "Internal Docs", href: "/documentation", icon: "📚" },
         { label: "Coupons", href: "/admin/coupons", icon: "🎟️" },
         { label: "Diagnostics", href: "/admin/diagnostics", icon: "🩺" },
     ];
