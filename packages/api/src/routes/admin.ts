@@ -839,7 +839,12 @@ app.post('/tenants/seed', async (c) => {
 
 // GET /coupons - List Platform Coupons
 app.get('/coupons', async (c) => {
-    const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY || '');
+    if (!c.env.STRIPE_SECRET_KEY) {
+        console.warn("Stripe Secret Key missing, returning empty coupons list.");
+        return c.json([]);
+    }
+
+    const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
     try {
         const coupons = await stripeService.listCoupons(100);
         return c.json(coupons.data);
