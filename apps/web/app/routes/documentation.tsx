@@ -154,10 +154,12 @@ export default function HelpLayout() {
                         <div className="hidden md:flex mr-6">
                             <a
                                 href={isPlatformAdmin ? "/admin" : `/studio/${dbUser.tenants[0]?.slug}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="flex items-center gap-1.5 text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors bg-zinc-100 dark:bg-zinc-800 px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600"
                             >
                                 <Layout size={14} />
-                                {isPlatformAdmin ? 'Platform Admin' : 'Return to Studio'}
+                                {isPlatformAdmin ? 'Return to Admin Portal' : 'Return to Studio'}
                             </a>
                         </div>
                     )}

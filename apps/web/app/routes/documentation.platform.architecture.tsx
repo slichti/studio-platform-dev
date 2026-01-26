@@ -47,22 +47,20 @@ export default function PlatformArchitecture() {
                         </ul>
                         <div className="mt-4">
                             <pre className="mermaid">
-                                {`
-                                graph TD
-                                    User[User Browser] -->|HTTPS| CF[Cloudflare Network]
-                                    CF -->|Asset Request| Pages[Pages (Static Assets)]
-                                    CF -->|API Request| Worker[Worker (Hono API)]
-                                    Worker -->|Query| D1[(D1 Database)]
-                                    Worker -->|Upload| R2[(R2 Storage)]
-                                    Worker -.->|Payment| Stripe[Stripe Connect]
-                                    Worker -.->|Email| Resend[Resend / SMTP]
-                                    Worker -.->|SMS| Twilio[Twilio]
-                                    
-                                    subgraph "New Capabilities"
-                                    Worker -->|Aggregations| Analytics[Analytics Engine (SQLite)]
-                                    Worker -.->|Push| Expo[Expo Push Notifications]
-                                    end
-                                `}
+                                {`graph TD
+    User[User Browser] -->|HTTPS| CF[Cloudflare Network]
+    CF -->|Asset Request| Pages[Pages (Static Assets)]
+    CF -->|API Request| Worker[Worker (Hono API)]
+    Worker -->|Query| D1[(D1 Database)]
+    Worker -->|Upload| R2[(R2 Storage)]
+    Worker -.->|Payment| Stripe[Stripe Connect]
+    Worker -.->|Email| Resend[Resend / SMTP]
+    Worker -.->|SMS| Twilio[Twilio]
+    
+    subgraph "New Capabilities"
+    Worker -->|Aggregations| Analytics[Analytics Engine (SQLite)]
+    Worker -.->|Push| Expo[Expo Push Notifications]
+    end`}
                             </pre>
                         </div>
                     </div>
@@ -121,15 +119,91 @@ export default function PlatformArchitecture() {
                 </div>
             </section>
 
-            {/* Key Services */}
+            {/* Site Map & Structure */}
             <section className="space-y-6">
-                <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Key Services</h2>
-                <div className="grid md:grid-cols-3 gap-4">
-                    {['Billing (Stripe Connect)', 'Realtime Chat (Durable Objects)', 'Video Processing (R2 + Workers)', 'Email (Resend/System)', 'SMS (Twilio)', 'Marketing Automations (Crons)', 'Inventory Management (Retail)'].map((service, i) => (
-                        <div key={i} className="px-4 py-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                            {service}
-                        </div>
-                    ))}
+                <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-3">
+                    <Globe className="text-blue-500" /> Platform Structure
+                </h2>
+                <div className="grid md:grid-cols-2 gap-6">
+                    <div className="p-6 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                        <h3 className="font-bold text-lg mb-4">Global Network</h3>
+                        <ul className="space-y-3 text-sm text-zinc-600 dark:text-zinc-400">
+                            <li className="flex items-start gap-2">
+                                <span className="mt-1 w-1.5 h-1.5 rounded-full bg-zinc-400 shrink-0" />
+                                <span><strong>Marketing & Auth:</strong> Public landing page and centralized Clerk authentication.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="mt-1 w-1.5 h-1.5 rounded-full bg-zinc-400 shrink-0" />
+                                <span><strong>Admin Portal:</strong> Super-admin dashboard for platform oversight (`/admin`).</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="mt-1 w-1.5 h-1.5 rounded-full bg-zinc-400 shrink-0" />
+                                <span><strong>Documentation:</strong> Internal search-indexed knowledge base.</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div className="p-6 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                        <h3 className="font-bold text-lg mb-4">Tenant Scope (`/studio/:slug`)</h3>
+                        <ul className="space-y-3 text-sm text-zinc-600 dark:text-zinc-400">
+                            <li className="flex items-start gap-2">
+                                <span className="mt-1 w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
+                                <span><strong>Dashboard:</strong> Central command center for owners and staff.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="mt-1 w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                                <span><strong>Student Portal:</strong> Specialized view for members to book classes and view history.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="mt-1 w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
+                                <span><strong>Commerce:</strong> Integrated Stripe Connect payments for memberships and packs.</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            {/* Tier Feature Matrix */}
+            <section className="space-y-6">
+                <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Feature Access Matrix</h2>
+                <div className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 font-semibold">
+                            <tr>
+                                <th className="px-6 py-4">Feature Module</th>
+                                <th className="px-6 py-4 text-center text-zinc-500">Basic</th>
+                                <th className="px-6 py-4 text-center text-blue-600">Growth</th>
+                                <th className="px-6 py-4 text-center text-purple-600">Scale</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-950">
+                            {[
+                                { name: 'Core Booking & Scheduling', basic: true, growth: true, scale: true },
+                                { name: 'Stripe Payments', basic: true, growth: true, scale: true },
+                                { name: 'Staff Accounts', basic: '3', growth: 'Unlimited', scale: 'Unlimited' },
+                                { name: 'Email Automations', basic: false, growth: true, scale: true },
+                                { name: 'Loyalty & Challenges', basic: false, growth: true, scale: true },
+                                { name: 'Video Library (VOD)', basic: false, growth: true, scale: true },
+                                { name: 'Point of Sale (POS)', basic: false, growth: true, scale: true },
+                                { name: 'Website Builder', basic: false, growth: false, scale: true },
+                                { name: 'Branded Mobile App', basic: false, growth: false, scale: true },
+                                { name: 'Payroll Automation', basic: false, growth: false, scale: true },
+                            ].map((row, i) => (
+                                <tr key={i} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors">
+                                    <td className="px-6 py-4 font-medium text-zinc-700 dark:text-zinc-300">{row.name}</td>
+                                    <td className="px-6 py-4 text-center">
+                                        {row.basic === true ? '✅' : row.basic === false ? <span className="opacity-20">No</span> : row.basic}
+                                    </td>
+                                    <td className="px-6 py-4 text-center font-medium bg-blue-50/50 dark:bg-blue-900/10">
+                                        {row.growth === true ? '✅' : row.growth === false ? <span className="opacity-20">No</span> : row.growth}
+                                    </td>
+                                    <td className="px-6 py-4 text-center font-bold bg-purple-50/50 dark:bg-purple-900/10">
+                                        {row.scale === true ? '✅' : row.scale === false ? <span className="opacity-20">No</span> : row.scale}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             </section>
         </div>

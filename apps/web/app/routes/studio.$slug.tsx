@@ -3,7 +3,7 @@ import { Outlet, useLoaderData, useParams, NavLink, redirect, Link, useSearchPar
 import type { LoaderFunctionArgs } from "react-router";
 import { useState, useEffect } from "react"; // Added useState
 import { getAuth } from "@clerk/react-router/server";
-import { apiRequest } from "../utils/api";
+import { apiRequest, API_URL } from "../utils/api";
 import { UserButton } from "@clerk/react-router";
 import { PoweredBy } from "../components/PoweredBy";
 import {
@@ -168,19 +168,18 @@ export default function StudioLayout() {
     const displayName = (dbName && dbName !== 'User') ? dbName : (clerkUser?.fullName || dbName || 'Member');
 
     // Student View State
-    // Initialize from localStorage if client-side, otherwise false
-    const [isStudentView, setIsStudentView] = useState(() => {
-        if (typeof window !== 'undefined') return localStorage.getItem('studio_student_view') === 'true';
-        return false;
-    });
+    const [isStudentView, setIsStudentView] = useState(false);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined' && localStorage.getItem('studio_student_view') === 'true') {
+            setIsStudentView(true);
+        }
+    }, []);
 
     const toggleStudentView = () => {
         const newState = !isStudentView;
         setIsStudentView(newState);
         localStorage.setItem('studio_student_view', String(newState));
-
-        // Force a soft reload/re-render might be needed if side effects depend on roles,
-        // but passing new roles to Outlet context should propagate to children.
     };
 
     // Auto-Apply Coupon Logic
@@ -193,8 +192,6 @@ export default function StudioLayout() {
             const newParams = new URLSearchParams(searchParams);
             newParams.delete('coupon');
             setSearchParams(newParams, { replace: true });
-            // Ideally show toast here, but we don't have a global toast context readily visible without looking deeper.
-            // Assuming silent apply is okay for now, checkout will show it.
         }
     }, [searchParams, setSearchParams]);
 
@@ -202,8 +199,6 @@ export default function StudioLayout() {
     const effectiveRoles = isStudentView ? ['student'] : (me?.roles || []);
     // Also override 'me' slightly to reflect restricted permissions if needed downstream
     // But 'roles' is the main gatekeeper for the Sidebar and children.
-
-    console.log('[RENDER] StudioLayout', { slug, meName: displayName, roles: effectiveRoles });
 
     return (
         <div className="flex h-screen bg-zinc-50 dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100 transition-colors duration-300">
@@ -493,7 +488,7 @@ export default function StudioLayout() {
                 userName={`${me.firstName} ${me.lastName}`}
                 enabled={!isStudentView && (tenant.settings?.chatEnabled !== false) && featureSet.has('chat')}
                 chatConfig={isStudentView ? tenant.settings?.chatConfig : undefined}
-                apiUrl={(typeof window !== 'undefined' ? (window as any).ENV?.API_URL : '')}
+                apiUrl={API_URL}
             />
         </div>
     );
