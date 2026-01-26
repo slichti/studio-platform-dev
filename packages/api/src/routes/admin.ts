@@ -795,12 +795,41 @@ app.post('/tenants/seed', async (c) => {
     const db = createDb(c.env.DB);
     const auth = c.get('auth');
 
+    let body: any = {};
+    try {
+        body = await c.req.json();
+    } catch (e) { }
+
     try {
         // Dynamic import to keep init clean
         const { seedTenant } = await import('../utils/seeding');
-        const { tenantId, email, password } = await seedTenant(c.env, db);
 
-        return c.json({ success: true, tenantId, email, password });
+        const tenant = await seedTenant(db, {
+            tenantName: body.tenantName,
+            tenantSlug: body.tenantSlug,
+            ownerCount: body.ownerCount,
+            instructorCount: body.instructorCount,
+            studentCount: body.studentCount,
+            tier: body.tier,
+            features: body.features
+        });
+
+        // Audit
+        try {
+            const { AuditService } = await import('../services/audit');
+            const audit = new AuditService(db);
+            await audit.log({
+                actorId: auth.userId,
+                action: 'seed_test_tenant',
+                targetId: tenant.id,
+                details: { ...body },
+                ipAddress: c.req.header('CF-Connecting-IP')
+            });
+        } catch (e) {
+            console.error("Audit failed", e);
+        }
+
+        return c.json({ success: true, tenantId: tenant.id, tenant });
     } catch (e: any) {
         return c.json({ error: e.message }, 500);
     }
@@ -917,47 +946,7 @@ app.patch('/tenants/bulk', async (c) => {
     return c.json({ error: "Invalid action" }, 400);
 });
 
-let body: any = {};
-try {
-    body = await c.req.json();
-} catch (e) { } // Handle empty body
 
-// Generate default if not provided
-const suffix = Math.floor(Math.random() * 10000);
-const name = body.tenantName || ("Test Studio " + suffix);
-const slug = body.tenantSlug || ("test-studio-" + suffix);
-
-const tenant = await seedTenant(db, {
-    tenantName: name,
-    tenantSlug: slug,
-    ownerCount: body.ownerCount,
-    instructorCount: body.instructorCount,
-    studentCount: body.studentCount,
-    tier: body.tier,
-    features: body.features
-});
-
-// Audit Log
-const audit = new AuditService(db);
-await audit.log({
-    actorId: auth.userId,
-    action: 'seed_test_tenant',
-    targetId: tenant.id,
-    details: { name, slug, options: body },
-    ipAddress: c.req.header('CF-Connecting-IP')
-});
-
-return c.json({
-    success: true,
-    tenantId: tenant.id,
-    tenant: tenant,
-    stats: {} // Assuming seedTenant might return stats or we can fetch them
-}, 201);
-    } catch (e: any) {
-    console.error("Seeding Failed:", e);
-    return c.json({ error: e.message || "Seeding failed" }, 500);
-}
-});
 
 // POST /tenants/:id/impersonate - Generate Impersonation Token
 app.post('/tenants/:id/impersonate', async (c) => {
