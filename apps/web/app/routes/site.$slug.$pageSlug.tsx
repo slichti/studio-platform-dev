@@ -10,9 +10,29 @@ export const meta: MetaFunction = ({ data }: any) => {
     if (!data?.page) {
         return [{ title: "Page Not Found" }];
     }
+
+    const title = data.page.seoTitle || data.page.title;
+    const description = data.page.seoDescription || "";
+    // Assuming page object might eventually have an `image` or `ogImage` field
+    const image = data.page.seoImage || data.page.ogImage || "https://studio-platform.com/og-default.png"; // Fallback
+    const url = typeof window !== "undefined" ? window.location.href : "";
+
     return [
-        { title: data.page.seoTitle || data.page.title },
-        { name: "description", content: data.page.seoDescription || "" },
+        { title },
+        { name: "description", content: description },
+
+        // OpenGraph
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { property: "og:image", content: image },
+        { property: "og:url", content: url },
+        { property: "og:type", content: "website" },
+
+        // Twitter Card
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: title },
+        { name: "twitter:description", content: description },
+        { name: "twitter:image", content: image },
     ];
 };
 
@@ -70,6 +90,20 @@ export default function WebsitePage() {
                     </Link>
                 </div>
             </SignedIn>
+
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{
+                    __html: JSON.stringify({
+                        "@context": "https://schema.org",
+                        "@type": "LocalBusiness",
+                        "name": page.seoTitle || "Studio",
+                        "description": page.seoDescription || "",
+                        "url": typeof window !== "undefined" ? window.location.href : "",
+                        // "image": ...
+                    })
+                }}
+            />
         </div>
     );
 }

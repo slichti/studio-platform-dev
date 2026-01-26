@@ -1,8 +1,10 @@
 import { useUser, useClerk } from "@clerk/react-router";
 // @ts-ignore
-import { NavLink } from "react-router";
+import { NavLink, useLocation } from "react-router";
 import { useState, useEffect } from "react";
 import { ThemeToggle } from "./ThemeToggle";
+import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
+import { Menu, X } from "lucide-react";
 
 type LayoutProps = {
     children: React.ReactNode;
@@ -17,11 +19,18 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
     const { signOut } = useClerk();
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [impersonationToken, setImpersonationToken] = useState<string | null>(null);
+    const location = useLocation();
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     useEffect(() => {
         // Check for impersonation token on mount
         setImpersonationToken(localStorage.getItem("impersonation_token"));
     }, []);
+
+    // Close mobile menu on route change
+    useEffect(() => {
+        setIsMobileMenuOpen(false);
+    }, [location.pathname]);
 
     const handleLogout = () => {
         if (typeof window !== "undefined") {
@@ -31,42 +40,57 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
         signOut({ redirectUrl: "/" });
     };
 
+    const SidebarContent = () => (
+        <>
+            {/* Logo / Tenant Area */}
+            <div className="p-6 flex items-center gap-4 border-b border-zinc-200 dark:border-zinc-800">
+                <div className="text-3xl">🧘‍♀️</div>
+                <div>
+                    <h1 className="text-lg font-bold text-indigo-600 dark:text-indigo-400 leading-tight">
+                        {tenantName}
+                    </h1>
+                </div>
+            </div>
+
+            {/* Navigation */}
+            <nav className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
+                {navItems || (
+                    <>
+                        <NavLink
+                            to="/dashboard"
+                            className={({ isActive }: { isActive: boolean }) =>
+                                `block px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
+                                    ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white'
+                                    : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200'
+                                }`
+                            }
+                        >
+                            Overview
+                        </NavLink>
+                    </>
+                )}
+            </nav>
+        </>
+    );
+
     return (
         <div className="flex h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans transition-colors duration-300">
-            {/* Sidebar */}
-            <aside className="w-64 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col transition-colors duration-300">
-                {/* Logo / Tenant Area */}
-                <div className="p-6 flex items-center gap-4 border-b border-zinc-200 dark:border-zinc-800">
-                    <div className="text-3xl">🧘‍♀️</div>
-                    <div>
-                        <h1 className="text-lg font-bold text-indigo-600 dark:text-indigo-400 leading-tight">
-                            {tenantName}
-                        </h1>
-                    </div>
-                </div>
-
-                {/* Navigation */}
-                <nav className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
-                    {navItems || (
-                        <>
-                            <NavLink
-                                to="/dashboard"
-                                className={({ isActive }: { isActive: boolean }) =>
-                                    `block px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
-                                        ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white'
-                                        : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200'
-                                    }`
-                                }
-                            >
-                                Overview
-                            </NavLink>
-                        </>
-                    )}
-                </nav>
+            {/* Desktop Sidebar */}
+            <aside className="hidden md:flex w-64 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex-col transition-colors duration-300 flex-shrink-0">
+                <SidebarContent />
             </aside>
 
+            {/* Mobile Sidebar (Sheet) */}
+            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen} side="left">
+                <SheetContent className="p-0 w-[80%] max-w-[300px]">
+                    <div className="h-full flex flex-col bg-white dark:bg-zinc-900">
+                        <SidebarContent />
+                    </div>
+                </SheetContent>
+            </Sheet>
+
             {/* Main Content Area */}
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col overflow-hidden min-w-0">
                 {/* Impersonation Banner */}
                 {impersonationToken && (
                     <div className="bg-red-500 text-white px-4 py-2 flex items-center justify-center gap-3 text-sm font-medium">
@@ -86,14 +110,26 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
                 )}
 
                 {/* Header */}
-                <header className="h-[70px] bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-8 transition-colors duration-300">
-                    {/* Left: Page Title */}
-                    <div className="text-lg font-medium text-zinc-900 dark:text-zinc-100">
-                        {title}
+                <header className="h-[70px] bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-4 md:px-8 transition-colors duration-300 flex-shrink-0 z-20">
+                    {/* Left: Mobile Trigger & Page Title */}
+                    <div className="flex items-center gap-3 md:gap-0">
+                        {/* Mobile Menu Trigger */}
+                        <div className="md:hidden">
+                            <button
+                                onClick={() => setIsMobileMenuOpen(true)}
+                                className="p-2 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                            >
+                                <Menu className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="text-lg font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                            {title}
+                        </div>
                     </div>
 
                     {/* Right: User Profile */}
-                    <div className="flex items-center gap-5">
+                    <div className="flex items-center gap-3 md:gap-5">
                         {/* Theme Toggle */}
                         <ThemeToggle />
 
@@ -104,7 +140,7 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
                                     className="flex items-center gap-3 p-1 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                                 >
-                                    <div className="w-10 h-10 rounded-full overflow-hidden bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">
+                                    <div className="w-10 h-10 rounded-full overflow-hidden bg-indigo-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
                                         {user.imageUrl ? (
                                             <img src={user.imageUrl} alt={user.fullName || "User"} className="w-full h-full object-cover" />
                                         ) : (
@@ -113,11 +149,11 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
                                     </div>
 
                                     <div className="text-left hidden md:block">
-                                        <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">{user.fullName}</div>
+                                        <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 max-w-[120px] truncate">{user.fullName}</div>
                                         <div className="text-xs text-zinc-500 dark:text-zinc-400 capitalize">{role || "admin"}</div>
                                     </div>
 
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-400 hidden md:block">
                                         <polyline points="6 9 12 15 18 9"></polyline>
                                     </svg>
                                 </button>
@@ -169,7 +205,7 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
                 </header>
 
                 {/* Page Content */}
-                <main className="flex-1 p-8 overflow-y-auto bg-zinc-50 dark:bg-zinc-950 transition-colors duration-300">
+                <main className="flex-1 p-4 md:p-8 overflow-y-auto bg-zinc-50 dark:bg-zinc-950 transition-colors duration-300 w-full">
                     {children}
                 </main>
             </div>

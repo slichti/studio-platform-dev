@@ -279,6 +279,164 @@ app.post('/:id/sign', async (c) => {
     return c.json({ success: true, signedAt: new Date() });
 });
 
+// POST /sign/public: Public Waiver Signing (Guest/New Member)
+app.post('/sign/public', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const { firstName, lastName, email, signatureData, templateId, ipAddress } = await c.req.json();
+
+    if (!firstName || !lastName || !email || !signatureData || !templateId) {
+        return c.json({ error: 'Missing required fields' }, 400);
+    }
+
+    // 1. Find or Create User
+    let user = await db.query.users.findFirst({
+        where: eq(users.email, email)
+    });
+
+    if (!user) {
+        // Create new User
+        const userId = crypto.randomUUID();
+        await db.insert(users).values({
+            id: userId,
+            email,
+            role: 'user',
+            profile: { firstName, lastName, portraitUrl: null }
+        });
+        user = await db.query.users.findFirst({ where: eq(users.id, userId) });
+    }
+
+    if (!user) return c.json({ error: "Failed to create user" }, 500);
+
+    // 2. Find or Create Tenant Member
+    let member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.userId, user.id), eq(tenantMembers.tenantId, tenant.id))
+    });
+
+    if (!member) {
+        // Create Member
+        const memberId = crypto.randomUUID();
+        await db.insert(tenantMembers).values({
+            id: memberId,
+            userId: user.id,
+            tenantId: tenant.id,
+            status: 'active',
+            joinedAt: new Date(),
+            roles: ['student'] // Default role
+        });
+        member = await db.query.tenantMembers.findFirst({ where: eq(tenantMembers.id, memberId) });
+    }
+
+    if (!member) return c.json({ error: "Failed to create member record" }, 500);
+
+    // 3. Sign Waiver
+    const template = await db.query.waiverTemplates.findFirst({
+        where: and(eq(waiverTemplates.id, templateId), eq(waiverTemplates.tenantId, tenant.id))
+    });
+
+    if (!template) return c.json({ error: 'Waiver not found' }, 404);
+
+    const existing = await db.query.waiverSignatures.findFirst({
+        where: and(eq(waiverSignatures.memberId, member.id), eq(waiverSignatures.templateId, templateId))
+    });
+
+    if (existing) {
+        return c.json({ success: true, message: "Already signed", signedAt: existing.signedAt });
+    }
+
+    const signatureId = crypto.randomUUID();
+    await db.insert(waiverSignatures).values({
+        id: signatureId,
+        templateId,
+        memberId: member.id,
+        signedByMemberId: member.id, // Self signed
+        ipAddress: ipAddress || 'unknown',
+        signatureData,
+        signedAt: new Date()
+    });
+
+    // 4. Send Email Copy (Async)
+    if (c.env.RESEND_API_KEY) {
+        const { EmailService } = await import('../services/email');
+        const emailService = new EmailService(c.env.RESEND_API_KEY, {
+            branding: tenant.branding as any
+        });
+
+        c.executionCtx.waitUntil((async () => {
+            const { jsPDF } = await import('jspdf');
+            const doc = new jsPDF();
+            doc.setFontSize(22);
+            doc.text(template.title, 20, 20);
+            doc.setFontSize(12);
+            const splitText = doc.splitTextToSize(template.content, 170);
+            doc.text(splitText, 20, 40);
+            const finalY = 40 + (splitText.length * 5) + 20;
+            doc.text(`Signed by: ${firstName} ${lastName} (${email})`, 20, finalY);
+            doc.text(`Date: ${new Date().toLocaleString()}`, 20, finalY + 10);
+            if (signatureData && signatureData.startsWith('data:image')) {
+                try { doc.addImage(signatureData, 'PNG', 20, finalY + 30, 100, 40); } catch (e) { }
+            } else { doc.text("[Electronically Signed]", 20, finalY + 30); }
+            const buffer = doc.output('arraybuffer');
+
+            await emailService.sendWaiverCopy(email, template.title, buffer);
+
+            // Also send copy to Studio Owners
+            const studioMembers = await db.query.tenantMembers.findMany({
+                where: and(eq(tenantMembers.tenantId, tenant.id), like(tenantMembers.roles, '%owner%')), // Simple like check if roles stored as JSON string or handle appropriately if array
+                // If roles is simple JSON array in SQLite, 'like' might be risky. 
+                // Better to fetch all and filter in app if volume is low, or join user roles properly.
+                // Assuming `roles` is JSON column.
+                // For MVP, sending to tenant settings admin email is safer/faster if configured.
+            });
+
+            // Or better: Use the emailService helper logic or settings notifications
+            // Let's use the explicit owner notification setting if available, or find owners.
+
+            // Note: `tenantMembers.roles` is a JSON array. `like` search '%owner%' is a common SQLite hack for JSON arrays.
+
+            // Safer: Send to configured Admin Email in settings, or fallback to first owner found.
+            const adminEmail = (tenant.settings as any)?.notifications?.adminEmail;
+            const targetEmails = new Set<string>();
+
+            if (adminEmail) {
+                targetEmails.add(adminEmail);
+            } else {
+                // Find owners
+                const owners = await db.select({ email: users.email })
+                    .from(tenantMembers)
+                    .innerJoin(users, eq(tenantMembers.userId, users.id))
+                    .where(and(eq(tenantMembers.tenantId, tenant.id)))
+                    .all();
+
+                // Filter manually for 'owner' role since it's in JSON
+                // Actually `tenantMembers.roles` is returned.
+                // We can't easily filter JSON array in SQL here without proper functions.
+                // So we fetch, then filter.
+
+                const ownerMembers = await db.query.tenantMembers.findMany({
+                    where: eq(tenantMembers.tenantId, tenant.id),
+                    with: { user: true }
+                });
+
+                ownerMembers.forEach(m => {
+                    if ((m.roles as string[]).includes('owner')) {
+                        if (m.user.email) targetEmails.add(m.user.email);
+                    }
+                });
+            }
+
+            for (const ownerEmail of targetEmails) {
+                if (ownerEmail !== email) { // Don't send twice if owner is signing (unlikely for public flow but possible)
+                    await emailService.sendWaiverCopy(ownerEmail, `${template.title} (Signed by ${firstName} ${lastName})`, buffer);
+                }
+            }
+
+        })());
+    }
+
+    return c.json({ success: true, signedAt: new Date() });
+});
+
 // PATCH /waivers/:id: Update Waiver (Owner Only) - e.g. toggle active
 app.patch('/:id', async (c) => {
     const db = createDb(c.env.DB);
