@@ -51,6 +51,15 @@ app.post('/query', async (c) => {
     const service = new ReportService(db, tenant.id);
     const result = await service.query({ metrics, dimensions, filters: validatedFilters });
 
+    // Handle CSV
+    if (body.format === 'csv') {
+        const csv = service.generateCsv(result.chartData, metrics);
+        return c.text(csv, 200, {
+            'Content-Type': 'text/csv',
+            'Content-Disposition': `attachment; filename="report-${new Date().toISOString()}.csv"`
+        });
+    }
+
     return c.json(result);
 });
 

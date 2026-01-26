@@ -31,13 +31,49 @@ export default function CustomReportsPage() {
     const [savedReports, setSavedReports] = useState<any[]>([]);
 
     // Builder State
+    const METRIC_OPTIONS = [
+        { id: 'revenue', label: 'Revenue' },
+        { id: 'attendance', label: 'Attendance' },
+        { id: 'new_signups', label: 'New Signups' },
+    ];
     const [metrics, setMetrics] = useState<string[]>(['revenue']);
     const [dimensions, setDimensions] = useState<string[]>(['date']);
+    const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
     const [dateRange, setDateRange] = useState({
         start: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
         end: format(new Date(), 'yyyy-MM-dd')
     });
     const [filters, setFilters] = useState<any>({});
+
+    const handleExport = async () => {
+        try {
+            const res = await apiRequest('/reports/custom/query', null, {
+                method: 'POST',
+                body: JSON.stringify({
+                    metrics,
+                    dimensions,
+                    filters: {
+                        startDate: dateRange.start,
+                        endDate: dateRange.end,
+                        ...filters
+                    },
+                    format: 'csv'
+                }),
+                headers: { 'X-Tenant-Slug': tenant?.slug }
+            });
+
+            const blob = new Blob([res], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        } catch (e) {
+            console.error("Export failed", e);
+        }
+    };
 
     // Load Saved Reports on Mount
     useEffect(() => {
@@ -126,18 +162,18 @@ export default function CustomReportsPage() {
                             <Layers size={16} /> Metrics
                         </h3>
                         <div className="space-y-2">
-                            {['revenue', 'attendance', 'bookings'].map(m => (
-                                <label key={m} className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 cursor-pointer">
+                            {METRIC_OPTIONS.map(opt => (
+                                <label key={opt.id} className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 cursor-pointer">
                                     <input
                                         type="checkbox"
-                                        checked={metrics.includes(m)}
+                                        checked={metrics.includes(opt.id)}
                                         onChange={(e) => {
-                                            if (e.target.checked) setMetrics([...metrics, m]);
-                                            else setMetrics(metrics.filter(x => x !== m));
+                                            if (e.target.checked) setMetrics([...metrics, opt.id]);
+                                            else setMetrics(metrics.filter(x => x !== opt.id));
                                         }}
                                         className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
                                     />
-                                    <span className="capitalize">{m}</span>
+                                    <span className="capitalize">{opt.label}</span>
                                 </label>
                             ))}
                         </div>
@@ -254,31 +290,75 @@ export default function CustomReportsPage() {
                             </div>
 
                             {/* Chart Area */}
-                            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-sm h-[400px]">
-                                <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider mb-6">Visualization</h3>
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={reportData.chartData}>
-                                        <CartesianGrid strokeDasharray="3 3" opacity={0.1} vertical={false} />
-                                        <XAxis
-                                            dataKey="name"
-                                            axisLine={false}
-                                            tickLine={false}
-                                            tick={{ fill: '#71717a', fontSize: 12 }}
-                                            dy={10}
-                                        />
-                                        <YAxis
-                                            axisLine={false}
-                                            tickLine={false}
-                                            tick={{ fill: '#71717a', fontSize: 12 }}
-                                        />
-                                        <Tooltip
-                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                            cursor={{ fill: 'rgba(0,0,0,0.05)' }}
-                                        />
-                                        <Legend />
-                                        {metrics.includes('revenue') && <Bar dataKey="revenue" fill="#2563eb" radius={[4, 4, 0, 0]} name="Revenue ($)" />}
-                                        {metrics.includes('attendance') && <Bar dataKey="attendance" fill="#059669" radius={[4, 4, 0, 0]} name="Attendance" />}
-                                    </BarChart>
+                            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-sm h-[450px]">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider">Visualization</h3>
+                                    <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg">
+                                        <button
+                                            onClick={() => setChartType('bar')}
+                                            className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${chartType === 'bar' ? 'bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700'}`}
+                                        >
+                                            Bar
+                                        </button>
+                                        <button
+                                            onClick={() => setChartType('line')}
+                                            className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${chartType === 'line' ? 'bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700'}`}
+                                        >
+                                            Line
+                                        </button>
+                                    </div>
+                                </div>
+                                <ResponsiveContainer width="100%" height="90%">
+                                    {chartType === 'bar' ? (
+                                        <BarChart data={reportData.chartData}>
+                                            <CartesianGrid strokeDasharray="3 3" opacity={0.1} vertical={false} />
+                                            <XAxis
+                                                dataKey="name"
+                                                axisLine={false}
+                                                tickLine={false}
+                                                tick={{ fill: '#71717a', fontSize: 12 }}
+                                                dy={10}
+                                            />
+                                            <YAxis
+                                                axisLine={false}
+                                                tickLine={false}
+                                                tick={{ fill: '#71717a', fontSize: 12 }}
+                                                tickFormatter={(val) => metrics.includes('revenue') && val > 100 ? `$${val}` : val}
+                                            />
+                                            <Tooltip
+                                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                                cursor={{ fill: 'rgba(0,0,0,0.05)' }}
+                                            />
+                                            <Legend />
+                                            {metrics.includes('revenue') && <Bar dataKey="revenue" fill="#2563eb" radius={[4, 4, 0, 0]} name="Revenue ($)" />}
+                                            {metrics.includes('attendance') && <Bar dataKey="attendance" fill="#059669" radius={[4, 4, 0, 0]} name="Attendance" />}
+                                            {metrics.includes('new_signups') && <Bar dataKey="new_signups" fill="#F59E0B" radius={[4, 4, 0, 0]} name="New Signups" />}
+                                        </BarChart>
+                                    ) : (
+                                        <LineChart data={reportData.chartData}>
+                                            <CartesianGrid strokeDasharray="3 3" opacity={0.1} vertical={false} />
+                                            <XAxis
+                                                dataKey="name"
+                                                axisLine={false}
+                                                tickLine={false}
+                                                tick={{ fill: '#71717a', fontSize: 12 }}
+                                                dy={10}
+                                            />
+                                            <YAxis
+                                                axisLine={false}
+                                                tickLine={false}
+                                                tick={{ fill: '#71717a', fontSize: 12 }}
+                                                tickFormatter={(val) => metrics.includes('revenue') && val > 100 ? `$${val}` : val}
+                                            />
+                                            <Tooltip
+                                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                            />
+                                            <Legend />
+                                            {metrics.includes('revenue') && <Line type="monotone" dataKey="revenue" stroke="#2563eb" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} name="Revenue ($)" />}
+                                            {metrics.includes('attendance') && <Line type="monotone" dataKey="attendance" stroke="#059669" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} name="Attendance" />}
+                                            {metrics.includes('new_signups') && <Line type="monotone" dataKey="new_signups" stroke="#F59E0B" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} name="New Signups" />}
+                                        </LineChart>
+                                    )}
                                 </ResponsiveContainer>
                             </div>
 
@@ -287,10 +367,7 @@ export default function CustomReportsPage() {
                                 <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center bg-zinc-50/50 dark:bg-zinc-900/50">
                                     <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider">Raw Data</h3>
                                     <button
-                                        onClick={() => {
-                                            // Handle CSV export manually or use API
-                                            // Implementation for export is part of next steps or separate tool
-                                        }}
+                                        onClick={handleExport}
                                         className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
                                     >
                                         <Download size={14} /> Export CSV
@@ -303,6 +380,7 @@ export default function CustomReportsPage() {
                                                 <th className="px-6 py-3 font-medium">Dimension</th>
                                                 {metrics.includes('revenue') && <th className="px-6 py-3 font-medium">Revenue</th>}
                                                 {metrics.includes('attendance') && <th className="px-6 py-3 font-medium">Attendance</th>}
+                                                {metrics.includes('new_signups') && <th className="px-6 py-3 font-medium">New Signups</th>}
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -311,6 +389,7 @@ export default function CustomReportsPage() {
                                                     <td className="px-6 py-4 font-medium text-zinc-900 dark:text-zinc-100">{row.name}</td>
                                                     {metrics.includes('revenue') && <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400">${row.revenue?.toFixed(2)}</td>}
                                                     {metrics.includes('attendance') && <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400">{row.attendance}</td>}
+                                                    {metrics.includes('new_signups') && <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400">{row.new_signups}</td>}
                                                 </tr>
                                             ))}
                                         </tbody>

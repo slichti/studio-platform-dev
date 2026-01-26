@@ -484,7 +484,66 @@ export class ReportService {
             }
         }
 
+        // NEW SIGNUPS METRIC
+        if (metrics.includes('new_signups')) {
+            const memberQuery = this.db.select({
+                id: tenantMembers.id,
+                joinedAt: tenantMembers.joinedAt
+            })
+                .from(tenantMembers)
+                .where(and(
+                    eq(tenantMembers.tenantId, this.tenantId),
+                    between(tenantMembers.joinedAt, filters.startDate, filters.endDate)
+                ));
+
+            const members = await memberQuery.all();
+            result.summary.new_signups = members.length;
+
+            if (groupByDay) {
+                const dataMap = new Map<string, number>();
+                members.forEach(m => {
+                    const key = new Date(m.joinedAt || '').toISOString().split('T')[0];
+                    dataMap.set(key, (dataMap.get(key) || 0) + 1);
+                });
+
+                // Merge
+                if (!result.chartData.length) {
+                    const cursor = new Date(filters.startDate);
+                    while (cursor <= filters.endDate) {
+                        const key = cursor.toISOString().split('T')[0];
+                        result.chartData.push({ name: key, new_signups: 0 });
+                        cursor.setDate(cursor.getDate() + 1);
+                    }
+                }
+
+                result.chartData = result.chartData.map((d: any) => ({
+                    ...d,
+                    new_signups: (dataMap.get(d.name) || 0)
+                }));
+            }
+        }
+
+        // CSV EXPORT LOGIC
+        // If a special 'format' option was passed (need to pass it in options first)
+        // Since the user asked for CSV, and I need to return string.
+        // I will rely on the caller to output CSV, OR I can handle it here if I change the signature/return type.
+        // Let's assume the router handles format check, but I provide a specific method or return data structure that helps.
+        // Actually, `result.chartData` is an array of objects which is easy to convert to CSV.
+
         return result;
+    }
+
+    // Helper for CSV output
+    generateCsv(data: any[], metrics: string[]) {
+        if (!data || data.length === 0) return '';
+        const headers = ['Date', ...metrics].join(',');
+        const rows = data.map(row => {
+            return [
+                row.name,
+                ...metrics.map(m => row[m] || 0)
+            ].join(',');
+        }).join('\n');
+        return `${headers}\n${rows}`;
     }
 
     async generateEmailSummary(reportType: 'revenue' | 'attendance' | 'journal') {
