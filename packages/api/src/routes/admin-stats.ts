@@ -71,35 +71,40 @@ app.get('/architecture', async (c) => {
 
         // 3. User Geography
         (async () => {
-            const activeUsersWithLocation = await db.select({
-                location: users.lastLocation
-            })
-                .from(users)
-                .where(gt(users.lastActiveAt, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))) // Active in last 30 days
-                .all();
+            try {
+                const activeUsersWithLocation = await db.select({
+                    location: users.lastLocation
+                })
+                    .from(users)
+                    .where(gt(users.lastActiveAt, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))) // Active in last 30 days
+                    .all();
 
-            const regionMap = new Map();
+                const regionMap = new Map();
 
-            for (const u of activeUsersWithLocation) {
-                const loc = u.location as any;
-                if (loc && loc.country) {
-                    const key = loc.country;
-                    if (!regionMap.has(key)) {
-                        regionMap.set(key, {
-                            code: loc.country,
-                            name: loc.country,
-                            count: 0,
-                            lat: loc.lat || 0,
-                            lng: loc.lng || 0
-                        });
+                for (const u of activeUsersWithLocation) {
+                    const loc = u.location as any;
+                    if (loc && loc.country) {
+                        const key = loc.country;
+                        if (!regionMap.has(key)) {
+                            regionMap.set(key, {
+                                code: loc.country,
+                                name: loc.country,
+                                count: 0,
+                                lat: loc.lat || 0,
+                                lng: loc.lng || 0
+                            });
+                        }
+                        regionMap.get(key).count++;
                     }
-                    regionMap.get(key).count++;
                 }
-            }
 
-            return Array.from(regionMap.values())
-                .sort((a, b) => b.count - a.count)
-                .slice(0, 10);
+                return Array.from(regionMap.values())
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, 10);
+            } catch (e) {
+                console.error("Failed to fetch user geography", e);
+                return [];
+            }
         })(),
 
         // 4. Tenant Count
