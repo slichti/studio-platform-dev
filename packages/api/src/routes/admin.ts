@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { sign } from 'hono/jwt';
 import { createDb } from '../db';
 import {
     users, tenantMembers, tenantRoles, tenants, subscriptions, auditLogs, emailLogs, smsLogs, brandingAssets, videos, videoShares,
@@ -828,10 +829,138 @@ app.post('/tenants/seed', async (c) => {
             ipAddress: c.req.header('CF-Connecting-IP')
         });
 
-        return c.json({ success: true, tenant });
+        return c.json({
+            success: true,
+            tenantId: tenant.id,
+            tenant: tenant,
+            stats: {} // Assuming seedTenant might return stats or we can fetch them
+        }, 201);
     } catch (e: any) {
         console.error("Seeding Failed:", e);
         return c.json({ error: e.message || "Seeding failed" }, 500);
+    }
+});
+
+// POST /tenants/:id/impersonate - Generate Impersonation Token
+app.post('/tenants/:id/impersonate', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+    const auth = c.get('auth'); // Admin user
+
+    // 1. Find Owner
+    const ownerMember = await db.query.tenantMembers.findFirst({
+        where: and(
+            eq(tenantMembers.tenantId, tenantId),
+            exists(
+                db.select().from(tenantRoles).where(and(
+                    eq(tenantRoles.memberId, tenantMembers.id),
+                    eq(tenantRoles.role, 'owner')
+                ))
+            )
+        ),
+        with: { user: true }
+    });
+
+    if (!ownerMember || !ownerMember.user) {
+        return c.json({ error: "Tenant has no owner to impersonate" }, 404);
+    }
+
+    // 2. Generate Token
+    // Use IMPERSONATION_SECRET or fallback to CLERK_SECRET_KEY (must match auth middleware verification)
+    const secret = c.env.IMPERSONATION_SECRET || c.env.CLERK_SECRET_KEY;
+    if (!secret) return c.json({ error: "Server misconfiguration: No secret" }, 500);
+
+    const payload = {
+        sub: ownerMember.user.id,
+        name: (ownerMember.user.profile as any)?.firstName || 'Owner',
+        role: 'owner', // Grant owner privileges
+        impersonatorId: auth.userId, // Audit trail
+        exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour expiration
+    };
+
+    // Assuming 'sign' function is available from a JWT library
+    // You might need to import it, e.g., `import { sign } from 'hono/jwt';`
+    const { sign } = await import('hono/jwt');
+    const token = await sign(payload, secret, 'HS256');
+
+    // 3. Audit Log
+    await db.insert(auditLogs).values({
+        id: crypto.randomUUID(),
+        action: 'impersonate_tenant',
+        actorId: auth.userId,
+        targetId: tenantId,
+        details: { impersonatedUserId: ownerMember.user.id },
+        ipAddress: c.req.header('CF-Connecting-IP')
+    });
+
+    return c.json({ token, redirectUrl: `/studio/${(ownerMember as any).tenant?.slug || 'studio'}` });
+});
+
+// POST /tenants/:id/notify - Send System Notification (Email)
+app.post('/tenants/:id/notify', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+    const auth = c.get('auth');
+    const { subject, message, level } = await c.req.json();
+
+    if (!message) return c.json({ error: "Message required" }, 400);
+
+    // 1. Find Tenant & Owner
+    const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
+    if (!tenant) return c.json({ error: "Tenant not found" }, 404);
+
+    const ownerMember = await db.query.tenantMembers.findFirst({
+        where: and(
+            eq(tenantMembers.tenantId, tenantId),
+            exists(
+                db.select().from(tenantRoles).where(and(
+                    eq(tenantRoles.memberId, tenantMembers.id),
+                    eq(tenantRoles.role, 'owner')
+                ))
+            )
+        ),
+        with: { user: true }
+    });
+
+    if (!ownerMember || !ownerMember.user) {
+        return c.json({ error: "Owner not found" }, 404);
+    }
+
+    // 2. Send Email
+    try {
+        const { EmailService } = await import('../services/email');
+        const emailService = new EmailService(
+            c.env.RESEND_API_KEY,
+            { branding: { primaryColor: '#000000' } as any, settings: {} as any }, // System branding
+            { slug: 'system' }
+        );
+
+        await emailService.sendGenericEmail(
+            ownerMember.user.email,
+            subject || `System Notification: ${level || 'Update'}`,
+            `<div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+               <h2 style="color: ${level === 'alert' ? '#e11d48' : '#0f172a'}">${subject || 'System Notification'}</h2>
+               <p style="font-size: 16px; line-height: 1.5; color: #334155;">${message.replace(/\n/g, '<br/>')}</p>
+               <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
+               <p style="font-size: 12px; color: #94a3b8;">This message was sent by the Studio Platform Admin Team.</p>
+             </div>`
+        );
+
+        // 3. Audit Log
+        await db.insert(auditLogs).values({
+            id: crypto.randomUUID(),
+            action: 'send_system_notification',
+            actorId: auth.userId,
+            targetId: tenantId,
+            details: { subject, level },
+            ipAddress: c.req.header('CF-Connecting-IP')
+        });
+
+        return c.json({ success: true });
+
+    } catch (e: any) {
+        console.error("Notification Failed:", e);
+        return c.json({ error: "Failed to send email: " + e.message }, 500);
     }
 });
 

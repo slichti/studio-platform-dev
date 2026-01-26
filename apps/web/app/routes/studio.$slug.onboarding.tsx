@@ -4,7 +4,7 @@ import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router"; // @
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";
-import { CheckCircle2, MapPin, Calendar, Palette, ArrowRight, Loader2 } from "lucide-react";
+import { CheckCircle2, MapPin, Calendar, Palette, ArrowRight, Loader2, Upload, Users, Plus, X } from "lucide-react";
 import { cn } from "~/utils/cn";
 
 export const loader = async (args: LoaderFunctionArgs) => {
@@ -42,7 +42,7 @@ export const action = async (args: ActionFunctionArgs) => {
             await apiRequest(`/tenant/settings`, token, {
                 method: "PATCH",
                 body: JSON.stringify({
-                    branding: { primaryColor },
+                    branding: { primaryColor, logoUrl: formData.get("logoUrl") },
                     onboardingStep: 3
                 }),
                 headers: { 'X-Tenant-Slug': slug! }
@@ -91,14 +91,39 @@ export const action = async (args: ActionFunctionArgs) => {
             return { step: 5 };
         }
 
-        // Step 5: Import Complete (Advanced by Skipping or Success)
-        if (step === "import_complete") {
+        // Step 5: Team Invites
+        if (step === "team") {
+            const emails = formData.getAll("emails[]");
+            // Invite each member
+            await Promise.all(emails.map(email =>
+                apiRequest(`/members`, token, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        email,
+                        firstName: '', // Optional for quick invite
+                        lastName: '',
+                        role: 'instructor'
+                    }),
+                    headers: { 'X-Tenant-Slug': slug! }
+                }).catch(e => console.error(`Failed to invite ${email}`, e))
+            ));
+
             await apiRequest(`/tenant/settings`, token, {
                 method: "PATCH",
-                body: JSON.stringify({ onboardingStep: 6 }), // 6 = Completed
+                body: JSON.stringify({ onboardingStep: 6 }),
                 headers: { 'X-Tenant-Slug': slug! }
             });
             return { step: 6 };
+        }
+
+        // Step 6: Import Complete (Advanced by Skipping or Success)
+        if (step === "import_complete") {
+            await apiRequest(`/tenant/settings`, token, {
+                method: "PATCH",
+                body: JSON.stringify({ onboardingStep: 7 }), // 7 = Completed
+                headers: { 'X-Tenant-Slug': slug! }
+            });
+            return { step: 7 };
         }
 
         return null;
@@ -119,13 +144,53 @@ export default function StudioOnboarding() {
     // 2. Branding
     // 3. Location
     // 4. Schedule
-    // 5. Import (New)
-    // 6. Complete
+    // 5. Team (New)
+    // 6. Import
+    // 7. Complete
     const initialStep = (tenant.settings?.onboardingStep || 1);
     const [currentStep, setCurrentStep] = useState(initialStep);
     const [template, setTemplate] = useState<string>('yoga'); // Default
 
+    // Logo State
+    const [logoUrl, setLogoUrl] = useState<string>('');
+    const [logoUploading, setLogoUploading] = useState(false);
+
+    // Team State
+    const [inviteEmails, setInviteEmails] = useState<string[]>(['']);
+
     const isSubmitting = navigation.state === "submitting";
+
+    const handleLogoUpload = async (file: File) => {
+        setLogoUploading(true);
+        try {
+            const token = await (window as any).Clerk?.session?.getToken();
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('title', `Logo - ${file.name}`);
+
+            const res = await apiRequest('/uploads/r2-image', token, {
+                method: 'POST',
+                body: formData
+            });
+            setLogoUrl(res.url);
+        } catch (e) {
+            console.error("Logo upload failed", e);
+            alert("Failed to upload logo. Please try again.");
+        } finally {
+            setLogoUploading(false);
+        }
+    };
+
+    const addEmailField = () => setInviteEmails([...inviteEmails, '']);
+    const updateEmail = (index: number, value: string) => {
+        const newEmails = [...inviteEmails];
+        newEmails[index] = value;
+        setInviteEmails(newEmails);
+    };
+    const removeEmail = (index: number) => {
+        const newEmails = inviteEmails.filter((_, i) => i !== index);
+        setInviteEmails(newEmails);
+    };
 
     // Defaults based on template
     const getDefaults = () => {
@@ -145,7 +210,7 @@ export default function StudioOnboarding() {
                 <div className="h-2 bg-zinc-100 dark:bg-zinc-800 w-full relative">
                     <div
                         className="absolute left-0 top-0 h-full bg-indigo-600 transition-all duration-500"
-                        style={{ width: `${(currentStep / 6) * 100}%` }}
+                        style={{ width: `${(currentStep / 7) * 100}%` }}
                     />
                 </div>
 
@@ -168,8 +233,9 @@ export default function StudioOnboarding() {
                             {currentStep === 2 && "Choose a color that represents your studio."}
                             {currentStep === 3 && "Where will your classes take place?"}
                             {currentStep === 4 && "Get your calendar started with one event."}
-                            {currentStep === 5 && "Import users and classes from your previous system."}
-                            {currentStep === 6 && "Your studio is ready to accept bookings."}
+                            {currentStep === 5 && "Invite your instructors and staff."}
+                            {currentStep === 6 && "Import users and classes from your previous system."}
+                            {currentStep === 7 && "Your studio is ready to accept bookings."}
                         </p>
                     </div>
 
@@ -201,21 +267,60 @@ export default function StudioOnboarding() {
                     {currentStep === 2 && (
                         <Form method="post" onSubmit={() => setTimeout(() => setCurrentStep(3), 500)}>
                             <input type="hidden" name="step" value="branding" />
-                            <div className="space-y-4">
-                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Primary Color</label>
-                                <div className="grid grid-cols-5 gap-2">
-                                    {['#4f46e5', '#ec4899', '#10b981', '#f59e0b', '#dc2626'].map(color => (
-                                        <label key={color} className="relative cursor-pointer group">
-                                            <input type="radio" name="primaryColor" value={color} className="peer sr-only" />
-                                            <div className="w-full aspect-square rounded-full border-2 border-transparent peer-checked:border-zinc-900 dark:peer-checked:border-white transition-all" style={{ backgroundColor: color }} />
-                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 peer-checked:opacity-100 text-white">
-                                                <CheckCircle2 size={16} />
-                                            </div>
+                            <input type="hidden" name="logoUrl" value={logoUrl} />
+
+                            <div className="space-y-6">
+                                {/* Logo Upload */}
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Studio Logo</label>
+                                    <div className="flex items-center gap-4">
+                                        <label className="cursor-pointer group relative h-24 w-24 rounded-xl bg-zinc-100 dark:bg-zinc-800 border-2 border-dashed border-zinc-300 dark:border-zinc-700 flex flex-col items-center justify-center hover:border-indigo-500 transition overflow-hidden">
+                                            {logoUrl ? (
+                                                <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <>
+                                                    <Upload className="text-zinc-400 mb-1 group-hover:text-indigo-500" size={24} />
+                                                    <span className="text-[10px] text-zinc-500 uppercase font-bold group-hover:text-indigo-500">Upload</span>
+                                                </>
+                                            )}
+                                            {logoUploading && (
+                                                <div className="absolute inset-0 bg-white/80 dark:bg-black/80 flex items-center justify-center">
+                                                    <Loader2 className="animate-spin text-indigo-600" />
+                                                </div>
+                                            )}
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                className="hidden"
+                                                onChange={(e) => e.target.files?.[0] && handleLogoUpload(e.target.files[0])}
+                                                disabled={logoUploading}
+                                            />
                                         </label>
-                                    ))}
+                                        <div className="flex-1 text-sm text-zinc-500">
+                                            <p>Upload a square logo for best results.</p>
+                                            <p className="mt-1">It will appear in your emails and client portal.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Color Picker */}
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Brand Color</label>
+                                    <div className="grid grid-cols-5 gap-2">
+                                        {['#4f46e5', '#ec4899', '#10b981', '#f59e0b', '#dc2626'].map(color => (
+                                            <label key={color} className="relative cursor-pointer group">
+                                                <input type="radio" name="primaryColor" value={color} className="peer sr-only" defaultChecked={color === '#4f46e5'} />
+                                                <div className="w-full aspect-square rounded-full border-2 border-transparent peer-checked:border-zinc-900 dark:peer-checked:border-white transition-all shadow-sm" style={{ backgroundColor: color }} />
+                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 peer-checked:opacity-100 text-white">
+                                                    <CheckCircle2 size={16} />
+                                                </div>
+                                            </label>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
-                            <button disabled={isSubmitting} className="w-full mt-8 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition">
+
+                            <button disabled={isSubmitting || logoUploading} className="w-full mt-8 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition">
                                 {isSubmitting ? <Loader2 className="animate-spin" /> : <>Next Step <ArrowRight size={16} /></>}
                             </button>
                         </Form>
@@ -262,8 +367,73 @@ export default function StudioOnboarding() {
                         </Form>
                     )}
 
-                    {/* Step 5: Import */}
+                    {/* Step 5: Team Invites */}
                     {currentStep === 5 && (
+                        <Form method="post" onSubmit={() => setTimeout(() => setCurrentStep(6), 500)}>
+                            <input type="hidden" name="step" value="team" />
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Invite Instructors</label>
+                                    <div className="space-y-2">
+                                        {inviteEmails.map((email, index) => (
+                                            <div key={index} className="flex gap-2">
+                                                <input
+                                                    type="email"
+                                                    name="emails[]"
+                                                    value={email}
+                                                    onChange={(e) => updateEmail(index, e.target.value)}
+                                                    placeholder="instructor@example.com"
+                                                    className="flex-1 p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900"
+                                                />
+                                                {inviteEmails.length > 1 && (
+                                                    <button type="button" onClick={() => removeEmail(index)} className="p-2.5 text-zinc-400 hover:text-red-500 transition">
+                                                        <X size={20} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={addEmailField}
+                                        className="mt-2 text-sm text-indigo-600 font-medium flex items-center gap-1 hover:text-indigo-700"
+                                    >
+                                        <Plus size={16} /> Add another
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="mt-8 flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        // Skip Logic: Submit empty or special skip param?
+                                        // Actually just advance step client side? No, need to persist state.
+                                        // We can submit the form with no emails.
+                                        const form = document.getElementById('skip-team-form') as HTMLFormElement;
+                                        if (form) form.submit();
+                                        setTimeout(() => setCurrentStep(6), 500);
+                                    }}
+                                    className="px-6 py-3 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 font-bold rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800 transition"
+                                >
+                                    Skip
+                                </button>
+                                <button disabled={isSubmitting} className="flex-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition">
+                                    {isSubmitting ? <Loader2 className="animate-spin" /> : <>Send Invites <ArrowRight size={16} /></>}
+                                </button>
+                            </div>
+                        </Form>
+                    )}
+
+                    {/* Hidden Skip Form */}
+                    <Form method="post" id="skip-team-form" className="hidden">
+                        <input type="hidden" name="step" value="team" />
+                        {/* No emails = skip/next */}
+                    </Form>
+
+                    {/* Step 6: Import */}
+                    {currentStep === 6 && (
                         <div>
                             <DataImportForm
                                 tenantSlug={tenant.slug}
@@ -271,12 +441,12 @@ export default function StudioOnboarding() {
                                     // Submit a hidden form to advance step on server
                                     const form = document.getElementById('advance-step-form') as HTMLFormElement;
                                     if (form) form.submit();
-                                    setCurrentStep(6);
+                                    setCurrentStep(7);
                                 }}
                                 onSkip={() => {
                                     const form = document.getElementById('advance-step-form') as HTMLFormElement;
                                     if (form) form.submit();
-                                    setCurrentStep(6);
+                                    setCurrentStep(7);
                                 }}
                             />
                             {/* Hidden form to persist step advancement to 6 */}
@@ -286,8 +456,8 @@ export default function StudioOnboarding() {
                         </div>
                     )}
 
-                    {/* Step 6: Completion */}
-                    {currentStep === 6 && (
+                    {/* Step 7: Completion */}
+                    {currentStep === 7 && (
                         <div className="text-center">
                             <div className="text-6xl mb-4 animate-bounce">🎉</div>
                             <p className="text-zinc-600 dark:text-zinc-400 mb-8">

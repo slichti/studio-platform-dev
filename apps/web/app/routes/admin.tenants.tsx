@@ -5,7 +5,7 @@ import { useState, Fragment } from "react";
 import { useAuth } from "@clerk/react-router";
 import { Modal } from "../components/Modal";
 import { ErrorDialog, ConfirmationDialog, SuccessDialog } from "../components/Dialogs";
-import { ChevronDown, ChevronRight, Activity, CreditCard, Video, Monitor, ShoppingCart, Mail, Settings, AlertTriangle, Smartphone, Globe, MessagesSquare, MessageSquare } from "lucide-react";
+import { ChevronDown, ChevronRight, Activity, CreditCard, Video, Monitor, ShoppingCart, Mail, Settings, AlertTriangle, Smartphone, Globe, MessagesSquare, MessageSquare, LogIn, Bell } from "lucide-react";
 import { PrivacyBlur } from "../components/PrivacyBlur";
 import { DataExportModal } from "../components/DataExportModal";
 
@@ -138,6 +138,12 @@ export default function AdminTenants() {
     const [archiveInput, setArchiveInput] = useState("");
     const [archiveLoading, setArchiveLoading] = useState(false);
 
+    // Notify State
+    const [notifyModalOpen, setNotifyModalOpen] = useState(false);
+    const [notifyTenantId, setNotifyTenantId] = useState<string | null>(null);
+    const [notifyMessage, setNotifyMessage] = useState("");
+    const [notifySubject, setNotifySubject] = useState("");
+
     // Archive State
     // (Already declared above, removing duplicates)
 
@@ -196,6 +202,58 @@ export default function AdminTenants() {
             setZoomModalOpen(false);
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleImpersonate = async (tenantId: string) => {
+        if (!confirm("Are you sure you want to log in as the owner of this tenant?")) return;
+        setLoading(true);
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/admin/tenants/${tenantId}/impersonate`, token, { method: "POST" });
+
+            if (res.error) throw new Error(res.error);
+
+            // Set token and redirect
+            localStorage.setItem("impersonation_token", res.token);
+            window.location.href = res.redirectUrl || `/studio/${res.slug || 'studio'}`; // Fallback helper
+        } catch (e: any) {
+            setErrorDialog({ isOpen: true, message: e.message || "Impersonation failed" });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const openNotifyModal = (tenantId: string) => {
+        setNotifyTenantId(tenantId);
+        setNotifySubject("System Notification");
+        setNotifyMessage("");
+        setNotifyModalOpen(true);
+    };
+
+    const handleNotifySend = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!notifyTenantId) return;
+        setLoading(true);
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/admin/tenants/${notifyTenantId}/notify`, token, {
+                method: "POST",
+                body: JSON.stringify({
+                    subject: notifySubject,
+                    message: notifyMessage,
+                    level: 'info'
+                })
+            });
+
+            if (res.error) throw new Error(res.error);
+
+            setSuccessDialog({ isOpen: true, message: "Notification sent successfully." });
+            setNotifyModalOpen(false);
+        } catch (e: any) {
+            setErrorDialog({ isOpen: true, message: e.message || "Failed to send notification" });
         } finally {
             setLoading(false);
         }
@@ -1285,6 +1343,23 @@ export default function AdminTenants() {
                                             </Link>
                                             <div className="h-4 w-px bg-zinc-200"></div>
 
+                                            <button
+                                                className="text-zinc-400 hover:text-indigo-600 transition-colors"
+                                                onClick={(e) => { e.stopPropagation(); handleImpersonate(t.id); }}
+                                                title="Log in as Owner"
+                                            >
+                                                <LogIn size={16} />
+                                            </button>
+                                            <button
+                                                className="text-zinc-400 hover:text-blue-600 transition-colors"
+                                                onClick={(e) => { e.stopPropagation(); openNotifyModal(t.id); }}
+                                                title="Send Notification"
+                                            >
+                                                <Bell size={16} />
+                                            </button>
+
+                                            <div className="h-4 w-px bg-zinc-200"></div>
+
                                             {/* Pause/Resume Logic - Only show if NOT archived or suspended (unless suspended tenants can be paused? assuming no) */
                                                 (t.status === 'active' || t.status === 'paused') && (
                                                     t.status === 'paused' ? (
@@ -2071,6 +2146,38 @@ export default function AdminTenants() {
                     dataType={exportModal.dataType}
                 />
             )}
+
+            {/* Notify Modal */}
+            <Modal isOpen={notifyModalOpen} onClose={() => setNotifyModalOpen(false)} title="Send System Notification">
+                <form onSubmit={handleNotifySend} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Subject</label>
+                        <input
+                            type="text"
+                            value={notifySubject}
+                            onChange={(e) => setNotifySubject(e.target.value)}
+                            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800"
+                            placeholder="System Notification"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Message</label>
+                        <textarea
+                            value={notifyMessage}
+                            onChange={(e) => setNotifyMessage(e.target.value)}
+                            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 min-h-[100px]"
+                            placeholder="Enter message to send to the tenant owner..."
+                            required
+                        />
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                        <button type="button" onClick={() => setNotifyModalOpen(false)} className="px-4 py-2 text-zinc-600 hover:bg-zinc-100 rounded-md">Cancel</button>
+                        <button type="submit" disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2">
+                            {loading ? "Sending..." : <>Send Notification</>}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
 }
