@@ -30,7 +30,9 @@ CREATE TABLE `__new_tenant_roles` (
 	FOREIGN KEY (`custom_role_id`) REFERENCES `custom_roles`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-INSERT INTO `__new_tenant_roles`("member_id", "role", "custom_role_id", "created_at") SELECT "member_id", "role", "custom_role_id", "created_at" FROM `tenant_roles`;--> statement-breakpoint
+INSERT INTO `__new_tenant_roles`("member_id", "role", "custom_role_id", "created_at") 
+SELECT "member_id", "role", NULL, "created_at" FROM `tenant_roles` 
+WHERE "member_id" IN (SELECT "id" FROM "tenant_members");--> statement-breakpoint
 DROP TABLE `tenant_roles`;--> statement-breakpoint
 ALTER TABLE `__new_tenant_roles` RENAME TO `tenant_roles`;--> statement-breakpoint
 PRAGMA foreign_keys=ON;
