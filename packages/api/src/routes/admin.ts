@@ -10,7 +10,7 @@ import {
     membershipPlans, coupons, marketingCampaigns, challenges, userChallenges, locations, availabilities,
     appointmentServices, smsConfig, studentNotes, leads, uploads
 } from '@studio/db/src/schema';
-import { eq, sql, desc, count, or, like, asc, and, inArray, isNull, exists, not } from 'drizzle-orm';
+import { eq, sql, desc, count, or, like, asc, and, inArray, isNull, exists, not, gt } from 'drizzle-orm';
 
 import { UsageService } from '../services/pricing';
 
@@ -585,7 +585,7 @@ app.get('/stats/architecture', async (c) => {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const activeUsersRes = await db.select({ count: count(auditLogs.actorId) })
         .from(auditLogs)
-        .where(sql`${auditLogs.createdAt} > ${oneDayAgo}`)
+        .where(gt(auditLogs.createdAt, oneDayAgo))
         .get();
 
     // 4. Region Distribution (Mocked for now as we don't have geo-IP DB handy, or aggregate logs IP?)
