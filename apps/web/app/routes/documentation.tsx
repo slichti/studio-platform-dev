@@ -58,7 +58,7 @@ export default function HelpLayout() {
         const query = e.target.value;
         setSearchQuery(query);
         if (query.length > 1) {
-            const results = fuse.search(query).map(result => result.item);
+            const results = fuse.search(query).map((result: any) => result.item);
             setSearchResults(results);
             setShowResults(true);
         } else {
