@@ -930,7 +930,7 @@ app.post('/tenants/:id/notify', async (c) => {
     try {
         const { EmailService } = await import('../services/email');
         const emailService = new EmailService(
-            c.env.RESEND_API_KEY,
+            c.env.RESEND_API_KEY || '',
             { branding: { primaryColor: '#000000' } as any, settings: {} as any }, // System branding
             { slug: 'system' }
         );
