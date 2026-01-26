@@ -1,46 +1,42 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { bookings, users, tenantMembers, tenants, classes } from '@studio/db/src/schema'; // Import necessary schema
+import { bookings, tenantMembers, classes, purchasedPacks, posOrders } from '@studio/db/src/schema';
 import { eq, and, sql, desc, gte, lt } from 'drizzle-orm';
 import { authMiddleware } from '../middleware/auth';
+import type { HonoContext } from '../types';
 
-type Bindings = {
-    DB: D1Database;
-};
-
-import { Variables } from '../index'; // Import centralized types
-
-const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
+const app = new Hono<HonoContext>();
 
 app.use('*', authMiddleware);
 
-// GET /utilization - Heatmap Data (Day of Week x Hour of Day)
+/**
+ * GET /utilization - Heatmap Data
+ * Logic: Occupancy by Day of Week (0-6) and Hour of Day (0-23)
+ * Source: Classes (start_time) -> Bookings (count)
+ */
 app.get('/utilization', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context required" }, 400);
 
-    // SQLITE strftime('%w', ...) returns 0-6 (Sun-Sat)
-    // strftime('%H', ...) returns 00-23
-
-    // We want to count confirmed bookings by (day, hour)
-    // Note: D1/SQLite specific syntax
+    // Group bookings by the CLASS start time, not booking time.
+    // We want to know "When are classes busy?"
     const usage = await db.select({
-        day: sql`strftime('%w', ${bookings.createdAt})`,
-        hour: sql`strftime('%H', ${bookings.createdAt})`,
-        count: sql<number>`count(*)`
+        day: sql<number>`cast(strftime('%w', ${classes.startTime}) as integer)`, // 0 (Sun) - 6 (Sat)
+        hour: sql<number>`cast(strftime('%H', ${classes.startTime}) as integer)`, // 00-23
+        bookingCount: sql<number>`count(${bookings.id})`,
+        capacitySum: sql<number>`sum(${classes.capacity})`
     })
         .from(bookings)
         .innerJoin(classes, eq(bookings.classId, classes.id))
         .where(and(
+            eq(classes.tenantId, tenant.id),
             eq(bookings.status, 'confirmed'),
-            eq(classes.tenantId, tenant.id)
+            gte(classes.startTime, sql`datetime('now', '-30 days')`) // Last 30 days window for relevance
         ))
-        .groupBy(sql`strftime('%w', ${bookings.createdAt})`, sql`strftime('%H', ${bookings.createdAt})`)
+        .groupBy(sql`strftime('%w', ${classes.startTime})`, sql`strftime('%H', ${classes.startTime})`)
         .all();
 
-    // Transform to standard 7x24 grid? Or return sparse?
-    // Let's return sparse list
     return c.json(usage);
 });
 
@@ -49,13 +45,12 @@ app.get('/utilization', async (c) => {
 app.get('/retention', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-
-    // 1. Get Cohorts: Members grouped by Join Date (Month)
-    // SQLite: strftime('%Y-%m', joined_at)
+    if (!tenant) return c.json({ error: "Tenant context required" }, 400);
 
     const cohorts = await db.select({
-        cohortMonth: sql`strftime('%Y-%m', ${tenantMembers.joinedAt})`,
-        totalMembers: sql<number>`count(*)`
+        cohortMonth: sql<string>`strftime('%Y-%m', ${tenantMembers.joinedAt})`,
+        totalMembers: sql<number>`count(*)`,
+        activeMembers: sql<number>`sum(case when ${tenantMembers.status} = 'active' then 1 else 0 end)`
     })
         .from(tenantMembers)
         .where(eq(tenantMembers.tenantId, tenant.id))
@@ -64,37 +59,66 @@ app.get('/retention', async (c) => {
         .limit(12) // Last 12 cohorts
         .all();
 
-    // 2. For each cohort, finding "retained" is complex in one query without expensive subselects.
-    // Better approach: return the cohort sizes.
-    // For "Active %", let's simplistically check 'status' = 'active'
+    // Map to nice format
+    const result = cohorts.map(c => ({
+        month: c.cohortMonth,
+        total: c.totalMembers,
+        retained: c.activeMembers,
+        retainedPct: c.totalMembers > 0 ? Math.round((c.activeMembers / c.totalMembers) * 100) : 0
+    }));
 
-    const detailedCohorts = await db.select({
-        cohortMonth: sql`strftime('%Y-%m', ${tenantMembers.joinedAt})`,
-        total: sql<number>`count(*)`,
-        active: sql<number>`sum(case when ${tenantMembers.status} = 'active' then 1 else 0 end)`
-    })
-        .from(tenantMembers)
-        .where(eq(tenantMembers.tenantId, tenant.id))
-        .groupBy(sql`strftime('%Y-%m', ${tenantMembers.joinedAt})`)
-        .orderBy(desc(sql`strftime('%Y-%m', ${tenantMembers.joinedAt})`))
-        .limit(12)
-        .all();
-
-    return c.json(detailedCohorts);
+    return c.json(result);
 });
 
-// GET /ltv - Simple LTV Calculation
+/**
+ * GET /ltv - Lifetime Value
+ * Logic: Total Revenue / Total Members
+ * Revenue Sources: Purchased Packs + POS Orders
+ */
 app.get('/ltv', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context required" }, 400);
 
-    // Sum all payments (hypothetically if we had a payments table linked to tenant)
-    // or sum pos_orders + purchased_packs + memberships
-    // For now, let's placeholder random data or simple calculation
+    // 1. Total Members
+    const memberStats = await db.select({
+        count: sql<number>`count(*)`
+    })
+        .from(tenantMembers)
+        .where(eq(tenantMembers.tenantId, tenant.id))
+        .get();
+
+    const totalMembers = memberStats?.count || 1; // Avoid div by zero
+
+    // 2. Revenue from Class Packs
+    const packsRevenue = await db.select({
+        total: sql<number>`sum(${purchasedPacks.price})`
+    })
+        .from(purchasedPacks)
+        .where(eq(purchasedPacks.tenantId, tenant.id))
+        .get();
+
+    // 3. Revenue from POS
+    const posRevenue = await db.select({
+        total: sql<number>`sum(${posOrders.totalAmount})`
+    })
+        .from(posOrders)
+        .where(eq(posOrders.tenantId, tenant.id))
+        .get();
+
+    const revenueCents = (packsRevenue?.total || 0) + (posRevenue?.total || 0);
+    const revenueDollars = revenueCents / 100;
+
+    const avgLtv = revenueDollars / totalMembers;
 
     return c.json({
-        averageLtv: 450.00,
-        trend: 12.5 // +12.5%
+        totalRevenue: revenueDollars,
+        totalMembers,
+        averageLtv: Number(avgLtv.toFixed(2)),
+        sources: {
+            packs: (packsRevenue?.total || 0) / 100,
+            pos: (posRevenue?.total || 0) / 100
+        }
     });
 });
 

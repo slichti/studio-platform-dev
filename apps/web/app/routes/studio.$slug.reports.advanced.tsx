@@ -3,7 +3,7 @@ import { useLoaderData, useOutletContext, redirect } from "react-router"; // @ts
 import type { LoaderFunctionArgs } from "react-router"; // @ts-ignore
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, Cell, PieChart, Pie } from 'recharts';
 import { format } from "date-fns";
 
 export const loader = async (args: LoaderFunctionArgs) => {
@@ -19,13 +19,13 @@ export const loader = async (args: LoaderFunctionArgs) => {
         const [utilization, retention, ltv] = await Promise.all([
             apiRequest(`/analytics/utilization`, token, { headers: { 'X-Tenant-Slug': slug! } }).catch(() => []),
             apiRequest(`/analytics/retention`, token, { headers: { 'X-Tenant-Slug': slug! } }).catch(() => []),
-            apiRequest(`/analytics/ltv`, token, { headers: { 'X-Tenant-Slug': slug! } }).catch(() => ({ averageLtv: 0, trend: 0 }))
+            apiRequest(`/analytics/ltv`, token, { headers: { 'X-Tenant-Slug': slug! } }).catch(() => ({ averageLtv: 0, trend: 0, sources: { packs: 0, pos: 0 } }))
         ]);
 
         return { utilization, retention, ltv };
     } catch (e) {
         console.error("Analytics Loader Error:", e);
-        return { utilization: [], retention: [], ltv: { averageLtv: 0, trend: 0 } };
+        return { utilization: [], retention: [], ltv: { averageLtv: 0, trend: 0, sources: { packs: 0, pos: 0 } } };
     }
 };
 
@@ -33,20 +33,19 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function AdvancedReports() {
     const data = useLoaderData<typeof loader>();
-    const { utilization, retention, ltv } = data || { utilization: [], retention: [], ltv: { averageLtv: 0, trend: 0 } };
+    const { utilization, retention, ltv } = data || { utilization: [], retention: [], ltv: { averageLtv: 0, trend: 0, sources: { packs: 0, pos: 0 } } };
     const { tenant } = useOutletContext<any>();
     const currency = tenant?.currency?.toUpperCase() || 'USD';
 
     // Process Heatmap Data
-    // utilization is { day: string(0-6), hour: string(00-23), count: number }
-    // We want a 7x24 grid.
+    // utilization is { day: 0-6, hour: 0-23, bookingCount: number }
     const getHeatmapValue = (dayIndex: number, hourIndex: number) => {
         const found = utilization.find((u: any) => parseInt(u.day) === dayIndex && parseInt(u.hour) === hourIndex);
-        return found ? found.count : 0;
+        return found ? found.bookingCount : 0;
     };
 
     // Find max for color scaling
-    const maxHeat = Math.max(...(utilization.map((u: any) => u.count) || [0]), 1);
+    const maxHeat = Math.max(...(utilization.map((u: any) => u.bookingCount) || [0]), 1);
 
     const getHeatColor = (value: number) => {
         if (value === 0) return 'bg-zinc-50 dark:bg-zinc-900';
@@ -57,6 +56,11 @@ export default function AdvancedReports() {
         return 'bg-indigo-700 text-white';
     };
 
+    const ltvDetails = [
+        { name: 'Class Packs', value: ltv?.sources?.packs || 0, fill: '#4F46E5' },
+        { name: 'Retail / POS', value: ltv?.sources?.pos || 0, fill: '#10B981' },
+    ];
+
     return (
         <div className="p-6 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
             <div>
@@ -64,15 +68,36 @@ export default function AdvancedReports() {
                 <p className="text-zinc-500 dark:text-zinc-400">Deep dive into studio performance and retention.</p>
             </div>
 
-            {/* LTV Card */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+            {/* LTV & Revenue */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm col-span-1">
                     <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Average Lifetime Value</h3>
                     <div className="text-4xl font-bold text-zinc-900 dark:text-zinc-100">
                         {new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(ltv.averageLtv)}
                     </div>
-                    <div className={`text-sm mt-2 font-medium ${ltv.trend >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                        {ltv.trend > 0 ? '+' : ''}{ltv.trend}% vs last month
+                </div>
+
+                <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm col-span-2 flex items-center justify-between">
+                    <div>
+                        <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Revenue Sources</h3>
+                        <div className="flex gap-6">
+                            <div>
+                                <p className="text-xs text-zinc-500">Class Packs</p>
+                                <p className="text-xl font-bold text-indigo-600">{new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(ltv.sources?.packs || 0)}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-zinc-500">Retail / POS</p>
+                                <p className="text-xl font-bold text-emerald-500">{new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(ltv.sources?.pos || 0)}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="h-24 w-24">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie data={ltvDetails} dataKey="value" innerRadius={25} outerRadius={40} paddingAngle={5} />
+                                <Tooltip />
+                            </PieChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
             </div>
@@ -84,7 +109,7 @@ export default function AdvancedReports() {
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={retention} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E4E5" />
-                            <XAxis dataKey="cohortMonth" stroke="#71717A" fontSize={12} tickLine={false} axisLine={false} />
+                            <XAxis dataKey="month" stroke="#71717A" fontSize={12} tickLine={false} axisLine={false} />
                             <YAxis stroke="#71717A" fontSize={12} tickLine={false} axisLine={false} />
                             <Tooltip
                                 cursor={{ fill: '#F4F4F5' }}
@@ -92,7 +117,7 @@ export default function AdvancedReports() {
                             />
                             <Legend />
                             <Bar dataKey="total" name="New Members" fill="#E4E4E7" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="active" name="Retained Active" fill="#4F46E5" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="retained" name="Retained Active" fill="#4F46E5" radius={[4, 4, 0, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
