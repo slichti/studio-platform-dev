@@ -322,8 +322,16 @@ app.post('/sign/public', async (c) => {
             tenantId: tenant.id,
             status: 'active',
             joinedAt: new Date(),
-            roles: ['student'] // Default role
+            // roles: ['student'] // REMOVED: roles is a separate table
         });
+
+        // Assign Default Role
+        const { tenantRoles } = await import('@studio/db/src/schema');
+        await db.insert(tenantRoles).values({
+            memberId,
+            role: 'student'
+        });
+
         member = await db.query.tenantMembers.findFirst({ where: eq(tenantMembers.id, memberId) });
     }
 
@@ -381,52 +389,29 @@ app.post('/sign/public', async (c) => {
             await emailService.sendWaiverCopy(email, template.title, buffer);
 
             // Also send copy to Studio Owners
-            const studioMembers = await db.query.tenantMembers.findMany({
-                where: and(eq(tenantMembers.tenantId, tenant.id), like(tenantMembers.roles, '%owner%')), // Simple like check if roles stored as JSON string or handle appropriately if array
-                // If roles is simple JSON array in SQLite, 'like' might be risky. 
-                // Better to fetch all and filter in app if volume is low, or join user roles properly.
-                // Assuming `roles` is JSON column.
-                // For MVP, sending to tenant settings admin email is safer/faster if configured.
-            });
-
-            // Or better: Use the emailService helper logic or settings notifications
-            // Let's use the explicit owner notification setting if available, or find owners.
-
-            // Note: `tenantMembers.roles` is a JSON array. `like` search '%owner%' is a common SQLite hack for JSON arrays.
-
-            // Safer: Send to configured Admin Email in settings, or fallback to first owner found.
             const adminEmail = (tenant.settings as any)?.notifications?.adminEmail;
             const targetEmails = new Set<string>();
 
             if (adminEmail) {
                 targetEmails.add(adminEmail);
-            } else {
-                // Find owners
-                const owners = await db.select({ email: users.email })
-                    .from(tenantMembers)
-                    .innerJoin(users, eq(tenantMembers.userId, users.id))
-                    .where(and(eq(tenantMembers.tenantId, tenant.id)))
-                    .all();
-
-                // Filter manually for 'owner' role since it's in JSON
-                // Actually `tenantMembers.roles` is returned.
-                // We can't easily filter JSON array in SQL here without proper functions.
-                // So we fetch, then filter.
-
-                const ownerMembers = await db.query.tenantMembers.findMany({
-                    where: eq(tenantMembers.tenantId, tenant.id),
-                    with: { user: true }
-                });
-
-                ownerMembers.forEach(m => {
-                    if ((m.roles as string[]).includes('owner')) {
-                        if (m.user.email) targetEmails.add(m.user.email);
-                    }
-                });
             }
 
+            // Find owners checks via tenantRoles table
+            const { tenantRoles } = await import('@studio/db/src/schema');
+            const owners = await db.select({ email: users.email })
+                .from(users)
+                .innerJoin(tenantMembers, eq(users.id, tenantMembers.userId))
+                .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
+                .where(and(
+                    eq(tenantMembers.tenantId, tenant.id),
+                    eq(tenantRoles.role, 'owner')
+                ))
+                .all();
+
+            owners.forEach(o => targetEmails.add(o.email));
+
             for (const ownerEmail of targetEmails) {
-                if (ownerEmail !== email) { // Don't send twice if owner is signing (unlikely for public flow but possible)
+                if (ownerEmail !== email) {
                     await emailService.sendWaiverCopy(ownerEmail, `${template.title} (Signed by ${firstName} ${lastName})`, buffer);
                 }
             }
