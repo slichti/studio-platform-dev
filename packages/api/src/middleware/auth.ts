@@ -29,6 +29,9 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables, Bindi
 
     if (authHeader && authHeader.startsWith('Bearer ')) {
         token = authHeader.split(' ')[1];
+    } else if (c.req.header('Upgrade') === 'websocket' && c.req.query('token')) {
+        // [WEBSOCKET AUTH] Allow query param token for WS upgrades (browsers can't send headers)
+        token = c.req.query('token');
     } else {
         // [TEST MOCKING] Allow header bypass in test environment
         if ((c.env as any).ENVIRONMENT === 'test' && c.req.header('TEST-AUTH')) {
@@ -41,7 +44,7 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables, Bindi
             return await next();
         }
 
-        // Security: Query parameter tokens removed to prevent exposure in logs/history
+        // Security: Query parameter tokens removed to prevent exposure in logs/history (except for WS Upgrade)
         return c.json({ error: 'Unauthorized' }, 401);
     }
 

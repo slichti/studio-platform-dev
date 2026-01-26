@@ -29,10 +29,11 @@ interface ChatWidgetProps {
     userName?: string;
     apiUrl?: string;
     enabled?: boolean;
+    token?: string;
     chatConfig?: ChatOption[]; // Dynamic configuration
 }
 
-export function ChatWidget({ roomId, tenantId, userId, userName, apiUrl = "", enabled = true, chatConfig }: ChatWidgetProps) {
+export function ChatWidget({ roomId, tenantId, userId, userName, apiUrl = "", enabled = true, chatConfig, token }: ChatWidgetProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputValue, setInputValue] = useState("");
@@ -67,7 +68,11 @@ export function ChatWidget({ roomId, tenantId, userId, userName, apiUrl = "", en
         const wsProtocol = baseUrl.startsWith('https') ? 'wss://' : 'ws://';
         const wsHost = baseUrl.replace(/^http(s)?:\/\//, '');
 
-        const wsUrl = `${wsProtocol}${wsHost}/api/chat/rooms/${roomId}/websocket?roomId=${roomId}&tenantId=${tenantId}&userId=${effectiveUserId}&userName=${encodeURIComponent(effectiveUserName)}`;
+        let wsUrl = `${wsProtocol}${wsHost}/api/chat/rooms/${roomId}/websocket?roomId=${roomId}&tenantId=${tenantId}&userId=${effectiveUserId}&userName=${encodeURIComponent(effectiveUserName)}`;
+
+        if (token) {
+            wsUrl += `&token=${token}`;
+        }
 
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;

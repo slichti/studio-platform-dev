@@ -489,6 +489,7 @@ export default function StudioLayout() {
                 enabled={!isStudentView && (tenant.settings?.chatEnabled !== false) && featureSet.has('chat')}
                 chatConfig={isStudentView ? tenant.settings?.chatConfig : undefined}
                 apiUrl={API_URL}
+                token={token || undefined}
             />
         </div>
     );
