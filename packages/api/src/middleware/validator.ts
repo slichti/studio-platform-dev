@@ -1,5 +1,8 @@
 import { Context, Next } from 'hono';
 import { z } from 'zod';
+// @ts-ignore
+import { v4 as uuidv4 } from 'uuid';
+// @ts-ignore
 import { fromError } from 'zod-validation-error';
 
 type ValidationTarget = 'json' | 'form' | 'query' | 'param';

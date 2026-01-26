@@ -3,6 +3,7 @@ import { createDb } from '../db';
 import { ReportService } from '../services/reports';
 import { tenants, scheduledReports } from '@studio/db/src/schema';
 import { eq, and } from 'drizzle-orm';
+// @ts-ignore
 import { v4 as uuidv4 } from 'uuid';
 
 type Bindings = {

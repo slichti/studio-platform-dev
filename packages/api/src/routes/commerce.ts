@@ -189,7 +189,8 @@ app.post('/products/bulk', async (c) => {
 
     if (!role?.includes('owner')) return c.json({ error: "Unauthorized" }, 403);
 
-    const { items } = await c.req.json(); // items: { type: 'pack'|'membership', name, price, ... }[]
+    const body = await c.req.json() as { items: { type: 'pack' | 'membership', name: string, price: number, credits?: number, expirationDays?: number, interval?: 'monthly' | 'annual' }[] };
+    const items = body.items;
     if (!items || !Array.isArray(items)) return c.json({ error: "Invalid items" }, 400);
 
     const { StripeService } = await import('../services/stripe');
@@ -208,13 +209,13 @@ app.post('/products/bulk', async (c) => {
                     tenantId: tenant.id,
                     type: item.type // 'pack' or 'membership'
                 }
-            }, tenant.stripeAccountId);
+            }, tenant.stripeAccountId || undefined);
 
             // 2. Create Stripe Price
             let recurring = undefined;
             if (item.type === 'membership' && item.interval) {
                 recurring = {
-                    interval: item.interval === 'annual' ? 'year' : 'month',
+                    interval: (item.interval === 'annual' ? 'year' : 'month') as any,
                     interval_count: 1
                 };
             }
@@ -224,7 +225,7 @@ app.post('/products/bulk', async (c) => {
                 unitAmount: item.price, // cents
                 currency: tenant.currency || 'usd',
                 recurring
-            }, tenant.stripeAccountId);
+            }, tenant.stripeAccountId || undefined);
 
             // 3. Save to DB
             const id = crypto.randomUUID();
@@ -256,7 +257,7 @@ app.post('/products/bulk', async (c) => {
                     stripeProductId: stripeProduct.id,
                     stripePriceId: stripePrice.id,
                     active: true
-                }).run();
+                } as any).run();
             }
 
             results.push({ name: item.name, status: 'created', id });

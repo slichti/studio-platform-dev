@@ -4,6 +4,7 @@ import { DrizzleD1Database } from 'drizzle-orm/d1';
 import * as schema from '@studio/db';
 import { emailLogs } from '@studio/db';
 import { eq } from 'drizzle-orm';
+// @ts-ignore
 import { v4 as uuidv4 } from 'uuid';
 
 

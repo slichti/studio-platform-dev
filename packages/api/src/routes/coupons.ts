@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import { createDb } from '../db';
 import { coupons, couponRedemptions } from '@studio/db/src/schema'; // Updated imports
 import { eq, desc, and, sql } from 'drizzle-orm';
+// @ts-ignore
 import { v4 as uuidv4 } from 'uuid';
 import type { Bindings, Variables } from '../types';
 

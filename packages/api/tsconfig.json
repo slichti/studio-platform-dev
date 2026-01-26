@@ -11,7 +11,16 @@
         "strict": true,
         "esModuleInterop": true,
         "skipLibCheck": true,
-        "forceConsistentCasingInFileNames": true
+        "forceConsistentCasingInFileNames": true,
+        "baseUrl": ".",
+        "paths": {
+            "@studio/db": [
+                "../db/src/index.ts"
+            ],
+            "@studio/db/*": [
+                "../db/*"
+            ]
+        }
     },
     "include": [
         "src/**/*"
