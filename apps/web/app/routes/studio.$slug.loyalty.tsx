@@ -6,6 +6,7 @@ import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { apiRequest } from "~/utils/api";
 import { getAuth } from "@clerk/react-router/server";
 import { Award, Plus, Trash2, Calendar, Target, Gift } from "lucide-react";
+import { toast } from "sonner";
 import { useState, useEffect } from "react";
 
 export const loader = async (args: LoaderFunctionArgs) => {
@@ -98,6 +99,8 @@ export default function LoyaltyPage() {
     useEffect(() => {
         if (actionData && (actionData as any).success) {
             setIsCreateModalOpen(false);
+            // @ts-ignore
+            if (typeof toast !== 'undefined') toast.success("Success!");
         }
     }, [actionData]);
 
