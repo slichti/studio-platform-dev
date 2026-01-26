@@ -197,11 +197,14 @@ export class StripeWebhookHandler {
         const session = event.data.object as Stripe.Checkout.Session;
         const { metadata, amount_total } = session;
 
+        console.log(`[Stripe] Checkout Completed: ${session.id} (Metadata: ${JSON.stringify(metadata)})`);
+
         if (metadata && metadata.tenantId) {
             const fulfillment = new FulfillmentService(this.db, this.env.RESEND_API_KEY);
 
             // 1. Pack Purchase
             if (metadata.packId) {
+                console.log(`[Stripe] Processing Pack Purchase: ${metadata.packId}`);
                 await fulfillment.fulfillPackPurchase(metadata, session.payment_intent as string, amount_total || 0);
             }
 
@@ -209,6 +212,7 @@ export class StripeWebhookHandler {
             if (metadata.type === 'gift_card_purchase') {
                 const amount = parseInt(metadata.amount || '0');
                 if (amount > 0) {
+                    console.log(`[Stripe] Processing Gift Card Purchase: $${amount}`);
                     await fulfillment.fulfillGiftCardPurchase(metadata, session.payment_intent as string, amount);
                 }
             }
@@ -217,6 +221,7 @@ export class StripeWebhookHandler {
             if (metadata.usedGiftCardId && metadata.creditApplied) {
                 const creditUsed = parseInt(metadata.creditApplied);
                 if (creditUsed > 0) {
+                    console.log(`[Stripe] Redeeming Gift Card Credit: $${creditUsed}`);
                     await fulfillment.redeemGiftCard(metadata.usedGiftCardId, creditUsed, session.payment_intent as string);
                 }
             }
@@ -227,6 +232,7 @@ export class StripeWebhookHandler {
                 if (tenant) {
                     const usageService = new UsageService(this.db, tenant.id);
                     const resendKey = (tenant.resendCredentials as any)?.apiKey || this.env.RESEND_API_KEY;
+                    // ... (rest of service init)
                     const isByok = !!(tenant.resendCredentials as any)?.apiKey;
                     const emailService = new EmailService(
                         resendKey,
@@ -237,6 +243,7 @@ export class StripeWebhookHandler {
                         this.db,
                         tenant.id
                     );
+                    // Use 'as any' for partial mocks or strict types if available
                     const smsService = new SmsService(tenant.twilioCredentials as any, { ...this.env, DB: this.env.DB } as any, usageService, this.db, tenant.id);
                     const autoService = new AutomationsService(this.db, tenant.id, emailService, smsService);
 
@@ -256,19 +263,20 @@ export class StripeWebhookHandler {
                     }
 
                     if (userId) {
-                        // Using executionCtx.waitUntil is not available here, so we just await or fire-and-forget
-                        // In Hono typically we want to await or use c.executionCtx.
-                        // We will await here for simplicity/safety, or we could pass executionCtx to this service method.
-                        // Let's await.
+                        console.log(`[Stripe] Triggering product_purchase automation for User ${userId}`);
                         await autoService.dispatchTrigger('product_purchase', {
                             userId,
                             email: email || '',
                             firstName: session.customer_details?.name?.split(' ')[0] || 'Friend',
                             data: { amount: amount_total, metadata: metadata }
                         });
+                    } else {
+                        console.warn(`[Stripe] No user found for automation trigger (Email: ${email})`);
                     }
                 }
             } catch (e) { console.error('Failed to trigger product_purchase', e); }
+        } else {
+            console.warn(`[Stripe] Checkout Session missing tenantId metadata. Ignored.`);
         }
     }
 

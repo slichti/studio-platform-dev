@@ -5,6 +5,7 @@ import { createDb } from '../db';
 import { challenges, userChallenges, tenants } from '@studio/db/src/schema'; // Updated import path
 import { authMiddleware } from '../middleware/auth';
 import { tenantMiddleware } from '../middleware/tenant';
+import { ChallengeService } from '../services/challenges';
 
 type Bindings = {
     DB: D1Database;
@@ -25,7 +26,7 @@ app.get('/leaderboard', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
-    const { ChallengeService } = await import('../services/challenges');
+
     const service = new ChallengeService(db, tenant.id);
     const leaderboard = await service.getLeaderboard();
     return c.json(leaderboard);
@@ -140,7 +141,6 @@ app.post('/:id/join', async (c) => {
 
     // Use ChallengeService for consistent logic
     try {
-        const { ChallengeService } = await import('../services/challenges');
         const service = new ChallengeService(db, tenant.id);
         await service.joinChallenge(member.userId, challengeId);
         return c.json({ success: true });

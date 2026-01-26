@@ -12,7 +12,7 @@ import {
     waiverTemplates,
     classPackDefinitions
 } from '@studio/db/src/schema'; // Ensure correct imports
-import { and, between, eq, sql, desc, count, gte, lte } from 'drizzle-orm';
+import { and, between, eq, sql, desc, count, gte, lte, inArray } from 'drizzle-orm';
 
 export class ReportService {
     constructor(private db: DrizzleD1Database<any>, private tenantId: string) { }
@@ -415,6 +415,10 @@ export class ReportService {
                 id: bookings.id,
                 date: classes.startTime,
                 instructorId: classes.instructorId,
+                // We'll join users to get instructor name if needed, but often ID is enough for aggregation,
+                // or we join here. Let's do a simple join to get name if grouping.
+                firstName: users.profile, // We need to parse profile JSON or just get ID. 
+                // Creating a proper join for name is better.
             })
                 .from(bookings)
                 .innerJoin(classes, eq(bookings.classId, classes.id))
@@ -445,6 +449,38 @@ export class ReportService {
                     ...d,
                     attendance: (dataMap.get(d.name) || 0)
                 }));
+            } else if (groupByInstructor) {
+                // Fetch instructor names for enrichment
+                // This is a bit inefficient (N+1-ish) but for a report on filtered data usually fine. 
+                // Better to group in SQL but profile is JSON.
+                // Let's aggregate in memory.
+                const instructorMap = new Map<string, number>();
+                filteredData.forEach(item => {
+                    const key = item.instructorId || 'Unassigned';
+                    instructorMap.set(key, (instructorMap.get(key) || 0) + 1);
+                });
+
+                // Resolve Names
+                const instructorIds = Array.from(instructorMap.keys()).filter(id => id !== 'Unassigned');
+                let names: Record<string, string> = {};
+
+                if (instructorIds.length > 0) {
+                    // We need to import 'inArray'
+                    // For now, simpler to just map IDs to names if we can.
+                    // Or return IDs and let frontend resolve? 
+                    // Frontend likely expects names for chart.
+                    // Let's do a quick fetch.
+                    const instructors = await this.db.select({ id: users.id, profile: users.profile, email: users.email }).from(users).where(inArray(users.id, instructorIds)).all();
+                    instructors.forEach(u => {
+                        const p = u.profile as any || {};
+                        names[u.id] = (p.firstName && p.lastName) ? `${p.firstName} ${p.lastName}` : (u.email || 'Unknown');
+                    });
+                }
+
+                result.chartData = Array.from(instructorMap.entries()).map(([id, count]) => ({
+                    name: names[id] || (id === 'Unassigned' ? 'Unassigned' : 'Unknown'),
+                    attendance: count
+                })).sort((a, b) => b.attendance - a.attendance);
             }
         }
 

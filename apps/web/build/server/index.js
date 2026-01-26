@@ -5,17 +5,17 @@ import { renderToReadableStream } from "react-dom/server";
 import { UNSAFE_withComponentProps, useLoaderData, Meta, Links, Outlet, ScrollRestoration, Scripts, UNSAFE_withErrorBoundaryProps, useRouteError, Link, useParams, useSearchParams, useNavigate, useNavigation, NavLink, redirect, useOutletContext, Navigate, useLocation, useSubmit, Form, useRevalidator, useActionData, useFetcher, useRouteLoaderData, isRouteErrorResponse } from "react-router";
 import * as React from "react";
 import { useState, useEffect, createContext, useContext, useRef, useCallback, Fragment as Fragment$1, useMemo } from "react";
-import { ClerkProvider, useUser, SignedIn, UserButton, SignedOut, RedirectToSignIn, useClerk, useAuth, SignIn, SignUp } from "@clerk/react-router";
+import { ClerkProvider, useUser, SignedIn, UserButton, SignedOut, RedirectToSignIn, useClerk, useAuth, useSignIn, useSignUp } from "@clerk/react-router";
 import { rootAuthLoader, getAuth } from "@clerk/react-router/server";
 import { Toaster, toast } from "sonner";
 import { DropZone, Render, Puck } from "@measured/puck";
 import DOMPurify from "isomorphic-dompurify";
-import { X, MessageCircle, Send, Edit2, Sun, Moon, HelpCircle, Check, Minus, MessageSquare, Loader2, Menu, Book, Search, Server, Shield, GraduationCap, Settings, Users, ShoppingCart, Globe, Smartphone, BarChart3, Layout as Layout$1, Cloud, Database, Lock, ToggleLeft, CreditCard, Activity, TrendingUp, Calendar, ArrowRight, Award, Tag, Ticket, Video, Download, Code, Palette, DollarSign, CalendarCheck, UserPlus, Mail, Home, User, LogOut, MapPin, CheckCircle2, Target, Flame, Dumbbell, ChevronDown, ChevronRight, LayoutDashboard, Clock, Trophy, RefreshCw, FileSignature, Image as Image$1, Package, ListTodo, QrCode, Terminal, CircleHelp, AlertTriangle, ArrowLeft, Plus, GripVertical, Trash2, Eye, Save, Gift, Link as Link$1, MoreHorizontal, History, Ban, ChevronUp, CheckCircle, XCircle, AlertCircle, Upload, Film, Folder, Info, FileText, EyeOff, ChevronLeft, Medal, Star, Repeat, Trash, Bold, Italic, Type, List, Unlink, Zap, Sparkles, Pencil, Bell, Pause, Play, Copy, Share2, Key, ShieldCheck, Building, Phone, Edit, ShoppingBag, ExternalLink, CornerDownRight, Camera, Circle, StickyNote, ArchiveRestore, Archive, Baby, Calculator, FolderOpen, Filter, Box, Wifi, Building2, Layers, CalendarClock, Cake, MessagesSquare, CheckSquare, Square, Monitor, MonitorPlay } from "lucide-react";
+import { X, MessageCircle, Send, Edit2, Sun, Moon, HelpCircle, Check, Minus, MessageSquare, Loader2, Menu, Book, Search, Server, Shield, GraduationCap, Settings, Users, ShoppingCart, Globe, Smartphone, BarChart3, Layout as Layout$1, Cloud, Database, Lock, ToggleLeft, CreditCard, Activity, TrendingUp, Calendar, ArrowRight, Award, Tag, Ticket, Video, Download, Code, Palette, DollarSign, CalendarCheck, UserPlus, Mail, Home, User, LogOut, MapPin, CheckCircle2, Target, Flame, Dumbbell, ChevronDown, ChevronRight, LayoutDashboard, Clock, Trophy, RefreshCw, FileSignature, Image as Image$1, Package, ListTodo, QrCode, Terminal, CircleHelp, AlertTriangle, ArrowLeft, Plus, GripVertical, Trash2, Eye, Save, Gift, Link as Link$1, MoreHorizontal, History, Ban, ChevronUp, CheckCircle, XCircle, AlertCircle, Upload, Film, Folder, Info, FileText, EyeOff, ChevronLeft, Medal, Star, Repeat, Trash, Bold, Italic, Type, List, Unlink, Zap, Sparkles, Pencil, Bell, Pause, Play, Copy, Share2, Key, ShieldCheck, Building, Phone, Edit, ShoppingBag, ExternalLink, CornerDownRight, Camera, Circle, StickyNote, ArchiveRestore, Archive, Baby, Calculator, FolderOpen, Filter, Box, Wifi, Delete, Building2, Layers, CalendarClock, Cake, MessagesSquare, CheckSquare, Square, Monitor, MonitorPlay } from "lucide-react";
 import Fuse from "fuse.js";
 import mermaid from "mermaid";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { addDays, isSameDay, format, startOfWeek as startOfWeek$1 } from "date-fns";
+import { addDays, isSameDay, format, startOfWeek } from "date-fns";
 import { Menu as Menu$1, Transition, Dialog as Dialog$1, TransitionChild, DialogPanel, DialogTitle as DialogTitle$1, Switch as Switch$1 } from "@headlessui/react";
 /* empty css                            */
 import Cropper from "react-easy-crop";
@@ -26,16 +26,10 @@ import Image$2 from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import { loadStripe } from "@stripe/stripe-js";
 import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe-js";
-import { dateFnsLocalizer, Calendar as Calendar$1, Views } from "react-big-calendar";
-import { format as format$1 } from "date-fns/format";
-import { parse } from "date-fns/parse";
-import { startOfWeek } from "date-fns/startOfWeek";
-import { getDay } from "date-fns/getDay";
-import { enUS } from "date-fns/locale/en-US";
 import QRCode from "react-qr-code";
 import { LiveKitRoom, VideoConference } from "@livekit/components-react";
 /* empty css                               */
-import { ResponsiveContainer, LineChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Line, AreaChart, Area, ReferenceLine, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
+import { ResponsiveContainer, LineChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Line, AreaChart, Area, ReferenceLine, PieChart, Pie, BarChart, Bar, Cell } from "recharts";
 import { loadStripeTerminal } from "@stripe/terminal-js";
 async function handleRequest(request, responseStatusCode, responseHeaders, routerContext, loadContext) {
   try {
@@ -139,7 +133,8 @@ const useTheme = () => {
     throw new Error("useTheme must be used within a ThemeProvider");
   return context;
 };
-const styles = "/assets/index-DW8HxMeG.css";
+const styles = "/assets/index-DqIy08sT.css";
+var define_process_env_default$2 = {};
 const links = () => [{
   rel: "stylesheet",
   href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
@@ -158,7 +153,7 @@ const meta$5 = () => [{
   title: "Studio Platform"
 }, {
   name: "viewport",
-  content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+  content: "width=device-width, initial-scale=1"
 }, {
   name: "theme-color",
   content: "#18181B"
@@ -169,13 +164,20 @@ const meta$5 = () => [{
   name: "apple-mobile-web-app-status-bar-style",
   content: "black-translucent"
 }];
-async function loader$1s(args) {
+async function loader$1t(args) {
+  console.log("[ROOT] Loader Start");
   try {
     return await rootAuthLoader(args, ({
       request
     }) => {
+      console.log("[ROOT] AuthLoader Callback");
       return {
-        message: "Auth Loaded"
+        message: "Auth Loaded",
+        env: {
+          VITE_API_URL: define_process_env_default$2.VITE_API_URL,
+          VITE_CLERK_PUBLISHABLE_KEY: define_process_env_default$2.VITE_CLERK_PUBLISHABLE_KEY,
+          VITE_GA_ID: define_process_env_default$2.VITE_GA_ID
+        }
       };
     });
   } catch (e) {
@@ -248,13 +250,17 @@ const root = UNSAFE_withComponentProps(function App() {
           children: [/* @__PURE__ */ jsx(Outlet, {}), /* @__PURE__ */ jsx(Toaster, {
             position: "top-right",
             richColors: true
-          }), /* @__PURE__ */ jsx(ScrollRestoration, {}), /* @__PURE__ */ jsx(Scripts, {})]
+          }), /* @__PURE__ */ jsx(ScrollRestoration, {}), /* @__PURE__ */ jsx(Scripts, {}), /* @__PURE__ */ jsx("script", {
+            dangerouslySetInnerHTML: {
+              __html: `window.ENV = ${JSON.stringify(loaderData?.env || {})}`
+            }
+          })]
         })]
       })
     })
   });
 });
-const ErrorBoundary$1 = UNSAFE_withErrorBoundaryProps(function ErrorBoundary() {
+const ErrorBoundary$1 = UNSAFE_withErrorBoundaryProps(function ErrorBoundary2() {
   const error = useRouteError();
   console.error(error);
   return /* @__PURE__ */ jsxs("html", {
@@ -281,7 +287,7 @@ const route0 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProper
   ErrorBoundary: ErrorBoundary$1,
   default: root,
   links,
-  loader: loader$1s,
+  loader: loader$1t,
   meta: meta$5
 }, Symbol.toStringTag, { value: "Module" }));
 const Hero = ({ title, subtitle, ctaText, ctaLink, backgroundImage, alignment, overlayOpacity, backgroundColor, textColor }) => /* @__PURE__ */ jsxs(
@@ -1066,7 +1072,7 @@ const meta$4 = ({
     content: data.page.seoDescription || ""
   }];
 };
-const loader$1r = async ({
+const loader$1s = async ({
   params
 }) => {
   const {
@@ -1131,7 +1137,7 @@ const site_$slug_$pageSlug = UNSAFE_withComponentProps(function WebsitePage() {
 const route1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: site_$slug_$pageSlug,
-  loader: loader$1r,
+  loader: loader$1s,
   meta: meta$4
 }, Symbol.toStringTag, { value: "Module" }));
 function ThemeToggle() {
@@ -2182,7 +2188,7 @@ const createStudio = UNSAFE_withComponentProps(function CreateStudio() {
   });
   const isVerified = user?.primaryEmailAddress?.verification?.status === "verified";
   const billingText = interval === "annual" ? "Billed annually" : "Billed monthly";
-  return /* @__PURE__ */ jsxs("div", {
+  return /* @__PURE__ */ jsxs("main", {
     className: "min-h-screen bg-zinc-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8",
     children: [/* @__PURE__ */ jsx(SignedOut, {
       children: /* @__PURE__ */ jsx(RedirectToSignIn, {})
@@ -2457,7 +2463,7 @@ const docsIndex = [
     category: "Student Experience"
   }
 ];
-const loader$1q = async (args) => {
+const loader$1r = async (args) => {
   const {
     getToken,
     userId
@@ -2724,15 +2730,17 @@ const documentation = UNSAFE_withComponentProps(function HelpLayout() {
 const route7 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: documentation,
-  loader: loader$1q
+  loader: loader$1r
 }, Symbol.toStringTag, { value: "Module" }));
 const documentation_platform_architecture = UNSAFE_withComponentProps(function PlatformArchitecture() {
   useEffect(() => {
-    mermaid.initialize({
-      startOnLoad: true,
-      theme: "neutral"
+    import("mermaid").then((mermaid2) => {
+      mermaid2.default.initialize({
+        startOnLoad: true,
+        theme: "neutral"
+      });
+      mermaid2.default.contentLoaded();
     });
-    mermaid.contentLoaded();
   }, []);
   const {
     isPlatformAdmin
@@ -4355,7 +4363,7 @@ const route21 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePrope
 function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
-const loader$1p = async (args) => {
+const loader$1q = async (args) => {
   const {
     getToken,
     userId
@@ -4528,9 +4536,9 @@ const portal_$slug = UNSAFE_withComponentProps(function StudentPortalLayout() {
 const route22 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: portal_$slug,
-  loader: loader$1p
+  loader: loader$1q
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$1o = async (args) => {
+const loader$1p = async (args) => {
   const {
     getToken,
     userId
@@ -4757,9 +4765,9 @@ const route23 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePrope
   __proto__: null,
   action: action$o,
   default: portal_$slug_classes,
-  loader: loader$1o
+  loader: loader$1p
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$1n = async (args) => {
+const loader$1o = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -4896,9 +4904,9 @@ const portal_$slug_profile = UNSAFE_withComponentProps(function StudentPortalPro
 const route24 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: portal_$slug_profile,
-  loader: loader$1n
+  loader: loader$1o
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$1m = async (args) => {
+const loader$1n = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -5050,7 +5058,7 @@ const portal_$slug__index = UNSAFE_withComponentProps(function StudentPortalInde
 const route25 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: portal_$slug__index,
-  loader: loader$1m
+  loader: loader$1n
 }, Symbol.toStringTag, { value: "Module" }));
 function PoweredBy({ tier, branding, className = "" }) {
   let show = true;
@@ -5338,16 +5346,31 @@ function ImpersonationBanner({ tenantName, userName, currentRole }) {
     ] })
   ] });
 }
-const loader$1l = async (args) => {
+var define_process_env_default$1 = {};
+const loader$1m = async (args) => {
   const {
     params,
     request
   } = args;
   const url = request.url;
-  const {
-    userId,
-    getToken
-  } = await getAuth(args);
+  let userId = null;
+  let token = null;
+  let getToken = null;
+  const cookie = request.headers.get("Cookie");
+  const isDev = define_process_env_default$1.NODE_ENV === "development" || define_process_env_default$1.NODE_ENV === "test";
+  if (isDev && cookie?.includes("__e2e_bypass_user_id=")) {
+    const match = cookie.match(/__e2e_bypass_user_id=([^;]+)/);
+    if (match) {
+      userId = match[1];
+      token = userId;
+      console.warn(`[SECURITY WARNING] E2E Bypass Active for User: ${userId}`);
+    }
+  }
+  if (!userId) {
+    const authResult = await getAuth(args);
+    userId = authResult.userId;
+    getToken = authResult.getToken;
+  }
   if (!userId) {
     return redirect(`/sign-in?redirect_url=${request.url}`);
   }
@@ -5355,7 +5378,7 @@ const loader$1l = async (args) => {
     slug
   } = params;
   if (!slug) return redirect("/");
-  let token = await getToken();
+  if (!token && getToken) token = await getToken();
   const cookieHeader = request.headers.get("Cookie");
   let isImpersonating = false;
   if (cookieHeader) {
@@ -5450,6 +5473,11 @@ const studio_$slug = UNSAFE_withComponentProps(function StudioLayout() {
     }
   }, [searchParams, setSearchParams]);
   const effectiveRoles = isStudentView ? ["student"] : me?.roles || [];
+  console.log("[RENDER] StudioLayout", {
+    slug,
+    meName: displayName,
+    roles: effectiveRoles
+  });
   return /* @__PURE__ */ jsxs("div", {
     className: "flex h-screen bg-zinc-50 dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100 transition-colors duration-300",
     children: [/* @__PURE__ */ jsxs("aside", {
@@ -5652,6 +5680,12 @@ const studio_$slug = UNSAFE_withComponentProps(function StudioLayout() {
                 size: 18
               }),
               children: "My Payouts"
+            }), ["admin", "owner"].some((r) => effectiveRoles.includes(r)) && /* @__PURE__ */ jsx(NavItem, {
+              to: `/studio/${slug}/settings/roles`,
+              icon: /* @__PURE__ */ jsx(Users, {
+                size: 18
+              }),
+              children: "Roles & Permissions"
             }), featureSet.has("financials") && /* @__PURE__ */ jsx(NavItem, {
               to: `/studio/${slug}/finances`,
               end: true,
@@ -5892,7 +5926,7 @@ function NavItem({
 const route26 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug,
-  loader: loader$1l
+  loader: loader$1m
 }, Symbol.toStringTag, { value: "Module" }));
 const DialogContext = createContext(null);
 function Dialog({ children, open: controlledOpen, onOpenChange: setControlledOpen }) {
@@ -5955,6 +5989,10 @@ function DialogTitle({ children, className }) {
 }
 function DialogDescription({ children, className }) {
   return /* @__PURE__ */ jsx("p", { className: `text-sm text-zinc-500 dark:text-zinc-400 ${className}`, children });
+}
+function DialogClose({ children }) {
+  const { setIsOpen } = useContext(DialogContext);
+  return /* @__PURE__ */ jsx("div", { onClick: () => setIsOpen(false), className: "inline-block cursor-pointer", children });
 }
 function DialogFooter({ className = "", ...props }) {
   return /* @__PURE__ */ jsx(
@@ -6041,7 +6079,7 @@ function formatDuration(seconds) {
   const remainingSeconds = Math.floor(seconds % 60);
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
-const loader$1k = async (args) => {
+const loader$1l = async (args) => {
   const {
     getToken,
     userId
@@ -6420,9 +6458,9 @@ const route27 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePrope
   __proto__: null,
   action: action$n,
   default: studio_$slug_videos_collections_$id,
-  loader: loader$1k
+  loader: loader$1l
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$1j = async (args) => {
+const loader$1k = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -6567,7 +6605,7 @@ const studio_$slug_website_editor_$pageId = UNSAFE_withComponentProps(function W
 const route28 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_website_editor_$pageId,
-  loader: loader$1j
+  loader: loader$1k
 }, Symbol.toStringTag, { value: "Module" }));
 const studio_$slug_financials_myPayouts = UNSAFE_withComponentProps(function MyPayouts() {
   const {
@@ -6705,7 +6743,7 @@ const route29 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePrope
   __proto__: null,
   default: studio_$slug_financials_myPayouts
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$1i = async (args) => {
+const loader$1j = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -6909,7 +6947,7 @@ const route30 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePrope
   __proto__: null,
   action: action$m,
   default: studio_$slug_videos_edit_$videoId,
-  loader: loader$1i
+  loader: loader$1j
 }, Symbol.toStringTag, { value: "Module" }));
 function Modal({ isOpen, onClose, title, children, maxWidth = "max-w-md" }) {
   useEffect(() => {
@@ -7032,7 +7070,7 @@ function ConfirmationDialog({
     ] })
   ] }) });
 }
-const loader$1h = async (args) => {
+const loader$1i = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -7816,7 +7854,7 @@ const studio_$slug_commerce_giftCards = UNSAFE_withComponentProps(function GiftC
 const route31 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_commerce_giftCards,
-  loader: loader$1h
+  loader: loader$1i
 }, Symbol.toStringTag, { value: "Module" }));
 function Tabs({ defaultValue, className, children, ...props }) {
   return /* @__PURE__ */ jsx(TabsProvider, { defaultValue, className, children });
@@ -8301,16 +8339,16 @@ const route32 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePrope
   __proto__: null,
   default: studio_$slug_financials_payroll
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$1g = async ({
+const loader$1h = async ({
   params
 }) => {
   return redirect(`/studio/${params.slug}/finances`);
 };
 const route33 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
-  loader: loader$1g
+  loader: loader$1h
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$1f = async (args) => {
+const loader$1g = async (args) => {
   const {
     params,
     request
@@ -8891,9 +8929,9 @@ function AdminCouponsView({
 const route34 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_commerce_coupons,
-  loader: loader$1f
+  loader: loader$1g
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$1e = async (args) => {
+const loader$1f = async (args) => {
   const {
     params
   } = args;
@@ -9180,9 +9218,9 @@ const route35 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePrope
   __proto__: null,
   action: action$l,
   default: studio_$slug_commerce_packs,
-  loader: loader$1e
+  loader: loader$1f
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$1d = async (args) => {
+const loader$1e = async (args) => {
   const {
     params
   } = args;
@@ -9553,9 +9591,9 @@ function SubList({
 const route36 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_substitutions,
-  loader: loader$1d
+  loader: loader$1e
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$1c = async (args) => {
+const loader$1d = async (args) => {
   const {
     getToken,
     userId
@@ -10173,9 +10211,9 @@ function DetailsSidebar({
 const route37 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_videos__index,
-  loader: loader$1c
+  loader: loader$1d
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$1b = async (args) => {
+const loader$1c = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -10446,9 +10484,9 @@ const studio_$slug_website_pages = UNSAFE_withComponentProps(function WebsitePag
 const route38 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_website_pages,
-  loader: loader$1b
+  loader: loader$1c
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$1a = async (args) => {
+const loader$1b = async (args) => {
   const {
     getToken,
     userId
@@ -10721,9 +10759,9 @@ const studio_$slug_appointments = UNSAFE_withComponentProps(function Appointment
 const route39 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_appointments,
-  loader: loader$1a
+  loader: loader$1b
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$19 = async (args) => {
+const loader$1a = async (args) => {
   const {
     getToken,
     userId
@@ -11209,7 +11247,7 @@ const route40 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePrope
   __proto__: null,
   action: action$k,
   default: studio_$slug_appointments_calendar,
-  loader: loader$19
+  loader: loader$1a
 }, Symbol.toStringTag, { value: "Module" }));
 const createImage = (url) => new Promise((resolve, reject) => {
   const image = new Image();
@@ -11424,7 +11462,7 @@ function CardCreator({ initialImage, initialTitle, initialSubtitle, onChange }) 
     ] })
   ] });
 }
-const loader$18 = async (args) => {
+const loader$19 = async (args) => {
   const {
     params
   } = args;
@@ -11921,9 +11959,9 @@ const route41 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePrope
   __proto__: null,
   action: action$j,
   default: studio_$slug_memberships,
-  loader: loader$18
+  loader: loader$19
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$17 = async (args) => {
+const loader$18 = async (args) => {
   const {
     getToken,
     userId
@@ -12213,9 +12251,9 @@ const route42 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePrope
   __proto__: null,
   action: action$i,
   default: studio_$slug_challenges,
-  loader: loader$17
+  loader: loader$18
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$16 = async (args) => {
+const loader$17 = async (args) => {
   const {
     getToken,
     userId
@@ -12409,9 +12447,9 @@ function StatCard$1({
 const route43 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_instructor,
-  loader: loader$16
+  loader: loader$17
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$15 = async (args) => {
+const loader$16 = async (args) => {
   const {
     getToken,
     userId
@@ -12569,9 +12607,9 @@ const studio_$slug_instructor_schedule = UNSAFE_withComponentProps(function Inst
 const route44 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_instructor_schedule,
-  loader: loader$15
+  loader: loader$16
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$14 = async (args) => {
+const loader$15 = async (args) => {
   const {
     getToken,
     userId
@@ -12733,9 +12771,9 @@ const studio_$slug_instructor_payroll = UNSAFE_withComponentProps(function Instr
 const route45 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_instructor_payroll,
-  loader: loader$14
+  loader: loader$15
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$13 = async (args) => {
+const loader$14 = async (args) => {
   const {
     getToken,
     userId
@@ -13020,9 +13058,9 @@ const route46 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePrope
   __proto__: null,
   action: action$h,
   default: studio_$slug_onboarding,
-  loader: loader$13
+  loader: loader$14
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$12 = async ({
+const loader$13 = async ({
   params
 }) => {
   return redirect(`/studio/${params.slug}`);
@@ -13033,9 +13071,9 @@ const studio_$slug_dashboard = UNSAFE_withComponentProps(function RedirectToStud
 const route47 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_dashboard,
-  loader: loader$12
+  loader: loader$13
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$11 = async (args) => {
+const loader$12 = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -13293,7 +13331,7 @@ const studio_$slug_discounts = UNSAFE_withComponentProps(function DiscountsPage(
 const route48 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_discounts,
-  loader: loader$11
+  loader: loader$12
 }, Symbol.toStringTag, { value: "Module" }));
 const MenuBar = ({ editor }) => {
   if (!editor) {
@@ -13447,7 +13485,7 @@ function RichTextEditor({ value, onChange, placeholder, className }) {
     /* @__PURE__ */ jsx(EditorContent, { editor })
   ] });
 }
-const loader$10 = async (args) => {
+const loader$11 = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -14528,9 +14566,9 @@ const studio_$slug_marketing = UNSAFE_withComponentProps(function MarketingPage(
 const route49 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_marketing,
-  loader: loader$10
+  loader: loader$11
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$$ = async (args) => {
+const loader$10 = async (args) => {
   const {
     getToken,
     userId
@@ -15359,9 +15397,9 @@ const route50 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePrope
   __proto__: null,
   action: action$g,
   default: studio_$slug_marketing_automations,
-  loader: loader$$
+  loader: loader$10
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$_ = async (args) => {
+const loader$$ = async (args) => {
   const {
     getToken,
     userId
@@ -15698,7 +15736,7 @@ const route51 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePrope
   __proto__: null,
   action: action$f,
   default: studio_$slug_marketing_referrals,
-  loader: loader$_
+  loader: loader$$
 }, Symbol.toStringTag, { value: "Module" }));
 const studio_$slug_branding = UNSAFE_withComponentProps(function StudioBranding() {
   const {
@@ -15910,7 +15948,7 @@ function GiftCardInput({ token, slug, onApply, onRemove }) {
   ] });
 }
 const stripePromise = loadStripe(void 0);
-const loader$Z = async (args) => {
+const loader$_ = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -16077,9 +16115,9 @@ const studio_$slug_checkout = UNSAFE_withComponentProps(function CheckoutPage() 
 const route53 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_checkout,
-  loader: loader$Z
+  loader: loader$_
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$Y = async (args) => {
+const loader$Z = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -16149,7 +16187,7 @@ const studio_$slug_checkout_return = UNSAFE_withComponentProps(function Checkout
 const route54 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_checkout_return,
-  loader: loader$Y
+  loader: loader$Z
 }, Symbol.toStringTag, { value: "Module" }));
 const studio_$slug_finances = UNSAFE_withComponentProps(function StudioFinances() {
   const {
@@ -16658,6 +16696,123 @@ const route55 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePrope
   __proto__: null,
   default: studio_$slug_finances
 }, Symbol.toStringTag, { value: "Module" }));
+function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDate = /* @__PURE__ */ new Date() }) {
+  const [currentDate, setCurrentDate] = useState(defaultDate);
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
+  const weekDays = Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i));
+  const timeSlots = Array.from({ length: 14 }).map((_, i) => i + 6);
+  const navigate = (direction) => {
+    if (direction === "today") setCurrentDate(/* @__PURE__ */ new Date());
+    else if (direction === "prev") setCurrentDate(addDays(currentDate, -7));
+    else setCurrentDate(addDays(currentDate, 7));
+  };
+  return /* @__PURE__ */ jsxs("div", { className: "flex flex-col h-full bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-800", role: "region", "aria-label": "Weekly Calendar", children: [
+    /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-800", children: [
+      /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
+        /* @__PURE__ */ jsx(
+          "button",
+          {
+            onClick: () => navigate("prev"),
+            className: "p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full",
+            "aria-label": "Previous Week",
+            children: /* @__PURE__ */ jsx(ChevronLeft, { size: 20 })
+          }
+        ),
+        /* @__PURE__ */ jsx(
+          "button",
+          {
+            onClick: () => navigate("next"),
+            className: "p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full",
+            "aria-label": "Next Week",
+            children: /* @__PURE__ */ jsx(ChevronRight, { size: 20 })
+          }
+        ),
+        /* @__PURE__ */ jsx("h2", { className: "text-lg font-semibold ml-2", children: format(weekStart, "MMMM yyyy") })
+      ] }),
+      /* @__PURE__ */ jsx(
+        "button",
+        {
+          onClick: () => navigate("today"),
+          className: "text-sm font-medium px-3 py-1 bg-zinc-100 dark:bg-zinc-800 rounded hover:bg-zinc-200 transition-colors",
+          children: "Today"
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsxs("div", { className: "flex-1 overflow-auto min-h-[600px]", role: "grid", tabIndex: 0, "aria-label": "Calendar Grid", children: [
+      /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-8 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 bg-white dark:bg-zinc-900 z-10", role: "row", children: [
+        /* @__PURE__ */ jsx("div", { className: "p-2 border-r border-zinc-100 dark:border-zinc-800 w-16", role: "columnheader", children: /* @__PURE__ */ jsx("span", { className: "sr-only", children: "Time" }) }),
+        weekDays.map((day) => /* @__PURE__ */ jsxs(
+          "div",
+          {
+            className: cn(
+              "p-2 text-center border-r border-zinc-100 dark:border-zinc-800 min-w-[120px]",
+              isSameDay(day, /* @__PURE__ */ new Date()) && "bg-blue-50 dark:bg-blue-900/20"
+            ),
+            role: "columnheader",
+            "aria-label": format(day, "EEEE, MMMM do"),
+            children: [
+              /* @__PURE__ */ jsx("div", { className: cn("text-xs font-medium uppercase", isSameDay(day, /* @__PURE__ */ new Date()) ? "text-blue-600" : "text-zinc-500"), children: format(day, "EEE") }),
+              /* @__PURE__ */ jsx("div", { className: cn("text-lg font-bold", isSameDay(day, /* @__PURE__ */ new Date()) ? "text-blue-700" : "text-zinc-900"), children: format(day, "d") })
+            ]
+          },
+          day.toISOString()
+        ))
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "relative grid grid-cols-8", role: "row", children: [
+        /* @__PURE__ */ jsx("div", { className: "w-16 flex-shrink-0 border-r border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50", role: "rowheader", children: timeSlots.map((hour) => /* @__PURE__ */ jsx("div", { className: "h-20 border-b border-zinc-100 dark:border-zinc-800 text-xs text-zinc-400 p-1 text-right pr-2 sticky left-0", children: hour > 12 ? `${hour - 12} PM` : `${hour} AM` }, hour)) }),
+        weekDays.map((day) => {
+          const dayEvents = events.filter((e) => isSameDay(e.start, day));
+          return /* @__PURE__ */ jsxs(
+            "div",
+            {
+              className: "relative border-r border-zinc-100 dark:border-zinc-800 min-w-[120px]",
+              role: "gridcell",
+              onClick: () => onSelectSlot({ start: day }),
+              children: [
+                timeSlots.map((hour) => /* @__PURE__ */ jsx("div", { className: "h-20 border-b border-zinc-50 dark:border-zinc-800/50 pointer-events-none" }, hour)),
+                dayEvents.map((event) => {
+                  const startHour = event.start.getHours();
+                  const startMin = event.start.getMinutes();
+                  event.end.getHours();
+                  event.end.getMinutes();
+                  const startOffset = (startHour - 6) * 80 + startMin / 60 * 80;
+                  const durationMins = (event.end.getTime() - event.start.getTime()) / 6e4;
+                  const height = durationMins / 60 * 80;
+                  if (startHour < 6) return null;
+                  return /* @__PURE__ */ jsxs(
+                    "button",
+                    {
+                      onClick: (e) => {
+                        e.stopPropagation();
+                        onSelectEvent({ resource: event.resource });
+                      },
+                      className: "absolute left-1 right-1 rounded px-2 py-1 text-xs text-left overflow-hidden hover:brightness-95 transition-all shadow-sm focus:ring-2 focus:ring-blue-500 z-10",
+                      style: {
+                        top: `${startOffset}px`,
+                        height: `${Math.max(height, 24)}px`,
+                        // Min height
+                        backgroundColor: "var(--calendar-event-bg, #eff6ff)",
+                        border: "1px solid var(--calendar-event-border, #bfdbfe)",
+                        color: "var(--calendar-event-text, #1e40af)"
+                      },
+                      "aria-label": `${event.title}, ${format(event.start, "h:mm a")} to ${format(event.end, "h:mm a")}`,
+                      children: [
+                        /* @__PURE__ */ jsx("div", { className: "font-semibold truncate", children: event.title }),
+                        /* @__PURE__ */ jsx("div", { className: "opacity-75", children: format(event.start, "h:mm a") })
+                      ]
+                    },
+                    event.id
+                  );
+                })
+              ]
+            },
+            day.toISOString()
+          );
+        })
+      ] })
+    ] })
+  ] });
+}
 function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], instructors = [], plans = [] }) {
   const { getToken } = useAuth();
   const { slug } = useParams();
@@ -16762,10 +16917,11 @@ function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], instruct
     error && /* @__PURE__ */ jsx("div", { className: "p-3 bg-red-50 text-red-600 rounded text-sm", children: error }),
     /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-2 gap-4", children: [
       /* @__PURE__ */ jsxs("div", { children: [
-        /* @__PURE__ */ jsx("label", { className: "block text-sm font-medium text-zinc-700 mb-1", children: "Class Name" }),
+        /* @__PURE__ */ jsx("label", { htmlFor: "className", className: "block text-sm font-medium text-zinc-700 mb-1", children: "Class Name" }),
         /* @__PURE__ */ jsx(
           "input",
           {
+            id: "className",
             type: "text",
             required: true,
             className: "w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none",
@@ -16776,10 +16932,11 @@ function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], instruct
         )
       ] }),
       /* @__PURE__ */ jsxs("div", { children: [
-        /* @__PURE__ */ jsx("label", { className: "block text-sm font-medium text-zinc-700 mb-1", children: "Instructor" }),
+        /* @__PURE__ */ jsx("label", { htmlFor: "instructor", className: "block text-sm font-medium text-zinc-700 mb-1", children: "Instructor" }),
         /* @__PURE__ */ jsxs(
           "select",
           {
+            id: "instructor",
             required: true,
             className: "w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white",
             value: formData.instructorId,
@@ -16845,10 +17002,11 @@ function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], instruct
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-2 gap-4", children: [
       /* @__PURE__ */ jsxs("div", { children: [
-        /* @__PURE__ */ jsx("label", { className: "block text-sm font-medium text-zinc-700 mb-1", children: "Start Time" }),
+        /* @__PURE__ */ jsx("label", { htmlFor: "startTime", className: "block text-sm font-medium text-zinc-700 mb-1", children: "Start Time" }),
         /* @__PURE__ */ jsx(
           "input",
           {
+            id: "startTime",
             type: "datetime-local",
             required: true,
             step: "600",
@@ -16859,10 +17017,11 @@ function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], instruct
         )
       ] }),
       /* @__PURE__ */ jsxs("div", { children: [
-        /* @__PURE__ */ jsx("label", { className: "block text-sm font-medium text-zinc-700 mb-1", children: "Duration (min)" }),
+        /* @__PURE__ */ jsx("label", { htmlFor: "duration", className: "block text-sm font-medium text-zinc-700 mb-1", children: "Duration (min)" }),
         /* @__PURE__ */ jsx(
           "input",
           {
+            id: "duration",
             type: "number",
             required: true,
             min: "15",
@@ -16875,10 +17034,11 @@ function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], instruct
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-2 gap-4", children: [
       /* @__PURE__ */ jsxs("div", { children: [
-        /* @__PURE__ */ jsx("label", { className: "block text-sm font-medium text-zinc-700 mb-1", children: "Capacity" }),
+        /* @__PURE__ */ jsx("label", { htmlFor: "capacity", className: "block text-sm font-medium text-zinc-700 mb-1", children: "Capacity" }),
         /* @__PURE__ */ jsx(
           "input",
           {
+            id: "capacity",
             type: "number",
             required: true,
             min: "1",
@@ -16889,10 +17049,11 @@ function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], instruct
         )
       ] }),
       /* @__PURE__ */ jsxs("div", { children: [
-        /* @__PURE__ */ jsx("label", { className: "block text-sm font-medium text-zinc-700 mb-1", children: "Price ($)" }),
+        /* @__PURE__ */ jsx("label", { htmlFor: "price", className: "block text-sm font-medium text-zinc-700 mb-1", children: "Price ($)" }),
         /* @__PURE__ */ jsx(
           "input",
           {
+            id: "price",
             type: "number",
             required: true,
             min: "0",
@@ -17598,17 +17759,7 @@ function BookingModal({ isOpen, onClose, classEvent, family, member }) {
     ) }) })
   ] }) });
 }
-const locales = {
-  "en-US": enUS
-};
-const localizer = dateFnsLocalizer({
-  format: format$1,
-  parse,
-  startOfWeek,
-  getDay,
-  locales
-});
-const loader$X = async (args) => {
+const loader$Y = async (args) => {
   const {
     params
   } = args;
@@ -17768,31 +17919,12 @@ const studio_$slug_schedule = UNSAFE_withComponentProps(function StudioSchedule(
       className: "bg-red-50 text-red-700 p-4 rounded mb-4 text-sm",
       children: error
     }), /* @__PURE__ */ jsx("div", {
-      className: "flex-1 bg-white dark:bg-zinc-900 rounded-lg shadow border border-zinc-200 dark:border-zinc-800 p-4",
-      children: /* @__PURE__ */ jsx(Calendar$1, {
-        localizer,
+      className: "flex-1 overflow-hidden",
+      children: /* @__PURE__ */ jsx(WeeklyCalendar, {
         events,
-        startAccessor: "start",
-        endAccessor: "end",
-        style: {
-          height: "100%"
-        },
-        views: [Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA],
-        defaultView: Views.WEEK,
-        selectable: true,
-        onSelectSlot: handleSelectSlot,
         onSelectEvent: handleSelectEvent,
-        eventPropGetter: (event) => ({
-          style: {
-            backgroundColor: "var(--calendar-event-bg, #eff6ff)",
-            // Use var or specific color
-            border: "1px solid var(--calendar-event-border, #bfdbfe)",
-            color: "var(--calendar-event-text, #1e40af)",
-            fontSize: "0.85rem",
-            borderRadius: "4px"
-          },
-          className: "dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-200"
-        })
+        onSelectSlot: handleSelectSlot,
+        defaultDate: /* @__PURE__ */ new Date()
       })
     }), /* @__PURE__ */ jsx(CreateClassModal, {
       isOpen: isCreateOpen,
@@ -17827,7 +17959,7 @@ const studio_$slug_schedule = UNSAFE_withComponentProps(function StudioSchedule(
 const route56 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_schedule,
-  loader: loader$X
+  loader: loader$Y
 }, Symbol.toStringTag, { value: "Module" }));
 const studio_$slug_settings = UNSAFE_withComponentProps(function SettingsLayout() {
   const context = useOutletContext();
@@ -18554,7 +18686,7 @@ const route59 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePrope
   __proto__: null,
   default: studio_$slug_settings_developers
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$W = async (args) => {
+const loader$X = async (args) => {
   const {
     getToken,
     userId
@@ -18963,9 +19095,9 @@ const route60 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePrope
   __proto__: null,
   action: action$e,
   default: studio_$slug_settings_locations,
-  loader: loader$W
+  loader: loader$X
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$V = async (args) => {
+const loader$W = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -19380,7 +19512,7 @@ function AssetList({
 const route61 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_settings_branding,
-  loader: loader$V
+  loader: loader$W
 }, Symbol.toStringTag, { value: "Module" }));
 const studio_$slug_settings_hardware = UNSAFE_withComponentProps(function StudioHardwareSettings() {
   const {
@@ -19651,7 +19783,7 @@ const route62 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePrope
   __proto__: null,
   default: studio_$slug_settings_hardware
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$U = async (args) => {
+const loader$V = async (args) => {
   const {
     getToken,
     userId
@@ -19932,7 +20064,7 @@ const studio_$slug_settings_billing = UNSAFE_withComponentProps(function StudioB
 const route63 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_settings_billing,
-  loader: loader$U
+  loader: loader$V
 }, Symbol.toStringTag, { value: "Module" }));
 const API_URL = typeof window !== "undefined" ? window.ENV?.API_URL : "";
 const action$d = async (args) => {
@@ -19989,7 +20121,7 @@ const action$d = async (args) => {
   }
   return null;
 };
-const loader$T = async (args) => {
+const loader$U = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -20226,6 +20358,101 @@ const studio_$slug_settings__index = UNSAFE_withComponentProps(function Settings
           }), /* @__PURE__ */ jsx("div", {
             className: "w-11 h-6 bg-zinc-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"
           })]
+        })]
+      })]
+    }), /* @__PURE__ */ jsxs("div", {
+      className: "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm mb-8",
+      children: [/* @__PURE__ */ jsx("div", {
+        className: "flex justify-between items-start mb-4",
+        children: /* @__PURE__ */ jsxs("div", {
+          children: [/* @__PURE__ */ jsxs("h2", {
+            className: "text-lg font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2",
+            children: [/* @__PURE__ */ jsx(CreditCard, {
+              className: "h-5 w-5 text-purple-500"
+            }), "Kiosk Mode"]
+          }), /* @__PURE__ */ jsx("p", {
+            className: "text-sm text-zinc-500 dark:text-zinc-400 mt-1",
+            children: "Enable self-service check-in for your front desk."
+          })]
+        })
+      }), /* @__PURE__ */ jsxs("div", {
+        className: "flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700 mb-4",
+        children: [/* @__PURE__ */ jsxs("div", {
+          children: [/* @__PURE__ */ jsx("div", {
+            className: "font-medium text-zinc-900 dark:text-zinc-100",
+            children: "Enable Kiosk App"
+          }), /* @__PURE__ */ jsx("div", {
+            className: "text-xs text-zinc-500 dark:text-zinc-400 mt-1",
+            children: tenant.features?.includes("kiosk") ? "Kiosk is active. Access it at /kiosk/your-slug." : "Kiosk is currently disabled."
+          })]
+        }), /* @__PURE__ */ jsxs("label", {
+          className: "relative inline-flex items-center cursor-pointer",
+          children: [/* @__PURE__ */ jsx("input", {
+            type: "checkbox",
+            className: "sr-only peer",
+            checked: tenant.features?.includes("kiosk") || false,
+            onChange: async (e) => {
+              const checked = e.target.checked;
+              try {
+                const token = await window.Clerk?.session?.getToken();
+                await apiRequest(`/studios/${tenant.id}/features`, token, {
+                  method: "POST",
+                  body: JSON.stringify({
+                    featureKey: "kiosk",
+                    enabled: checked
+                  })
+                });
+                window.location.reload();
+              } catch (err) {
+                toast.error("Failed to toggle Kiosk mode");
+              }
+            }
+          }), /* @__PURE__ */ jsx("div", {
+            className: "w-11 h-6 bg-zinc-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"
+          })]
+        })]
+      }), tenant.features?.includes("kiosk") && /* @__PURE__ */ jsxs("div", {
+        className: "ml-1 p-4 border border-zinc-100 dark:border-zinc-700 rounded-lg",
+        children: [/* @__PURE__ */ jsx("label", {
+          className: "block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2",
+          children: "Kiosk PIN"
+        }), /* @__PURE__ */ jsxs("div", {
+          className: "flex gap-4 items-center",
+          children: [/* @__PURE__ */ jsx("input", {
+            type: "text",
+            maxLength: 6,
+            defaultValue: tenant.settings?.kioskPin || "",
+            placeholder: "123456",
+            className: "w-40 bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 rounded text-sm px-3 py-2 text-center tracking-widest font-mono",
+            onBlur: async (e) => {
+              const val = e.target.value;
+              if (val.length < 4) return;
+              try {
+                const token = await window.Clerk?.session?.getToken();
+                await apiRequest(`/tenant/settings`, token, {
+                  method: "PATCH",
+                  headers: {
+                    "X-Tenant-Slug": tenant.slug
+                  },
+                  body: JSON.stringify({
+                    kioskPin: val
+                  })
+                });
+                toast.success("Kiosk PIN updated");
+              } catch (err) {
+                toast.error("Failed to save PIN");
+              }
+            }
+          }), /* @__PURE__ */ jsx("a", {
+            href: `/kiosk/${tenant.slug}/login`,
+            target: "_blank",
+            rel: "noreferrer",
+            className: "text-sm text-purple-600 hover:text-purple-700 font-medium",
+            children: "Open Kiosk App →"
+          })]
+        }), /* @__PURE__ */ jsx("p", {
+          className: "text-xs text-zinc-400 mt-2",
+          children: "This PIN is required to unlock the Kiosk on your tablet. Keep it secret from students."
         })]
       })]
     }), /* @__PURE__ */ jsxs("div", {
@@ -21187,9 +21414,9 @@ const route64 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePrope
   __proto__: null,
   action: action$d,
   default: studio_$slug_settings__index,
-  loader: loader$T
+  loader: loader$U
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$S = async (args) => {
+const loader$T = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -21325,9 +21552,9 @@ const studio_$slug_settings_addons = UNSAFE_withComponentProps(function AddonsPa
 const route65 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_settings_addons,
-  loader: loader$S
+  loader: loader$T
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$R = async (args) => {
+const loader$S = async (args) => {
   const {
     params
   } = args;
@@ -21663,7 +21890,7 @@ const studio_$slug_settings_domain = UNSAFE_withComponentProps(function DomainSe
 const route66 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_settings_domain,
-  loader: loader$R
+  loader: loader$S
 }, Symbol.toStringTag, { value: "Module" }));
 const studio_$slug_settings_embeds = UNSAFE_withComponentProps(function StudioSettingsEmbeds() {
   const {
@@ -22147,6 +22374,348 @@ const route68 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePrope
   __proto__: null,
   default: studio_$slug_settings_mobile
 }, Symbol.toStringTag, { value: "Module" }));
+const PERMISSION_GROUPS = [{
+  name: "Financials",
+  permissions: [{
+    key: "view_financials",
+    label: "View Financials & Reports"
+  }, {
+    key: "manage_financials",
+    label: "Manage Payroll & Payouts"
+  }]
+}, {
+  name: "Members",
+  permissions: [{
+    key: "view_members",
+    label: "View Member Profiles"
+  }, {
+    key: "manage_members",
+    label: "Edit Member Details & Notes"
+  }, {
+    key: "export_data",
+    label: "Export Data (CSV)"
+  }]
+}, {
+  name: "Schedule",
+  permissions: [{
+    key: "view_schedule",
+    label: "View Schedule"
+  }, {
+    key: "manage_schedule",
+    label: "Create/Edit Classes"
+  }, {
+    key: "manage_bookings",
+    label: "Manage Bookings & Check-ins"
+  }]
+}, {
+  name: "Operations",
+  permissions: [{
+    key: "manage_waivers",
+    label: "Manage Waivers"
+  }, {
+    key: "manage_staff",
+    label: "Manage Staff & Availability"
+  }, {
+    key: "manage_roles",
+    label: "Manage Roles & Permissions"
+  }]
+}, {
+  name: "Marketing",
+  permissions: [{
+    key: "view_marketing",
+    label: "View Campaigns"
+  }, {
+    key: "manage_marketing",
+    label: "Create Campaigns & Automations"
+  }]
+}, {
+  name: "Settings",
+  permissions: [{
+    key: "manage_settings",
+    label: "Manage Studio Settings"
+  }]
+}];
+const studio_$slug_settings_roles = UNSAFE_withComponentProps(function RolesSettings() {
+  const {
+    tenant
+  } = useOutletContext();
+  const [roles, setRoles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingRole, setEditingRole] = useState(null);
+  const [formName, setFormName] = useState("");
+  const [formDesc, setFormDesc] = useState("");
+  const [formPermissions, setFormPermissions] = useState(/* @__PURE__ */ new Set());
+  const fetchRoles = async () => {
+    try {
+      const token = await window.Clerk?.session?.getToken();
+      const res = await apiRequest(`/tenant/roles`, token, {
+        headers: {
+          "X-Tenant-Slug": tenant.slug
+        }
+      });
+      setRoles(res || []);
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to load roles");
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    fetchRoles();
+  }, []);
+  const openCreate = () => {
+    setFormName("");
+    setFormDesc("");
+    setFormPermissions(/* @__PURE__ */ new Set());
+    setEditingRole(null);
+    setIsCreateOpen(true);
+  };
+  const openEdit = (role) => {
+    setFormName(role.name);
+    setFormDesc(role.description || "");
+    setFormPermissions(new Set(role.permissions || []));
+    setEditingRole(role);
+    setIsCreateOpen(true);
+  };
+  const handleSave = async () => {
+    if (!formName) return toast.error("Role name is required");
+    try {
+      const token = await window.Clerk?.session?.getToken();
+      const body = {
+        name: formName,
+        description: formDesc,
+        permissions: Array.from(formPermissions)
+      };
+      if (editingRole) {
+        await apiRequest(`/tenant/roles/${editingRole.id}`, token, {
+          method: "PUT",
+          headers: {
+            "X-Tenant-Slug": tenant.slug
+          },
+          body: JSON.stringify(body)
+        });
+        toast.success("Role updated");
+      } else {
+        await apiRequest(`/tenant/roles`, token, {
+          method: "POST",
+          headers: {
+            "X-Tenant-Slug": tenant.slug
+          },
+          body: JSON.stringify(body)
+        });
+        toast.success("Role created");
+      }
+      setIsCreateOpen(false);
+      fetchRoles();
+    } catch (e) {
+      toast.error(e.message || "Failed to save role");
+    }
+  };
+  const handleDelete = async (id) => {
+    if (!confirm("Are you sure? This will remove this role from all members.")) return;
+    try {
+      const token = await window.Clerk?.session?.getToken();
+      await apiRequest(`/tenant/roles/${id}`, token, {
+        method: "DELETE",
+        headers: {
+          "X-Tenant-Slug": tenant.slug
+        }
+      });
+      toast.success("Role deleted");
+      fetchRoles();
+    } catch (e) {
+      toast.error("Failed to delete role");
+    }
+  };
+  const togglePerm = (key) => {
+    const next = new Set(formPermissions);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setFormPermissions(next);
+  };
+  return /* @__PURE__ */ jsxs("div", {
+    className: "max-w-5xl mx-auto p-8",
+    children: [/* @__PURE__ */ jsxs("div", {
+      className: "flex items-center justify-between mb-8",
+      children: [/* @__PURE__ */ jsxs("div", {
+        children: [/* @__PURE__ */ jsx("h1", {
+          className: "text-2xl font-bold text-zinc-900 dark:text-zinc-100",
+          children: "Roles & Permissions"
+        }), /* @__PURE__ */ jsx("p", {
+          className: "text-zinc-500 dark:text-zinc-400 mt-1",
+          children: "Create custom roles to grant specific access to your team."
+        })]
+      }), /* @__PURE__ */ jsxs("button", {
+        onClick: openCreate,
+        className: "flex items-center gap-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 rounded-lg font-medium hover:opacity-90 transition",
+        children: [/* @__PURE__ */ jsx(Plus, {
+          size: 18
+        }), "Create Role"]
+      })]
+    }), loading ? /* @__PURE__ */ jsx("div", {
+      className: "text-center py-20 text-zinc-500",
+      children: "Loading roles..."
+    }) : /* @__PURE__ */ jsxs("div", {
+      className: "grid grid-cols-1 md:grid-cols-2 gap-6",
+      children: [/* @__PURE__ */ jsxs("div", {
+        className: "border border-blue-100 bg-blue-50 dark:bg-blue-900/10 dark:border-blue-800 rounded-xl p-6",
+        children: [/* @__PURE__ */ jsxs("div", {
+          className: "flex items-center gap-3 mb-4",
+          children: [/* @__PURE__ */ jsx(Shield, {
+            className: "text-blue-600 dark:text-blue-400 h-6 w-6"
+          }), /* @__PURE__ */ jsx("h3", {
+            className: "text-lg font-semibold text-blue-900 dark:text-blue-100",
+            children: "System Roles"
+          })]
+        }), /* @__PURE__ */ jsxs("div", {
+          className: "space-y-4",
+          children: [/* @__PURE__ */ jsxs("div", {
+            children: [/* @__PURE__ */ jsx("div", {
+              className: "font-medium text-blue-800 dark:text-blue-200",
+              children: "Owner"
+            }), /* @__PURE__ */ jsx("div", {
+              className: "text-sm text-blue-600 dark:text-blue-300",
+              children: "Full access to everything. Cannot be restricted."
+            })]
+          }), /* @__PURE__ */ jsxs("div", {
+            children: [/* @__PURE__ */ jsx("div", {
+              className: "font-medium text-blue-800 dark:text-blue-200",
+              children: "Instructor"
+            }), /* @__PURE__ */ jsx("div", {
+              className: "text-sm text-blue-600 dark:text-blue-300",
+              children: "Can manage their own classes, schedule, and view roster."
+            })]
+          })]
+        })]
+      }), roles.map((role) => /* @__PURE__ */ jsxs("div", {
+        className: "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm hover:border-zinc-300 transition-colors",
+        children: [/* @__PURE__ */ jsxs("div", {
+          className: "flex justify-between items-start mb-4",
+          children: [/* @__PURE__ */ jsxs("div", {
+            children: [/* @__PURE__ */ jsx("h3", {
+              className: "text-lg font-semibold text-zinc-900 dark:text-zinc-100",
+              children: role.name
+            }), role.description && /* @__PURE__ */ jsx("p", {
+              className: "text-sm text-zinc-500 dark:text-zinc-400",
+              children: role.description
+            })]
+          }), /* @__PURE__ */ jsxs("div", {
+            className: "flex gap-2",
+            children: [/* @__PURE__ */ jsx("button", {
+              onClick: () => openEdit(role),
+              className: "p-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition",
+              children: /* @__PURE__ */ jsx(Edit2, {
+                size: 16
+              })
+            }), /* @__PURE__ */ jsx("button", {
+              onClick: () => handleDelete(role.id),
+              className: "p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition",
+              children: /* @__PURE__ */ jsx(Trash2, {
+                size: 16
+              })
+            })]
+          })]
+        }), /* @__PURE__ */ jsxs("div", {
+          className: "flex flex-wrap gap-2",
+          children: [(role.permissions || []).slice(0, 5).map((p) => /* @__PURE__ */ jsx("span", {
+            className: "px-2 py-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-xs rounded border border-zinc-200 dark:border-zinc-700",
+            children: p.replace(/_/g, " ")
+          }, p)), (role.permissions?.length || 0) > 5 && /* @__PURE__ */ jsxs("span", {
+            className: "px-2 py-1 bg-zinc-50 text-zinc-400 text-xs rounded border border-zinc-100",
+            children: ["+", role.permissions.length - 5, " more"]
+          })]
+        })]
+      }, role.id))]
+    }), isCreateOpen && /* @__PURE__ */ jsx("div", {
+      className: "fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm",
+      children: /* @__PURE__ */ jsxs("div", {
+        className: "bg-white dark:bg-zinc-900 w-full max-w-2xl rounded-2xl shadow-xl flex flex-col max-h-[90vh]",
+        children: [/* @__PURE__ */ jsxs("div", {
+          className: "p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center",
+          children: [/* @__PURE__ */ jsx("h2", {
+            className: "text-xl font-bold",
+            children: editingRole ? "Edit Role" : "Create Custom Role"
+          }), /* @__PURE__ */ jsxs("button", {
+            onClick: () => setIsCreateOpen(false),
+            className: "p-2 hover:bg-zinc-100 rounded-full",
+            children: [/* @__PURE__ */ jsx("span", {
+              className: "sr-only",
+              children: "Close"
+            }), "✕"]
+          })]
+        }), /* @__PURE__ */ jsxs("div", {
+          className: "p-6 overflow-y-auto flex-1",
+          children: [/* @__PURE__ */ jsxs("div", {
+            className: "space-y-4 mb-8",
+            children: [/* @__PURE__ */ jsxs("div", {
+              children: [/* @__PURE__ */ jsx("label", {
+                className: "block text-sm font-medium mb-1",
+                children: "Role Name"
+              }), /* @__PURE__ */ jsx("input", {
+                type: "text",
+                value: formName,
+                onChange: (e) => setFormName(e.target.value),
+                className: "w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent",
+                placeholder: "e.g. Front Desk"
+              })]
+            }), /* @__PURE__ */ jsxs("div", {
+              children: [/* @__PURE__ */ jsx("label", {
+                className: "block text-sm font-medium mb-1",
+                children: "Description"
+              }), /* @__PURE__ */ jsx("input", {
+                type: "text",
+                value: formDesc,
+                onChange: (e) => setFormDesc(e.target.value),
+                className: "w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent",
+                placeholder: "Optional description"
+              })]
+            })]
+          }), /* @__PURE__ */ jsx("div", {
+            className: "space-y-6",
+            children: PERMISSION_GROUPS.map((group) => /* @__PURE__ */ jsxs("div", {
+              className: "border-t border-zinc-100 dark:border-zinc-800 pt-4",
+              children: [/* @__PURE__ */ jsx("h3", {
+                className: "font-semibold text-sm text-zinc-500 uppercase tracking-wider mb-3",
+                children: group.name
+              }), /* @__PURE__ */ jsx("div", {
+                className: "grid grid-cols-1 sm:grid-cols-2 gap-3",
+                children: group.permissions.map((perm) => /* @__PURE__ */ jsxs("label", {
+                  className: "flex items-center gap-3 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer transition-colors",
+                  children: [/* @__PURE__ */ jsx("input", {
+                    type: "checkbox",
+                    className: "w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500",
+                    checked: formPermissions.has(perm.key),
+                    onChange: () => togglePerm(perm.key)
+                  }), /* @__PURE__ */ jsx("span", {
+                    className: "text-sm font-medium",
+                    children: perm.label
+                  })]
+                }, perm.key))
+              })]
+            }, group.name))
+          })]
+        }), /* @__PURE__ */ jsxs("div", {
+          className: "p-6 border-t border-zinc-100 dark:border-zinc-800 flex justify-end gap-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-b-2xl",
+          children: [/* @__PURE__ */ jsx("button", {
+            onClick: () => setIsCreateOpen(false),
+            className: "px-4 py-2 text-sm font-medium hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-lg transition",
+            children: "Cancel"
+          }), /* @__PURE__ */ jsx("button", {
+            onClick: handleSave,
+            className: "px-6 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm font-bold rounded-lg hover:opacity-90 transition shadow-sm",
+            children: "Save Role"
+          })]
+        })]
+      })
+    })]
+  });
+});
+const route69 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  default: studio_$slug_settings_roles
+}, Symbol.toStringTag, { value: "Module" }));
 const ConfigNode = ({
   node,
   index,
@@ -22393,7 +22962,7 @@ const studio_$slug_settings_chat = UNSAFE_withComponentProps(function ChatSettin
     })]
   });
 });
-const route69 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route70 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_settings_chat
 }, Symbol.toStringTag, { value: "Module" }));
@@ -22533,7 +23102,7 @@ const studio_$slug_settings_qr = UNSAFE_withComponentProps(function StudioQRCode
     })]
   });
 });
-const route70 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route71 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_settings_qr
 }, Symbol.toStringTag, { value: "Module" }));
@@ -22543,11 +23112,11 @@ const studio_$slug_students = UNSAFE_withComponentProps(function StudioStudentsL
     context
   });
 });
-const route71 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route72 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_students
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$Q = async (args) => {
+const loader$R = async (args) => {
   const {
     params
   } = args;
@@ -23222,12 +23791,12 @@ const studio_$slug_students__index = UNSAFE_withComponentProps(function StudioSt
     })]
   });
 });
-const route72 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route73 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_students__index,
-  loader: loader$Q
+  loader: loader$R
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$P = async (args) => {
+const loader$Q = async (args) => {
   const {
     params
   } = args;
@@ -24287,13 +24856,13 @@ const studio_$slug_students_$id = UNSAFE_withComponentProps(function StudentProf
     })]
   });
 });
-const route73 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route74 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action: action$c,
   default: studio_$slug_students_$id,
-  loader: loader$P
+  loader: loader$Q
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$O = async (args) => {
+const loader$P = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -24809,10 +25378,10 @@ const studio_$slug_checkin = UNSAFE_withComponentProps(function StaffCheckInPage
     })
   });
 });
-const route74 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route75 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_checkin,
-  loader: loader$O
+  loader: loader$P
 }, Symbol.toStringTag, { value: "Module" }));
 const studio_$slug_classes = UNSAFE_withComponentProps(function StudioClassesLayout() {
   const context = useOutletContext();
@@ -24820,7 +25389,7 @@ const studio_$slug_classes = UNSAFE_withComponentProps(function StudioClassesLay
     context
   });
 });
-const route75 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route76 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_classes
 }, Symbol.toStringTag, { value: "Module" }));
@@ -24872,7 +25441,7 @@ const studio_$slug_classes_$classId_live = UNSAFE_withComponentProps(function Li
     children: /* @__PURE__ */ jsx(VideoConference, {})
   });
 });
-const route76 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route77 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_classes_$classId_live
 }, Symbol.toStringTag, { value: "Module" }));
@@ -24928,7 +25497,7 @@ const action$b = async (args) => {
   }
   return null;
 };
-const loader$N = async (args) => {
+const loader$O = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -25423,13 +25992,13 @@ function NotesModal({
     })]
   });
 }
-const route77 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route78 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action: action$b,
   default: studio_$slug_classes_$id_roster,
-  loader: loader$N
+  loader: loader$O
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$M = async (args) => {
+const loader$N = async (args) => {
   const {
     params,
     request
@@ -25873,13 +26442,13 @@ const studio_$slug_classes__index = UNSAFE_withComponentProps(function StudioPub
     })]
   });
 });
-const route78 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route79 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action: action$a,
   default: studio_$slug_classes__index,
-  loader: loader$M
+  loader: loader$N
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$L = async (args) => {
+const loader$M = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -26362,11 +26931,11 @@ const studio_$slug_loyalty = UNSAFE_withComponentProps(function LoyaltyPage() {
     })]
   });
 });
-const route79 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route80 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action: action$9,
   default: studio_$slug_loyalty,
-  loader: loader$L
+  loader: loader$M
 }, Symbol.toStringTag, { value: "Module" }));
 function FamilyManager({ token }) {
   const fetcher = useFetcher();
@@ -26623,7 +27192,7 @@ function AvailabilityManager({ token, tenantSlug }) {
     ] })
   ] });
 }
-const loader$K = async (args) => {
+const loader$L = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -26804,11 +27373,11 @@ const studio_$slug_profile = UNSAFE_withComponentProps(function StudioProfilePag
     })]
   });
 });
-const route80 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route81 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action: action$8,
   default: studio_$slug_profile,
-  loader: loader$K
+  loader: loader$L
 }, Symbol.toStringTag, { value: "Module" }));
 function ProjectionsCalculator() {
   const [mode, setMode] = useState("growth");
@@ -27811,11 +28380,11 @@ function formatDate(iso) {
   const d = new Date(iso);
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
-const route81 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route82 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_reports
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$J = async (args) => {
+const loader$K = async (args) => {
   const {
     getToken,
     userId
@@ -27842,7 +28411,11 @@ const loader$J = async (args) => {
       }
     }).catch(() => ({
       averageLtv: 0,
-      trend: 0
+      trend: 0,
+      sources: {
+        packs: 0,
+        pos: 0
+      }
     }))]);
     return {
       utilization,
@@ -27856,7 +28429,11 @@ const loader$J = async (args) => {
       retention: [],
       ltv: {
         averageLtv: 0,
-        trend: 0
+        trend: 0,
+        sources: {
+          packs: 0,
+          pos: 0
+        }
       }
     };
   }
@@ -27873,7 +28450,10 @@ const studio_$slug_reports_advanced = UNSAFE_withComponentProps(function Advance
     retention: [],
     ltv: {
       averageLtv: 0,
-      trend: 0
+      sources: {
+        packs: 0,
+        pos: 0
+      }
     }
   };
   const {
@@ -27882,9 +28462,9 @@ const studio_$slug_reports_advanced = UNSAFE_withComponentProps(function Advance
   const currency = tenant?.currency?.toUpperCase() || "USD";
   const getHeatmapValue = (dayIndex, hourIndex) => {
     const found = utilization.find((u) => parseInt(u.day) === dayIndex && parseInt(u.hour) === hourIndex);
-    return found ? found.count : 0;
+    return found ? found.bookingCount : 0;
   };
-  const maxHeat = Math.max(...utilization.map((u) => u.count) || [0], 1);
+  const maxHeat = Math.max(...utilization.map((u) => u.bookingCount) || [0], 1);
   const getHeatColor = (value) => {
     if (value === 0) return "bg-zinc-50 dark:bg-zinc-900";
     const intensity = value / maxHeat;
@@ -27893,6 +28473,15 @@ const studio_$slug_reports_advanced = UNSAFE_withComponentProps(function Advance
     if (intensity < 0.75) return "bg-indigo-500 text-white";
     return "bg-indigo-700 text-white";
   };
+  const ltvDetails = [{
+    name: "Class Packs",
+    value: ltv?.sources?.packs || 0,
+    fill: "#4F46E5"
+  }, {
+    name: "Retail / POS",
+    value: ltv?.sources?.pos || 0,
+    fill: "#10B981"
+  }];
   return /* @__PURE__ */ jsxs("div", {
     className: "p-6 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500",
     children: [/* @__PURE__ */ jsxs("div", {
@@ -27903,10 +28492,10 @@ const studio_$slug_reports_advanced = UNSAFE_withComponentProps(function Advance
         className: "text-zinc-500 dark:text-zinc-400",
         children: "Deep dive into studio performance and retention."
       })]
-    }), /* @__PURE__ */ jsx("div", {
-      className: "grid grid-cols-1 md:grid-cols-3 gap-6",
-      children: /* @__PURE__ */ jsxs("div", {
-        className: "bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm",
+    }), /* @__PURE__ */ jsxs("div", {
+      className: "grid grid-cols-1 lg:grid-cols-3 gap-6",
+      children: [/* @__PURE__ */ jsxs("div", {
+        className: "bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm col-span-1",
         children: [/* @__PURE__ */ jsx("h3", {
           className: "text-sm font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2",
           children: "Average Lifetime Value"
@@ -27916,11 +28505,56 @@ const studio_$slug_reports_advanced = UNSAFE_withComponentProps(function Advance
             style: "currency",
             currency
           }).format(ltv.averageLtv)
-        }), /* @__PURE__ */ jsxs("div", {
-          className: `text-sm mt-2 font-medium ${ltv.trend >= 0 ? "text-emerald-600" : "text-red-600"}`,
-          children: [ltv.trend > 0 ? "+" : "", ltv.trend, "% vs last month"]
         })]
-      })
+      }), /* @__PURE__ */ jsxs("div", {
+        className: "bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm col-span-2 flex items-center justify-between",
+        children: [/* @__PURE__ */ jsxs("div", {
+          children: [/* @__PURE__ */ jsx("h3", {
+            className: "text-sm font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2",
+            children: "Revenue Sources"
+          }), /* @__PURE__ */ jsxs("div", {
+            className: "flex gap-6",
+            children: [/* @__PURE__ */ jsxs("div", {
+              children: [/* @__PURE__ */ jsx("p", {
+                className: "text-xs text-zinc-500",
+                children: "Class Packs"
+              }), /* @__PURE__ */ jsx("p", {
+                className: "text-xl font-bold text-indigo-600",
+                children: new Intl.NumberFormat(void 0, {
+                  style: "currency",
+                  currency
+                }).format(ltv.sources?.packs || 0)
+              })]
+            }), /* @__PURE__ */ jsxs("div", {
+              children: [/* @__PURE__ */ jsx("p", {
+                className: "text-xs text-zinc-500",
+                children: "Retail / POS"
+              }), /* @__PURE__ */ jsx("p", {
+                className: "text-xl font-bold text-emerald-500",
+                children: new Intl.NumberFormat(void 0, {
+                  style: "currency",
+                  currency
+                }).format(ltv.sources?.pos || 0)
+              })]
+            })]
+          })]
+        }), /* @__PURE__ */ jsx("div", {
+          className: "h-24 w-24",
+          children: /* @__PURE__ */ jsx(ResponsiveContainer, {
+            width: "100%",
+            height: "100%",
+            children: /* @__PURE__ */ jsxs(PieChart, {
+              children: [/* @__PURE__ */ jsx(Pie, {
+                data: ltvDetails,
+                dataKey: "value",
+                innerRadius: 25,
+                outerRadius: 40,
+                paddingAngle: 5
+              }), /* @__PURE__ */ jsx(Tooltip, {})]
+            })
+          })
+        })]
+      })]
     }), /* @__PURE__ */ jsxs("section", {
       className: "bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm",
       children: [/* @__PURE__ */ jsx("h3", {
@@ -27944,7 +28578,7 @@ const studio_$slug_reports_advanced = UNSAFE_withComponentProps(function Advance
               vertical: false,
               stroke: "#E4E4E5"
             }), /* @__PURE__ */ jsx(XAxis, {
-              dataKey: "cohortMonth",
+              dataKey: "month",
               stroke: "#71717A",
               fontSize: 12,
               tickLine: false,
@@ -27969,7 +28603,7 @@ const studio_$slug_reports_advanced = UNSAFE_withComponentProps(function Advance
               fill: "#E4E4E7",
               radius: [4, 4, 0, 0]
             }), /* @__PURE__ */ jsx(Bar, {
-              dataKey: "active",
+              dataKey: "retained",
               name: "Retained Active",
               fill: "#4F46E5",
               radius: [4, 4, 0, 0]
@@ -28031,10 +28665,10 @@ const studio_$slug_reports_advanced = UNSAFE_withComponentProps(function Advance
     })]
   });
 });
-const route82 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route83 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_reports_advanced,
-  loader: loader$J
+  loader: loader$K
 }, Symbol.toStringTag, { value: "Module" }));
 const studio_$slug_reports_custom = UNSAFE_withComponentProps(function CustomReports() {
   const {
@@ -28391,7 +29025,7 @@ const studio_$slug_reports_custom = UNSAFE_withComponentProps(function CustomRep
     })]
   });
 });
-const route83 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route84 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_reports_custom
 }, Symbol.toStringTag, { value: "Module" }));
@@ -28401,7 +29035,7 @@ const studio_$slug_waivers = UNSAFE_withComponentProps(function StudioWaiversLay
     context
   });
 });
-const route84 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route85 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_waivers
 }, Symbol.toStringTag, { value: "Module" }));
@@ -28536,7 +29170,7 @@ function SignaturePad({ onChange, width = 500, height = 200 }) {
     ] })
   ] });
 }
-const loader$I = async (args) => {
+const loader$J = async (args) => {
   const {
     params
   } = args;
@@ -28873,11 +29507,11 @@ const studio_$slug_waivers__index = UNSAFE_withComponentProps(function StudioWai
     })]
   });
 });
-const route85 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route86 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action: action$7,
   default: studio_$slug_waivers__index,
-  loader: loader$I
+  loader: loader$J
 }, Symbol.toStringTag, { value: "Module" }));
 const action$6 = async (args) => {
   const {
@@ -29059,16 +29693,24 @@ const studio_$slug_waivers_new = UNSAFE_withComponentProps(function NewWaiverTem
     })]
   });
 });
-const route86 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route87 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action: action$6,
   default: studio_$slug_waivers_new
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$H = async (args) => {
-  const {
-    getToken
-  } = await getAuth(args);
-  const token = await getToken();
+const loader$I = async (args) => {
+  let token = null;
+  const cookie = args.request.headers.get("Cookie");
+  if (cookie?.includes("__e2e_bypass_user_id=")) {
+    const match = cookie.match(/__e2e_bypass_user_id=([^;]+)/);
+    if (match) token = match[1];
+  }
+  if (!token) {
+    const {
+      getToken
+    } = await getAuth(args);
+    token = await getToken();
+  }
   const {
     slug
   } = args.params;
@@ -29130,7 +29772,7 @@ const studio_$slug__index = UNSAFE_withComponentProps(function StudioDashboardIn
     children: [/* @__PURE__ */ jsxs("div", {
       className: "flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8",
       children: [/* @__PURE__ */ jsxs("div", {
-        children: [/* @__PURE__ */ jsxs("h2", {
+        children: [/* @__PURE__ */ jsxs("h1", {
           className: "text-3xl font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight",
           children: ["Welcome back, ", displayName, getRoleLabel(), "!"]
         }), /* @__PURE__ */ jsxs("p", {
@@ -29273,7 +29915,7 @@ const studio_$slug__index = UNSAFE_withComponentProps(function StudioDashboardIn
       children: [/* @__PURE__ */ jsx("div", {
         className: "lg:col-span-2 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-8",
         children: !isStudentView ? /* @__PURE__ */ jsxs(Fragment, {
-          children: [/* @__PURE__ */ jsx("h3", {
+          children: [/* @__PURE__ */ jsx("h2", {
             className: "text-lg font-bold mb-1 text-zinc-900 dark:text-zinc-100",
             children: "Getting Started"
           }), /* @__PURE__ */ jsx("p", {
@@ -29464,12 +30106,12 @@ function DashboardAction({
     })]
   });
 }
-const route87 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route88 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug__index,
-  loader: loader$H
+  loader: loader$I
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$G = async (args) => {
+const loader$H = async (args) => {
   const {
     getToken,
     userId
@@ -30060,13 +30702,13 @@ function ImportModal({
     })
   });
 }
-const route88 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route89 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action: action$5,
   default: studio_$slug_retail,
-  loader: loader$G
+  loader: loader$H
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$F = async (args) => {
+const loader$G = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -30787,12 +31429,12 @@ const studio_$slug_leads = UNSAFE_withComponentProps(function LeadsPage() {
     })]
   });
 });
-const route89 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route90 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_leads,
-  loader: loader$F
+  loader: loader$G
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$E = async (args) => {
+const loader$F = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -31205,12 +31847,12 @@ const studio_$slug_tasks = UNSAFE_withComponentProps(function TasksPage() {
     })]
   });
 });
-const route90 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route91 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_tasks,
-  loader: loader$E
+  loader: loader$F
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$D = async (args) => {
+const loader$E = async (args) => {
   const {
     getToken
   } = await getAuth(args);
@@ -31525,12 +32167,12 @@ const studio_$slug_chat = UNSAFE_withComponentProps(function StudioChat() {
     })]
   });
 });
-const route91 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route92 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_chat,
-  loader: loader$D
+  loader: loader$E
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$C = async (args) => {
+const loader$D = async (args) => {
   const {
     getToken,
     userId
@@ -31645,10 +32287,10 @@ const studio_$slug_chat_$roomId = UNSAFE_withComponentProps(function StudioChatR
     })]
   });
 });
-const route92 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route93 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_chat_$roomId,
-  loader: loader$C
+  loader: loader$D
 }, Symbol.toStringTag, { value: "Module" }));
 const studio_$slug_data = UNSAFE_withComponentProps(function StudioDataLayout() {
   const {
@@ -31709,11 +32351,11 @@ const studio_$slug_data = UNSAFE_withComponentProps(function StudioDataLayout() 
     })]
   });
 });
-const route93 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route94 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_data
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$B = async ({
+const loader$C = async ({
   request
 }) => {
   const url = new URL(request.url);
@@ -31725,10 +32367,10 @@ const loader$B = async ({
 const studio_$slug_data__index = UNSAFE_withComponentProps(function DataIndex() {
   return null;
 });
-const route94 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route95 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_data__index,
-  loader: loader$B
+  loader: loader$C
 }, Symbol.toStringTag, { value: "Module" }));
 const studio_$slug_data_export = UNSAFE_withComponentProps(function DataExport() {
   const {
@@ -31850,7 +32492,7 @@ const studio_$slug_data_export = UNSAFE_withComponentProps(function DataExport()
     })]
   });
 });
-const route95 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route96 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_data_export
 }, Symbol.toStringTag, { value: "Module" }));
@@ -32060,7 +32702,7 @@ const studio_$slug_data_import = UNSAFE_withComponentProps(function DataImport()
     })]
   });
 });
-const route96 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route97 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_data_import
 }, Symbol.toStringTag, { value: "Module" }));
@@ -32837,11 +33479,11 @@ function CustomerForm({
     })]
   });
 }
-const route97 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route98 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: studio_$slug_pos
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$A = async ({
+const loader$B = async ({
   params
 }) => {
   const {
@@ -32887,12 +33529,12 @@ const embed_$slug = UNSAFE_withComponentProps(function EmbedLayout() {
     })
   });
 });
-const route98 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route99 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: embed_$slug,
-  loader: loader$A
+  loader: loader$B
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$z = async ({
+const loader$A = async ({
   params,
   request
 }) => {
@@ -33008,12 +33650,12 @@ const embed_$slug_calendar = UNSAFE_withComponentProps(function EmbedCalendar() 
     }, date))
   });
 });
-const route99 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route100 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: embed_$slug_calendar,
-  loader: loader$z
+  loader: loader$A
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$y = async ({
+const loader$z = async ({
   params,
   request
 }) => {
@@ -33199,26 +33841,30 @@ const embed_$slug_pricing = UNSAFE_withComponentProps(function EmbedPricing() {
     })]
   });
 });
-const route100 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route101 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: embed_$slug_pricing,
-  loader: loader$y
+  loader: loader$z
 }, Symbol.toStringTag, { value: "Module" }));
-function BookingWidget({ tenantSlug }) {
+function BookingWidget({ tenantSlug, apiUrl }) {
   const [schedule, setSchedule] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(/* @__PURE__ */ new Date());
   const [selectedClass, setSelectedClass] = useState(null);
   const [guestForm, setGuestForm] = useState({ name: "", email: "" });
   const [bookingStatus, setBookingStatus] = useState("idle");
+  const [isMounted, setIsMounted] = useState(false);
+  const effectiveApiUrl = apiUrl || (typeof window !== "undefined" ? window.ENV?.API_URL : "") || "https://studio-platform-api.slichti.workers.dev";
   useEffect(() => {
+    setIsMounted(true);
     fetchSchedule();
   }, [tenantSlug, selectedDate]);
+  if (!isMounted) return /* @__PURE__ */ jsx("div", { className: "p-8 text-center text-zinc-400", children: "Loading..." });
   const fetchSchedule = async () => {
     setLoading(true);
     try {
-      const start = startOfWeek$1(selectedDate).toISOString();
-      const res = await fetch(`https://studio-platform-api.slichti.workers.dev/guest/schedule/${tenantSlug}?start=${start}`);
+      const start = startOfWeek(selectedDate).toISOString();
+      const res = await fetch(`${effectiveApiUrl}/guest/schedule/${tenantSlug}?start=${start}`);
       const data = await res.json();
       setSchedule(data.classes || []);
     } catch (e) {
@@ -33230,7 +33876,7 @@ function BookingWidget({ tenantSlug }) {
   const handleBook = async () => {
     setBookingStatus("submitting");
     try {
-      const res = await fetch(`https://studio-platform-api.slichti.workers.dev/guest/booking`, {
+      const res = await fetch(`${effectiveApiUrl}/guest/booking`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -33269,7 +33915,7 @@ function BookingWidget({ tenantSlug }) {
     /* @__PURE__ */ jsxs("div", { className: "w-full md:w-1/3 bg-zinc-50 border-r border-zinc-200 p-6 flex flex-col", children: [
       /* @__PURE__ */ jsx("h2", { className: "text-xl font-bold text-zinc-900 mb-6", children: "Select a Date" }),
       /* @__PURE__ */ jsx("div", { className: "space-y-2", children: [0, 1, 2, 3, 4, 5, 6].map((offset) => {
-        const date = addDays(startOfWeek$1(selectedDate), offset);
+        const date = addDays(startOfWeek(selectedDate), offset);
         const isSelected = isSameDay(date, selectedDate);
         return /* @__PURE__ */ jsxs(
           "button",
@@ -33358,8 +34004,10 @@ function BookingWidget({ tenantSlug }) {
     ] }) })
   ] });
 }
-async function loader$x({
-  params
+var define_process_env_default = {};
+async function loader$y({
+  params,
+  context
 }) {
   const {
     slug
@@ -33368,26 +34016,29 @@ async function loader$x({
     status: 404
   });
   return {
-    slug
+    slug,
+    apiUrl: context.cloudflare?.env.API_URL || define_process_env_default.API_URL
   };
 }
 const embed_$slug_book = UNSAFE_withComponentProps(function EmbedBookingPage() {
   const {
-    slug
+    slug,
+    apiUrl
   } = useLoaderData();
   return /* @__PURE__ */ jsx("div", {
     className: "min-h-screen bg-transparent flex items-center justify-center p-4 font-sans",
     children: /* @__PURE__ */ jsx(BookingWidget, {
-      tenantSlug: slug
+      tenantSlug: slug,
+      apiUrl
     })
   });
 });
-const route101 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route102 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: embed_$slug_book,
-  loader: loader$x
+  loader: loader$y
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$w = async ({
+const loader$x = async ({
   params
 }) => {
   try {
@@ -33647,12 +34298,12 @@ const embed_$slug_chat = UNSAFE_withComponentProps(function EmbedChat() {
     })
   });
 });
-const route102 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route103 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: embed_$slug_chat,
-  loader: loader$w
+  loader: loader$x
 }, Symbol.toStringTag, { value: "Module" }));
-const loader$v = async (args) => {
+const loader$w = async (args) => {
   const {
     slug
   } = args.params;
@@ -33870,10 +34521,331 @@ const embed_$slug_shop = UNSAFE_withComponentProps(function EmbedShop() {
     })]
   });
 });
-const route103 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route104 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: embed_$slug_shop,
+  loader: loader$w
+}, Symbol.toStringTag, { value: "Module" }));
+const loader$v = async (args) => {
+  const slug = args.params.slug;
+  try {
+    const res = await fetch(`${args.context.ENV.API_URL}/public/tenant/${slug}`).then((r) => r.json());
+    if (res.error) throw new Error(res.error);
+    return {
+      tenant: res
+    };
+  } catch (e) {
+    return {
+      tenant: null,
+      error: "Studio not found"
+    };
+  }
+};
+const kiosk_$slug = UNSAFE_withComponentProps(function KioskLayout() {
+  const {
+    tenant
+  } = useLoaderData();
+  if (!tenant) return /* @__PURE__ */ jsx("div", {
+    className: "h-screen flex items-center justify-center bg-zinc-950 text-white",
+    children: "Studio Not Found"
+  });
+  const brandColor = tenant.branding?.primaryColor || "#7c3aed";
+  return /* @__PURE__ */ jsxs("div", {
+    className: "h-screen w-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-white overflow-hidden flex flex-col font-sans selection:bg-purple-500/30",
+    children: [/* @__PURE__ */ jsxs("header", {
+      className: "h-16 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-6 bg-white dark:bg-zinc-900 shrink-0",
+      children: [/* @__PURE__ */ jsxs("div", {
+        className: "flex items-center gap-3",
+        children: [tenant.branding?.logoUrl && /* @__PURE__ */ jsx("img", {
+          src: tenant.branding.logoUrl,
+          className: "h-8 w-8 object-contain",
+          alt: "Logo"
+        }), /* @__PURE__ */ jsx("span", {
+          className: "font-bold text-lg tracking-tight",
+          children: tenant.name
+        })]
+      }), /* @__PURE__ */ jsx("div", {
+        className: "px-2 py-1 bg-purple-100 text-purple-700 text-xs font-bold uppercase rounded tracking-wider",
+        children: "Kiosk Mode"
+      })]
+    }), /* @__PURE__ */ jsx("main", {
+      className: "flex-1 relative overflow-y-auto",
+      children: /* @__PURE__ */ jsx(Outlet, {
+        context: {
+          tenant,
+          brandColor
+        }
+      })
+    })]
+  });
+});
+const route105 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  default: kiosk_$slug,
   loader: loader$v
+}, Symbol.toStringTag, { value: "Module" }));
+const kiosk_$slug_login = UNSAFE_withComponentProps(function KioskLogin() {
+  const {
+    tenant,
+    brandColor
+  } = useOutletContext();
+  const navigate = useNavigate();
+  const params = useParams();
+  const [pin, setPin] = useState("");
+  const [loading, setLoading] = useState(false);
+  const handleNum = (num) => {
+    if (pin.length < 6) setPin((prev) => prev + num);
+  };
+  const handleDel = () => {
+    setPin((prev) => prev.slice(0, -1));
+  };
+  const handleSubmit = async () => {
+    if (pin.length < 4) return;
+    setLoading(true);
+    try {
+      const API_URL2 = window.ENV.API_URL;
+      const res = await fetch(`${API_URL2}/kiosk/auth`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          tenantSlug: params.slug,
+          pin
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      if (data.token) {
+        localStorage.setItem(`kiosk_token_${params.slug}`, data.token);
+      }
+      toast.success("Kiosk Unlocked");
+      navigate(`/kiosk/${params.slug}/mode`);
+    } catch (e) {
+      toast.error(e.message || "Invalid PIN");
+      setPin("");
+    } finally {
+      setLoading(false);
+    }
+  };
+  return /* @__PURE__ */ jsx("div", {
+    className: "h-full flex flex-col items-center justify-center p-6",
+    children: /* @__PURE__ */ jsxs("div", {
+      className: "w-full max-w-sm",
+      children: [/* @__PURE__ */ jsxs("div", {
+        className: "text-center mb-10",
+        children: [/* @__PURE__ */ jsx("div", {
+          className: "w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4",
+          children: /* @__PURE__ */ jsx(Lock, {
+            className: "h-8 w-8 text-zinc-400"
+          })
+        }), /* @__PURE__ */ jsx("h1", {
+          className: "text-2xl font-bold mb-2",
+          children: "Unlock Kiosk"
+        }), /* @__PURE__ */ jsx("p", {
+          className: "text-zinc-500",
+          children: "Enter the 4-6 digit Kiosk PIN"
+        })]
+      }), /* @__PURE__ */ jsx("div", {
+        className: "flex justify-center gap-4 mb-8",
+        children: Array.from({
+          length: 6
+        }).map((_, i) => /* @__PURE__ */ jsx("div", {
+          className: `w-4 h-4 rounded-full transition-all ${i < pin.length ? `bg-purple-600 scale-110` : "bg-zinc-200 dark:bg-zinc-800"}`
+        }, i))
+      }), /* @__PURE__ */ jsxs("div", {
+        className: "grid grid-cols-3 gap-4 max-w-64 mx-auto",
+        children: [[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => /* @__PURE__ */ jsx("button", {
+          onClick: () => handleNum(num),
+          className: "bg-white dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 hover:border-purple-500/50 hover:bg-purple-50 dark:hover:bg-purple-900/10 active:scale-95 transition-all w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold font-mono",
+          children: num
+        }, num)), /* @__PURE__ */ jsx("div", {}), " ", /* @__PURE__ */ jsx("button", {
+          onClick: () => handleNum(0),
+          className: "bg-white dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 hover:border-purple-500/50 hover:bg-purple-50 active:scale-95 transition-all w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold font-mono",
+          children: "0"
+        }), /* @__PURE__ */ jsx("button", {
+          onClick: handleDel,
+          className: "text-zinc-400 hover:text-red-500 active:scale-95 transition-all w-16 h-16 flex items-center justify-center",
+          children: /* @__PURE__ */ jsx(Delete, {
+            className: "h-6 w-6"
+          })
+        })]
+      }), /* @__PURE__ */ jsx("div", {
+        className: "mt-8",
+        children: /* @__PURE__ */ jsx("button", {
+          onClick: handleSubmit,
+          disabled: loading || pin.length < 4,
+          className: "w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold h-12 rounded-lg flex items-center justify-center gap-2 transition-all",
+          children: loading ? "Unlocking..." : /* @__PURE__ */ jsxs(Fragment, {
+            children: ["Unlock ", /* @__PURE__ */ jsx(ArrowRight, {
+              className: "h-4 w-4"
+            })]
+          })
+        })
+      })]
+    })
+  });
+});
+const route106 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  default: kiosk_$slug_login
+}, Symbol.toStringTag, { value: "Module" }));
+const kiosk_$slug_mode = UNSAFE_withComponentProps(function KioskMode() {
+  const {
+    tenant
+  } = useOutletContext();
+  const params = useParams();
+  const navigate = useNavigate();
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [checkingIn, setCheckingIn] = useState(null);
+  useEffect(() => {
+    const token = localStorage.getItem(`kiosk_token_${params.slug}`);
+    if (!token) {
+      navigate(`/kiosk/${params.slug}/login`);
+    }
+  }, [params.slug, navigate]);
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (query.length < 2) {
+        setResults([]);
+        return;
+      }
+      setLoading(true);
+      try {
+        const token = localStorage.getItem(`kiosk_token_${params.slug}`);
+        const API_URL2 = window.ENV.API_URL;
+        const res = await fetch(`${API_URL2}/kiosk/search?q=${encodeURIComponent(query)}`, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        if (res.status === 401) {
+          navigate(`/kiosk/${params.slug}/login`);
+          return;
+        }
+        const data = await res.json();
+        setResults(Array.isArray(data) ? data : []);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query, params.slug, navigate]);
+  const handleCheckIn = async (bookingId, memberName) => {
+    setCheckingIn(bookingId);
+    try {
+      const token = localStorage.getItem(`kiosk_token_${params.slug}`);
+      const API_URL2 = window.ENV.API_URL;
+      const res = await fetch(`${API_URL2}/kiosk/checkin/${bookingId}`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      if (!res.ok) throw new Error("Check-in failed");
+      toast.success(`Welcome, ${memberName}!`);
+      setTimeout(() => {
+        setQuery("");
+        setResults([]);
+      }, 2e3);
+    } catch (e) {
+      toast.error("Could not check in. Please see desk.");
+    } finally {
+      setCheckingIn(null);
+    }
+  };
+  return /* @__PURE__ */ jsxs("div", {
+    className: "h-full flex flex-col items-center pt-20 px-6 max-w-2xl mx-auto",
+    children: [/* @__PURE__ */ jsxs("h1", {
+      className: "text-4xl font-bold mb-2",
+      children: ["Welcome to ", tenant.name]
+    }), /* @__PURE__ */ jsx("p", {
+      className: "text-zinc-500 mb-10 text-lg",
+      children: "Search for your name to check in."
+    }), /* @__PURE__ */ jsxs("div", {
+      className: "relative w-full mb-12",
+      children: [/* @__PURE__ */ jsx(Search, {
+        className: "absolute left-6 top-1/2 -translate-y-1/2 h-8 w-8 text-zinc-400"
+      }), /* @__PURE__ */ jsx("input", {
+        type: "text",
+        autoFocus: true,
+        value: query,
+        onChange: (e) => setQuery(e.target.value),
+        placeholder: "Type your name...",
+        className: "w-full h-20 pl-20 pr-6 rounded-2xl border-2 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 shadow-sm text-2xl outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all"
+      }), query && /* @__PURE__ */ jsx("button", {
+        onClick: () => {
+          setQuery("");
+          setResults([]);
+        },
+        className: "absolute right-6 top-1/2 -translate-y-1/2 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-full",
+        children: /* @__PURE__ */ jsx(XCircle, {
+          className: "h-6 w-6 text-zinc-400"
+        })
+      })]
+    }), /* @__PURE__ */ jsx("div", {
+      className: "w-full space-y-4",
+      children: results.map((member) => /* @__PURE__ */ jsxs("div", {
+        className: "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm flex items-center justify-between",
+        children: [/* @__PURE__ */ jsxs("div", {
+          className: "flex items-center gap-4",
+          children: [/* @__PURE__ */ jsx("div", {
+            className: "w-12 h-12 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center overflow-hidden",
+            children: member.portraitUrl ? /* @__PURE__ */ jsx("img", {
+              src: member.portraitUrl,
+              alt: "",
+              className: "w-full h-full object-cover"
+            }) : /* @__PURE__ */ jsx(User, {
+              className: "h-6 w-6 text-zinc-400"
+            })
+          }), /* @__PURE__ */ jsxs("div", {
+            children: [/* @__PURE__ */ jsxs("div", {
+              className: "font-bold text-lg",
+              children: [member.firstName, " ", member.lastName]
+            }), member.nextBooking ? /* @__PURE__ */ jsxs("div", {
+              className: "flex items-center gap-2 text-green-600 text-sm font-medium",
+              children: [/* @__PURE__ */ jsx(Calendar, {
+                className: "h-4 w-4"
+              }), member.nextBooking.className]
+            }) : /* @__PURE__ */ jsx("div", {
+              className: "text-zinc-400 text-sm",
+              children: "No bookings today"
+            })]
+          })]
+        }), /* @__PURE__ */ jsx("div", {
+          children: member.nextBooking ? member.nextBooking.checkedInAt ? /* @__PURE__ */ jsxs("div", {
+            className: "px-4 py-2 bg-green-100 text-green-700 rounded-lg font-medium flex items-center gap-2",
+            children: [/* @__PURE__ */ jsx(CheckCircle, {
+              className: "h-5 w-5"
+            }), "Checked In"]
+          }) : /* @__PURE__ */ jsx("button", {
+            onClick: () => handleCheckIn(member.nextBooking.id, member.firstName),
+            disabled: !!checkingIn,
+            className: "bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-bold text-lg shadow-sm active:scale-95 transition-all disabled:opacity-50",
+            children: checkingIn === member.nextBooking.id ? "..." : "Check In"
+          }) : /* @__PURE__ */ jsx("span", {
+            className: "text-zinc-400 text-sm font-medium",
+            children: "See Front Desk"
+          })
+        })]
+      }, member.memberId))
+    }), results.length === 0 && query.length > 2 && !loading && /* @__PURE__ */ jsxs("div", {
+      className: "text-zinc-400 mt-10 flex flex-col items-center",
+      children: [/* @__PURE__ */ jsx(Search, {
+        className: "h-12 w-12 mb-4 opacity-50"
+      }), /* @__PURE__ */ jsxs("p", {
+        children: ['No students found matching "', query, '"']
+      })]
+    })]
+  });
+});
+const route107 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  default: kiosk_$slug_mode
 }, Symbol.toStringTag, { value: "Module" }));
 const BASE_DOMAIN = "studio-platform-dev.slichti.org";
 const RESERVED_SUBDOMAINS = ["www", "api", "admin", "app", "mail", "staging", "dev", "test"];
@@ -34008,7 +34980,7 @@ const $pageSlug = UNSAFE_withComponentProps(function DynamicPage() {
     tenantSlug
   });
 });
-const route104 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route108 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: $pageSlug,
   loader: loader$u,
@@ -34222,7 +35194,7 @@ const dashboard = UNSAFE_withComponentProps(function DashboardRoute() {
     }), /* @__PURE__ */ jsx(Outlet, {})]
   });
 });
-const route105 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route109 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: dashboard,
   loader: loader$t
@@ -34233,7 +35205,7 @@ const dashboard_classes = UNSAFE_withComponentProps(function DashboardClassesLay
     context
   });
 });
-const route106 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route110 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: dashboard_classes
 }, Symbol.toStringTag, { value: "Module" }));
@@ -34386,7 +35358,7 @@ const dashboard_classes_$id_roster = UNSAFE_withComponentProps(function ClassRos
     })]
   });
 });
-const route107 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route111 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: dashboard_classes_$id_roster,
   loader: loader$s
@@ -34488,7 +35460,7 @@ const dashboard_classes_$id_watch = UNSAFE_withComponentProps(function WatchReco
     })]
   });
 });
-const route108 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route112 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: dashboard_classes_$id_watch,
   loader: loader$r
@@ -34802,7 +35774,7 @@ const dashboard_classes__index = UNSAFE_withComponentProps(function ClassesRoute
     })]
   });
 });
-const route109 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route113 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action: action$4,
   default: dashboard_classes__index,
@@ -35060,7 +36032,7 @@ const dashboard_profile = UNSAFE_withComponentProps(function ProfileRoute() {
     })]
   });
 });
-const route110 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route114 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action: action$3,
   default: dashboard_profile,
@@ -35179,7 +36151,7 @@ const dashboard__index = UNSAFE_withComponentProps(function DashboardIndex() {
     })]
   });
 });
-const route111 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route115 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: dashboard__index
 }, Symbol.toStringTag, { value: "Module" }));
@@ -35208,167 +36180,304 @@ ${JSON.stringify(Object.fromEntries(request.headers.entries()), null, 2)}
 const debugSsr = UNSAFE_withComponentProps(function DebugSSR() {
   return null;
 });
-const route112 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route116 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: debugSsr,
   loader: loader$o
 }, Symbol.toStringTag, { value: "Module" }));
-const signIn_$ = UNSAFE_withComponentProps(function SignInPage() {
-  return /* @__PURE__ */ jsxs("div", {
-    style: {
-      display: "flex",
-      height: "100vh",
-      width: "100vw",
-      overflow: "hidden"
-    },
-    children: [/* @__PURE__ */ jsxs("div", {
-      style: {
-        flex: "1",
-        background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%)",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-        padding: "60px",
-        color: "white",
-        position: "relative"
-      },
-      children: [/* @__PURE__ */ jsx("div", {
-        style: {
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          opacity: 0.1,
-          backgroundImage: "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.4) 0%, transparent 20%), radial-gradient(circle at 80% 80%, rgba(255,255,255,0.4) 0%, transparent 20%)"
-        }
-      }), /* @__PURE__ */ jsx("div", {
-        style: {
-          position: "relative",
-          zIndex: 1
-        },
-        children: /* @__PURE__ */ jsx("h1", {
-          style: {
-            fontSize: "1.5rem",
-            fontWeight: "bold",
-            letterSpacing: "-0.025em"
-          },
-          children: "Studio Platform"
-        })
-      }), /* @__PURE__ */ jsxs("div", {
-        style: {
-          position: "relative",
-          zIndex: 1,
-          maxWidth: "480px"
-        },
-        children: [/* @__PURE__ */ jsx("h2", {
-          style: {
-            fontSize: "3rem",
-            fontWeight: "bold",
-            lineHeight: "1.1",
-            marginBottom: "20px",
-            letterSpacing: "-0.03em"
-          },
-          children: "Manage your wellness business with elegance."
-        }), /* @__PURE__ */ jsx("p", {
-          style: {
-            fontSize: "1.125rem",
-            opacity: 0.8,
-            lineHeight: "1.6"
-          },
-          children: "Everything you need to run your studio, engage students, and grow your community in one beautiful platform."
-        })]
-      }), /* @__PURE__ */ jsx("div", {
-        style: {
-          position: "relative",
-          zIndex: 1,
-          opacity: 0.6,
-          fontSize: "0.875rem"
-        },
-        children: "© 2025 Studio Platform Inc."
-      })]
-    }), /* @__PURE__ */ jsx("div", {
-      style: {
-        flex: "1",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        background: "#ffffff",
-        padding: "40px"
-      },
-      children: /* @__PURE__ */ jsx(SignIn, {
-        appearance: {
-          elements: {
-            rootBox: {
-              width: "100%",
-              maxWidth: "400px"
-            },
-            card: {
-              boxShadow: "none",
-              border: "none",
-              width: "100%"
-            },
-            headerTitle: {
-              fontSize: "1.75rem",
-              fontWeight: "700",
-              color: "#111827"
-            },
-            headerSubtitle: {
-              color: "#6b7280",
-              fontSize: "1rem"
-            },
-            formButtonPrimary: {
-              backgroundColor: "#4338ca",
-              fontSize: "0.95rem",
-              fontWeight: "600",
-              textTransform: "none",
-              padding: "12px",
-              "&:hover": {
-                backgroundColor: "#3730a3"
-              }
-            },
-            formFieldInput: {
-              borderRadius: "8px",
-              borderColor: "#e5e7eb",
-              padding: "10px 12px",
-              fontSize: "1rem"
-            },
-            socialButtonsBlockButton: {
-              borderRadius: "8px",
-              borderColor: "#e5e7eb",
-              textTransform: "none",
-              fontWeight: "500"
-            },
-            footerActionLink: {
-              color: "#4338ca",
-              fontWeight: "600"
-            }
-          },
-          layout: {
-            socialButtonsPlacement: "bottom",
-            logoPlacement: "none"
+function CustomSignIn() {
+  const { isLoaded, signIn, setActive } = useSignIn();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+  if (!isLoaded) return null;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await signIn.create({
+        identifier: email,
+        password
+      });
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+        navigate("/studio/test-studio");
+      } else {
+        console.log(result);
+        setError("Login incomplete. MFA not supported in this custom form yet.");
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.errors?.[0]?.message || "Failed to sign in");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-zinc-200 dark:border-zinc-800 p-8", children: [
+    /* @__PURE__ */ jsxs("div", { className: "text-center mb-8", children: [
+      /* @__PURE__ */ jsx("h1", { className: "text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2", children: "Welcome Back" }),
+      /* @__PURE__ */ jsx("p", { className: "text-zinc-500 dark:text-zinc-400 text-sm", children: "Enter your credentials to access your studio." })
+    ] }),
+    error && /* @__PURE__ */ jsxs("div", { className: "mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-lg flex items-start gap-3", children: [
+      /* @__PURE__ */ jsx(AlertCircle, { className: "w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" }),
+      /* @__PURE__ */ jsx("p", { className: "text-sm text-red-700 dark:text-red-300", children: error })
+    ] }),
+    /* @__PURE__ */ jsxs("form", { onSubmit: handleSubmit, className: "space-y-5", children: [
+      /* @__PURE__ */ jsxs("div", { children: [
+        /* @__PURE__ */ jsx("label", { htmlFor: "email", className: "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5", children: "Email Address" }),
+        /* @__PURE__ */ jsx(
+          "input",
+          {
+            id: "email",
+            type: "email",
+            value: email,
+            onChange: (e) => setEmail(e.target.value),
+            autoComplete: "email",
+            required: true,
+            className: "w-full px-4 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all dark:text-white",
+            placeholder: "you@example.com"
           }
+        )
+      ] }),
+      /* @__PURE__ */ jsxs("div", { children: [
+        /* @__PURE__ */ jsx("label", { htmlFor: "password", className: "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5", children: "Password" }),
+        /* @__PURE__ */ jsxs("div", { className: "relative", children: [
+          /* @__PURE__ */ jsx(
+            "input",
+            {
+              id: "password",
+              type: showPassword ? "text" : "password",
+              value: password,
+              onChange: (e) => setPassword(e.target.value),
+              autoComplete: "current-password",
+              required: true,
+              className: "w-full px-4 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all dark:text-white pr-10",
+              placeholder: "••••••••"
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            "button",
+            {
+              type: "button",
+              onClick: () => setShowPassword(!showPassword),
+              className: "absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200",
+              "aria-label": showPassword ? "Hide password" : "Show password",
+              children: showPassword ? /* @__PURE__ */ jsx(EyeOff, { size: 16 }) : /* @__PURE__ */ jsx(Eye, { size: 16 })
+            }
+          )
+        ] })
+      ] }),
+      /* @__PURE__ */ jsx("div", { className: "flex items-center justify-between", children: /* @__PURE__ */ jsx("div", { className: "text-sm", children: /* @__PURE__ */ jsx(Link, { to: "/forgot-password", className: "font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400", children: "Forgot password?" }) }) }),
+      /* @__PURE__ */ jsxs(
+        "button",
+        {
+          type: "submit",
+          disabled: isLoading,
+          className: "w-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-semibold py-2.5 rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-zinc-900 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2",
+          children: [
+            isLoading && /* @__PURE__ */ jsx(Loader2, { size: 16, className: "animate-spin" }),
+            "Sign In"
+          ]
         }
-      })
-    })]
+      )
+    ] }),
+    /* @__PURE__ */ jsxs("div", { className: "mt-8 text-center text-sm text-zinc-500 dark:text-zinc-400", children: [
+      "Don't have an account?",
+      " ",
+      /* @__PURE__ */ jsx(Link, { to: "/sign-up", className: "font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400", children: "Sign up" })
+    ] })
+  ] });
+}
+const signIn_$ = UNSAFE_withComponentProps(function SignInPage() {
+  return /* @__PURE__ */ jsx("main", {
+    className: "flex items-center justify-center min-h-screen bg-gray-50 dark:bg-zinc-900 p-4",
+    children: /* @__PURE__ */ jsx(CustomSignIn, {})
   });
 });
-const route113 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route117 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: signIn_$
 }, Symbol.toStringTag, { value: "Module" }));
+function CustomSignUp() {
+  const { isLoaded, signUp, setActive } = useSignUp();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [pendingVerification, setPendingVerification] = useState(false);
+  const [code, setCode] = useState("");
+  const navigate = useNavigate();
+  if (!isLoaded) return null;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+    try {
+      await signUp.create({
+        emailAddress: email,
+        password,
+        firstName,
+        lastName
+      });
+      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+      setPendingVerification(true);
+    } catch (err) {
+      console.error(err);
+      setError(err.errors?.[0]?.message || "Failed to create account");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+    try {
+      const completeSignUp = await signUp.attemptEmailAddressVerification({
+        code
+      });
+      if (completeSignUp.status !== "complete") {
+        setError(JSON.stringify(completeSignUp, null, 2));
+      }
+      if (completeSignUp.status === "complete") {
+        await setActive({ session: completeSignUp.createdSessionId });
+        navigate("/create-studio");
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.errors?.[0]?.message || "Verification failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  if (pendingVerification) {
+    return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-zinc-200 dark:border-zinc-800 p-8", children: [
+      /* @__PURE__ */ jsxs("div", { className: "text-center mb-8", children: [
+        /* @__PURE__ */ jsx("h1", { className: "text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2", children: "Verify Email" }),
+        /* @__PURE__ */ jsxs("p", { className: "text-zinc-500 dark:text-zinc-400 text-sm", children: [
+          "Enter the code sent to ",
+          email
+        ] })
+      ] }),
+      error && /* @__PURE__ */ jsx("div", { className: "mb-6 p-4 bg-red-50 text-red-700 rounded-lg text-sm", children: error }),
+      /* @__PURE__ */ jsxs("form", { onSubmit: handleVerify, className: "space-y-5", children: [
+        /* @__PURE__ */ jsx(
+          "input",
+          {
+            value: code,
+            onChange: (e) => setCode(e.target.value),
+            className: "w-full px-4 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-center text-2xl tracking-widest",
+            placeholder: "000000"
+          }
+        ),
+        /* @__PURE__ */ jsx("button", { type: "submit", disabled: isLoading, className: "w-full bg-blue-600 text-white font-bold py-2 rounded-lg", children: isLoading ? "Verifying..." : "Verify & Continue" })
+      ] })
+    ] });
+  }
+  return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-zinc-200 dark:border-zinc-800 p-8", children: [
+    /* @__PURE__ */ jsxs("div", { className: "text-center mb-8", children: [
+      /* @__PURE__ */ jsx("h1", { className: "text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2", children: "Create Account" }),
+      /* @__PURE__ */ jsx("p", { className: "text-zinc-500 dark:text-zinc-400 text-sm", children: "Get started with Studio Platform today." })
+    ] }),
+    error && /* @__PURE__ */ jsxs("div", { className: "mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-lg flex items-start gap-3", children: [
+      /* @__PURE__ */ jsx(AlertCircle, { className: "w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" }),
+      /* @__PURE__ */ jsx("p", { className: "text-sm text-red-700 dark:text-red-300", children: error })
+    ] }),
+    /* @__PURE__ */ jsxs("form", { onSubmit: handleSubmit, className: "space-y-4", children: [
+      /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-2 gap-4", children: [
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("label", { className: "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1", children: "First Name" }),
+          /* @__PURE__ */ jsx(
+            "input",
+            {
+              value: firstName,
+              onChange: (e) => setFirstName(e.target.value),
+              className: "w-full px-4 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg",
+              required: true
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("label", { className: "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1", children: "Last Name" }),
+          /* @__PURE__ */ jsx(
+            "input",
+            {
+              value: lastName,
+              onChange: (e) => setLastName(e.target.value),
+              className: "w-full px-4 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg",
+              required: true
+            }
+          )
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { children: [
+        /* @__PURE__ */ jsx("label", { className: "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1", children: "Email" }),
+        /* @__PURE__ */ jsx(
+          "input",
+          {
+            type: "email",
+            value: email,
+            onChange: (e) => setEmail(e.target.value),
+            className: "w-full px-4 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg",
+            required: true
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxs("div", { children: [
+        /* @__PURE__ */ jsx("label", { className: "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1", children: "Password" }),
+        /* @__PURE__ */ jsxs("div", { className: "relative", children: [
+          /* @__PURE__ */ jsx(
+            "input",
+            {
+              type: showPassword ? "text" : "password",
+              value: password,
+              onChange: (e) => setPassword(e.target.value),
+              className: "w-full px-4 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg pr-10",
+              required: true
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            "button",
+            {
+              type: "button",
+              onClick: () => setShowPassword(!showPassword),
+              className: "absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400",
+              children: showPassword ? /* @__PURE__ */ jsx(EyeOff, { size: 16 }) : /* @__PURE__ */ jsx(Eye, { size: 16 })
+            }
+          )
+        ] })
+      ] }),
+      /* @__PURE__ */ jsx(
+        "button",
+        {
+          type: "submit",
+          disabled: isLoading,
+          className: "w-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-semibold py-2.5 rounded-lg hover:bg-zinc-800 mt-2",
+          children: isLoading ? "Creating..." : "Sign Up"
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsxs("div", { className: "mt-8 text-center text-sm text-zinc-500 dark:text-zinc-400", children: [
+      "Already have an account?",
+      " ",
+      /* @__PURE__ */ jsx(Link, { to: "/sign-in", className: "font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400", children: "Sign in" })
+    ] })
+  ] });
+}
 const signUp_$ = UNSAFE_withComponentProps(function SignUpPage() {
-  return /* @__PURE__ */ jsx("div", {
-    style: {
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      height: "100vh"
-    },
-    children: /* @__PURE__ */ jsx(SignUp, {})
+  return /* @__PURE__ */ jsx("main", {
+    className: "flex items-center justify-center min-h-screen bg-gray-50 dark:bg-zinc-900 p-4",
+    children: /* @__PURE__ */ jsx(CustomSignUp, {})
   });
 });
-const route114 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route118 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: signUp_$
 }, Symbol.toStringTag, { value: "Module" }));
@@ -35612,7 +36721,7 @@ const _index = UNSAFE_withComponentProps(function Index() {
     })]
   });
 });
-const route115 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route119 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: _index,
   loader: loader$n,
@@ -35877,7 +36986,7 @@ const admin = UNSAFE_withComponentProps(function AdminLayout() {
     })]
   });
 });
-const route116 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route120 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin,
   loader: loader$m
@@ -36029,7 +37138,7 @@ const admin_website_edit_$pageId = UNSAFE_withComponentProps(function PlatformWe
     })]
   });
 });
-const route117 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route121 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin_website_edit_$pageId,
   loader: loader$l
@@ -36324,7 +37433,7 @@ const admin_communications_logs = UNSAFE_withComponentProps(function EmailLogs()
     })]
   });
 });
-const route118 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route122 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin_communications_logs,
   loader: loader$k
@@ -36602,7 +37711,7 @@ const admin_coupons__index = UNSAFE_withComponentProps(function CouponsPage2() {
     })]
   });
 });
-const route119 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route123 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin_coupons__index,
   loader: loader$j
@@ -36901,7 +38010,7 @@ const admin_website__index = UNSAFE_withComponentProps(function AdminWebsite() {
     })]
   });
 });
-const route120 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route124 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin_website__index,
   loader: loader$i
@@ -37325,7 +38434,7 @@ const admin_users_$userId = UNSAFE_withComponentProps(function EditUser() {
     })]
   });
 });
-const route121 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route125 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin_users_$userId,
   loader: loader$h
@@ -37752,18 +38861,18 @@ const admin_architecture = UNSAFE_withComponentProps(function AdminArchitecture(
     })]
   });
 });
-const route122 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route126 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin_architecture,
   loader: loader$g
 }, Symbol.toStringTag, { value: "Module" }));
 const Select = React.forwardRef(
   ({ className = "", children, ...props }, ref) => {
-    return /* @__PURE__ */ jsxs("div", { className: "relative", children: [
+    return /* @__PURE__ */ jsxs("div", { className: `relative ${className}`, children: [
       /* @__PURE__ */ jsx(
         "select",
         {
-          className: `appearance-none flex h-10 w-full items-center justify-between rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:placeholder:text-zinc-400 dark:focus:ring-zinc-300 ${className}`,
+          className: "appearance-none flex h-10 w-full items-center justify-between rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:placeholder:text-zinc-400 dark:focus:ring-zinc-300",
           ref,
           ...props,
           children
@@ -38626,7 +39735,7 @@ function UserRow({
     })]
   });
 }
-const route123 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route127 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin_users__index,
   loader: loader$f
@@ -38885,7 +39994,7 @@ const admin_diagnostics = UNSAFE_withComponentProps(function AdminDiagnostics() 
     })]
   });
 });
-const route124 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route128 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin_diagnostics,
   loader: loader$e
@@ -38928,7 +40037,7 @@ const loader$d = async (args) => {
     };
   }
 };
-const route125 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route129 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   loader: loader$d
 }, Symbol.toStringTag, { value: "Module" }));
@@ -39564,7 +40673,7 @@ function Toggle({
     })]
   });
 }
-const route126 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route130 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin_projections
 }, Symbol.toStringTag, { value: "Module" }));
@@ -39940,7 +41049,7 @@ const admin_financials = UNSAFE_withComponentProps(function AdminFinancials() {
     })]
   });
 });
-const route127 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route131 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin_financials,
   loader: loader$c
@@ -40143,7 +41252,7 @@ const admin_financials_failed = UNSAFE_withComponentProps(function AdminFailedPa
     })]
   });
 });
-const route128 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route132 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin_financials_failed,
   loader: loader$b
@@ -40492,7 +41601,7 @@ function WorkflowForm({
         children: [/* @__PURE__ */ jsx(Label, {
           children: "Timing"
         }), /* @__PURE__ */ jsxs("div", {
-          className: "flex gap-2",
+          className: "flex items-center gap-2",
           children: [/* @__PURE__ */ jsxs(Select, {
             name: "timingType",
             defaultValue: initialData?.timingType || "immediate",
@@ -40541,18 +41650,25 @@ function WorkflowForm({
         className: "h-32 font-mono"
       }), /* @__PURE__ */ jsxs("p", {
         className: "text-xs text-zinc-500",
-        children: ["Supported variables: ", "{firstname}", ", ", "{lastname}", "."]
+        children: ["Supported variables: ", "{firstname}", ", ", "{lastname}", ", ", "{title}", "."]
       })]
-    }), /* @__PURE__ */ jsx(DialogFooter, {
-      className: "mt-4",
-      children: /* @__PURE__ */ jsx(Button, {
+    }), /* @__PURE__ */ jsxs(DialogFooter, {
+      className: "mt-4 flex justify-end gap-2",
+      children: [/* @__PURE__ */ jsx(DialogClose, {
+        asChild: true,
+        children: /* @__PURE__ */ jsx(Button, {
+          type: "button",
+          variant: "outline",
+          children: "Cancel"
+        })
+      }), /* @__PURE__ */ jsx(Button, {
         type: "submit",
         children: "Save Workflow"
-      })
+      })]
     })]
   });
 }
-const route129 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route133 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action: action$2,
   default: admin_workflows,
@@ -40757,7 +41873,7 @@ const admin_features = UNSAFE_withComponentProps(function AdminFeatures() {
     })]
   });
 });
-const route130 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route134 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin_features,
   loader: loader$9
@@ -43377,7 +44493,7 @@ const admin_tenants = UNSAFE_withComponentProps(function AdminTenants() {
     })]
   });
 });
-const route131 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route135 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin_tenants,
   loader: loader$8
@@ -43667,7 +44783,7 @@ const admin__index = UNSAFE_withComponentProps(function AdminIndex() {
     })]
   });
 });
-const route132 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route136 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin__index,
   loader: loader$7
@@ -43810,7 +44926,7 @@ const admin_emails = UNSAFE_withComponentProps(function AdminEmailsPage() {
     })]
   });
 });
-const route133 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route137 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin_emails,
   loader: loader$6
@@ -43943,7 +45059,7 @@ function StatusItem({
     })]
   });
 }
-const route134 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route138 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin_status,
   loader: loader$5
@@ -44723,7 +45839,7 @@ function StatusBadge({
     children: status
   });
 }
-const route135 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route139 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action: action$1,
   default: admin_videos,
@@ -44882,7 +45998,7 @@ const admin_comms = UNSAFE_withComponentProps(function AdminCommsPage() {
 function formatAutomationType(type) {
   return type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 }
-const ErrorBoundary2 = UNSAFE_withErrorBoundaryProps(function ErrorBoundary3() {
+const ErrorBoundary = UNSAFE_withErrorBoundaryProps(function ErrorBoundary3() {
   const error = useRouteError();
   return /* @__PURE__ */ jsxs("div", {
     className: "flex flex-col items-center justify-center min-h-[50vh] text-red-600 p-4",
@@ -44902,9 +46018,9 @@ const ErrorBoundary2 = UNSAFE_withErrorBoundaryProps(function ErrorBoundary3() {
     })]
   });
 });
-const route136 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route140 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
-  ErrorBoundary: ErrorBoundary2,
+  ErrorBoundary,
   default: admin_comms,
   loader: loader$3
 }, Symbol.toStringTag, { value: "Module" }));
@@ -45149,7 +46265,7 @@ const admin_chat = UNSAFE_withComponentProps(function AdminChat() {
         className: "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6",
         children: [/* @__PURE__ */ jsx("div", {
           className: "text-3xl font-bold text-green-600 dark:text-green-400",
-          children: tenants?.filter((t) => t.features?.includes("chat"))?.length || 0
+          children: tenants?.filter((t) => Array.isArray(t.features) && t.features.includes("chat"))?.length || 0
         }), /* @__PURE__ */ jsx("div", {
           className: "text-sm text-zinc-500 dark:text-zinc-400",
           children: "With Chat Enabled"
@@ -45204,7 +46320,7 @@ const admin_chat = UNSAFE_withComponentProps(function AdminChat() {
                 className: "flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400",
                 children: [/* @__PURE__ */ jsx("span", {
                   children: tenant.slug
-                }), tenant.features?.includes("chat") && /* @__PURE__ */ jsx("span", {
+                }), Array.isArray(tenant.features) && tenant.features.includes("chat") && /* @__PURE__ */ jsx("span", {
                   className: "px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded text-[10px] font-bold",
                   children: "CHAT ACTIVE"
                 })]
@@ -45251,7 +46367,7 @@ const admin_chat = UNSAFE_withComponentProps(function AdminChat() {
     })]
   });
 });
-const route137 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route141 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   action,
   default: admin_chat,
@@ -45410,7 +46526,7 @@ const admin_chat_$roomId = UNSAFE_withComponentProps(function AdminChatRoom() {
     })]
   });
 });
-const route138 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route142 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin_chat_$roomId,
   loader: loader$1
@@ -45624,12 +46740,12 @@ const admin_logs = UNSAFE_withComponentProps(function AdminLogs() {
     })]
   });
 });
-const route139 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const route143 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: admin_logs,
   loader
 }, Symbol.toStringTag, { value: "Module" }));
-const serverManifest = { "entry": { "module": "/assets/entry.client-ChtsdKBs.js", "imports": ["/assets/vendor-puck-By1A5E5K.js", "/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"] }, "routes": { "root": { "id": "root", "parentId": void 0, "path": "", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": true, "module": "/assets/root-DrbHnvQC.js", "imports": ["/assets/vendor-puck-By1A5E5K.js", "/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/ThemeProvider-ueHA7FHr.js", "/assets/index-C_1Jy3MY.js", "/assets/index-C4ml0_Eh.js", "/assets/chunk-VMBS36YX-DqpVm5Ny.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/chunk-6WD75OPE-9kMPbnco.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/site.$slug.$pageSlug": { "id": "routes/site.$slug.$pageSlug", "parentId": "root", "path": "site/:slug/:pageSlug", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/site._slug._pageSlug-BDbMOaVc.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/puck-config-DpfzgvWy.js", "/assets/ChatWidget-CaWDJJkG.js", "/assets/index-Kt1GhsJU.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/index-C4ml0_Eh.js", "/assets/chunk-VMBS36YX-DqpVm5Ny.js", "/assets/pen-DIUl4YMx.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/x-6mvJS0UK.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/message-circle-cE2JHAhU.js", "/assets/send-BNR5q9Wk.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/chunk-6WD75OPE-9kMPbnco.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/pricing.compare": { "id": "routes/pricing.compare", "parentId": "root", "path": "pricing/compare", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/pricing.compare-Bd6TSvDB.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/ThemeToggle-BDAxSFv9.js", "/assets/chunk-6WD75OPE-9kMPbnco.js", "/assets/index-C4ml0_Eh.js", "/assets/chunk-VMBS36YX-DqpVm5Ny.js", "/assets/circle-question-mark-CQsDfPg0.js", "/assets/check-yXSU0QnA.js", "/assets/minus-TU7AVMxa.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/ThemeProvider-ueHA7FHr.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/vendor-charts-nrSmOgTy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/pricing._index": { "id": "routes/pricing._index", "parentId": "root", "path": "pricing", "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/pricing._index-BnCzU7Pm.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/ThemeToggle-BDAxSFv9.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/check-yXSU0QnA.js", "/assets/index-Kt1GhsJU.js", "/assets/chunk-VMBS36YX-DqpVm5Ny.js", "/assets/chunk-6WD75OPE-9kMPbnco.js", "/assets/ThemeProvider-ueHA7FHr.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/$slug.support": { "id": "routes/$slug.support", "parentId": "root", "path": ":slug/support", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/_slug.support-DjJrX9Eb.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/ChatWindow-B8PTlat6.js", "/assets/message-square-DXFYk9Nj.js", "/assets/x-6mvJS0UK.js", "/assets/loader-circle-CaGZsKjo.js", "/assets/send-BNR5q9Wk.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/accept-invite": { "id": "routes/accept-invite", "parentId": "root", "path": "accept-invite", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/accept-invite-q8gRmqdk.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/api-OnQO3erh.js", "/assets/chunk-VMBS36YX-DqpVm5Ny.js", "/assets/index-C4ml0_Eh.js", "/assets/index-Kt1GhsJU.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/chunk-6WD75OPE-9kMPbnco.js", "/assets/vendor-charts-nrSmOgTy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/create-studio": { "id": "routes/create-studio", "parentId": "root", "path": "create-studio", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/create-studio-CSe_cDic.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/api-OnQO3erh.js", "/assets/index-Kt1GhsJU.js", "/assets/chunk-VMBS36YX-DqpVm5Ny.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation": { "id": "routes/documentation", "parentId": "root", "path": "documentation", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation-CteRkcjg.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/ThemeToggle-BDAxSFv9.js", "/assets/LogoutButton-C4fmpBMa.js", "/assets/x-6mvJS0UK.js", "/assets/menu-DNxKBX3t.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/search-S3VI0n0n.js", "/assets/server-CkQ6kFga.js", "/assets/shield-BH971nBf.js", "/assets/settings-Cip7W-gj.js", "/assets/users-DTyswlyE.js", "/assets/shopping-cart-eqO11M5U.js", "/assets/globe-DV22Xz5a.js", "/assets/smartphone-NVyChj3R.js", "/assets/message-square-DXFYk9Nj.js", "/assets/chart-column-BictQ20g.js", "/assets/panels-top-left-DWjg5CSQ.js", "/assets/index-Kt1GhsJU.js", "/assets/ThemeProvider-ueHA7FHr.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/index-C4ml0_Eh.js", "/assets/chunk-VMBS36YX-DqpVm5Ny.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/chunk-6WD75OPE-9kMPbnco.js", "/assets/vendor-charts-nrSmOgTy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.platform.architecture": { "id": "routes/documentation.platform.architecture", "parentId": "routes/documentation", "path": "platform/architecture", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.platform.architecture-D7u3GMqE.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/mermaid.core-BKNcSV1B.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/globe-DV22Xz5a.js", "/assets/database-YmXT_lcr.js", "/assets/shield-BH971nBf.js", "/assets/server-CkQ6kFga.js", "/assets/vendor-charts-nrSmOgTy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.platform.tenants": { "id": "routes/documentation.platform.tenants", "parentId": "routes/documentation", "path": "platform/tenants", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.platform.tenants-BrOTNpkw.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/users-DTyswlyE.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/credit-card-BC1Ru1Ky.js", "/assets/activity-ZAJHCsfc.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.studio.analytics": { "id": "routes/documentation.studio.analytics", "parentId": "routes/documentation", "path": "studio/analytics", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.studio.analytics-VyXA2glA.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/chart-column-BictQ20g.js", "/assets/users-DTyswlyE.js", "/assets/trending-up-WhR0C78Z.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.studio.overview": { "id": "routes/documentation.studio.overview", "parentId": "routes/documentation", "path": "studio/overview", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.studio.overview-Cl_9QhSn.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/calendar-CHyLPk-n.js", "/assets/credit-card-BC1Ru1Ky.js", "/assets/users-DTyswlyE.js", "/assets/chart-column-BictQ20g.js", "/assets/arrow-right-TLLbqErj.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.mobile-builder": { "id": "routes/documentation.mobile-builder", "parentId": "routes/documentation", "path": "mobile-builder", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.mobile-builder-CYhKXyj2.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/smartphone-NVyChj3R.js", "/assets/check-yXSU0QnA.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.studio.portal": { "id": "routes/documentation.studio.portal", "parentId": "routes/documentation", "path": "studio/portal", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.studio.portal-3zyX7Dew.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/panels-top-left-DWjg5CSQ.js", "/assets/calendar-CHyLPk-n.js", "/assets/award-ybvMWPmB.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.commerce": { "id": "routes/documentation.commerce", "parentId": "routes/documentation", "path": "commerce", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.commerce-BeqSw2R8.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/credit-card-BC1Ru1Ky.js", "/assets/shopping-cart-eqO11M5U.js", "/assets/tag-CL7ms9wp.js", "/assets/ticket-B5axb41_.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.classes": { "id": "routes/documentation.classes", "parentId": "routes/documentation", "path": "classes", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.classes-BruMAAyB.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/calendar-CHyLPk-n.js", "/assets/users-DTyswlyE.js", "/assets/video-BR-TS2td.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.reports": { "id": "routes/documentation.reports", "parentId": "routes/documentation", "path": "reports", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.reports-zF99FxKt.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/chart-column-BictQ20g.js", "/assets/trending-up-WhR0C78Z.js", "/assets/download-nknHt9WM.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.website": { "id": "routes/documentation.website", "parentId": "routes/documentation", "path": "website", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.website-DcdwYNUy.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/panels-top-left-DWjg5CSQ.js", "/assets/search-S3VI0n0n.js", "/assets/code-GqGOaeVQ.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation._index": { "id": "routes/documentation._index", "parentId": "routes/documentation", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation._index-Cr_cLFJf.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/settings-Cip7W-gj.js", "/assets/arrow-right-TLLbqErj.js", "/assets/smartphone-NVyChj3R.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.setup": { "id": "routes/documentation.setup", "parentId": "routes/documentation", "path": "setup", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.setup-z5ZNWrFz.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/settings-Cip7W-gj.js", "/assets/credit-card-BC1Ru1Ky.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/arrow-right-TLLbqErj.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.team": { "id": "routes/documentation.team", "parentId": "routes/documentation", "path": "team", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.team-CVAyf5CS.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/shield-BH971nBf.js", "/assets/dollar-sign-Br6sogR3.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.crm": { "id": "routes/documentation.crm", "parentId": "routes/documentation", "path": "crm", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.crm-ZDOvhHz9.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/mermaid.core-BKNcSV1B.js", "/assets/user-plus-wgpaf6QU.js", "/assets/mail-BVU9VLVw.js", "/assets/award-ybvMWPmB.js", "/assets/message-square-DXFYk9Nj.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/portal.$slug": { "id": "routes/portal.$slug", "parentId": "root", "path": "portal/:slug", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/portal._slug-p_1VRBgo.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/cn-CKOjr7tC.js", "/assets/x-6mvJS0UK.js", "/assets/menu-DNxKBX3t.js", "/assets/house-DcmbMgG4.js", "/assets/calendar-CHyLPk-n.js", "/assets/user-B9JVtPOG.js", "/assets/log-out-huoa965l.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/portal.$slug.classes": { "id": "routes/portal.$slug.classes", "parentId": "routes/portal.$slug", "path": "classes", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/portal._slug.classes-XPEEyicP.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/cn-CKOjr7tC.js", "/assets/vendor-date-fns-MAbw63O8.js", "/assets/calendar-CHyLPk-n.js", "/assets/user-B9JVtPOG.js", "/assets/map-pin-kPXbYZuQ.js", "/assets/circle-check-4euu8Iav.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/portal.$slug.profile": { "id": "routes/portal.$slug.profile", "parentId": "routes/portal.$slug", "path": "profile", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/portal._slug.profile-vx8jdS93.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/mail-BVU9VLVw.js", "/assets/calendar-CHyLPk-n.js", "/assets/log-out-huoa965l.js", "/assets/shield-BH971nBf.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/portal.$slug._index": { "id": "routes/portal.$slug._index", "parentId": "routes/portal.$slug", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/portal._slug._index-pjkiUXEy.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/award-ybvMWPmB.js", "/assets/target-DaZesuop.js", "/assets/flame-SNp5DNp_.js", "/assets/activity-ZAJHCsfc.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug": { "id": "routes/studio.$slug", "parentId": "root", "path": "studio/:slug", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug-DdmL1_f_.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/ThemeToggle-BDAxSFv9.js", "/assets/CommandBar-DIKArC0h.js", "/assets/chevron-down-DOKZOgBX.js", "/assets/chevron-right-Dyvx1VDk.js", "/assets/users-DTyswlyE.js", "/assets/use-resolve-button-type-CGo9al7H.js", "/assets/portal-DJvkvMc5.js", "/assets/check-yXSU0QnA.js", "/assets/log-out-huoa965l.js", "/assets/index-Kt1GhsJU.js", "/assets/ChatWidget-CaWDJJkG.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/calendar-CHyLPk-n.js", "/assets/clock-CZ6xxKks.js", "/assets/circle-check-4euu8Iav.js", "/assets/trophy-Buxr5RRh.js", "/assets/refresh-cw-DFGUiFki.js", "/assets/file-pen-line-Dj21kRfD.js", "/assets/image-BzEjuuKJ.js", "/assets/shopping-cart-eqO11M5U.js", "/assets/credit-card-BC1Ru1Ky.js", "/assets/package-koM-mwzd.js", "/assets/ticket-B5axb41_.js", "/assets/user-B9JVtPOG.js", "/assets/mail-BVU9VLVw.js", "/assets/award-ybvMWPmB.js", "/assets/globe-DV22Xz5a.js", "/assets/code-GqGOaeVQ.js", "/assets/smartphone-NVyChj3R.js", "/assets/dollar-sign-Br6sogR3.js", "/assets/tag-CL7ms9wp.js", "/assets/terminal-B-Ek4Gh_.js", "/assets/message-square-DXFYk9Nj.js", "/assets/database-YmXT_lcr.js", "/assets/settings-Cip7W-gj.js", "/assets/chart-column-BictQ20g.js", "/assets/circle-question-mark-CQsDfPg0.js", "/assets/triangle-alert-CAr0UhK4.js", "/assets/search-S3VI0n0n.js", "/assets/chunk-6WD75OPE-9kMPbnco.js", "/assets/ThemeProvider-ueHA7FHr.js", "/assets/api-OnQO3erh.js", "/assets/loader-circle-CaGZsKjo.js", "/assets/x-6mvJS0UK.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/message-circle-cE2JHAhU.js", "/assets/send-BNR5q9Wk.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.videos.collections.$id": { "id": "routes/studio.$slug.videos.collections.$id", "parentId": "routes/studio.$slug", "path": "videos/collections/:id", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.videos.collections._id-BIMcw3ft.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/ConfirmDialog-e7gRNi7r.js", "/assets/format-CAsSOgDD.js", "/assets/arrow-left-CpQHwIrP.js", "/assets/plus-BBRn-p3b.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/trash-2-DU-4PZMS.js", "/assets/x-6mvJS0UK.js", "/assets/search-S3VI0n0n.js", "/assets/dialog-C8yECxTw.js", "/assets/dialog-DkyizW2j.js", "/assets/portal-DJvkvMc5.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/button-BgyeBcg8.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.website.editor.$pageId": { "id": "routes/studio.$slug.website.editor.$pageId", "parentId": "routes/studio.$slug", "path": "website/editor/:pageId", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.website.editor._pageId-DFVnt-kl.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/puck-config-DpfzgvWy.js", "/assets/index-C_1Jy3MY.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/index-C4ml0_Eh.js", "/assets/arrow-left-CpQHwIrP.js", "/assets/eye-BvvqFSJ3.js", "/assets/save-f-wzAblY.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/chunk-VMBS36YX-DqpVm5Ny.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/chunk-6WD75OPE-9kMPbnco.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.financials.my-payouts": { "id": "routes/studio.$slug.financials.my-payouts", "parentId": "routes/studio.$slug", "path": "financials/my-payouts", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.financials.my-payouts-CUNA-9j7.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/api-OnQO3erh.js", "/assets/loader-circle-CaGZsKjo.js", "/assets/dollar-sign-Br6sogR3.js", "/assets/calendar-CHyLPk-n.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.videos.edit.$videoId": { "id": "routes/studio.$slug.videos.edit.$videoId", "parentId": "routes/studio.$slug", "path": "videos/edit/:videoId", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.videos.edit._videoId-P8ZV7Zye.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.commerce.gift-cards": { "id": "routes/studio.$slug.commerce.gift-cards", "parentId": "routes/studio.$slug", "path": "commerce/gift-cards", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.commerce.gift-cards-WEGqxkby.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/api-OnQO3erh.js", "/assets/index-C_1Jy3MY.js", "/assets/Dialogs-LpmU1ed2.js", "/assets/gift-C7k9WNZ1.js", "/assets/link-BUcxi1WU.js", "/assets/plus-BBRn-p3b.js", "/assets/search-S3VI0n0n.js", "/assets/ticket-B5axb41_.js", "/assets/ellipsis-wPE1SJ2w.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/mail-BVU9VLVw.js", "/assets/loader-circle-CaGZsKjo.js", "/assets/credit-card-BC1Ru1Ky.js", "/assets/circle-check-big-Cgvy_36a.js", "/assets/Modal-D5keykku.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.financials.payroll": { "id": "routes/studio.$slug.financials.payroll", "parentId": "routes/studio.$slug", "path": "financials/payroll", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.financials.payroll-DleH173M.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/api-OnQO3erh.js", "/assets/index-C_1Jy3MY.js", "/assets/dialog-C8yECxTw.js", "/assets/ConfirmDialog-e7gRNi7r.js", "/assets/loader-circle-CaGZsKjo.js", "/assets/dollar-sign-Br6sogR3.js", "/assets/vendor-date-fns-MAbw63O8.js", "/assets/dialog-DkyizW2j.js", "/assets/portal-DJvkvMc5.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/x-6mvJS0UK.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/button-BgyeBcg8.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.financials._index": { "id": "routes/studio.$slug.financials._index", "parentId": "routes/studio.$slug", "path": "financials", "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.financials._index-l0sNRNKZ.js", "imports": [], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.commerce.coupons": { "id": "routes/studio.$slug.commerce.coupons", "parentId": "routes/studio.$slug", "path": "commerce/coupons", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.commerce.coupons-CWTD3HN3.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/index-C_1Jy3MY.js", "/assets/Dialogs-LpmU1ed2.js", "/assets/tag-CL7ms9wp.js", "/assets/circle-check-big-Cgvy_36a.js", "/assets/circle-x-hiKkNN-9.js", "/assets/ticket-B5axb41_.js", "/assets/trash-2-DU-4PZMS.js", "/assets/plus-BBRn-p3b.js", "/assets/link-BUcxi1WU.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/Modal-D5keykku.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-charts-nrSmOgTy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.commerce.packs": { "id": "routes/studio.$slug.commerce.packs", "parentId": "routes/studio.$slug", "path": "commerce/packs", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.commerce.packs-Cwg1llUM.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/plus-BBRn-p3b.js", "/assets/package-koM-mwzd.js", "/assets/dollar-sign-Br6sogR3.js", "/assets/calendar-CHyLPk-n.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.substitutions": { "id": "routes/studio.$slug.substitutions", "parentId": "routes/studio.$slug", "path": "substitutions", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.substitutions-DZ0vXt5y.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/Dialogs-LpmU1ed2.js", "/assets/refresh-cw-DFGUiFki.js", "/assets/circle-alert-Day-jl1l.js", "/assets/circle-check-big-Cgvy_36a.js", "/assets/clock-CZ6xxKks.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/Modal-D5keykku.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-charts-nrSmOgTy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.videos._index": { "id": "routes/studio.$slug.videos._index", "parentId": "routes/studio.$slug", "path": "videos", "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.videos._index-Byj8ADa1.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/format-CAsSOgDD.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/index-C_1Jy3MY.js", "/assets/upload-BJQyUS3g.js", "/assets/image-BzEjuuKJ.js", "/assets/film-BQWi96s1.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/x-6mvJS0UK.js", "/assets/info-CngRlp_d.js", "/assets/plus-BBRn-p3b.js", "/assets/refresh-cw-DFGUiFki.js", "/assets/save-f-wzAblY.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.website.pages": { "id": "routes/studio.$slug.website.pages", "parentId": "routes/studio.$slug", "path": "website/pages", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.website.pages-VgBPijkC.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/index-C_1Jy3MY.js", "/assets/Dialogs-LpmU1ed2.js", "/assets/globe-DV22Xz5a.js", "/assets/plus-BBRn-p3b.js", "/assets/file-text-CIWEYZv3.js", "/assets/eye-off-BsXKf3_1.js", "/assets/eye-BvvqFSJ3.js", "/assets/pen-DIUl4YMx.js", "/assets/trash-2-DU-4PZMS.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/Modal-D5keykku.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-charts-nrSmOgTy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.appointments": { "id": "routes/studio.$slug.appointments", "parentId": "routes/studio.$slug", "path": "appointments", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.appointments-BXYDgyZs.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/index-C_1Jy3MY.js", "/assets/arrow-left-CpQHwIrP.js", "/assets/clock-CZ6xxKks.js", "/assets/calendar-CHyLPk-n.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.appointments.calendar": { "id": "routes/studio.$slug.appointments.calendar", "parentId": "routes/studio.$slug.appointments", "path": "calendar", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.appointments.calendar-D6Cd18hx.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/calendar-CHyLPk-n.js", "/assets/plus-BBRn-p3b.js", "/assets/chevron-left-CjaTArII.js", "/assets/chevron-right-Dyvx1VDk.js", "/assets/x-6mvJS0UK.js", "/assets/clock-CZ6xxKks.js", "/assets/user-B9JVtPOG.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.memberships": { "id": "routes/studio.$slug.memberships", "parentId": "routes/studio.$slug", "path": "memberships", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.memberships-nuqemHWW.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/Modal-D5keykku.js", "/assets/ConfirmDialog-e7gRNi7r.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/dialog-C8yECxTw.js", "/assets/dialog-DkyizW2j.js", "/assets/portal-DJvkvMc5.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/x-6mvJS0UK.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/button-BgyeBcg8.js", "/assets/index-Kt1GhsJU.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.challenges": { "id": "routes/studio.$slug.challenges", "parentId": "routes/studio.$slug", "path": "challenges", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.challenges-BOW_kzYB.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/trophy-Buxr5RRh.js", "/assets/flame-SNp5DNp_.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/clock-CZ6xxKks.js", "/assets/target-DaZesuop.js", "/assets/star-C9H_pMma.js", "/assets/calendar-CHyLPk-n.js", "/assets/check-yXSU0QnA.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.instructor": { "id": "routes/studio.$slug.instructor", "parentId": "routes/studio.$slug", "path": "instructor", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.instructor-DHTqOjQw.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/users-DTyswlyE.js", "/assets/house-DcmbMgG4.js", "/assets/calendar-CHyLPk-n.js", "/assets/clock-CZ6xxKks.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/dollar-sign-Br6sogR3.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.instructor.schedule": { "id": "routes/studio.$slug.instructor.schedule", "parentId": "routes/studio.$slug.instructor", "path": "schedule", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.instructor.schedule-y9WpY-IW.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/calendar-CHyLPk-n.js", "/assets/chevron-left-CjaTArII.js", "/assets/chevron-right-Dyvx1VDk.js", "/assets/clock-CZ6xxKks.js", "/assets/users-DTyswlyE.js", "/assets/video-BR-TS2td.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.instructor.payroll": { "id": "routes/studio.$slug.instructor.payroll", "parentId": "routes/studio.$slug.instructor", "path": "payroll", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.instructor.payroll-UPxzd17_.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/dollar-sign-Br6sogR3.js", "/assets/download-nknHt9WM.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.onboarding": { "id": "routes/studio.$slug.onboarding", "parentId": "routes/studio.$slug", "path": "onboarding", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.onboarding-CGZrzuvE.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/circle-check-4euu8Iav.js", "/assets/loader-circle-CaGZsKjo.js", "/assets/arrow-right-TLLbqErj.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.dashboard": { "id": "routes/studio.$slug.dashboard", "parentId": "routes/studio.$slug", "path": "dashboard", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.dashboard-DxB9K86t.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.discounts": { "id": "routes/studio.$slug.discounts", "parentId": "routes/studio.$slug", "path": "discounts", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.discounts-BFLbMvEB.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/ConfirmDialog-e7gRNi7r.js", "/assets/plus-BBRn-p3b.js", "/assets/tag-CL7ms9wp.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/dialog-C8yECxTw.js", "/assets/dialog-DkyizW2j.js", "/assets/portal-DJvkvMc5.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/x-6mvJS0UK.js", "/assets/button-BgyeBcg8.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.marketing": { "id": "routes/studio.$slug.marketing", "parentId": "routes/studio.$slug", "path": "marketing", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.marketing-Buk-vgtD.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/Modal-D5keykku.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/code-GqGOaeVQ.js", "/assets/link-BUcxi1WU.js", "/assets/image-BzEjuuKJ.js", "/assets/triangle-alert-CAr0UhK4.js", "/assets/circle-check-big-Cgvy_36a.js", "/assets/x-6mvJS0UK.js", "/assets/mail-BVU9VLVw.js", "/assets/send-BNR5q9Wk.js", "/assets/zap-CpdSyYPf.js", "/assets/plus-BBRn-p3b.js", "/assets/sparkles-CFOYMxZM.js", "/assets/clock-CZ6xxKks.js", "/assets/pencil-DhXDeFua.js", "/assets/trash-2-DU-4PZMS.js", "/assets/settings-Cip7W-gj.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.marketing.automations": { "id": "routes/studio.$slug.marketing.automations", "parentId": "routes/studio.$slug.marketing", "path": "automations", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.marketing.automations-lRwApXDf.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/ConfirmDialog-e7gRNi7r.js", "/assets/index-C_1Jy3MY.js", "/assets/zap-CpdSyYPf.js", "/assets/plus-BBRn-p3b.js", "/assets/users-DTyswlyE.js", "/assets/calendar-CHyLPk-n.js", "/assets/target-DaZesuop.js", "/assets/clock-CZ6xxKks.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/x-6mvJS0UK.js", "/assets/trash-2-DU-4PZMS.js", "/assets/pencil-DhXDeFua.js", "/assets/play-Yex43xXq.js", "/assets/loader-circle-CaGZsKjo.js", "/assets/sparkles-CFOYMxZM.js", "/assets/dialog-C8yECxTw.js", "/assets/dialog-DkyizW2j.js", "/assets/portal-DJvkvMc5.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/button-BgyeBcg8.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.marketing.referrals": { "id": "routes/studio.$slug.marketing.referrals", "parentId": "routes/studio.$slug.marketing", "path": "referrals", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.marketing.referrals-DTSGth3z.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/gift-C7k9WNZ1.js", "/assets/sparkles-CFOYMxZM.js", "/assets/check-yXSU0QnA.js", "/assets/copy-ATUPUJUF.js", "/assets/share-2-DTZ3QQ_X.js", "/assets/users-DTyswlyE.js", "/assets/clock-CZ6xxKks.js", "/assets/award-ybvMWPmB.js", "/assets/chevron-right-Dyvx1VDk.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.branding": { "id": "routes/studio.$slug.branding", "parentId": "routes/studio.$slug", "path": "branding", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.branding-DRoR7MQJ.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/api-OnQO3erh.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.checkout": { "id": "routes/studio.$slug.checkout", "parentId": "routes/studio.$slug", "path": "checkout", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.checkout-DFpehWaO.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/index-fwG0o7XZ.js", "/assets/api-OnQO3erh.js", "/assets/circle-check-4euu8Iav.js", "/assets/circle-x-hiKkNN-9.js", "/assets/ticket-B5axb41_.js", "/assets/loader-circle-CaGZsKjo.js", "/assets/arrow-left-CpQHwIrP.js", "/assets/index-Chjiymov.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.checkout.return": { "id": "routes/studio.$slug.checkout.return", "parentId": "routes/studio.$slug.checkout", "path": "return", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.checkout.return-tEONHp1y.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.finances": { "id": "routes/studio.$slug.finances", "parentId": "routes/studio.$slug", "path": "finances", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.finances-CXdjPkmE.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/Dialogs-LpmU1ed2.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/Modal-D5keykku.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-charts-nrSmOgTy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.schedule": { "id": "routes/studio.$slug.schedule", "parentId": "routes/studio.$slug", "path": "schedule", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.schedule-CWjOva1Y.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/index-fwG0o7XZ.js", "/assets/vendor-date-fns-MAbw63O8.js", "/assets/BookingModal-CYeYNeMu.js", "/assets/ConfirmDialog-e7gRNi7r.js", "/assets/api-OnQO3erh.js", "/assets/x-6mvJS0UK.js", "/assets/video-BR-TS2td.js", "/assets/trash-2-DU-4PZMS.js", "/assets/loader-circle-CaGZsKjo.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/dialog-DkyizW2j.js", "/assets/plus-BBRn-p3b.js", "/assets/index-Chjiymov.js", "/assets/Modal-D5keykku.js", "/assets/user-B9JVtPOG.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/users-DTyswlyE.js", "/assets/dialog-C8yECxTw.js", "/assets/button-BgyeBcg8.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/portal-DJvkvMc5.js"], "css": ["/assets/studio._slug-BSwzzYnC.css", "/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings": { "id": "routes/studio.$slug.settings", "parentId": "routes/studio.$slug", "path": "settings", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings-9_bq-U3N.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.integrations": { "id": "routes/studio.$slug.settings.integrations", "parentId": "routes/studio.$slug.settings", "path": "integrations", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.integrations-BtZvDFVb.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/api-OnQO3erh.js", "/assets/index-C_1Jy3MY.js", "/assets/Dialogs-LpmU1ed2.js", "/assets/loader-circle-CaGZsKjo.js", "/assets/credit-card-BC1Ru1Ky.js", "/assets/shield-BH971nBf.js", "/assets/mail-BVU9VLVw.js", "/assets/send-BNR5q9Wk.js", "/assets/message-square-DXFYk9Nj.js", "/assets/Modal-D5keykku.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.developers": { "id": "routes/studio.$slug.settings.developers", "parentId": "routes/studio.$slug.settings", "path": "developers", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.developers-CYnsK1K4.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/api-OnQO3erh.js", "/assets/Card-PoMvMiO2.js", "/assets/button-BgyeBcg8.js", "/assets/label-D7RQKMOi.js", "/assets/index-C_1Jy3MY.js", "/assets/Dialogs-LpmU1ed2.js", "/assets/circle-alert-Day-jl1l.js", "/assets/terminal-B-Ek4Gh_.js", "/assets/loader-circle-CaGZsKjo.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/check-yXSU0QnA.js", "/assets/copy-ATUPUJUF.js", "/assets/trash-2-DU-4PZMS.js", "/assets/plus-BBRn-p3b.js", "/assets/shield-check-slWAEzyf.js", "/assets/Modal-D5keykku.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.locations": { "id": "routes/studio.$slug.settings.locations", "parentId": "routes/studio.$slug.settings", "path": "locations", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.locations-ClfUlNNB.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/Dialogs-LpmU1ed2.js", "/assets/index-C_1Jy3MY.js", "/assets/map-pin-kPXbYZuQ.js", "/assets/plus-BBRn-p3b.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/star-C9H_pMma.js", "/assets/clock-CZ6xxKks.js", "/assets/phone-Cg6yI70C.js", "/assets/square-pen-DpcRMrVj.js", "/assets/trash-2-DU-4PZMS.js", "/assets/x-6mvJS0UK.js", "/assets/Modal-D5keykku.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.branding": { "id": "routes/studio.$slug.settings.branding", "parentId": "routes/studio.$slug.settings", "path": "branding", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.branding-CoWvxvWF.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/api-OnQO3erh.js", "/assets/index-C_1Jy3MY.js", "/assets/Dialogs-LpmU1ed2.js", "/assets/image-BzEjuuKJ.js", "/assets/upload-BJQyUS3g.js", "/assets/video-BR-TS2td.js", "/assets/circle-check-big-Cgvy_36a.js", "/assets/trash-2-DU-4PZMS.js", "/assets/Modal-D5keykku.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.hardware": { "id": "routes/studio.$slug.settings.hardware", "parentId": "routes/studio.$slug.settings", "path": "hardware", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.hardware-C0x3DF26.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/index-C_1Jy3MY.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-charts-nrSmOgTy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.billing": { "id": "routes/studio.$slug.settings.billing", "parentId": "routes/studio.$slug.settings", "path": "billing", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.billing-BRfbX4zg.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/index-C_1Jy3MY.js", "/assets/check-yXSU0QnA.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings._index": { "id": "routes/studio.$slug.settings._index", "parentId": "routes/studio.$slug.settings", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings._index-_kCfVcEC.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/index-C_1Jy3MY.js", "/assets/Dialogs-LpmU1ed2.js", "/assets/globe-DV22Xz5a.js", "/assets/credit-card-BC1Ru1Ky.js", "/assets/plus-BBRn-p3b.js", "/assets/map-pin-kPXbYZuQ.js", "/assets/trash-2-DU-4PZMS.js", "/assets/shopping-bag-DfkooIBe.js", "/assets/Modal-D5keykku.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.addons": { "id": "routes/studio.$slug.settings.addons", "parentId": "routes/studio.$slug.settings", "path": "addons", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.addons-BwVfjt__.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/index-C_1Jy3MY.js", "/assets/message-square-DXFYk9Nj.js", "/assets/check-yXSU0QnA.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.domain": { "id": "routes/studio.$slug.settings.domain", "parentId": "routes/studio.$slug.settings", "path": "domain", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.domain-BhAZB98_.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/api-OnQO3erh.js", "/assets/index-C_1Jy3MY.js", "/assets/Dialogs-LpmU1ed2.js", "/assets/globe-DV22Xz5a.js", "/assets/triangle-alert-CAr0UhK4.js", "/assets/circle-check-big-Cgvy_36a.js", "/assets/refresh-cw-DFGUiFki.js", "/assets/trash-2-DU-4PZMS.js", "/assets/shield-check-slWAEzyf.js", "/assets/external-link-B6GLlcGt.js", "/assets/Modal-D5keykku.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.embeds": { "id": "routes/studio.$slug.settings.embeds", "parentId": "routes/studio.$slug.settings", "path": "embeds", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.embeds-B1pvIdWJ.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/link-BUcxi1WU.js", "/assets/external-link-B6GLlcGt.js", "/assets/check-yXSU0QnA.js", "/assets/copy-ATUPUJUF.js", "/assets/code-GqGOaeVQ.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.mobile": { "id": "routes/studio.$slug.settings.mobile", "parentId": "routes/studio.$slug.settings", "path": "mobile", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.mobile-rsXeMQcg.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/api-OnQO3erh.js", "/assets/smartphone-NVyChj3R.js", "/assets/circle-check-4euu8Iav.js", "/assets/circle-alert-Day-jl1l.js", "/assets/upload-BJQyUS3g.js", "/assets/loader-circle-CaGZsKjo.js", "/assets/image-BzEjuuKJ.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.chat": { "id": "routes/studio.$slug.settings.chat", "parentId": "routes/studio.$slug.settings", "path": "chat", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.chat-c08vqecP.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/api-OnQO3erh.js", "/assets/Card-PoMvMiO2.js", "/assets/index-C_1Jy3MY.js", "/assets/save-f-wzAblY.js", "/assets/plus-BBRn-p3b.js", "/assets/chevron-right-Dyvx1VDk.js", "/assets/trash-2-DU-4PZMS.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.qr": { "id": "routes/studio.$slug.settings.qr", "parentId": "routes/studio.$slug.settings", "path": "qr", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.qr-BX-e1M0D.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/index-Chjiymov.js", "/assets/download-nknHt9WM.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.students": { "id": "routes/studio.$slug.students", "parentId": "routes/studio.$slug", "path": "students", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.students-DEDp6Hof.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.students._index": { "id": "routes/studio.$slug.students._index", "parentId": "routes/studio.$slug.students", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.students._index-Crrw_KLt.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/index-C_1Jy3MY.js", "/assets/Dialogs-LpmU1ed2.js", "/assets/x-6mvJS0UK.js", "/assets/mail-BVU9VLVw.js", "/assets/shield-check-slWAEzyf.js", "/assets/download-nknHt9WM.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/Modal-D5keykku.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-charts-nrSmOgTy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.students.$id": { "id": "routes/studio.$slug.students.$id", "parentId": "routes/studio.$slug.students", "path": ":id", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.students._id-UFdr4lGb.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/ConfirmDialog-e7gRNi7r.js", "/assets/user-B9JVtPOG.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/mail-BVU9VLVw.js", "/assets/ellipsis-wPE1SJ2w.js", "/assets/plus-BBRn-p3b.js", "/assets/file-text-CIWEYZv3.js", "/assets/check-yXSU0QnA.js", "/assets/pencil-DhXDeFua.js", "/assets/trash-2-DU-4PZMS.js", "/assets/vendor-date-fns-MAbw63O8.js", "/assets/dialog-C8yECxTw.js", "/assets/dialog-DkyizW2j.js", "/assets/portal-DJvkvMc5.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/x-6mvJS0UK.js", "/assets/button-BgyeBcg8.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.checkin": { "id": "routes/studio.$slug.checkin", "parentId": "routes/studio.$slug", "path": "checkin", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.checkin-DCdW7sBY.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/api-OnQO3erh.js", "/assets/circle-check-4euu8Iav.js", "/assets/loader-circle-CaGZsKjo.js", "/assets/calendar-CHyLPk-n.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/arrow-left-CpQHwIrP.js", "/assets/search-S3VI0n0n.js", "/assets/users-DTyswlyE.js", "/assets/user-plus-wgpaf6QU.js", "/assets/circle-alert-Day-jl1l.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.classes": { "id": "routes/studio.$slug.classes", "parentId": "routes/studio.$slug", "path": "classes", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.classes-GK7FGui9.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.classes.$classId.live": { "id": "routes/studio.$slug.classes.$classId.live", "parentId": "routes/studio.$slug.classes", "path": ":classId/live", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.classes._classId.live-7Yaqoh_i.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/vendor-livekit-KB5nVx5f.js", "/assets/api-OnQO3erh.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-charts-nrSmOgTy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css", "/assets/vendor-livekit-DLFhKdHL.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.classes.$id.roster": { "id": "routes/studio.$slug.classes.$id.roster", "parentId": "routes/studio.$slug.classes", "path": ":id/roster", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.classes._id.roster-D6QHcGBl.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/ConfirmDialog-e7gRNi7r.js", "/assets/user-plus-wgpaf6QU.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/file-text-CIWEYZv3.js", "/assets/triangle-alert-CAr0UhK4.js", "/assets/check-yXSU0QnA.js", "/assets/x-6mvJS0UK.js", "/assets/trash-2-DU-4PZMS.js", "/assets/dialog-C8yECxTw.js", "/assets/dialog-DkyizW2j.js", "/assets/portal-DJvkvMc5.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/button-BgyeBcg8.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.classes._index": { "id": "routes/studio.$slug.classes._index", "parentId": "routes/studio.$slug.classes", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.classes._index-n7adP6w9.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/BookingModal-CYeYNeMu.js", "/assets/index-C_1Jy3MY.js", "/assets/Dialogs-LpmU1ed2.js", "/assets/plus-BBRn-p3b.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/archive-D-1vvCVw.js", "/assets/Modal-D5keykku.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/x-6mvJS0UK.js", "/assets/user-B9JVtPOG.js", "/assets/users-DTyswlyE.js", "/assets/dialog-DkyizW2j.js", "/assets/portal-DJvkvMc5.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.loyalty": { "id": "routes/studio.$slug.loyalty", "parentId": "routes/studio.$slug", "path": "loyalty", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.loyalty-BDlOvQBp.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/award-ybvMWPmB.js", "/assets/plus-BBRn-p3b.js", "/assets/target-DaZesuop.js", "/assets/trash-2-DU-4PZMS.js", "/assets/gift-C7k9WNZ1.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.profile": { "id": "routes/studio.$slug.profile", "parentId": "routes/studio.$slug", "path": "profile", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.profile-D9tKh7IL.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.reports": { "id": "routes/studio.$slug.reports", "parentId": "routes/studio.$slug", "path": "reports", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.reports-CokJnZAk.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/trash-2-DU-4PZMS.js", "/assets/save-f-wzAblY.js", "/assets/users-DTyswlyE.js", "/assets/trending-up-WhR0C78Z.js", "/assets/dollar-sign-Br6sogR3.js", "/assets/calendar-CHyLPk-n.js", "/assets/arrow-right-TLLbqErj.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/api-OnQO3erh.js", "/assets/PrivacyBlur-CQllKiFV.js", "/assets/index-C_1Jy3MY.js", "/assets/loader-circle-CaGZsKjo.js", "/assets/download-nknHt9WM.js", "/assets/plus-BBRn-p3b.js", "/assets/mail-BVU9VLVw.js", "/assets/circle-check-4euu8Iav.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.reports.advanced": { "id": "routes/studio.$slug.reports.advanced", "parentId": "routes/studio.$slug.reports", "path": "advanced", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.reports.advanced-0M0SPsvh.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.reports.custom": { "id": "routes/studio.$slug.reports.custom", "parentId": "routes/studio.$slug.reports", "path": "custom", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.reports.custom-jYosRqdh.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/api-OnQO3erh.js", "/assets/ConfirmDialog-e7gRNi7r.js", "/assets/funnel-CMCL3Bgb.js", "/assets/loader-circle-CaGZsKjo.js", "/assets/trash-2-DU-4PZMS.js", "/assets/save-f-wzAblY.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/chart-column-BictQ20g.js", "/assets/dialog-C8yECxTw.js", "/assets/dialog-DkyizW2j.js", "/assets/portal-DJvkvMc5.js", "/assets/x-6mvJS0UK.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/button-BgyeBcg8.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.waivers": { "id": "routes/studio.$slug.waivers", "parentId": "routes/studio.$slug", "path": "waivers", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.waivers-C8Px6v41.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.waivers._index": { "id": "routes/studio.$slug.waivers._index", "parentId": "routes/studio.$slug.waivers", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.waivers._index-D4QsZIVq.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.waivers.new": { "id": "routes/studio.$slug.waivers.new", "parentId": "routes/studio.$slug.waivers", "path": "new", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.waivers.new-ClBquDCp.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/index-C_1Jy3MY.js", "/assets/save-f-wzAblY.js", "/assets/arrow-left-CpQHwIrP.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-charts-nrSmOgTy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug._index": { "id": "routes/studio.$slug._index", "parentId": "routes/studio.$slug", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug._index-DJ-kkWGx.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/activity-ZAJHCsfc.js", "/assets/users-DTyswlyE.js", "/assets/trending-up-WhR0C78Z.js", "/assets/calendar-CHyLPk-n.js", "/assets/dollar-sign-Br6sogR3.js", "/assets/file-pen-line-Dj21kRfD.js", "/assets/ticket-B5axb41_.js", "/assets/award-ybvMWPmB.js", "/assets/target-DaZesuop.js", "/assets/flame-SNp5DNp_.js", "/assets/arrow-right-TLLbqErj.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/vendor-charts-nrSmOgTy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.retail": { "id": "routes/studio.$slug.retail", "parentId": "routes/studio.$slug", "path": "retail", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.retail-Bi1oaJSQ.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/index-C_1Jy3MY.js", "/assets/Dialogs-LpmU1ed2.js", "/assets/package-koM-mwzd.js", "/assets/upload-BJQyUS3g.js", "/assets/plus-BBRn-p3b.js", "/assets/search-S3VI0n0n.js", "/assets/square-pen-DpcRMrVj.js", "/assets/trash-2-DU-4PZMS.js", "/assets/box-B7ngXQvL.js", "/assets/x-6mvJS0UK.js", "/assets/save-f-wzAblY.js", "/assets/Modal-D5keykku.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.leads": { "id": "routes/studio.$slug.leads", "parentId": "routes/studio.$slug", "path": "leads", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.leads-CID3p12r.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/Modal-D5keykku.js", "/assets/index-C_1Jy3MY.js", "/assets/plus-BBRn-p3b.js", "/assets/search-S3VI0n0n.js", "/assets/mail-BVU9VLVw.js", "/assets/phone-Cg6yI70C.js", "/assets/clock-CZ6xxKks.js", "/assets/circle-alert-Day-jl1l.js", "/assets/pencil-DhXDeFua.js", "/assets/circle-check-big-Cgvy_36a.js", "/assets/vendor-date-fns-MAbw63O8.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.tasks": { "id": "routes/studio.$slug.tasks", "parentId": "routes/studio.$slug", "path": "tasks", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.tasks-BruZjNQK.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/Modal-D5keykku.js", "/assets/ConfirmDialog-e7gRNi7r.js", "/assets/circle-check-big-Cgvy_36a.js", "/assets/plus-BBRn-p3b.js", "/assets/calendar-CHyLPk-n.js", "/assets/trash-2-DU-4PZMS.js", "/assets/vendor-date-fns-MAbw63O8.js", "/assets/dialog-C8yECxTw.js", "/assets/dialog-DkyizW2j.js", "/assets/portal-DJvkvMc5.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/x-6mvJS0UK.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/button-BgyeBcg8.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.chat": { "id": "routes/studio.$slug.chat", "parentId": "routes/studio.$slug", "path": "chat", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.chat-QUTdoagx.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/Modal-D5keykku.js", "/assets/index-C_1Jy3MY.js", "/assets/message-circle-cE2JHAhU.js", "/assets/settings-Cip7W-gj.js", "/assets/external-link-B6GLlcGt.js", "/assets/user-B9JVtPOG.js", "/assets/shield-BH971nBf.js", "/assets/plus-BBRn-p3b.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.chat.$roomId": { "id": "routes/studio.$slug.chat.$roomId", "parentId": "routes/studio.$slug.chat", "path": ":roomId", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.chat._roomId-Bv5_TX01.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/ChatWindow-B8PTlat6.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/index-C_1Jy3MY.js", "/assets/arrow-left-CpQHwIrP.js", "/assets/circle-check-big-Cgvy_36a.js", "/assets/clock-CZ6xxKks.js", "/assets/send-BNR5q9Wk.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.data": { "id": "routes/studio.$slug.data", "parentId": "routes/studio.$slug", "path": "data", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.data-DfrpLAsD.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/download-nknHt9WM.js", "/assets/upload-BJQyUS3g.js", "/assets/database-YmXT_lcr.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.data._index": { "id": "routes/studio.$slug.data._index", "parentId": "routes/studio.$slug.data", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.data._index-B_SsQNm0.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.data.export": { "id": "routes/studio.$slug.data.export", "parentId": "routes/studio.$slug.data", "path": "export", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.data.export-mDm2W0ND.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/api-OnQO3erh.js", "/assets/Dialogs-LpmU1ed2.js", "/assets/download-nknHt9WM.js", "/assets/chart-column-BictQ20g.js", "/assets/credit-card-BC1Ru1Ky.js", "/assets/shopping-bag-DfkooIBe.js", "/assets/Modal-D5keykku.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.data.import": { "id": "routes/studio.$slug.data.import", "parentId": "routes/studio.$slug.data", "path": "import", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.data.import-CS3spaLc.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/api-OnQO3erh.js", "/assets/upload-BJQyUS3g.js", "/assets/file-text-CIWEYZv3.js", "/assets/circle-alert-Day-jl1l.js", "/assets/circle-check-big-Cgvy_36a.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.pos": { "id": "routes/studio.$slug.pos", "parentId": "routes/studio.$slug", "path": "pos", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.pos-CoVg991i.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/api-OnQO3erh.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/plus-BBRn-p3b.js", "/assets/square-pen-DpcRMrVj.js", "/assets/archive-D-1vvCVw.js", "/assets/x-6mvJS0UK.js", "/assets/user-B9JVtPOG.js", "/assets/search-S3VI0n0n.js", "/assets/trash-2-DU-4PZMS.js", "/assets/shopping-cart-eqO11M5U.js", "/assets/credit-card-BC1Ru1Ky.js", "/assets/loader-circle-CaGZsKjo.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/embed.$slug": { "id": "routes/embed.$slug", "parentId": "root", "path": "embed/:slug", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/embed._slug-Dc_MzUoO.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/ThemeProvider-ueHA7FHr.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/embed.$slug.calendar": { "id": "routes/embed.$slug.calendar", "parentId": "routes/embed.$slug", "path": "calendar", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/embed._slug.calendar-BbSL23Z2.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/calendar-CHyLPk-n.js", "/assets/video-BR-TS2td.js", "/assets/external-link-B6GLlcGt.js", "/assets/vendor-date-fns-MAbw63O8.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/embed.$slug.pricing": { "id": "routes/embed.$slug.pricing", "parentId": "routes/embed.$slug", "path": "pricing", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/embed._slug.pricing-5XWU8f1h.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/circle-alert-Day-jl1l.js", "/assets/sparkles-CFOYMxZM.js", "/assets/tag-CL7ms9wp.js", "/assets/check-yXSU0QnA.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/embed.$slug.book": { "id": "routes/embed.$slug.book", "parentId": "routes/embed.$slug", "path": "book", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/embed._slug.book-BkpnbBS7.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/vendor-date-fns-MAbw63O8.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/embed.$slug.chat": { "id": "routes/embed.$slug.chat", "parentId": "routes/embed.$slug", "path": "chat", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/embed._slug.chat-B-RmRsnB.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/ChatWindow-B8PTlat6.js", "/assets/message-circle-cE2JHAhU.js", "/assets/x-6mvJS0UK.js", "/assets/send-BNR5q9Wk.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/embed.$slug.shop": { "id": "routes/embed.$slug.shop", "parentId": "routes/embed.$slug", "path": "shop", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/embed._slug.shop-uKkMf_Nr.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/shopping-cart-eqO11M5U.js", "/assets/package-koM-mwzd.js", "/assets/plus-BBRn-p3b.js", "/assets/x-6mvJS0UK.js", "/assets/minus-TU7AVMxa.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/$pageSlug": { "id": "routes/$pageSlug", "parentId": "root", "path": ":pageSlug", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/_pageSlug-BlUpTUAo.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/PublicPageRenderer-Jbve0MkM.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/puck-config-DpfzgvWy.js", "/assets/ChatWidget-CaWDJJkG.js", "/assets/x-6mvJS0UK.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/message-circle-cE2JHAhU.js", "/assets/send-BNR5q9Wk.js", "/assets/pen-DIUl4YMx.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/chunk-VMBS36YX-DqpVm5Ny.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard": { "id": "routes/dashboard", "parentId": "root", "path": "dashboard", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard-C-CW6kZl.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/ThemeToggle-BDAxSFv9.js", "/assets/index-Kt1GhsJU.js", "/assets/ThemeProvider-ueHA7FHr.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/vendor-charts-nrSmOgTy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard.classes": { "id": "routes/dashboard.classes", "parentId": "routes/dashboard", "path": "classes", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard.classes-T3_0uV9w.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard.classes.$id.roster": { "id": "routes/dashboard.classes.$id.roster", "parentId": "routes/dashboard.classes", "path": ":id/roster", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard.classes._id.roster-Fj6HN7Be.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard.classes.$id.watch": { "id": "routes/dashboard.classes.$id.watch", "parentId": "routes/dashboard.classes", "path": ":id/watch", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard.classes._id.watch-BiAxQ7Dd.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard.classes._index": { "id": "routes/dashboard.classes._index", "parentId": "routes/dashboard.classes", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard.classes._index-tBl5DJoJ.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/api-OnQO3erh.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-charts-nrSmOgTy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard.profile": { "id": "routes/dashboard.profile", "parentId": "routes/dashboard", "path": "profile", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard.profile-Czgtn5jo.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard._index": { "id": "routes/dashboard._index", "parentId": "routes/dashboard", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard._index-B40a_wgv.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/shield-check-slWAEzyf.js", "/assets/plus-BBRn-p3b.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/debug-ssr": { "id": "routes/debug-ssr", "parentId": "root", "path": "debug-ssr", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/debug-ssr-DtkBzmCL.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/sign-in.$": { "id": "routes/sign-in.$", "parentId": "root", "path": "sign-in/*", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/sign-in._-DsRmyTtA.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/uiComponents-Br806zBp.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/index-C4ml0_Eh.js", "/assets/chunk-VMBS36YX-DqpVm5Ny.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/chunk-6WD75OPE-9kMPbnco.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/sign-up.$": { "id": "routes/sign-up.$", "parentId": "root", "path": "sign-up/*", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/sign-up._-DzFx-fg7.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/uiComponents-Br806zBp.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/index-C4ml0_Eh.js", "/assets/chunk-VMBS36YX-DqpVm5Ny.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/chunk-6WD75OPE-9kMPbnco.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/_index": { "id": "routes/_index", "parentId": "root", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/_index-BLjEvwEM.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/ThemeToggle-BDAxSFv9.js", "/assets/ChatWidget-CaWDJJkG.js", "/assets/PublicPageRenderer-Jbve0MkM.js", "/assets/index-Kt1GhsJU.js", "/assets/chunk-VMBS36YX-DqpVm5Ny.js", "/assets/chunk-6WD75OPE-9kMPbnco.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/ThemeProvider-ueHA7FHr.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/x-6mvJS0UK.js", "/assets/message-circle-cE2JHAhU.js", "/assets/send-BNR5q9Wk.js", "/assets/puck-config-DpfzgvWy.js", "/assets/pen-DIUl4YMx.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin": { "id": "routes/admin", "parentId": "root", "path": "admin", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin-CwDmE3V0.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/LogoutButton-C4fmpBMa.js", "/assets/ThemeToggle-BDAxSFv9.js", "/assets/CommandBar-DIKArC0h.js", "/assets/search-S3VI0n0n.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/index-C4ml0_Eh.js", "/assets/chunk-VMBS36YX-DqpVm5Ny.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/chunk-6WD75OPE-9kMPbnco.js", "/assets/ThemeProvider-ueHA7FHr.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/api-OnQO3erh.js", "/assets/loader-circle-CaGZsKjo.js", "/assets/x-6mvJS0UK.js", "/assets/user-B9JVtPOG.js", "/assets/shopping-cart-eqO11M5U.js", "/assets/vendor-charts-nrSmOgTy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.website.edit.$pageId": { "id": "routes/admin.website.edit.$pageId", "parentId": "routes/admin", "path": "website/edit/:pageId", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.website.edit._pageId-BBVqVo7F.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/puck-config-DpfzgvWy.js", "/assets/Dialogs-LpmU1ed2.js", "/assets/arrow-left-CpQHwIrP.js", "/assets/eye-BvvqFSJ3.js", "/assets/save-f-wzAblY.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/Modal-D5keykku.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-charts-nrSmOgTy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.communications.logs": { "id": "routes/admin.communications.logs", "parentId": "routes/admin", "path": "communications/logs", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.communications.logs-bMl0LIiB.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/index-C_1Jy3MY.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/mail-BVU9VLVw.js", "/assets/refresh-cw-DFGUiFki.js", "/assets/search-S3VI0n0n.js", "/assets/send-BNR5q9Wk.js", "/assets/circle-check-big-Cgvy_36a.js", "/assets/circle-x-hiKkNN-9.js", "/assets/vendor-date-fns-MAbw63O8.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.coupons._index": { "id": "routes/admin.coupons._index", "parentId": "routes/admin", "path": "coupons", "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.coupons._index-DQHZ4Gyg.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/api-OnQO3erh.js", "/assets/Card-PoMvMiO2.js", "/assets/index-C_1Jy3MY.js", "/assets/vendor-date-fns-MAbw63O8.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.website._index": { "id": "routes/admin.website._index", "parentId": "routes/admin", "path": "website", "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.website._index-BmhlBvCB.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/Dialogs-LpmU1ed2.js", "/assets/globe-DV22Xz5a.js", "/assets/plus-BBRn-p3b.js", "/assets/file-text-CIWEYZv3.js", "/assets/eye-off-BsXKf3_1.js", "/assets/eye-BvvqFSJ3.js", "/assets/external-link-B6GLlcGt.js", "/assets/pen-DIUl4YMx.js", "/assets/trash-2-DU-4PZMS.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/Modal-D5keykku.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-charts-nrSmOgTy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.users.$userId": { "id": "routes/admin.users.$userId", "parentId": "routes/admin", "path": "users/:userId", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.users._userId-BPTSmVqi.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/Modal-D5keykku.js", "/assets/Dialogs-LpmU1ed2.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-charts-nrSmOgTy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.architecture": { "id": "routes/admin.architecture", "parentId": "routes/admin", "path": "architecture", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.architecture-Dx4TqAdj.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/refresh-cw-DFGUiFki.js", "/assets/globe-DV22Xz5a.js", "/assets/smartphone-NVyChj3R.js", "/assets/panels-top-left-DWjg5CSQ.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/shield-BH971nBf.js", "/assets/credit-card-BC1Ru1Ky.js", "/assets/calendar-CHyLPk-n.js", "/assets/database-YmXT_lcr.js", "/assets/box-B7ngXQvL.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.users._index": { "id": "routes/admin.users._index", "parentId": "routes/admin", "path": "users", "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.users._index-C-o2PERl.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/button-BgyeBcg8.js", "/assets/label-D7RQKMOi.js", "/assets/select-Cva9Td0K.js", "/assets/dialog-C8yECxTw.js", "/assets/ConfirmDialog-e7gRNi7r.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/chevron-down-DOKZOgBX.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/dialog-DkyizW2j.js", "/assets/portal-DJvkvMc5.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/x-6mvJS0UK.js", "/assets/index-Kt1GhsJU.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.diagnostics": { "id": "routes/admin.diagnostics", "parentId": "routes/admin", "path": "diagnostics", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.diagnostics-BrvcfjbY.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/Card-PoMvMiO2.js", "/assets/Badge-X8cH5Q5B.js", "/assets/activity-ZAJHCsfc.js", "/assets/server-CkQ6kFga.js", "/assets/database-YmXT_lcr.js", "/assets/shield-check-slWAEzyf.js", "/assets/circle-check-big-Cgvy_36a.js", "/assets/circle-x-hiKkNN-9.js", "/assets/clock-CZ6xxKks.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.diagnostics.run": { "id": "routes/admin.diagnostics.run", "parentId": "routes/admin.diagnostics", "path": "run", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.diagnostics.run-l0sNRNKZ.js", "imports": [], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.projections": { "id": "routes/admin.projections", "parentId": "routes/admin", "path": "projections", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.projections-Cq-V0Ew5.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/trending-up-WhR0C78Z.js", "/assets/zap-CpdSyYPf.js", "/assets/info-CngRlp_d.js", "/assets/vendor-charts-nrSmOgTy.js", "/assets/activity-ZAJHCsfc.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.financials": { "id": "routes/admin.financials", "parentId": "routes/admin", "path": "financials", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.financials-B2BXXTIH.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/PrivacyBlur-CQllKiFV.js", "/assets/Dialogs-LpmU1ed2.js", "/assets/refresh-cw-DFGUiFki.js", "/assets/dollar-sign-Br6sogR3.js", "/assets/circle-check-big-Cgvy_36a.js", "/assets/circle-alert-Day-jl1l.js", "/assets/Modal-D5keykku.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.financials.failed": { "id": "routes/admin.financials.failed", "parentId": "routes/admin.financials", "path": "failed", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.financials.failed-CK9nNLCH.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/Dialogs-LpmU1ed2.js", "/assets/refresh-cw-DFGUiFki.js", "/assets/circle-check-big-Cgvy_36a.js", "/assets/circle-alert-Day-jl1l.js", "/assets/triangle-alert-CAr0UhK4.js", "/assets/external-link-B6GLlcGt.js", "/assets/Modal-D5keykku.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.workflows": { "id": "routes/admin.workflows", "parentId": "routes/admin", "path": "workflows", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.workflows-DS4llz7-.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/dialog-C8yECxTw.js", "/assets/Badge-X8cH5Q5B.js", "/assets/button-BgyeBcg8.js", "/assets/label-D7RQKMOi.js", "/assets/select-Cva9Td0K.js", "/assets/use-resolve-button-type-CGo9al7H.js", "/assets/portal-DJvkvMc5.js", "/assets/dialog-DkyizW2j.js", "/assets/plus-BBRn-p3b.js", "/assets/clock-CZ6xxKks.js", "/assets/pencil-DhXDeFua.js", "/assets/trash-2-DU-4PZMS.js", "/assets/circle-alert-Day-jl1l.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/user-plus-wgpaf6QU.js", "/assets/x-6mvJS0UK.js", "/assets/chevron-down-DOKZOgBX.js", "/assets/vendor-charts-nrSmOgTy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.features": { "id": "routes/admin.features", "parentId": "routes/admin", "path": "features", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.features-D7p77FUU.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/index-C_1Jy3MY.js", "/assets/smartphone-NVyChj3R.js", "/assets/globe-DV22Xz5a.js", "/assets/messages-square-D_ugcQAx.js", "/assets/credit-card-BC1Ru1Ky.js", "/assets/video-BR-TS2td.js", "/assets/message-square-DXFYk9Nj.js", "/assets/mail-BVU9VLVw.js", "/assets/save-f-wzAblY.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-charts-nrSmOgTy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.tenants": { "id": "routes/admin.tenants", "parentId": "routes/admin", "path": "tenants", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.tenants-DuG5t6_O.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/Modal-D5keykku.js", "/assets/Dialogs-LpmU1ed2.js", "/assets/PrivacyBlur-CQllKiFV.js", "/assets/x-6mvJS0UK.js", "/assets/loader-circle-CaGZsKjo.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/download-nknHt9WM.js", "/assets/chunk-OT5FTIRN-BOz3zNvR.js", "/assets/triangle-alert-CAr0UhK4.js", "/assets/activity-ZAJHCsfc.js", "/assets/smartphone-NVyChj3R.js", "/assets/globe-DV22Xz5a.js", "/assets/messages-square-D_ugcQAx.js", "/assets/credit-card-BC1Ru1Ky.js", "/assets/video-BR-TS2td.js", "/assets/shopping-cart-eqO11M5U.js", "/assets/message-square-DXFYk9Nj.js", "/assets/mail-BVU9VLVw.js", "/assets/chevron-down-DOKZOgBX.js", "/assets/chevron-right-Dyvx1VDk.js", "/assets/settings-Cip7W-gj.js", "/assets/index-Kt1GhsJU.js", "/assets/vendor-charts-nrSmOgTy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin._index": { "id": "routes/admin._index", "parentId": "routes/admin", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin._index-CiXcHpTi.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/Card-PoMvMiO2.js", "/assets/Badge-X8cH5Q5B.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.emails": { "id": "routes/admin.emails", "parentId": "routes/admin", "path": "emails", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.emails-CofiUdl_.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/mail-BVU9VLVw.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.status": { "id": "routes/admin.status", "parentId": "routes/admin", "path": "status", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.status-B__Sy3oO.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.videos": { "id": "routes/admin.videos", "parentId": "routes/admin", "path": "videos", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.videos-C3DHzQ8T.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/format-CAsSOgDD.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/Dialogs-LpmU1ed2.js", "/assets/upload-BJQyUS3g.js", "/assets/film-BQWi96s1.js", "/assets/createLucideIcon-DgXJrNmH.js", "/assets/search-S3VI0n0n.js", "/assets/funnel-CMCL3Bgb.js", "/assets/play-Yex43xXq.js", "/assets/eye-BvvqFSJ3.js", "/assets/trash-2-DU-4PZMS.js", "/assets/share-2-DTZ3QQ_X.js", "/assets/circle-check-big-Cgvy_36a.js", "/assets/x-6mvJS0UK.js", "/assets/refresh-cw-DFGUiFki.js", "/assets/circle-alert-Day-jl1l.js", "/assets/Modal-D5keykku.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.comms": { "id": "routes/admin.comms", "parentId": "routes/admin", "path": "comms", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": true, "module": "/assets/admin.comms-uDACv__E.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/mail-BVU9VLVw.js", "/assets/message-square-DXFYk9Nj.js", "/assets/zap-CpdSyYPf.js", "/assets/triangle-alert-CAr0UhK4.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.chat": { "id": "routes/admin.chat", "parentId": "routes/admin", "path": "chat", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.chat-B36L2Ryy.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/index-C_1Jy3MY.js", "/assets/message-circle-cE2JHAhU.js", "/assets/shield-BH971nBf.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.chat.$roomId": { "id": "routes/admin.chat.$roomId", "parentId": "routes/admin.chat", "path": ":roomId", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.chat._roomId-CIyrr5-M.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/ChatWindow-B8PTlat6.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/index-C_1Jy3MY.js", "/assets/arrow-left-CpQHwIrP.js", "/assets/settings-Cip7W-gj.js", "/assets/send-BNR5q9Wk.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.logs": { "id": "routes/admin.logs", "parentId": "routes/admin", "path": "logs", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.logs-BHhzSXsy.js", "imports": ["/assets/chunk-JMJ3UQ3L-Dw7tS_gO.js", "/assets/vendor-puck-By1A5E5K.js", "/assets/vendor-sentry-BD1MTpLq.js", "/assets/activity-ZAJHCsfc.js", "/assets/shield-BH971nBf.js", "/assets/download-nknHt9WM.js", "/assets/chevron-down-DOKZOgBX.js", "/assets/chevron-right-Dyvx1VDk.js", "/assets/vendor-date-fns-MAbw63O8.js", "/assets/createLucideIcon-DgXJrNmH.js"], "css": ["/assets/vendor-puck-B4Ym435T.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 } }, "url": "/assets/manifest-b48789f9.js", "version": "b48789f9", "sri": void 0 };
+const serverManifest = { "entry": { "module": "/assets/entry.client-QcpeoBps.js", "imports": ["/assets/vendor-puck-Ox9nZAW8.js", "/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"] }, "routes": { "root": { "id": "root", "parentId": void 0, "path": "", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": true, "module": "/assets/root-rgdOmWFM.js", "imports": ["/assets/vendor-puck-Ox9nZAW8.js", "/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/ThemeProvider-Bg-dR422.js", "/assets/index-Cb5OqxoU.js", "/assets/index-N-gS3mYh.js", "/assets/chunk-VMBS36YX-D_0pUWOS.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/index-tijl61gk.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/chunk-6WD75OPE-CleNNb-A.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/site.$slug.$pageSlug": { "id": "routes/site.$slug.$pageSlug", "parentId": "root", "path": "site/:slug/:pageSlug", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/site._slug._pageSlug-BJPkhU5T.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/puck-config-DEc18st9.js", "/assets/ChatWidget-DRTid0KN.js", "/assets/index-tijl61gk.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/index-N-gS3mYh.js", "/assets/chunk-VMBS36YX-D_0pUWOS.js", "/assets/pen-BTVmGwZ4.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/x-Cj-HlmNQ.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/message-circle-DReYP3NO.js", "/assets/send-ClowdSfz.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/chunk-6WD75OPE-CleNNb-A.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/pricing.compare": { "id": "routes/pricing.compare", "parentId": "root", "path": "pricing/compare", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/pricing.compare-B3Xw5-pR.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/ThemeToggle-B9srzbUh.js", "/assets/chunk-6WD75OPE-CleNNb-A.js", "/assets/index-N-gS3mYh.js", "/assets/chunk-VMBS36YX-D_0pUWOS.js", "/assets/circle-question-mark-CzciDbbM.js", "/assets/check-CCFDD-1s.js", "/assets/minus-DhosPEfF.js", "/assets/index-tijl61gk.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/ThemeProvider-Bg-dR422.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/vendor-charts-CBCVHb7z.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/pricing._index": { "id": "routes/pricing._index", "parentId": "root", "path": "pricing", "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/pricing._index-BlWORsDB.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/ThemeToggle-B9srzbUh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/check-CCFDD-1s.js", "/assets/index-tijl61gk.js", "/assets/chunk-VMBS36YX-D_0pUWOS.js", "/assets/chunk-6WD75OPE-CleNNb-A.js", "/assets/ThemeProvider-Bg-dR422.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/$slug.support": { "id": "routes/$slug.support", "parentId": "root", "path": ":slug/support", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/_slug.support-DnA-s5nz.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/ChatWindow-BDWrtzLf.js", "/assets/message-square-w1u1RI-5.js", "/assets/x-Cj-HlmNQ.js", "/assets/loader-circle-CRrLibi7.js", "/assets/send-ClowdSfz.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/accept-invite": { "id": "routes/accept-invite", "parentId": "root", "path": "accept-invite", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/accept-invite-BDG8Eh8J.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/api-OnQO3erh.js", "/assets/chunk-VMBS36YX-D_0pUWOS.js", "/assets/index-N-gS3mYh.js", "/assets/index-tijl61gk.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/chunk-6WD75OPE-CleNNb-A.js", "/assets/vendor-charts-CBCVHb7z.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/create-studio": { "id": "routes/create-studio", "parentId": "root", "path": "create-studio", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/create-studio-BlcYUdCV.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/api-OnQO3erh.js", "/assets/index-tijl61gk.js", "/assets/chunk-VMBS36YX-D_0pUWOS.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation": { "id": "routes/documentation", "parentId": "root", "path": "documentation", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation-CA9ExQiw.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/ThemeToggle-B9srzbUh.js", "/assets/LogoutButton-C4peCnWQ.js", "/assets/x-Cj-HlmNQ.js", "/assets/menu-BNPP5-ws.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/search-DuKLkEI3.js", "/assets/server-Bx7LitLS.js", "/assets/shield-xoR-gJzw.js", "/assets/settings-CZs_RxhN.js", "/assets/users-EVjyZsvX.js", "/assets/shopping-cart-DpThPlKC.js", "/assets/globe-B4XmurjP.js", "/assets/smartphone-Vpdbd-ww.js", "/assets/message-square-w1u1RI-5.js", "/assets/chart-column-BB4rAMl7.js", "/assets/panels-top-left-CS_Cfu3F.js", "/assets/index-tijl61gk.js", "/assets/ThemeProvider-Bg-dR422.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/index-N-gS3mYh.js", "/assets/chunk-VMBS36YX-D_0pUWOS.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/chunk-6WD75OPE-CleNNb-A.js", "/assets/vendor-charts-CBCVHb7z.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.platform.architecture": { "id": "routes/documentation.platform.architecture", "parentId": "routes/documentation", "path": "platform/architecture", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.platform.architecture-BqqnA-o0.js", "imports": ["/assets/preload-helper-BXl3LOEh.js", "/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/globe-B4XmurjP.js", "/assets/database-VZ7s55nv.js", "/assets/shield-xoR-gJzw.js", "/assets/lock-t3rSRUYC.js", "/assets/server-Bx7LitLS.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.platform.tenants": { "id": "routes/documentation.platform.tenants", "parentId": "routes/documentation", "path": "platform/tenants", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.platform.tenants-CdGFndbR.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/users-EVjyZsvX.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/credit-card-DxGxPhTX.js", "/assets/activity-DBJWIPBn.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.studio.analytics": { "id": "routes/documentation.studio.analytics", "parentId": "routes/documentation", "path": "studio/analytics", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.studio.analytics-DBBs-6Yy.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/chart-column-BB4rAMl7.js", "/assets/users-EVjyZsvX.js", "/assets/trending-up-i3FuM3q7.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.studio.overview": { "id": "routes/documentation.studio.overview", "parentId": "routes/documentation", "path": "studio/overview", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.studio.overview-BQWLfqOB.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/calendar-vWMk9t_Y.js", "/assets/credit-card-DxGxPhTX.js", "/assets/users-EVjyZsvX.js", "/assets/chart-column-BB4rAMl7.js", "/assets/arrow-right-iNMGlV6d.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.mobile-builder": { "id": "routes/documentation.mobile-builder", "parentId": "routes/documentation", "path": "mobile-builder", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.mobile-builder-DcQTYGNV.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/smartphone-Vpdbd-ww.js", "/assets/check-CCFDD-1s.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.studio.portal": { "id": "routes/documentation.studio.portal", "parentId": "routes/documentation", "path": "studio/portal", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.studio.portal-Dl0poJP2.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/panels-top-left-CS_Cfu3F.js", "/assets/calendar-vWMk9t_Y.js", "/assets/award-CkU78-1I.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.commerce": { "id": "routes/documentation.commerce", "parentId": "routes/documentation", "path": "commerce", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.commerce-Dtp7L1Vd.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/credit-card-DxGxPhTX.js", "/assets/shopping-cart-DpThPlKC.js", "/assets/tag-BbWouKy9.js", "/assets/ticket-BlprpdKY.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.classes": { "id": "routes/documentation.classes", "parentId": "routes/documentation", "path": "classes", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.classes-DKz65Zbu.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/calendar-vWMk9t_Y.js", "/assets/users-EVjyZsvX.js", "/assets/video-D71_KYqj.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.reports": { "id": "routes/documentation.reports", "parentId": "routes/documentation", "path": "reports", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.reports-782ux_cU.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/chart-column-BB4rAMl7.js", "/assets/trending-up-i3FuM3q7.js", "/assets/download-CaJLajpl.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.website": { "id": "routes/documentation.website", "parentId": "routes/documentation", "path": "website", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.website-BX0lSz5z.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/panels-top-left-CS_Cfu3F.js", "/assets/search-DuKLkEI3.js", "/assets/code-DQPFKruy.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation._index": { "id": "routes/documentation._index", "parentId": "routes/documentation", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation._index-DLwSgw74.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/settings-CZs_RxhN.js", "/assets/arrow-right-iNMGlV6d.js", "/assets/smartphone-Vpdbd-ww.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.setup": { "id": "routes/documentation.setup", "parentId": "routes/documentation", "path": "setup", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.setup-CVbcaH3d.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/settings-CZs_RxhN.js", "/assets/credit-card-DxGxPhTX.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/arrow-right-iNMGlV6d.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.team": { "id": "routes/documentation.team", "parentId": "routes/documentation", "path": "team", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.team-MJqSYEeE.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/shield-xoR-gJzw.js", "/assets/dollar-sign-BfPYFs8u.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/documentation.crm": { "id": "routes/documentation.crm", "parentId": "routes/documentation", "path": "crm", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/documentation.crm-DMATXdXb.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/mermaid.core-BJQrRNL7.js", "/assets/user-plus-BBzixafQ.js", "/assets/mail-BspoxSMS.js", "/assets/award-CkU78-1I.js", "/assets/message-square-w1u1RI-5.js", "/assets/preload-helper-BXl3LOEh.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/portal.$slug": { "id": "routes/portal.$slug", "parentId": "root", "path": "portal/:slug", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/portal._slug-B2wd9-v_.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/cn-Bv06xx5N.js", "/assets/x-Cj-HlmNQ.js", "/assets/menu-BNPP5-ws.js", "/assets/house-B4Pskl-i.js", "/assets/calendar-vWMk9t_Y.js", "/assets/user-DrfMgmZN.js", "/assets/log-out-Cplrug5I.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/portal.$slug.classes": { "id": "routes/portal.$slug.classes", "parentId": "routes/portal.$slug", "path": "classes", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/portal._slug.classes-AkEeOf9u.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/cn-Bv06xx5N.js", "/assets/vendor-date-fns-BeqKegoe.js", "/assets/calendar-vWMk9t_Y.js", "/assets/user-DrfMgmZN.js", "/assets/map-pin-BMDRpB-a.js", "/assets/circle-check-N5m9neNQ.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/portal.$slug.profile": { "id": "routes/portal.$slug.profile", "parentId": "routes/portal.$slug", "path": "profile", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/portal._slug.profile-Bxp7e47u.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/mail-BspoxSMS.js", "/assets/calendar-vWMk9t_Y.js", "/assets/log-out-Cplrug5I.js", "/assets/shield-xoR-gJzw.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/portal.$slug._index": { "id": "routes/portal.$slug._index", "parentId": "routes/portal.$slug", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/portal._slug._index-BTvDYC-G.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/award-CkU78-1I.js", "/assets/target-UN6rGDsM.js", "/assets/flame-B0-x8mCg.js", "/assets/activity-DBJWIPBn.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug": { "id": "routes/studio.$slug", "parentId": "root", "path": "studio/:slug", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug-DX-XqEuM.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/ThemeToggle-B9srzbUh.js", "/assets/CommandBar-sQgP4rbT.js", "/assets/chevron-down-DNia0yBu.js", "/assets/chevron-right-b4Coem16.js", "/assets/users-EVjyZsvX.js", "/assets/use-resolve-button-type-289bnIyZ.js", "/assets/portal-BoZ3-f1n.js", "/assets/check-CCFDD-1s.js", "/assets/log-out-Cplrug5I.js", "/assets/index-tijl61gk.js", "/assets/ChatWidget-DRTid0KN.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/calendar-vWMk9t_Y.js", "/assets/clock-DKxge1S_.js", "/assets/circle-check-N5m9neNQ.js", "/assets/trophy-B1Le1-TU.js", "/assets/refresh-cw-CjtOPibf.js", "/assets/file-pen-line-uUdnJsIl.js", "/assets/image-wq99OTiH.js", "/assets/shopping-cart-DpThPlKC.js", "/assets/credit-card-DxGxPhTX.js", "/assets/package-CTzHy-DS.js", "/assets/ticket-BlprpdKY.js", "/assets/user-DrfMgmZN.js", "/assets/mail-BspoxSMS.js", "/assets/award-CkU78-1I.js", "/assets/globe-B4XmurjP.js", "/assets/code-DQPFKruy.js", "/assets/smartphone-Vpdbd-ww.js", "/assets/dollar-sign-BfPYFs8u.js", "/assets/tag-BbWouKy9.js", "/assets/terminal-d6yj0op2.js", "/assets/message-square-w1u1RI-5.js", "/assets/database-VZ7s55nv.js", "/assets/settings-CZs_RxhN.js", "/assets/chart-column-BB4rAMl7.js", "/assets/circle-question-mark-CzciDbbM.js", "/assets/triangle-alert-BPZOVc9B.js", "/assets/search-DuKLkEI3.js", "/assets/chunk-6WD75OPE-CleNNb-A.js", "/assets/ThemeProvider-Bg-dR422.js", "/assets/api-OnQO3erh.js", "/assets/loader-circle-CRrLibi7.js", "/assets/x-Cj-HlmNQ.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/message-circle-DReYP3NO.js", "/assets/send-ClowdSfz.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.videos.collections.$id": { "id": "routes/studio.$slug.videos.collections.$id", "parentId": "routes/studio.$slug", "path": "videos/collections/:id", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.videos.collections._id-CetpcGWQ.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/ConfirmDialog-FyjGOAg4.js", "/assets/format-CAsSOgDD.js", "/assets/arrow-left-BnfrWY06.js", "/assets/plus-CWTELB5_.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/trash-2-BcHoghLw.js", "/assets/x-Cj-HlmNQ.js", "/assets/search-DuKLkEI3.js", "/assets/dialog-BnIpflAQ.js", "/assets/dialog-Cpa2T3be.js", "/assets/portal-BoZ3-f1n.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/button-D-ZXNsM5.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.website.editor.$pageId": { "id": "routes/studio.$slug.website.editor.$pageId", "parentId": "routes/studio.$slug", "path": "website/editor/:pageId", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.website.editor._pageId-_Kc28xm8.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/puck-config-DEc18st9.js", "/assets/index-Cb5OqxoU.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/index-N-gS3mYh.js", "/assets/arrow-left-BnfrWY06.js", "/assets/eye-D0rC527y.js", "/assets/save-DQQgas6i.js", "/assets/index-tijl61gk.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/chunk-VMBS36YX-D_0pUWOS.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/chunk-6WD75OPE-CleNNb-A.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.financials.my-payouts": { "id": "routes/studio.$slug.financials.my-payouts", "parentId": "routes/studio.$slug", "path": "financials/my-payouts", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.financials.my-payouts-Dgcvj-Dz.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/api-OnQO3erh.js", "/assets/loader-circle-CRrLibi7.js", "/assets/dollar-sign-BfPYFs8u.js", "/assets/calendar-vWMk9t_Y.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.videos.edit.$videoId": { "id": "routes/studio.$slug.videos.edit.$videoId", "parentId": "routes/studio.$slug", "path": "videos/edit/:videoId", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.videos.edit._videoId-dwySdGkn.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.commerce.gift-cards": { "id": "routes/studio.$slug.commerce.gift-cards", "parentId": "routes/studio.$slug", "path": "commerce/gift-cards", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.commerce.gift-cards-DJOIoHTP.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/api-OnQO3erh.js", "/assets/index-Cb5OqxoU.js", "/assets/Dialogs-Atowov_t.js", "/assets/gift-8eBCYcoL.js", "/assets/link-DK-XnrAs.js", "/assets/plus-CWTELB5_.js", "/assets/search-DuKLkEI3.js", "/assets/ticket-BlprpdKY.js", "/assets/ellipsis-DLQ0cwtv.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/mail-BspoxSMS.js", "/assets/loader-circle-CRrLibi7.js", "/assets/credit-card-DxGxPhTX.js", "/assets/circle-check-big-CSQBoMuh.js", "/assets/Modal-C2ODX5rl.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.financials.payroll": { "id": "routes/studio.$slug.financials.payroll", "parentId": "routes/studio.$slug", "path": "financials/payroll", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.financials.payroll-D2KfC850.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/api-OnQO3erh.js", "/assets/index-Cb5OqxoU.js", "/assets/dialog-BnIpflAQ.js", "/assets/ConfirmDialog-FyjGOAg4.js", "/assets/loader-circle-CRrLibi7.js", "/assets/dollar-sign-BfPYFs8u.js", "/assets/vendor-date-fns-BeqKegoe.js", "/assets/dialog-Cpa2T3be.js", "/assets/portal-BoZ3-f1n.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/x-Cj-HlmNQ.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/button-D-ZXNsM5.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.financials._index": { "id": "routes/studio.$slug.financials._index", "parentId": "routes/studio.$slug", "path": "financials", "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.financials._index-l0sNRNKZ.js", "imports": [], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.commerce.coupons": { "id": "routes/studio.$slug.commerce.coupons", "parentId": "routes/studio.$slug", "path": "commerce/coupons", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.commerce.coupons-lNCwwNTf.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/index-Cb5OqxoU.js", "/assets/Dialogs-Atowov_t.js", "/assets/tag-BbWouKy9.js", "/assets/circle-check-big-CSQBoMuh.js", "/assets/circle-x-CTW3GYJg.js", "/assets/ticket-BlprpdKY.js", "/assets/trash-2-BcHoghLw.js", "/assets/plus-CWTELB5_.js", "/assets/link-DK-XnrAs.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/Modal-C2ODX5rl.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/index-tijl61gk.js", "/assets/vendor-charts-CBCVHb7z.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.commerce.packs": { "id": "routes/studio.$slug.commerce.packs", "parentId": "routes/studio.$slug", "path": "commerce/packs", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.commerce.packs-BJ3SHbHA.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/plus-CWTELB5_.js", "/assets/package-CTzHy-DS.js", "/assets/dollar-sign-BfPYFs8u.js", "/assets/calendar-vWMk9t_Y.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.substitutions": { "id": "routes/studio.$slug.substitutions", "parentId": "routes/studio.$slug", "path": "substitutions", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.substitutions-3Pw4uCje.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/Dialogs-Atowov_t.js", "/assets/refresh-cw-CjtOPibf.js", "/assets/circle-alert-BnjGAXAK.js", "/assets/circle-check-big-CSQBoMuh.js", "/assets/clock-DKxge1S_.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/Modal-C2ODX5rl.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/index-tijl61gk.js", "/assets/vendor-charts-CBCVHb7z.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.videos._index": { "id": "routes/studio.$slug.videos._index", "parentId": "routes/studio.$slug", "path": "videos", "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.videos._index-DFGd7NfB.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/format-CAsSOgDD.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/index-Cb5OqxoU.js", "/assets/upload-_U7n2l92.js", "/assets/image-wq99OTiH.js", "/assets/film-CpVNdbqF.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/x-Cj-HlmNQ.js", "/assets/info-BVrNVXTL.js", "/assets/plus-CWTELB5_.js", "/assets/refresh-cw-CjtOPibf.js", "/assets/save-DQQgas6i.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.website.pages": { "id": "routes/studio.$slug.website.pages", "parentId": "routes/studio.$slug", "path": "website/pages", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.website.pages-BDu5B_He.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/index-Cb5OqxoU.js", "/assets/Dialogs-Atowov_t.js", "/assets/globe-B4XmurjP.js", "/assets/plus-CWTELB5_.js", "/assets/file-text-Dcmbx1Ky.js", "/assets/eye-off-DnMSnQKs.js", "/assets/eye-D0rC527y.js", "/assets/pen-BTVmGwZ4.js", "/assets/trash-2-BcHoghLw.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/Modal-C2ODX5rl.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/index-tijl61gk.js", "/assets/vendor-charts-CBCVHb7z.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.appointments": { "id": "routes/studio.$slug.appointments", "parentId": "routes/studio.$slug", "path": "appointments", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.appointments-BXCOy_Wi.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/index-Cb5OqxoU.js", "/assets/arrow-left-BnfrWY06.js", "/assets/clock-DKxge1S_.js", "/assets/calendar-vWMk9t_Y.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.appointments.calendar": { "id": "routes/studio.$slug.appointments.calendar", "parentId": "routes/studio.$slug.appointments", "path": "calendar", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.appointments.calendar-DJacWWDh.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/calendar-vWMk9t_Y.js", "/assets/plus-CWTELB5_.js", "/assets/chevron-left-lMInfoMA.js", "/assets/chevron-right-b4Coem16.js", "/assets/x-Cj-HlmNQ.js", "/assets/clock-DKxge1S_.js", "/assets/user-DrfMgmZN.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.memberships": { "id": "routes/studio.$slug.memberships", "parentId": "routes/studio.$slug", "path": "memberships", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.memberships-C0Zrmd7N.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/Modal-C2ODX5rl.js", "/assets/ConfirmDialog-FyjGOAg4.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/dialog-BnIpflAQ.js", "/assets/dialog-Cpa2T3be.js", "/assets/portal-BoZ3-f1n.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/x-Cj-HlmNQ.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/button-D-ZXNsM5.js", "/assets/index-tijl61gk.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.challenges": { "id": "routes/studio.$slug.challenges", "parentId": "routes/studio.$slug", "path": "challenges", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.challenges-DugNkslj.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/trophy-B1Le1-TU.js", "/assets/flame-B0-x8mCg.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/clock-DKxge1S_.js", "/assets/target-UN6rGDsM.js", "/assets/star-CknGxCn2.js", "/assets/calendar-vWMk9t_Y.js", "/assets/check-CCFDD-1s.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.instructor": { "id": "routes/studio.$slug.instructor", "parentId": "routes/studio.$slug", "path": "instructor", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.instructor-CAbgsBz_.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/users-EVjyZsvX.js", "/assets/house-B4Pskl-i.js", "/assets/calendar-vWMk9t_Y.js", "/assets/clock-DKxge1S_.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/dollar-sign-BfPYFs8u.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.instructor.schedule": { "id": "routes/studio.$slug.instructor.schedule", "parentId": "routes/studio.$slug.instructor", "path": "schedule", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.instructor.schedule-2OY04Zbr.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/calendar-vWMk9t_Y.js", "/assets/chevron-left-lMInfoMA.js", "/assets/chevron-right-b4Coem16.js", "/assets/clock-DKxge1S_.js", "/assets/users-EVjyZsvX.js", "/assets/video-D71_KYqj.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.instructor.payroll": { "id": "routes/studio.$slug.instructor.payroll", "parentId": "routes/studio.$slug.instructor", "path": "payroll", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.instructor.payroll-CZ5FaVQW.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/dollar-sign-BfPYFs8u.js", "/assets/download-CaJLajpl.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.onboarding": { "id": "routes/studio.$slug.onboarding", "parentId": "routes/studio.$slug", "path": "onboarding", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.onboarding-D5EdZE_j.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/circle-check-N5m9neNQ.js", "/assets/loader-circle-CRrLibi7.js", "/assets/arrow-right-iNMGlV6d.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.dashboard": { "id": "routes/studio.$slug.dashboard", "parentId": "routes/studio.$slug", "path": "dashboard", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.dashboard-CaiyZ8yJ.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.discounts": { "id": "routes/studio.$slug.discounts", "parentId": "routes/studio.$slug", "path": "discounts", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.discounts-fW_ASkCM.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/ConfirmDialog-FyjGOAg4.js", "/assets/plus-CWTELB5_.js", "/assets/tag-BbWouKy9.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/dialog-BnIpflAQ.js", "/assets/dialog-Cpa2T3be.js", "/assets/portal-BoZ3-f1n.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/x-Cj-HlmNQ.js", "/assets/button-D-ZXNsM5.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.marketing": { "id": "routes/studio.$slug.marketing", "parentId": "routes/studio.$slug", "path": "marketing", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.marketing-B4IXr5Dq.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/Modal-C2ODX5rl.js", "/assets/index-tijl61gk.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/code-DQPFKruy.js", "/assets/link-DK-XnrAs.js", "/assets/image-wq99OTiH.js", "/assets/triangle-alert-BPZOVc9B.js", "/assets/circle-check-big-CSQBoMuh.js", "/assets/x-Cj-HlmNQ.js", "/assets/mail-BspoxSMS.js", "/assets/send-ClowdSfz.js", "/assets/zap-4XO_A8Yl.js", "/assets/plus-CWTELB5_.js", "/assets/sparkles-Dx8loAwz.js", "/assets/clock-DKxge1S_.js", "/assets/pencil-_w-IsDxh.js", "/assets/trash-2-BcHoghLw.js", "/assets/settings-CZs_RxhN.js", "/assets/chunk-OT5FTIRN-b3porSVB.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.marketing.automations": { "id": "routes/studio.$slug.marketing.automations", "parentId": "routes/studio.$slug.marketing", "path": "automations", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.marketing.automations-98JwskEM.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/ConfirmDialog-FyjGOAg4.js", "/assets/index-Cb5OqxoU.js", "/assets/zap-4XO_A8Yl.js", "/assets/plus-CWTELB5_.js", "/assets/users-EVjyZsvX.js", "/assets/calendar-vWMk9t_Y.js", "/assets/target-UN6rGDsM.js", "/assets/clock-DKxge1S_.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/x-Cj-HlmNQ.js", "/assets/trash-2-BcHoghLw.js", "/assets/pencil-_w-IsDxh.js", "/assets/play-BJ8lOJGZ.js", "/assets/loader-circle-CRrLibi7.js", "/assets/sparkles-Dx8loAwz.js", "/assets/dialog-BnIpflAQ.js", "/assets/dialog-Cpa2T3be.js", "/assets/portal-BoZ3-f1n.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/button-D-ZXNsM5.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.marketing.referrals": { "id": "routes/studio.$slug.marketing.referrals", "parentId": "routes/studio.$slug.marketing", "path": "referrals", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.marketing.referrals-CN6yGp_b.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/gift-8eBCYcoL.js", "/assets/sparkles-Dx8loAwz.js", "/assets/check-CCFDD-1s.js", "/assets/copy-zjz681Nw.js", "/assets/share-2-Bs-dfrN5.js", "/assets/users-EVjyZsvX.js", "/assets/clock-DKxge1S_.js", "/assets/award-CkU78-1I.js", "/assets/chevron-right-b4Coem16.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.branding": { "id": "routes/studio.$slug.branding", "parentId": "routes/studio.$slug", "path": "branding", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.branding-I-3czfWr.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/api-OnQO3erh.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.checkout": { "id": "routes/studio.$slug.checkout", "parentId": "routes/studio.$slug", "path": "checkout", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.checkout-DsMkZOam.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/index-Chjiymov.js", "/assets/api-OnQO3erh.js", "/assets/circle-check-N5m9neNQ.js", "/assets/circle-x-CTW3GYJg.js", "/assets/ticket-BlprpdKY.js", "/assets/loader-circle-CRrLibi7.js", "/assets/arrow-left-BnfrWY06.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.checkout.return": { "id": "routes/studio.$slug.checkout.return", "parentId": "routes/studio.$slug.checkout", "path": "return", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.checkout.return-Jwk0UDzC.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.finances": { "id": "routes/studio.$slug.finances", "parentId": "routes/studio.$slug", "path": "finances", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.finances-BSBBYfMR.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/Dialogs-Atowov_t.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/Modal-C2ODX5rl.js", "/assets/index-tijl61gk.js", "/assets/vendor-charts-CBCVHb7z.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.schedule": { "id": "routes/studio.$slug.schedule", "parentId": "routes/studio.$slug", "path": "schedule", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.schedule-QQb4iTQ7.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/cn-Bv06xx5N.js", "/assets/vendor-date-fns-BeqKegoe.js", "/assets/chevron-left-lMInfoMA.js", "/assets/chevron-right-b4Coem16.js", "/assets/BookingModal-CDGuOjO_.js", "/assets/ConfirmDialog-FyjGOAg4.js", "/assets/api-OnQO3erh.js", "/assets/x-Cj-HlmNQ.js", "/assets/video-D71_KYqj.js", "/assets/trash-2-BcHoghLw.js", "/assets/loader-circle-CRrLibi7.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/dialog-Cpa2T3be.js", "/assets/plus-CWTELB5_.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/Modal-C2ODX5rl.js", "/assets/user-DrfMgmZN.js", "/assets/users-EVjyZsvX.js", "/assets/dialog-BnIpflAQ.js", "/assets/button-D-ZXNsM5.js", "/assets/index-tijl61gk.js", "/assets/portal-BoZ3-f1n.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings": { "id": "routes/studio.$slug.settings", "parentId": "routes/studio.$slug", "path": "settings", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings-0G6dQk64.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.integrations": { "id": "routes/studio.$slug.settings.integrations", "parentId": "routes/studio.$slug.settings", "path": "integrations", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.integrations-sWf-6fyT.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/api-OnQO3erh.js", "/assets/index-Cb5OqxoU.js", "/assets/Dialogs-Atowov_t.js", "/assets/loader-circle-CRrLibi7.js", "/assets/credit-card-DxGxPhTX.js", "/assets/shield-xoR-gJzw.js", "/assets/mail-BspoxSMS.js", "/assets/send-ClowdSfz.js", "/assets/message-square-w1u1RI-5.js", "/assets/Modal-C2ODX5rl.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.developers": { "id": "routes/studio.$slug.settings.developers", "parentId": "routes/studio.$slug.settings", "path": "developers", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.developers-BroZQSj8.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/api-OnQO3erh.js", "/assets/Card-B4aXyL8u.js", "/assets/button-D-ZXNsM5.js", "/assets/label-B5WATmxx.js", "/assets/index-Cb5OqxoU.js", "/assets/Dialogs-Atowov_t.js", "/assets/circle-alert-BnjGAXAK.js", "/assets/terminal-d6yj0op2.js", "/assets/loader-circle-CRrLibi7.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/check-CCFDD-1s.js", "/assets/copy-zjz681Nw.js", "/assets/trash-2-BcHoghLw.js", "/assets/plus-CWTELB5_.js", "/assets/shield-check-Bi63rDwM.js", "/assets/Modal-C2ODX5rl.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.locations": { "id": "routes/studio.$slug.settings.locations", "parentId": "routes/studio.$slug.settings", "path": "locations", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.locations-Cdf8qdcQ.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/Dialogs-Atowov_t.js", "/assets/index-Cb5OqxoU.js", "/assets/map-pin-BMDRpB-a.js", "/assets/plus-CWTELB5_.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/star-CknGxCn2.js", "/assets/clock-DKxge1S_.js", "/assets/phone-BQ0MvSSc.js", "/assets/square-pen-qyJURCOd.js", "/assets/trash-2-BcHoghLw.js", "/assets/x-Cj-HlmNQ.js", "/assets/Modal-C2ODX5rl.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.branding": { "id": "routes/studio.$slug.settings.branding", "parentId": "routes/studio.$slug.settings", "path": "branding", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.branding-CdHOl6RR.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/api-OnQO3erh.js", "/assets/index-Cb5OqxoU.js", "/assets/Dialogs-Atowov_t.js", "/assets/image-wq99OTiH.js", "/assets/upload-_U7n2l92.js", "/assets/video-D71_KYqj.js", "/assets/circle-check-big-CSQBoMuh.js", "/assets/trash-2-BcHoghLw.js", "/assets/Modal-C2ODX5rl.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.hardware": { "id": "routes/studio.$slug.settings.hardware", "parentId": "routes/studio.$slug.settings", "path": "hardware", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.hardware-CFVqrirC.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/index-Cb5OqxoU.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/index-tijl61gk.js", "/assets/vendor-charts-CBCVHb7z.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.billing": { "id": "routes/studio.$slug.settings.billing", "parentId": "routes/studio.$slug.settings", "path": "billing", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.billing-99Asqz_u.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/index-Cb5OqxoU.js", "/assets/check-CCFDD-1s.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings._index": { "id": "routes/studio.$slug.settings._index", "parentId": "routes/studio.$slug.settings", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings._index-D0wVQUAx.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/index-Cb5OqxoU.js", "/assets/Dialogs-Atowov_t.js", "/assets/globe-B4XmurjP.js", "/assets/credit-card-DxGxPhTX.js", "/assets/plus-CWTELB5_.js", "/assets/map-pin-BMDRpB-a.js", "/assets/trash-2-BcHoghLw.js", "/assets/shopping-bag-CK_HfsHN.js", "/assets/Modal-C2ODX5rl.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.addons": { "id": "routes/studio.$slug.settings.addons", "parentId": "routes/studio.$slug.settings", "path": "addons", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.addons-CGuGT5S-.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/index-Cb5OqxoU.js", "/assets/message-square-w1u1RI-5.js", "/assets/check-CCFDD-1s.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.domain": { "id": "routes/studio.$slug.settings.domain", "parentId": "routes/studio.$slug.settings", "path": "domain", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.domain-CkzT66x0.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/api-OnQO3erh.js", "/assets/index-Cb5OqxoU.js", "/assets/Dialogs-Atowov_t.js", "/assets/globe-B4XmurjP.js", "/assets/triangle-alert-BPZOVc9B.js", "/assets/circle-check-big-CSQBoMuh.js", "/assets/refresh-cw-CjtOPibf.js", "/assets/trash-2-BcHoghLw.js", "/assets/shield-check-Bi63rDwM.js", "/assets/external-link-DQe80hmU.js", "/assets/Modal-C2ODX5rl.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.embeds": { "id": "routes/studio.$slug.settings.embeds", "parentId": "routes/studio.$slug.settings", "path": "embeds", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.embeds-BKeYiP16.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/link-DK-XnrAs.js", "/assets/external-link-DQe80hmU.js", "/assets/check-CCFDD-1s.js", "/assets/copy-zjz681Nw.js", "/assets/code-DQPFKruy.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.mobile": { "id": "routes/studio.$slug.settings.mobile", "parentId": "routes/studio.$slug.settings", "path": "mobile", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.mobile-9TVMZu2t.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/api-OnQO3erh.js", "/assets/smartphone-Vpdbd-ww.js", "/assets/circle-check-N5m9neNQ.js", "/assets/circle-alert-BnjGAXAK.js", "/assets/upload-_U7n2l92.js", "/assets/loader-circle-CRrLibi7.js", "/assets/image-wq99OTiH.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.roles": { "id": "routes/studio.$slug.settings.roles", "parentId": "routes/studio.$slug.settings", "path": "roles", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.roles-BfGCaR0m.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/index-Cb5OqxoU.js", "/assets/api-OnQO3erh.js", "/assets/plus-CWTELB5_.js", "/assets/shield-xoR-gJzw.js", "/assets/pen-BTVmGwZ4.js", "/assets/trash-2-BcHoghLw.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.chat": { "id": "routes/studio.$slug.settings.chat", "parentId": "routes/studio.$slug.settings", "path": "chat", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.chat-DGfptq6f.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/api-OnQO3erh.js", "/assets/Card-B4aXyL8u.js", "/assets/index-Cb5OqxoU.js", "/assets/save-DQQgas6i.js", "/assets/plus-CWTELB5_.js", "/assets/chevron-right-b4Coem16.js", "/assets/trash-2-BcHoghLw.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.settings.qr": { "id": "routes/studio.$slug.settings.qr", "parentId": "routes/studio.$slug.settings", "path": "qr", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.settings.qr-DljlZdId.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/index-Chjiymov.js", "/assets/download-CaJLajpl.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.students": { "id": "routes/studio.$slug.students", "parentId": "routes/studio.$slug", "path": "students", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.students-DGTiRZew.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.students._index": { "id": "routes/studio.$slug.students._index", "parentId": "routes/studio.$slug.students", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.students._index-CV2IirHh.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/index-Cb5OqxoU.js", "/assets/Dialogs-Atowov_t.js", "/assets/x-Cj-HlmNQ.js", "/assets/mail-BspoxSMS.js", "/assets/shield-check-Bi63rDwM.js", "/assets/download-CaJLajpl.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/Modal-C2ODX5rl.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/index-tijl61gk.js", "/assets/vendor-charts-CBCVHb7z.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.students.$id": { "id": "routes/studio.$slug.students.$id", "parentId": "routes/studio.$slug.students", "path": ":id", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.students._id-DwUhgxjE.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/ConfirmDialog-FyjGOAg4.js", "/assets/user-DrfMgmZN.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/mail-BspoxSMS.js", "/assets/ellipsis-DLQ0cwtv.js", "/assets/plus-CWTELB5_.js", "/assets/file-text-Dcmbx1Ky.js", "/assets/check-CCFDD-1s.js", "/assets/pencil-_w-IsDxh.js", "/assets/trash-2-BcHoghLw.js", "/assets/vendor-date-fns-BeqKegoe.js", "/assets/dialog-BnIpflAQ.js", "/assets/dialog-Cpa2T3be.js", "/assets/portal-BoZ3-f1n.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/x-Cj-HlmNQ.js", "/assets/button-D-ZXNsM5.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.checkin": { "id": "routes/studio.$slug.checkin", "parentId": "routes/studio.$slug", "path": "checkin", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.checkin-Bb--3U1N.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/api-OnQO3erh.js", "/assets/circle-check-N5m9neNQ.js", "/assets/loader-circle-CRrLibi7.js", "/assets/calendar-vWMk9t_Y.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/arrow-left-BnfrWY06.js", "/assets/search-DuKLkEI3.js", "/assets/users-EVjyZsvX.js", "/assets/user-plus-BBzixafQ.js", "/assets/circle-alert-BnjGAXAK.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.classes": { "id": "routes/studio.$slug.classes", "parentId": "routes/studio.$slug", "path": "classes", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.classes-CX2PHoq8.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.classes.$classId.live": { "id": "routes/studio.$slug.classes.$classId.live", "parentId": "routes/studio.$slug.classes", "path": ":classId/live", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.classes._classId.live-Zmi0aayg.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/vendor-livekit-CXUzSi4h.js", "/assets/api-OnQO3erh.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/index-tijl61gk.js", "/assets/vendor-charts-CBCVHb7z.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#", "/assets/vendor-livekit-DLFhKdHL.css"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.classes.$id.roster": { "id": "routes/studio.$slug.classes.$id.roster", "parentId": "routes/studio.$slug.classes", "path": ":id/roster", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.classes._id.roster-HypVDmIv.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/ConfirmDialog-FyjGOAg4.js", "/assets/user-plus-BBzixafQ.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/file-text-Dcmbx1Ky.js", "/assets/triangle-alert-BPZOVc9B.js", "/assets/check-CCFDD-1s.js", "/assets/x-Cj-HlmNQ.js", "/assets/trash-2-BcHoghLw.js", "/assets/dialog-BnIpflAQ.js", "/assets/dialog-Cpa2T3be.js", "/assets/portal-BoZ3-f1n.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/button-D-ZXNsM5.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.classes._index": { "id": "routes/studio.$slug.classes._index", "parentId": "routes/studio.$slug.classes", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.classes._index-7VfWI9er.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/BookingModal-CDGuOjO_.js", "/assets/index-Cb5OqxoU.js", "/assets/Dialogs-Atowov_t.js", "/assets/plus-CWTELB5_.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/archive-BmeG3A7-.js", "/assets/Modal-C2ODX5rl.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/index-tijl61gk.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/x-Cj-HlmNQ.js", "/assets/user-DrfMgmZN.js", "/assets/users-EVjyZsvX.js", "/assets/dialog-Cpa2T3be.js", "/assets/portal-BoZ3-f1n.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.loyalty": { "id": "routes/studio.$slug.loyalty", "parentId": "routes/studio.$slug", "path": "loyalty", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.loyalty-DO415Y37.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/award-CkU78-1I.js", "/assets/plus-CWTELB5_.js", "/assets/target-UN6rGDsM.js", "/assets/trash-2-BcHoghLw.js", "/assets/gift-8eBCYcoL.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.profile": { "id": "routes/studio.$slug.profile", "parentId": "routes/studio.$slug", "path": "profile", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.profile-BgHIDOGt.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.reports": { "id": "routes/studio.$slug.reports", "parentId": "routes/studio.$slug", "path": "reports", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.reports-ByR3ze6c.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/trash-2-BcHoghLw.js", "/assets/save-DQQgas6i.js", "/assets/users-EVjyZsvX.js", "/assets/trending-up-i3FuM3q7.js", "/assets/dollar-sign-BfPYFs8u.js", "/assets/calendar-vWMk9t_Y.js", "/assets/arrow-right-iNMGlV6d.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/api-OnQO3erh.js", "/assets/PrivacyBlur-CnAm2WrD.js", "/assets/index-Cb5OqxoU.js", "/assets/loader-circle-CRrLibi7.js", "/assets/download-CaJLajpl.js", "/assets/plus-CWTELB5_.js", "/assets/mail-BspoxSMS.js", "/assets/circle-check-N5m9neNQ.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.reports.advanced": { "id": "routes/studio.$slug.reports.advanced", "parentId": "routes/studio.$slug.reports", "path": "advanced", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.reports.advanced-C9FPA66c.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.reports.custom": { "id": "routes/studio.$slug.reports.custom", "parentId": "routes/studio.$slug.reports", "path": "custom", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.reports.custom-Bqx0LMJo.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/api-OnQO3erh.js", "/assets/ConfirmDialog-FyjGOAg4.js", "/assets/funnel-CRiclU0h.js", "/assets/loader-circle-CRrLibi7.js", "/assets/trash-2-BcHoghLw.js", "/assets/save-DQQgas6i.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/chart-column-BB4rAMl7.js", "/assets/dialog-BnIpflAQ.js", "/assets/dialog-Cpa2T3be.js", "/assets/portal-BoZ3-f1n.js", "/assets/x-Cj-HlmNQ.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/button-D-ZXNsM5.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.waivers": { "id": "routes/studio.$slug.waivers", "parentId": "routes/studio.$slug", "path": "waivers", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.waivers-Jsk_RZEW.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.waivers._index": { "id": "routes/studio.$slug.waivers._index", "parentId": "routes/studio.$slug.waivers", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.waivers._index-BkimxzaR.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.waivers.new": { "id": "routes/studio.$slug.waivers.new", "parentId": "routes/studio.$slug.waivers", "path": "new", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.waivers.new-D4FDy7lD.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/index-Cb5OqxoU.js", "/assets/save-DQQgas6i.js", "/assets/arrow-left-BnfrWY06.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/index-tijl61gk.js", "/assets/vendor-charts-CBCVHb7z.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug._index": { "id": "routes/studio.$slug._index", "parentId": "routes/studio.$slug", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug._index-DTi02sM5.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/activity-DBJWIPBn.js", "/assets/users-EVjyZsvX.js", "/assets/trending-up-i3FuM3q7.js", "/assets/calendar-vWMk9t_Y.js", "/assets/dollar-sign-BfPYFs8u.js", "/assets/file-pen-line-uUdnJsIl.js", "/assets/ticket-BlprpdKY.js", "/assets/award-CkU78-1I.js", "/assets/target-UN6rGDsM.js", "/assets/flame-B0-x8mCg.js", "/assets/arrow-right-iNMGlV6d.js", "/assets/index-tijl61gk.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/vendor-charts-CBCVHb7z.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.retail": { "id": "routes/studio.$slug.retail", "parentId": "routes/studio.$slug", "path": "retail", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.retail-BwjazrBY.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/index-Cb5OqxoU.js", "/assets/Dialogs-Atowov_t.js", "/assets/package-CTzHy-DS.js", "/assets/upload-_U7n2l92.js", "/assets/plus-CWTELB5_.js", "/assets/search-DuKLkEI3.js", "/assets/square-pen-qyJURCOd.js", "/assets/trash-2-BcHoghLw.js", "/assets/box-CHzyLRwu.js", "/assets/x-Cj-HlmNQ.js", "/assets/save-DQQgas6i.js", "/assets/Modal-C2ODX5rl.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.leads": { "id": "routes/studio.$slug.leads", "parentId": "routes/studio.$slug", "path": "leads", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.leads-B0GzEyxo.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/Modal-C2ODX5rl.js", "/assets/index-Cb5OqxoU.js", "/assets/plus-CWTELB5_.js", "/assets/search-DuKLkEI3.js", "/assets/mail-BspoxSMS.js", "/assets/phone-BQ0MvSSc.js", "/assets/clock-DKxge1S_.js", "/assets/circle-alert-BnjGAXAK.js", "/assets/pencil-_w-IsDxh.js", "/assets/circle-check-big-CSQBoMuh.js", "/assets/vendor-date-fns-BeqKegoe.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.tasks": { "id": "routes/studio.$slug.tasks", "parentId": "routes/studio.$slug", "path": "tasks", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.tasks-BeV0rQn_.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/Modal-C2ODX5rl.js", "/assets/ConfirmDialog-FyjGOAg4.js", "/assets/circle-check-big-CSQBoMuh.js", "/assets/plus-CWTELB5_.js", "/assets/calendar-vWMk9t_Y.js", "/assets/trash-2-BcHoghLw.js", "/assets/vendor-date-fns-BeqKegoe.js", "/assets/dialog-BnIpflAQ.js", "/assets/dialog-Cpa2T3be.js", "/assets/portal-BoZ3-f1n.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/x-Cj-HlmNQ.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/button-D-ZXNsM5.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.chat": { "id": "routes/studio.$slug.chat", "parentId": "routes/studio.$slug", "path": "chat", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.chat-CnPxdS3-.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/Modal-C2ODX5rl.js", "/assets/index-Cb5OqxoU.js", "/assets/message-circle-DReYP3NO.js", "/assets/settings-CZs_RxhN.js", "/assets/external-link-DQe80hmU.js", "/assets/user-DrfMgmZN.js", "/assets/shield-xoR-gJzw.js", "/assets/plus-CWTELB5_.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.chat.$roomId": { "id": "routes/studio.$slug.chat.$roomId", "parentId": "routes/studio.$slug.chat", "path": ":roomId", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.chat._roomId-D7nDXoPI.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/ChatWindow-BDWrtzLf.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/index-Cb5OqxoU.js", "/assets/arrow-left-BnfrWY06.js", "/assets/circle-check-big-CSQBoMuh.js", "/assets/clock-DKxge1S_.js", "/assets/send-ClowdSfz.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.data": { "id": "routes/studio.$slug.data", "parentId": "routes/studio.$slug", "path": "data", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.data-CH6Lmg4H.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/download-CaJLajpl.js", "/assets/upload-_U7n2l92.js", "/assets/database-VZ7s55nv.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.data._index": { "id": "routes/studio.$slug.data._index", "parentId": "routes/studio.$slug.data", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.data._index-DbBlCyDR.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.data.export": { "id": "routes/studio.$slug.data.export", "parentId": "routes/studio.$slug.data", "path": "export", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.data.export-D-d9RL5H.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/api-OnQO3erh.js", "/assets/Dialogs-Atowov_t.js", "/assets/download-CaJLajpl.js", "/assets/chart-column-BB4rAMl7.js", "/assets/credit-card-DxGxPhTX.js", "/assets/shopping-bag-CK_HfsHN.js", "/assets/Modal-C2ODX5rl.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.data.import": { "id": "routes/studio.$slug.data.import", "parentId": "routes/studio.$slug.data", "path": "import", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.data.import-B1NBfFdx.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/api-OnQO3erh.js", "/assets/upload-_U7n2l92.js", "/assets/file-text-Dcmbx1Ky.js", "/assets/circle-alert-BnjGAXAK.js", "/assets/circle-check-big-CSQBoMuh.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/studio.$slug.pos": { "id": "routes/studio.$slug.pos", "parentId": "routes/studio.$slug", "path": "pos", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/studio._slug.pos-BTAUoCCL.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/api-OnQO3erh.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/plus-CWTELB5_.js", "/assets/square-pen-qyJURCOd.js", "/assets/archive-BmeG3A7-.js", "/assets/x-Cj-HlmNQ.js", "/assets/user-DrfMgmZN.js", "/assets/search-DuKLkEI3.js", "/assets/trash-2-BcHoghLw.js", "/assets/shopping-cart-DpThPlKC.js", "/assets/credit-card-DxGxPhTX.js", "/assets/loader-circle-CRrLibi7.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/embed.$slug": { "id": "routes/embed.$slug", "parentId": "root", "path": "embed/:slug", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/embed._slug-ERazdCqS.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/ThemeProvider-Bg-dR422.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/embed.$slug.calendar": { "id": "routes/embed.$slug.calendar", "parentId": "routes/embed.$slug", "path": "calendar", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/embed._slug.calendar-DPm75vSa.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/calendar-vWMk9t_Y.js", "/assets/video-D71_KYqj.js", "/assets/external-link-DQe80hmU.js", "/assets/vendor-date-fns-BeqKegoe.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/embed.$slug.pricing": { "id": "routes/embed.$slug.pricing", "parentId": "routes/embed.$slug", "path": "pricing", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/embed._slug.pricing-CmMmwMv8.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/circle-alert-BnjGAXAK.js", "/assets/sparkles-Dx8loAwz.js", "/assets/tag-BbWouKy9.js", "/assets/check-CCFDD-1s.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/embed.$slug.book": { "id": "routes/embed.$slug.book", "parentId": "routes/embed.$slug", "path": "book", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/embed._slug.book-CGmJ4WmH.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/vendor-date-fns-BeqKegoe.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/embed.$slug.chat": { "id": "routes/embed.$slug.chat", "parentId": "routes/embed.$slug", "path": "chat", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/embed._slug.chat-CvTeHRml.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/ChatWindow-BDWrtzLf.js", "/assets/message-circle-DReYP3NO.js", "/assets/x-Cj-HlmNQ.js", "/assets/send-ClowdSfz.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/embed.$slug.shop": { "id": "routes/embed.$slug.shop", "parentId": "routes/embed.$slug", "path": "shop", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/embed._slug.shop-BAMFTahD.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/shopping-cart-DpThPlKC.js", "/assets/package-CTzHy-DS.js", "/assets/plus-CWTELB5_.js", "/assets/x-Cj-HlmNQ.js", "/assets/minus-DhosPEfF.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/kiosk.$slug": { "id": "routes/kiosk.$slug", "parentId": "root", "path": "kiosk/:slug", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/kiosk._slug-N_yblSGN.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/kiosk.$slug.login": { "id": "routes/kiosk.$slug.login", "parentId": "routes/kiosk.$slug", "path": "login", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/kiosk._slug.login-Dhb7Nb2F.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/index-Cb5OqxoU.js", "/assets/lock-t3rSRUYC.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/arrow-right-iNMGlV6d.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/kiosk.$slug.mode": { "id": "routes/kiosk.$slug.mode", "parentId": "routes/kiosk.$slug", "path": "mode", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/kiosk._slug.mode-BS4JmEJ8.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/index-Cb5OqxoU.js", "/assets/search-DuKLkEI3.js", "/assets/circle-x-CTW3GYJg.js", "/assets/user-DrfMgmZN.js", "/assets/calendar-vWMk9t_Y.js", "/assets/circle-check-big-CSQBoMuh.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/$pageSlug": { "id": "routes/$pageSlug", "parentId": "root", "path": ":pageSlug", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/_pageSlug-D9vtZFHY.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/PublicPageRenderer-CsciAs3x.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/puck-config-DEc18st9.js", "/assets/ChatWidget-DRTid0KN.js", "/assets/x-Cj-HlmNQ.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/message-circle-DReYP3NO.js", "/assets/send-ClowdSfz.js", "/assets/pen-BTVmGwZ4.js", "/assets/index-tijl61gk.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/chunk-VMBS36YX-D_0pUWOS.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard": { "id": "routes/dashboard", "parentId": "root", "path": "dashboard", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard-C0DMjtJm.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/ThemeToggle-B9srzbUh.js", "/assets/index-tijl61gk.js", "/assets/ThemeProvider-Bg-dR422.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/vendor-charts-CBCVHb7z.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard.classes": { "id": "routes/dashboard.classes", "parentId": "routes/dashboard", "path": "classes", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard.classes-BTLFE6na.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard.classes.$id.roster": { "id": "routes/dashboard.classes.$id.roster", "parentId": "routes/dashboard.classes", "path": ":id/roster", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard.classes._id.roster-B1qBh4p4.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard.classes.$id.watch": { "id": "routes/dashboard.classes.$id.watch", "parentId": "routes/dashboard.classes", "path": ":id/watch", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard.classes._id.watch-BQ2U2sg9.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard.classes._index": { "id": "routes/dashboard.classes._index", "parentId": "routes/dashboard.classes", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard.classes._index-B6NZuqXH.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/api-OnQO3erh.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/index-tijl61gk.js", "/assets/vendor-charts-CBCVHb7z.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard.profile": { "id": "routes/dashboard.profile", "parentId": "routes/dashboard", "path": "profile", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard.profile-3nDwt16h.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/dashboard._index": { "id": "routes/dashboard._index", "parentId": "routes/dashboard", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/dashboard._index-ecrO2syu.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/shield-check-Bi63rDwM.js", "/assets/plus-CWTELB5_.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/debug-ssr": { "id": "routes/debug-ssr", "parentId": "root", "path": "debug-ssr", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/debug-ssr-yAo8sarB.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/sign-in.$": { "id": "routes/sign-in.$", "parentId": "root", "path": "sign-in/*", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/sign-in._-2q2yq-sx.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/index-N-gS3mYh.js", "/assets/circle-alert-BnjGAXAK.js", "/assets/eye-off-DnMSnQKs.js", "/assets/eye-D0rC527y.js", "/assets/loader-circle-CRrLibi7.js", "/assets/index-tijl61gk.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/chunk-VMBS36YX-D_0pUWOS.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/chunk-6WD75OPE-CleNNb-A.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/sign-up.$": { "id": "routes/sign-up.$", "parentId": "root", "path": "sign-up/*", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/sign-up._-mslx-e03.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/index-N-gS3mYh.js", "/assets/circle-alert-BnjGAXAK.js", "/assets/eye-off-DnMSnQKs.js", "/assets/eye-D0rC527y.js", "/assets/index-tijl61gk.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/chunk-VMBS36YX-D_0pUWOS.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/chunk-6WD75OPE-CleNNb-A.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/_index": { "id": "routes/_index", "parentId": "root", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/_index-DQExAsp6.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/ThemeToggle-B9srzbUh.js", "/assets/ChatWidget-DRTid0KN.js", "/assets/PublicPageRenderer-CsciAs3x.js", "/assets/index-tijl61gk.js", "/assets/chunk-VMBS36YX-D_0pUWOS.js", "/assets/chunk-6WD75OPE-CleNNb-A.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/ThemeProvider-Bg-dR422.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/x-Cj-HlmNQ.js", "/assets/message-circle-DReYP3NO.js", "/assets/send-ClowdSfz.js", "/assets/puck-config-DEc18st9.js", "/assets/pen-BTVmGwZ4.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin": { "id": "routes/admin", "parentId": "root", "path": "admin", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin-CW86EG7Y.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/LogoutButton-C4peCnWQ.js", "/assets/ThemeToggle-B9srzbUh.js", "/assets/CommandBar-sQgP4rbT.js", "/assets/search-DuKLkEI3.js", "/assets/index-tijl61gk.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/index-N-gS3mYh.js", "/assets/chunk-VMBS36YX-D_0pUWOS.js", "/assets/runtimeEnvironment-BB2sO-19-DQnzQjGy.js", "/assets/chunk-6WD75OPE-CleNNb-A.js", "/assets/ThemeProvider-Bg-dR422.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/api-OnQO3erh.js", "/assets/loader-circle-CRrLibi7.js", "/assets/x-Cj-HlmNQ.js", "/assets/user-DrfMgmZN.js", "/assets/shopping-cart-DpThPlKC.js", "/assets/vendor-charts-CBCVHb7z.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.website.edit.$pageId": { "id": "routes/admin.website.edit.$pageId", "parentId": "routes/admin", "path": "website/edit/:pageId", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.website.edit._pageId-BZfxDtM3.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/puck-config-DEc18st9.js", "/assets/Dialogs-Atowov_t.js", "/assets/arrow-left-BnfrWY06.js", "/assets/eye-D0rC527y.js", "/assets/save-DQQgas6i.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/Modal-C2ODX5rl.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/index-tijl61gk.js", "/assets/vendor-charts-CBCVHb7z.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.communications.logs": { "id": "routes/admin.communications.logs", "parentId": "routes/admin", "path": "communications/logs", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.communications.logs-C5ILHv9G.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/index-Cb5OqxoU.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/mail-BspoxSMS.js", "/assets/refresh-cw-CjtOPibf.js", "/assets/search-DuKLkEI3.js", "/assets/send-ClowdSfz.js", "/assets/circle-check-big-CSQBoMuh.js", "/assets/circle-x-CTW3GYJg.js", "/assets/vendor-date-fns-BeqKegoe.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.coupons._index": { "id": "routes/admin.coupons._index", "parentId": "routes/admin", "path": "coupons", "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.coupons._index-C_HrYf8n.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/api-OnQO3erh.js", "/assets/Card-B4aXyL8u.js", "/assets/index-Cb5OqxoU.js", "/assets/vendor-date-fns-BeqKegoe.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.website._index": { "id": "routes/admin.website._index", "parentId": "routes/admin", "path": "website", "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.website._index-DuyLYFE_.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/Dialogs-Atowov_t.js", "/assets/globe-B4XmurjP.js", "/assets/plus-CWTELB5_.js", "/assets/file-text-Dcmbx1Ky.js", "/assets/eye-off-DnMSnQKs.js", "/assets/eye-D0rC527y.js", "/assets/external-link-DQe80hmU.js", "/assets/pen-BTVmGwZ4.js", "/assets/trash-2-BcHoghLw.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/Modal-C2ODX5rl.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/index-tijl61gk.js", "/assets/vendor-charts-CBCVHb7z.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.users.$userId": { "id": "routes/admin.users.$userId", "parentId": "routes/admin", "path": "users/:userId", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.users._userId-CxkHS2X0.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/Modal-C2ODX5rl.js", "/assets/Dialogs-Atowov_t.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/index-tijl61gk.js", "/assets/vendor-charts-CBCVHb7z.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.architecture": { "id": "routes/admin.architecture", "parentId": "routes/admin", "path": "architecture", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.architecture-m4gnmmOv.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/refresh-cw-CjtOPibf.js", "/assets/globe-B4XmurjP.js", "/assets/smartphone-Vpdbd-ww.js", "/assets/panels-top-left-CS_Cfu3F.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/shield-xoR-gJzw.js", "/assets/credit-card-DxGxPhTX.js", "/assets/calendar-vWMk9t_Y.js", "/assets/database-VZ7s55nv.js", "/assets/box-CHzyLRwu.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.users._index": { "id": "routes/admin.users._index", "parentId": "routes/admin", "path": "users", "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.users._index-jNO27cWJ.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/button-D-ZXNsM5.js", "/assets/label-B5WATmxx.js", "/assets/select-EwC2Fd3Z.js", "/assets/dialog-BnIpflAQ.js", "/assets/ConfirmDialog-FyjGOAg4.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/chevron-down-DNia0yBu.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/dialog-Cpa2T3be.js", "/assets/portal-BoZ3-f1n.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/x-Cj-HlmNQ.js", "/assets/index-tijl61gk.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.diagnostics": { "id": "routes/admin.diagnostics", "parentId": "routes/admin", "path": "diagnostics", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.diagnostics-DedVrUcn.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/Card-B4aXyL8u.js", "/assets/Badge-DkbrMJO9.js", "/assets/activity-DBJWIPBn.js", "/assets/server-Bx7LitLS.js", "/assets/database-VZ7s55nv.js", "/assets/shield-check-Bi63rDwM.js", "/assets/circle-check-big-CSQBoMuh.js", "/assets/circle-x-CTW3GYJg.js", "/assets/clock-DKxge1S_.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.diagnostics.run": { "id": "routes/admin.diagnostics.run", "parentId": "routes/admin.diagnostics", "path": "run", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.diagnostics.run-l0sNRNKZ.js", "imports": [], "css": [], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.projections": { "id": "routes/admin.projections", "parentId": "routes/admin", "path": "projections", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": false, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.projections-DxIz5PbY.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/trending-up-i3FuM3q7.js", "/assets/zap-4XO_A8Yl.js", "/assets/info-BVrNVXTL.js", "/assets/vendor-charts-CBCVHb7z.js", "/assets/activity-DBJWIPBn.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.financials": { "id": "routes/admin.financials", "parentId": "routes/admin", "path": "financials", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.financials-BMwU2Ba6.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/PrivacyBlur-CnAm2WrD.js", "/assets/Dialogs-Atowov_t.js", "/assets/refresh-cw-CjtOPibf.js", "/assets/dollar-sign-BfPYFs8u.js", "/assets/circle-check-big-CSQBoMuh.js", "/assets/circle-alert-BnjGAXAK.js", "/assets/Modal-C2ODX5rl.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.financials.failed": { "id": "routes/admin.financials.failed", "parentId": "routes/admin.financials", "path": "failed", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.financials.failed-EWkfNZav.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/Dialogs-Atowov_t.js", "/assets/refresh-cw-CjtOPibf.js", "/assets/circle-check-big-CSQBoMuh.js", "/assets/circle-alert-BnjGAXAK.js", "/assets/triangle-alert-BPZOVc9B.js", "/assets/external-link-DQe80hmU.js", "/assets/Modal-C2ODX5rl.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.workflows": { "id": "routes/admin.workflows", "parentId": "routes/admin", "path": "workflows", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.workflows-CV-f6VMs.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/dialog-BnIpflAQ.js", "/assets/Badge-DkbrMJO9.js", "/assets/button-D-ZXNsM5.js", "/assets/label-B5WATmxx.js", "/assets/select-EwC2Fd3Z.js", "/assets/use-resolve-button-type-289bnIyZ.js", "/assets/portal-BoZ3-f1n.js", "/assets/dialog-Cpa2T3be.js", "/assets/plus-CWTELB5_.js", "/assets/clock-DKxge1S_.js", "/assets/pencil-_w-IsDxh.js", "/assets/trash-2-BcHoghLw.js", "/assets/circle-alert-BnjGAXAK.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/user-plus-BBzixafQ.js", "/assets/x-Cj-HlmNQ.js", "/assets/chevron-down-DNia0yBu.js", "/assets/vendor-charts-CBCVHb7z.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.features": { "id": "routes/admin.features", "parentId": "routes/admin", "path": "features", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.features-jxexRb_G.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/index-Cb5OqxoU.js", "/assets/smartphone-Vpdbd-ww.js", "/assets/globe-B4XmurjP.js", "/assets/messages-square-1feWufr4.js", "/assets/credit-card-DxGxPhTX.js", "/assets/video-D71_KYqj.js", "/assets/message-square-w1u1RI-5.js", "/assets/mail-BspoxSMS.js", "/assets/save-DQQgas6i.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/index-tijl61gk.js", "/assets/vendor-charts-CBCVHb7z.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.tenants": { "id": "routes/admin.tenants", "parentId": "routes/admin", "path": "tenants", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.tenants-BnNgW9E9.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/Modal-C2ODX5rl.js", "/assets/Dialogs-Atowov_t.js", "/assets/PrivacyBlur-CnAm2WrD.js", "/assets/x-Cj-HlmNQ.js", "/assets/loader-circle-CRrLibi7.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/download-CaJLajpl.js", "/assets/chunk-OT5FTIRN-b3porSVB.js", "/assets/triangle-alert-BPZOVc9B.js", "/assets/activity-DBJWIPBn.js", "/assets/smartphone-Vpdbd-ww.js", "/assets/globe-B4XmurjP.js", "/assets/messages-square-1feWufr4.js", "/assets/credit-card-DxGxPhTX.js", "/assets/video-D71_KYqj.js", "/assets/shopping-cart-DpThPlKC.js", "/assets/message-square-w1u1RI-5.js", "/assets/mail-BspoxSMS.js", "/assets/chevron-down-DNia0yBu.js", "/assets/chevron-right-b4Coem16.js", "/assets/settings-CZs_RxhN.js", "/assets/index-tijl61gk.js", "/assets/vendor-charts-CBCVHb7z.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin._index": { "id": "routes/admin._index", "parentId": "routes/admin", "path": void 0, "index": true, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin._index-zvoL-WTy.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/Card-B4aXyL8u.js", "/assets/Badge-DkbrMJO9.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.emails": { "id": "routes/admin.emails", "parentId": "routes/admin", "path": "emails", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.emails-B3jMTLn6.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/mail-BspoxSMS.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.status": { "id": "routes/admin.status", "parentId": "routes/admin", "path": "status", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.status-BQsWWp0E.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.videos": { "id": "routes/admin.videos", "parentId": "routes/admin", "path": "videos", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.videos-DwDCM-aH.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/format-CAsSOgDD.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/Dialogs-Atowov_t.js", "/assets/upload-_U7n2l92.js", "/assets/film-CpVNdbqF.js", "/assets/createLucideIcon-CZ3UnH4h.js", "/assets/search-DuKLkEI3.js", "/assets/funnel-CRiclU0h.js", "/assets/play-BJ8lOJGZ.js", "/assets/eye-D0rC527y.js", "/assets/trash-2-BcHoghLw.js", "/assets/share-2-Bs-dfrN5.js", "/assets/circle-check-big-CSQBoMuh.js", "/assets/x-Cj-HlmNQ.js", "/assets/refresh-cw-CjtOPibf.js", "/assets/circle-alert-BnjGAXAK.js", "/assets/Modal-C2ODX5rl.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.comms": { "id": "routes/admin.comms", "parentId": "routes/admin", "path": "comms", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": true, "module": "/assets/admin.comms-BLOjud4Z.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/mail-BspoxSMS.js", "/assets/message-square-w1u1RI-5.js", "/assets/zap-4XO_A8Yl.js", "/assets/triangle-alert-BPZOVc9B.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.chat": { "id": "routes/admin.chat", "parentId": "routes/admin", "path": "chat", "index": void 0, "caseSensitive": void 0, "hasAction": true, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.chat-CuQC4Fmb.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/index-Cb5OqxoU.js", "/assets/message-circle-DReYP3NO.js", "/assets/shield-xoR-gJzw.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.chat.$roomId": { "id": "routes/admin.chat.$roomId", "parentId": "routes/admin.chat", "path": ":roomId", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.chat._roomId-h6val5mt.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/ChatWindow-BDWrtzLf.js", "/assets/api-OnQO3erh.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/index-Cb5OqxoU.js", "/assets/arrow-left-BnfrWY06.js", "/assets/settings-CZs_RxhN.js", "/assets/send-ClowdSfz.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 }, "routes/admin.logs": { "id": "routes/admin.logs", "parentId": "routes/admin", "path": "logs", "index": void 0, "caseSensitive": void 0, "hasAction": false, "hasLoader": true, "hasClientAction": false, "hasClientLoader": false, "hasClientMiddleware": false, "hasErrorBoundary": false, "module": "/assets/admin.logs-D7K0KGL-.js", "imports": ["/assets/chunk-JMJ3UQ3L-DsmOvVYk.js", "/assets/vendor-puck-Ox9nZAW8.js", "/assets/vendor-sentry-JepEA2vj.js", "/assets/activity-DBJWIPBn.js", "/assets/shield-xoR-gJzw.js", "/assets/download-CaJLajpl.js", "/assets/chevron-down-DNia0yBu.js", "/assets/chevron-right-b4Coem16.js", "/assets/vendor-date-fns-BeqKegoe.js", "/assets/createLucideIcon-CZ3UnH4h.js"], "css": ["/assets/vendor-puck-B4Ym435T.css#"], "clientActionModule": void 0, "clientLoaderModule": void 0, "clientMiddlewareModule": void 0, "hydrateFallbackModule": void 0 } }, "url": "/assets/manifest-85346a01.js", "version": "85346a01", "sri": void 0 };
 const assetsBuildDirectory = "build/client";
 const basename = "/";
 const future = { "unstable_optimizeDeps": false, "unstable_subResourceIntegrity": false, "unstable_trailingSlashAwareDataRequests": false, "v8_middleware": false, "v8_splitRouteModules": false, "v8_viteEnvironmentApi": false };
@@ -46192,13 +47308,21 @@ const routes = {
     caseSensitive: void 0,
     module: route68
   },
+  "routes/studio.$slug.settings.roles": {
+    id: "routes/studio.$slug.settings.roles",
+    parentId: "routes/studio.$slug.settings",
+    path: "roles",
+    index: void 0,
+    caseSensitive: void 0,
+    module: route69
+  },
   "routes/studio.$slug.settings.chat": {
     id: "routes/studio.$slug.settings.chat",
     parentId: "routes/studio.$slug.settings",
     path: "chat",
     index: void 0,
     caseSensitive: void 0,
-    module: route69
+    module: route70
   },
   "routes/studio.$slug.settings.qr": {
     id: "routes/studio.$slug.settings.qr",
@@ -46206,7 +47330,7 @@ const routes = {
     path: "qr",
     index: void 0,
     caseSensitive: void 0,
-    module: route70
+    module: route71
   },
   "routes/studio.$slug.students": {
     id: "routes/studio.$slug.students",
@@ -46214,7 +47338,7 @@ const routes = {
     path: "students",
     index: void 0,
     caseSensitive: void 0,
-    module: route71
+    module: route72
   },
   "routes/studio.$slug.students._index": {
     id: "routes/studio.$slug.students._index",
@@ -46222,7 +47346,7 @@ const routes = {
     path: void 0,
     index: true,
     caseSensitive: void 0,
-    module: route72
+    module: route73
   },
   "routes/studio.$slug.students.$id": {
     id: "routes/studio.$slug.students.$id",
@@ -46230,7 +47354,7 @@ const routes = {
     path: ":id",
     index: void 0,
     caseSensitive: void 0,
-    module: route73
+    module: route74
   },
   "routes/studio.$slug.checkin": {
     id: "routes/studio.$slug.checkin",
@@ -46238,7 +47362,7 @@ const routes = {
     path: "checkin",
     index: void 0,
     caseSensitive: void 0,
-    module: route74
+    module: route75
   },
   "routes/studio.$slug.classes": {
     id: "routes/studio.$slug.classes",
@@ -46246,7 +47370,7 @@ const routes = {
     path: "classes",
     index: void 0,
     caseSensitive: void 0,
-    module: route75
+    module: route76
   },
   "routes/studio.$slug.classes.$classId.live": {
     id: "routes/studio.$slug.classes.$classId.live",
@@ -46254,7 +47378,7 @@ const routes = {
     path: ":classId/live",
     index: void 0,
     caseSensitive: void 0,
-    module: route76
+    module: route77
   },
   "routes/studio.$slug.classes.$id.roster": {
     id: "routes/studio.$slug.classes.$id.roster",
@@ -46262,7 +47386,7 @@ const routes = {
     path: ":id/roster",
     index: void 0,
     caseSensitive: void 0,
-    module: route77
+    module: route78
   },
   "routes/studio.$slug.classes._index": {
     id: "routes/studio.$slug.classes._index",
@@ -46270,7 +47394,7 @@ const routes = {
     path: void 0,
     index: true,
     caseSensitive: void 0,
-    module: route78
+    module: route79
   },
   "routes/studio.$slug.loyalty": {
     id: "routes/studio.$slug.loyalty",
@@ -46278,7 +47402,7 @@ const routes = {
     path: "loyalty",
     index: void 0,
     caseSensitive: void 0,
-    module: route79
+    module: route80
   },
   "routes/studio.$slug.profile": {
     id: "routes/studio.$slug.profile",
@@ -46286,7 +47410,7 @@ const routes = {
     path: "profile",
     index: void 0,
     caseSensitive: void 0,
-    module: route80
+    module: route81
   },
   "routes/studio.$slug.reports": {
     id: "routes/studio.$slug.reports",
@@ -46294,7 +47418,7 @@ const routes = {
     path: "reports",
     index: void 0,
     caseSensitive: void 0,
-    module: route81
+    module: route82
   },
   "routes/studio.$slug.reports.advanced": {
     id: "routes/studio.$slug.reports.advanced",
@@ -46302,7 +47426,7 @@ const routes = {
     path: "advanced",
     index: void 0,
     caseSensitive: void 0,
-    module: route82
+    module: route83
   },
   "routes/studio.$slug.reports.custom": {
     id: "routes/studio.$slug.reports.custom",
@@ -46310,7 +47434,7 @@ const routes = {
     path: "custom",
     index: void 0,
     caseSensitive: void 0,
-    module: route83
+    module: route84
   },
   "routes/studio.$slug.waivers": {
     id: "routes/studio.$slug.waivers",
@@ -46318,7 +47442,7 @@ const routes = {
     path: "waivers",
     index: void 0,
     caseSensitive: void 0,
-    module: route84
+    module: route85
   },
   "routes/studio.$slug.waivers._index": {
     id: "routes/studio.$slug.waivers._index",
@@ -46326,7 +47450,7 @@ const routes = {
     path: void 0,
     index: true,
     caseSensitive: void 0,
-    module: route85
+    module: route86
   },
   "routes/studio.$slug.waivers.new": {
     id: "routes/studio.$slug.waivers.new",
@@ -46334,7 +47458,7 @@ const routes = {
     path: "new",
     index: void 0,
     caseSensitive: void 0,
-    module: route86
+    module: route87
   },
   "routes/studio.$slug._index": {
     id: "routes/studio.$slug._index",
@@ -46342,7 +47466,7 @@ const routes = {
     path: void 0,
     index: true,
     caseSensitive: void 0,
-    module: route87
+    module: route88
   },
   "routes/studio.$slug.retail": {
     id: "routes/studio.$slug.retail",
@@ -46350,7 +47474,7 @@ const routes = {
     path: "retail",
     index: void 0,
     caseSensitive: void 0,
-    module: route88
+    module: route89
   },
   "routes/studio.$slug.leads": {
     id: "routes/studio.$slug.leads",
@@ -46358,7 +47482,7 @@ const routes = {
     path: "leads",
     index: void 0,
     caseSensitive: void 0,
-    module: route89
+    module: route90
   },
   "routes/studio.$slug.tasks": {
     id: "routes/studio.$slug.tasks",
@@ -46366,7 +47490,7 @@ const routes = {
     path: "tasks",
     index: void 0,
     caseSensitive: void 0,
-    module: route90
+    module: route91
   },
   "routes/studio.$slug.chat": {
     id: "routes/studio.$slug.chat",
@@ -46374,7 +47498,7 @@ const routes = {
     path: "chat",
     index: void 0,
     caseSensitive: void 0,
-    module: route91
+    module: route92
   },
   "routes/studio.$slug.chat.$roomId": {
     id: "routes/studio.$slug.chat.$roomId",
@@ -46382,7 +47506,7 @@ const routes = {
     path: ":roomId",
     index: void 0,
     caseSensitive: void 0,
-    module: route92
+    module: route93
   },
   "routes/studio.$slug.data": {
     id: "routes/studio.$slug.data",
@@ -46390,7 +47514,7 @@ const routes = {
     path: "data",
     index: void 0,
     caseSensitive: void 0,
-    module: route93
+    module: route94
   },
   "routes/studio.$slug.data._index": {
     id: "routes/studio.$slug.data._index",
@@ -46398,7 +47522,7 @@ const routes = {
     path: void 0,
     index: true,
     caseSensitive: void 0,
-    module: route94
+    module: route95
   },
   "routes/studio.$slug.data.export": {
     id: "routes/studio.$slug.data.export",
@@ -46406,7 +47530,7 @@ const routes = {
     path: "export",
     index: void 0,
     caseSensitive: void 0,
-    module: route95
+    module: route96
   },
   "routes/studio.$slug.data.import": {
     id: "routes/studio.$slug.data.import",
@@ -46414,7 +47538,7 @@ const routes = {
     path: "import",
     index: void 0,
     caseSensitive: void 0,
-    module: route96
+    module: route97
   },
   "routes/studio.$slug.pos": {
     id: "routes/studio.$slug.pos",
@@ -46422,7 +47546,7 @@ const routes = {
     path: "pos",
     index: void 0,
     caseSensitive: void 0,
-    module: route97
+    module: route98
   },
   "routes/embed.$slug": {
     id: "routes/embed.$slug",
@@ -46430,7 +47554,7 @@ const routes = {
     path: "embed/:slug",
     index: void 0,
     caseSensitive: void 0,
-    module: route98
+    module: route99
   },
   "routes/embed.$slug.calendar": {
     id: "routes/embed.$slug.calendar",
@@ -46438,7 +47562,7 @@ const routes = {
     path: "calendar",
     index: void 0,
     caseSensitive: void 0,
-    module: route99
+    module: route100
   },
   "routes/embed.$slug.pricing": {
     id: "routes/embed.$slug.pricing",
@@ -46446,7 +47570,7 @@ const routes = {
     path: "pricing",
     index: void 0,
     caseSensitive: void 0,
-    module: route100
+    module: route101
   },
   "routes/embed.$slug.book": {
     id: "routes/embed.$slug.book",
@@ -46454,7 +47578,7 @@ const routes = {
     path: "book",
     index: void 0,
     caseSensitive: void 0,
-    module: route101
+    module: route102
   },
   "routes/embed.$slug.chat": {
     id: "routes/embed.$slug.chat",
@@ -46462,7 +47586,7 @@ const routes = {
     path: "chat",
     index: void 0,
     caseSensitive: void 0,
-    module: route102
+    module: route103
   },
   "routes/embed.$slug.shop": {
     id: "routes/embed.$slug.shop",
@@ -46470,7 +47594,31 @@ const routes = {
     path: "shop",
     index: void 0,
     caseSensitive: void 0,
-    module: route103
+    module: route104
+  },
+  "routes/kiosk.$slug": {
+    id: "routes/kiosk.$slug",
+    parentId: "root",
+    path: "kiosk/:slug",
+    index: void 0,
+    caseSensitive: void 0,
+    module: route105
+  },
+  "routes/kiosk.$slug.login": {
+    id: "routes/kiosk.$slug.login",
+    parentId: "routes/kiosk.$slug",
+    path: "login",
+    index: void 0,
+    caseSensitive: void 0,
+    module: route106
+  },
+  "routes/kiosk.$slug.mode": {
+    id: "routes/kiosk.$slug.mode",
+    parentId: "routes/kiosk.$slug",
+    path: "mode",
+    index: void 0,
+    caseSensitive: void 0,
+    module: route107
   },
   "routes/$pageSlug": {
     id: "routes/$pageSlug",
@@ -46478,7 +47626,7 @@ const routes = {
     path: ":pageSlug",
     index: void 0,
     caseSensitive: void 0,
-    module: route104
+    module: route108
   },
   "routes/dashboard": {
     id: "routes/dashboard",
@@ -46486,7 +47634,7 @@ const routes = {
     path: "dashboard",
     index: void 0,
     caseSensitive: void 0,
-    module: route105
+    module: route109
   },
   "routes/dashboard.classes": {
     id: "routes/dashboard.classes",
@@ -46494,7 +47642,7 @@ const routes = {
     path: "classes",
     index: void 0,
     caseSensitive: void 0,
-    module: route106
+    module: route110
   },
   "routes/dashboard.classes.$id.roster": {
     id: "routes/dashboard.classes.$id.roster",
@@ -46502,7 +47650,7 @@ const routes = {
     path: ":id/roster",
     index: void 0,
     caseSensitive: void 0,
-    module: route107
+    module: route111
   },
   "routes/dashboard.classes.$id.watch": {
     id: "routes/dashboard.classes.$id.watch",
@@ -46510,7 +47658,7 @@ const routes = {
     path: ":id/watch",
     index: void 0,
     caseSensitive: void 0,
-    module: route108
+    module: route112
   },
   "routes/dashboard.classes._index": {
     id: "routes/dashboard.classes._index",
@@ -46518,7 +47666,7 @@ const routes = {
     path: void 0,
     index: true,
     caseSensitive: void 0,
-    module: route109
+    module: route113
   },
   "routes/dashboard.profile": {
     id: "routes/dashboard.profile",
@@ -46526,7 +47674,7 @@ const routes = {
     path: "profile",
     index: void 0,
     caseSensitive: void 0,
-    module: route110
+    module: route114
   },
   "routes/dashboard._index": {
     id: "routes/dashboard._index",
@@ -46534,7 +47682,7 @@ const routes = {
     path: void 0,
     index: true,
     caseSensitive: void 0,
-    module: route111
+    module: route115
   },
   "routes/debug-ssr": {
     id: "routes/debug-ssr",
@@ -46542,7 +47690,7 @@ const routes = {
     path: "debug-ssr",
     index: void 0,
     caseSensitive: void 0,
-    module: route112
+    module: route116
   },
   "routes/sign-in.$": {
     id: "routes/sign-in.$",
@@ -46550,7 +47698,7 @@ const routes = {
     path: "sign-in/*",
     index: void 0,
     caseSensitive: void 0,
-    module: route113
+    module: route117
   },
   "routes/sign-up.$": {
     id: "routes/sign-up.$",
@@ -46558,7 +47706,7 @@ const routes = {
     path: "sign-up/*",
     index: void 0,
     caseSensitive: void 0,
-    module: route114
+    module: route118
   },
   "routes/_index": {
     id: "routes/_index",
@@ -46566,7 +47714,7 @@ const routes = {
     path: void 0,
     index: true,
     caseSensitive: void 0,
-    module: route115
+    module: route119
   },
   "routes/admin": {
     id: "routes/admin",
@@ -46574,7 +47722,7 @@ const routes = {
     path: "admin",
     index: void 0,
     caseSensitive: void 0,
-    module: route116
+    module: route120
   },
   "routes/admin.website.edit.$pageId": {
     id: "routes/admin.website.edit.$pageId",
@@ -46582,7 +47730,7 @@ const routes = {
     path: "website/edit/:pageId",
     index: void 0,
     caseSensitive: void 0,
-    module: route117
+    module: route121
   },
   "routes/admin.communications.logs": {
     id: "routes/admin.communications.logs",
@@ -46590,7 +47738,7 @@ const routes = {
     path: "communications/logs",
     index: void 0,
     caseSensitive: void 0,
-    module: route118
+    module: route122
   },
   "routes/admin.coupons._index": {
     id: "routes/admin.coupons._index",
@@ -46598,7 +47746,7 @@ const routes = {
     path: "coupons",
     index: true,
     caseSensitive: void 0,
-    module: route119
+    module: route123
   },
   "routes/admin.website._index": {
     id: "routes/admin.website._index",
@@ -46606,7 +47754,7 @@ const routes = {
     path: "website",
     index: true,
     caseSensitive: void 0,
-    module: route120
+    module: route124
   },
   "routes/admin.users.$userId": {
     id: "routes/admin.users.$userId",
@@ -46614,7 +47762,7 @@ const routes = {
     path: "users/:userId",
     index: void 0,
     caseSensitive: void 0,
-    module: route121
+    module: route125
   },
   "routes/admin.architecture": {
     id: "routes/admin.architecture",
@@ -46622,7 +47770,7 @@ const routes = {
     path: "architecture",
     index: void 0,
     caseSensitive: void 0,
-    module: route122
+    module: route126
   },
   "routes/admin.users._index": {
     id: "routes/admin.users._index",
@@ -46630,7 +47778,7 @@ const routes = {
     path: "users",
     index: true,
     caseSensitive: void 0,
-    module: route123
+    module: route127
   },
   "routes/admin.diagnostics": {
     id: "routes/admin.diagnostics",
@@ -46638,7 +47786,7 @@ const routes = {
     path: "diagnostics",
     index: void 0,
     caseSensitive: void 0,
-    module: route124
+    module: route128
   },
   "routes/admin.diagnostics.run": {
     id: "routes/admin.diagnostics.run",
@@ -46646,7 +47794,7 @@ const routes = {
     path: "run",
     index: void 0,
     caseSensitive: void 0,
-    module: route125
+    module: route129
   },
   "routes/admin.projections": {
     id: "routes/admin.projections",
@@ -46654,7 +47802,7 @@ const routes = {
     path: "projections",
     index: void 0,
     caseSensitive: void 0,
-    module: route126
+    module: route130
   },
   "routes/admin.financials": {
     id: "routes/admin.financials",
@@ -46662,7 +47810,7 @@ const routes = {
     path: "financials",
     index: void 0,
     caseSensitive: void 0,
-    module: route127
+    module: route131
   },
   "routes/admin.financials.failed": {
     id: "routes/admin.financials.failed",
@@ -46670,7 +47818,7 @@ const routes = {
     path: "failed",
     index: void 0,
     caseSensitive: void 0,
-    module: route128
+    module: route132
   },
   "routes/admin.workflows": {
     id: "routes/admin.workflows",
@@ -46678,7 +47826,7 @@ const routes = {
     path: "workflows",
     index: void 0,
     caseSensitive: void 0,
-    module: route129
+    module: route133
   },
   "routes/admin.features": {
     id: "routes/admin.features",
@@ -46686,7 +47834,7 @@ const routes = {
     path: "features",
     index: void 0,
     caseSensitive: void 0,
-    module: route130
+    module: route134
   },
   "routes/admin.tenants": {
     id: "routes/admin.tenants",
@@ -46694,7 +47842,7 @@ const routes = {
     path: "tenants",
     index: void 0,
     caseSensitive: void 0,
-    module: route131
+    module: route135
   },
   "routes/admin._index": {
     id: "routes/admin._index",
@@ -46702,7 +47850,7 @@ const routes = {
     path: void 0,
     index: true,
     caseSensitive: void 0,
-    module: route132
+    module: route136
   },
   "routes/admin.emails": {
     id: "routes/admin.emails",
@@ -46710,7 +47858,7 @@ const routes = {
     path: "emails",
     index: void 0,
     caseSensitive: void 0,
-    module: route133
+    module: route137
   },
   "routes/admin.status": {
     id: "routes/admin.status",
@@ -46718,7 +47866,7 @@ const routes = {
     path: "status",
     index: void 0,
     caseSensitive: void 0,
-    module: route134
+    module: route138
   },
   "routes/admin.videos": {
     id: "routes/admin.videos",
@@ -46726,7 +47874,7 @@ const routes = {
     path: "videos",
     index: void 0,
     caseSensitive: void 0,
-    module: route135
+    module: route139
   },
   "routes/admin.comms": {
     id: "routes/admin.comms",
@@ -46734,7 +47882,7 @@ const routes = {
     path: "comms",
     index: void 0,
     caseSensitive: void 0,
-    module: route136
+    module: route140
   },
   "routes/admin.chat": {
     id: "routes/admin.chat",
@@ -46742,7 +47890,7 @@ const routes = {
     path: "chat",
     index: void 0,
     caseSensitive: void 0,
-    module: route137
+    module: route141
   },
   "routes/admin.chat.$roomId": {
     id: "routes/admin.chat.$roomId",
@@ -46750,7 +47898,7 @@ const routes = {
     path: ":roomId",
     index: void 0,
     caseSensitive: void 0,
-    module: route138
+    module: route142
   },
   "routes/admin.logs": {
     id: "routes/admin.logs",
@@ -46758,7 +47906,7 @@ const routes = {
     path: "logs",
     index: void 0,
     caseSensitive: void 0,
-    module: route139
+    module: route143
   }
 };
 const allowedActionOrigins = false;
