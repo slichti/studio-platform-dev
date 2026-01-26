@@ -1,13 +1,25 @@
-import { BarChart3, TrendingUp, Users } from "lucide-react";
+import { BarChart3, TrendingUp, Users, ArrowRight } from "lucide-react";
+import { Link, useOutletContext } from "react-router";
 
 export default function DocumentationAnalytics() {
+    const { user } = useOutletContext<any>();
+    const tenantSlug = user?.tenants?.[0]?.slug;
+
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div>
                 <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50 mb-4">Advanced Analytics</h1>
-                <p className="text-lg text-zinc-600 dark:text-zinc-400 leading-relaxed max-w-3xl">
+                <p className="text-lg text-zinc-600 dark:text-zinc-400 leading-relaxed max-w-3xl mb-4">
                     Gain deeper insights into your studio's performance with Cohort Analysis, Lifetime Value (LTV) tracking, and Utilization Heatmaps.
                 </p>
+                {tenantSlug && (
+                    <Link
+                        to={`/studio/${tenantSlug}/analytics`}
+                        className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                    >
+                        View your Analytics <ArrowRight size={16} />
+                    </Link>
+                )}
             </div>
 
             <section className="space-y-6">

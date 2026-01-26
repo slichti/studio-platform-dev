@@ -2,7 +2,7 @@
 import { Outlet, NavLink, Link, useLoaderData, type LoaderFunctionArgs, redirect } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { useUser } from "@clerk/react-router";
-import { Book, Menu, X, Search, GraduationCap, Smartphone, Settings, Shield, Server, Users, FileText, ShoppingCart, Globe, MessageSquare, BarChart3, Layout } from "lucide-react";
+import { Book, Menu, X, Search, GraduationCap, Smartphone, Settings, Shield, Server, Users, FileText, ShoppingCart, Globe, MessageSquare, BarChart3, Layout, Database } from "lucide-react";
 import { useState } from "react";
 import { apiRequest } from "../utils/api";
 import { ThemeToggle } from "../components/ThemeToggle";
@@ -82,6 +82,7 @@ export default function HelpLayout() {
             items: [
                 { name: "Welcome to Studio Platform", href: "/documentation", icon: GraduationCap },
                 { name: "Setting up your Studio", href: "/documentation/setup", icon: Settings },
+                { name: "Migration & Import", href: "/documentation/migration", icon: Database },
                 { name: "For Studio Owners", href: "/documentation/studio/overview", icon: Users },
             ]
         },
@@ -147,6 +148,19 @@ export default function HelpLayout() {
                         </div>
                         <span className="hidden sm:inline">Internal Docs</span>
                     </Link>
+
+                    {/* Return to App Context */}
+                    {(dbUser?.tenants?.length > 0 || isPlatformAdmin) && (
+                        <div className="hidden md:flex mr-6">
+                            <a
+                                href={isPlatformAdmin ? "/admin" : `/studio/${dbUser.tenants[0]?.slug}`}
+                                className="flex items-center gap-1.5 text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors bg-zinc-100 dark:bg-zinc-800 px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600"
+                            >
+                                <Layout size={14} />
+                                {isPlatformAdmin ? 'Platform Admin' : 'Return to Studio'}
+                            </a>
+                        </div>
+                    )}
 
                     {/* Search (Real) */}
                     <div className="flex-1 max-w-md hidden md:flex items-center relative group">

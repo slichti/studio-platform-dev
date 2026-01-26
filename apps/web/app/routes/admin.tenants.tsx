@@ -138,6 +138,14 @@ export default function AdminTenants() {
     const [archiveInput, setArchiveInput] = useState("");
     const [archiveLoading, setArchiveLoading] = useState(false);
 
+    // Archive State
+    // (Already declared above, removing duplicates)
+
+    // Edit Tenant State (Owner Email)
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [tenantToEdit, setTenantToEdit] = useState<{ id: string, name: string, ownerEmail: string } | null>(null);
+    const [editEmail, setEditEmail] = useState("");
+
     const { getToken } = useAuth();
     const navigate = useNavigate();
 
@@ -766,6 +774,47 @@ export default function AdminTenants() {
             setErrorDialog({ isOpen: true, message: e.message || "Archive failed" });
         } finally {
             setArchiveLoading(false);
+        }
+    };
+
+    const handleEditTenant = async (tenant: any) => {
+        setLoading(true);
+        try {
+            const token = await getToken();
+            // Fetch current owner email
+            const res: any = await apiRequest(`/admin/tenants/${tenant.id}/owner`, token);
+            if (res.error) throw new Error(res.error);
+
+            setTenantToEdit({ id: tenant.id, name: tenant.name, ownerEmail: res.email });
+            setEditEmail(res.email);
+            setEditModalOpen(true);
+        } catch (e: any) {
+            setErrorDialog({ isOpen: true, message: "Failed to fetch owner details: " + e.message });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSaveEdit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!tenantToEdit) return;
+        setLoading(true);
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/admin/tenants/${tenantToEdit.id}/owner`, token, {
+                method: 'PATCH',
+                body: JSON.stringify({ email: editEmail })
+            });
+
+            if (res.error) throw new Error(res.error);
+
+            setSuccessDialog({ isOpen: true, message: "Owner email updated successfully." });
+            setEditModalOpen(false);
+            setTenantToEdit(null);
+        } catch (e: any) {
+            setErrorDialog({ isOpen: true, message: e.message || "Update failed" });
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -1984,6 +2033,33 @@ export default function AdminTenants() {
                     </div>
                 </div>
             )}
+
+            {/* Edit Tenant Modal */}
+            <Modal
+                isOpen={editModalOpen}
+                onClose={() => setEditModalOpen(false)}
+                title={`Edit Tenant: ${tenantToEdit?.name}`}
+            >
+                <form onSubmit={handleSaveEdit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 mb-1">Owner Email</label>
+                        <input
+                            type="email"
+                            required
+                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
+                            value={editEmail}
+                            onChange={(e) => setEditEmail(e.target.value)}
+                        />
+                        <p className="text-xs text-zinc-500 mt-1">This will update the login email for the user account associated with the 'Owner' role.</p>
+                    </div>
+                    <div className="pt-4 flex gap-3">
+                        <button type="button" onClick={() => setEditModalOpen(false)} className="flex-1 px-4 py-2 border border-zinc-300 text-zinc-700 rounded-md hover:bg-zinc-50 font-medium">Cancel</button>
+                        <button type="submit" disabled={loading} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium disabled:opacity-50">
+                            {loading ? "Saving..." : "Update Owner"}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
 
             {/* Data Export Modal */}
             {exportModal && (

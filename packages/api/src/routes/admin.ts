@@ -1029,6 +1029,78 @@ app.put('/tenants/:id/status', async (c) => {
     return c.json({ success: true, status });
 });
 
+// GET /tenants/:id/owner - Get current owner details
+app.get('/tenants/:id/owner', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+
+    // Find the 'owner' role member
+    const ownerMember = await db.select({
+        userId: tenantMembers.userId,
+        email: users.email
+    })
+        .from(tenantMembers)
+        .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
+        .innerJoin(users, eq(tenantMembers.userId, users.id))
+        .where(and(eq(tenantMembers.tenantId, tenantId), eq(tenantRoles.role, 'owner')))
+        .limit(1)
+        .get();
+
+    if (!ownerMember) return c.json({ error: "Owner not found" }, 404);
+
+    return c.json({ userId: ownerMember.userId, email: ownerMember.email });
+});
+
+// PATCH /tenants/:id/owner - Update Owner Email
+app.patch('/tenants/:id/owner', async (c) => {
+    const db = createDb(c.env.DB);
+    const auth = c.get('auth');
+    const tenantId = c.req.param('id');
+    const { email } = await c.req.json();
+
+    if (!email) return c.json({ error: "Email is required" }, 400);
+
+    // Find the 'owner' role member
+    const ownerMember = await db.select({
+        userId: tenantMembers.userId
+    })
+        .from(tenantMembers)
+        .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
+        .where(and(eq(tenantMembers.tenantId, tenantId), eq(tenantRoles.role, 'owner')))
+        .limit(1)
+        .get();
+
+    if (!ownerMember) return c.json({ error: "Owner not found" }, 404);
+
+    // Check if email is already taken by ANOTHER user?
+    const existingUser = await db.query.users.findFirst({
+        where: eq(users.email, email)
+    });
+
+    if (existingUser && existingUser.id !== ownerMember.userId) {
+        return c.json({ error: "Email is already in use by another user" }, 409);
+    }
+
+    // Update User Email
+    await db.update(users)
+        .set({ email })
+        .where(eq(users.id, ownerMember.userId))
+        .run();
+
+    // Audit
+    const audit = new AuditService(db);
+    await audit.log({
+        actorId: auth.userId,
+        action: 'update_tenant_owner_email',
+        tenantId,
+        targetId: ownerMember.userId,
+        details: { oldEmail: 'hidden', newEmail: email }, // could query old email if needed
+        ipAddress: c.req.header('CF-Connecting-IP')
+    });
+
+    return c.json({ success: true });
+});
+
 // PATCH /tenants/:id/settings/features - Enable/Disable features manually
 // (This endpoint might already exist or be handled by generic feature routes, adding here just in case)
 
