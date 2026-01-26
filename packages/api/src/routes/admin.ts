@@ -839,7 +839,7 @@ app.post('/tenants/seed', async (c) => {
 
 // GET /coupons - List Platform Coupons
 app.get('/coupons', async (c) => {
-    const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+    const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY || '');
     try {
         const coupons = await stripeService.listCoupons(100);
         return c.json(coupons.data);
@@ -850,7 +850,7 @@ app.get('/coupons', async (c) => {
 
 // POST /coupons - Create Platform Coupon
 app.post('/coupons', async (c) => {
-    const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+    const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY || '');
     const body = await c.req.json();
     try {
         // Map body to Stripe params
@@ -882,7 +882,7 @@ app.post('/coupons', async (c) => {
 
 // DELETE /coupons/:id - Delete Platform Coupon
 app.delete('/coupons/:id', async (c) => {
-    const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+    const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY || '');
     const id = c.req.param('id');
     try {
         await stripeService.deleteCoupon(id);
