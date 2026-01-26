@@ -553,31 +553,31 @@ export class AutomationsService {
     private processTemplate(text: string, context: any, couponCode: string | null) {
         // Core Variables
         let processed = text
-            .replace(/{{first_name}}/g, context.firstName || 'Friend')
-            .replace(/{{firstName}}/g, context.firstName || 'Friend') // Support both
-            .replace(/{{last_name}}/g, context.lastName || '')
-            .replace(/{{lastName}}/g, context.lastName || '')
-            .replace(/{{email}}/g, context.email || '')
-            .replace(/{{title}}/g, context.title || '')
-            .replace(/{{studioName}}/g, context.title || '') // Alias
-            .replace(/{{address}}/g, context.address || '');
+            .replace(/\{{1,2}first_name\}{1,2}/gi, context.firstName || 'Friend')
+            .replace(/\{{1,2}firstName\}{1,2}/gi, context.firstName || 'Friend') // Support both
+            .replace(/\{{1,2}last_name\}{1,2}/gi, context.lastName || '')
+            .replace(/\{{1,2}lastName\}{1,2}/gi, context.lastName || '')
+            .replace(/\{{1,2}email\}{1,2}/gi, context.email || '')
+            .replace(/\{{1,2}title\}{1,2}/gi, context.title || '')
+            .replace(/\{{1,2}studioName\}{1,2}/gi, context.title || '') // Alias
+            .replace(/\{{1,2}address\}{1,2}/gi, context.address || '');
 
         // Coupon
         if (couponCode) {
-            processed = processed.replace(/{{coupon_code}}/g, couponCode);
+            processed = processed.replace(/\{{1,2}coupon_code\}{1,2}/gi, couponCode);
         }
 
         // Context Data Variables (Deep check in context.data)
         const data = context.data || {};
 
         // Class/Booking specific
-        if (data.classTitle) processed = processed.replace(/{{classTitle}}/g, data.classTitle);
+        if (data.classTitle) processed = processed.replace(/\{{1,2}classTitle\}{1,2}/g, data.classTitle);
         if (data.startTime) {
             const date = new Date(data.startTime);
-            processed = processed.replace(/{{classDate}}/g, date.toLocaleDateString());
-            processed = processed.replace(/{{classTime}}/g, date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+            processed = processed.replace(/\{{1,2}classDate\}{1,2}/g, date.toLocaleDateString());
+            processed = processed.replace(/\{{1,2}classTime\}{1,2}/g, date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
         }
-        if (data.feeAmount) processed = processed.replace(/{{feeAmount}}/g, String(data.feeAmount));
+        if (data.feeAmount) processed = processed.replace(/\{{1,2}feeAmount\}{1,2}/g, String(data.feeAmount));
 
 
         // Helper: Generic Metadata Replacer (if available)

@@ -274,7 +274,7 @@ function WorkflowForm({ initialData, onSubmit }: WorkflowFormProps) {
                 </div>
                 <div className="space-y-2">
                     <Label>Timing</Label>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
                         <Select
                             name="timingType"
                             defaultValue={initialData?.timingType || "immediate"}
@@ -315,7 +315,7 @@ function WorkflowForm({ initialData, onSubmit }: WorkflowFormProps) {
                     placeholder="Hello {firstname}..."
                     className="h-32 font-mono"
                 />
-                <p className="text-xs text-zinc-500">Supported variables: {'{firstname}'}, {'{lastname}'}.</p>
+                <p className="text-xs text-zinc-500">Supported variables: {'{firstname}'}, {'{lastname}'}, {'{title}'}.</p>
             </div>
 
             <DialogFooter className="mt-4 flex justify-end gap-2">

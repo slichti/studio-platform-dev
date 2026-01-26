@@ -272,11 +272,11 @@ app.get('/automations', async (c) => {
         .all();
 
     const defaults = [
-        { type: 'new_student', subject: `Welcome to ${tenant.name}!`, content: "Welcome to the studio! We're excited to have you.", timingType: 'immediate', timingValue: 0 },
-        { type: 'birthday', subject: `Happy Birthday from ${tenant.name}!`, content: "Wishing you a fantastic birthday!", timingType: 'immediate', timingValue: 0 },
-        { type: 'absent', subject: `We miss you at ${tenant.name}`, content: "It's been a while! Come back and join us for a class.", timingType: 'delay', timingValue: 720 }, // 30 days
-        { type: 'trial_ending', subject: `Your Trial at ${tenant.name} is ending soon`, content: "Hope you're enjoying your trial! It ends in 2 days. Sign up for a membership to keep your momentum going.", timingType: 'before', timingValue: 48 }, // 2 days before
-        { type: 'subscription_renewing', subject: `Subscription Renewal`, content: "Your subscription is set to renew tomorrow.", timingType: 'before', timingValue: 24 }
+        { type: 'new_student', subject: `Welcome to {title}!`, content: "Welcome to {title}! We're excited to have you, {firstname}.", timingType: 'immediate', timingValue: 0 },
+        { type: 'birthday', subject: `Happy Birthday from {title}!`, content: "Wishing you a fantastic birthday, {firstname}!", timingType: 'immediate', timingValue: 0 },
+        { type: 'absent', subject: `We miss you at {title}`, content: "It's been a while, {firstname}! Come back and join us for a class.", timingType: 'delay', timingValue: 720 }, // 30 days
+        { type: 'trial_ending', subject: `Your Trial at {title} is ending soon`, content: "Hope you're enjoying your trial! It ends in 2 days. Sign up for a membership to keep your momentum going.", timingType: 'before', timingValue: 48 }, // 2 days before
+        { type: 'subscription_renewing', subject: `Subscription Renewal`, content: "Hi {firstname}, your subscription is set to renew tomorrow.", timingType: 'before', timingValue: 24 }
     ];
 
     const missing = defaults.filter(d => !existing.find(e => e.triggerEvent === d.type));
@@ -435,15 +435,33 @@ app.post('/automations/:id/test', async (c) => {
         tenant.id
     );
 
-    // TODO: SMS Test support? Currently body only has { email }. 
-    // If they want to test SMS, they might need to send phone.
-    // For now, retaining Email test logic.
+    // Perform Mock Variable Replacement for Test
+    let subject = automation.subject;
+    let content = automation.content;
+
+    const mockContext = {
+        firstName: 'Friend',
+        lastName: '',
+        email: email,
+        title: tenant.name,
+        studioName: tenant.name
+    };
+
+    // Simple replacement for test (matches AutomationsService logic)
+    const replaceVars = (text: string) => text
+        .replace(/\{{1,2}first_name\}{1,2}/gi, mockContext.firstName)
+        .replace(/\{{1,2}firstName\}{1,2}/gi, mockContext.firstName)
+        .replace(/\{{1,2}last_name\}{1,2}/gi, mockContext.lastName)
+        .replace(/\{{1,2}lastName\}{1,2}/gi, mockContext.lastName)
+        .replace(/\{{1,2}email\}{1,2}/gi, mockContext.email)
+        .replace(/\{{1,2}title\}{1,2}/gi, mockContext.title)
+        .replace(/\{{1,2}studioName\}{1,2}/gi, mockContext.title);
 
     try {
         await emailService.sendGenericEmail(
             email,
-            "[TEST] " + automation.subject,
-            automation.content,
+            "[TEST] " + replaceVars(subject),
+            replaceVars(content),
             true
         );
         return c.json({ success: true });
