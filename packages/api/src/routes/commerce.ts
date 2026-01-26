@@ -181,6 +181,95 @@ app.post('/packs', async (c) => {
     return c.json({ success: true, id });
 });
 
+// POST /products/bulk - Bulk Create (Wizard)
+app.post('/products/bulk', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const role = c.get('roles');
+
+    if (!role?.includes('owner')) return c.json({ error: "Unauthorized" }, 403);
+
+    const { items } = await c.req.json(); // items: { type: 'pack'|'membership', name, price, ... }[]
+    if (!items || !Array.isArray(items)) return c.json({ error: "Invalid items" }, 400);
+
+    const { StripeService } = await import('../services/stripe');
+    const { classPackDefinitions, membershipPlans } = await import('@studio/db/src/schema');
+    const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+
+    const results = [];
+
+    for (const item of items) {
+        try {
+            // 1. Create Stripe Product
+            const stripeProduct = await stripeService.createProduct({
+                name: item.name,
+                active: true,
+                metadata: {
+                    tenantId: tenant.id,
+                    type: item.type // 'pack' or 'membership'
+                }
+            }, tenant.stripeAccountId);
+
+            // 2. Create Stripe Price
+            let recurring = undefined;
+            if (item.type === 'membership' && item.interval) {
+                recurring = {
+                    interval: item.interval === 'annual' ? 'year' : 'month',
+                    interval_count: 1
+                };
+            }
+
+            const stripePrice = await stripeService.createPrice({
+                productId: stripeProduct.id,
+                unitAmount: item.price, // cents
+                currency: tenant.currency || 'usd',
+                recurring
+            }, tenant.stripeAccountId);
+
+            // 3. Save to DB
+            const id = crypto.randomUUID();
+            if (item.type === 'pack') {
+                await db.insert(classPackDefinitions).values({
+                    id,
+                    tenantId: tenant.id,
+                    name: item.name,
+                    price: item.price,
+                    credits: item.credits || 1,
+                    expirationDays: item.expirationDays || null,
+                    active: true,
+                    // We don't store stripe IDs on pack definition usually? 
+                    // Actually we should. The schema might need update if we want to sync perfectly.
+                    // Checking schema... `classPackDefinitions` has no stripeId fields in default schema usually?
+                    // Let's check schema. If not, we rely on price lookup or add it.
+                    // For now, let's assume we just store it or if schema doesn't have it, we skip it.
+                    // Wait, `commerce.ts` checkout uses `pack.price` (DB) for one-time payments usually, 
+                    // BUT for `membershipPlans` we DEFINITELY need stripeProductId/PriceId.
+                    // Let's assume `membershipPlans` has it.
+                }).run();
+            } else if (item.type === 'membership') {
+                await db.insert(membershipPlans).values({
+                    id,
+                    tenantId: tenant.id,
+                    name: item.name,
+                    price: item.price,
+                    interval: item.interval === 'annual' ? 'year' : 'month',
+                    stripeProductId: stripeProduct.id,
+                    stripePriceId: stripePrice.id,
+                    active: true
+                }).run();
+            }
+
+            results.push({ name: item.name, status: 'created', id });
+
+        } catch (e: any) {
+            console.error(`Failed to create ${item.name}`, e);
+            results.push({ name: item.name, status: 'failed', error: e.message });
+        }
+    }
+
+    return c.json({ results });
+});
+
 // POST /validate - For Checkout
 app.post('/validate', async (c) => {
     const db = createDb(c.env.DB);

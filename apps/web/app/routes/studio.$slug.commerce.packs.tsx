@@ -5,7 +5,7 @@ import { useLoaderData, useOutletContext, Form, useNavigation, Link } from "reac
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { useState } from "react";
-import { Plus, Package, Calendar, DollarSign } from "lucide-react";
+import { Plus, Package, Calendar, DollarSign, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 
 type ClassPackDefinition = {
@@ -76,13 +76,22 @@ export default function ClassPacksPage() {
                     <p className="text-zinc-500 dark:text-zinc-400 mt-1">Manage punch cards and credit bundles.</p>
                 </div>
                 {(roles?.includes('owner') || roles?.includes('instructor')) && (
-                    <button
-                        onClick={() => setIsCreating(!isCreating)}
-                        className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 rounded-md text-sm font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors"
-                    >
-                        <Plus className="h-4 w-4" />
-                        Create Pack
-                    </button>
+                    <div className="flex gap-2">
+                        <Link
+                            to={`/studio/${params.slug}/commerce/wizard`}
+                            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800 rounded-md text-sm font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                        >
+                            <Sparkles className="h-4 w-4" />
+                            Pricing Wizard
+                        </Link>
+                        <button
+                            onClick={() => setIsCreating(!isCreating)}
+                            className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 rounded-md text-sm font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors"
+                        >
+                            <Plus className="h-4 w-4" />
+                            Create Pack
+                        </button>
+                    </div>
                 )}
             </div>
 
