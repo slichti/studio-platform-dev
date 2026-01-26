@@ -12,7 +12,7 @@ export const loader: LoaderFunction = async (args) => {
     // The underlying requests in children will handle auth.
     // But we might want basic branding.
     try {
-        const res = await fetch(`${(args.context as any).ENV.API_URL}/public/tenant/${slug}`).then(r => r.json());
+        const res = await fetch(`${(args.context as any).ENV.API_URL}/public/tenant/${slug}`).then(r => r.json()) as any;
         if (res.error) throw new Error(res.error);
         return { tenant: res };
     } catch (e) {

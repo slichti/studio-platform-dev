@@ -30,12 +30,14 @@ export default function KioskLogin() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ tenantSlug: params.slug, pin })
             });
-            const data = await res.json();
+            const data = await res.json() as { error?: string, token?: string };
 
             if (data.error) throw new Error(data.error);
 
             // Store Token
-            localStorage.setItem(`kiosk_token_${params.slug}`, data.token);
+            if (data.token) {
+                localStorage.setItem(`kiosk_token_${params.slug}`, data.token);
+            }
             toast.success("Kiosk Unlocked");
             navigate(`/kiosk/${params.slug}/mode`);
         } catch (e: any) {
@@ -63,8 +65,8 @@ export default function KioskLogin() {
                         <div
                             key={i}
                             className={`w-4 h-4 rounded-full transition-all ${i < pin.length
-                                    ? `bg-purple-600 scale-110`
-                                    : 'bg-zinc-200 dark:bg-zinc-800'
+                                ? `bg-purple-600 scale-110`
+                                : 'bg-zinc-200 dark:bg-zinc-800'
                                 }`}
                         />
                     ))}
