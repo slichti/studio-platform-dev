@@ -100,7 +100,7 @@ flowchart TD
         STU -.->|Can| BOOK[Book Classes]
         STU -.->|Can| VIDEOS[Watch Videos]
     end
-    end
+
 ```
 
 ## Security Implementation
