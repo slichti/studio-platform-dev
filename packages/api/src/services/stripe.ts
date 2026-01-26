@@ -476,4 +476,19 @@ export class StripeService {
         const { client, options } = this.getClient(connectedAccountId);
         return client.invoices.pay(invoiceId, {}, options);
     }
+
+    /**
+     * Coupon Management (Platform Level)
+     */
+    async listCoupons(limit = 100) {
+        return this.stripe.coupons.list({ limit });
+    }
+
+    async createCoupon(params: Stripe.CouponCreateParams) {
+        return this.stripe.coupons.create(params);
+    }
+
+    async deleteCoupon(couponId: string) {
+        return this.stripe.coupons.del(couponId);
+    }
 }

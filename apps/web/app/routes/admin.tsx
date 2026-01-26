@@ -130,6 +130,7 @@ export default function AdminLayout() {
                                     : "hover:bg-zinc-900 hover:text-zinc-200"
                                 }`
                             }
+                            {...(item.href.includes('documentation') ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                         >
                             <span className="opacity-70">{item.icon}</span>
                             {item.label}

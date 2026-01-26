@@ -798,47 +798,165 @@ app.post('/tenants/seed', async (c) => {
     try {
         // Dynamic import to keep init clean
         const { seedTenant } = await import('../utils/seeding');
+        const { tenantId, email, password } = await seedTenant(c.env, db);
 
-        let body: any = {};
-        try {
-            body = await c.req.json();
-        } catch (e) { } // Handle empty body
+        return c.json({ success: true, tenantId, email, password });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
 
-        // Generate default if not provided
-        const suffix = Math.floor(Math.random() * 10000);
-        const name = body.tenantName || ("Test Studio " + suffix);
-        const slug = body.tenantSlug || ("test-studio-" + suffix);
+// --- Platform Coupon Management (Stripe) ---
 
-        const tenant = await seedTenant(db, {
-            tenantName: name,
-            tenantSlug: slug,
-            ownerCount: body.ownerCount,
-            instructorCount: body.instructorCount,
-            studentCount: body.studentCount,
-            tier: body.tier,
-            features: body.features
-        });
+// GET /coupons - List Platform Coupons
+app.get('/coupons', async (c) => {
+    const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+    try {
+        const coupons = await stripeService.listCoupons(100);
+        return c.json(coupons.data);
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
 
-        // Audit Log
-        const audit = new AuditService(db);
-        await audit.log({
+// POST /coupons - Create Platform Coupon
+app.post('/coupons', async (c) => {
+    const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+    const body = await c.req.json();
+    try {
+        // Map body to Stripe params
+        // simple mapping: duration, percent_off/amount_off, duration_in_months, name, id (code)
+        const params: any = {
+            name: body.name || body.code,
+            duration: body.duration || 'forever',
+        };
+
+        if (body.code) params.id = body.code;
+        if (body.percent_off) params.percent_off = body.percent_off;
+        if (body.amount_off) {
+            params.amount_off = body.amount_off;
+            params.currency = body.currency || 'usd';
+        }
+        if (body.duration === 'repeating') {
+            params.duration_in_months = body.duration_in_months;
+        }
+        if (body.max_redemptions) params.max_redemptions = body.max_redemptions;
+        if (body.redeem_by) params.redeem_by = Math.floor(new Date(body.redeem_by).getTime() / 1000);
+
+
+        const coupon = await stripeService.createCoupon(params);
+        return c.json(coupon);
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
+// DELETE /coupons/:id - Delete Platform Coupon
+app.delete('/coupons/:id', async (c) => {
+    const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+    const id = c.req.param('id');
+    try {
+        await stripeService.deleteCoupon(id);
+        return c.json({ success: true });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
+// --- Bulk Tenant Actions ---
+
+// PATCH /tenants/bulk
+app.patch('/tenants/bulk', async (c) => {
+    const db = createDb(c.env.DB);
+    const auth = c.get('auth');
+    const { tenantIds, action, value } = await c.req.json();
+
+    if (!tenantIds || !Array.isArray(tenantIds) || tenantIds.length === 0) {
+        return c.json({ error: "No tenants selected" }, 400);
+    }
+
+    if (action === 'suspend') {
+        const { subscriptionStatus } = value || {}; // Optional override? Usually 'suspended' status
+        await db.update(tenants)
+            .set({ status: 'suspended' })
+            .where(inArray(tenants.id, tenantIds))
+            .run();
+
+        // Audit
+        await db.insert(auditLogs).values({
+            id: crypto.randomUUID(),
+            action: 'bulk_suspend_tenants',
             actorId: auth.userId,
-            action: 'seed_test_tenant',
-            targetId: tenant.id,
-            details: { name, slug, options: body },
+            targetId: tenantIds.join(','),
+            details: { count: tenantIds.length },
             ipAddress: c.req.header('CF-Connecting-IP')
         });
-
-        return c.json({
-            success: true,
-            tenantId: tenant.id,
-            tenant: tenant,
-            stats: {} // Assuming seedTenant might return stats or we can fetch them
-        }, 201);
-    } catch (e: any) {
-        console.error("Seeding Failed:", e);
-        return c.json({ error: e.message || "Seeding failed" }, 500);
+        return c.json({ success: true, count: tenantIds.length });
     }
+
+    if (action === 'activate') {
+        await db.update(tenants)
+            .set({ status: 'active' })
+            .where(inArray(tenants.id, tenantIds))
+            .run();
+
+        // Audit
+        await db.insert(auditLogs).values({
+            id: crypto.randomUUID(),
+            action: 'bulk_activate_tenants',
+            actorId: auth.userId,
+            targetId: tenantIds.join(','),
+            details: { count: tenantIds.length },
+            ipAddress: c.req.header('CF-Connecting-IP')
+        });
+        return c.json({ success: true, count: tenantIds.length });
+    }
+
+    // Add more actions as needed (e.g. tag)
+
+    return c.json({ error: "Invalid action" }, 400);
+});
+
+let body: any = {};
+try {
+    body = await c.req.json();
+} catch (e) { } // Handle empty body
+
+// Generate default if not provided
+const suffix = Math.floor(Math.random() * 10000);
+const name = body.tenantName || ("Test Studio " + suffix);
+const slug = body.tenantSlug || ("test-studio-" + suffix);
+
+const tenant = await seedTenant(db, {
+    tenantName: name,
+    tenantSlug: slug,
+    ownerCount: body.ownerCount,
+    instructorCount: body.instructorCount,
+    studentCount: body.studentCount,
+    tier: body.tier,
+    features: body.features
+});
+
+// Audit Log
+const audit = new AuditService(db);
+await audit.log({
+    actorId: auth.userId,
+    action: 'seed_test_tenant',
+    targetId: tenant.id,
+    details: { name, slug, options: body },
+    ipAddress: c.req.header('CF-Connecting-IP')
+});
+
+return c.json({
+    success: true,
+    tenantId: tenant.id,
+    tenant: tenant,
+    stats: {} // Assuming seedTenant might return stats or we can fetch them
+}, 201);
+    } catch (e: any) {
+    console.error("Seeding Failed:", e);
+    return c.json({ error: e.message || "Seeding failed" }, 500);
+}
 });
 
 // POST /tenants/:id/impersonate - Generate Impersonation Token

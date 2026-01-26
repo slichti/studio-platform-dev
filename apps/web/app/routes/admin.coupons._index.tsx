@@ -14,41 +14,65 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const env = (args.context as any).cloudflare?.env || (args.context as any).env || {};
     const apiUrl = env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev";
 
-    const coupons = await apiRequest("/coupons", token, {}, apiUrl);
-    return { coupons, apiUrl, token };
+    // Use Admin API Route
+    try {
+        const coupons = await apiRequest("/admin/coupons", token, {}, apiUrl);
+        return { coupons: Array.isArray(coupons) ? coupons : [], apiUrl, token };
+    } catch (e) {
+        console.error("Failed to load coupons", e);
+        return { coupons: [], apiUrl, token, error: "Failed to load coupons" };
+    }
 };
 
 export default function CouponsPage() {
-    const { coupons, apiUrl, token } = useLoaderData<typeof loader>();
+    const { coupons, apiUrl, token, error } = useLoaderData<typeof loader>();
     const revalidator = useRevalidator();
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Form State
+    // Form State (Stripe focused)
     const [formData, setFormData] = useState({
         code: '',
-        type: 'percent', // percent | amount
-        value: 10,
-        usageLimit: '',
-        expiresAt: ''
+        name: '',
+        percent_off: '',
+        amount_off: '',
+        duration: 'forever', // 'forever', 'once', 'repeating'
+        duration_in_months: '',
+        max_redemptions: '',
+        redeem_by: ''
     });
+
+    if (error) {
+        return <div className="p-8 text-red-500">Error loading coupons: {error}</div>;
+    }
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            await apiRequest("/coupons", token, {
+            const body: any = {
+                code: formData.code,
+                name: formData.name || formData.code,
+                duration: formData.duration
+            };
+
+            if (formData.percent_off) body.percent_off = Number(formData.percent_off);
+            if (formData.amount_off) body.amount_off = Number(formData.amount_off) * 100; // Cents
+            if (formData.duration === 'repeating') body.duration_in_months = Number(formData.duration_in_months);
+            if (formData.max_redemptions) body.max_redemptions = Number(formData.max_redemptions);
+            if (formData.redeem_by) body.redeem_by = formData.redeem_by;
+
+            await apiRequest("/admin/coupons", token, {
                 method: "POST",
-                body: JSON.stringify({
-                    ...formData,
-                    value: Number(formData.value),
-                    usageLimit: formData.usageLimit ? Number(formData.usageLimit) : null,
-                    expiresAt: formData.expiresAt || null
-                })
+                body: JSON.stringify(body)
             }, apiUrl);
+
             toast.success("Coupon created");
             setIsCreateOpen(false);
-            setFormData({ code: '', type: 'percent', value: 10, usageLimit: '', expiresAt: '' });
+            setFormData({
+                code: '', name: '', percent_off: '', amount_off: '',
+                duration: 'forever', duration_in_months: '', max_redemptions: '', redeem_by: ''
+            });
             revalidator.revalidate();
         } catch (err: any) {
             toast.error(err.message || "Failed to create coupon");
@@ -58,10 +82,10 @@ export default function CouponsPage() {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm("Are you sure?")) return;
+        if (!confirm("Are you sure? This cannot be undone.")) return;
         try {
-            await apiRequest(`/coupons/${id}`, token, { method: "DELETE" }, apiUrl);
-            toast.success("Coupon deleted/archived");
+            await apiRequest(`/admin/coupons/${id}`, token, { method: "DELETE" }, apiUrl);
+            toast.success("Coupon deleted");
             revalidator.revalidate();
         } catch (err: any) {
             toast.error(err.message);
@@ -72,8 +96,8 @@ export default function CouponsPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Coupons</h1>
-                    <p className="text-zinc-500">Manage discount codes and promotions.</p>
+                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Platform Coupons</h1>
+                    <p className="text-zinc-500">Manage Stripe discount codes for studio subscriptions.</p>
                 </div>
                 <button
                     onClick={() => setIsCreateOpen(true)}
@@ -87,11 +111,11 @@ export default function CouponsPage() {
                 <table className="w-full text-left text-sm">
                     <thead className="bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
                         <tr>
-                            <th className="px-6 py-3 font-medium text-zinc-500">Code</th>
+                            <th className="px-6 py-3 font-medium text-zinc-500">Code / Name</th>
                             <th className="px-6 py-3 font-medium text-zinc-500">Discount</th>
-                            <th className="px-6 py-3 font-medium text-zinc-500">Usage</th>
-                            <th className="px-6 py-3 font-medium text-zinc-500">Expires</th>
-                            <th className="px-6 py-3 font-medium text-zinc-500">Status</th>
+                            <th className="px-6 py-3 font-medium text-zinc-500">Duration</th>
+                            <th className="px-6 py-3 font-medium text-zinc-500">Redemptions</th>
+                            <th className="px-6 py-3 font-medium text-zinc-500">Created</th>
                             <th className="px-6 py-3 font-medium text-zinc-500 text-right">Actions</th>
                         </tr>
                     </thead>
@@ -105,22 +129,21 @@ export default function CouponsPage() {
                         ) : (
                             coupons.map((c: any) => (
                                 <tr key={c.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
-                                    <td className="px-6 py-4 font-mono font-medium">{c.code}</td>
                                     <td className="px-6 py-4">
-                                        {c.type === 'percent' ? `${c.value}%` : `$${(c.value / 100).toFixed(2)}`}
+                                        <div className="font-mono font-medium">{c.name}</div>
+                                        <div className="text-xs text-zinc-500">{c.id}</div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        {c.redemptions} {c.usageLimit ? `/ ${c.usageLimit}` : '(Unlimited)'}
+                                        {c.percent_off ? `${c.percent_off}%` : c.amount_off ? `$${(c.amount_off / 100).toFixed(2)}` : 'Unknown'}
+                                    </td>
+                                    <td className="px-6 py-4 capitalize">
+                                        {c.duration} {c.duration_in_months ? `(${c.duration_in_months} mo)` : ''}
                                     </td>
                                     <td className="px-6 py-4">
-                                        {c.expiresAt ? format(new Date(c.expiresAt), 'MMM d, yyyy') : 'Never'}
+                                        {c.times_redeemed} {c.max_redemptions ? `/ ${c.max_redemptions}` : '(Unlimited)'}
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${c.active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                            : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
-                                            }`}>
-                                            {c.active ? 'Active' : 'Archived'}
-                                        </span>
+                                        {format(new Date(c.created * 1000), 'MMM d, yyyy')}
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <button
@@ -142,12 +165,12 @@ export default function CouponsPage() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                     <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl w-full max-w-md overflow-hidden ring-1 ring-zinc-200 dark:ring-zinc-800">
                         <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center">
-                            <h3 className="font-semibold text-lg">Create Coupon</h3>
+                            <h3 className="font-semibold text-lg">Create Platform Coupon</h3>
                             <button onClick={() => setIsCreateOpen(false)} className="text-zinc-500 hover:text-zinc-700">✕</button>
                         </div>
                         <form onSubmit={handleCreate} className="p-6 space-y-4">
                             <div>
-                                <label className="block text-sm font-medium mb-1">Coupon Code</label>
+                                <label className="block text-sm font-medium mb-1">Code (ID)</label>
                                 <input
                                     type="text"
                                     required
@@ -157,13 +180,26 @@ export default function CouponsPage() {
                                     onChange={e => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
                                 />
                             </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Name (Optional)</label>
+                                <input
+                                    type="text"
+                                    className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent"
+                                    placeholder="Summer Sale"
+                                    value={formData.name}
+                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                />
+                            </div>
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium mb-1">Type</label>
+                                    <label className="block text-sm font-medium mb-1">Discount Type</label>
                                     <select
                                         className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent"
-                                        value={formData.type}
-                                        onChange={e => setFormData({ ...formData, type: e.target.value })}
+                                        onChange={e => {
+                                            if (e.target.value === 'percent') setFormData({ ...formData, amount_off: '' });
+                                            else setFormData({ ...formData, percent_off: '' });
+                                        }}
                                     >
                                         <option value="percent">Percentage (%)</option>
                                         <option value="amount">Fixed Amount ($)</option>
@@ -171,37 +207,76 @@ export default function CouponsPage() {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Value</label>
-                                    <input
-                                        type="number"
-                                        required
-                                        min="1"
-                                        className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent"
-                                        value={formData.value}
-                                        onChange={e => setFormData({ ...formData, value: Number(e.target.value) })}
-                                    />
+                                    {formData.amount_off === '' ? (
+                                        <input
+                                            type="number"
+                                            placeholder="%"
+                                            className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent"
+                                            value={formData.percent_off}
+                                            onChange={e => setFormData({ ...formData, percent_off: e.target.value, amount_off: '' })}
+                                        />
+                                    ) : (
+                                        <input
+                                            type="number"
+                                            placeholder="$"
+                                            className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent"
+                                            value={formData.amount_off}
+                                            onChange={e => setFormData({ ...formData, amount_off: e.target.value, percent_off: '' })}
+                                        />
+                                    )}
                                 </div>
                             </div>
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium mb-1">Usage Limit</label>
+                                    <label className="block text-sm font-medium mb-1">Duration</label>
+                                    <select
+                                        className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent"
+                                        value={formData.duration}
+                                        onChange={e => setFormData({ ...formData, duration: e.target.value })}
+                                    >
+                                        <option value="forever">Forever</option>
+                                        <option value="once">Once</option>
+                                        <option value="repeating">Repeating</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    {formData.duration === 'repeating' && (
+                                        <>
+                                            <label className="block text-sm font-medium mb-1">Months</label>
+                                            <input
+                                                type="number"
+                                                className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent"
+                                                value={formData.duration_in_months}
+                                                onChange={e => setFormData({ ...formData, duration_in_months: e.target.value })}
+                                            />
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Max Redemptions</label>
                                     <input
                                         type="number"
                                         className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent"
                                         placeholder="Unlimited"
-                                        value={formData.usageLimit}
-                                        onChange={e => setFormData({ ...formData, usageLimit: e.target.value })}
+                                        value={formData.max_redemptions}
+                                        onChange={e => setFormData({ ...formData, max_redemptions: e.target.value })}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium mb-1">Expires At</label>
+                                    <label className="block text-sm font-medium mb-1">Redeem By</label>
                                     <input
                                         type="date"
                                         className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent"
-                                        value={formData.expiresAt}
-                                        onChange={e => setFormData({ ...formData, expiresAt: e.target.value })}
+                                        value={formData.redeem_by}
+                                        onChange={e => setFormData({ ...formData, redeem_by: e.target.value })}
                                     />
                                 </div>
                             </div>
+
 
                             <div className="flex justify-end gap-3 pt-4">
                                 <button

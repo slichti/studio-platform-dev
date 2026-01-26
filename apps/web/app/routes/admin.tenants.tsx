@@ -163,6 +163,55 @@ export default function AdminTenants() {
         plan: "basic"
     });
 
+    // Bulk Selection State
+    const [selectedTenants, setSelectedTenants] = useState<Set<string>>(new Set());
+
+    const toggleTenantSelection = (id: string) => {
+        const next = new Set(selectedTenants);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        setSelectedTenants(next);
+    };
+
+    const toggleSelectAll = () => {
+        const visibleIds = sortedTenants().map((t: any) => t.id);
+        if (selectedTenants.size === visibleIds.length && visibleIds.length > 0) {
+            setSelectedTenants(new Set());
+        } else {
+            setSelectedTenants(new Set(visibleIds));
+        }
+    };
+
+    const handleBulkAction = async (action: 'suspend' | 'activate') => {
+        if (!confirm(`Are you sure you want to ${action} ${selectedTenants.size} tenants?`)) return;
+        setLoading(true);
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest("/admin/tenants/bulk", token, {
+                method: "PATCH",
+                body: JSON.stringify({
+                    tenantIds: Array.from(selectedTenants),
+                    action
+                })
+            });
+
+            if (res.error) throw new Error(res.error);
+
+            // Optimistic update
+            setTenants(tenants.map((t: any) =>
+                selectedTenants.has(t.id) ? { ...t, status: action === 'suspend' ? 'suspended' : 'active' } : t
+            ));
+
+            setSuccessDialog({ isOpen: true, message: `Successfully ${action === 'suspend' ? 'suspended' : 'activated'} ${res.count} tenants.` });
+            setSelectedTenants(new Set());
+        } catch (e: any) {
+            setErrorDialog({ isOpen: true, message: e.message });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+
     const [sortField, setSortField] = useState('createdAt');
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
