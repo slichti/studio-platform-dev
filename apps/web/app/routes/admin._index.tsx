@@ -113,7 +113,7 @@ export default function AdminIndex() {
                 <p className="text-zinc-500 dark:text-zinc-400">System performance and activity monitoring.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
                 <StatCard
                     title="System Status"
                     value={health?.status === 'error' ? 'Error' : (health?.status === 'healthy' ? 'Operational' : 'Degraded')}
@@ -124,6 +124,12 @@ export default function AdminIndex() {
                     title="Active Tenants"
                     value={String(health?.activeTenants || 0)}
                     status="neutral"
+                />
+                <StatCard
+                    title="Estimated MRR"
+                    value={`$${(health?.estimatedMRR || 0).toLocaleString()}`}
+                    status="success"
+                    trend="Platform Revenue"
                 />
                 <StatCard
                     title="Total Users"

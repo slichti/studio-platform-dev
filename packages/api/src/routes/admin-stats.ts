@@ -147,24 +147,39 @@ app.get('/health', async (c) => {
     const start = performance.now();
 
     // Parallel Queries
-    const [tenantCount, userCount, errorCount, dbCheck] = await Promise.all([
-        db.select({ count: count() }).from(tenants).where(eq(tenants.status, 'active')).get(),
+    // Calculate MRR based on Tenant Tiers
+    // Basic: $0 (Trial/Launch), Growth: $49, Scale: $129 (Just estimates for dashboard)
+    const [tenantStats, userCount, errorCount, dbCheck] = await Promise.all([
+        db.select({
+            tier: tenants.tier,
+            count: count()
+        }).from(tenants)
+            .where(eq(tenants.status, 'active'))
+            .groupBy(tenants.tier)
+            .all(),
         db.select({ count: count() }).from(users).get(),
-        // Mock error count or Count recent Audit Logs with 'failure'?
-        // Let's use audit logs for now or just mock it as 0 unless we have an "error_logs" table. 
-        // We have `emailLogs` with status='failed'.
-        Promise.resolve({ count: 0 }), // Placeholder
+        Promise.resolve({ count: 0 }),
         db.select({ count: count() }).from(users).limit(1).get()
     ]);
+
+    let estimatedMRR = 0;
+    let activeTenants = 0;
+
+    tenantStats.forEach(stat => {
+        activeTenants += stat.count;
+        if (stat.tier === 'growth') estimatedMRR += (49 * stat.count);
+        if (stat.tier === 'scale') estimatedMRR += (129 * stat.count);
+    });
 
     const dbLatencyMs = Math.round(performance.now() - start);
 
     return c.json({
         status: dbLatencyMs > 500 ? 'degraded' : 'healthy',
         dbLatencyMs,
-        activeTenants: tenantCount?.count || 0,
+        activeTenants,
         totalUsers: userCount?.count || 0,
         recentErrors: errorCount?.count || 0,
+        estimatedMRR,
         error: null
     });
 });
