@@ -45,6 +45,20 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
         });
     }
 
+    if (!tenant && c.req.header('Upgrade') === 'websocket') {
+        const queryTenantSlug = c.req.query('tenantSlug');
+        const queryTenantId = c.req.query('tenantId');
+        if (queryTenantSlug) {
+            tenant = await db.query.tenants.findFirst({
+                where: eq(tenants.slug, queryTenantSlug),
+            });
+        } else if (queryTenantId) {
+            tenant = await db.query.tenants.findFirst({
+                where: eq(tenants.id, queryTenantId),
+            });
+        }
+    }
+
     if (!tenant) {
         // 1. Check Custom Domain
         tenant = await db.query.tenants.findFirst({
@@ -278,8 +292,10 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
 export const requireFeature = (featureKey: string) => {
     return async (c: Context<{ Bindings: Bindings, Variables: Variables }>, next: Next) => {
         const features = c.get('features');
+        const roles = c.get('roles') || [];
+        const isPlatformAdmin = roles.includes('owner'); // Per middleware logic, platform admins are synthesized as owners
 
-        if (!features || !features.has(featureKey)) {
+        if (!features || (!features.has(featureKey) && !isPlatformAdmin)) {
             return c.json({
                 error: `Feature '${featureKey}' is not enabled for this tenant.`,
                 featureKey

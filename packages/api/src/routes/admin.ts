@@ -2776,4 +2776,59 @@ app.get('/chat/tickets', async (c) => {
     return c.json(tickets);
 });
 
+// GET /chat/rooms/:id - Get room details across any tenant
+app.get('/chat/rooms/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const id = c.req.param('id');
+
+    const room = await db.query.chatRooms.findFirst({
+        where: eq(chatRooms.id, id),
+        with: {
+            tenant: true
+        }
+    });
+
+    if (!room) {
+        return c.json({ error: 'Room not found' }, 404);
+    }
+
+    return c.json(room);
+});
+
+// PATCH /chat/rooms/:id - Update room details across any tenant
+app.patch('/chat/rooms/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const id = c.req.param('id');
+    const body = await c.req.json<{
+        status?: 'open' | 'in_progress' | 'closed' | 'archived';
+        priority?: 'low' | 'normal' | 'high' | 'urgent';
+        assignedToId?: string | null;
+        isArchived?: boolean;
+    }>();
+
+    const existing = await db.query.chatRooms.findFirst({
+        where: eq(chatRooms.id, id),
+    });
+
+    if (!existing) {
+        return c.json({ error: 'Room not found' }, 404);
+    }
+
+    const updates: any = {};
+    if (body.status) updates.status = body.status;
+    if (body.priority) updates.priority = body.priority;
+    if (body.assignedToId !== undefined) updates.assignedToId = body.assignedToId;
+    if (body.isArchived !== undefined) {
+        updates.isArchived = body.isArchived;
+        if (body.isArchived) updates.status = 'archived';
+    }
+
+    await db.update(chatRooms)
+        .set(updates)
+        .where(eq(chatRooms.id, id))
+        .run();
+
+    return c.json({ success: true, ...updates });
+});
+
 export default app;

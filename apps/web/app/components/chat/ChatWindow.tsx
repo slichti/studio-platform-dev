@@ -15,10 +15,11 @@ interface ChatWindowProps {
     token: string;
     currentUser: { id: string; name: string };
     wsUrl: string; // "wss://..." or "http://..." (will be converted)
+    tenantSlug?: string; // For admin portal context resolution
     onClose?: () => void;
 }
 
-export function ChatWindow({ roomId, token, currentUser, wsUrl, onClose }: ChatWindowProps) {
+export function ChatWindow({ roomId, token, currentUser, wsUrl, tenantSlug, onClose }: ChatWindowProps) {
     const [socket, setSocket] = useState<WebSocket | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputText, setInputText] = useState("");
@@ -56,6 +57,9 @@ export function ChatWindow({ roomId, token, currentUser, wsUrl, onClose }: ChatW
 
         // Assuming for now we pass it in query.
         urlObj.searchParams.set('token', token);
+        if (tenantSlug) {
+            urlObj.searchParams.set('tenantSlug', tenantSlug);
+        }
 
         console.log("Connecting to WS:", urlObj.toString());
 
@@ -150,8 +154,8 @@ export function ChatWindow({ roomId, token, currentUser, wsUrl, onClose }: ChatW
                     return (
                         <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                             <div className={`max-w-[80%] rounded-lg p-3 text-sm ${isMe
-                                    ? 'bg-blue-600 text-white rounded-br-none'
-                                    : 'bg-zinc-100 text-zinc-800 rounded-bl-none'
+                                ? 'bg-blue-600 text-white rounded-br-none'
+                                : 'bg-zinc-100 text-zinc-800 rounded-bl-none'
                                 }`}>
                                 {!isMe && <div className="text-[10px] opacity-50 font-bold mb-1">{msg.userName}</div>}
                                 <div>{msg.content}</div>

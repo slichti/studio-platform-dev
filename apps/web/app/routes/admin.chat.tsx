@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useAuth } from "@clerk/react-router";
 import { toast } from "sonner";
 import { MessageCircle, Users, Shield, ExternalLink, Plus } from "lucide-react";
+import { format } from "date-fns";
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -158,7 +159,7 @@ export default function AdminChat() {
                                         </td>
                                         <td className="p-4">
                                             <div className="text-zinc-900 dark:text-zinc-100">{ticket.name}</div>
-                                            <div className="text-xs text-zinc-500 dark:text-zinc-400">{new Date(ticket.createdAt).toLocaleDateString()}</div>
+                                            <div className="text-xs text-zinc-500 dark:text-zinc-400">{format(new Date(ticket.createdAt), "MMM d, yyyy")}</div>
                                         </td>
                                         <td className="p-4">
                                             <span className={`px-2 py-1 rounded text-xs font-medium capitalize

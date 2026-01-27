@@ -15,8 +15,8 @@ export const loader = async (args: any) => {
     if (!userId) throw new Response("Unauthorized", { status: 401 });
 
     try {
-        // Fetch room details
-        const room = await apiRequest(`/chat/rooms/${roomId}`, token);
+        // Fetch room details using the new Admin API (bypasses tenant filters)
+        const room = await apiRequest(`/admin/chat/rooms/${roomId}`, token);
 
         // Fetch current user details for the chat UI
         const me = await apiRequest('/users/me', token);
@@ -28,6 +28,7 @@ export const loader = async (args: any) => {
             apiUrl: API_URL
         };
     } catch (e: any) {
+        console.error("Chat Room Load Error:", e);
         throw new Response("Room not found or access denied", { status: 404 });
     }
 };
@@ -41,7 +42,7 @@ export default function AdminChatRoom() {
 
     const updateTicket = async (updates: any) => {
         try {
-            await apiRequest(`/chat/rooms/${room.id}`, token, {
+            await apiRequest(`/admin/chat/rooms/${room.id}`, token, {
                 method: 'PATCH',
                 body: JSON.stringify(updates)
             });
@@ -128,6 +129,7 @@ export default function AdminChatRoom() {
                         token={token}
                         currentUser={user}
                         wsUrl={apiUrl}
+                        tenantSlug={room.tenant?.slug}
                     />
                 </div>
             </main>
