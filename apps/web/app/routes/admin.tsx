@@ -14,6 +14,7 @@ import { Search } from "lucide-react";
 // Even if a user has the 'admin' role, they must be in this list (or domain) to access the portal.
 const ALLOWED_ADMIN_EMAILS = [
     "slichti@gmail.com",
+    "janetjbrodksy@gmail.com",
     // "admin@studioplatform.com", // Disabled until domain is active
 ];
 
