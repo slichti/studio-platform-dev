@@ -33,7 +33,9 @@ app.use('*', async (c, next) => {
         where: eq(users.id, auth.userId)
     });
 
+    // DEBUG: Log admin access attempts to diagnose 403
     if (user?.role !== 'admin' && !user?.isPlatformAdmin) {
+        console.error(`[Admin Access Denied] UserID: ${auth.userId}, Found: ${!!user}, Role: ${user?.role}, IsPlatformAdmin: ${user?.isPlatformAdmin}`);
         return c.json({ error: 'Platform Admin privileges required' }, 403);
     }
     await next();
