@@ -857,9 +857,13 @@ app.get('/coupons', async (c) => {
 
 // POST /coupons - Create Platform Coupon
 app.post('/coupons', async (c) => {
-    const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY || '');
-    const body = await c.req.json();
+    if (!c.env.STRIPE_SECRET_KEY) {
+        return c.json({ error: "Stripe Secret Key missing" }, 500);
+    }
+    const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+
     try {
+        const body = await c.req.json();
         // Map body to Stripe params
         // simple mapping: duration, percent_off/amount_off, duration_in_months, name, id (code)
         const params: any = {
@@ -883,13 +887,17 @@ app.post('/coupons', async (c) => {
         const coupon = await stripeService.createCoupon(params);
         return c.json(coupon);
     } catch (e: any) {
+        console.error("Stripe Create Coupon Error:", e);
         return c.json({ error: e.message }, 500);
     }
 });
 
 // DELETE /coupons/:id - Delete Platform Coupon
 app.delete('/coupons/:id', async (c) => {
-    const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY || '');
+    if (!c.env.STRIPE_SECRET_KEY) {
+        return c.json({ error: "Stripe Secret Key missing" }, 500);
+    }
+    const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
     const id = c.req.param('id');
     try {
         await stripeService.deleteCoupon(id);

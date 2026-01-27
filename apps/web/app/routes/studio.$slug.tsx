@@ -490,6 +490,7 @@ export default function StudioLayout() {
                 chatConfig={isStudentView ? tenant.settings?.chatConfig : undefined}
                 apiUrl={API_URL}
                 token={token || undefined}
+                brandColor={tenant.branding?.primaryColor || '#2563EB'}
             />
         </div>
     );

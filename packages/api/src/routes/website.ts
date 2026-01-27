@@ -59,7 +59,8 @@ app.use('/*', requireFeature('website_builder'));
 // List all pages for tenant
 app.get('/pages', async (c) => {
     const db = drizzle(c.env.DB, { schema });
-    const tenantId = c.get('tenantId');
+    const tenant = c.get('tenant');
+    const tenantId = tenant.id;
 
     const pages = await db.query.websitePages.findMany({
         where: eq(schema.websitePages.tenantId, tenantId),
@@ -72,7 +73,8 @@ app.get('/pages', async (c) => {
 // Get single page by slug
 app.get('/pages/:slug', async (c) => {
     const db = drizzle(c.env.DB, { schema });
-    const tenantId = c.get('tenantId');
+    const tenant = c.get('tenant');
+    const tenantId = tenant.id;
     const slug = c.req.param('slug');
 
     const page = await db.query.websitePages.findFirst({
@@ -86,7 +88,6 @@ app.get('/pages/:slug', async (c) => {
         return c.json({ error: 'Page not found' }, 404);
     }
 
-    const tenant = c.get('tenant');
     const settings = (tenant?.settings as any) || {};
 
     return c.json({ ...page, tenantSettings: settings });
@@ -95,7 +96,8 @@ app.get('/pages/:slug', async (c) => {
 // Create new page
 app.post('/pages', async (c) => {
     const db = drizzle(c.env.DB, { schema });
-    const tenantId = c.get('tenantId');
+    const tenant = c.get('tenant');
+    const tenantId = tenant.id;
     const body = await c.req.json<{
         slug: string;
         title: string;
@@ -142,7 +144,8 @@ app.post('/pages', async (c) => {
 // Update page (includes saving Puck JSON content)
 app.put('/pages/:id', async (c) => {
     const db = drizzle(c.env.DB, { schema });
-    const tenantId = c.get('tenantId');
+    const tenant = c.get('tenant');
+    const tenantId = tenant.id;
     const id = c.req.param('id');
     const body = await c.req.json<{
         title?: string;
@@ -181,7 +184,8 @@ app.put('/pages/:id', async (c) => {
 // Publish/unpublish page
 app.post('/pages/:id/publish', async (c) => {
     const db = drizzle(c.env.DB, { schema });
-    const tenantId = c.get('tenantId');
+    const tenant = c.get('tenant');
+    const tenantId = tenant.id;
     const id = c.req.param('id');
     const body = await c.req.json<{ isPublished: boolean }>();
 
@@ -210,7 +214,8 @@ app.post('/pages/:id/publish', async (c) => {
 // Delete page
 app.delete('/pages/:id', async (c) => {
     const db = drizzle(c.env.DB, { schema });
-    const tenantId = c.get('tenantId');
+    const tenant = c.get('tenant');
+    const tenantId = tenant.id;
     const id = c.req.param('id');
 
     // Verify ownership
@@ -235,7 +240,8 @@ app.delete('/pages/:id', async (c) => {
 // Get settings
 app.get('/settings', async (c) => {
     const db = drizzle(c.env.DB, { schema });
-    const tenantId = c.get('tenantId');
+    const tenant = c.get('tenant');
+    const tenantId = tenant.id;
 
     let settings = await db.query.websiteSettings.findFirst({
         where: eq(schema.websiteSettings.tenantId, tenantId),
@@ -261,7 +267,8 @@ app.get('/settings', async (c) => {
 // Update settings
 app.put('/settings', async (c) => {
     const db = drizzle(c.env.DB, { schema });
-    const tenantId = c.get('tenantId');
+    const tenant = c.get('tenant');
+    const tenantId = tenant.id;
     const body = await c.req.json<{
         domain?: string;
         theme?: any;

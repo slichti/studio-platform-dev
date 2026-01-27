@@ -334,6 +334,8 @@ app.put('/:id/integrations', async (c) => {
 
     // 9. Chat Feature
     const { chatConfig } = body;
+    console.log(`[Integration Update] Chat Enabled: ${chatEnabled}, Chat Config Present: ${chatConfig !== undefined}, Keys: ${Object.keys(body)}`);
+
     if (chatEnabled !== undefined || chatConfig !== undefined) {
         // Fetch current settings to merge
         const currentTenant = await db.select().from(tenants).where(eq(tenants.id, id)).get();
@@ -344,6 +346,7 @@ app.put('/:id/integrations', async (c) => {
             ...(chatEnabled !== undefined && { chatEnabled }),
             ...(chatConfig !== undefined && { chatConfig })
         };
+        console.log(`[Integration Update] New Settings ChatConfig Length: ${updateData.settings.chatConfig?.length}`);
     }
 
     if (Object.keys(updateData).length === 0) {

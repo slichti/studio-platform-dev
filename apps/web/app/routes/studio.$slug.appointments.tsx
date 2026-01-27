@@ -1,11 +1,11 @@
 // @ts-ignore
-import { useLoaderData, useFetcher, useNavigate } from "react-router";
+import { useLoaderData, useFetcher, useNavigate, useOutletContext, Link } from "react-router";
 // @ts-ignore
 import { LoaderFunction } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";
-import { ArrowLeft, Calendar, Check, Clock, User } from "lucide-react";
+import { ArrowLeft, Calendar, Check, Clock, User, Plus, Settings } from "lucide-react";
 import { toast } from "sonner";
 
 export const loader: LoaderFunction = async (args: any) => {
@@ -41,6 +41,8 @@ export const loader: LoaderFunction = async (args: any) => {
 
 export default function AppointmentsPage() {
     const { services, slug, userId, token } = useLoaderData<any>();
+    const { roles = [] } = useOutletContext<any>() || {};
+    const isOwnerOrAdmin = roles.includes('owner') || roles.includes('admin');
     const [step, setStep] = useState<"service" | "slot" | "confirm">("service");
     const [selectedService, setSelectedService] = useState<any>(null);
     const [selectedSlot, setSelectedSlot] = useState<any>(null);
@@ -112,7 +114,30 @@ export default function AppointmentsPage() {
             {/* Step 1: Select Service */}
             {step === 'service' && (
                 <div className="grid gap-4">
-                    {services.length === 0 && <p className="text-zinc-500">No services available.</p>}
+                    {services.length === 0 && (
+                        <div className="bg-zinc-50 border-2 border-dashed border-zinc-200 rounded-xl p-8 text-center">
+                            <Calendar className="h-12 w-12 text-zinc-300 mx-auto mb-4" />
+                            <h3 className="text-lg font-medium text-zinc-700 mb-2">No appointment services available</h3>
+                            {isOwnerOrAdmin ? (
+                                <>
+                                    <p className="text-zinc-500 mb-4">
+                                        Create 1:1 appointment services to allow students to book private sessions with instructors.
+                                    </p>
+                                    <Link
+                                        to={`/studio/${slug}/settings`}
+                                        className="inline-flex items-center gap-2 bg-zinc-900 text-white px-4 py-2 rounded-lg hover:bg-zinc-800 transition"
+                                    >
+                                        <Settings size={16} />
+                                        Configure Services
+                                    </Link>
+                                </>
+                            ) : (
+                                <p className="text-zinc-500">
+                                    The studio owner has not set up any bookable services yet. Please check back later.
+                                </p>
+                            )}
+                        </div>
+                    )}
 
                     {services.map((s: any) => (
                         <div key={s.id}

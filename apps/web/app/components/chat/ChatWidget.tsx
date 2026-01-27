@@ -31,9 +31,10 @@ interface ChatWidgetProps {
     enabled?: boolean;
     token?: string;
     chatConfig?: ChatOption[]; // Dynamic configuration
+    brandColor?: string; // Tenant brand color
 }
 
-export function ChatWidget({ roomId, tenantId, userId, userName, apiUrl = "", enabled = true, chatConfig, token }: ChatWidgetProps) {
+export function ChatWidget({ roomId, tenantId, userId, userName, apiUrl = "", enabled = true, chatConfig, token, brandColor = '#2563EB' }: ChatWidgetProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputValue, setInputValue] = useState("");
@@ -169,7 +170,8 @@ export function ChatWidget({ roomId, tenantId, userId, userName, apiUrl = "", en
             {/* Floating Button */}
             <button
                 onClick={() => { setIsOpen(!isOpen); if (!isOpen) setUnreadCount(0); }}
-                className="fixed bottom-6 right-6 w-14 h-14 bg-[#2563EB] text-white rounded-full shadow-lg hover:opacity-90 transition flex items-center justify-center z-50"
+                style={{ backgroundColor: brandColor }}
+                className="fixed bottom-6 right-6 w-14 h-14 text-white rounded-full shadow-lg hover:opacity-90 transition flex items-center justify-center z-50"
             >
                 {isOpen ? <X size={24} /> : <MessageCircle size={24} />}
                 {unreadCount > 0 && !isOpen && (
@@ -184,7 +186,7 @@ export function ChatWidget({ roomId, tenantId, userId, userName, apiUrl = "", en
                 isOpen && (
                     <div className="fixed bottom-24 right-6 w-[380px] h-[600px] bg-white rounded-xl shadow-2xl border border-zinc-200 flex flex-col z-50 overflow-hidden font-sans">
                         {/* Header */}
-                        <div className="bg-[#2563EB] text-white px-6 py-6 pb-12 relative overflow-hidden">
+                        <div style={{ backgroundColor: brandColor }} className="text-white px-6 py-6 pb-12 relative overflow-hidden">
                             <div className="relative z-10">
                                 <h2 className="text-xl font-bold mb-2">Chat with us</h2>
                                 <p className="text-white/90 text-sm leading-relaxed">
@@ -207,8 +209,9 @@ export function ChatWidget({ roomId, tenantId, userId, userName, apiUrl = "", en
                                         className={`flex ${msg.userId === userId ? 'justify-end' : 'justify-start'}`}
                                     >
                                         <div
+                                            style={msg.userId === userId ? { backgroundColor: brandColor } : undefined}
                                             className={`max-w-[85%] p-3 rounded-2xl text-sm ${msg.userId === userId
-                                                ? 'bg-[#2563EB] text-white rounded-br-sm'
+                                                ? 'text-white rounded-br-sm'
                                                 : 'bg-gray-100 text-zinc-900 rounded-bl-sm'
                                                 }`}
                                         >
@@ -252,7 +255,8 @@ export function ChatWidget({ roomId, tenantId, userId, userName, apiUrl = "", en
                                 <button
                                     onClick={sendMessage}
                                     disabled={!connected || !inputValue.trim()}
-                                    className="absolute right-2 p-2 text-zinc-400 hover:text-[#2563EB] transition-colors disabled:opacity-50"
+                                    style={{ color: inputValue.trim() ? brandColor : undefined }}
+                                    className="absolute right-2 p-2 text-zinc-400 transition-colors disabled:opacity-50"
                                 >
                                     <Send size={20} />
                                 </button>
