@@ -542,9 +542,10 @@ app.get('/stats/communications', async (c) => {
     const automationMap = new Map<string, any[]>();
     for (const auto of automationStats) {
         if (!auto.active) continue;
-        const existing = automationMap.get(auto.tenantId) || [];
+        const key = auto.tenantId || 'platform';
+        const existing = automationMap.get(key) || [];
         existing.push({ type: auto.type, active: auto.active });
-        automationMap.set(auto.tenantId, existing);
+        automationMap.set(key, existing);
     }
 
     // 3. Build Result
