@@ -1568,3 +1568,26 @@ export const scheduledReportsRelations = relations(scheduledReports, ({ one }) =
         references: [tenants.id],
     }),
 }));
+
+// --- FAQs (Features Page & Support) ---
+export const faqs = sqliteTable('faqs', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }), // NULL = platform-wide FAQ
+    category: text('category', { enum: ['features', 'pricing', 'support', 'getting_started'] }).notNull(),
+    question: text('question').notNull(),
+    answer: text('answer').notNull(),
+    sortOrder: integer('sort_order').default(0).notNull(),
+    isActive: integer('is_active', { mode: 'boolean' }).default(true).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    categoryIdx: index('faqs_category_idx').on(table.category),
+    tenantIdx: index('faqs_tenant_idx').on(table.tenantId),
+}));
+
+export const faqsRelations = relations(faqs, ({ one }) => ({
+    tenant: one(tenants, {
+        fields: [faqs.tenantId],
+        references: [tenants.id],
+    }),
+}));

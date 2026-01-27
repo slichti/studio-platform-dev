@@ -56,6 +56,7 @@ import platformPagesRoutes from './routes/platform-pages';
 import guestRoutes from './routes/guest';
 import adminStats from './routes/admin-stats'; // [NEW] Import
 import analytics from './routes/analytics'; // [NEW] Analytics
+import faqRoutes from './routes/faqs'; // [NEW] FAQs
 
 type Bindings = {
   DB: D1Database;
@@ -537,6 +538,7 @@ app.route('/waitlist', waitlist);
 app.route('/sub-dispatch', subDispatch);
 app.route('/guest', guestRoutes);
 app.route('/platform-pages', platformPagesRoutes);
+app.route('/faqs', faqRoutes); // [NEW] FAQ management
 
 import { scheduled } from './cron';
 
