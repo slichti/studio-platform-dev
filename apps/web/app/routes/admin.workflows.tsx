@@ -167,7 +167,7 @@ export default function AdminWorkflows() {
                                 <option value="all">All Types</option>
                                 <option value="new_student">New Student Signup</option>
                                 <option value="birthday">Birthday</option>
-                                <option value="absent">Re-engagement</option>
+                                <option value="absent">Student Absent (Re-engage)</option>
                                 <option value="trial_ending">Trial Ending</option>
                             </select>
                         </div>
@@ -243,7 +243,11 @@ function AutomationCard({ auto, getIcon, getTimingLabel, fetcher }: { auto: Auto
                         {getTimingLabel(auto)}
                     </span>
                     <span className="capitalize px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs">
-                        Trigger: {auto.triggerEvent.replace('_', ' ')}
+                        Trigger: {
+                            auto.triggerEvent === 'absent' ? 'Student Absent (Re-engage)' :
+                                auto.triggerEvent === 'new_student' ? 'New Student Signup' :
+                                    auto.triggerEvent.replace('_', ' ')
+                        }
                     </span>
                 </div>
             </div>
@@ -320,6 +324,16 @@ function WorkflowForm({ initialData, onSubmit }: WorkflowFormProps) {
         onSubmit(formData);
     };
 
+    const getLabel = (type: string) => {
+        switch (type) {
+            case 'new_student': return 'New Student Signup';
+            case 'birthday': return 'Birthday';
+            case 'absent': return 'Student Absent (Re-engage)';
+            case 'trial_ending': return 'Trial Ending';
+            default: return type.replace('_', ' ');
+        }
+    };
+
     return (
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
@@ -328,7 +342,6 @@ function WorkflowForm({ initialData, onSubmit }: WorkflowFormProps) {
                     <Select
                         name="triggerEvent"
                         defaultValue={initialData?.triggerEvent || "new_student"}
-                        disabled={!!initialData}
                     >
                         <option value="new_student">New Student Signup</option>
                         <option value="birthday">Birthday</option>
@@ -379,7 +392,7 @@ function WorkflowForm({ initialData, onSubmit }: WorkflowFormProps) {
                     placeholder="Hello {firstname}..."
                     className="h-32 font-mono"
                 />
-                <p className="text-xs text-zinc-500">Supported variables: {'{firstname}'}, {'{lastname}'}, {'{title}'}.</p>
+                <p className="text-xs text-zinc-500">Supported variables: {'{firstname}'}, {'{lastname}'}, {'{tenant}'} (Studio Name).</p>
             </div>
 
             <DialogFooter className="mt-4 flex justify-end gap-2">
