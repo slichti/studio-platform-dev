@@ -223,4 +223,29 @@ erDiagram
     tenants ||--o{ waiver_templates : "requires"
     waiver_templates ||--o{ waiver_signatures : "signed as"
     tenant_members ||--o{ waiver_signatures : "signs"
+
+    %% Marketing & Automation
+    marketing_automations {
+        string id PK
+        string tenant_id FK "Nullable (Global)"
+        string trigger_event
+        string subject
+        boolean is_enabled
+        json channels
+    }
+    
+    tenants ||--o{ marketing_automations : "configures"
+
+    %% Communication (Chat)
+    chat_rooms {
+        string id PK
+        string tenant_id FK
+        enum type
+        string name
+        enum status
+        string assigned_to_id FK
+    }
+
+    tenants ||--o{ chat_rooms : "has"
+    users ||--o{ chat_rooms : "assigned to"
 ```

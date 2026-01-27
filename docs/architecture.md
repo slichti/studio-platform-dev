@@ -13,6 +13,7 @@ flowchart TB
     subgraph "Cloudflare Edge"
         PAGES[Cloudflare Pages<br/>Frontend Hosting]
         WORKERS[Cloudflare Workers<br/>API Backend]
+        DO[Durable Objects<br/>Real-time State]
         D1[(D1 Database<br/>SQLite)]
         R2[R2 Storage<br/>Images & Files]
         STREAM[Cloudflare Stream<br/>Video VOD]
@@ -41,6 +42,7 @@ flowchart TB
     PAGES --> CLERK
     MOBILE --> STORE
     WORKERS --> D1
+    WORKERS --> DO
     
     WORKERS --> EXPO
     
@@ -132,6 +134,7 @@ flowchart TB
         COMMERCE["/commerce/*"]
         APPOINTMENTS["/appointments/*"]
         VIDEO["/video-management/*"]
+        CHAT["/chat/*"]
         WEBHOOKS["/webhooks/*"]
     end
 
@@ -149,6 +152,7 @@ flowchart TB
     ROUTES --> COMMERCE
     ROUTES --> APPOINTMENTS
     ROUTES --> VIDEO
+    ROUTES --> CHAT
     ROUTES --> WEBHOOKS
 ```
 
@@ -165,6 +169,7 @@ flowchart TB
 | **Email** | Resend |
 | **SMS** | Twilio |
 | **Video Calls** | Zoom API |
+| **Real-time** | Cloudflare Durable Objects (WebSockets) |
 
 ## Compliance & Data Minimization
 *   **Financial System of Record**: Stripe is treated as the sole system of record for financial data. The platform does **not** store sensitive cardholder data (PAN, CVV) or bank account numbers.
