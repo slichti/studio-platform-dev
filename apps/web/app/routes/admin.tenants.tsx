@@ -256,12 +256,20 @@ export default function AdminTenants() {
         }
     };
 
-    const handleImpersonate = async (tenantId: string) => {
-        if (!confirm("Are you sure you want to log in as the owner of this tenant?")) return;
+    const [impersonateModalOpen, setImpersonateModalOpen] = useState(false);
+    const [tenantToImpersonate, setTenantToImpersonate] = useState<{ id: string, name: string } | null>(null);
+
+    const handleImpersonate = (tenant: { id: string, name: string }) => {
+        setTenantToImpersonate(tenant);
+        setImpersonateModalOpen(true);
+    };
+
+    const confirmImpersonate = async () => {
+        if (!tenantToImpersonate) return;
         setLoading(true);
         try {
             const token = await getToken();
-            const res: any = await apiRequest(`/admin/tenants/${tenantId}/impersonate`, token, { method: "POST" });
+            const res: any = await apiRequest(`/admin/tenants/${tenantToImpersonate.id}/impersonate`, token, { method: "POST" });
 
             if (res.error) throw new Error(res.error);
 
@@ -272,6 +280,7 @@ export default function AdminTenants() {
             setErrorDialog({ isOpen: true, message: e.message || "Impersonation failed" });
         } finally {
             setLoading(false);
+            setImpersonateModalOpen(false);
         }
     };
 
@@ -1394,7 +1403,7 @@ export default function AdminTenants() {
 
                                             <button
                                                 className="text-zinc-400 hover:text-indigo-600 transition-colors"
-                                                onClick={(e) => { e.stopPropagation(); handleImpersonate(t.id); }}
+                                                onClick={(e) => { e.stopPropagation(); handleImpersonate({ id: t.id, name: t.name }); }}
                                                 title="Log in as Owner"
                                             >
                                                 <LogIn size={16} />
@@ -2195,6 +2204,17 @@ export default function AdminTenants() {
                     dataType={exportModal.dataType}
                 />
             )}
+
+            {/* Impersonate Dialog */}
+            <ConfirmationDialog
+                isOpen={impersonateModalOpen}
+                onClose={() => setImpersonateModalOpen(false)}
+                onConfirm={confirmImpersonate}
+                title="Impersonate Tenant Owner"
+                message={`Are you sure you want to log in as the owner of ${tenantToImpersonate?.name}? You will be logged out of your admin account.`}
+                confirmText="Log In as Owner"
+                isDestructive={false}
+            />
 
             {/* Notify Modal */}
             <Modal isOpen={notifyModalOpen} onClose={() => setNotifyModalOpen(false)} title="Send System Notification">
