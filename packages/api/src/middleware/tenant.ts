@@ -122,10 +122,10 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
     // 3. Security Check: If User is Authenticated, Verify Membership
     const auth = c.get('auth');
     let roles: string[] = [];
+    let isPlatformAdmin = false;
 
     if (auth && auth.userId) {
         // Global Admin Check (Original User)
-        let isPlatformAdmin = false;
 
         // Check 1: Is the current (possibly impersonated) user a Platform Admin?
         const dbUser = await db.query.users.findFirst({
