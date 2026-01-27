@@ -857,15 +857,18 @@ app.get('/coupons', async (c) => {
 
 // POST /coupons - Create Platform Coupon
 app.post('/coupons', async (c) => {
-    if (!c.env.STRIPE_SECRET_KEY) {
-        return c.json({ error: "Stripe Secret Key missing" }, 500);
+    const stripeKey = c.env.STRIPE_SECRET_KEY;
+    if (!stripeKey) {
+        return c.json({
+            error: "Platform Stripe configuration missing. Set STRIPE_SECRET_KEY to enable platform coupons."
+        }, 400);
     }
-    const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+
+    const stripeService = new StripeService(stripeKey);
 
     try {
         const body = await c.req.json();
         // Map body to Stripe params
-        // simple mapping: duration, percent_off/amount_off, duration_in_months, name, id (code)
         const params: any = {
             name: body.name || body.code,
             duration: body.duration || 'forever',
@@ -883,9 +886,8 @@ app.post('/coupons', async (c) => {
         if (body.max_redemptions) params.max_redemptions = body.max_redemptions;
         if (body.redeem_by) params.redeem_by = Math.floor(new Date(body.redeem_by).getTime() / 1000);
 
-
         const coupon = await stripeService.createCoupon(params);
-        return c.json(coupon);
+        return c.json(coupon, 201);
     } catch (e: any) {
         console.error("Stripe Create Coupon Error:", e);
         return c.json({ error: e.message }, 500);
@@ -903,6 +905,96 @@ app.delete('/coupons/:id', async (c) => {
         await stripeService.deleteCoupon(id);
         return c.json({ success: true });
     } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
+// --- Platform Marketing Automations (Admin-level, no tenant context) ---
+
+// GET /automations - List all platform marketing automations
+app.get('/automations', async (c) => {
+    const db = createDb(c.env.DB);
+
+    try {
+        const automations = await db.select().from(marketingAutomations)
+            .orderBy(marketingAutomations.createdAt)
+            .all();
+
+        return c.json(automations);
+    } catch (e: any) {
+        console.error("Failed to fetch automations:", e);
+        return c.json({ error: e.message }, 500);
+    }
+});
+
+// POST /automations - Create new automation
+app.post('/automations', async (c) => {
+    const db = createDb(c.env.DB);
+
+    try {
+        const body = await c.req.json();
+        const id = crypto.randomUUID();
+
+        await db.insert(marketingAutomations).values({
+            id,
+            tenantId: body.tenantId || null, // null = platform default template
+            triggerEvent: body.triggerEvent || 'new_student',
+            subject: body.subject,
+            content: body.content,
+            timingType: body.timingType || 'immediate',
+            timingValue: body.timingValue || 0,
+            isEnabled: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        });
+
+        return c.json({ id, success: true }, 201);
+    } catch (e: any) {
+        console.error("Failed to create automation:", e);
+        return c.json({ error: e.message }, 500);
+    }
+});
+
+// PATCH /automations/:id - Update automation
+app.patch('/automations/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const id = c.req.param('id');
+
+    try {
+        const body = await c.req.json();
+        const updates: any = { updatedAt: new Date() };
+
+        if (body.isEnabled !== undefined) updates.isEnabled = body.isEnabled;
+        if (body.subject !== undefined) updates.subject = body.subject;
+        if (body.content !== undefined) updates.content = body.content;
+        if (body.timingType !== undefined) updates.timingType = body.timingType;
+        if (body.timingValue !== undefined) updates.timingValue = body.timingValue;
+
+        await db.update(marketingAutomations)
+            .set(updates)
+            .where(eq(marketingAutomations.id, id))
+            .run();
+
+        return c.json({ success: true });
+    } catch (e: any) {
+        console.error("Failed to update automation:", e);
+        return c.json({ error: e.message }, 500);
+    }
+});
+
+// DELETE /automations/:id - Delete automation
+app.delete('/automations/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const id = c.req.param('id');
+
+    try {
+        await db.delete(marketingAutomations)
+            .where(eq(marketingAutomations.id, id))
+            .run();
+
+        return c.json({ success: true });
+    } catch (e: any) {
+        console.error("Failed to delete automation:", e);
         return c.json({ error: e.message }, 500);
     }
 });

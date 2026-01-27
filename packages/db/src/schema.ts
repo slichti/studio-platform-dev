@@ -508,7 +508,7 @@ export const marketingCampaigns = sqliteTable('marketing_campaigns', {
 
 export const marketingAutomations = sqliteTable('marketing_automations', {
     id: text('id').primaryKey(),
-    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    tenantId: text('tenant_id').references(() => tenants.id), // Nullable for platform global templates
 
     // Expanded Trigger Logic
     triggerEvent: text('trigger_event').notNull(), // e.g. 'new_student', 'class_attended', 'order_completed', 'absent'

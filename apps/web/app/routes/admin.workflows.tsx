@@ -43,7 +43,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const apiUrl = env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev";
 
     try {
-        const automations = await apiRequest<Automation[]>('/studios/marketing/automations', token, {}, apiUrl);
+        const automations = await apiRequest<Automation[]>('/admin/automations', token, {}, apiUrl);
         return { automations: automations || [] };
     } catch (e: any) {
         console.error("Failed to load automations", e);
@@ -70,7 +70,7 @@ export const action = async (args: ActionFunctionArgs) => {
                 timingType: formData.get('timingType'),
                 timingValue: Number(formData.get('timingValue'))
             };
-            await apiRequest('/studios/marketing/automations', token, {
+            await apiRequest('/admin/automations', token, {
                 method: 'POST',
                 body: JSON.stringify(data)
             }, apiUrl);
@@ -83,19 +83,19 @@ export const action = async (args: ActionFunctionArgs) => {
             if (formData.has('timingType')) data.timingType = formData.get('timingType');
             if (formData.has('timingValue')) data.timingValue = Number(formData.get('timingValue'));
 
-            await apiRequest(`/studios/marketing/automations/${id}`, token, {
+            await apiRequest(`/admin/automations/${id}`, token, {
                 method: 'PATCH',
                 body: JSON.stringify(data)
             }, apiUrl);
         } else if (actionType === 'delete') {
             const id = formData.get('id') as string;
-            await apiRequest(`/studios/marketing/automations/${id}`, token, {
+            await apiRequest(`/admin/automations/${id}`, token, {
                 method: 'DELETE'
             }, apiUrl);
         } else if (actionType === 'test') {
             const id = formData.get('id') as string;
             const email = formData.get('email') as string;
-            await apiRequest(`/studios/marketing/automations/${id}/test`, token, {
+            await apiRequest(`/admin/automations/${id}/test`, token, {
                 method: 'POST',
                 body: JSON.stringify({ email })
             }, apiUrl);
