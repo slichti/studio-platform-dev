@@ -20,11 +20,13 @@ export const loader = async (args: any) => {
 
         // Fetch current user details for the chat UI
         const me = await apiRequest('/users/me', token);
+        const admins = await apiRequest('/admin/admins', token);
 
         return {
             room,
             token,
             user: { id: me.userId, name: me.firstName + ' ' + me.lastName },
+            admins,
             apiUrl: API_URL
         };
     } catch (e: any) {
@@ -34,7 +36,7 @@ export const loader = async (args: any) => {
 };
 
 export default function AdminChatRoom() {
-    const { room, token, user, apiUrl } = useLoaderData<any>();
+    const { room, token, user, admins, apiUrl } = useLoaderData<any>();
 
     const [status, setStatus] = useState(room.status || 'open');
     const [priority, setPriority] = useState(room.priority || 'normal');
@@ -103,22 +105,33 @@ export default function AdminChatRoom() {
                                 <option value="urgent">Urgent</option>
                             </select>
                         </div>
-                        <button
-                            onClick={() => updateTicket({ assignedToId: assignee ? null : user.id })}
-                            className="text-sm px-3 py-1 bg-white border border-zinc-200 rounded-md text-zinc-600 hover:bg-zinc-50"
-                        >
-                            {assignee ? (assignee === user.id ? 'Assigned to You' : 'Assigned') : 'Assign to Me'}
-                        </button>
+                        <div className="flex flex-col items-end">
+                            <select
+                                value={assignee || ""}
+                                onChange={(e) => updateTicket({ assignedToId: e.target.value || null })}
+                                className="text-sm rounded-md border-zinc-200 py-1 pl-2 pr-6 font-medium text-zinc-600 bg-zinc-50 focus:ring-2 focus:ring-zinc-950 focus:outline-none"
+                            >
+                                <option value="">Unassigned</option>
+                                {admins?.map((admin: any) => (
+                                    <option key={admin.id} value={admin.id}>
+                                        {admin.profile?.firstName} {admin.profile?.lastName}
+                                        {admin.id === user.id ? ' (You)' : ''}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 )}
 
-                {!room.type.includes('support') && (
-                    <div className="flex items-center gap-2">
-                        <button className="p-2 hover:bg-zinc-100 rounded-lg text-zinc-400">
-                            <Settings size={20} />
-                        </button>
-                    </div>
-                )}
+                {
+                    !room.type.includes('support') && (
+                        <div className="flex items-center gap-2">
+                            <button className="p-2 hover:bg-zinc-100 rounded-lg text-zinc-400">
+                                <Settings size={20} />
+                            </button>
+                        </div>
+                    )
+                }
             </header>
 
             {/* Chat Area - Centered for now, can be full width */}

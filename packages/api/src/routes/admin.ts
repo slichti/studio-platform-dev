@@ -133,6 +133,20 @@ app.get('/users', async (c) => {
     return c.json(result);
 });
 
+// GET /admins - List all platform admins for assignment
+app.get('/admins', async (c) => {
+    const db = createDb(c.env.DB);
+    const admins = await db.query.users.findMany({
+        where: (users, { eq }) => eq(users.isPlatformAdmin, true),
+        columns: {
+            id: true,
+            email: true,
+            profile: true
+        }
+    });
+    return c.json(admins);
+});
+
 // PATCH /users/bulk - Bulk actions on users
 app.patch('/users/bulk', async (c) => {
     const db = createDb(c.env.DB);
