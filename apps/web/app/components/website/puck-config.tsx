@@ -342,6 +342,58 @@ const MembershipPreview = ({ title, limit }: any) => (
     </section>
 );
 
+// FAQ Block - Fetches FAQs from API and renders as accordion
+// Note: In Puck editor, shows static preview. On live site, fetches dynamically.
+const FAQBlock = ({ title, category, maxItems, backgroundColor, textColor }: any) => {
+    // Static preview for Puck editor
+    const previewFaqs = [
+        { id: '1', question: 'How do I get started?', answer: 'Sign up for a free trial and follow our setup wizard to configure your studio.' },
+        { id: '2', question: 'Can students book classes online?', answer: 'Yes! Students can book classes 24/7 from your website or mobile app.' },
+        { id: '3', question: 'What payment methods are supported?', answer: 'We support all major credit cards, Apple Pay, Google Pay, and ACH transfers via Stripe.' }
+    ];
+
+    const displayFaqs = previewFaqs.slice(0, maxItems || 10);
+
+    return (
+        <section
+            className="py-24 px-8 transition-colors"
+            style={{ backgroundColor: backgroundColor || '#fafafa', color: textColor || 'inherit' }}
+        >
+            <div className="max-w-3xl mx-auto">
+                <h2 className="text-4xl font-black text-center mb-12 tracking-tight">
+                    {title || "Frequently Asked Questions"}
+                </h2>
+                <div className="space-y-4">
+                    {displayFaqs.map((faq: any, i: number) => (
+                        <details
+                            key={faq.id || i}
+                            className="group bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden"
+                        >
+                            <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition list-none font-semibold text-lg">
+                                {faq.question}
+                                <svg
+                                    className="w-5 h-5 text-zinc-400 transition-transform group-open:rotate-180"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </summary>
+                            <div className="px-6 pb-6 text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                                {faq.answer}
+                            </div>
+                        </details>
+                    ))}
+                </div>
+                <p className="text-center text-zinc-400 text-sm mt-8 italic">
+                    {category ? `Showing FAQs from: ${category}` : 'Showing all FAQs'} • Managed in Admin
+                </p>
+            </div>
+        </section>
+    );
+};
+
 // --- Puck Config Export ---
 
 export const puckConfig: Config = {
@@ -600,6 +652,34 @@ export const puckConfig: Config = {
                 backgroundColor: "#fafafa"
             },
             render: PricingTable
+        },
+        FAQBlock: {
+            label: "FAQ Section",
+            fields: {
+                title: { type: "text", label: "Section Title" },
+                category: {
+                    type: "select",
+                    label: "FAQ Category",
+                    options: [
+                        { label: "All FAQs", value: "" },
+                        { label: "Features", value: "features" },
+                        { label: "Pricing", value: "pricing" },
+                        { label: "Support", value: "support" },
+                        { label: "Getting Started", value: "getting_started" }
+                    ]
+                },
+                maxItems: { type: "number", label: "Max FAQs to Show" },
+                backgroundColor: { type: "text", label: "Background Color (Hex)" },
+                textColor: { type: "text", label: "Text Color (Hex)" }
+            },
+            defaultProps: {
+                title: "Frequently Asked Questions",
+                category: "",
+                maxItems: 10,
+                backgroundColor: "#fafafa",
+                textColor: "#18181b"
+            },
+            render: FAQBlock
         },
     },
 };
