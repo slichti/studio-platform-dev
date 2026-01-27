@@ -1112,9 +1112,6 @@ app.post('/tenants/:id/impersonate', async (c) => {
             exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour expiration
         };
 
-        // Assuming 'sign' function is available from a JWT library
-        // You might need to import it, e.g., `import { sign } from 'hono/jwt';`
-        const { sign } = await import('hono/jwt');
         const token = await sign(payload, secret, 'HS256');
 
         // 3. Audit Log
@@ -1971,13 +1968,12 @@ app.post('/impersonate', async (c) => {
         // Providing a "session token" from the backend for Clerk is complex without Clerk's Backend API "actor" tokens.
         // However, for this "studio-platform" which seems to build its own "authMiddleware", let's see if we can create a token.
 
-        const { sign } = await import('hono/jwt');
-        // Fallback to a know secret or env
-        const secret = c.env.IMPERSONATION_SECRET || c.env.CLERK_SECRET_KEY || 'dev_secret';
-        // Note: Real Clerk middleware validates with public keys, so signing with Secret Key won't work if it expects JWKS.
-        // BUT, if `authMiddleware` checks for a custom header or fallback, we might be ok.
-        // Let's implement a simple JWT sign here and assume `authMiddleware` (or client) can handle it.
-        // If the client purely relies on Clerk Provider, this WON'T work for the "UserButton", but might work for API calls.
+        // 2. Generate Token
+        const secret = c.env.IMPERSONATION_SECRET || c.env.CLERK_SECRET_KEY;
+        if (!secret) {
+            console.error("[Impersonate] Missing secret key configuration");
+            return c.json({ error: "Server misconfiguration: No secret" }, 500);
+        }
 
         // Let's generate a token that OUR API accepts.
         const token = await sign({
