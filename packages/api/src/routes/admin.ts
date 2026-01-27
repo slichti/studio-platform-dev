@@ -1072,57 +1072,68 @@ app.patch('/tenants/bulk', async (c) => {
 
 // POST /tenants/:id/impersonate - Generate Impersonation Token
 app.post('/tenants/:id/impersonate', async (c) => {
-    const db = createDb(c.env.DB);
-    const tenantId = c.req.param('id');
-    const auth = c.get('auth'); // Admin user
+    try {
+        const db = createDb(c.env.DB);
+        const tenantId = c.req.param('id');
+        const auth = c.get('auth'); // Admin user
 
-    // 1. Find Owner
-    const ownerMember = await db.query.tenantMembers.findFirst({
-        where: and(
-            eq(tenantMembers.tenantId, tenantId),
-            exists(
-                db.select().from(tenantRoles).where(and(
-                    eq(tenantRoles.memberId, tenantMembers.id),
-                    eq(tenantRoles.role, 'owner')
-                ))
-            )
-        ),
-        with: { user: true }
-    });
+        // 1. Find Owner
+        const ownerMember = await db.query.tenantMembers.findFirst({
+            where: and(
+                eq(tenantMembers.tenantId, tenantId),
+                exists(
+                    db.select().from(tenantRoles).where(and(
+                        eq(tenantRoles.memberId, tenantMembers.id),
+                        eq(tenantRoles.role, 'owner')
+                    ))
+                )
+            ),
+            with: { user: true, tenant: true }
+        });
 
-    if (!ownerMember || !ownerMember.user) {
-        return c.json({ error: "Tenant has no owner to impersonate" }, 404);
+        if (!ownerMember || !ownerMember.user) {
+            console.error(`[Impersonate] No owner found for tenant ${tenantId}`);
+            return c.json({ error: "Tenant has no owner to impersonate" }, 404);
+        }
+
+        // 2. Generate Token
+        // Use IMPERSONATION_SECRET or fallback to CLERK_SECRET_KEY (must match auth middleware verification)
+        const secret = c.env.IMPERSONATION_SECRET || c.env.CLERK_SECRET_KEY;
+        if (!secret) {
+            console.error("[Impersonate] Missing secret key configuration");
+            return c.json({ error: "Server misconfiguration: No secret" }, 500);
+        }
+
+        const payload = {
+            sub: ownerMember.user.id,
+            name: (ownerMember.user.profile as any)?.firstName || 'Owner',
+            role: 'owner', // Grant owner privileges
+            impersonatorId: auth.userId, // Audit trail
+            exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour expiration
+        };
+
+        // Assuming 'sign' function is available from a JWT library
+        // You might need to import it, e.g., `import { sign } from 'hono/jwt';`
+        const { sign } = await import('hono/jwt');
+        const token = await sign(payload, secret, 'HS256');
+
+        // 3. Audit Log
+        if (auth?.userId) {
+            await db.insert(auditLogs).values({
+                id: crypto.randomUUID(),
+                action: 'impersonate_tenant',
+                actorId: auth.userId,
+                targetId: tenantId,
+                details: { impersonatedUserId: ownerMember.user.id },
+                ipAddress: c.req.header('CF-Connecting-IP')
+            });
+        }
+
+        return c.json({ token, redirectUrl: `/studio/${ownerMember.tenant?.slug || 'studio'}` });
+    } catch (e: any) {
+        console.error("[Impersonate] Error:", e);
+        return c.json({ error: e.message || "Internal Server Error" }, 500);
     }
-
-    // 2. Generate Token
-    // Use IMPERSONATION_SECRET or fallback to CLERK_SECRET_KEY (must match auth middleware verification)
-    const secret = c.env.IMPERSONATION_SECRET || c.env.CLERK_SECRET_KEY;
-    if (!secret) return c.json({ error: "Server misconfiguration: No secret" }, 500);
-
-    const payload = {
-        sub: ownerMember.user.id,
-        name: (ownerMember.user.profile as any)?.firstName || 'Owner',
-        role: 'owner', // Grant owner privileges
-        impersonatorId: auth.userId, // Audit trail
-        exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour expiration
-    };
-
-    // Assuming 'sign' function is available from a JWT library
-    // You might need to import it, e.g., `import { sign } from 'hono/jwt';`
-    const { sign } = await import('hono/jwt');
-    const token = await sign(payload, secret, 'HS256');
-
-    // 3. Audit Log
-    await db.insert(auditLogs).values({
-        id: crypto.randomUUID(),
-        action: 'impersonate_tenant',
-        actorId: auth.userId,
-        targetId: tenantId,
-        details: { impersonatedUserId: ownerMember.user.id },
-        ipAddress: c.req.header('CF-Connecting-IP')
-    });
-
-    return c.json({ token, redirectUrl: `/studio/${(ownerMember as any).tenant?.slug || 'studio'}` });
 });
 
 // POST /tenants/:id/notify - Send System Notification (Email)
