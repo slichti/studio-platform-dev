@@ -6,11 +6,13 @@ export interface SwitchProps {
     onCheckedChange: (checked: boolean) => void
     disabled?: boolean
     className?: string
+    id?: string
 }
 
-export function Switch({ checked, onCheckedChange, disabled, className = "" }: SwitchProps) {
+export function Switch({ checked, onCheckedChange, disabled, className = "", id }: SwitchProps) {
     return (
         <HeadlessSwitch
+            id={id}
             checked={checked}
             onChange={onCheckedChange}
             disabled={disabled}
