@@ -175,7 +175,7 @@ export const loader: LoaderFunction = async (args: any) => {
     let faqs: FAQ[] = [];
     try {
         const res = await fetch(`${process.env.API_URL || 'https://studio-platform-api.slichti.workers.dev'}/faqs?category=features`);
-        const data = await res.json();
+        const data = await res.json() as { faqs?: FAQ[] };
         faqs = data.faqs || [];
     } catch (e) {
         console.error("Failed to load FAQs", e);
@@ -274,8 +274,8 @@ export default function FeaturesPage() {
                                 key={category.id}
                                 onClick={() => setActiveCategory(isActive ? null : category.id)}
                                 className={`bg-white border rounded-2xl p-6 cursor-pointer transition-all duration-300 ${isActive
-                                        ? 'border-zinc-900 shadow-xl ring-2 ring-zinc-900/10'
-                                        : 'border-zinc-200 hover:border-zinc-300 hover:shadow-lg'
+                                    ? 'border-zinc-900 shadow-xl ring-2 ring-zinc-900/10'
+                                    : 'border-zinc-200 hover:border-zinc-300 hover:shadow-lg'
                                     }`}
                             >
                                 <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl ${category.color} text-white mb-4`}>
