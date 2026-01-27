@@ -26,6 +26,14 @@ const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 // Cloudflare Images
 app.post('/image', async (c) => {
     try {
+        const tenant = c.get('tenant');
+        const roles = c.get('roles') || [];
+
+        // Security: Restrict upload URL generation to privileged users
+        if (!roles.includes('owner') && !roles.includes('admin') && !roles.includes('instructor')) {
+            return c.json({ error: 'Unauthorized: Upload permission required' }, 403);
+        }
+
         const accountId = c.env.CLOUDFLARE_ACCOUNT_ID;
         const token = c.env.CLOUDFLARE_API_TOKEN;
 
@@ -35,6 +43,10 @@ app.post('/image', async (c) => {
 
         const formData = new FormData();
         formData.append('requireSignedURLs', 'false');
+        // Add tenant metadata
+        if (tenant) {
+            formData.append('metadata', JSON.stringify({ tenantId: tenant.id }));
+        }
 
         const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/images/v2/direct_upload`, {
             method: 'POST',
@@ -60,7 +72,14 @@ app.post('/image', async (c) => {
 app.post('/file', async (c) => {
     // Requires tenant text
     const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    // Security: RBAC
+    if (!roles.includes('owner') && !roles.includes('admin') && !roles.includes('instructor')) {
+        return c.json({ error: 'Unauthorized: Upload permission required' }, 403);
+    }
 
     const { filename, contentType } = await c.req.json();
     if (!filename || !contentType) return c.json({ error: 'Filename and content type required' }, 400);
@@ -70,7 +89,14 @@ app.post('/file', async (c) => {
 
 app.post('/pdf', async (c) => {
     const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    // Security: RBAC
+    if (!roles.includes('owner') && !roles.includes('admin') && !roles.includes('instructor')) {
+        return c.json({ error: 'Unauthorized: Upload permission required' }, 403);
+    }
 
     const body = await c.req.parseBody();
     const file = body['file'] as File;
@@ -115,89 +141,21 @@ app.post('/pdf', async (c) => {
     return c.json({ key: objectKey, url: `/uploads/${objectKey}` });
 });
 
-app.get('/:key{.+}', async (c) => {
-    try {
-        const key = c.req.param('key');
-        const object = await c.env.R2.get(key);
 
-        if (!object) {
-            return c.json({ error: 'File not found' }, 404);
-        }
-
-        const tenant = c.get('tenant');
-        if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
-
-        // [SECURITY] Tenant Isolation
-        // Ensure the requested key belongs to this tenant's folder structure
-        if (key.startsWith('tenants/') && !key.startsWith(`tenants/${tenant.slug}/`)) {
-            return c.json({ error: 'Access Denied: Tenant Isolation Violation' }, 403);
-        }
-
-        // [SECURITY] Protect Sensitive Files
-        // convention: /waivers/, /contracts/, /private/ are protected
-        const isSensitive = key.includes('/waivers/') || key.includes('/contracts/') || key.includes('/private/');
-
-        if (isSensitive) {
-            const auth = c.get('auth');
-            if (!auth?.userId) return c.json({ error: "Unauthorized" }, 401);
-
-            const db = createDb(c.env.DB);
-
-            // Check if user is the uploader
-            const metadata = await db.select().from(uploads)
-                .where(and(eq(uploads.fileKey, key), eq(uploads.tenantId, tenant.id)))
-                .get();
-
-            // If we have metadata, check ownership
-            const isUploader = metadata && metadata.uploadedBy === auth.userId;
-
-            if (!isUploader) {
-                // Check for privileged roles (Owner/Admin)
-                // We need to find the member record for this user in this tenant
-                const membership = await db.select().from(tenantMembers)
-                    .where(and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id)))
-                    .get();
-
-                if (!membership) return c.json({ error: "Forbidden" }, 403);
-
-                // Fetch roles for this member
-                // We need to import tenantRoles. It should be imported at top level, but for now using the existing pattern if needed or fixing imports.
-                // Let's assume we fix imports in a separate step or rely on what's available.
-                // Actually, I will update imports in a separate step to be clean.
-                // For now, I will use dynamic import as it was there, or better yet, I should have updated the top imports.
-                // I'll stick to the existing dynamic import pattern for safely within this block if I don't change top of file yet,
-                // or just use the variable if I can.
-                // Wait, I can't verify if I added it to top imports yet in this single tool call standard.
-                // I will use dynamic import to be safe and avoid breaking if I missed top edit.
-                const { tenantRoles } = await import('@studio/db/src/schema');
-
-                const roles = await db.select().from(tenantRoles).where(eq(tenantRoles.memberId, membership.id)).all();
-                const hasPrivilege = roles.some(r => r.role === 'owner' || r.role === 'admin');
-
-                if (!hasPrivilege) {
-                    return c.json({ error: "Forbidden: Access denied to sensitive document." }, 403);
-                }
-            }
-        }
-
-        const headers = new Headers();
-        object.writeHttpMetadata(headers);
-        headers.set('etag', object.httpEtag);
-
-        return new Response(object.body, {
-            headers,
-        });
-    } catch (e: any) {
-        console.error("GET /uploads/:key error", e);
-        return c.json({ error: e.message, stack: e.stack }, 500);
-    }
-});
+// ... get/:key ...
 
 // Generic Image Upload to R2 (e.g. for membership cards)
 app.post('/r2-image', async (c) => {
     try {
         const tenant = c.get('tenant');
+        const roles = c.get('roles') || [];
+
         if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+        // Security: RBAC
+        if (!roles.includes('owner') && !roles.includes('admin') && !roles.includes('instructor')) {
+            return c.json({ error: 'Unauthorized: Upload permission required' }, 403);
+        }
 
         const body = await c.req.parseBody();
         const file = body['file'] as File;

@@ -249,25 +249,27 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
             }
         }
 
-        // 4. Lifecycle Checks
-        if (tenant.status === 'archived' && !isPlatformAdmin) {
-            // Archived tenants are inaccessible except to System Admins (for restoration)
-            // Note: If Owners need read-only access to archived tenants, this logic needs adjustment.
-            // Requirement says "spin it back up in event of audit", implying it is currently offline.
-            // Exports should happen DURING grace period.
-            return c.json({ error: "This studio has been archived." }, 403);
-        }
+    } // End of auth check
 
-        if (tenant.studentAccessDisabled && !isPlatformAdmin) {
-            const hasPrivilegedRole = roles.some(r => ['owner', 'instructor', 'admin'].includes(r));
-            if (!hasPrivilegedRole) {
-                return c.json({ error: "Student access is currently disabled for this studio." }, 403);
-            }
+    // 4. Lifecycle Checks (Apply to ALL requests, public or private)
+    if (tenant.status === 'archived' && !isPlatformAdmin) {
+        // Archived tenants are offline. Only Platform Admins can access (e.g. to restore).
+        return c.json({ error: "This studio has been archived." }, 403);
+    }
+
+    if (tenant.studentAccessDisabled && !isPlatformAdmin) {
+        // "Student Access Disabled" means the public facing site is down.
+        // Owners/Admins (authenticated) can still access.
+        // Unauthenticated users (public) should be blocked.
+        const hasPrivilegedRole = roles.some(r => ['owner', 'instructor', 'admin'].includes(r));
+        if (!hasPrivilegedRole) {
+            return c.json({ error: "Student access is currently disabled for this studio." }, 403);
         }
     }
 
     await next();
 };
+
 
 /**
  * Middleware factory to require a specific feature to be enabled for the tenant.
