@@ -308,6 +308,7 @@ export default function StudioLayout() {
                                 {featureSet.has('chat') && (
                                     <NavItem to={`/studio/${slug}/settings/chat`} icon={<MessageSquare size={18} />}>Chat Settings</NavItem>
                                 )}
+                                <NavItem to={`/studio/${slug}/settings/appointments`} icon={<Calendar size={18} />}>Appointment Services</NavItem>
                                 <NavItem to={`/studio/${slug}/data`} icon={<Database size={18} />}>Data</NavItem>
                                 <NavItem to={`/studio/${slug}/settings`} end icon={<Settings size={18} />}>Settings</NavItem>
                             </SidebarGroup>

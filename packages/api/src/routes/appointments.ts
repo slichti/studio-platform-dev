@@ -72,6 +72,68 @@ app.post('/services', async (c) => {
     return c.json({ id });
 });
 
+// Update Service (Admin)
+app.put('/services/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const roles = c.get('roles');
+    const serviceId = c.req.param('id');
+
+    if (!roles?.includes('owner') && !roles?.includes('admin')) {
+        return c.json({ error: "Unauthorized" }, 403);
+    }
+
+    // Verify service belongs to tenant
+    const existing = await db.select().from(appointmentServices).where(
+        and(eq(appointmentServices.id, serviceId), eq(appointmentServices.tenantId, tenant.id))
+    ).get();
+
+    if (!existing) {
+        return c.json({ error: "Service not found" }, 404);
+    }
+
+    const body = await c.req.json();
+
+    await db.update(appointmentServices).set({
+        title: body.title ?? existing.title,
+        description: body.description ?? existing.description,
+        durationMinutes: body.durationMinutes ?? existing.durationMinutes,
+        price: body.price ?? existing.price,
+        currency: body.currency ?? existing.currency,
+        isActive: body.isActive ?? existing.isActive
+    }).where(eq(appointmentServices.id, serviceId)).run();
+
+    return c.json({ success: true });
+});
+
+// Delete Service (Admin) - Soft delete by setting isActive = false
+app.delete('/services/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const roles = c.get('roles');
+    const serviceId = c.req.param('id');
+
+    if (!roles?.includes('owner') && !roles?.includes('admin')) {
+        return c.json({ error: "Unauthorized" }, 403);
+    }
+
+    // Verify service belongs to tenant
+    const existing = await db.select().from(appointmentServices).where(
+        and(eq(appointmentServices.id, serviceId), eq(appointmentServices.tenantId, tenant.id))
+    ).get();
+
+    if (!existing) {
+        return c.json({ error: "Service not found" }, 404);
+    }
+
+    // Soft delete
+    await db.update(appointmentServices).set({
+        isActive: false
+    }).where(eq(appointmentServices.id, serviceId)).run();
+
+    return c.json({ success: true });
+});
+
 
 // --- Availability ---
 
