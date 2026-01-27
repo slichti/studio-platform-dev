@@ -10,17 +10,8 @@ import { Search } from "lucide-react";
 // ----------------------------------------------------------------------
 // SECURITY CONFIGURATION
 // ----------------------------------------------------------------------
-// Explicit allowlist for Platform Admin access.
-// Even if a user has the 'admin' role, they must be in this list (or domain) to access the portal.
-const ALLOWED_ADMIN_EMAILS = [
-    "slichti@gmail.com",
-    "janetjbrodksy@gmail.com",
-    // "admin@studioplatform.com", // Disabled until domain is active
-];
-
-const ALLOWED_DOMAINS: string[] = [
-    // "studioplatform.com" // Disabled until domain is active
-];
+// Platform Admin access is now controlled solely by the 'isPlatformAdmin' flag on the user record.
+// See `packages/api/src/routes/users.ts` and `authMiddleware` for details.
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken, userId } = await getAuth(args);
@@ -45,15 +36,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
             throw new Response("Forbidden", { status: 403 });
         }
 
-        // B. Strict Allowlist Check
-        const email = (user.email || "").toLowerCase();
-        const isAllowedEmail = ALLOWED_ADMIN_EMAILS.includes(email);
-        const isAllowedDomain = ALLOWED_DOMAINS.some(d => email.endsWith(`@${d}`));
-
-        if (!isAllowedEmail && !isAllowedDomain) {
-            console.warn(`Admin Access Denied: User ${user.email} is not in the Allowlist.`);
-            throw new Response("Access Denied: You are not authorized to view this portal.", { status: 403 });
-        }
+        // B. Strict Allowlist Check - REMOVED per user request to allow DB-based role management
+        // Now relying solely on user.isPlatformAdmin or user.role === 'admin' checked above.
 
         return { user, token };
     } catch (e: any) {
