@@ -53,9 +53,11 @@ app.get('/config', async (c) => {
             id: payrollConfig.id,
             payModel: payrollConfig.payModel,
             rate: payrollConfig.rate,
-        }
+        },
+        stripeAccountId: users.stripeAccountId
     })
         .from(tenantMembers)
+        .leftJoin(users, eq(tenantMembers.userId, users.id))
         .leftJoin(payrollConfig, eq(tenantMembers.id, payrollConfig.memberId))
         .where(and(
             eq(tenantMembers.tenantId, tenant.id),
@@ -397,6 +399,64 @@ app.post('/:id/pay', async (c) => {
         return c.json({ success: true, transferId: transfer.id });
     } catch (e: any) {
         console.error("Payout Transfer Failed", e);
+        return c.json({ error: e.message || "Transfer Failed" }, 500);
+    }
+});
+
+// POST /transfer - Manual Ad-Hoc Payout
+app.post('/transfer', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner')) return c.json({ error: 'Unauthorized' }, 403);
+
+    const { instructorId, amount, currency, notes } = await c.req.json();
+
+    if (!instructorId || !amount) return c.json({ error: "Missing required fields" }, 400);
+
+    // 1. Get Instructor
+    const instructor = await db.query.tenantMembers.findFirst({
+        where: eq(tenantMembers.id, instructorId),
+        with: { user: true }
+    });
+
+    if (!instructor || !instructor.user.stripeAccountId) {
+        return c.json({ error: "Instructor has no connected Stripe Account" }, 400);
+    }
+
+    try {
+        const { StripeService } = await import('../services/stripe');
+        const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
+
+        // 2. Create Transfer
+        const transfer = await stripe.createTransfer({
+            amount: amount,
+            currency: currency || 'usd',
+            destination: instructor.user.stripeAccountId,
+            sourceAccountId: tenant.stripeAccountId || undefined,
+            description: `Manual Payout from ${tenant.name}`
+        });
+
+        // 3. Record Payout
+        const payoutId = crypto.randomUUID();
+        await db.insert(payouts).values({
+            id: payoutId,
+            tenantId: tenant.id,
+            instructorId: instructorId,
+            amount: amount,
+            currency: currency || 'usd',
+            periodStart: new Date(),
+            periodEnd: new Date(),
+            status: 'paid',
+            paidAt: new Date(),
+            stripeTransferId: transfer.id,
+            notes: notes || 'Manual Transfer',
+            createdAt: new Date()
+        }).run();
+
+        return c.json({ success: true, transferId: transfer.id });
+    } catch (e: any) {
+        console.error("Manual Transfer Failed", e);
         return c.json({ error: e.message || "Transfer Failed" }, 500);
     }
 });

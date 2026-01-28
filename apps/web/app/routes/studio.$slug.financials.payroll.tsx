@@ -206,6 +206,7 @@ function PayrollHistory({ token }: { token: string }) {
     };
 
     return (
+
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden">
             <table className="w-full text-sm text-left">
                 <thead className="bg-zinc-50 dark:bg-zinc-800 text-zinc-500 font-medium border-b border-zinc-200 dark:border-zinc-800">
@@ -290,6 +291,48 @@ function PayrollConfig({ token }: { token: string }) {
     const [formModel, setFormModel] = useState('flat');
     const [formRate, setFormRate] = useState('0');
 
+    // Manual Pay State
+    const [payModalOpen, setPayModalOpen] = useState(false);
+    const [payInstructor, setPayInstructor] = useState<any>(null);
+    const [payAmount, setPayAmount] = useState('');
+    const [payNote, setPayNote] = useState('');
+    const [paying, setPaying] = useState(false);
+
+    const openPayModal = (inst: any) => {
+        setPayInstructor(inst);
+        setPayAmount('');
+        setPayNote('');
+        setPayModalOpen(true);
+    };
+
+    const handleManualPay = async () => {
+        if (!payInstructor || !payAmount) return;
+        setPaying(true);
+        try {
+            const amountCents = Math.round(parseFloat(payAmount) * 100);
+            const res: any = await apiRequest('/payroll/transfer', token, {
+                method: 'POST',
+                body: JSON.stringify({
+                    instructorId: payInstructor.memberId,
+                    amount: amountCents,
+                    notes: payNote || 'Manual Ad-Hoc Payout'
+                })
+            });
+
+            if (res.error) {
+                toast.error(res.error);
+            } else {
+                toast.success('Transfer Successful');
+                setPayModalOpen(false);
+                // Refresh history or whatever if needed, but history is in another tab
+            }
+        } catch (e: any) {
+            toast.error(e.message);
+        } finally {
+            setPaying(false);
+        }
+    };
+
     const fetchConfig = async () => {
         const res = await apiRequest('/payroll/config', token) as any;
         setInstructors(res.instructors);
@@ -331,12 +374,14 @@ function PayrollConfig({ token }: { token: string }) {
         }
     };
 
+
     return (
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden">
             <table className="w-full text-sm text-left">
                 <thead className="bg-zinc-50 dark:bg-zinc-800 text-zinc-500 font-medium border-b border-zinc-200 dark:border-zinc-800">
                     <tr>
                         <th className="p-4">Name</th>
+                        <th className="p-4">Stripe Status</th>
                         <th className="p-4">Current Model</th>
                         <th className="p-4">Rate</th>
                         <th className="p-4">Action</th>
@@ -346,6 +391,17 @@ function PayrollConfig({ token }: { token: string }) {
                     {instructors.map(inst => (
                         <tr key={inst.memberId}>
                             <td className="p-4 font-medium">{inst.firstName} {inst.lastName}</td>
+                            <td className="p-4">
+                                {inst.stripeAccountId ? (
+                                    <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded-full">
+                                        <CheckCircle2 size={12} /> Connected
+                                    </span>
+                                ) : (
+                                    <span className="inline-flex items-center gap-1 text-xs text-zinc-400 font-medium bg-zinc-100 px-2 py-0.5 rounded-full">
+                                        Not Connected
+                                    </span>
+                                )}
+                            </td>
                             <td className="p-4 text-zinc-600 dark:text-zinc-400 capitalize">
                                 {inst.config ? inst.config.payModel : 'Not Set'}
                             </td>
@@ -356,10 +412,10 @@ function PayrollConfig({ token }: { token: string }) {
                                         : `$${(inst.config.rate / 100).toFixed(2)}`
                                 ) : '-'}
                             </td>
-                            <td className="p-4">
+                            <td className="p-4 flex gap-2">
                                 <Dialog>
                                     <DialogTrigger asChild>
-                                        <button onClick={() => startEdit(inst)} className="text-blue-600 hover:text-blue-500 font-medium">Configure</button>
+                                        <button onClick={() => startEdit(inst)} className="text-zinc-600 hover:text-zinc-900 font-medium text-xs border border-zinc-200 rounded px-3 py-1.5">Configure</button>
                                     </DialogTrigger>
                                     <DialogContent>
                                         <DialogHeader>
@@ -385,11 +441,69 @@ function PayrollConfig({ token }: { token: string }) {
                                         </div>
                                     </DialogContent>
                                 </Dialog>
+
+                                {inst.stripeAccountId && (
+                                    <button onClick={() => openPayModal(inst)} className="bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded px-3 py-1.5 shadow-sm flex items-center gap-1">
+                                        <DollarSign size={12} /> Pay
+                                    </button>
+                                )}
                             </td>
                         </tr>
                     ))}
                 </tbody>
             </table>
+
+            {/* Manual Pay Modal */}
+            <Dialog open={payModalOpen} onOpenChange={setPayModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Manual Payout</DialogTitle>
+                        <DialogDescription>
+                            Send an ad-hoc payment to {payInstructor?.firstName}.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Amount ($)</label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-2 text-zinc-500">$</span>
+                                <input
+                                    type="number"
+                                    min="0.50"
+                                    step="0.01"
+                                    value={payAmount}
+                                    onChange={e => setPayAmount(e.target.value)}
+                                    className="w-full pl-8 p-2 border border-zinc-300 rounded"
+                                    placeholder="0.00"
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Note / Reference</label>
+                            <input
+                                type="text"
+                                value={payNote}
+                                onChange={e => setPayNote(e.target.value)}
+                                className="w-full p-2 border border-zinc-300 rounded"
+                                placeholder="e.g. Bonus for weekend workshop"
+                            />
+                        </div>
+
+                        <div className="bg-yellow-50 text-yellow-800 text-xs p-3 rounded flex gap-2">
+                            <AlertCircle size={16} className="shrink-0" />
+                            <p>Funds will be transferred immediately from your platform balance to the instructor's Stripe account. This cannot be undone.</p>
+                        </div>
+
+                        <button
+                            onClick={handleManualPay}
+                            disabled={paying || !payAmount}
+                            className={`w-full py-2 rounded font-medium text-white ${paying ? 'bg-zinc-400' : 'bg-green-600 hover:bg-green-700'}`}
+                        >
+                            {paying ? 'Processing...' : 'Transfer Funds'}
+                        </button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
