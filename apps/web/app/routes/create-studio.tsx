@@ -14,7 +14,7 @@ export default function CreateStudio() {
     const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
     const [name, setName] = useState("");
     const [slug, setSlug] = useState("");
-    const [tier, setTier] = useState("basic");
+    const [tier, setTier] = useState("launch");
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 

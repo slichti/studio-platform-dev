@@ -24,7 +24,7 @@ export class NotificationService {
 
         // 1. Check Quota
         const tenant = await this.db.select({ tier: tenants.tier }).from(tenants).where(eq(tenants.id, this.tenantId)).get();
-        const hasQuota = await usageService.checkLimit('emailUsage', tenant?.tier || 'basic');
+        const hasQuota = await usageService.checkLimit('emailUsage', tenant?.tier || 'launch');
 
         if (!hasQuota) {
             console.log(`[Email Blocked] Tenant ${this.tenantId} has exceeded email quota.`);
@@ -58,7 +58,7 @@ export class NotificationService {
 
         // 1. Check Tenant Feature Entitlement
         const tenant = await this.db.select({ tier: tenants.tier }).from(tenants).where(eq(tenants.id, this.tenantId)).get();
-        const tier = tenant?.tier || 'basic';
+        const tier = tenant?.tier || 'launch';
 
         const feature = await this.db.select().from(tenantFeatures)
             .where(and(

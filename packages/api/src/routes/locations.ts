@@ -41,7 +41,7 @@ app.post('/', async (c) => {
     // Limit Check
     const { UsageService } = await import('../services/pricing');
     const usageService = new UsageService(db, tenant.id);
-    const canAdd = await usageService.checkLimit('locations', tenant.tier || 'basic');
+    const canAdd = await usageService.checkLimit('locations', tenant.tier || 'launch');
 
     if (!canAdd) {
         return c.json({

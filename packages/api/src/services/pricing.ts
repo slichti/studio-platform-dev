@@ -3,7 +3,7 @@ import { eq, count, and, sql, sum } from 'drizzle-orm';
 import { tenants, tenantMembers, classes, purchasedPacks, tenantRoles, uploads, locations, usageLogs } from '@studio/db/src/schema';
 import { Resend } from 'resend';
 
-export type Tier = 'basic' | 'growth' | 'scale';
+export type Tier = 'launch' | 'growth' | 'scale';
 
 export const TIERS: Record<Tier, {
     name: string;
@@ -20,7 +20,7 @@ export const TIERS: Record<Tier, {
     };
     features: string[]; // Enabled feature flags
 }> = {
-    basic: { // "Launch"
+    launch: {
         name: 'Launch',
         price: 0,
         applicationFeePercent: 0.05, // 5% Application Fee
@@ -69,7 +69,7 @@ export const TIERS: Record<Tier, {
 
 export class PricingService {
     static getTierConfig(tier: string) {
-        return TIERS[tier as Tier] || TIERS.basic;
+        return TIERS[tier as Tier] || TIERS.launch;
     }
 
     static isFeatureEnabled(tier: string, feature: string) {
@@ -144,7 +144,7 @@ export class UsageService {
             emailUsage: tenant?.emailUsage || 0,
             streamingUsage: tenant?.streamingUsage || 0,
 
-            tier: tenant?.tier || 'basic',
+            tier: tenant?.tier || 'launch',
             // Return effective limits (manual override vs tier default)
             smsLimit: tenant?.smsLimit ?? PricingService.getTierConfig(tenant?.tier).limits.sms,
             emailLimit: tenant?.emailLimit ?? PricingService.getTierConfig(tenant?.tier).limits.email,

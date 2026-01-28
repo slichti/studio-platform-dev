@@ -855,7 +855,7 @@ app.post('/:id/book', async (c) => {
         // LIMIT CHECK: Students
         const { UsageService } = await import('../services/pricing');
         const usageService = new UsageService(db, tenant.id);
-        const canAddCallback = await usageService.checkLimit('students', tenant.tier || 'basic');
+        const canAddCallback = await usageService.checkLimit('students', tenant.tier || 'launch');
 
         if (!canAddCallback) {
             return c.json({
@@ -1908,7 +1908,7 @@ app.post('/:id/recording', async (c) => {
     // LIMIT CHECK: Streaming Minutes
     const { UsageService } = await import('../services/pricing');
     const usageService = new UsageService(db, tenant.id);
-    const canUpload = await usageService.checkLimit('streamingUsage', tenant.tier || 'basic');
+    const canUpload = await usageService.checkLimit('streamingUsage', tenant.tier || 'launch');
     if (!canUpload) {
         return c.json({
             error: "Streaming limit reached. Upgrade to add more videos.",

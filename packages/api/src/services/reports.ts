@@ -200,7 +200,7 @@ export class ReportService {
     getProjection(studentCount: number, monthlyFee: number, costs: number) {
         const revenue = studentCount * monthlyFee;
         const tiers = [
-            { id: 'basic', name: 'Launch', price: 0, fee: 0.05 },
+            { id: 'launch', name: 'Launch', price: 0, fee: 0.05 },
             { id: 'growth', name: 'Growth', price: 49, fee: 0.015 },
             { id: 'scale', name: 'Scale', price: 129, fee: 0.0 }
         ];

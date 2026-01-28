@@ -574,7 +574,7 @@ app.patch('/:id/role', async (c) => {
         // Enforce Limit
         const { UsageService } = await import('../services/pricing');
         const usageService = new UsageService(db, tenant.id);
-        const canAdd = await usageService.checkLimit('instructors', tenant.tier || 'basic');
+        const canAdd = await usageService.checkLimit('instructors', tenant.tier || 'launch');
 
         if (!canAdd) {
             return c.json({

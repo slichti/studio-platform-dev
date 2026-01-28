@@ -13,7 +13,32 @@ export const meta: MetaFunction = () => {
     ];
 };
 
-const FEATURES = [
+import { useLoaderData } from "react-router";
+import { apiRequest } from "~/utils/api";
+
+type Plan = {
+    id: string;
+    slug: string;
+    name: string;
+    features: string[];
+};
+
+export async function loader() {
+    try {
+        // Fetch public plans server-side or client-side. 
+        // Note: apiRequest with null token works for public endpoints if backend allows.
+        // Assuming /public/plans is available.
+        // We can ALSO fetch this in a useEffect client-side if loader context is tricky, 
+        // but Remix loader is better for SEO/initial paint.
+        // However, sticking to client-side apiRequest pattern used elsewhere for consistency if needed.
+        // Let's try client-fetch pattern in component to avoid ssr auth issues if any.
+        return null;
+    } catch {
+        return null;
+    }
+}
+
+const STATIC_FEATURES_TEMPLATE = [
     {
         category: "Operations",
         items: [
@@ -58,12 +83,57 @@ const FEATURES = [
     }
 ];
 
+import { useState, useEffect } from "react";
+
+// ... (existing imports)
+
 export default function ComparePlans() {
     const { user } = useUser();
+    const [plans, setPlans] = useState<Plan[]>([]);
+
+    useEffect(() => {
+        apiRequest('/public/plans', null).then(res => {
+            if (Array.isArray(res)) setPlans(res);
+        });
+    }, []);
+
+    const getPlanValue = (slug: string, featureName: string, defaultValue: string | boolean) => {
+        const plan = plans.find(p => p.slug === slug);
+        if (!plan) return defaultValue;
+
+        // 1. Exact Match (Boolean Feature)
+        if (plan.features.includes(featureName)) return true;
+
+        // 2. Value Match (e.g. "5 Staff Members" -> "5")
+        // Check for strings ending with feature name
+        const valueMatch = plan.features.find(f => f.endsWith(` ${featureName}`) || f.includes(featureName));
+        if (valueMatch) {
+            // "5 Staff Members" -> "5"
+            // "Unlimited Students" -> "Unlimited"
+            const simpleVal = valueMatch.replace(featureName, '').trim();
+            if (simpleVal) return simpleVal;
+            return true; // Use checkmark if just found
+        }
+
+        // 3. Fallback to static default if not found (or if default was explicit limit not in features list)
+        // If default was false and we didn't find it, remains false.
+        // If default was "5" and we didn't find override, remains "5".
+        return defaultValue;
+    };
+
+    const dynamicCategories = STATIC_FEATURES_TEMPLATE.map(cat => ({
+        ...cat,
+        items: cat.items.map(item => ({
+            name: item.name,
+            launch: getPlanValue('launch', item.name, item.launch),
+            growth: getPlanValue('growth', item.name, item.growth),
+            scale: getPlanValue('scale', item.name, item.scale),
+        }))
+    }));
 
     return (
         <div className="font-sans min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 transition-colors duration-300">
-            {/* Navigation */}
+            {/* Same Nav ... */}
             <nav className="flex justify-between items-center px-8 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/80 backdrop-blur-sm sticky top-0 z-50">
                 <div className="flex items-center gap-3">
                     <Link to="/" className="text-xl font-bold tracking-tight hover:opacity-80 transition-opacity">
@@ -123,7 +193,7 @@ export default function ComparePlans() {
                             </tr>
                         </thead>
                         <tbody>
-                            {FEATURES.map((category) => (
+                            {dynamicCategories.map((category) => (
                                 <片 key={category.category}>
                                     <tr className="bg-zinc-50 dark:bg-zinc-900/50">
                                         <td colSpan={4} className="p-3 font-semibold text-sm uppercase tracking-wider text-zinc-500 pl-4">

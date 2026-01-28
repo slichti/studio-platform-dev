@@ -119,7 +119,7 @@ export default function Pricing() {
 
                         // Local overrides until DB schema update
                         const descriptions: Record<string, string> = {
-                            basic: 'Perfect for new instructors and hobbyists.',
+                            launch: 'Perfect for new instructors and hobbyists.',
                             growth: 'For established studios growing their community.',
                             scale: 'For multi-location studios and franchises.'
                         };

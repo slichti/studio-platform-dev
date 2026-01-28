@@ -1619,8 +1619,8 @@ app.patch('/tenants/:id/tier', async (c) => {
     const { tier } = await c.req.json();
     const auth = c.get('auth');
 
-    if (!tier || !['basic', 'growth', 'scale'].includes(tier)) {
-        return c.json({ error: "Invalid tier. Must be 'basic', 'growth', or 'scale'." }, 400);
+    if (!tier || !['launch', 'growth', 'scale'].includes(tier)) {
+        return c.json({ error: "Invalid tier. Must be 'launch', 'growth', or 'scale'." }, 400);
     }
 
     await db.update(tenants)
@@ -1825,12 +1825,12 @@ app.patch('/tenants/:id/subscription', async (c) => {
         // Map Tier + Interval to Price ID
         // TODO: Move this configuration to env or DB
         const PLAN_MAP: Record<string, Record<string, string>> = {
-            'basic': { 'monthly': 'price_basic_m', 'annual': 'price_basic_y' },
+            'launch': { 'monthly': 'price_basic_m', 'annual': 'price_basic_y' },
             'growth': { 'monthly': 'price_growth_m', 'annual': 'price_growth_y' },
             'scale': { 'monthly': 'price_scale_m', 'annual': 'price_scale_y' }
         };
 
-        const tier = tenant.tier || 'basic';
+        const tier = tenant.tier || 'launch';
         const newPriceId = PLAN_MAP[tier]?.[interval];
 
         if (!newPriceId) {
@@ -2152,7 +2152,7 @@ app.post('/tenants', async (c) => {
             id: tenantId,
             name,
             slug: slug.toLowerCase(),
-            tier: tier || 'basic',
+            tier: tier || 'launch',
             status: 'active' as const,
             subscriptionStatus: 'active' as const, // Force active for admins
             currentPeriodEnd: trialEnd, // Set custom trial/period end
@@ -2249,7 +2249,7 @@ app.post('/projections', async (c) => {
     } = await c.req.json();
 
     const tiers = [
-        { id: 'basic', price: 0, fee: 0.05 },
+        { id: 'launch', price: 0, fee: 0.05 },
         { id: 'growth', price: 49, fee: 0.015 },
         { id: 'scale', price: 129, fee: 0.0 }
     ];

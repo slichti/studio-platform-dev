@@ -20,7 +20,7 @@ export type FeatureKey =
     | 'marketing';
 
 const TIER_DEFAULTS: Record<string, FeatureKey[]> = {
-    'basic': [],
+    'launch': [],
     'growth': ['loyalty', 'streaks', 'guest_pass', 'spot_booking'],
     'scale': ['loyalty', 'streaks', 'guest_pass', 'spot_booking', 'ai_churn', 'ai_content', 'payroll', 'livestream']
 };
@@ -39,6 +39,6 @@ export function isFeatureEnabled(tenant: typeof tenants.$inferSelect, feature: F
     }
 
     // 2. Fallback to Tier Defaults
-    const defaults = TIER_DEFAULTS[tenant.tier || 'basic'] || [];
+    const defaults = TIER_DEFAULTS[tenant.tier || 'launch'] || [];
     return defaults.includes(feature);
 }

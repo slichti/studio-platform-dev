@@ -113,11 +113,11 @@ app.post('/studio', rateLimit({ limit: 5, window: 300, keyPrefix: 'onboarding' }
 
     // Fallback for legacy hardcoded tiers if they haven't been migrated to DB yet (optional, but good for safety)
     // For this refactor, we assume all valid tiers are in the DB.
-    if (!plan && tier !== 'basic') {
-        // Allow 'basic' as a hardcoded fallback if db is empty? 
+    if (!plan && tier !== 'launch') {
+        // Allow 'launch' as a hardcoded fallback if db is empty? 
         // Actually, let's assume 'Launch' is in DB too.
         // If user sends a tier that isn't in DB, they might be trying to hack or using old UI.
-        // Let's enforce DB existence unless it's 'basic' and we want to be lenient during migration.
+        // Let's enforce DB existence unless it's 'launch' and we want to be lenient during migration.
         return c.json({ error: "Invalid plan selected" }, 400);
     }
 
