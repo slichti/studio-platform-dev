@@ -4,14 +4,22 @@ const DEFAULT_API_URL = "http://localhost:8787";
 const PROD_API_URL = "https://studio-platform-api.slichti.workers.dev"; // Fallback for production
 
 export const API_URL = (() => {
-    // If explicitly set via build-time env var, use it
-    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-
-    // Client-side detection: If on production domain but no Env Var, use Prod API
-    if (typeof window !== "undefined" && !window.location.hostname.includes("localhost")) {
-        return PROD_API_URL;
+    // 1. Explicit Env Var (Build Time)
+    const envUrl = import.meta.env.VITE_API_URL;
+    if (envUrl && typeof envUrl === 'string' && envUrl.length > 0) {
+        return envUrl;
     }
 
+    // 2. Client-side Detection (Runtime)
+    if (typeof window !== "undefined") {
+        const hostname = window.location.hostname;
+        // If we are NOT on localhost, assume production URL
+        if (!hostname.includes("localhost") && !hostname.includes("127.0.0.1")) {
+            return PROD_API_URL;
+        }
+    }
+
+    // 3. Fallback to Localhost
     return DEFAULT_API_URL;
 })();
 
