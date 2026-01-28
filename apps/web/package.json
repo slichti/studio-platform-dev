@@ -7,7 +7,7 @@
   ],
   "type": "module",
   "scripts": {
-    "build": "react-router build && rm -f build/client/index.html && cp build/server/index.js functions/_server.js",
+    "build": "react-router build && rm -f build/client/index.html && mkdir -p functions && cp build/server/index.js functions/_server.js",
     "dev": "react-router dev",
     "lint": "eslint --config .eslintrc.json .",
     "start": "wrangler pages dev ./build/client",
