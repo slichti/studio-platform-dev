@@ -69,14 +69,47 @@ export default function AdminPlans() {
         }
     };
 
+    const KNOWN_FEATURES = {
+        "Core Features": [
+            "Unlimited Students",
+            "Basic Financials & Reporting",
+            "Waiver Management",
+            "Visual Website Builder",
+            "Retail Point of Sale (POS)",
+            "Transactional Email Notifications",
+            "Class Packs & Drop-ins"
+        ],
+        "Growth & Marketing": [
+            "Zoom Integration (Auto-Meeting)",
+            "Video on Demand (VOD)",
+            "Marketing Automations (Win-back, Welcome)",
+            "Inventory Tracking & Low Stock Alerts",
+            "SMS Notifications & Marketing",
+            "Recurring Memberships"
+        ],
+        "Scale & Enterprise": [
+            "White Label Branding Options",
+            "API Access",
+            "Priority Support",
+            "Dedicated Account Manager",
+            "0% Platform Fees"
+        ],
+        "Common Limits": [
+            "5 Instructors", "15 Instructors", "Unlimited Instructors",
+            "1 Location", "3 Locations", "Unlimited Locations",
+            "5GB Storage", "50GB Storage", "1TB Video Storage"
+        ]
+    };
+
     // Feature List Editor Component
     const FeatureListEditor = ({ features, onChange }: { features: string[], onChange: (f: string[]) => void }) => {
-        // ... implementation ...
         const [newFeature, setNewFeature] = useState("");
+        const [showLibrary, setShowLibrary] = useState(false);
 
-        const addFeature = () => {
-            if (newFeature.trim()) {
-                onChange([...features, newFeature.trim()]);
+        const addFeature = (feat: string) => {
+            const val = feat.trim();
+            if (val && !features.includes(val)) {
+                onChange([...features, val]);
                 setNewFeature("");
             }
         };
@@ -85,47 +118,81 @@ export default function AdminPlans() {
             onChange(features.filter((_, i) => i !== index));
         };
 
-        const updateFeature = (index: number, value: string) => {
-            const newFeatures = [...features];
-            newFeatures[index] = value;
-            onChange(newFeatures);
-        };
-
         return (
-            <div className="space-y-2 min-w-[300px]">
-                <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
+            <div className="space-y-3 min-w-[400px]">
+                {/* Active Features List */}
+                <div className="space-y-2">
                     {features.map((feature, i) => (
-                        <div key={i} className="flex gap-2">
-                            <input
-                                value={feature}
-                                onChange={(e) => updateFeature(i, e.target.value)}
-                                className="flex-1 border rounded px-2 py-1 text-sm"
-                                placeholder="Feature description"
-                            />
-                            <button
-                                onClick={() => removeFeature(i)}
-                                className="text-red-500 hover:text-red-700 p-1"
-                                title="Remove feature"
-                            >
-                                <X size={14} />
-                            </button>
+                        <div key={i} className="flex gap-2 group">
+                            <div className="flex-1 px-3 py-2 bg-white border border-zinc-200 rounded text-sm flex items-center justify-between shadow-sm">
+                                <span>{feature}</span>
+                                <button
+                                    onClick={() => removeFeature(i)}
+                                    className="text-zinc-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                    <X size={14} />
+                                </button>
+                            </div>
                         </div>
                     ))}
+                    {features.length === 0 && <div className="text-zinc-400 text-sm italic py-2">No features added yet.</div>}
                 </div>
-                <div className="flex gap-2 pt-2 border-t border-zinc-100">
+
+                {/* Input Area */}
+                <div className="flex gap-2">
                     <input
                         value={newFeature}
                         onChange={(e) => setNewFeature(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addFeature())}
-                        className="flex-1 border rounded px-2 py-1 text-sm"
-                        placeholder="Add new feature..."
+                        onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addFeature(newFeature))}
+                        className="flex-1 border border-zinc-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                        placeholder="Type functionality or limit..."
                     />
                     <button
-                        onClick={addFeature}
-                        className="bg-zinc-100 hover:bg-zinc-200 text-zinc-900 px-2 rounded"
+                        onClick={() => addFeature(newFeature)}
+                        className="bg-zinc-900 hover:bg-zinc-800 text-white px-3 py-2 rounded transition-colors"
                     >
                         <Plus size={16} />
                     </button>
+                </div>
+
+                {/* Library Toggle */}
+                <div className="pt-2 border-t border-zinc-100">
+                    <button
+                        onClick={() => setShowLibrary(!showLibrary)}
+                        className="text-xs font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                    >
+                        {showLibrary ? "Hide Feature Library" : "+ Add from Feature Library"}
+                    </button>
+
+                    {showLibrary && (
+                        <div className="mt-3 grid grid-cols-1 gap-4 p-4 bg-zinc-50 border border-zinc-200 rounded-lg shadow-inner max-h-[300px] overflow-y-auto">
+                            {Object.entries(KNOWN_FEATURES).map(([category, items]) => (
+                                <div key={category}>
+                                    <h5 className="font-bold text-[10px] uppercase tracking-wider text-zinc-500 mb-2">{category}</h5>
+                                    <div className="flex flex-wrap gap-2">
+                                        {items.map(item => {
+                                            const isActive = features.includes(item);
+                                            return (
+                                                <button
+                                                    key={item}
+                                                    onClick={() => !isActive && addFeature(item)}
+                                                    disabled={isActive}
+                                                    className={`text-xs px-2 py-1.5 rounded border transition-all text-left
+                                                        ${isActive
+                                                            ? 'bg-blue-50 border-blue-200 text-blue-700 cursor-default opactiy-70'
+                                                            : 'bg-white border-zinc-200 hover:border-blue-300 hover:shadow-sm text-zinc-700 hover:translate-y-[-1px]'
+                                                        }`}
+                                                >
+                                                    {isActive && <Check size={10} className="inline mr-1" />}
+                                                    {item}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
         );
