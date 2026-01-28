@@ -7,7 +7,7 @@ The Studio Platform is a multi-tenant SaaS built on Cloudflare's edge network.
 ```mermaid
 graph TD
     Client[Web Client (React Router v7)]
-    Mobile[Mobile App (Expo / React Native)]
+    Mobile[Platform Mobile App (Expo / React Native)]
     Auth[Clerk Auth / AuthStore]
     
     subgraph "Cloudflare Edge"
@@ -101,6 +101,16 @@ sequenceDiagram
     API-->>Student: Booking Confirmed
 ```
 
+### 3. Notifications & Substitute Dispatch
+The system checks user preferences before sending alerts.
+*   **Trigger**: Sub Request Created or Filled.
+*   **Logic**:
+    *   Iterate targeted instructors.
+    *   Check `tenantMembers.settings.notifications.substitutions`.
+    *   If `email=true` -> Resend.
+    *   If `sms=true` -> Twilio.
+    *   If `push=true` -> Expo.
+
 ### 3. Expanded Chat System (Support & Ticketing)
 
 ```mermaid
@@ -131,7 +141,7 @@ sequenceDiagram
     API->>DB: Update Room Status
 ```
 
-### 4. Retail & POS (Point of Sale)
+### 5. Retail & POS (Point of Sale) with Gift Cards
 
 ```mermaid
 sequenceDiagram
@@ -140,14 +150,15 @@ sequenceDiagram
     participant Stripe
     participant DB
 
-    Admin->>API: POST /checkout/session (Pack/Product)
-    API->>DB: Calculate Total (Tax + Fees)
+    Admin->>API: POST /checkout/session (Pack/Product/GiftCard)
+    API->>DB: Calculate Total (Tax + Fees - Discounts)
+    API->>DB: Check/Apply Gift Card Balance
     API->>Stripe: Create Embedded Session
     Stripe-->>Admin: Return Client Secret
     Admin->>Stripe: Process Payment (Card/Terminal)
     Stripe-->>API: Webhook (checkout.session.completed)
     API->>DB: Create Order / Decrement Stock
-    API->>DB: Fulfill Product (Grant Credits/Membership)
+    API->>DB: Fulfill Product (Grant Credits/Membership/GiftCardBalance)
 ```
 
 ## Security Implementation

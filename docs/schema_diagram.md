@@ -248,4 +248,37 @@ erDiagram
 
     tenants ||--o{ chat_rooms : "has"
     users ||--o{ chat_rooms : "assigned to"
+
+    %% Discounts & Coupons
+    coupons {
+        string id PK
+        string tenant_id FK
+        string code
+        enum type
+        integer value
+        boolean active
+    }
+    coupon_redemptions {
+        string id PK
+        string coupon_id FK
+        string user_id FK
+        timestamp redeemed_at
+    }
+
+    tenants ||--o{ coupons : "offers"
+    coupons ||--o{ coupon_redemptions : "used in"
+    users ||--o{ coupon_redemptions : "redeems"
+
+    %% System Logs
+    push_logs {
+        string id PK
+        string tenant_id FK
+        string user_id FK
+        string title
+        string body
+        timestamp sent_at
+    }
+
+    tenants ||--o{ push_logs : "generates"
+    users ||--o{ push_logs : "receives"
 ```

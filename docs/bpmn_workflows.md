@@ -59,7 +59,8 @@ flowchart TD
 ```mermaid
 flowchart TD
     START([Start]) --> REQUEST[Instructor Requests Sub]
-    REQUEST --> NOTIFY[Notify Available Instructors]
+    REQUEST --> PREFS{Check Notification Prefs}
+    PREFS -->|Email/SMS/Push| NOTIFY[Notify Available Instructors]
     NOTIFY --> WAIT{Response?}
     
     WAIT -->|Accepted| ASSIGN[Assign Substitute]

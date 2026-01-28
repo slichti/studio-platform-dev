@@ -6,7 +6,7 @@
 flowchart TB
     subgraph "Client Layer"
         WEB[Web App<br/>React Router + SSR]
-        MOBILE[Mobile App<br/>Expo / React Native]
+        MOBILE[Platform Mobile App<br/>Universal Binary (Expo)]
         WIDGET[Booking Widget<br/>Embed]
     end
 
@@ -170,6 +170,25 @@ flowchart TB
 | **SMS** | Twilio |
 | **Video Calls** | Zoom API |
 | **Real-time** | Cloudflare Durable Objects (WebSockets) |
+
+## Mobile App Strategy (Platform Model)
+Instead of white-labeled binaries for each tenant, the system uses a **Single Platform App**:
+*   **Universal Binary**: One app in App Store / Play Store.
+*   **Studio Code**: Users enter a unique `slug` (or scan QR) to "bind" the app to a specific tenant.
+*   **Theming**: The app dynamically fetches `mobile-config` (primary color, features) to rebrand itself on the fly.
+*   **Push Notifications**: Tokens are registered to the specific tenant context.
+
+## Commerce Features
+*   **Gift Cards**:
+    *   Stored in `gift_cards` table (Partial redemption supported).
+    *   Split-tender checkout (Gift Card + Credit Card).
+    *   Tracked via `gift_card_transactions`.
+*   **Discounts**:
+    *   Coupon system (`coupons` table) with usage limits and expiry.
+    *   Auto-applied or code-based.
+*   **POS**:
+    *   Retail interface for in-person sales.
+    *   Stripe Terminal integration for card presence.
 
 ## Compliance & Data Minimization
 *   **Financial System of Record**: Stripe is treated as the sole system of record for financial data. The platform does **not** store sensitive cardholder data (PAN, CVV) or bank account numbers.
