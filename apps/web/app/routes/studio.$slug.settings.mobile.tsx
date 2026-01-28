@@ -15,7 +15,7 @@ export default function MobileSettings() {
     // Initial Fetch
     useEffect(() => {
         if (!token) return;
-        apiRequest(`/${tenant.id}/mobile-config`, token)
+        apiRequest(`/studios/${tenant.id}/mobile-config`, token)
             .then(res => {
                 if (res.error) toast.error("Failed to load mobile settings");
                 else setConfig(res);
@@ -27,7 +27,7 @@ export default function MobileSettings() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const res = await apiRequest(`/${tenant.id}/mobile-config`, token, {
+            const res = await apiRequest(`/studios/${tenant.id}/mobile-config`, token, {
                 method: 'PUT',
                 body: JSON.stringify(config)
             });
