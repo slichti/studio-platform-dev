@@ -574,10 +574,11 @@ app.get('/:id/mobile-config', async (c) => {
     if (!tenant) return c.json({ error: "Tenant not found" }, 404);
 
     const settings = (tenant.settings as any) || {};
+    const branding = (tenant.branding as any) || {};
     const mobileConfig = settings.mobileConfig || {
         enabled: false,
         theme: {
-            primaryColor: tenant.branding?.primaryColor || '#000000',
+            primaryColor: branding.primaryColor || '#000000',
             darkMode: false
         },
         features: {
