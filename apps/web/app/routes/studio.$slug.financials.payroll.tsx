@@ -13,16 +13,9 @@ import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
 // We'll need rudimentary UI components, if not present we'll use standard HTML/Tailwind
 
 export default function PayrollDashboard() {
-    const { tenant } = useOutletContext<any>() as any;
-    // @ts-ignore
-    const [token, setToken] = useState<string | null>(null);
+    const { tenant, token } = useOutletContext<any>() as any;
 
-    useEffect(() => {
-        // @ts-ignore
-        window.Clerk?.session?.getToken().then(setToken);
-    }, []);
-
-    if (!token) return <div className="p-8"><Loader2 className="animate-spin" /></div>;
+    if (!token) return <div className="p-8 flex items-center gap-2 text-zinc-500"><Loader2 className="animate-spin" /> Loading access token...</div>;
 
     return (
         <div className="p-8 max-w-6xl mx-auto">
@@ -68,7 +61,11 @@ function RunPayroll({ token }: { token: string }) {
                 method: 'POST',
                 body: JSON.stringify({ startDate, endDate, commit: false })
             }) as any;
-            setPreview(res.preview);
+            if (res.error) {
+                toast.error(res.error);
+                return;
+            }
+            setPreview(res.preview || []);
         } catch (e) {
             console.error(e);
             toast.error("Failed to generate preview");
@@ -76,6 +73,11 @@ function RunPayroll({ token }: { token: string }) {
             setLoading(false);
         }
     };
+    // ... (RunPayroll continues, assume existing code unless changed)
+    // Skipping large chunks of unchanged code is risky with replace_file_content if we don't match exactly.
+    // I will just replace the specific function blocks or use smaller chunks.
+    // Redoing replacement to target specific blocks.
+
 
     const handleCommit = async () => {
         setShowConfirm(true);
@@ -334,8 +336,17 @@ function PayrollConfig({ token }: { token: string }) {
     };
 
     const fetchConfig = async () => {
-        const res = await apiRequest('/payroll/config', token) as any;
-        setInstructors(res.instructors);
+        try {
+            const res = await apiRequest('/payroll/config', token) as any;
+            if (res.error) {
+                toast.error("Failed to load config: " + res.error);
+                return;
+            }
+            setInstructors(res.instructors || []);
+        } catch (e) {
+            console.error("Config fetch error", e);
+            toast.error("Could not load instructor list");
+        }
     };
 
     useEffect(() => { fetchConfig() }, []);

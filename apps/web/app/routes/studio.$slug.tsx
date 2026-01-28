@@ -462,7 +462,7 @@ export default function StudioLayout() {
                 </header>
 
                 <div className="flex-1 overflow-auto">
-                    <Outlet context={{ tenant, me, features: featureSet, roles: effectiveRoles, isStudentView }} />
+                    <Outlet context={{ tenant, me, features: featureSet, roles: effectiveRoles, isStudentView, token }} />
                 </div>
                 {!isStudentView && (
                     <CommandBar token={token || ''} />
