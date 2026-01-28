@@ -112,9 +112,19 @@ export default function Pricing() {
 
                 <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
                     {plans.map((plan) => {
-                        const priceCents = billingInterval === 'monthly' ? plan.prices.monthly : plan.prices.annual;
+                        const isMonthly = billingInterval === 'monthly';
+                        const priceCents = isMonthly ? plan.prices.monthly : plan.prices.annual;
                         const priceDisplay = priceCents ? `$${priceCents / 100}` : 'Free';
-                        const period = priceCents ? (billingInterval === 'monthly' ? '/month' : '/year') : '';
+                        const period = priceCents ? (isMonthly ? '/month' : '/year') : null;
+
+                        // Local overrides until DB schema update
+                        const descriptions: Record<string, string> = {
+                            basic: 'Perfect for new instructors and hobbyists.',
+                            growth: 'For established studios growing their community.',
+                            scale: 'For multi-location studios and franchises.'
+                        };
+                        const description = descriptions[plan.slug] || plan.description || 'Flexible plan for your studio.';
+                        const billingNote = !isMonthly && priceCents ? `Billed $${priceCents / 100} yearly` : null;
 
                         return (
                             <div
@@ -132,7 +142,7 @@ export default function Pricing() {
                                         </span>
                                         {period && <span className="text-zinc-500 dark:text-zinc-400">{period}</span>}
                                     </div>
-                                    <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2">{plan.description}</p>
+                                    <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2">{description}</p>
 
                                     {plan.trialDays > 0 && (
                                         <div className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">

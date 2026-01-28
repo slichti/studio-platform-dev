@@ -69,32 +69,95 @@ export default function AdminPlans() {
         }
     };
 
+    // Feature List Editor Component
+    const FeatureListEditor = ({ features, onChange }: { features: string[], onChange: (f: string[]) => void }) => {
+        // ... implementation ...
+        const [newFeature, setNewFeature] = useState("");
+
+        const addFeature = () => {
+            if (newFeature.trim()) {
+                onChange([...features, newFeature.trim()]);
+                setNewFeature("");
+            }
+        };
+
+        const removeFeature = (index: number) => {
+            onChange(features.filter((_, i) => i !== index));
+        };
+
+        const updateFeature = (index: number, value: string) => {
+            const newFeatures = [...features];
+            newFeatures[index] = value;
+            onChange(newFeatures);
+        };
+
+        return (
+            <div className="space-y-2 min-w-[300px]">
+                <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
+                    {features.map((feature, i) => (
+                        <div key={i} className="flex gap-2">
+                            <input
+                                value={feature}
+                                onChange={(e) => updateFeature(i, e.target.value)}
+                                className="flex-1 border rounded px-2 py-1 text-sm"
+                                placeholder="Feature description"
+                            />
+                            <button
+                                onClick={() => removeFeature(i)}
+                                className="text-red-500 hover:text-red-700 p-1"
+                                title="Remove feature"
+                            >
+                                <X size={14} />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+                <div className="flex gap-2 pt-2 border-t border-zinc-100">
+                    <input
+                        value={newFeature}
+                        onChange={(e) => setNewFeature(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addFeature())}
+                        className="flex-1 border rounded px-2 py-1 text-sm"
+                        placeholder="Add new feature..."
+                    />
+                    <button
+                        onClick={addFeature}
+                        className="bg-zinc-100 hover:bg-zinc-200 text-zinc-900 px-2 rounded"
+                    >
+                        <Plus size={16} />
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
     // Inline Edit State
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editForm, setEditForm] = useState<any>({});
 
     const startEdit = (plan: any) => {
         setEditingId(plan.id);
+        const features = Array.isArray(plan.features) ? plan.features : [];
         setEditForm({
             name: plan.name,
             trialDays: plan.trialDays,
-            features: JSON.stringify(plan.features || [], null, 2), // JSON Editing for simplicity
+            features: features,
             active: plan.active
         });
     };
 
     const saveEdit = async () => {
         try {
-            const parsedFeatures = JSON.parse(editForm.features);
+            // Features are already an array in state now
             await handleUpdate(editingId!, {
                 name: editForm.name,
                 trialDays: parseInt(editForm.trialDays),
-                features: parsedFeatures,
+                features: editForm.features,
                 active: editForm.active
             });
             setEditingId(null);
         } catch (e) {
-            toast.error("Invalid JSON for features");
+            toast.error("Update failed");
         }
     };
 
@@ -117,9 +180,7 @@ export default function AdminPlans() {
                     <button onClick={handleSync} className="flex items-center gap-2 px-4 py-2 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 text-zinc-700 font-medium transition-colors">
                         <RefreshCw size={16} /> Sync Stripe
                     </button>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 font-medium transition-colors">
-                        <Plus size={16} /> New Plan
-                    </button>
+                    {/* New Plan button could be implemented similarly */}
                 </div>
             </div>
 
@@ -130,20 +191,20 @@ export default function AdminPlans() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Plan</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Pricing (Stripe)</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Trial</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Features</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider w-1/3">Features</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Status</th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-zinc-200">
                         {plans.map((plan) => (
-                            <tr key={plan.id} className="hover:bg-zinc-50 transition-colors">
+                            <tr key={plan.id} className="hover:bg-zinc-50 transition-colors align-top">
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     {editingId === plan.id ? (
                                         <input
                                             value={editForm.name}
                                             onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                                            className="border rounded px-2 py-1 w-full"
+                                            className="border rounded px-2 py-1 w-full font-medium"
                                         />
                                     ) : (
                                         <div>
@@ -174,15 +235,22 @@ export default function AdminPlans() {
                                         `${plan.trialDays} Days`
                                     )}
                                 </td>
-                                <td className="px-6 py-4 text-sm text-zinc-500 max-w-xs truncate">
+                                <td className="px-6 py-4 text-sm text-zinc-500">
                                     {editingId === plan.id ? (
-                                        <textarea
-                                            value={editForm.features}
-                                            onChange={e => setEditForm({ ...editForm, features: e.target.value })}
-                                            className="border rounded px-2 py-1 w-full h-20 text-xs font-mono"
+                                        <FeatureListEditor
+                                            features={editForm.features}
+                                            onChange={(f) => setEditForm({ ...editForm, features: f })}
                                         />
                                     ) : (
-                                        <span>{(plan.features || []).length} features configured</span>
+                                        <div className="max-h-40 overflow-y-auto space-y-1">
+                                            {(plan.features || []).map((f: string, i: number) => (
+                                                <div key={i} className="flex items-start gap-2 text-xs">
+                                                    <Check size={12} className="mt-0.5 text-green-500 flex-shrink-0" />
+                                                    <span>{f}</span>
+                                                </div>
+                                            ))}
+                                            {(plan.features || []).length === 0 && <span className="text-zinc-400 italic">No features configured</span>}
+                                        </div>
                                     )}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
@@ -190,7 +258,7 @@ export default function AdminPlans() {
                                         <select
                                             value={editForm.active ? 'true' : 'false'}
                                             onChange={e => setEditForm({ ...editForm, active: e.target.value === 'true' })}
-                                            className="border rounded px-2 py-1"
+                                            className="border rounded px-2 py-1 text-sm"
                                         >
                                             <option value="true">Active</option>
                                             <option value="false">Inactive</option>
@@ -202,8 +270,8 @@ export default function AdminPlans() {
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     {editingId === plan.id ? (
                                         <div className="flex justify-end gap-2">
-                                            <button onClick={saveEdit} className="text-green-600 hover:text-green-900"><Check size={18} /></button>
-                                            <button onClick={() => setEditingId(null)} className="text-zinc-400 hover:text-zinc-600"><X size={18} /></button>
+                                            <button onClick={saveEdit} className="text-green-600 hover:text-green-900 bg-green-50 p-1 rounded"><Check size={18} /></button>
+                                            <button onClick={() => setEditingId(null)} className="text-zinc-400 hover:text-zinc-600 bg-zinc-50 p-1 rounded"><X size={18} /></button>
                                         </div>
                                     ) : (
                                         <button onClick={() => startEdit(plan)} className="text-blue-600 hover:text-blue-900">
