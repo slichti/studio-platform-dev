@@ -1,244 +1,179 @@
 
 import { useOutletContext } from "react-router";
-import { useState, useRef } from "react";
-import { apiRequest } from "../utils/api";
-import { Smartphone, Upload, Save, CheckCircle2, AlertCircle, Image as ImageIcon } from "lucide-react";
-import { Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { apiRequest } from "~/utils/api";
+import { Loader2, Save, Smartphone, Palette, Store, LayoutGrid } from "lucide-react";
+import { toast } from "sonner";
 
-export default function MobileAppSettings() {
-    const { tenant, token } = useOutletContext<any>();
-    const [loading, setLoading] = useState(false);
-    const [uploading, setUploading] = useState<'icon' | 'splash' | null>(null);
+export default function MobileSettings() {
+    const { tenant, token } = useOutletContext<any>() as any;
+    const [config, setConfig] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
 
-    const [config, setConfig] = useState(tenant.mobileAppConfig || {
-        appName: tenant.name,
-        iconUrl: "",
-        splashUrl: "",
-        primaryColor: tenant.branding?.primaryColor || "#000000"
-    });
-    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-
-    const handleImageUpload = async (file: File, type: 'icon' | 'splash') => {
-        setUploading(type);
-        setMessage(null);
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('title', `Mobile App ${type === 'icon' ? 'Icon' : 'Splash'} - ${file.name}`);
-
-            const res = await apiRequest('/uploads/r2-image', token, {
-                method: 'POST',
-                body: formData
-            });
-
-            if (res.url) {
-                setConfig((prev: any) => ({ ...prev, [type + 'Url']: res.url }));
-                setMessage({ type: 'success', text: `${type === 'icon' ? 'Icon' : 'Splash Screen'} uploaded successfully.` });
-            } else {
-                throw new Error("Upload failed, no URL returned.");
-            }
-
-        } catch (e: any) {
-            console.error(e);
-            setMessage({ type: 'error', text: `Upload failed: ${e.message}` });
-        } finally {
-            setUploading(null);
-        }
-    }
+    // Initial Fetch
+    useEffect(() => {
+        if (!token) return;
+        apiRequest(`/${tenant.id}/mobile-config`, token)
+            .then(res => {
+                if (res.error) toast.error("Failed to load mobile settings");
+                else setConfig(res);
+            })
+            .catch(() => toast.error("Failed to load mobile settings"))
+            .finally(() => setLoading(false));
+    }, [token, tenant.id]);
 
     const handleSave = async () => {
-        setLoading(true);
-        setMessage(null);
+        setSaving(true);
         try {
-            const res = await apiRequest('/tenant/settings', token, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    mobileAppConfig: config
-                })
+            const res = await apiRequest(`/${tenant.id}/mobile-config`, token, {
+                method: 'PUT',
+                body: JSON.stringify(config)
             });
-            if (res.success) {
-                setMessage({ type: 'success', text: "Mobile app settings saved successfully." });
-            } else {
-                throw new Error("Failed to save.");
-            }
+            if (res.error) throw new Error(res.error);
+            toast.success("Mobile settings saved successfully");
+            // Optimistically update a local state or revalidate if needed, 
+            // but these settings likely don't affect immediate layout outside this page.
         } catch (e: any) {
-            setMessage({ type: 'error', text: e.message });
+            toast.error(e.message || "Failed to save settings");
         } finally {
-            setLoading(false);
+            setSaving(false);
         }
     };
 
+    if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin text-zinc-400" /></div>;
+    if (!config) return <div className="p-12 text-center text-zinc-500">Failed to load configuration.</div>;
+
     return (
-        <div className="p-8 max-w-4xl mx-auto">
-            <div className="flex items-center gap-4 mb-8">
-                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-                    <Smartphone className="text-blue-600 dark:text-blue-400" size={32} />
-                </div>
+        <div className="max-w-4xl mx-auto p-8">
+            <div className="flex items-center justify-between mb-8">
                 <div>
-                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Mobile App Builder</h1>
-                    <p className="text-zinc-500 dark:text-zinc-400">Customize your white-label mobile application.</p>
+                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
+                        <Smartphone className="w-6 h-6" />
+                        Mobile App Configuration
+                    </h1>
+                    <p className="text-zinc-500 dark:text-zinc-400 mt-1">
+                        Manage your dedicated mobile app appearance and features.
+                    </p>
                 </div>
+                <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition disabled:opacity-50"
+                >
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Save Changes
+                </button>
             </div>
 
-            {message && (
-                <div className={`mb-6 p-4 rounded-lg flex items-center gap-2 ${message.type === 'success' ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300'}`}>
-                    {message.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
-                    <span className="text-sm font-medium">{message.text}</span>
+            <div className="grid gap-6">
+                {/* Master Toggle */}
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 flex items-center justify-between">
+                    <div>
+                        <h3 className="font-semibold text-lg text-zinc-900 dark:text-zinc-100">Enable Mobile App Access</h3>
+                        <p className="text-sm text-zinc-500">Allow members to log in to your studio via the mobile app.</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={config.enabled}
+                            onChange={e => setConfig({ ...config, enabled: e.target.checked })}
+                        />
+                        <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-zinc-600 peer-checked:bg-blue-600"></div>
+                    </label>
                 </div>
-            )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Configuration Form */}
-                <div className="space-y-6">
-                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                        <h3 className="font-semibold mb-4 text-zinc-900 dark:text-zinc-100">App Identity</h3>
-
-                        <div className="space-y-4">
+                {/* Theming */}
+                <div className={`transition-opacity ${!config.enabled ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 mb-6">
+                        <h3 className="font-semibold text-lg text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
+                            <Palette className="w-5 h-5" /> Theming
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">App Name</label>
-                                <input
-                                    type="text"
-                                    value={config.appName}
-                                    onChange={e => setConfig({ ...config, appName: e.target.value })}
-                                    className="w-full text-sm p-2 rounded border border-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 outline-none"
-                                    placeholder="My Studio App"
-                                />
-                                <p className="text-xs text-zinc-400 mt-1">This name will appear on the user's home screen.</p>
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Primary Color</label>
-                                <div className="flex gap-2">
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Accent Color</label>
+                                <div className="flex items-center gap-3">
                                     <input
                                         type="color"
-                                        value={config.primaryColor}
-                                        onChange={e => setConfig({ ...config, primaryColor: e.target.value })}
-                                        className="h-9 w-16 p-0 rounded border border-zinc-200 dark:border-zinc-700 cursor-pointer"
+                                        value={config.theme.primaryColor}
+                                        onChange={e => setConfig({ ...config, theme: { ...config.theme, primaryColor: e.target.value } })}
+                                        className="h-10 w-20 rounded cursor-pointer bg-transparent border-none p-0"
                                     />
-                                    <input
-                                        type="text"
-                                        value={config.primaryColor}
-                                        onChange={e => setConfig({ ...config, primaryColor: e.target.value })}
-                                        className="flex-1 text-sm p-2 rounded border border-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 uppercase font-mono focus:ring-2 focus:ring-blue-500 outline-none"
-                                    />
+                                    <span className="text-sm font-mono text-zinc-500 uppercase">{config.theme.primaryColor}</span>
                                 </div>
+                                <p className="text-xs text-zinc-500 mt-1">Used for buttons, tabs, and highlights.</p>
+                            </div>
+                            <div className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-lg">
+                                <div>
+                                    <span className="block font-medium text-zinc-900 dark:text-zinc-100">Force Dark Mode</span>
+                                    <span className="text-xs text-zinc-500">Always use dark theme regardless of system settings.</span>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={config.theme.darkMode}
+                                        onChange={e => setConfig({ ...config, theme: { ...config.theme, darkMode: e.target.checked } })}
+                                    />
+                                    <div className="w-11 h-6 bg-zinc-200 rounded-full peer peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                                </label>
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                        <h3 className="font-semibold mb-4 text-zinc-900 dark:text-zinc-100">Assets</h3>
-
-                        <div className="space-y-6">
-                            {/* App Icon */}
-                            <div>
-                                <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">App Icon</label>
-                                <div className="flex gap-2 mb-2">
+                    {/* Features */}
+                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 mb-6">
+                        <h3 className="font-semibold text-lg text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
+                            <LayoutGrid className="w-5 h-5" /> Features Tabs
+                        </h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {[
+                                { k: 'booking', l: 'Book Classes' },
+                                { k: 'shop', l: 'Shop / Store' },
+                                { k: 'vod', l: 'Video Library' },
+                                { k: 'profile', l: 'Member Profile' }
+                            ].map(f => (
+                                <label key={f.k} className="flex items-center p-3 border border-zinc-200 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer transition">
                                     <input
-                                        type="text"
-                                        value={config.iconUrl}
-                                        onChange={e => setConfig({ ...config, iconUrl: e.target.value })}
-                                        className="flex-1 text-sm p-2 rounded border border-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 outline-none"
-                                        placeholder="https://..."
+                                        type="checkbox"
+                                        className="w-4 h-4 text-blue-600 rounded border-zinc-300 focus:ring-blue-500"
+                                        checked={config.features[f.k]}
+                                        onChange={e => setConfig({ ...config, features: { ...config.features, [f.k]: e.target.checked } })}
                                     />
-                                    <label className={`cursor-pointer bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 px-3 py-2 rounded-md transition-colors border border-zinc-200 dark:border-zinc-700 flex items-center gap-2 ${uploading === 'icon' ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                        <Upload size={16} />
-                                        <span className="text-sm font-medium">{uploading === 'icon' ? '...' : 'Upload'}</span>
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            className="hidden"
-                                            disabled={!!uploading}
-                                            onChange={e => e.target.files?.[0] && handleImageUpload(e.target.files[0], 'icon')}
-                                        />
-                                    </label>
-                                </div>
-                                <p className="text-xs text-zinc-400 mt-1">Recommended: 1024x1024 PNG (No transparency)</p>
-                            </div>
-
-                            {/* Splash Screen */}
-                            <div>
-                                <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Splash Screen</label>
-                                <div className="flex gap-2 mb-2">
-                                    <input
-                                        type="text"
-                                        value={config.splashUrl}
-                                        onChange={e => setConfig({ ...config, splashUrl: e.target.value })}
-                                        className="flex-1 text-sm p-2 rounded border border-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 outline-none"
-                                        placeholder="https://..."
-                                    />
-                                    <label className={`cursor-pointer bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 px-3 py-2 rounded-md transition-colors border border-zinc-200 dark:border-zinc-700 flex items-center gap-2 ${uploading === 'splash' ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                        <Upload size={16} />
-                                        <span className="text-sm font-medium">{uploading === 'splash' ? '...' : 'Upload'}</span>
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            className="hidden"
-                                            disabled={!!uploading}
-                                            onChange={e => e.target.files?.[0] && handleImageUpload(e.target.files[0], 'splash')}
-                                        />
-                                    </label>
-                                </div>
-                            </div>
+                                    <span className="ml-3 font-medium text-zinc-700 dark:text-zinc-300">{f.l}</span>
+                                </label>
+                            ))}
                         </div>
                     </div>
 
-                    <button
-                        onClick={handleSave}
-                        disabled={loading}
-                        className="w-full py-2.5 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg font-bold hover:opacity-90 transition-opacity flex justify-center items-center gap-2"
-                    >
-                        {loading && <Loader2 size={16} className="animate-spin" />}
-                        Save Configuration
-                    </button>
-                </div>
-
-                {/* Preview */}
-                <div className="flex justify-center pt-8">
-                    <div className="relative border-4 border-zinc-800 bg-zinc-900 rounded-[3rem] h-[600px] w-[300px] shadow-2xl overflow-hidden">
-                        {/* Dynamic Status Bar */}
-                        <div className="absolute top-0 w-full h-8 bg-black/20 z-20 flex justify-between px-4 items-center text-[10px] text-white font-bold">
-                            <span>9:41</span>
-                            <div className="flex gap-1">
-                                <div className="w-3 h-3 bg-white rounded-full opacity-50" />
-                                <div className="w-3 h-3 bg-white rounded-full" />
+                    {/* Store Links */}
+                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
+                        <h3 className="font-semibold text-lg text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
+                            <Store className="w-5 h-5" /> Store Links
+                        </h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Apple App Store URL</label>
+                                <input
+                                    type="url"
+                                    placeholder="https://apps.apple.com/..."
+                                    value={config.links.iosStore}
+                                    onChange={e => setConfig({ ...config, links: { ...config.links, iosStore: e.target.value } })}
+                                    className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Google Play Store URL</label>
+                                <input
+                                    type="url"
+                                    placeholder="https://play.google.com/..."
+                                    value={config.links.androidStore}
+                                    onChange={e => setConfig({ ...config, links: { ...config.links, androidStore: e.target.value } })}
+                                    className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
                             </div>
                         </div>
-
-                        {/* Screen Content */}
-                        <div className="h-full w-full bg-white flex flex-col pt-12">
-                            {/* Header */}
-                            <div className="px-4 pb-4 border-b border-zinc-100 flex items-center justify-between">
-                                <h2 className="font-bold text-lg" style={{ color: config.primaryColor }}>{config.appName || 'Studio App'}</h2>
-                                <div className="w-8 h-8 rounded-full bg-zinc-100" />
-                            </div>
-
-                            {/* Hero */}
-                            <div className="p-4">
-                                <div className="aspect-video rounded-xl bg-zinc-100 mb-4 flex items-center justify-center text-zinc-300 relative overflow-hidden">
-                                    {config.splashUrl ? (
-                                        <img src={config.splashUrl} alt="Splash" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <ImageIcon size={24} />
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <div className="h-4 w-2/3 bg-zinc-100 rounded" />
-                                    <div className="h-4 w-1/2 bg-zinc-100 rounded" />
-                                </div>
-                            </div>
-
-                            {/* Icon Preview Overlay */}
-                            {config.iconUrl && (
-                                <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                                    <img src={config.iconUrl} alt="Icon" className="w-16 h-16 rounded-2xl shadow-lg mb-2 bg-white" />
-                                    <span className="text-xs text-white bg-black/50 px-2 py-0.5 rounded">App Icon</span>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Home Bar */}
-                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-white/50 rounded-full" />
                     </div>
                 </div>
             </div>

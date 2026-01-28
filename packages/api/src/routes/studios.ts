@@ -548,4 +548,100 @@ app.delete('/:id/integrations/google', async (c) => {
     return c.json({ success: true });
 });
 
+
+app.get('/:id/mobile-config', async (c) => {
+    const db = createDb(c.env.DB);
+    const id = c.req.param('id');
+    const auth = c.get('auth');
+
+    if (!auth?.userId) return c.json({ error: "Unauthorized" }, 401);
+
+    // [SECURITY] Authorization Check
+    const membership = await db.select()
+        .from(tenantMembers)
+        .where(and(
+            eq(tenantMembers.tenantId, id),
+            eq(tenantMembers.userId, auth.userId)
+        ))
+        .get();
+
+    const currentUser = await db.select().from(users).where(eq(users.id, auth.userId)).get();
+    const isPlatformAdmin = currentUser?.isPlatformAdmin === true;
+
+    if (!membership && !isPlatformAdmin) return c.json({ error: "Forbidden" }, 403);
+
+    const tenant = await db.select().from(tenants).where(eq(tenants.id, id)).get();
+    if (!tenant) return c.json({ error: "Tenant not found" }, 404);
+
+    const settings = (tenant.settings as any) || {};
+    const mobileConfig = settings.mobileConfig || {
+        enabled: false,
+        theme: {
+            primaryColor: tenant.branding?.primaryColor || '#000000',
+            darkMode: false
+        },
+        features: {
+            booking: true,
+            shop: true,
+            vod: true,
+            profile: true
+        },
+        links: {
+            iosStore: '',
+            androidStore: ''
+        }
+    };
+
+    return c.json(mobileConfig);
+});
+
+app.put('/:id/mobile-config', async (c) => {
+    const db = createDb(c.env.DB);
+    const id = c.req.param('id');
+    const auth = c.get('auth');
+    const body = await c.req.json();
+
+    if (!auth?.userId) return c.json({ error: "Unauthorized" }, 401);
+
+    // [SECURITY] RBAC Check
+    const currentUser = await db.select().from(users).where(eq(users.id, auth.userId)).get();
+    const isPlatformAdmin = currentUser?.isPlatformAdmin === true;
+
+    if (!isPlatformAdmin) {
+        const membership = await db.select()
+            .from(tenantMembers)
+            .where(and(
+                eq(tenantMembers.tenantId, id),
+                eq(tenantMembers.userId, auth.userId)
+            ))
+            .get();
+
+        if (!membership) return c.json({ error: "Forbidden" }, 403);
+
+        // Import tenantRoles table alias to avoid conflict if needed
+        const { tenantRoles: tenantRolesTable } = await import('@studio/db/src/schema');
+        const roles = await db.select().from(tenantRolesTable).where(eq(tenantRolesTable.memberId, membership.id)).all();
+        const hasPermission = roles.some(r => r.role === 'owner' || r.role === 'admin');
+        if (!hasPermission) {
+            return c.json({ error: "Forbidden: Only Owners/Admins can manage mobile settings." }, 403);
+        }
+    }
+
+    const tenant = await db.select().from(tenants).where(eq(tenants.id, id)).get();
+    if (!tenant) return c.json({ error: "Tenant not found" }, 404);
+
+    const currentSettings = (tenant.settings as any) || {};
+    const newSettings = {
+        ...currentSettings,
+        mobileConfig: body // Validation could be added here
+    };
+
+    await db.update(tenants)
+        .set({ settings: newSettings })
+        .where(eq(tenants.id, id))
+        .run();
+
+    return c.json({ success: true, mobileConfig: body });
+});
+
 export default app;
