@@ -1,1 +1,0 @@
-import{w as o,d as s,O as u}from"./chunk-JMJ3UQ3L-D5-P_Fux.js";import{j as e}from"./vendor-puck-Ox9nZAW8.js";import"./vendor-sentry-JepEA2vj.js";const m=o(function(){const t=s();return e.jsx(u,{context:t})});export{m as default};
