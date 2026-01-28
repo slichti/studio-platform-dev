@@ -11,4 +11,5 @@ yarn-debug.log*
 yarn-error.log*
 .turbo
 
-# Web build artifacts are ignored by default via build/ rule above
+# Web build artifacts
+apps/web/functions/
