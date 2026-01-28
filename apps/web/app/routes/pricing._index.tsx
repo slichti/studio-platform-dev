@@ -24,7 +24,7 @@ export default function Pricing() {
     useEffect(() => {
         async function loadPlans() {
             try {
-                const data = await apiRequest('/public/plans');
+                const data = await apiRequest('/public/plans', null);
                 if (Array.isArray(data)) {
                     // Sort by price (ascending) to maintain order: Launch -> Growth -> Scale
                     const sorted = data.sort((a, b) => (a.prices.monthly || 0) - (b.prices.monthly || 0));

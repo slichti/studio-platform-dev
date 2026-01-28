@@ -30,7 +30,7 @@ export default function CreateStudio() {
         async function loadPlans() {
             try {
                 // Determine base URL if needed, or rely on apiRequest autodetect (works client side)
-                const data = await apiRequest('/public/plans');
+                const data = await apiRequest('/public/plans', null);
                 if (Array.isArray(data)) {
                     setPlans(data.sort((a, b) => (a.prices.monthly || 0) - (b.prices.monthly || 0)));
                 }
@@ -235,22 +235,22 @@ export default function CreateStudio() {
                                     <label className="block text-sm font-medium text-zinc-700">Select Plan</label>
                                     <button
                                         type="button"
-                                        onClick={() => setInterval(prev => prev === 'monthly' ? 'annual' : 'monthly')}
+                                        onClick={() => setBillingInterval(prev => prev === 'monthly' ? 'annual' : 'monthly')}
                                         className="text-xs text-blue-600 hover:text-blue-500 font-medium"
                                     >
-                                        Switch to {interval === 'monthly' ? 'Annual' : 'Monthly'}
+                                        Switch to {billingInterval === 'monthly' ? 'Annual' : 'Monthly'}
                                     </button>
                                 </div>
 
                                 {plans.length > 0 ? (
                                     <div className="grid grid-cols-1 gap-4">
                                         {plans.map((plan) => {
-                                            const priceCents = interval === 'monthly' ? plan.prices.monthly : plan.prices.annual;
-                                            const priceDisplay = priceCents ? `$${priceCents / 100}/${interval === 'monthly' ? 'mo' : 'yr'}` : 'Free';
+                                            const priceCents = billingInterval === 'monthly' ? plan.prices.monthly : plan.prices.annual;
+                                            const priceDisplay = priceCents ? `$${priceCents / 100}/${billingInterval === 'monthly' ? 'mo' : 'yr'}` : 'Free';
 
                                             // Calculate savings safely
                                             let savings = null;
-                                            if (interval === 'annual' && plan.prices.monthly && plan.prices.annual) {
+                                            if (billingInterval === 'annual' && plan.prices.monthly && plan.prices.annual) {
                                                 const monthlyAnnualized = plan.prices.monthly * 12;
                                                 const diff = monthlyAnnualized - plan.prices.annual;
                                                 if (diff > 0) savings = `$${diff / 100}`;
@@ -265,7 +265,7 @@ export default function CreateStudio() {
                                                     <div>
                                                         <div className="font-medium text-zinc-900">{plan.name} ({priceDisplay})</div>
                                                         <div className="text-sm text-zinc-500">
-                                                            {plan.trialDays > 0 ? `${plan.trialDays}-day free trial.` : 'No trial.'} {interval === 'annual' ? 'Billed annually.' : 'Billed monthly.'}
+                                                            {plan.trialDays > 0 ? `${plan.trialDays}-day free trial.` : 'No trial.'} {billingInterval === 'annual' ? 'Billed annually.' : 'Billed monthly.'}
                                                         </div>
                                                         {savings && (
                                                             <div className="text-xs text-emerald-600 font-medium mt-1">
