@@ -382,4 +382,84 @@ app.post('/push-token', zValidator('json', PushTokenSchema), async (c) => {
     return c.json({ success: true });
 });
 
+const NotificationSettingsSchema = z.object({
+    notifications: z.object({
+        substitutions: z.object({
+            email: z.boolean().optional(),
+            sms: z.boolean().optional(),
+            push: z.boolean().optional()
+        }).optional()
+    })
+});
+
+// PUT /me/settings/notifications - Update notification preferences for current tenant
+app.put('/me/settings/notifications', zValidator('json', NotificationSettingsSchema), async (c) => {
+    const auth = c.get('auth');
+    if (!auth?.userId) return c.json({ error: 'Unauthorized' }, 401);
+
+    // @ts-ignore
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const { notifications } = c.get('validated_json') as z.infer<typeof NotificationSettingsSchema>;
+
+    const db = createDb(c.env.DB);
+
+    // Get current member to read existing settings
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(
+            eq(tenantMembers.userId, auth.userId),
+            eq(tenantMembers.tenantId, tenant.id)
+        )
+    });
+
+    if (!member) return c.json({ error: 'Member not found' }, 404);
+
+    const currentSettings = (member.settings as any) || {};
+    const currentNotifications = currentSettings.notifications || {};
+    const currentSubs = currentNotifications.substitutions || {};
+
+    // Merge updates
+    const newSettings = {
+        ...currentSettings,
+        notifications: {
+            ...currentNotifications,
+            substitutions: {
+                ...currentSubs,
+                ...notifications.substitutions
+            }
+        }
+    };
+
+    await db.update(tenantMembers)
+        .set({ settings: newSettings })
+        .where(eq(tenantMembers.id, member.id));
+
+    return c.json({ success: true, settings: newSettings });
+});
+
+// GET /me/settings/notifications - Get notification preferences for current tenant
+app.get('/me/settings/notifications', async (c) => {
+    const auth = c.get('auth');
+    if (!auth?.userId) return c.json({ error: 'Unauthorized' }, 401);
+
+    // @ts-ignore
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const db = createDb(c.env.DB);
+
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(
+            eq(tenantMembers.userId, auth.userId),
+            eq(tenantMembers.tenantId, tenant.id)
+        )
+    });
+
+    if (!member) return c.json({ error: 'Member not found' }, 404);
+
+    const settings = (member.settings as any) || {};
+    return c.json({ settings });
+});
+
 export default app;

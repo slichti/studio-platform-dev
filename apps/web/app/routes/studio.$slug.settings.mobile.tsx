@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { apiRequest } from "~/utils/api";
 import { Loader2, Save, Smartphone, Palette, Store, LayoutGrid } from "lucide-react";
 import { toast } from "sonner";
+import QRCode from "react-qr-code";
 
 export default function MobileSettings() {
     const { tenant, token } = useOutletContext<any>() as any;
@@ -147,32 +148,50 @@ export default function MobileSettings() {
                         </div>
                     </div>
 
-                    {/* Store Links */}
+                    {/* App Access */}
                     <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
                         <h3 className="font-semibold text-lg text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
-                            <Store className="w-5 h-5" /> Store Links
+                            <Store className="w-5 h-5" /> Your App Access
                         </h3>
                         <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Apple App Store URL</label>
-                                <input
-                                    type="url"
-                                    placeholder="https://apps.apple.com/..."
-                                    value={config.links.iosStore}
-                                    onChange={e => setConfig({ ...config, links: { ...config.links, iosStore: e.target.value } })}
-                                    className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
+                            <div className="bg-zinc-50 dark:bg-zinc-800 p-4 rounded-lg flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Studio Code</p>
+                                    <p className="text-xs text-zinc-500">Your members will enter this code in the [Platform] App to access your studio.</p>
+                                </div>
+                                <div className="text-xl font-mono font-bold text-blue-600 bg-white dark:bg-zinc-900 px-4 py-2 rounded border border-blue-200 dark:border-blue-900">
+                                    {tenant.slug}
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Google Play Store URL</label>
-                                <input
-                                    type="url"
-                                    placeholder="https://play.google.com/..."
-                                    value={config.links.androidStore}
-                                    onChange={e => setConfig({ ...config, links: { ...config.links, androidStore: e.target.value } })}
-                                    className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
+
+                            {/* QR Code */}
+                            <div className="mt-8 border-t border-zinc-100 dark:border-zinc-800 pt-6">
+                                <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-4">Scan to Join</h4>
+                                <div className="flex flex-col md:flex-row items-center gap-6">
+                                    <div className="bg-white p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm">
+                                        <QRCode
+                                            value={`https://app.studioplatform.com/join/${tenant.slug}`}
+                                            size={160}
+                                            level="H"
+                                            className="h-40 w-40"
+                                        />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-3">
+                                            Print this QR code and display it at your front desk. New members can scan it to instantly load your studio in the app.
+                                        </p>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => window.print()}
+                                                className="text-sm bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 px-3 py-1.5 rounded-md transition"
+                                            >
+                                                Print Page
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+
                         </div>
                     </div>
                 </div>

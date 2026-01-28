@@ -714,6 +714,19 @@ export const smsLogs = sqliteTable('sms_logs', {
     metadata: text('metadata', { mode: 'json' }),
 });
 
+
+
+export const pushLogs = sqliteTable('push_logs', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    recipientToken: text('recipient_token').notNull(),
+    title: text('title').notNull(),
+    body: text('body').notNull(),
+    status: text('status', { enum: ['queued', 'sent', 'delivered', 'failed'] }).default('queued'),
+    sentAt: integer('sent_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    metadata: text('metadata', { mode: 'json' }),
+});
+
 // --- Phase 6: Substitute Management ---
 export const substitutions = sqliteTable('substitutions', {
     id: text('id').primaryKey(),

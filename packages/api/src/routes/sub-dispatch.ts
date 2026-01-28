@@ -6,6 +6,8 @@ import { subRequests, classes, tenantMembers, tenantRoles, tenants, users } from
 import { authMiddleware } from '../middleware/auth';
 import { z } from 'zod';
 import { EmailService } from '../services/email';
+import { SmsService } from '../services/sms';
+import { PushService } from '../services/push';
 
 type Bindings = {
     DB: D1Database;
@@ -107,11 +109,17 @@ app.post('/classes/:classId/request', async (c) => {
     // Notify other instructors
     try {
         const emailService = new EmailService(c.env.RESEND_API_KEY || 're_123', tenant.settings as any, { slug: tenant.slug }, undefined, false, db, tenant.id);
+        const smsService = new SmsService(undefined, c.env, undefined, db, tenant.id);
+        const pushService = new PushService(db, tenant.id);
 
-        // Find all instructors except the requester
-        // Must join with users to get email
+        // Find all instructors except the requester with settings
+        // Must join with users to get email and tenantMembers for settings
         const instructors = await db.select({
-            email: users.email
+            email: users.email,
+            phone: sql<string>`json_extract(${users.profile}, '$.phoneNumber')`,
+            pushToken: users.pushToken,
+            settings: tenantMembers.settings,
+            memberId: tenantMembers.id
         })
             .from(tenantMembers)
             .innerJoin(users, eq(tenantMembers.userId, users.id))
@@ -123,23 +131,44 @@ app.post('/classes/:classId/request', async (c) => {
             ))
             .all();
 
-        const uniqueEmails = [...new Set(instructors.map(i => i.email))];
         const dateStr = new Date(classData.startTime).toLocaleString([], { dateStyle: 'full', timeStyle: 'short' });
         // @ts-ignore
         const requesterName = member.profile?.firstName ? `${member.profile.firstName} ${member.profile.lastName || ''}` : member.id;
+        const link = `https://${tenant.slug}.studio-platform.com/studio/${tenant.slug}/substitutions`;
 
-        // Send alerts in parallel
-        await Promise.all(uniqueEmails.map(email =>
-            emailService.sendSubRequestAlert(email, {
-                classTitle: classData.title,
-                date: dateStr,
-                requestingInstructor: requesterName,
-                message,
-                link: `https://${tenant.slug}.studio-platform.com/studio/${tenant.slug}/substitutions`
-            })
-        ));
+        // Send alerts based on preferences
+        const uniqueInstructors = [...new Map(instructors.map(item => [item.memberId, item])).values()];
 
-        console.log(`[SubDispatch] Notified ${uniqueEmails.length} instructors`);
+        await Promise.all(uniqueInstructors.map(async (inst) => {
+            const settings = (inst.settings as any)?.notifications?.substitutions || { email: true, sms: false, push: false };
+
+            // Email (Default True)
+            if (settings.email !== false) {
+                await emailService.sendSubRequestAlert(inst.email, {
+                    classTitle: classData.title,
+                    date: dateStr,
+                    requestingInstructor: requesterName,
+                    message,
+                    link
+                });
+            }
+
+            // SMS (Default False)
+            if (settings.sms === true && inst.phone) {
+                const smsBody = `[${tenant.name}] SUB REQUEST: ${requesterName} needs coverage for ${formatShortDate(classData.startTime)} - ${classData.title}. Reply or check app to accept.`;
+                await smsService.sendSms(inst.phone, smsBody, inst.memberId);
+            }
+
+            // Push (Default True if token exists? Or False? Let's default False for safety unless opted in)
+            // User requested "Notification Preferences", implying Opt-in/out. 
+            // Let's assume default OFF for now until UI toggled ON? 
+            // actually, app users usually EXPECT push. But let's stick to safe defaults or mirrored settings.
+            if (settings.push === true && inst.pushToken) {
+                await pushService.sendPush(inst.pushToken, `Sub Needed: ${classData.title}`, `${requesterName} needs coverage on ${formatShortDate(classData.startTime)}`, { requestId: requestId, classId: classId });
+            }
+        }));
+
+        console.log(`[SubDispatch] Processed notifications for ${uniqueInstructors.length} instructors`);
     } catch (e) {
         console.error("Failed to send sub notifications", e);
     }
@@ -187,11 +216,13 @@ app.post('/items/:requestId/accept', async (c) => {
     // Notify original instructor
     try {
         const emailService = new EmailService(c.env.RESEND_API_KEY || 're_123', tenant.settings as any, { slug: tenant.slug }, undefined, false, db, tenant.id);
+        const smsService = new SmsService(undefined, c.env, undefined, db, tenant.id);
+        const pushService = new PushService(db, tenant.id);
 
         const originalInstructorMember = await db.select().from(tenantMembers).where(eq(tenantMembers.id, request.originalInstructorId!)).get();
 
         if (originalInstructorMember) {
-            // Get User to get Email
+            // Get User to get Email & Phone
             const originalUser = await db.select().from(users).where(eq(users.id, originalInstructorMember.userId)).get();
 
             if (originalUser) {
@@ -200,11 +231,32 @@ app.post('/items/:requestId/accept', async (c) => {
                 // @ts-ignore
                 const covererName = member.profile?.firstName ? `${member.profile.firstName} ${member.profile.lastName || ''}` : member.id;
 
-                await emailService.sendSubRequestFilled(originalUser.email, {
-                    classTitle: classData?.title || 'Class',
-                    date: dateStr,
-                    coveringInstructor: covererName
-                });
+                const settings = (originalInstructorMember.settings as any)?.notifications?.substitutions || { email: true, sms: false, push: false };
+
+                // Email
+                if (settings.email !== false) {
+                    await emailService.sendSubRequestFilled(originalUser.email, {
+                        classTitle: classData?.title || 'Class',
+                        date: dateStr,
+                        coveringInstructor: covererName
+                    });
+                }
+
+                // SMS
+                // @ts-ignore
+                const startStr = formatShortDate(classData.startTime);
+                // @ts-ignore
+                const phone = originalUser.profile?.phoneNumber;
+
+                if (settings.sms === true && phone) {
+                    const smsBody = `[${tenant.name}] SUB FILLED: ${covererName} accepted your request for ${startStr}.`;
+                    await smsService.sendSms(phone, smsBody, originalInstructorMember.id);
+                }
+
+                if (settings.push === true && originalUser.pushToken) {
+                    await pushService.sendPush(originalUser.pushToken, `Sub Filled: ${classData?.title}`, `${covererName} accepted your request on ${startStr}.`, { requestId: requestId, classId: request.classId });
+                }
+
                 console.log(`[SubDispatch] Notified original instructor ${originalUser.email}`);
             }
         }
@@ -214,5 +266,10 @@ app.post('/items/:requestId/accept', async (c) => {
 
     return c.json({ success: true });
 });
+
+function formatShortDate(date: Date) {
+    if (!date) return '';
+    return new Date(date).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
 
 export default app;
