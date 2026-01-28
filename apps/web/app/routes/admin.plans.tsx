@@ -282,7 +282,7 @@ export default function AdminPlans() {
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="text-sm text-zinc-900">
-                                        Wait: {plan.monthlyPriceCents ? `$${plan.monthlyPriceCents / 100}/mo` : 'Free'}
+                                        Monthly: {plan.monthlyPriceCents ? `$${plan.monthlyPriceCents / 100}/mo` : 'Free'}
                                     </div>
                                     <div className="text-xs text-zinc-500">
                                         Annual: {plan.annualPriceCents ? `$${plan.annualPriceCents / 100}/yr` : 'Free'}
