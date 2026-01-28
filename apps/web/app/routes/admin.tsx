@@ -71,6 +71,7 @@ export default function AdminLayout() {
         { label: "Overview", href: "/admin", end: true, icon: "📊" },
         { label: "Tenants", href: "/admin/tenants", icon: "🏢" },
         { label: "Financials", href: "/admin/financials", icon: "💰" },
+        { label: "Platform Plans", href: "/admin/plans", icon: "💎" },
         { label: "Projections", href: "/admin/projections", icon: "📈" },
         { label: "Communications", href: "/admin/comms", icon: "📡" },
         { label: "Activity Logs", href: "/admin/logs", icon: "📋" },
