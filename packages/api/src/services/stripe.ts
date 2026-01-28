@@ -116,6 +116,7 @@ export class StripeService {
             mode?: 'payment' | 'subscription';
             applicationFeeAmount?: number;
             applicationFeePercent?: number;
+            automaticTax?: boolean;
         }
     ) {
         const { client, options } = this.getClient(connectedAccountId);
@@ -134,6 +135,10 @@ export class StripeService {
             return_url: params.returnUrl,
             metadata: params.metadata,
         };
+
+        if (params.automaticTax) {
+            sessionParams.automatic_tax = { enabled: true };
+        }
 
         if (params.mode === 'subscription' && params.applicationFeePercent) {
             sessionParams.subscription_data = {
@@ -254,6 +259,9 @@ export class StripeService {
     /**
      * Get Subscription Details
      */
+    /**
+     * Get Subscription Details
+     */
     async getSubscription(subscriptionId: string, connectedAccountId?: string) {
         const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
         // Expand latest_invoice to get payment_intent
@@ -312,14 +320,15 @@ export class StripeService {
     /**
      * Product Management
      */
-    async createProduct(params: { name: string; description?: string; images?: string[]; active?: boolean; metadata?: Record<string, string> }, connectedAccountId?: string) {
+    async createProduct(params: { name: string; description?: string; images?: string[]; active?: boolean; metadata?: Record<string, string>; taxCode?: string }, connectedAccountId?: string) {
         const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
         return client.products.create({
             name: params.name,
             description: params.description,
             images: params.images,
             active: params.active,
-            metadata: params.metadata
+            metadata: params.metadata,
+            tax_code: params.taxCode
         }, options);
     }
 
@@ -338,14 +347,15 @@ export class StripeService {
         return client.prices.retrieve(priceId, options);
     }
 
-    async updateProduct(id: string, params: { name?: string; description?: string; images?: string[]; active?: boolean; metadata?: Record<string, string> }, connectedAccountId?: string) {
+    async updateProduct(id: string, params: { name?: string; description?: string; images?: string[]; active?: boolean; metadata?: Record<string, string>; taxCode?: string }, connectedAccountId?: string) {
         const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
         return client.products.update(id, {
             name: params.name,
             description: params.description,
             images: params.images,
             active: params.active,
-            metadata: params.metadata
+            metadata: params.metadata,
+            tax_code: params.taxCode
         }, options);
     }
 

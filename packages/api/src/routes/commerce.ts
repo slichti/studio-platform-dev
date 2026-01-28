@@ -208,7 +208,8 @@ app.post('/products/bulk', async (c) => {
                 metadata: {
                     tenantId: tenant.id,
                     type: item.type // 'pack' or 'membership'
-                }
+                },
+                taxCode: 'txcd_00000000' // Nontaxable (General - Services)
             }, tenant.stripeAccountId || undefined);
 
             // 2. Create Stripe Price
@@ -395,13 +396,15 @@ app.post('/checkout/session', rateLimit({ limit: 10, window: 60, keyPrefix: 'che
             }
         }
 
-        // 4a. Calculate Tax (MI 6%)
-        const taxableAmount = Math.max(0, basePrice - discountAmount);
-        const taxRate = 0.06; // Michigan
-        const taxAmount = Math.round(taxableAmount * taxRate);
 
-        // 4b. Apply Gift Card to the Total (Item + Tax)
-        let amountToPay = taxableAmount + taxAmount;
+
+        // 4. Calculate Net Amount (Post-Discount, Pre-Tax)
+        const taxableAmount = Math.max(0, basePrice - discountAmount);
+
+        // Manual Tax Removed - Using Stripe Tax
+
+        // 4b. Apply Gift Card to the Total
+        let amountToPay = taxableAmount;
         let creditApplied = 0;
 
         // Use the variable declared at top of function
@@ -504,36 +507,17 @@ app.post('/checkout/session', rateLimit({ limit: 10, window: 60, keyPrefix: 'che
         const lineItems = [];
         const itemName = pack ? pack.name : (plan ? plan.name : 'Gift Card Credit');
 
-        // Item Details
-        // If Gift Card was applied, we show the remaining balance as the item cost?
-        // Or clearer: Show Item Cost, then Tax, then "Gift Card Credit"? (Negative?)
-        // Stripe requires positive line items.
-        // We will list the "Net Payable for Item" + "Tax" + "Fee".
-
-        // Distribute Credit?
-        // Simplest: 
-        // 1. "Item Name (Net)" - Price: taxableAmount - creditPart?
-        // Let's just create line items summing to `amountWithFee`.
-        // We know `amountWithFee` = `amountToPay` + `stripeFee`.
-        // `amountToPay` = `taxableAmount` + `taxAmount` - `creditApplied`.
-
-        // Strategy:
-        // Item: (taxableAmount - creditApplied_allocated_to_item)
-        // Tax: taxAmount
-        // Fee: stripeFee
-
-        // We allocate credit to item first.
+        // Distribute Credit to item
         const creditData = { remaining: creditApplied };
-
         const itemNet = Math.max(0, taxableAmount - creditData.remaining);
-        creditData.remaining = Math.max(0, creditData.remaining - taxableAmount);
-
-        const taxNet = Math.max(0, taxAmount - creditData.remaining);
 
         if (itemNet > 0) {
             const priceData: any = {
                 currency: tenant.currency || 'usd',
-                product_data: { name: itemName },
+                product_data: {
+                    name: itemName,
+                    tax_code: 'txcd_00000000' // Explicitly set as Nontaxable Service for on-the-fly items
+                },
                 unit_amount: itemNet
             };
 
@@ -550,57 +534,14 @@ app.post('/checkout/session', rateLimit({ limit: 10, window: 60, keyPrefix: 'che
             });
         }
 
-        if (taxNet > 0) {
-            // Tax cannot be recurring strictly speaking if attached to a subscription,
-            // but for simple checkout, we might need a workaround or just charge it as one-time
-            // IF it is a subscription, we should probably include tax in the recurring price OR
-            // establish a tax rate object.
-            // For MVP: If subscription, we just bundle tax into the unit_amount?
-            // OR we use Stripe Tax.
-            // Simpler: We just add it as a one-time fee line item if allowed in sub mode?
-            // Stripe Subscription Checkout allows one-time items (setup fees).
-            // But tax should ideally recur.
-            // Let's just bundle it for now if subscription.
-            // Wait, if we bundle it, the recurring charge is higher.
-
-            if (stripeMode === 'subscription') {
-                // Determine if we want to bundle tax. 
-                // Let's assume we use Stripe Tax automatic calculation in future.
-                // For now, let's just NOT charge tax on subscriptions explicitly to avoid complexity
-                // OR add it as a separate recurring line item? No, cleaner to bundle or use Tax Rates.
-                // Let's skip tax line item for subscription for MVP or bake it in if critical.
-                // Actually, let's keep it simple: Add it as a one-time line item logic below is valid for 'payment' mode.
-                // For subscription, adding a one-time tax item works for the FIRST invoice only.
-                // Recurring tax handling requires Tax Rates.
-
-                // FALLBACK: Add as one-time fee for first payment.
-                lineItems.push({
-                    price_data: {
-                        currency: tenant.currency || 'usd',
-                        product_data: { name: 'Sales Tax (First Payment Only)' },
-                        unit_amount: taxNet
-                    },
-                    quantity: 1
-                });
-            } else {
-                lineItems.push({
-                    price_data: {
-                        currency: tenant.currency || 'usd',
-                        product_data: { name: 'Sales Tax (MI 6%)' },
-                        unit_amount: taxNet
-                    },
-                    quantity: 1
-                });
-            }
-        }
-
         if (stripeFee > 0) {
-            // Same logic for fee - usually one time or baked in. 
-            // We'll charge it purely as one-time for now to cover the transaction cost.
             lineItems.push({
                 price_data: {
                     currency: tenant.currency || 'usd',
-                    product_data: { name: 'Processing Fee' },
+                    product_data: {
+                        name: 'Processing Fee',
+                        tax_code: 'txcd_00000000' // Fees are usually nontaxable service
+                    },
                     unit_amount: stripeFee
                 },
                 quantity: 1
@@ -638,6 +579,7 @@ app.post('/checkout/session', rateLimit({ limit: 10, window: 60, keyPrefix: 'che
                 customer: stripeCustomerId || undefined,
                 lineItems,
                 mode: stripeMode,
+                automaticTax: true,
                 applicationFeeAmount,
                 applicationFeePercent,
                 metadata: {
@@ -750,9 +692,7 @@ app.post('/failed-payments/:id/retry', async (c) => {
         // For now, I'll write this code assuming I will fix `getSubscription` signature.
         // `stripeService.getSubscription(sub.stripeSubscriptionId, tenant.stripeAccountId)`
 
-        // Note: I will need to update `stripe.ts` again.
-
-        const stripeSubFull = await stripeService.getSubscription(sub.stripeSubscriptionId, tenant.stripeAccountId);
+        const stripeSubFull = await stripeService.getSubscription(sub.stripeSubscriptionId, tenant.stripeAccountId || undefined);
 
         const latestInvoice = stripeSubFull.latest_invoice as any;
         if (!latestInvoice) {

@@ -1,4 +1,3 @@
-
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { tenants, tenantMembers, users } from '@studio/db/src/schema'; // Ensure imports

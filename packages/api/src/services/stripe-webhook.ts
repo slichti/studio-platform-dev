@@ -284,6 +284,23 @@ export class StripeWebhookHandler {
         const subscription = event.data.object as Stripe.Subscription;
         const tenantId = subscription.metadata?.tenantId;
 
+        // 1. Sync Student Subscription Status (if exists in DB)
+        // We look up by stripeSubscriptionId first
+        const studentSub = await this.db.query.subscriptions.findFirst({
+            where: eq(schema.subscriptions.stripeSubscriptionId, subscription.id)
+        });
+
+        if (studentSub) {
+            console.log(`[Stripe] Syncing status for student subscription ${subscription.id} -> ${subscription.status}`);
+            await this.db.update(schema.subscriptions).set({
+                status: subscription.status as any, // active, past_due, canceled, trialing
+                currentPeriodEnd: new Date((subscription as any).current_period_end * 1000)
+            }).where(eq(schema.subscriptions.id, studentSub.id)).run();
+
+            // Notify if canceled/past_due? handled by other hooks or dunning
+        }
+
+        // 2. Handle Tenant Tier Changes & Cancellation Scheduling
         if (subscription.cancel_at_period_end && tenantId) {
             // Cancellation Scheduled
             try {
@@ -313,7 +330,11 @@ export class StripeWebhookHandler {
             if (newTier) {
                 const tenant = await this.db.query.tenants.findFirst({ where: eq(schema.tenants.id, tenantId) });
 
-                if (tenant && tenant.tier !== newTier) {
+                // Only update if it's a Platform Tenant SaaS subscription (matches tenant's sub ID)
+                // Warning: tenantId in metadata might exist for Student subs too!
+                // We must verify this is the TENANT'S subscription, not a student's.
+                // Tenant SaaS sub ID is on the tenant record.
+                if (tenant && tenant.stripeSubscriptionId === subscription.id && tenant.tier !== newTier) {
                     await this.db.update(schema.tenants).set({ tier: newTier }).where(eq(schema.tenants.id, tenantId)).run();
                     console.log(`Updated Tenant ${tenant.slug} tier to ${newTier}`);
 
@@ -379,13 +400,30 @@ export class StripeWebhookHandler {
             return;
         }
 
+        // 2. Check if STUDENT Membership Cancel
+        const studentSub = await this.db.query.subscriptions.findFirst({
+            where: eq(schema.subscriptions.stripeSubscriptionId, subscription.id)
+        });
+
+        if (studentSub) {
+            console.log(`[Billing] Student subscription ${subscription.id} canceled via Stripe.`);
+            await this.db.update(schema.subscriptions).set({
+                status: 'canceled',
+                currentPeriodEnd: new Date() // End immediately
+            }).where(eq(schema.subscriptions.id, studentSub.id)).run();
+        }
+
+        // 3. Trigger Automation (if tenantId available)
         if (tenantId) {
             try {
                 const tenant = await this.db.query.tenants.findFirst({ where: eq(schema.tenants.id, tenantId) });
                 if (tenant) {
                     const { autoService } = await this.getTenantServices(tenant);
                     const stripeCustomerId = subscription.customer as string;
-                    const user = await this.db.query.users.findFirst({ where: eq(schema.users.stripeCustomerId, stripeCustomerId) });
+
+                    // User lookup: might be a parent or the user themselves
+                    let user = await this.db.query.users.findFirst({ where: eq(schema.users.stripeCustomerId, stripeCustomerId) });
+
                     if (user) {
                         await autoService.dispatchTrigger('subscription_terminated', {
                             userId: user.id,
