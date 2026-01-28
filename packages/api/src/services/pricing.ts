@@ -38,7 +38,7 @@ export const TIERS: Record<Tier, {
     growth: {
         name: 'Growth',
         price: 4900, // $49/mo
-        applicationFeePercent: 0.015, // 1.5% Application Fee
+        applicationFeePercent: 0.02, // 2% Application Fee
         limits: {
             students: -1,
             instructors: 15,
