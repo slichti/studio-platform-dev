@@ -11,6 +11,4 @@ yarn-debug.log*
 yarn-error.log*
 .turbo
 
-# Allow web build deployment
-!apps/web/build
-!apps/web/build/client
+# Web build artifacts are ignored by default via build/ rule above
