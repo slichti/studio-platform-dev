@@ -1,0 +1,1 @@
+UPDATE platform_plans SET features = '["Everything in Growth", "Unlimited Instructors", "Unlimited Locations", "1TB Video Storage", "White Label Branding Options", "API Access", "Priority Support", "0% Platform Fee"]' WHERE slug = 'scale';
