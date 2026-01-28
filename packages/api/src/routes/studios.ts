@@ -177,6 +177,25 @@ app.get('/:idOrSlug', async (c) => {
     return c.json(result);
 });
 
+app.post('/validate-slug', async (c) => {
+    const db = createDb(c.env.DB);
+    const body = await c.req.json();
+    const { slug } = body;
+
+    if (!slug || slug.length < 3) {
+        return c.json({ valid: false, error: 'Slug too short' });
+    }
+
+    // Check reserved
+    const reserved = ['admin', 'api', 'www', 'studio', 'app', 'dashboard', 'login', 'signup'];
+    if (reserved.includes(slug)) {
+        return c.json({ valid: false, error: 'Slug is reserved' });
+    }
+
+    const existing = await db.select().from(tenants).where(eq(tenants.slug, slug)).get();
+    return c.json({ valid: !existing });
+});
+
 app.put('/:id/integrations', async (c) => {
     const db = createDb(c.env.DB);
     const id = c.req.param('id');

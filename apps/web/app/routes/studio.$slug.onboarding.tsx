@@ -93,20 +93,34 @@ export const action = async (args: ActionFunctionArgs) => {
 
         // Step 5: Team Invites
         if (step === "team") {
-            const emails = formData.getAll("emails[]");
-            // Invite each member
-            await Promise.all(emails.map(email =>
-                apiRequest(`/members`, token, {
-                    method: "POST",
-                    body: JSON.stringify({
-                        email,
-                        firstName: '', // Optional for quick invite
-                        lastName: '',
-                        role: 'instructor'
-                    }),
+            const intent = formData.get("intent");
+            if (intent === 'skip') {
+                // Just advance
+                await apiRequest(`/tenant/settings`, token, {
+                    method: "PATCH",
+                    body: JSON.stringify({ onboardingStep: 6 }),
                     headers: { 'X-Tenant-Slug': slug! }
-                }).catch(e => console.error(`Failed to invite ${email}`, e))
-            ));
+                });
+                return { step: 6 };
+            }
+
+            const emails = formData.getAll("emails[]").filter(e => e.toString().trim() !== '');
+
+            if (emails.length > 0) {
+                // Invite each member
+                await Promise.all(emails.map(email =>
+                    apiRequest(`/members`, token, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            email,
+                            firstName: '', // Optional for quick invite
+                            lastName: '',
+                            role: 'instructor'
+                        }),
+                        headers: { 'X-Tenant-Slug': slug! }
+                    }).catch(e => console.error(`Failed to invite ${email}`, e))
+                ));
+            }
 
             await apiRequest(`/tenant/settings`, token, {
                 method: "PATCH",
@@ -198,6 +212,10 @@ export default function StudioOnboarding() {
             case 'gym': return { title: 'HIIT Session', price: 2500 };
             case 'crossfit': return { title: 'WOD', price: 3000 };
             case 'art': return { title: 'Painting Workshop', price: 4500 };
+            case 'martial-arts': return { title: 'Kickboxing Fundamentals', price: 2500 };
+            case 'dance': return { title: 'Salsa Beginner', price: 2000 };
+            case 'pilates': return { title: 'Reformer Flow', price: 3500 };
+            case 'pt': return { title: '1:1 Assessment', price: 8000 };
             case 'yoga': default: return { title: 'Vinyasa Flow', price: 2000 };
         }
     };
@@ -248,7 +266,11 @@ export default function StudioOnboarding() {
                                     { id: 'yoga', label: 'Yoga / Pilates', icon: '🧘' },
                                     { id: 'gym', label: 'Gym / Fitness', icon: '💪' },
                                     { id: 'crossfit', label: 'Crossfit', icon: '🏋️' },
-                                    { id: 'art', label: 'Art / Workshop', icon: '🎨' }
+                                    { id: 'art', label: 'Art / Workshop', icon: '🎨' },
+                                    { id: 'martial-arts', label: 'Martial Arts', icon: '🥋' },
+                                    { id: 'dance', label: 'Dance', icon: '💃' },
+                                    { id: 'pilates', label: 'Pilates', icon: '🤸' },
+                                    { id: 'pt', label: 'Personal Training', icon: '⏱️' }
                                 ].map(t => (
                                     <label key={t.id} className={`cursor-pointer border-2 rounded-xl p-4 flex flex-col items-center gap-2 transition-all ${template === t.id ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300'}`}>
                                         <input type="radio" name="template" value={t.id} checked={template === t.id} onChange={() => setTemplate(t.id)} className="sr-only" />
@@ -406,31 +428,26 @@ export default function StudioOnboarding() {
 
                             <div className="mt-8 flex gap-3">
                                 <button
-                                    type="button"
-                                    onClick={() => {
-                                        // Skip Logic: Submit empty or special skip param?
-                                        // Actually just advance step client side? No, need to persist state.
-                                        // We can submit the form with no emails.
-                                        const form = document.getElementById('skip-team-form') as HTMLFormElement;
-                                        if (form) form.submit();
-                                        setTimeout(() => setCurrentStep(6), 500);
-                                    }}
+                                    type="submit"
+                                    name="intent"
+                                    value="skip"
+                                    onClick={() => setTimeout(() => setCurrentStep(6), 500)} // Optimistic update
                                     className="px-6 py-3 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 font-bold rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800 transition"
                                 >
                                     Skip
                                 </button>
-                                <button disabled={isSubmitting} className="flex-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition">
+                                <button
+                                    type="submit"
+                                    name="intent"
+                                    value="invite"
+                                    disabled={isSubmitting}
+                                    className="flex-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition"
+                                >
                                     {isSubmitting ? <Loader2 className="animate-spin" /> : <>Send Invites <ArrowRight size={16} /></>}
                                 </button>
                             </div>
                         </Form>
                     )}
-
-                    {/* Hidden Skip Form */}
-                    <Form method="post" id="skip-team-form" className="hidden">
-                        <input type="hidden" name="step" value="team" />
-                        {/* No emails = skip/next */}
-                    </Form>
 
                     {/* Step 6: Import */}
                     {currentStep === 6 && (

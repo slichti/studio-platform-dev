@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { Form, useNavigation, useNavigate, Link, useSearchParams } from "react-router";
 import { apiRequest } from "../utils/api";
 import { useUser, SignedIn, SignedOut, RedirectToSignIn } from "@clerk/react-router";
+import { useDebounce } from "~/hooks/useDebounce";
+import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 
 export default function CreateStudio() {
     const { user, isLoaded } = useUser();
@@ -17,6 +19,11 @@ export default function CreateStudio() {
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
+    // Slug Validation State
+    const debouncedSlug = useDebounce(slug, 500);
+    const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
+    const [slugMessage, setSlugMessage] = useState("");
+
     // Initialize tier/interval from URL
     useEffect(() => {
         const tierParam = searchParams.get("tier");
@@ -29,15 +36,57 @@ export default function CreateStudio() {
         }
     }, [searchParams]);
 
-    // Auto-generate slug from name
+    // Auto-generate slug from name (only if slug hasn't been manually touched significantly)
+    // To keep it simple: only if slug is empty or matches previous auto-gen
+    const [manualSlug, setManualSlug] = useState(false);
     useEffect(() => {
-        if (!name) return;
+        if (!name || manualSlug) return;
         const generated = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
         setSlug(generated);
-    }, [name]);
+    }, [name, manualSlug]);
+
+    // Validate Slug Effect
+    useEffect(() => {
+        if (!debouncedSlug) {
+            setSlugStatus('idle');
+            setSlugMessage("");
+            return;
+        }
+
+        async function checkSlug() {
+            setSlugStatus('checking');
+            try {
+                // Check format client-side first
+                if (!/^[a-z0-9-]{3,}$/.test(debouncedSlug)) {
+                    setSlugStatus('invalid');
+                    setSlugMessage("Min 3 chars, letters, numbers, dashes only.");
+                    return;
+                }
+
+                const token = await (window as any).Clerk?.session?.getToken();
+                const res: any = await apiRequest(`/check-slug?slug=${encodeURIComponent(debouncedSlug)}`, token);
+
+                if (res.valid) {
+                    setSlugStatus('valid');
+                    setSlugMessage("");
+                } else {
+                    setSlugStatus('invalid');
+                    setSlugMessage(res.reason || "Slug is unavailable");
+                }
+            } catch (e) {
+                console.error(e);
+                setSlugStatus('idle'); // fail silently or show generic error
+            }
+        }
+
+        checkSlug();
+    }, [debouncedSlug]);
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (slugStatus === 'invalid' || slugStatus === 'checking') return;
+
         setLoading(true);
         setError(null);
 
@@ -49,8 +98,6 @@ export default function CreateStudio() {
             });
 
             if (res.tenant) {
-                // Success! Redirect to onboarding wizard to complete setup
-                // For paid tiers (growth/scale), ideally redirect to billing setup, but for now onboarding is fine
                 navigate(`/studio/${res.tenant.slug}/onboarding`);
             } else if (res.error) {
                 setError(res.error);
@@ -126,7 +173,10 @@ export default function CreateStudio() {
                                         required
                                         className="appearance-none block w-full px-3 py-2 border border-zinc-300 rounded-md shadow-sm placeholder-zinc-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                                         value={name}
-                                        onChange={(e) => setName(e.target.value)}
+                                        onChange={(e) => {
+                                            setName(e.target.value);
+                                            setError(null);
+                                        }}
                                         placeholder="e.g. Zen Yoga"
                                     />
                                 </div>
@@ -136,7 +186,7 @@ export default function CreateStudio() {
                                 <label htmlFor="slug" className="block text-sm font-medium text-zinc-700">
                                     Studio URL (Slug)
                                 </label>
-                                <div className="mt-1 flex rounded-md shadow-sm">
+                                <div className="mt-1 flex rounded-md shadow-sm relative">
                                     <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-zinc-300 bg-zinc-50 text-zinc-500 sm:text-sm">
                                         studio.platform.com/
                                     </span>
@@ -145,11 +195,23 @@ export default function CreateStudio() {
                                         name="slug"
                                         type="text"
                                         required
-                                        className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border border-zinc-300 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                        className={`flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${slugStatus === 'invalid' ? 'border-red-300' : 'border-zinc-300'}`}
                                         value={slug}
-                                        onChange={(e) => setSlug(e.target.value)}
+                                        onChange={(e) => {
+                                            setSlug(e.target.value);
+                                            setManualSlug(true);
+                                            setError(null);
+                                        }}
                                     />
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                        {slugStatus === 'checking' && <Loader2 className="animate-spin text-zinc-400" size={16} />}
+                                        {slugStatus === 'valid' && <CheckCircle className="text-green-500" size={16} />}
+                                        {slugStatus === 'invalid' && <XCircle className="text-red-500" size={16} />}
+                                    </div>
                                 </div>
+                                {slugStatus === 'invalid' && slugMessage && (
+                                    <p className="mt-1 text-xs text-red-500">{slugMessage}</p>
+                                )}
                             </div>
 
                             <div>
@@ -216,7 +278,7 @@ export default function CreateStudio() {
                             <div>
                                 <button
                                     type="submit"
-                                    disabled={loading || !isVerified}
+                                    disabled={loading || !isVerified || slugStatus === 'invalid' || slugStatus === 'checking'}
                                     className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-zinc-900 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500 disabled:opacity-70 disabled:cursor-not-allowed"
                                 >
                                     {loading ? 'Creating...' : 'Create Studio'}

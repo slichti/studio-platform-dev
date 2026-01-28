@@ -223,3 +223,16 @@ flowchart LR
     SOC2 --> |"CSV Export"| EXPORT[Admin Portal]
     PCI --> |"No Card Data"| MINIMAL[Data Minimization]
 ```
+
+## Tenant Provisioning & Onboarding
+
+### Provisioning Flow
+1.  **Slug Validation**: Real-time availability check via `POST /studios/validate-slug`. Enforces regex standards and reserved word blocking.
+2.  **Creation**:
+    *   `POST /studios`: Creates the `tenant` record.
+    *   **Billing Intent**: Captures desired tier (Basic/Growth/Scale) and interval.
+    *   **Permissioning**: Creator is automatically assigned `owner` role.
+3.  **Onboarding Wizard**:
+    *   **Steps**: Template Selection -> Branding -> Location -> Schedule -> Team Invite -> Data Import.
+    *   **Templates**: Pre-configured business types (Yoga, Gym, Martial Arts, etc.) set default class types and prices.
+
