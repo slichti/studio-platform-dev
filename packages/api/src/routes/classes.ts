@@ -184,6 +184,67 @@ app.get('/', async (c) => {
     return c.json(finalResults);
 });
 
+app.get('/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+    const classId = c.req.param('id');
+    const auth = c.get('auth');
+    const userId = auth?.userId;
+
+    const result = await db.query.classes.findFirst({
+        where: and(eq(classes.id, classId), eq(classes.tenantId, tenant.id)),
+        with: {
+            location: true,
+            instructor: {
+                with: {
+                    user: {
+                        columns: {
+                            id: true,
+                            email: true,
+                            profile: true
+                        }
+                    }
+                }
+            },
+        }
+    });
+
+    if (!result) return c.json({ error: 'Class not found' }, 404);
+
+    // Get Booking Counts (Simplified for single class)
+    const counts = await db.select({
+        confirmedCount: sql<number>`sum(case when ${bookings.status} = 'confirmed' then 1 else 0 end)`,
+        waitlistCount: sql<number>`sum(case when ${bookings.status} = 'waitlisted' then 1 else 0 end)`
+    })
+        .from(bookings)
+        .where(eq(bookings.classId, classId))
+        .get();
+
+    // Check User Status
+    let userBookingStatus = null;
+    if (userId) {
+        const member = await db.query.tenantMembers.findFirst({
+            where: and(eq(tenantMembers.userId, userId), eq(tenantMembers.tenantId, tenant.id))
+        });
+        if (member) {
+            const myBooking = await db.query.bookings.findFirst({
+                where: and(eq(bookings.classId, classId), eq(bookings.memberId, member.id))
+            });
+            if (myBooking && ['confirmed', 'waitlisted'].includes(myBooking.status || '')) {
+                userBookingStatus = myBooking.status;
+            }
+        }
+    }
+
+    return c.json({
+        ...result,
+        confirmedCount: counts?.confirmedCount || 0,
+        waitlistCount: counts?.waitlistCount || 0,
+        userBookingStatus
+    });
+});
+
 app.post('/', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');

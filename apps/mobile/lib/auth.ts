@@ -24,6 +24,13 @@ export const AuthStore = {
         return await SecureStore.getItemAsync(TOKEN_KEY);
     },
 
+    async getTenantSlug() {
+        if (Platform.OS === 'web') {
+            return localStorage.getItem(TENANT_KEY);
+        }
+        return await SecureStore.getItemAsync(TENANT_KEY);
+    },
+
     // Remove JWT (Logout)
     async removeToken() {
         if (Platform.OS === 'web') {

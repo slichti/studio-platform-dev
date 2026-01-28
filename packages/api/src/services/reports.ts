@@ -546,6 +546,63 @@ export class ReportService {
         return `${headers}\n${rows}`;
     }
 
+    async getRetention(start: Date, end: Date) {
+        // 1. Active Subscribers at Start of Period
+        // Users who had an active subscription at 'start' date
+        // Logic: Created <= start AND (CanceledAt IS NULL OR CanceledAt > start) AND Status IN ('active', 'trialing')
+        const activeAtStart = await this.db.select({ count: count() })
+            .from(subscriptions)
+            .where(and(
+                eq(subscriptions.tenantId, this.tenantId),
+                lte(subscriptions.createdAt, start),
+                sql`(${subscriptions.canceledAt} IS NULL OR ${subscriptions.canceledAt} > ${start})`,
+                inArray(subscriptions.status, ['active', 'trialing'])
+            ))
+            .get();
+
+        // 2. Churned during period
+        // Users who were active at start, but canceled before end
+        // Logic: Created <= start AND CanceledAt BETWEEN start AND end
+        const churned = await this.db.select({ count: count() })
+            .from(subscriptions)
+            .where(and(
+                eq(subscriptions.tenantId, this.tenantId),
+                lte(subscriptions.createdAt, start),
+                between(subscriptions.canceledAt, start, end)
+            ))
+            .get();
+
+        // 3. New Subscribers during period
+        const newSubs = await this.db.select({ count: count() })
+            .from(subscriptions)
+            .where(and(
+                eq(subscriptions.tenantId, this.tenantId),
+                between(subscriptions.createdAt, start, end),
+                inArray(subscriptions.status, ['active', 'trialing'])
+            ))
+            .get();
+
+        const startCount = activeAtStart?.count || 0;
+        const churnCount = churned?.count || 0;
+        const newCount = newSubs?.count || 0;
+        const endCount = startCount - churnCount + newCount;
+
+        // Retention Rate = ((End Count - New) / Start Count) * 100
+        // Which simplifies to: ((Start - Churn) / Start) * 100
+        const retentionRate = startCount > 0
+            ? ((startCount - churnCount) / startCount) * 100
+            : 0; // If 0 start, mathematically undefined, but 0 or 100? context dependent. Let's say 100 if 0 churn? No, 0 is safer.
+
+        return {
+            startCount,
+            endCount,
+            churnCount,
+            newCount,
+            retentionRate,
+            period: { start: start.toISOString(), end: end.toISOString() }
+        };
+    }
+
     async generateEmailSummary(reportType: 'revenue' | 'attendance' | 'journal') {
         const end = new Date();
         const start = new Date();

@@ -16,13 +16,14 @@ async function fetchTenantConfig(slug: string) {
     }
 }
 
-export default async ({ config }: ConfigContext): Promise<ExpoConfig> => {
+export default ({ config }: ConfigContext): ExpoConfig => {
     const tenantSlug = process.env.TENANT_SLUG;
     let tenantConfig: any = null;
 
     if (tenantSlug) {
         console.log(`Building for tenant: ${tenantSlug}`);
-        tenantConfig = await fetchTenantConfig(tenantSlug);
+        // tenantConfig = await fetchTenantConfig(tenantSlug);
+        tenantConfig = { mobileAppConfig: { appName: `Studio ${tenantSlug}` } };
     }
 
     const mobileConfig = tenantConfig?.mobileAppConfig || {};

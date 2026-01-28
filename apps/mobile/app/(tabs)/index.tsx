@@ -1,9 +1,10 @@
-
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
 export default function HomeScreen() {
+  const router = useRouter();
   const { signOut } = useAuth();
 
   return (
@@ -39,7 +40,11 @@ export default function HomeScreen() {
         {/* Action Items */}
         <Text className="text-lg font-bold text-zinc-900 mb-4">Quick Actions</Text>
         <View className="flex-row gap-4">
-          <TouchableOpacity className="flex-1 aspect-square bg-blue-50 rounded-2xl justify-center items-center border border-blue-100">
+
+          <TouchableOpacity
+            className="flex-1 aspect-square bg-blue-50 rounded-2xl justify-center items-center border border-blue-100"
+            onPress={() => router.push('/(tabs)/schedule')}
+          >
             <Text className="text-blue-700 font-bold">Book Class</Text>
           </TouchableOpacity>
           <TouchableOpacity className="flex-1 aspect-square bg-orange-50 rounded-2xl justify-center items-center border border-orange-100">

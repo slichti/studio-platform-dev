@@ -345,6 +345,7 @@ export const subscriptions = sqliteTable('subscriptions', {
     tier: text('tier', { enum: ['basic', 'premium'] }).default('basic'), // Deprecated in favor of planId
     currentPeriodEnd: integer('current_period_end', { mode: 'timestamp' }),
     stripeSubscriptionId: text('stripe_subscription_id'),
+    canceledAt: integer('canceled_at', { mode: 'timestamp' }),
 
     // Dunning Automation
     dunningState: text('dunning_state', { enum: ['active', 'warning1', 'warning2', 'warning3', 'failed', 'recovered'] }),

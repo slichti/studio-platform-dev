@@ -57,6 +57,26 @@ app.get('/attendance', async (c) => {
     return c.json(result as unknown as import('../types').ReportsAttendanceResponse);
 });
 
+// GET /retention
+app.get('/retention', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner')) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
+
+    const start = c.req.query('startDate') ? new Date(c.req.query('startDate')!) : new Date(new Date().setMonth(new Date().getMonth() - 1));
+    const end = c.req.query('endDate') ? new Date(c.req.query('endDate')!) : new Date();
+
+    const service = new ReportService(db, tenant.id);
+    const result = await service.getRetention(start, end);
+
+    return c.json(result);
+});
+
 // POST /projection
 app.post('/projection', async (c) => {
     const db = createDb(c.env.DB);

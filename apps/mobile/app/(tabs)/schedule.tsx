@@ -1,33 +1,39 @@
-
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import { View, Text, SafeAreaView, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { useState, useEffect, useCallback } from 'react';
 import { apiRequest } from '../../lib/api';
+import { useRouter } from 'expo-router';
 
-type Booking = {
+type ClassSession = {
     id: string;
-    status: 'confirmed' | 'waitlisted' | 'cancelled';
-    waitlistPosition?: number;
-    waitlistNotifiedAt?: string;
-    class: {
-        title: string;
-        startTime: string;
-        endTime: string;
-        instructor: string;
-    }
+    title: string;
+    startTime: string;
+    instructor: {
+        user: {
+            profile: { firstName: string; lastName: string; }
+        }
+    };
+    capacity: number;
+    confirmedCount: number;
+    userBookingStatus: 'confirmed' | 'waitlisted' | null;
 };
 
 export default function ScheduleScreen() {
-    const [bookings, setBookings] = useState<Booking[]>([]);
+    const router = useRouter();
+    const [classes, setClasses] = useState<ClassSession[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
-    const fetchBookings = useCallback(async () => {
+    const fetchSchedule = useCallback(async () => {
         try {
-            const data = await apiRequest('/bookings/my-upcoming');
-            setBookings(data);
+            const start = new Date();
+            const end = new Date();
+            end.setDate(end.getDate() + 14); // Next 2 weeks
+
+            const query = `?startDate=${start.toISOString()}&endDate=${end.toISOString()}&includeArchived=false`;
+            const data = await apiRequest(`/classes${query}`);
+            setClasses(data);
         } catch (e) {
             console.error(e);
-            // Optionally show error, but silent fail on refresh is standard
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -35,87 +41,75 @@ export default function ScheduleScreen() {
     }, []);
 
     useEffect(() => {
-        fetchBookings();
-    }, [fetchBookings]);
+        fetchSchedule();
+    }, [fetchSchedule]);
 
-    const onRefresh = useCallback(() => {
+    const onRefresh = () => {
         setRefreshing(true);
-        fetchBookings();
-    }, [fetchBookings]);
-
-    const acceptSpot = async (bookingId: string) => {
-        try {
-            await apiRequest(`/bookings/waitlist/${bookingId}/accept`, { method: 'POST' });
-            Alert.alert("Success", "You have accepted the spot!");
-            fetchBookings(); // Refresh list to show confirmed status
-        } catch (e: any) {
-            Alert.alert("Error", e.message || "Failed to accept spot");
-        }
+        fetchSchedule();
     };
 
-    const formatDate = (dateStr: string) => {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString() + ", " + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const renderItem = ({ item }: { item: ClassSession }) => {
+        const date = new Date(item.startTime);
+        const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const instructorName = item.instructor?.user?.profile
+            ? `${item.instructor.user.profile.firstName} ${item.instructor.user.profile.lastName}`
+            : 'Instructor';
+
+        const isBooked = !!item.userBookingStatus;
+        const isFull = (item.capacity && item.confirmedCount >= item.capacity);
+
+        return (
+            <TouchableOpacity
+                className="bg-white p-4 rounded-xl border border-zinc-100 mb-3 flex-row justify-between items-center"
+                onPress={() => router.push(`/class/${item.id}`)}
+            >
+                <View className="flex-1">
+                    <Text className="text-zinc-500 text-xs mb-1 uppercase font-bold">{date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} • {time}</Text>
+                    <Text className="text-lg font-bold text-zinc-900 mb-1">{item.title}</Text>
+                    <Text className="text-zinc-500 text-sm">{instructorName}</Text>
+                </View>
+
+                <View>
+                    {isBooked ? (
+                        <View className="bg-green-100 px-3 py-1 rounded-full">
+                            <Text className="text-green-700 text-xs font-bold uppercase">{item.userBookingStatus}</Text>
+                        </View>
+                    ) : (
+                        <View className={`px-3 py-1 rounded-full ${isFull ? 'bg-zinc-100' : 'bg-black'}`}>
+                            <Text className={`text-xs font-bold uppercase ${isFull ? 'text-zinc-400' : 'text-white'}`}>
+                                {isFull ? 'Full' : 'Book'}
+                            </Text>
+                        </View>
+                    )}
+                </View>
+            </TouchableOpacity>
+        );
     };
 
     return (
         <SafeAreaView className="flex-1 bg-white">
-            <View className="px-6 pt-4 pb-2 border-b border-zinc-100">
+            <View className="px-6 pt-4 pb-4 border-b border-zinc-100 bg-white">
                 <Text className="text-2xl font-bold text-zinc-900">Schedule</Text>
             </View>
-            <ScrollView
-                className="flex-1 px-4 pt-4"
-                refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-                }
-            >
-                {loading && bookings.length === 0 ? (
-                    <Text className="text-zinc-500 text-center mt-10">Loading classes...</Text>
-                ) : bookings.length === 0 ? (
-                    <View className="items-center mt-10">
-                        <Text className="text-zinc-500">No upcoming classes.</Text>
-                        <Text className="text-zinc-400 text-sm mt-2">Book a class from the Home tab!</Text>
-                    </View>
-                ) : (
-                    <View className="space-y-4 pb-10">
-                        {bookings.map((booking) => (
-                            <View
-                                key={booking.id}
-                                className={`bg-white p-4 rounded-xl border shadow-sm ${booking.status === 'waitlisted' ? 'border-amber-100 opacity-90' : 'border-zinc-100'}`}
-                            >
-                                <View className="flex-row justify-between mb-2">
-                                    <View className="flex-1 mr-2">
-                                        <Text className="font-bold text-lg text-zinc-900" numberOfLines={1}>{booking.class.title}</Text>
-                                    </View>
-                                    <View className={`px-2 py-1 rounded ${booking.status === 'confirmed' ? 'bg-green-100' : 'bg-amber-100'}`}>
-                                        <Text className={`text-xs font-bold uppercase ${booking.status === 'confirmed' ? 'text-green-700' : 'text-amber-700'}`}>
-                                            {booking.status === 'waitlisted' ? `Waitlist #${booking.waitlistPosition}` : 'Confirmed'}
-                                        </Text>
-                                    </View>
-                                </View>
-                                <Text className="text-zinc-500 mb-1">{formatDate(booking.class.startTime)}</Text>
-                                <Text className="text-zinc-400 text-xs">Instructor: {booking.class.instructor}</Text>
-
-                                {/* Waitlist Offer Logic */}
-                                {booking.status === 'waitlisted' && booking.waitlistNotifiedAt && (
-                                    <View className="mt-3 bg-amber-50 p-2 rounded border border-amber-100">
-                                        <Text className="text-amber-800 text-xs mb-2">
-                                            Good news! A spot has opened up for you.
-                                            Tap 'Accept' to confirm your spot.
-                                        </Text>
-                                        <TouchableOpacity
-                                            className="bg-amber-500 py-2 px-4 rounded-lg items-center"
-                                            onPress={() => acceptSpot(booking.id)}
-                                        >
-                                            <Text className="text-white font-bold text-sm">Accept Spot</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                )}
-                            </View>
-                        ))}
-                    </View>
-                )}
-            </ScrollView>
+            {loading ? (
+                <View className="flex-1 justify-center items-center">
+                    <ActivityIndicator color="black" />
+                </View>
+            ) : (
+                <FlatList
+                    data={classes}
+                    renderItem={renderItem}
+                    keyExtractor={item => item.id}
+                    contentContainerStyle={{ padding: 16 }}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                    ListEmptyComponent={
+                        <View className="items-center mt-20">
+                            <Text className="text-zinc-400">No upcoming classes scheduled.</Text>
+                        </View>
+                    }
+                />
+            )}
         </SafeAreaView>
     );
 }

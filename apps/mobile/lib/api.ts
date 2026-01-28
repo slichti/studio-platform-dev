@@ -2,6 +2,7 @@ import { AuthStore } from "./auth";
 
 // Replace with your local IP if testing on device, or localhost for simulator
 export const API_URL = 'https://studio-platform-api.slichti.workers.dev';
+// export const API_URL = 'http://localhost:8787'; // Local Verification
 
 export async function apiRequest(path: string, options: RequestInit = {}) {
     const token = await AuthStore.getToken();
@@ -14,12 +15,11 @@ export async function apiRequest(path: string, options: RequestInit = {}) {
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    // Tenant context? Usually Mobile App is single-tenant or selects tenant on login.
-    // We might need to pass `x-tenant-id` header if user belongs to multiple.
-    // For now, let's assume the token claims or the backend path handles it.
-    // If we have an active tenant saved:
-    // const tenantSlug = await AuthStore.getTenantSlug();
-    // if (tenantSlug) headers['x-tenant-slug'] = tenantSlug;
+    // Tenant Context
+    const tenantSlug = await AuthStore.getTenantSlug();
+    if (tenantSlug) {
+        headers['X-Tenant-Slug'] = tenantSlug;
+    }
 
     try {
         const res = await fetch(`${API_URL}${path}`, {

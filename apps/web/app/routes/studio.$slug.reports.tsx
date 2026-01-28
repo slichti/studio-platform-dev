@@ -27,6 +27,7 @@ export default function StudioReports() {
     const [activeTab, setActiveTab] = useState<'financials' | 'attendance' | 'projections'>('financials');
     const [loading, setLoading] = useState(true);
     const [revenueData, setRevenueData] = useState<any>(null);
+    const [retentionData, setRetentionData] = useState<any>(null);
     const [attendanceData, setAttendanceData] = useState<any>(null);
     const [dateRange, setDateRange] = useState('30d'); // 30d, 90d, 1y
     const [exporting, setExporting] = useState(false);
@@ -106,6 +107,8 @@ export default function StudioReports() {
             if (activeTab === 'financials') {
                 const res = await apiRequest(`/reports/revenue?startDate=${start.toISOString()}&endDate=${end.toISOString()}`, token);
                 setRevenueData(res);
+                const retentionRes = await apiRequest(`/reports/retention?startDate=${start.toISOString()}&endDate=${end.toISOString()}`, token);
+                setRetentionData(retentionRes);
             } else {
                 const res = await apiRequest(`/reports/attendance?startDate=${start.toISOString()}&endDate=${end.toISOString()}`, token);
                 setAttendanceData(res);
@@ -330,6 +333,14 @@ export default function StudioReports() {
                             subtext={`$${(revenueData.breakdown.packs / 100).toFixed(0)} Packs`}
                             icon={<DollarSign size={20} className="text-purple-500" />}
                         />
+                        {retentionData && (
+                            <MetricCard
+                                title="Member Retention"
+                                value={`${retentionData.retentionRate.toFixed(1)}%`}
+                                subtext={`-${retentionData.churnCount} Churned / +${retentionData.newCount} New`}
+                                icon={<Users size={20} className="text-pink-500" />}
+                            />
+                        )}
                     </>
                 )}
                 {activeTab === 'attendance' && attendanceData && (
