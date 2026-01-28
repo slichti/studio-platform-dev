@@ -57,7 +57,7 @@ const STATIC_FEATURES_TEMPLATE = [
             { name: "Platform Fee", launch: "5%", growth: "2%", scale: "0%" },
             { name: "Credit Card Processing", launch: "2.9% + 30¢", growth: "2.9% + 30¢", scale: "2.9% + 30¢" },
             { name: "Class Packs & Drop-ins", launch: true, growth: true, scale: true },
-            { name: "Recurring Memberships", launch: false, growth: true, scale: true },
+            { name: "Recurring Memberships", launch: true, growth: true, scale: true },
             { name: "Discount Codes", launch: false, growth: true, scale: true },
             { name: "Gift Cards", launch: false, growth: true, scale: true },
         ]
