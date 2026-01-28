@@ -59,8 +59,9 @@ import adminPlans from './routes/admin.plans'; // [NEW] Import
 import analytics from './routes/analytics'; // [NEW] Analytics
 import publicRoutes from './routes/public'; // [NEW] Import
 import faqRoutes from './routes/faqs'; // [NEW] FAQs
+import adminMobile from './routes/admin.mobile'; // [NEW] Admin Mobile
 
-type Bindings = {
+export type Bindings = {
   DB: D1Database;
   CLERK_SECRET_KEY: string;
   CLERK_PEM_PUBLIC_KEY: string;
@@ -531,6 +532,7 @@ app.route('/bookings', bookingRoutes);
 app.route('/admin', admin);
 app.route('/admin/plans', adminPlans); // [NEW] Mount
 app.route('/admin/stats', adminStats); // [NEW] Mount
+app.route('/admin/mobile', adminMobile); // [NEW] Backed Admin Mobile
 app.route('/onboarding', onboarding);
 app.route('/import', dataImport);
 app.route('/webhooks', webhookRoutes);
