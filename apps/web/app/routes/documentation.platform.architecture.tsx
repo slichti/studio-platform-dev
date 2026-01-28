@@ -171,28 +171,28 @@ export default function PlatformArchitecture() {
                         <thead className="bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 font-semibold">
                             <tr>
                                 <th className="px-6 py-4">Feature Module</th>
-                                <th className="px-6 py-4 text-center text-zinc-500">Basic</th>
+                                <th className="px-6 py-4 text-center text-zinc-500">Launch</th>
                                 <th className="px-6 py-4 text-center text-blue-600">Growth</th>
                                 <th className="px-6 py-4 text-center text-purple-600">Scale</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-950">
                             {[
-                                { name: 'Core Booking & Scheduling', basic: true, growth: true, scale: true },
-                                { name: 'Stripe Payments', basic: true, growth: true, scale: true },
-                                { name: 'Staff Accounts', basic: '3', growth: 'Unlimited', scale: 'Unlimited' },
-                                { name: 'Email Automations', basic: false, growth: true, scale: true },
-                                { name: 'Loyalty & Challenges', basic: false, growth: true, scale: true },
-                                { name: 'Video Library (VOD)', basic: false, growth: true, scale: true },
-                                { name: 'Point of Sale (POS)', basic: false, growth: true, scale: true },
-                                { name: 'Website Builder', basic: false, growth: false, scale: true },
-                                { name: 'Branded Mobile App', basic: false, growth: false, scale: true },
-                                { name: 'Payroll Automation', basic: false, growth: false, scale: true },
+                                { name: 'Core Booking & Scheduling', launch: true, growth: true, scale: true },
+                                { name: 'Stripe Payments', launch: true, growth: true, scale: true },
+                                { name: 'Staff Accounts', launch: '3', growth: 'Unlimited', scale: 'Unlimited' },
+                                { name: 'Email Automations', launch: false, growth: true, scale: true },
+                                { name: 'Loyalty & Challenges', launch: false, growth: true, scale: true },
+                                { name: 'Video Library (VOD)', launch: false, growth: true, scale: true },
+                                { name: 'Point of Sale (POS)', launch: false, growth: true, scale: true },
+                                { name: 'Website Builder', launch: false, growth: false, scale: true },
+                                { name: 'Branded Mobile App', launch: false, growth: false, scale: true },
+                                { name: 'Payroll Automation', launch: false, growth: false, scale: true },
                             ].map((row, i) => (
                                 <tr key={i} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors">
                                     <td className="px-6 py-4 font-medium text-zinc-700 dark:text-zinc-300">{row.name}</td>
                                     <td className="px-6 py-4 text-center">
-                                        {row.basic === true ? '✅' : row.basic === false ? <span className="opacity-20">No</span> : row.basic}
+                                        {row.launch === true ? '✅' : row.launch === false ? <span className="opacity-20">No</span> : row.launch}
                                     </td>
                                     <td className="px-6 py-4 text-center font-medium bg-blue-50/50 dark:bg-blue-900/10">
                                         {row.growth === true ? '✅' : row.growth === false ? <span className="opacity-20">No</span> : row.growth}

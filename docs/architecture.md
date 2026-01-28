@@ -230,7 +230,7 @@ flowchart LR
 1.  **Slug Validation**: Real-time availability check via `POST /studios/validate-slug`. Enforces regex standards and reserved word blocking.
 2.  **Creation**:
     *   `POST /studios`: Creates the `tenant` record.
-    *   **Billing Intent**: Captures desired tier (Basic/Growth/Scale) and interval.
+    *   **Billing Intent**: Captures desired tier (Launch/Growth/Scale) and interval.
     *   **Permissioning**: Creator is automatically assigned `owner` role.
 3.  **Onboarding Wizard**:
     *   **Steps**: Template Selection -> Branding -> Location -> Schedule -> Team Invite -> Data Import.
