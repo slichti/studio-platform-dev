@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantMembers, tenantRoles, users, auditLogs, websitePages } from '@studio/db/src/schema';
+import { tenants, tenantMembers, tenantRoles, users, auditLogs, websitePages, platformPlans } from '@studio/db/src/schema'; // Added platformPlans
 import { eq } from 'drizzle-orm';
 import { rateLimit } from '../middleware/rateLimit';
 
@@ -108,14 +108,17 @@ app.post('/studio', rateLimit({ limit: 5, window: 300, keyPrefix: 'onboarding' }
         return c.json({ error: "Slug is reserved" }, 400);
     }
 
-    // 2b. Billing Configuration Check
-    if (['growth', 'scale'].includes(tier)) {
-        const requiredPrice = tier === 'growth' ? c.env.STRIPE_PRICE_GROWTH : c.env.STRIPE_PRICE_SCALE;
-        if (!requiredPrice || !c.env.STRIPE_SECRET_KEY) {
-            console.error(`Missing Billing Config for tier ${tier}. Price: ${requiredPrice ? 'SET' : 'MISSING'}, Key: ${c.env.STRIPE_SECRET_KEY ? 'SET' : 'MISSING'}`);
-            // We fail here to prevent creating "free" paid accounts
-            return c.json({ error: "System configuration error: Billing not set up for this tier." }, 500);
-        }
+    // 2b. Dynamic Plan Lookup
+    const plan = await db.select().from(platformPlans).where(eq(platformPlans.slug, tier)).get();
+
+    // Fallback for legacy hardcoded tiers if they haven't been migrated to DB yet (optional, but good for safety)
+    // For this refactor, we assume all valid tiers are in the DB.
+    if (!plan && tier !== 'basic') {
+        // Allow 'basic' as a hardcoded fallback if db is empty? 
+        // Actually, let's assume 'Launch' is in DB too.
+        // If user sends a tier that isn't in DB, they might be trying to hack or using old UI.
+        // Let's enforce DB existence unless it's 'basic' and we want to be lenient during migration.
+        return c.json({ error: "Invalid plan selected" }, 400);
     }
 
     // 3. Create Tenant
@@ -124,39 +127,35 @@ app.post('/studio', rateLimit({ limit: 5, window: 300, keyPrefix: 'onboarding' }
         id: tenantId,
         name,
         slug: slug.toLowerCase(),
-        tier: tier || 'basic',
+        tier: tier,
         status: 'active' as const,
         createdAt: new Date(),
-        settings: { enableStudentRegistration: true } // Default to enabling public registration for new self-service studios
+        settings: { enableStudentRegistration: true }
     };
 
     try {
         await db.insert(tenants).values(newTenant).run();
 
         // 4. Add User as Owner
-        // First check if user exists in our DB (Synced from Clerk Webhook)
-        // If not, we might need to insert them? 
-        // Typically Clerk webhook handles this. If user just signed up, webhook might trail slightly.
-        // We can upsert user here if needed, but 'users' table is mainly for caching profile.
-        // Assuming user exists or foreign key might fail? 
-        // Our schema: `tenantMembers.userId` references `users.id`.
-        // So user MUST exist in `users` table.
-        // We can force a check/insert.
-
         let user = await db.query.users.findFirst({
             where: eq(users.id, auth.userId)
         });
+
 
         if (!user) {
             return c.json({ error: "User profile not yet synced. Please try again in a few seconds." }, 404);
         }
 
-        // Phase 14: SaaS Billing
+        // Phase 14: SaaS Billing (Dynamic)
         let stripeCustomerId = null;
         let stripeSubscriptionId = null;
         let subscriptionStatus = 'active';
 
-        if (['growth', 'scale'].includes(tier)) {
+        // Check if plan has a price for the selected interval
+        const { interval } = await c.req.json(); // Re-read interval
+        const priceId = interval === 'annual' ? plan?.stripePriceIdAnnual : plan?.stripePriceIdMonthly;
+
+        if (priceId) {
             // Check for System Admin Bypass
             if (user.isPlatformAdmin) {
                 subscriptionStatus = 'active';
@@ -171,25 +170,17 @@ app.post('/studio', rateLimit({ limit: 5, window: 300, keyPrefix: 'onboarding' }
                     const customer = await stripe.createCustomer({ email: user.email, name: `${name} (Owner: ${profile?.firstName || ''} ${profile?.lastName || ''})` });
                     stripeCustomerId = customer.id;
 
-                    // 2. Create Subscription (Trial)
-                    const priceId = tier === 'growth' ? c.env.STRIPE_PRICE_GROWTH : c.env.STRIPE_PRICE_SCALE;
+                    // 2. Create Subscription (Trial from Plan)
+                    // Default to 14 days if not set in plan
+                    const trialDays = plan?.trialDays ?? 14;
 
                     if (priceId) {
-                        const sub = await stripe.createSubscription(stripeCustomerId, priceId, 14); // 14 day trial
+                        const sub = await stripe.createSubscription(stripeCustomerId, priceId, trialDays);
                         stripeSubscriptionId = sub.id;
                         subscriptionStatus = 'trialing';
                     }
                 } catch (err: any) {
                     console.error("Stripe Onboarding Error:", err);
-                    // If billing fails, we should technically ROLL BACK the tenant creation.
-                    // For now, we will log it. But since we enforced config check above, failure is likely network/stripe side.
-                    // Ideally we delete the tenant so they can try again?
-                    // Let's rely on retry or manual fix.
-                    // Or throw?
-                    // If we throw, the user sees error, but tenant exists (orphaned?).
-                    // Let's try to proceed but mark status?
-                    // Actually, let's keep it 'active' but no sub linked. They will get dunning later if we had it.
-                    // Or they get free trial by bug.
                 }
             }
         }

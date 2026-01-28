@@ -11,8 +11,7 @@ export default function CreateStudio() {
     const navigate = useNavigate();
     const navigation = useNavigation();
     const [searchParams] = useSearchParams();
-
-    const [interval, setInterval] = useState<'monthly' | 'annual'>('monthly');
+    const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
     const [name, setName] = useState("");
     const [slug, setSlug] = useState("");
     const [tier, setTier] = useState("basic");
@@ -24,15 +23,32 @@ export default function CreateStudio() {
     const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
     const [slugMessage, setSlugMessage] = useState("");
 
+    const [plans, setPlans] = useState<any[]>([]);
+
+    // Fetch Plans
+    useEffect(() => {
+        async function loadPlans() {
+            try {
+                // Determine base URL if needed, or rely on apiRequest autodetect (works client side)
+                const data = await apiRequest('/public/plans');
+                if (Array.isArray(data)) {
+                    setPlans(data.sort((a, b) => (a.prices.monthly || 0) - (b.prices.monthly || 0)));
+                }
+            } catch (e) { console.error("Plan load error", e); }
+        }
+        loadPlans();
+    }, []);
+
+    // Initialize tier/interval from URL
     // Initialize tier/interval from URL
     useEffect(() => {
         const tierParam = searchParams.get("tier");
-        if (tierParam && ['basic', 'growth', 'scale'].includes(tierParam)) {
+        if (tierParam) {
             setTier(tierParam);
         }
         const intervalParam = searchParams.get("interval");
         if (intervalParam && ['monthly', 'annual'].includes(intervalParam)) {
-            setInterval(intervalParam as 'monthly' | 'annual');
+            setBillingInterval(intervalParam as 'monthly' | 'annual');
         }
     }, [searchParams]);
 
@@ -94,7 +110,7 @@ export default function CreateStudio() {
             const token = await (window as any).Clerk?.session?.getToken();
             const res: any = await apiRequest('/onboarding/studio', token, {
                 method: 'POST',
-                body: JSON.stringify({ name, slug, tier, interval })
+                body: JSON.stringify({ name, slug, tier, interval: billingInterval })
             });
 
             if (res.tenant) {
@@ -116,7 +132,7 @@ export default function CreateStudio() {
     // Check if user is verified
     const isVerified = user?.primaryEmailAddress?.verification?.status === 'verified';
 
-    const billingText = interval === 'annual' ? 'Billed annually' : 'Billed monthly';
+    const billingText = billingInterval === 'annual' ? 'Billed annually' : 'Billed monthly';
 
     return (
         <main className="min-h-screen bg-zinc-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -225,54 +241,50 @@ export default function CreateStudio() {
                                         Switch to {interval === 'monthly' ? 'Annual' : 'Monthly'}
                                     </button>
                                 </div>
-                                <div className="grid grid-cols-1 gap-4">
-                                    <div
-                                        onClick={() => setTier('basic')}
-                                        className={`cursor-pointer border rounded-lg p-4 flex items-center justify-between transition-all ${tier === 'basic' ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-zinc-200 hover:border-blue-300'}`}
-                                    >
-                                        <div>
-                                            <div className="font-medium text-zinc-900">Launch (Free)</div>
-                                            <div className="text-sm text-zinc-500">Up to 5 Instructors, 1 location.</div>
-                                        </div>
-                                        <div className="h-4 w-4 rounded-full border border-zinc-300 flex items-center justify-center">
-                                            {tier === 'basic' && <div className="h-2 w-2 bg-blue-600 rounded-full" />}
-                                        </div>
-                                    </div>
-                                    <div
-                                        onClick={() => setTier('growth')}
-                                        className={`cursor-pointer border rounded-lg p-4 flex items-center justify-between transition-all ${tier === 'growth' ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-zinc-200 hover:border-blue-300'}`}
-                                    >
-                                        <div>
-                                            <div className="font-medium text-zinc-900">Growth ({interval === 'annual' ? '$39/mo' : '$49/mo'})</div>
-                                            <div className="text-sm text-zinc-500">14-day free trial. {billingText}.</div>
-                                            {interval === 'annual' && (
-                                                <div className="text-xs text-emerald-600 font-medium mt-1">
-                                                    Total $468/year. Save $120.
+
+                                {plans.length > 0 ? (
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {plans.map((plan) => {
+                                            const priceCents = interval === 'monthly' ? plan.prices.monthly : plan.prices.annual;
+                                            const priceDisplay = priceCents ? `$${priceCents / 100}/${interval === 'monthly' ? 'mo' : 'yr'}` : 'Free';
+
+                                            // Calculate savings safely
+                                            let savings = null;
+                                            if (interval === 'annual' && plan.prices.monthly && plan.prices.annual) {
+                                                const monthlyAnnualized = plan.prices.monthly * 12;
+                                                const diff = monthlyAnnualized - plan.prices.annual;
+                                                if (diff > 0) savings = `$${diff / 100}`;
+                                            }
+
+                                            return (
+                                                <div
+                                                    key={plan.id}
+                                                    onClick={() => setTier(plan.slug)}
+                                                    className={`cursor-pointer border rounded-lg p-4 flex items-center justify-between transition-all ${tier === plan.slug ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-zinc-200 hover:border-blue-300'}`}
+                                                >
+                                                    <div>
+                                                        <div className="font-medium text-zinc-900">{plan.name} ({priceDisplay})</div>
+                                                        <div className="text-sm text-zinc-500">
+                                                            {plan.trialDays > 0 ? `${plan.trialDays}-day free trial.` : 'No trial.'} {interval === 'annual' ? 'Billed annually.' : 'Billed monthly.'}
+                                                        </div>
+                                                        {savings && (
+                                                            <div className="text-xs text-emerald-600 font-medium mt-1">
+                                                                Save {savings}/year.
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="h-4 w-4 rounded-full border border-zinc-300 flex items-center justify-center">
+                                                        {tier === plan.slug && <div className="h-2 w-2 bg-blue-600 rounded-full" />}
+                                                    </div>
                                                 </div>
-                                            )}
-                                        </div>
-                                        <div className="h-4 w-4 rounded-full border border-zinc-300 flex items-center justify-center">
-                                            {tier === 'growth' && <div className="h-2 w-2 bg-blue-600 rounded-full" />}
-                                        </div>
+                                            )
+                                        })}
                                     </div>
-                                    <div
-                                        onClick={() => setTier('scale')}
-                                        className={`cursor-pointer border rounded-lg p-4 flex items-center justify-between transition-all ${tier === 'scale' ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-zinc-200 hover:border-blue-300'}`}
-                                    >
-                                        <div>
-                                            <div className="font-medium text-zinc-900">Scale ({interval === 'annual' ? '$99/mo' : '$129/mo'})</div>
-                                            <div className="text-sm text-zinc-500">14-day free trial. {billingText}.</div>
-                                            {interval === 'annual' && (
-                                                <div className="text-xs text-emerald-600 font-medium mt-1">
-                                                    Total $1,188/year. Save $360.
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="h-4 w-4 rounded-full border border-zinc-300 flex items-center justify-center">
-                                            {tier === 'scale' && <div className="h-2 w-2 bg-blue-600 rounded-full" />}
-                                        </div>
+                                ) : (
+                                    <div className="p-4 border border-dashed border-zinc-300 rounded-lg text-center text-sm text-zinc-500">
+                                        Loading plans...
                                     </div>
-                                </div>
+                                )}
                             </div>
 
                             <div>

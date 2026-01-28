@@ -14,6 +14,19 @@ export default function PricingWizard() {
     // Configuration
     const [basePrice, setBasePrice] = useState<number>(25); // Default Drop-in
     const [selectedTemplates, setSelectedTemplates] = useState<string[]>(['pack_10', 'membership_unlimited']);
+    const [existingProductNames, setExistingProductNames] = useState<Set<string>>(new Set());
+
+    useEffect(() => {
+        async function loadExisting() {
+            try {
+                const res = await apiRequest('/commerce/products', token);
+                if (res.products) {
+                    setExistingProductNames(new Set(res.products.map((p: any) => p.name.toLowerCase())));
+                }
+            } catch (e) { console.error("Failed to load existing products", e); }
+        }
+        loadExisting();
+    }, [token]);
 
     // Review State
     const [customizedItems, setCustomizedItems] = useState<any[]>([]);
@@ -74,7 +87,18 @@ export default function PricingWizard() {
     const handleCreate = async () => {
         setIsSubmitting(true);
         try {
-            const items = customizedItems.map(item => ({
+            // Idempotency: Filter out existing names
+            const newItems = customizedItems.filter(item =>
+                !existingProductNames.has(item.finalName.toLowerCase())
+            );
+
+            if (newItems.length === 0) {
+                toast.info("All selected items already exist!");
+                navigate(`/studio/${tenant.slug}/commerce/packs`);
+                return;
+            }
+
+            const items = newItems.map(item => ({
                 type: item.type,
                 name: item.finalName,
                 price: Math.round(Number(item.finalPrice) * 100), // API expects cents
@@ -89,7 +113,8 @@ export default function PricingWizard() {
 
             if (res.error) throw new Error(res.error);
 
-            toast.success(`Created ${res.results?.length || 0} pricing options!`);
+            const skipped = customizedItems.length - newItems.length;
+            toast.success(`Created ${res.results?.length || 0} pricing options! ${skipped > 0 ? `(${skipped} skipped)` : ''}`);
             navigate(`/studio/${tenant.slug}/commerce/packs`);
         } catch (e: any) {
             toast.error(e.message || "Failed to create products");

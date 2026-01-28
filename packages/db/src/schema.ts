@@ -593,6 +593,30 @@ export const membershipPlans = sqliteTable('membership_plans', {
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
+export const platformPlans = sqliteTable('platform_plans', {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(), // e.g. "Growth"
+    slug: text('slug').notNull().unique(), // e.g. "growth"
+    description: text('description'),
+
+    // Stripe Metadata
+    stripePriceIdMonthly: text('stripe_price_id_monthly'),
+    stripePriceIdAnnual: text('stripe_price_id_annual'),
+
+    // Cached Prices (for display)
+    monthlyPriceCents: integer('monthly_price_cents').default(0),
+    annualPriceCents: integer('annual_price_cents').default(0),
+
+    // Config
+    trialDays: integer('trial_days').default(14).notNull(),
+    features: text('features', { mode: 'json' }).notNull(), // Array of strings
+    highlight: integer('highlight', { mode: 'boolean' }).default(false),
+    active: integer('active', { mode: 'boolean' }).default(true),
+
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+});
+
 // --- Waivers ---
 export const waiverTemplates = sqliteTable('waiver_templates', {
     id: text('id').primaryKey(),

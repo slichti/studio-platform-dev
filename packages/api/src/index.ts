@@ -55,7 +55,9 @@ import chatRoutes from './routes/chat';
 import platformPagesRoutes from './routes/platform-pages';
 import guestRoutes from './routes/guest';
 import adminStats from './routes/admin-stats'; // [NEW] Import
+import adminPlans from './routes/admin.plans'; // [NEW] Import
 import analytics from './routes/analytics'; // [NEW] Analytics
+import publicRoutes from './routes/public'; // [NEW] Import
 import faqRoutes from './routes/faqs'; // [NEW] FAQs
 
 type Bindings = {
@@ -148,6 +150,8 @@ app.onError((err: any, c) => {
 app.get('/', (c) => {
   return c.text('Health Check: OK')
 })
+
+app.route('/public', publicRoutes); // [NEW] Mount public routes
 
 app.get('/public/tenant/:slug', async (c) => {
   const slug = c.req.param('slug');
@@ -525,6 +529,7 @@ studioApp.route('/roles', rolesRoutes); // [NEW] RBAC Management
 app.route('/users', userRoutes);
 app.route('/bookings', bookingRoutes);
 app.route('/admin', admin);
+app.route('/admin/plans', adminPlans); // [NEW] Mount
 app.route('/admin/stats', adminStats); // [NEW] Mount
 app.route('/onboarding', onboarding);
 app.route('/import', dataImport);

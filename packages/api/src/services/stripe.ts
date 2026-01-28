@@ -333,6 +333,11 @@ export class StripeService {
         }, options);
     }
 
+    async retrievePrice(priceId: string, connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        return client.prices.retrieve(priceId, options);
+    }
+
     async updateProduct(id: string, params: { name?: string; description?: string; images?: string[]; active?: boolean; metadata?: Record<string, string> }, connectedAccountId?: string) {
         const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
         return client.products.update(id, {

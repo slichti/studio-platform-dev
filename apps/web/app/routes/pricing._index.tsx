@@ -1,11 +1,12 @@
 // @ts-ignore
 import type { MetaFunction } from "react-router";
 // @ts-ignore
-import { Link } from "react-router";
+import { Link, useLoaderData } from "react-router";
 import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/react-router";
 import { ThemeToggle } from "~/components/ThemeToggle";
 import { Check, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { apiRequest } from "~/utils/api";
 
 export const meta: MetaFunction = () => {
     return [
@@ -14,78 +15,32 @@ export const meta: MetaFunction = () => {
     ];
 };
 
-const TIERS = [
-    {
-        name: 'Launch',
-        prices: { monthly: 'Free', annual: 'Free' },
-        period: null,
-        description: 'Perfect for new instructors and hobbyists.',
-        trial: null,
-        features: [
-            'Unlimited Students',
-            '5 Instructors',
-            '1 Location',
-            '5GB Storage',
-            'Basic Financials & Reporting',
-            'Waiver Management',
-            'Visual Website Builder',
-            'Retail Point of Sale (POS)',
-            'Transactional Email Notifications',
-            'Class Packs & Drop-ins'
-        ],
-        cta: 'Get Started',
-        ctaLink: '/create-studio?tier=basic',
-        highlight: false
-    },
-    {
-        name: 'Growth',
-        prices: { monthly: '$49', annual: '$39' },
-        period: '/month',
-        description: 'For established studios growing their community.',
-        billingNote: { monthly: null, annual: 'Billed $468 yearly' },
-        trial: "14-Day Free Trial",
-        features: [
-            'Everything in Launch',
-            '15 Instructors',
-            '3 Locations',
-            '50GB Storage',
-            'Zoom Integration (Auto-Meeting)',
-            'Video on Demand (VOD)',
-            'Marketing Automations (Win-back, Welcome)',
-            'Inventory Tracking & Low Stock Alerts',
-            'SMS Notifications & Marketing',
-            'Recurring Memberships'
-        ],
-        cta: 'Start Free Trial',
-        ctaLink: '/create-studio?tier=growth',
-        highlight: true
-    },
-    {
-        name: 'Scale',
-        prices: { monthly: '$129', annual: '$99' },
-        period: '/month',
-        description: 'For multi-location studios and franchises.',
-        billingNote: { monthly: null, annual: 'Billed $1188 yearly' },
-        trial: "14-Day Free Trial",
-        features: [
-            'Everything in Growth',
-            'Unlimited Instructors',
-            'Unlimited Locations',
-            '1TB Video Storage',
-            'White Label Branding Options',
-            'API Access',
-            'Priority Support',
-            '0% Platform Fees'
-        ],
-        cta: 'Start Free Trial',
-        ctaLink: '/create-studio?tier=scale',
-        highlight: false
-    }
-];
-
 export default function Pricing() {
     const { user } = useUser();
     const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
+    const [plans, setPlans] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function loadPlans() {
+            try {
+                const data = await apiRequest('/public/plans');
+                if (Array.isArray(data)) {
+                    // Sort by price (ascending) to maintain order: Launch -> Growth -> Scale
+                    const sorted = data.sort((a, b) => (a.prices.monthly || 0) - (b.prices.monthly || 0));
+                    setPlans(sorted);
+                }
+            } catch (e) {
+                console.error("Failed to load plans", e);
+            } finally {
+                setLoading(false);
+            }
+        }
+        loadPlans();
+    }, []);
+
+    // Fallback loading state or skeleton could go here
+    if (loading) return <div className="min-h-screen bg-white dark:bg-zinc-950 flex items-center justify-center">Loading pricing...</div>;
 
     return (
         <div className="font-sans min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 transition-colors duration-300 flex flex-col">
@@ -156,55 +111,59 @@ export default function Pricing() {
                 </div>
 
                 <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-                    {TIERS.map((tier) => (
-                        <div
-                            key={tier.name}
-                            className={`rounded-2xl p-8 border flex flex-col ${tier.highlight
-                                ? 'border-blue-500 ring-2 ring-blue-500 shadow-xl bg-white dark:bg-zinc-900 transform md:-translate-y-4'
-                                : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950'
-                                }`}
-                        >
-                            <div className="mb-6">
-                                <h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-2">{tier.name}</h3>
-                                <div className="flex items-baseline gap-1">
-                                    <span className="text-4xl font-bold text-zinc-900 dark:text-white">
-                                        {tier.prices[billingInterval]}
-                                    </span>
-                                    {tier.period && <span className="text-zinc-500 dark:text-zinc-400">{tier.period}</span>}
-                                </div>
-                                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2">{tier.description}</p>
-                                {billingInterval === 'annual' && tier.billingNote?.annual && (
-                                    <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">{tier.billingNote.annual}</p>
-                                )}
-                                {tier.trial && (
-                                    <div className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                                        {tier.trial}
-                                    </div>
-                                )}
-                            </div>
+                    {plans.map((plan) => {
+                        const priceCents = billingInterval === 'monthly' ? plan.prices.monthly : plan.prices.annual;
+                        const priceDisplay = priceCents ? `$${priceCents / 100}` : 'Free';
+                        const period = priceCents ? (billingInterval === 'monthly' ? '/month' : '/year') : '';
 
-                            <div className="flex-grow space-y-4 mb-8">
-                                {tier.features.map((feature) => (
-                                    <div key={feature} className="flex items-start gap-3">
-                                        <div className="mt-1 bg-green-100 dark:bg-green-900/30 p-1 rounded-full">
-                                            <Check className="w-3 h-3 text-green-600 dark:text-green-400" />
-                                        </div>
-                                        <span className="text-sm text-zinc-700 dark:text-zinc-300">{feature}</span>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <Link
-                                to={`${tier.ctaLink}&interval=${billingInterval}`}
-                                className={`w-full py-3 px-4 rounded-lg font-medium text-center transition-colors ${tier.highlight
-                                    ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg'
-                                    : 'bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200'
+                        return (
+                            <div
+                                key={plan.id}
+                                className={`rounded-2xl p-8 border flex flex-col ${plan.highlight
+                                    ? 'border-blue-500 ring-2 ring-blue-500 shadow-xl bg-white dark:bg-zinc-900 transform md:-translate-y-4'
+                                    : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950'
                                     }`}
                             >
-                                {tier.cta}
-                            </Link>
-                        </div>
-                    ))}
+                                <div className="mb-6">
+                                    <h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-2">{plan.name}</h3>
+                                    <div className="flex items-baseline gap-1">
+                                        <span className="text-4xl font-bold text-zinc-900 dark:text-white">
+                                            {priceDisplay}
+                                        </span>
+                                        {period && <span className="text-zinc-500 dark:text-zinc-400">{period}</span>}
+                                    </div>
+                                    <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2">{plan.description}</p>
+
+                                    {plan.trialDays > 0 && (
+                                        <div className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                            {plan.trialDays}-Day Free Trial
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex-grow space-y-4 mb-8">
+                                    {(plan.features || []).map((feature: string) => (
+                                        <div key={feature} className="flex items-start gap-3">
+                                            <div className="mt-1 bg-green-100 dark:bg-green-900/30 p-1 rounded-full">
+                                                <Check className="w-3 h-3 text-green-600 dark:text-green-400" />
+                                            </div>
+                                            <span className="text-sm text-zinc-700 dark:text-zinc-300">{feature}</span>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <Link
+                                    to={`/create-studio?tier=${plan.slug}&interval=${billingInterval}`}
+                                    className={`w-full py-3 px-4 rounded-lg font-medium text-center transition-colors ${plan.highlight
+                                        ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg'
+                                        : 'bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200'
+                                        }`}
+                                >
+                                    {priceCents ? 'Start Free Trial' : 'Get Started'}
+                                </Link>
+                            </div>
+                        )
+                    })}
                 </div>
 
                 <div className="text-center">

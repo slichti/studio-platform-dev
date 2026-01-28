@@ -16,9 +16,30 @@ export function DataImportForm({ tenantSlug, onSuccess, onSkip }: DataImportForm
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
-            setFile(e.target.files[0]);
+            const selectedFile = e.target.files[0];
+            setFile(selectedFile);
             setError(null);
             setResult(null);
+
+            // Client-side Validation
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const text = event.target?.result as string;
+                if (!text) return;
+
+                const lines = text.split(/\r\n|\n/);
+                if (lines.length > 0) {
+                    const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
+                    const required = ['email', 'firstname', 'lastname'];
+                    const missing = required.filter(r => !headers.includes(r));
+
+                    if (missing.length > 0) {
+                        setError(`Missing required headers: ${missing.join(', ')}`);
+                        setFile(null); // Clear invalid file
+                    }
+                }
+            };
+            reader.readAsText(selectedFile);
         }
     };
 
