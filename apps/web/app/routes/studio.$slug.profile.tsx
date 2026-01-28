@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { FamilyManager } from "~/components/FamilyManager";
 import { AvailabilityManager } from "~/components/AvailabilityManager";
 import { toast } from "sonner";
+import { BillingHistory } from "~/components/billing-history";
 
 export const loader: LoaderFunction = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -153,6 +154,10 @@ export default function StudioProfilePage() {
             </div>
 
             <NotificationSettings token={token} slug={slug} />
+
+            <div className="mb-6">
+                <BillingHistory token={token} tenantSlug={slug} />
+            </div>
 
             <AvailabilityManager token={token} tenantSlug={slug} />
 

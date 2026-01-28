@@ -306,6 +306,57 @@ app.post('/validate', async (c) => {
 });
 
 
+// GET /invoices - List Billing History
+app.get('/invoices', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const user = c.get('auth');
+
+    if (!user?.userId) return c.json({ error: "Unauthorized" }, 401);
+
+    // 1. Get Customer ID
+    const { users } = await import('@studio/db/src/schema');
+    const userRecord = await db.select({ stripeCustomerId: users.stripeCustomerId })
+        .from(users)
+        .where(eq(users.id, user.userId))
+        .get();
+
+    if (!userRecord || !userRecord.stripeCustomerId) {
+        return c.json({ invoices: [] });
+    }
+
+    if (!tenant.stripeAccountId) {
+        return c.json({ invoices: [] });
+    }
+
+    try {
+        const { StripeService } = await import('../services/stripe');
+        const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+
+        // 2. List Invoices
+        const invoices = await stripeService.listInvoices(userRecord.stripeCustomerId, 20, tenant.stripeAccountId);
+
+        // 3. Map to simple format
+        const mapped = invoices.data.map(inv => ({
+            id: inv.id,
+            date: inv.created * 1000,
+            amount: inv.total,
+            currency: inv.currency,
+            status: inv.status,
+            pdfUrl: inv.invoice_pdf,
+            number: inv.number,
+            description: inv.lines?.data?.[0]?.description || 'Payment'
+        }));
+
+        return c.json({ invoices: mapped });
+
+    } catch (e: any) {
+        console.error("Failed to list invoices", e);
+        return c.json({ error: "Failed to fetch invoices" }, 500);
+    }
+});
+
+
 // POST /checkout/session - Create Stripe Session (with optional coupon)
 app.post('/checkout/session', rateLimit({ limit: 10, window: 60, keyPrefix: 'checkout' }), async (c) => {
     const db = createDb(c.env.DB);
@@ -426,6 +477,7 @@ app.post('/checkout/session', rateLimit({ limit: 10, window: 60, keyPrefix: 'che
         }
 
         // 4c. Handle Zero Amount
+        const taxAmount = 0; // Handled by Stripe Automatic Tax
         if (amountToPay === 0) {
             // Direct Fulfillment
             const { FulfillmentService } = await import('../services/fulfillment');
