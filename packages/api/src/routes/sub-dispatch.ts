@@ -2,12 +2,14 @@
 import { Hono } from 'hono';
 import { eq, and, sql, desc, ne } from 'drizzle-orm';
 import { createDb } from '../db';
-import { subRequests, classes, tenantMembers, tenantRoles, tenants } from '@studio/db/src/schema';
+import { subRequests, classes, tenantMembers, tenantRoles, tenants, users } from '@studio/db/src/schema'; // users imported
 import { authMiddleware } from '../middleware/auth';
 import { z } from 'zod';
+import { EmailService } from '../services/email';
 
 type Bindings = {
     DB: D1Database;
+    RESEND_API_KEY: string;
 };
 
 type Variables = {
@@ -102,8 +104,45 @@ app.post('/classes/:classId/request', async (c) => {
         updatedAt: new Date()
     });
 
-    // TODO: Notify other instructors
-    console.log(`[SubDispatch] Created request ${requestId} for class ${classId}`);
+    // Notify other instructors
+    try {
+        const emailService = new EmailService(c.env.RESEND_API_KEY || 're_123', tenant.settings as any, { slug: tenant.slug }, undefined, false, db, tenant.id);
+
+        // Find all instructors except the requester
+        // Must join with users to get email
+        const instructors = await db.select({
+            email: users.email
+        })
+            .from(tenantMembers)
+            .innerJoin(users, eq(tenantMembers.userId, users.id))
+            .innerJoin(tenantRoles, eq(tenantRoles.memberId, tenantMembers.id))
+            .where(and(
+                eq(tenantMembers.tenantId, tenant.id),
+                eq(tenantRoles.role, 'instructor'),
+                ne(tenantMembers.id, member.id) // Exclude requester
+            ))
+            .all();
+
+        const uniqueEmails = [...new Set(instructors.map(i => i.email))];
+        const dateStr = new Date(classData.startTime).toLocaleString([], { dateStyle: 'full', timeStyle: 'short' });
+        // @ts-ignore
+        const requesterName = member.profile?.firstName ? `${member.profile.firstName} ${member.profile.lastName || ''}` : member.id;
+
+        // Send alerts in parallel
+        await Promise.all(uniqueEmails.map(email =>
+            emailService.sendSubRequestAlert(email, {
+                classTitle: classData.title,
+                date: dateStr,
+                requestingInstructor: requesterName,
+                message,
+                link: `https://${tenant.slug}.studio-platform.com/studio/${tenant.slug}/substitutions`
+            })
+        ));
+
+        console.log(`[SubDispatch] Notified ${uniqueEmails.length} instructors`);
+    } catch (e) {
+        console.error("Failed to send sub notifications", e);
+    }
 
     return c.json({ success: true, requestId });
 });
@@ -145,8 +184,33 @@ app.post('/items/:requestId/accept', async (c) => {
             .where(eq(classes.id, request.classId));
     });
 
-    // TODO: Notify original instructor
-    console.log(`[SubDispatch] Request ${requestId} accepted by ${member.id}`);
+    // Notify original instructor
+    try {
+        const emailService = new EmailService(c.env.RESEND_API_KEY || 're_123', tenant.settings as any, { slug: tenant.slug }, undefined, false, db, tenant.id);
+
+        const originalInstructorMember = await db.select().from(tenantMembers).where(eq(tenantMembers.id, request.originalInstructorId!)).get();
+
+        if (originalInstructorMember) {
+            // Get User to get Email
+            const originalUser = await db.select().from(users).where(eq(users.id, originalInstructorMember.userId)).get();
+
+            if (originalUser) {
+                const classData = await db.select().from(classes).where(eq(classes.id, request.classId)).get();
+                const dateStr = classData ? new Date(classData.startTime).toLocaleString([], { dateStyle: 'full', timeStyle: 'short' }) : 'Unknown Date';
+                // @ts-ignore
+                const covererName = member.profile?.firstName ? `${member.profile.firstName} ${member.profile.lastName || ''}` : member.id;
+
+                await emailService.sendSubRequestFilled(originalUser.email, {
+                    classTitle: classData?.title || 'Class',
+                    date: dateStr,
+                    coveringInstructor: covererName
+                });
+                console.log(`[SubDispatch] Notified original instructor ${originalUser.email}`);
+            }
+        }
+    } catch (e) {
+        console.error("Failed to send sub filled notification", e);
+    }
 
     return c.json({ success: true });
 });

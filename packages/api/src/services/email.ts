@@ -687,4 +687,80 @@ export class EmailService {
             console.error("Failed to send upgrade alert", e);
         }
     }
+    async sendSubRequestAlert(to: string, details: {
+        classTitle: string;
+        date: string;
+        requestingInstructor: string;
+        message?: string;
+        link: string;
+    }) {
+        const subject = `Coverage Needed: ${details.classTitle}`;
+        if (!await this.checkAndTrackUsage()) {
+            await this.logEmail(to, subject, 'sub_request_alert', details, 'failed', 'Usage limit reached');
+            return;
+        }
+
+        const htmlContent = `
+            <h1>Coverage Needed</h1>
+            <p><strong>${details.requestingInstructor}</strong> needs a sub for:</p>
+            <div style="background: #fff7ed; border: 1px solid #ffedd5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <p style="font-size: 18px; font-weight: bold; margin-bottom: 5px;">${details.classTitle}</p>
+                <p style="color: #666; margin-top: 0;">${details.date}</p>
+                ${details.message ? `<p style="font-style: italic; color: #555; margin-top: 15px;">"${details.message}"</p>` : ''}
+            </div>
+            <a href="${details.link}" class="button">View & Accept Shift</a>
+        `;
+
+        try {
+            await this.resend.emails.send({
+                ...this.getEmailOptions(),
+                to,
+                subject,
+                html: this.wrapHtml(htmlContent)
+            });
+            await this.incrementUsage();
+            await this.logEmail(to, subject, 'sub_request_alert', details, 'sent');
+            console.log(`Sub Alert sent to ${to}`);
+        } catch (e: any) {
+            await this.logEmail(to, subject, 'sub_request_alert', details, 'failed', e.message);
+            console.error("Failed to send sub alert", e);
+        }
+    }
+
+    async sendSubRequestFilled(to: string, details: {
+        classTitle: string;
+        date: string;
+        coveringInstructor: string;
+    }) {
+        const subject = `Sub Found: ${details.classTitle}`;
+        if (!await this.checkAndTrackUsage()) {
+            await this.logEmail(to, subject, 'sub_request_filled', details, 'failed', 'Usage limit reached');
+            return;
+        }
+
+        const htmlContent = `
+            <h1>Shift Covered!</h1>
+            <p>Good news! <strong>${details.coveringInstructor}</strong> has accepted your request for:</p>
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <p style="font-size: 18px; font-weight: bold; margin-bottom: 5px;">${details.classTitle}</p>
+                <p style="color: #666; margin-top: 0;">${details.date}</p>
+            </div>
+            <p>The schedule has been updated automatically.</p>
+        `;
+
+        try {
+            await this.resend.emails.send({
+                ...this.getEmailOptions(),
+                to,
+                subject,
+                html: this.wrapHtml(htmlContent)
+            });
+            await this.incrementUsage();
+            await this.logEmail(to, subject, 'sub_request_filled', details, 'sent');
+            console.log(`Sub Filled email sent to ${to}`);
+        } catch (e: any) {
+            await this.logEmail(to, subject, 'sub_request_filled', details, 'failed', e.message);
+            console.error("Failed to send sub filled email", e);
+        }
+    }
 }
