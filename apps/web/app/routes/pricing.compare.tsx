@@ -68,7 +68,7 @@ const STATIC_FEATURES_TEMPLATE = [
             { name: "Zoom Integration", launch: false, growth: true, scale: true },
             { name: "Video Storage", launch: "5 GB", growth: "50 GB", scale: "1 TB" },
             { name: "On-Demand Library", launch: false, growth: true, scale: true },
-            { name: "4K Streaming", launch: false, growth: false, scale: true },
+            { name: "HD Streaming (1080p)", launch: false, growth: false, scale: true },
         ]
     },
     {
