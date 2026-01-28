@@ -1,9 +1,9 @@
 import { useLoaderData, useFetcher } from "react-router";
 import { apiRequest } from "~/utils/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Check, RefreshCw, Plus, Edit3, Save, X } from "lucide-react";
 import { toast } from "sonner";
-import { useUser } from "@clerk/react-router";
+import { useUser, useAuth } from "@clerk/react-router";
 
 export async function loader() {
     // In a real app, you'd use the cookie token on the server
@@ -17,16 +17,15 @@ export async function loader() {
 }
 
 export default function AdminPlans() {
-    const { user } = useUser();
+    const { getToken } = useAuth();
     const [plans, setPlans] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const fetcher = useFetcher();
 
     // Fetch on mount
-    useState(() => {
+    useEffect(() => {
         async function load() {
             try {
-                const token = await (window as any).Clerk?.session?.getToken();
+                const token = await getToken();
                 const res = await apiRequest('/admin/plans', token);
                 if (Array.isArray(res)) setPlans(res);
             } catch (e) {
@@ -37,10 +36,10 @@ export default function AdminPlans() {
             }
         }
         load();
-    });
+    }, [getToken]);
 
     const handleSync = async () => {
-        const token = await (window as any).Clerk?.session?.getToken();
+        const token = await getToken();
         toast.promise(
             apiRequest('/admin/plans/sync', token, { method: 'POST' }),
             {
@@ -56,7 +55,7 @@ export default function AdminPlans() {
     };
 
     const handleUpdate = async (planId: string, data: any) => {
-        const token = await (window as any).Clerk?.session?.getToken();
+        const token = await getToken();
         try {
             await apiRequest(`/admin/plans/${planId}`, token, {
                 method: 'PUT',
