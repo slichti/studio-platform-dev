@@ -31,7 +31,7 @@ export const tenants = sqliteTable('tenants', {
     slackCredentials: text('slack_credentials', { mode: 'json' }), // JSON: { webhookUrl, botToken }
     googleCalendarCredentials: text('google_calendar_credentials'), // Temporarily disabled JSON mode to fix raw string crash
     status: text('status', { enum: ['active', 'paused', 'suspended', 'archived'] }).default('active').notNull(),
-    tier: text('tier', { enum: ['basic', 'growth', 'scale'] }).default('basic').notNull(),
+    tier: text('tier', { enum: ['launch', 'growth', 'scale'] }).default('launch').notNull(),
     subscriptionStatus: text('subscription_status', { enum: ['active', 'past_due', 'canceled', 'trialing'] }).default('active').notNull(),
 
     // Marketplace
