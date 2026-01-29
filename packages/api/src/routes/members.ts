@@ -74,9 +74,21 @@ app.post('/', async (c) => {
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
     if (!roles.includes('owner') && !roles.includes('instructor')) {
         return c.json({ error: 'Access Denied' }, 403);
-    } // Instructors can add students
+    }
 
     if (!email) return c.json({ error: 'Email is required' }, 400);
+
+    // --- QUOTA CHECK ---
+    const { UsageService } = await import('../services/pricing');
+    const usageService = new UsageService(db, tenant.id);
+    const canAdd = await usageService.checkLimit('students', tenant.tier || 'launch');
+
+    if (!canAdd) {
+        return c.json({
+            error: "Student limit reached for your plan. Upgrade to add more members.",
+            code: "LIMIT_REACHED"
+        }, 403);
+    }
 
     // 1. Check if user exists globally
     let userId: string;
@@ -93,11 +105,14 @@ app.post('/', async (c) => {
             profile: { firstName, lastName },
             createdAt: new Date()
         }).run();
+        user = await db.query.users.findFirst({ where: eq(users.id, userId) });
     }
+
+    if (!user) return c.json({ error: "Failed to resolve user" }, 500);
 
     // 2. Check if already a member of THIS tenant
     const existingMember = await db.query.tenantMembers.findFirst({
-        where: and(eq(tenantMembers.userId, userId), eq(tenantMembers.tenantId, tenant.id))
+        where: and(eq(tenantMembers.userId, user.id), eq(tenantMembers.tenantId, tenant.id))
     });
 
     if (existingMember) {
@@ -106,17 +121,39 @@ app.post('/', async (c) => {
 
     // 3. Add as Member
     const memberId = crypto.randomUUID();
+    const isNewUser = !user.lastActiveAt;
+    let invitationToken = null;
+
+    if (isNewUser) {
+        invitationToken = crypto.randomUUID();
+    }
+
     await db.insert(tenantMembers).values({
         id: memberId,
         tenantId: tenant.id,
-        userId,
-        status: 'active',
+        userId: user.id,
+        status: invitationToken ? 'inactive' : 'active',
         joinedAt: new Date(),
-        profile: { firstName, lastName } // Snapshot
+        profile: { firstName, lastName },
+        settings: invitationToken ? { invitationToken } : {}
     }).run();
 
     // 4. Assign Role
+    // Owners can specify instructor, others default to student
     const assignedRole = (roles.includes('owner') && role === 'instructor') ? 'instructor' : 'student';
+
+    // IF Instructor, check instructor quota
+    if (assignedRole === 'instructor') {
+        const canAddInstructor = await usageService.checkLimit('instructors', tenant.tier || 'launch');
+        if (!canAddInstructor) {
+            // Rollback member creation?? For now, just error out. 
+            // Ideally we check BOTh quotas before inserting anything.
+            // Cleanup:
+            await db.delete(tenantMembers).where(eq(tenantMembers.id, memberId)).run();
+            return c.json({ error: "Instructor limit reached for your plan.", code: "LIMIT_REACHED" }, 403);
+        }
+    }
+
     await db.insert(tenantRoles).values({
         memberId,
         role: assignedRole
@@ -128,9 +165,6 @@ app.post('/', async (c) => {
     if (c.env.RESEND_API_KEY) {
         try {
             const { EmailService } = await import('../services/email');
-            const { UsageService } = await import('../services/pricing');
-
-            const usageService = new UsageService(db, tenant.id);
             const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
             const isByok = !!(tenant.resendCredentials as any)?.apiKey;
 
@@ -142,27 +176,60 @@ app.post('/', async (c) => {
                 isByok
             );
 
-            // Determine URL (Use custom domain if available, else platform subdomain)
-            const baseUrl = tenant.customDomain
-                ? `https://${tenant.customDomain}`
-                : `https://${tenant.slug}.studio-platform.com`; // Adjust based on actual platform domain logic
+            const origin = c.req.header('origin') || `https://${tenant.slug}.studio-platform.com`;
+            const inviteUrl = `${origin}/login?email=${encodeURIComponent(email)}${invitationToken ? `&token=${invitationToken}` : ''}`;
 
-            const inviteUrl = `${baseUrl}/login?email=${encodeURIComponent(email)}`;
-
-            // Use waitUntil for performance, but we can't catch the error then.
-            // Trade-off: Performance vs Feedback. 
-            // For "Fix Issues", feedback is prioritized. Let's await it or partially await?
-            // Actually, `waitUntil` is best practice for workers. 
-            // BUT the issue is "Silent Failure".
-            // If we want to report failure, we must await.
-            // Let's await. It's an important transaction.
             await emailService.sendInvitation(email, tenant.name, inviteUrl);
         } catch (e: any) {
             console.error("Failed to send invitation email", e);
             emailWarning = "Member created via DB, but email invitation failed: " + e.message;
         }
-    } else {
-        emailWarning = "Member created, but no email provider is configured.";
+    }
+
+    // --- Automation Dispatch ---
+    try {
+        const { AutomationsService } = await import('../services/automations');
+        const { EmailService } = await import('../services/email');
+        const { SmsService } = await import('../services/sms');
+
+        const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
+        const isByok = !!(tenant.resendCredentials as any)?.apiKey;
+
+        const emailService = new EmailService(
+            resendKey,
+            { branding: tenant.branding as any, settings: tenant.settings as any },
+            { slug: tenant.slug },
+            usageService,
+            isByok
+        );
+
+        const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
+        const autoService = new AutomationsService(db, tenant.id, emailService, smsService);
+
+        c.executionCtx.waitUntil(autoService.dispatchTrigger('new_student', {
+            userId: user.id,
+            email: user.email,
+            firstName: firstName,
+            data: { memberId }
+        }));
+    } catch (e) {
+        console.error("Automation dispatch failed", e);
+    }
+
+    // --- Webhook Dispatch ---
+    try {
+        const { WebhookService } = await import('../services/webhooks');
+        const hook = new WebhookService(db);
+        c.executionCtx.waitUntil(hook.dispatch(tenant.id, 'student.created', {
+            memberId,
+            userId: user.id,
+            email: user.email,
+            firstName,
+            lastName,
+            joinedAt: new Date()
+        }));
+    } catch (e) {
+        console.error("Webhook dispatch failed", e);
     }
 
     return c.json({ success: true, memberId, warning: emailWarning });
@@ -205,170 +272,6 @@ app.delete('/:id', async (c) => {
     await db.delete(tenantRoles).where(eq(tenantRoles.memberId, memberId)).run();
 
     return c.json({ success: true });
-});
-
-// POST /members: Add a member (Owner/Instructor)
-app.post('/', async (c) => {
-    const db = createDb(c.env.DB);
-    const tenant = c.get('tenant');
-    const roles = c.get('roles') || [];
-    const { email, firstName, lastName } = await c.req.json();
-
-    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
-    if (!roles.includes('owner') && !roles.includes('instructor')) {
-        return c.json({ error: 'Access Denied' }, 403);
-    }
-    if (!email) return c.json({ error: 'Email is required' }, 400);
-
-    // 1. Check if user exists
-    let user = await db.query.users.findFirst({
-        where: eq(users.email, email)
-    });
-
-    // 2. If not, create placeholder user
-    if (!user) {
-        const userId = `u_${crypto.randomUUID()}`; // Prefix to indicate generated
-        await db.insert(users).values({
-            id: userId,
-            email,
-            profile: { firstName, lastName },
-            createdAt: new Date(),
-            // Mark as placeholder if schema supports, or just rely on ID format
-        }).run();
-        user = await db.query.users.findFirst({ where: eq(users.id, userId) });
-    }
-
-    if (!user) return c.json({ error: "Failed to resolve user" }, 500);
-
-    // 3. Check if already member
-    const existingMember = await db.query.tenantMembers.findFirst({
-        where: and(eq(tenantMembers.userId, user.id), eq(tenantMembers.tenantId, tenant.id))
-    });
-
-    if (existingMember) {
-        return c.json({ error: "User is already a member of this studio" }, 409);
-    }
-
-    // 4. Create Member
-    const memberId = crypto.randomUUID();
-    const isNewUser = !existingMember && user.id.startsWith('u_') && !user.lastActiveAt; // User created just now
-    let invitationToken = null;
-
-    if (isNewUser) {
-        invitationToken = crypto.randomUUID();
-    }
-
-    await db.insert(tenantMembers).values({
-        id: memberId,
-        tenantId: tenant.id,
-        userId: user.id,
-        status: invitationToken ? 'inactive' : 'active', // Invitees are inactive until acceptance
-        joinedAt: new Date(),
-        settings: invitationToken ? { invitationToken } : {}
-    }).run();
-
-    // Default role: student
-    await db.insert(tenantRoles).values({
-        memberId,
-        role: 'student'
-    }).run();
-
-    // Send Invitation Email
-    if (invitationToken) {
-        const { EmailService } = await import('../services/email');
-        const emailService = new EmailService(c.env.RESEND_API_KEY, {
-            branding: tenant.branding as any,
-            settings: tenant.settings as any
-        });
-
-        // Construct Invite URL (Need app URL, let's assume standard based on environment or request origin)
-        // Hardcoded generic for now, ideally env variable or c.req.header('origin')
-        const origin = c.req.header('origin') || 'https://studio-platform.com'; // Fallback
-        const inviteUrl = `${origin}/accept-invite?token=${invitationToken}`;
-
-        try {
-            await emailService.sendGenericEmail(
-                email,
-                `You've been invited to join ${tenant.name}`,
-                `<p>Hello ${firstName},</p>
-                 <p>You have been invited to join <strong>${tenant.name}</strong> on Studio Platform.</p>
-                 <p><a href="${inviteUrl}" style="background: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Accept Invitation</a></p>
-                 <p>Or paste this link: ${inviteUrl}</p>`
-            );
-        } catch (e) {
-            console.error("Failed to send invitation", e);
-            // Don't fail the request, just log
-        }
-    }
-
-    // Fetch complete member object to return
-    const newMember = await db.query.tenantMembers.findFirst({
-        where: eq(tenantMembers.id, memberId),
-        with: {
-            user: true,
-            roles: true
-        }
-    });
-
-    // --- Marketing Automation: New Student (Handled by dispatchTrigger below) ---
-
-
-    // --- Automation Dispatch (New Student) ---
-    try {
-        if (newMember && newMember.user) {
-            const { AutomationsService } = await import('../services/automations');
-            const { EmailService } = await import('../services/email');
-            const { SmsService } = await import('../services/sms');
-            const { UsageService } = await import('../services/pricing');
-
-            const usageService = new UsageService(db, tenant.id);
-            const resendKey = (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY;
-            const isByok = !!(tenant.resendCredentials as any)?.apiKey;
-
-            const emailService = new EmailService(
-                resendKey,
-                { branding: tenant.branding as any, settings: tenant.settings as any },
-                { slug: tenant.slug },
-                usageService,
-                isByok
-            );
-
-            const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
-            const autoService = new AutomationsService(db, tenant.id, emailService, smsService);
-
-            const userProfile = newMember.user.profile as any || {};
-
-            c.executionCtx.waitUntil(autoService.dispatchTrigger('new_student', {
-                userId: newMember.userId,
-                email: newMember.user.email,
-                firstName: userProfile.firstName,
-                data: { memberId: newMember.id }
-            }));
-        }
-    } catch (e) {
-        console.error("Automation dispatch failed", e);
-    }
-
-    // --- Webhook Dispatch ---
-    try {
-        if (newMember) {
-            const { WebhookService } = await import('../services/webhooks');
-            const hook = new WebhookService(db);
-            const userProfile = newMember.user?.profile as any || {};
-            c.executionCtx.waitUntil(hook.dispatch(tenant.id, 'student.created', {
-                memberId: newMember.id,
-                userId: newMember.user?.id,
-                email: newMember.user?.email,
-                firstName: userProfile.firstName,
-                lastName: userProfile.lastName,
-                joinedAt: newMember.joinedAt
-            }));
-        }
-    } catch (e) {
-        console.error("Webhook dispatch failed", e);
-    }
-
-    return c.json({ success: true, member: newMember });
 });
 
 // POST /members/accept-invite: Claim a profile

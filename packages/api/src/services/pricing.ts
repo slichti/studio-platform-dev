@@ -204,7 +204,7 @@ export class UsageService {
             .run();
     }
 
-    async checkLimit(limitKey: 'students' | 'instructors' | 'locations' | 'smsUsage' | 'emailUsage' | 'streamingUsage', currentTier: string) {
+    async checkLimit(limitKey: 'students' | 'instructors' | 'locations' | 'smsUsage' | 'emailUsage' | 'streamingUsage' | 'storageGB', currentTier: string) {
         const usage = await this.getUsage();
 
         // Handle Resource Usage (SMS, Email, Streaming)
@@ -219,10 +219,10 @@ export class UsageService {
         }
 
         const config = PricingService.getTierConfig(currentTier);
-        const limit = config.limits[limitKey as 'students' | 'instructors' | 'locations'];
+        const limit = config.limits[limitKey as 'students' | 'instructors' | 'locations' | 'storageGB'];
 
-        if (limit === -1) return true;
-        return (usage[limitKey as 'students' | 'instructors' | 'locations'] as number) < limit;
+        if (limit === -1 || limit === undefined) return true;
+        return (usage[limitKey as 'students' | 'instructors' | 'locations' | 'storageGB'] as number) < limit;
     }
 
     async canSend(service: 'sms' | 'email'): Promise<boolean> {

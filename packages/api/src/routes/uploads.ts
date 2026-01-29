@@ -101,10 +101,16 @@ app.post('/pdf', async (c) => {
     const body = await c.req.parseBody();
     const file = body['file'] as File;
 
-    if (!file) return c.json({ error: 'File required' }, 400);
+    // --- QUOTA CHECK ---
+    const { UsageService } = await import('../services/pricing');
+    const usageService = new UsageService(createDb(c.env.DB), tenant.id);
+    const canUpload = await usageService.checkLimit('storageGB', tenant.tier || 'launch');
 
-    if (file.type !== 'application/pdf') {
-        return c.json({ error: 'Only PDF allowed' }, 400);
+    if (!canUpload) {
+        return c.json({
+            error: "Storage limit reached for your plan. Upgrade to upload more files.",
+            code: "LIMIT_REACHED"
+        }, 403);
     }
 
     const objectKey = `tenants/${tenant.slug}/waivers/${crypto.randomUUID()}.pdf`;
@@ -164,6 +170,18 @@ app.post('/r2-image', async (c) => {
 
         if (!file.type.startsWith('image/')) {
             return c.json({ error: 'Only images allowed' }, 400);
+        }
+
+        // --- QUOTA CHECK ---
+        const { UsageService } = await import('../services/pricing');
+        const usageService = new UsageService(createDb(c.env.DB), tenant.id);
+        const canUpload = await usageService.checkLimit('storageGB', tenant.tier || 'launch');
+
+        if (!canUpload) {
+            return c.json({
+                error: "Storage limit reached for your plan. Upgrade to upload more files.",
+                code: "LIMIT_REACHED"
+            }, 403);
         }
 
         const extension = file.type.split('/')[1];
