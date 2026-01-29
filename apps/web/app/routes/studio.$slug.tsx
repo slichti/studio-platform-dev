@@ -465,7 +465,7 @@ export default function StudioLayout() {
                     <Outlet context={{ tenant, me, features: featureSet, roles: effectiveRoles, isStudentView, token }} />
                 </div>
                 {!isStudentView && (
-                    <CommandBar token={token || ''} />
+                    <CommandBar token={token || ''} isPlatformAdmin={(me as any)?.user?.isPlatformAdmin} />
                 )}
 
                 {/* Tenant Google Analytics */}

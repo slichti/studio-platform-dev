@@ -1,7 +1,7 @@
 
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantFeatures, users, platformConfig } from '@studio/db/src/schema';
+import { tenants, tenantFeatures, users, platformConfig, auditLogs } from '@studio/db/src/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { Variables, Bindings } from '../index';
 
@@ -49,7 +49,9 @@ app.get('/config', async (c) => {
 // 1b. Update Global Mobile Config
 app.put('/config', async (c) => {
     const db = createDb(c.env.DB);
+    const auth = c.get('auth');
     const { maintenanceMode, minVersion } = await c.req.json();
+    const actions: string[] = [];
 
     if (maintenanceMode !== undefined) {
         await db.insert(platformConfig).values({
@@ -60,6 +62,7 @@ app.put('/config', async (c) => {
             target: [platformConfig.key],
             set: { enabled: maintenanceMode, updatedAt: new Date() }
         }).run();
+        actions.push(`maintenance_mode:${maintenanceMode}`);
     }
 
     if (minVersion !== undefined) {
@@ -70,6 +73,18 @@ app.put('/config', async (c) => {
         }).onConflictDoUpdate({
             target: [platformConfig.key],
             set: { value: { version: minVersion }, updatedAt: new Date() }
+        }).run();
+        actions.push(`min_version:${minVersion}`);
+    }
+
+    // Log the action
+    if (actions.length > 0 && auth?.userId) {
+        await db.insert(auditLogs).values({
+            id: crypto.randomUUID(),
+            actorId: auth.userId,
+            action: 'update_global_mobile_config',
+            details: { changes: actions },
+            createdAt: new Date()
         }).run();
     }
 
@@ -102,6 +117,7 @@ app.get('/tenants', async (c) => {
 // 3. Toggle Mobile Access for a Tenant
 app.put('/tenants/:id/access', async (c) => {
     const db = createDb(c.env.DB);
+    const auth = c.get('auth');
     const tenantId = c.req.param('id');
     const { enabled } = await c.req.json();
 
@@ -124,18 +140,46 @@ app.put('/tenants/:id/access', async (c) => {
             .run();
     }
 
+    // Log the action
+    if (auth?.userId) {
+        await db.insert(auditLogs).values({
+            id: crypto.randomUUID(),
+            actorId: auth.userId,
+            tenantId,
+            action: enabled ? 'enable_mobile_access' : 'disable_mobile_access',
+            targetId: tenantId,
+            createdAt: new Date()
+        }).run();
+    }
+
     return c.json({ success: true, enabled });
 });
 
-// 4. Get Logs (Mocked for now)
+// 4. Get Logs (Real Audit Logs)
 app.get('/logs', async (c) => {
-    // In a real implementation, this would query a logs table or structured logging service
-    const mockLogs = [
-        { id: 1, timestamp: new Date().toISOString(), level: 'info', message: 'Tenant "Garden Yoga" updated mobile theme', tenant: 'garden-yoga' },
-        { id: 2, timestamp: new Date(Date.now() - 3600000).toISOString(), level: 'warn', message: 'Failed login attempt from old app version', tenant: 'city-pilates' },
-        { id: 3, timestamp: new Date(Date.now() - 7200000).toISOString(), level: 'error', message: 'Push notification delivery failed', tenant: 'downtown-spin' },
-    ];
-    return c.json(mockLogs);
+    const db = createDb(c.env.DB);
+
+    // Fetch last 50 logs, joining with tenant info
+    const logs = await db.select({
+        id: auditLogs.id,
+        timestamp: auditLogs.createdAt,
+        action: auditLogs.action,
+        tenant: tenants.slug,
+        details: auditLogs.details
+    })
+        .from(auditLogs)
+        .leftJoin(tenants, eq(auditLogs.tenantId, tenants.id))
+        .orderBy(desc(auditLogs.createdAt))
+        .limit(50)
+        .all();
+
+    return c.json(logs.map(log => ({
+        id: log.id,
+        timestamp: log.timestamp,
+        level: 'info', // Default to info, could be derived from action type
+        message: `${log.action} - ${JSON.stringify(log.details)}`,
+        tenant: log.tenant || 'System'
+    })));
 });
 
 export default app;

@@ -60,6 +60,7 @@ import analytics from './routes/analytics'; // [NEW] Analytics
 import publicRoutes from './routes/public'; // [NEW] Import
 import faqRoutes from './routes/faqs'; // [NEW] FAQs
 import adminMobile from './routes/admin.mobile'; // [NEW] Admin Mobile
+import adminSearch from './routes/admin.search'; // [NEW] Admin Search
 
 export type Bindings = {
   DB: D1Database;
@@ -533,6 +534,7 @@ app.route('/admin', admin);
 app.route('/admin/plans', adminPlans); // [NEW] Mount
 app.route('/admin/stats', adminStats); // [NEW] Mount
 app.route('/admin/mobile', adminMobile); // [NEW] Backed Admin Mobile
+app.route('/admin/search', adminSearch); // [NEW] Global Search
 app.route('/onboarding', onboarding);
 app.route('/import', dataImport);
 app.route('/webhooks', webhookRoutes);

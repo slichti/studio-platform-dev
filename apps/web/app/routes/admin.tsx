@@ -187,7 +187,7 @@ export default function AdminLayout() {
                 <div className="flex-1 overflow-auto p-8">
                     <Outlet />
                 </div>
-                <CommandBar token={loaderData?.token || ""} />
+                <CommandBar token={loaderData?.token || ""} isPlatformAdmin={true} />
             </main>
         </div>
     );
