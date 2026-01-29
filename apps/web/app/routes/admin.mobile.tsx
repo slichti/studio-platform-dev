@@ -16,6 +16,7 @@ import {
     Terminal
 } from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken } = await getAuth(args);
@@ -43,30 +44,50 @@ export default function AdminMobile() {
     const [search, setSearch] = useState("");
     const [processingId, setProcessingId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'tenants' | 'logs' | 'settings'>('tenants');
+    const [confirmModal, setConfirmModal] = useState<{
+        open: boolean;
+        tenantId: string;
+        tenantName: string;
+        isEnabled: boolean;
+    }>({
+        open: false,
+        tenantId: "",
+        tenantName: "",
+        isEnabled: false
+    });
 
     const filteredTenants = (initialTenants || []).filter((t: any) =>
         t.name.toLowerCase().includes(search.toLowerCase()) ||
         t.slug.toLowerCase().includes(search.toLowerCase())
     );
 
-    const toggleAccess = async (tenantId: string, currentStatus: boolean) => {
-        if (!confirm(`Are you sure you want to ${currentStatus ? 'DISABLE' : 'ENABLE'} mobile access for this tenant?`)) return;
+    const toggleAccess = (tenantId: string, tenantName: string, currentStatus: boolean) => {
+        setConfirmModal({
+            open: true,
+            tenantId,
+            tenantName,
+            isEnabled: currentStatus
+        });
+    };
 
+    const handleConfirmToggle = async () => {
+        const { tenantId, isEnabled } = confirmModal;
         setProcessingId(tenantId);
         try {
             const res = await apiRequest(`/admin/mobile/tenants/${tenantId}/access`, token, {
                 method: 'PUT',
-                body: JSON.stringify({ enabled: !currentStatus })
+                body: JSON.stringify({ enabled: !isEnabled })
             }, apiUrl);
 
             if (res.error) throw new Error(res.error);
 
-            toast.success(`Mobile access ${!currentStatus ? 'enabled' : 'disabled'} successfully`);
+            toast.success(`Mobile access ${!isEnabled ? 'enabled' : 'disabled'} successfully for ${confirmModal.tenantName}`);
             revalidator.revalidate();
         } catch (e: any) {
             toast.error(e.message || "Failed to update status");
         } finally {
             setProcessingId(null);
+            setConfirmModal(prev => ({ ...prev, open: false }));
         }
     };
 
@@ -137,8 +158,8 @@ export default function AdminMobile() {
                         <button
                             onClick={() => setActiveTab('tenants')}
                             className={`py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'tenants'
-                                    ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                                    : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                                : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
                                 }`}
                         >
                             Tenant Access
@@ -146,8 +167,8 @@ export default function AdminMobile() {
                         <button
                             onClick={() => setActiveTab('logs')}
                             className={`py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'logs'
-                                    ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                                    : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                                : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
                                 }`}
                         >
                             System Logs
@@ -155,8 +176,8 @@ export default function AdminMobile() {
                         <button
                             onClick={() => setActiveTab('settings')}
                             className={`py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'settings'
-                                    ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                                    : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                                : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
                                 }`}
                         >
                             Global Configuration
@@ -216,11 +237,11 @@ export default function AdminMobile() {
                                                 </td>
                                                 <td className="py-4 text-right pr-4">
                                                     <button
-                                                        onClick={() => toggleAccess(tenant.id, tenant.mobileEnabled)}
+                                                        onClick={() => toggleAccess(tenant.id, tenant.name, tenant.mobileEnabled)}
                                                         disabled={processingId === tenant.id}
                                                         className={`text-sm px-3 py-1.5 rounded-md transition-colors ${tenant.mobileEnabled
-                                                                ? 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 dark:text-red-400'
-                                                                : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/40 dark:text-emerald-400'
+                                                            ? 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 dark:text-red-400'
+                                                            : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/40 dark:text-emerald-400'
                                                             }`}
                                                     >
                                                         {processingId === tenant.id ? 'Saving...' : (tenant.mobileEnabled ? 'Disable Access' : 'Grant Access')}
@@ -253,7 +274,7 @@ export default function AdminMobile() {
                                                 <td className="py-2 text-zinc-500">{new Date(log.timestamp).toLocaleString()}</td>
                                                 <td className="py-2">
                                                     <span className={`uppercase text-xs font-bold ${log.level === 'error' ? 'text-red-400' :
-                                                            log.level === 'warn' ? 'text-amber-400' : 'text-blue-400'
+                                                        log.level === 'warn' ? 'text-amber-400' : 'text-blue-400'
                                                         }`}>
                                                         [{log.level}]
                                                     </span>
@@ -307,6 +328,20 @@ export default function AdminMobile() {
                     )}
                 </div>
             </div>
+
+            <ConfirmDialog
+                open={confirmModal.open}
+                onOpenChange={(open) => setConfirmModal(prev => ({ ...prev, open }))}
+                onConfirm={handleConfirmToggle}
+                title={`${confirmModal.isEnabled ? 'Disable' : 'Enable'} Mobile Access?`}
+                description={
+                    <span>
+                        Are you sure you want to <strong>{confirmModal.isEnabled ? 'disable' : 'enable'}</strong> mobile access for <strong>{confirmModal.tenantName}</strong>?
+                    </span>
+                }
+                confirmText={confirmModal.isEnabled ? "Disable Access" : "Grant Access"}
+                variant={confirmModal.isEnabled ? "destructive" : "default"}
+            />
         </div>
     );
 }
