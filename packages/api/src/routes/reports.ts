@@ -77,6 +77,90 @@ app.get('/retention', async (c) => {
     return c.json(result);
 });
 
+// GET /upcoming-renewals
+app.get('/upcoming-renewals', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const roles = c.get('roles') || [];
+    if (!roles.includes('owner') && !roles.includes('admin')) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
+
+    const daysAhead = parseInt(c.req.query('days') || '30');
+    const now = new Date();
+    const futureDate = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000);
+
+    // Import subscriptions table for query
+    const { subscriptions, tenantMembers, membershipPlans } = await import('@studio/db/src/schema');
+    const { lte, gte, and: dbAnd, inArray } = await import('drizzle-orm');
+
+    const renewals = await db.select({
+        subscriptionId: subscriptions.id,
+        memberId: subscriptions.memberId,
+        userId: subscriptions.userId,
+        status: subscriptions.status,
+        currentPeriodEnd: subscriptions.currentPeriodEnd,
+        planId: subscriptions.planId
+    })
+        .from(subscriptions)
+        .where(dbAnd(
+            eq(subscriptions.tenantId, tenant.id),
+            eq(subscriptions.status, 'active'),
+            lte(subscriptions.currentPeriodEnd, futureDate),
+            gte(subscriptions.currentPeriodEnd, now)
+        ))
+        .orderBy(subscriptions.currentPeriodEnd)
+        .limit(50)
+        .all();
+
+    // Enrich with member and plan info
+    const memberIds = renewals.map(r => r.memberId).filter(Boolean) as string[];
+    const planIds = [...new Set(renewals.map(r => r.planId).filter(Boolean))] as string[];
+
+    const [members, plans] = await Promise.all([
+        memberIds.length > 0
+            ? db.select().from(tenantMembers).where(
+                memberIds.length === 1
+                    ? eq(tenantMembers.id, memberIds[0])
+                    : inArray(tenantMembers.id, memberIds)
+            ).all()
+            : [] as any[],
+        planIds.length > 0
+            ? db.select().from(membershipPlans).where(
+                planIds.length === 1
+                    ? eq(membershipPlans.id, planIds[0])
+                    : inArray(membershipPlans.id, planIds)
+            ).all()
+            : [] as any[]
+    ]);
+
+    const memberMap = new Map(members.map((m: any) => [m.id, m]));
+    const planMap = new Map(plans.map((p: any) => [p.id, p]));
+
+    const enrichedRenewals = renewals.map(r => {
+        const member = r.memberId ? memberMap.get(r.memberId) : null;
+        const plan = r.planId ? planMap.get(r.planId) : null;
+        return {
+            id: r.subscriptionId,
+            memberName: member?.profile?.firstName
+                ? `${(member.profile as any).firstName} ${(member.profile as any).lastName || ''}`.trim()
+                : 'Unknown Member',
+            planName: plan?.name || 'Unknown Plan',
+            renewsAt: r.currentPeriodEnd,
+            daysUntilRenewal: r.currentPeriodEnd
+                ? Math.ceil((new Date(r.currentPeriodEnd).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+                : null
+        };
+    });
+
+    return c.json({
+        count: enrichedRenewals.length,
+        renewals: enrichedRenewals
+    });
+});
+
 // POST /projection
 app.post('/projection', async (c) => {
     const db = createDb(c.env.DB);

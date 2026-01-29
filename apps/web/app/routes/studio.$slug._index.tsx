@@ -5,7 +5,7 @@ import type { LoaderFunctionArgs } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { useUser } from "@clerk/react-router";
 import { apiRequest } from "~/utils/api";
-import { Users, Calendar, DollarSign, ArrowRight, Activity, TrendingUp, FileSignature, Ticket, Award, Target, Flame } from "lucide-react";
+import { Users, Calendar, DollarSign, ArrowRight, Activity, TrendingUp, FileSignature, Ticket, Award, Target, Flame, RotateCcw } from "lucide-react";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     // [E2E BYPASS] Skip Clerk for E2E tests
@@ -25,20 +25,21 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const { slug } = args.params;
 
     try {
-        const [stats, myProgress] = await Promise.all([
+        const [stats, myProgress, upcomingRenewals] = await Promise.all([
             apiRequest(`/tenant/stats`, token, { headers: { 'X-Tenant-Slug': slug! } }).catch(() => ({ activeStudents: 0 })),
-            apiRequest(`/challenges/my-progress`, token, { headers: { 'X-Tenant-Slug': slug! } }).catch(() => [])
+            apiRequest(`/challenges/my-progress`, token, { headers: { 'X-Tenant-Slug': slug! } }).catch(() => []),
+            apiRequest(`/reports/upcoming-renewals?days=14`, token, { headers: { 'X-Tenant-Slug': slug! } }).catch(() => ({ count: 0, renewals: [] }))
         ]);
-        return { stats, myProgress };
+        return { stats, myProgress, upcomingRenewals };
     } catch (e) {
         console.error("Dashboard loader failed:", e);
-        return { stats: { activeStudents: 0, upcomingBookings: 0, monthlyRevenueCents: 0 }, myProgress: [] };
+        return { stats: { activeStudents: 0, upcomingBookings: 0, monthlyRevenueCents: 0 }, myProgress: [], upcomingRenewals: { count: 0, renewals: [] } };
     }
 }
 
 export default function StudioDashboardIndex() {
     const { tenant, roles, me, isStudentView } = useOutletContext<any>();
-    const { stats } = useLoaderData<typeof loader>();
+    const { stats, upcomingRenewals } = useLoaderData<typeof loader>();
     const { user: clerkUser } = useUser();
     const isOwner = roles.includes('owner');
 
@@ -150,6 +151,30 @@ export default function StudioDashboardIndex() {
                             ${((stats.giftCardLiability || 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </div>
                         <div className="text-xs text-zinc-500 mt-1">Outstanding Store Credit</div>
+                    </div>
+
+                    {/* Upcoming Renewals */}
+                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow group">
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-xl group-hover:scale-110 transition-transform">
+                                <RotateCcw size={24} />
+                            </div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 bg-zinc-50 dark:bg-zinc-800 px-2 py-0.5 rounded">Renewals</span>
+                        </div>
+                        <div className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
+                            {upcomingRenewals?.count || 0}
+                        </div>
+                        <div className="text-xs text-zinc-500 mt-1">Due in the next 14 days</div>
+                        {upcomingRenewals?.renewals?.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800 space-y-1.5">
+                                {upcomingRenewals.renewals.slice(0, 3).map((r: any) => (
+                                    <div key={r.id} className="flex items-center justify-between text-xs">
+                                        <span className="text-zinc-600 dark:text-zinc-400 truncate max-w-[120px]">{r.memberName}</span>
+                                        <span className="text-amber-600 dark:text-amber-400 font-medium">{r.daysUntilRenewal}d</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
 
