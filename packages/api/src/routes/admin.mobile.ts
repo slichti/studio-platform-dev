@@ -1,8 +1,8 @@
 
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantFeatures, users } from '@studio/db/src/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { tenants, tenantFeatures, users, platformConfig } from '@studio/db/src/schema';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { Variables, Bindings } from '../index';
 
 const app = new Hono<{ Variables: Variables, Bindings: Bindings }>();
@@ -26,9 +26,12 @@ app.use('*', async (c, next) => {
 app.get('/config', async (c) => {
     const db = createDb(c.env.DB);
 
-    // Mock global maintenance mode for now (could be stored in platformConfig table)
-    const maintenanceMode = false;
-    const minVersion = "1.0.0";
+    // Read from platformConfig table
+    const configRows = await db.select().from(platformConfig).all();
+    const configMap = new Map(configRows.map(r => [r.key, r]));
+
+    const maintenanceMode = configMap.get('mobile_maintenance_mode')?.enabled ?? false;
+    const minVersion = (configMap.get('mobile_min_version')?.value as any)?.version || "1.0.0";
 
     const totalTenants = await db.select({ count: tenants.id }).from(tenants).all();
     const authorizedTenants = await db.select().from(tenantFeatures).where(eq(tenantFeatures.featureKey, 'mobile_access')).all();
@@ -41,6 +44,36 @@ app.get('/config', async (c) => {
             authorizedCount: authorizedTenants.length
         }
     });
+});
+
+// 1b. Update Global Mobile Config
+app.put('/config', async (c) => {
+    const db = createDb(c.env.DB);
+    const { maintenanceMode, minVersion } = await c.req.json();
+
+    if (maintenanceMode !== undefined) {
+        await db.insert(platformConfig).values({
+            key: 'mobile_maintenance_mode',
+            enabled: maintenanceMode,
+            updatedAt: new Date()
+        }).onConflictDoUpdate({
+            target: [platformConfig.key],
+            set: { enabled: maintenanceMode, updatedAt: new Date() }
+        }).run();
+    }
+
+    if (minVersion !== undefined) {
+        await db.insert(platformConfig).values({
+            key: 'mobile_min_version',
+            value: { version: minVersion },
+            updatedAt: new Date()
+        }).onConflictDoUpdate({
+            target: [platformConfig.key],
+            set: { value: { version: minVersion }, updatedAt: new Date() }
+        }).run();
+    }
+
+    return c.json({ success: true });
 });
 
 // 2. List Tenants with Mobile Status

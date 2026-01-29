@@ -55,6 +55,9 @@ export default function AdminMobile() {
         tenantName: "",
         isEnabled: false
     });
+    const [maintenanceMode, setMaintenanceMode] = useState(config?.maintenanceMode || false);
+    const [minVersion, setMinVersion] = useState(config?.minVersion || "1.0.0");
+    const [isSavingConfig, setIsSavingConfig] = useState(false);
 
     const filteredTenants = (initialTenants || []).filter((t: any) =>
         t.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -88,6 +91,28 @@ export default function AdminMobile() {
         } finally {
             setProcessingId(null);
             setConfirmModal(prev => ({ ...prev, open: false }));
+        }
+    };
+
+    const updateConfig = async (newMaintenance?: boolean, newVersion?: string) => {
+        setIsSavingConfig(true);
+        try {
+            const res = await apiRequest(`/admin/mobile/config`, token, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    maintenanceMode: newMaintenance !== undefined ? newMaintenance : maintenanceMode,
+                    minVersion: newVersion !== undefined ? newVersion : minVersion
+                })
+            }, apiUrl);
+
+            if (res.error) throw new Error(res.error);
+
+            toast.success("Configuration updated successfully");
+            revalidator.revalidate();
+        } catch (e: any) {
+            toast.error(e.message || "Failed to update configuration");
+        } finally {
+            setIsSavingConfig(false);
         }
     };
 
@@ -303,7 +328,17 @@ export default function AdminMobile() {
                                     </p>
                                     <div className="mt-4">
                                         <label className="flex items-center gap-2 cursor-pointer">
-                                            <input type="checkbox" className="w-4 h-4 text-amber-600 rounded" />
+                                            <input
+                                                type="checkbox"
+                                                className="w-4 h-4 text-amber-600 rounded"
+                                                checked={maintenanceMode}
+                                                onChange={(e) => {
+                                                    const val = e.target.checked;
+                                                    setMaintenanceMode(val);
+                                                    updateConfig(val, undefined);
+                                                }}
+                                                disabled={isSavingConfig}
+                                            />
                                             <span className="text-sm font-medium text-amber-900 dark:text-amber-300">Enable Maintenance Mode</span>
                                         </label>
                                     </div>
@@ -315,11 +350,16 @@ export default function AdminMobile() {
                                 <div className="flex gap-2">
                                     <input
                                         type="text"
-                                        defaultValue={config?.minVersion || "1.0.0"}
+                                        value={minVersion}
+                                        onChange={(e) => setMinVersion(e.target.value)}
                                         className="flex-1 px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
                                     />
-                                    <button className="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg font-medium hover:opacity-90 transition-opacity">
-                                        Update
+                                    <button
+                                        onClick={() => updateConfig(undefined, minVersion)}
+                                        disabled={isSavingConfig || minVersion === config?.minVersion}
+                                        className="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                                    >
+                                        {isSavingConfig ? 'Saving...' : 'Update'}
                                     </button>
                                 </div>
                                 <p className="text-xs text-zinc-500 mt-1">Apps older than this version will be forced to update.</p>
@@ -345,4 +385,3 @@ export default function AdminMobile() {
         </div>
     );
 }
-
