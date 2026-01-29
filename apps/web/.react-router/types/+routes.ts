@@ -43,6 +43,9 @@ type Pages = {
   "/documentation/platform/architecture": {
     params: {};
   };
+  "/documentation/guides/class-packs": {
+    params: {};
+  };
   "/documentation/platform/tenants": {
     params: {};
   };
@@ -55,7 +58,13 @@ type Pages = {
   "/documentation/mobile-builder": {
     params: {};
   };
+  "/documentation/guides/waiver": {
+    params: {};
+  };
   "/documentation/studio/portal": {
+    params: {};
+  };
+  "/documentation/migration": {
     params: {};
   };
   "/documentation/commerce": {
@@ -79,6 +88,9 @@ type Pages = {
   "/documentation/crm": {
     params: {};
   };
+  "/sitemap.xml": {
+    params: {};
+  };
   "/portal/:slug": {
     params: {
       "slug": string;
@@ -93,6 +105,9 @@ type Pages = {
     params: {
       "slug": string;
     };
+  };
+  "/robots.txt": {
+    params: {};
   };
   "/studio/:slug": {
     params: {
@@ -138,6 +153,11 @@ type Pages = {
     };
   };
   "/studio/:slug/commerce/coupons": {
+    params: {
+      "slug": string;
+    };
+  };
+  "/studio/:slug/commerce/wizard": {
     params: {
       "slug": string;
     };
@@ -253,6 +273,11 @@ type Pages = {
     };
   };
   "/studio/:slug/settings": {
+    params: {
+      "slug": string;
+    };
+  };
+  "/studio/:slug/settings/appointments": {
     params: {
       "slug": string;
     };
@@ -436,6 +461,11 @@ type Pages = {
       "slug": string;
     };
   };
+  "/waiver/:slug": {
+    params: {
+      "slug": string;
+    };
+  };
   "/embed/:slug": {
     params: {
       "slug": string;
@@ -518,6 +548,9 @@ type Pages = {
       "*": string;
     };
   };
+  "/features": {
+    params: {};
+  };
   "/admin": {
     params: {};
   };
@@ -543,7 +576,15 @@ type Pages = {
   "/admin/architecture": {
     params: {};
   };
+  "/admin/chat/:roomId": {
+    params: {
+      "roomId": string;
+    };
+  };
   "/admin/users": {
+    params: {};
+  };
+  "/admin/chat": {
     params: {};
   };
   "/admin/diagnostics": {
@@ -573,6 +614,9 @@ type Pages = {
   "/admin/emails": {
     params: {};
   };
+  "/admin/mobile": {
+    params: {};
+  };
   "/admin/status": {
     params: {};
   };
@@ -582,13 +626,11 @@ type Pages = {
   "/admin/comms": {
     params: {};
   };
-  "/admin/chat": {
+  "/admin/plans": {
     params: {};
   };
-  "/admin/chat/:roomId": {
-    params: {
-      "roomId": string;
-    };
+  "/admin/faqs": {
+    params: {};
   };
   "/admin/logs": {
     params: {};
@@ -598,7 +640,7 @@ type Pages = {
 type RouteFiles = {
   "root.tsx": {
     id: "root";
-    page: "/" | "/site/:slug/:pageSlug" | "/pricing/compare" | "/pricing" | "/:slug/support" | "/accept-invite" | "/create-studio" | "/documentation" | "/documentation/platform/architecture" | "/documentation/platform/tenants" | "/documentation/studio/analytics" | "/documentation/studio/overview" | "/documentation/mobile-builder" | "/documentation/studio/portal" | "/documentation/commerce" | "/documentation/classes" | "/documentation/reports" | "/documentation/website" | "/documentation/setup" | "/documentation/team" | "/documentation/crm" | "/portal/:slug" | "/portal/:slug/classes" | "/portal/:slug/profile" | "/studio/:slug" | "/studio/:slug/videos/collections/:id" | "/studio/:slug/website/editor/:pageId" | "/studio/:slug/financials/my-payouts" | "/studio/:slug/videos/edit/:videoId" | "/studio/:slug/commerce/gift-cards" | "/studio/:slug/financials/payroll" | "/studio/:slug/financials" | "/studio/:slug/commerce/coupons" | "/studio/:slug/commerce/packs" | "/studio/:slug/substitutions" | "/studio/:slug/videos" | "/studio/:slug/website/pages" | "/studio/:slug/appointments" | "/studio/:slug/appointments/calendar" | "/studio/:slug/memberships" | "/studio/:slug/challenges" | "/studio/:slug/instructor" | "/studio/:slug/instructor/schedule" | "/studio/:slug/instructor/payroll" | "/studio/:slug/onboarding" | "/studio/:slug/dashboard" | "/studio/:slug/discounts" | "/studio/:slug/marketing" | "/studio/:slug/marketing/automations" | "/studio/:slug/marketing/referrals" | "/studio/:slug/branding" | "/studio/:slug/checkout" | "/studio/:slug/checkout/return" | "/studio/:slug/finances" | "/studio/:slug/schedule" | "/studio/:slug/settings" | "/studio/:slug/settings/integrations" | "/studio/:slug/settings/developers" | "/studio/:slug/settings/locations" | "/studio/:slug/settings/branding" | "/studio/:slug/settings/hardware" | "/studio/:slug/settings/billing" | "/studio/:slug/settings/addons" | "/studio/:slug/settings/domain" | "/studio/:slug/settings/embeds" | "/studio/:slug/settings/mobile" | "/studio/:slug/settings/roles" | "/studio/:slug/settings/chat" | "/studio/:slug/settings/qr" | "/studio/:slug/students" | "/studio/:slug/students/:id" | "/studio/:slug/checkin" | "/studio/:slug/classes" | "/studio/:slug/classes/:classId/live" | "/studio/:slug/classes/:id/roster" | "/studio/:slug/loyalty" | "/studio/:slug/profile" | "/studio/:slug/reports" | "/studio/:slug/reports/advanced" | "/studio/:slug/reports/custom" | "/studio/:slug/waivers" | "/studio/:slug/waivers/new" | "/studio/:slug/retail" | "/studio/:slug/leads" | "/studio/:slug/tasks" | "/studio/:slug/chat" | "/studio/:slug/chat/:roomId" | "/studio/:slug/data" | "/studio/:slug/data/export" | "/studio/:slug/data/import" | "/studio/:slug/pos" | "/embed/:slug" | "/embed/:slug/calendar" | "/embed/:slug/pricing" | "/embed/:slug/book" | "/embed/:slug/chat" | "/embed/:slug/shop" | "/kiosk/:slug" | "/kiosk/:slug/login" | "/kiosk/:slug/mode" | "/:pageSlug" | "/dashboard" | "/dashboard/classes" | "/dashboard/classes/:id/roster" | "/dashboard/classes/:id/watch" | "/dashboard/profile" | "/debug-ssr" | "/sign-in/*" | "/sign-up/*" | "/admin" | "/admin/website/edit/:pageId" | "/admin/communications/logs" | "/admin/coupons" | "/admin/website" | "/admin/users/:userId" | "/admin/architecture" | "/admin/users" | "/admin/diagnostics" | "/admin/diagnostics/run" | "/admin/projections" | "/admin/financials" | "/admin/financials/failed" | "/admin/workflows" | "/admin/features" | "/admin/tenants" | "/admin/emails" | "/admin/status" | "/admin/videos" | "/admin/comms" | "/admin/chat" | "/admin/chat/:roomId" | "/admin/logs";
+    page: "/" | "/site/:slug/:pageSlug" | "/pricing/compare" | "/pricing" | "/:slug/support" | "/accept-invite" | "/create-studio" | "/documentation" | "/documentation/platform/architecture" | "/documentation/guides/class-packs" | "/documentation/platform/tenants" | "/documentation/studio/analytics" | "/documentation/studio/overview" | "/documentation/mobile-builder" | "/documentation/guides/waiver" | "/documentation/studio/portal" | "/documentation/migration" | "/documentation/commerce" | "/documentation/classes" | "/documentation/reports" | "/documentation/website" | "/documentation/setup" | "/documentation/team" | "/documentation/crm" | "/sitemap.xml" | "/portal/:slug" | "/portal/:slug/classes" | "/portal/:slug/profile" | "/robots.txt" | "/studio/:slug" | "/studio/:slug/videos/collections/:id" | "/studio/:slug/website/editor/:pageId" | "/studio/:slug/financials/my-payouts" | "/studio/:slug/videos/edit/:videoId" | "/studio/:slug/commerce/gift-cards" | "/studio/:slug/financials/payroll" | "/studio/:slug/financials" | "/studio/:slug/commerce/coupons" | "/studio/:slug/commerce/wizard" | "/studio/:slug/commerce/packs" | "/studio/:slug/substitutions" | "/studio/:slug/videos" | "/studio/:slug/website/pages" | "/studio/:slug/appointments" | "/studio/:slug/appointments/calendar" | "/studio/:slug/memberships" | "/studio/:slug/challenges" | "/studio/:slug/instructor" | "/studio/:slug/instructor/schedule" | "/studio/:slug/instructor/payroll" | "/studio/:slug/onboarding" | "/studio/:slug/dashboard" | "/studio/:slug/discounts" | "/studio/:slug/marketing" | "/studio/:slug/marketing/automations" | "/studio/:slug/marketing/referrals" | "/studio/:slug/branding" | "/studio/:slug/checkout" | "/studio/:slug/checkout/return" | "/studio/:slug/finances" | "/studio/:slug/schedule" | "/studio/:slug/settings" | "/studio/:slug/settings/appointments" | "/studio/:slug/settings/integrations" | "/studio/:slug/settings/developers" | "/studio/:slug/settings/locations" | "/studio/:slug/settings/branding" | "/studio/:slug/settings/hardware" | "/studio/:slug/settings/billing" | "/studio/:slug/settings/addons" | "/studio/:slug/settings/domain" | "/studio/:slug/settings/embeds" | "/studio/:slug/settings/mobile" | "/studio/:slug/settings/roles" | "/studio/:slug/settings/chat" | "/studio/:slug/settings/qr" | "/studio/:slug/students" | "/studio/:slug/students/:id" | "/studio/:slug/checkin" | "/studio/:slug/classes" | "/studio/:slug/classes/:classId/live" | "/studio/:slug/classes/:id/roster" | "/studio/:slug/loyalty" | "/studio/:slug/profile" | "/studio/:slug/reports" | "/studio/:slug/reports/advanced" | "/studio/:slug/reports/custom" | "/studio/:slug/waivers" | "/studio/:slug/waivers/new" | "/studio/:slug/retail" | "/studio/:slug/leads" | "/studio/:slug/tasks" | "/studio/:slug/chat" | "/studio/:slug/chat/:roomId" | "/studio/:slug/data" | "/studio/:slug/data/export" | "/studio/:slug/data/import" | "/studio/:slug/pos" | "/waiver/:slug" | "/embed/:slug" | "/embed/:slug/calendar" | "/embed/:slug/pricing" | "/embed/:slug/book" | "/embed/:slug/chat" | "/embed/:slug/shop" | "/kiosk/:slug" | "/kiosk/:slug/login" | "/kiosk/:slug/mode" | "/:pageSlug" | "/dashboard" | "/dashboard/classes" | "/dashboard/classes/:id/roster" | "/dashboard/classes/:id/watch" | "/dashboard/profile" | "/debug-ssr" | "/sign-in/*" | "/sign-up/*" | "/features" | "/admin" | "/admin/website/edit/:pageId" | "/admin/communications/logs" | "/admin/coupons" | "/admin/website" | "/admin/users/:userId" | "/admin/architecture" | "/admin/chat/:roomId" | "/admin/users" | "/admin/chat" | "/admin/diagnostics" | "/admin/diagnostics/run" | "/admin/projections" | "/admin/financials" | "/admin/financials/failed" | "/admin/workflows" | "/admin/features" | "/admin/tenants" | "/admin/emails" | "/admin/mobile" | "/admin/status" | "/admin/videos" | "/admin/comms" | "/admin/plans" | "/admin/faqs" | "/admin/logs";
   };
   "routes/site.$slug.$pageSlug.tsx": {
     id: "routes/site.$slug.$pageSlug";
@@ -626,11 +668,15 @@ type RouteFiles = {
   };
   "routes/documentation.tsx": {
     id: "routes/documentation";
-    page: "/documentation" | "/documentation/platform/architecture" | "/documentation/platform/tenants" | "/documentation/studio/analytics" | "/documentation/studio/overview" | "/documentation/mobile-builder" | "/documentation/studio/portal" | "/documentation/commerce" | "/documentation/classes" | "/documentation/reports" | "/documentation/website" | "/documentation/setup" | "/documentation/team" | "/documentation/crm";
+    page: "/documentation" | "/documentation/platform/architecture" | "/documentation/guides/class-packs" | "/documentation/platform/tenants" | "/documentation/studio/analytics" | "/documentation/studio/overview" | "/documentation/mobile-builder" | "/documentation/guides/waiver" | "/documentation/studio/portal" | "/documentation/migration" | "/documentation/commerce" | "/documentation/classes" | "/documentation/reports" | "/documentation/website" | "/documentation/setup" | "/documentation/team" | "/documentation/crm";
   };
   "routes/documentation.platform.architecture.tsx": {
     id: "routes/documentation.platform.architecture";
     page: "/documentation/platform/architecture";
+  };
+  "routes/documentation.guides.class-packs.tsx": {
+    id: "routes/documentation.guides.class-packs";
+    page: "/documentation/guides/class-packs";
   };
   "routes/documentation.platform.tenants.tsx": {
     id: "routes/documentation.platform.tenants";
@@ -648,9 +694,17 @@ type RouteFiles = {
     id: "routes/documentation.mobile-builder";
     page: "/documentation/mobile-builder";
   };
+  "routes/documentation.guides.waiver.tsx": {
+    id: "routes/documentation.guides.waiver";
+    page: "/documentation/guides/waiver";
+  };
   "routes/documentation.studio.portal.tsx": {
     id: "routes/documentation.studio.portal";
     page: "/documentation/studio/portal";
+  };
+  "routes/documentation.migration.tsx": {
+    id: "routes/documentation.migration";
+    page: "/documentation/migration";
   };
   "routes/documentation.commerce.tsx": {
     id: "routes/documentation.commerce";
@@ -684,6 +738,10 @@ type RouteFiles = {
     id: "routes/documentation.crm";
     page: "/documentation/crm";
   };
+  "routes/sitemap[.]xml.ts": {
+    id: "routes/sitemap[.]xml";
+    page: "/sitemap.xml";
+  };
   "routes/portal.$slug.tsx": {
     id: "routes/portal.$slug";
     page: "/portal/:slug" | "/portal/:slug/classes" | "/portal/:slug/profile";
@@ -700,9 +758,13 @@ type RouteFiles = {
     id: "routes/portal.$slug._index";
     page: "/portal/:slug";
   };
+  "routes/robots[.]txt.ts": {
+    id: "routes/robots[.]txt";
+    page: "/robots.txt";
+  };
   "routes/studio.$slug.tsx": {
     id: "routes/studio.$slug";
-    page: "/studio/:slug" | "/studio/:slug/videos/collections/:id" | "/studio/:slug/website/editor/:pageId" | "/studio/:slug/financials/my-payouts" | "/studio/:slug/videos/edit/:videoId" | "/studio/:slug/commerce/gift-cards" | "/studio/:slug/financials/payroll" | "/studio/:slug/financials" | "/studio/:slug/commerce/coupons" | "/studio/:slug/commerce/packs" | "/studio/:slug/substitutions" | "/studio/:slug/videos" | "/studio/:slug/website/pages" | "/studio/:slug/appointments" | "/studio/:slug/appointments/calendar" | "/studio/:slug/memberships" | "/studio/:slug/challenges" | "/studio/:slug/instructor" | "/studio/:slug/instructor/schedule" | "/studio/:slug/instructor/payroll" | "/studio/:slug/onboarding" | "/studio/:slug/dashboard" | "/studio/:slug/discounts" | "/studio/:slug/marketing" | "/studio/:slug/marketing/automations" | "/studio/:slug/marketing/referrals" | "/studio/:slug/branding" | "/studio/:slug/checkout" | "/studio/:slug/checkout/return" | "/studio/:slug/finances" | "/studio/:slug/schedule" | "/studio/:slug/settings" | "/studio/:slug/settings/integrations" | "/studio/:slug/settings/developers" | "/studio/:slug/settings/locations" | "/studio/:slug/settings/branding" | "/studio/:slug/settings/hardware" | "/studio/:slug/settings/billing" | "/studio/:slug/settings/addons" | "/studio/:slug/settings/domain" | "/studio/:slug/settings/embeds" | "/studio/:slug/settings/mobile" | "/studio/:slug/settings/roles" | "/studio/:slug/settings/chat" | "/studio/:slug/settings/qr" | "/studio/:slug/students" | "/studio/:slug/students/:id" | "/studio/:slug/checkin" | "/studio/:slug/classes" | "/studio/:slug/classes/:classId/live" | "/studio/:slug/classes/:id/roster" | "/studio/:slug/loyalty" | "/studio/:slug/profile" | "/studio/:slug/reports" | "/studio/:slug/reports/advanced" | "/studio/:slug/reports/custom" | "/studio/:slug/waivers" | "/studio/:slug/waivers/new" | "/studio/:slug/retail" | "/studio/:slug/leads" | "/studio/:slug/tasks" | "/studio/:slug/chat" | "/studio/:slug/chat/:roomId" | "/studio/:slug/data" | "/studio/:slug/data/export" | "/studio/:slug/data/import" | "/studio/:slug/pos";
+    page: "/studio/:slug" | "/studio/:slug/videos/collections/:id" | "/studio/:slug/website/editor/:pageId" | "/studio/:slug/financials/my-payouts" | "/studio/:slug/videos/edit/:videoId" | "/studio/:slug/commerce/gift-cards" | "/studio/:slug/financials/payroll" | "/studio/:slug/financials" | "/studio/:slug/commerce/coupons" | "/studio/:slug/commerce/wizard" | "/studio/:slug/commerce/packs" | "/studio/:slug/substitutions" | "/studio/:slug/videos" | "/studio/:slug/website/pages" | "/studio/:slug/appointments" | "/studio/:slug/appointments/calendar" | "/studio/:slug/memberships" | "/studio/:slug/challenges" | "/studio/:slug/instructor" | "/studio/:slug/instructor/schedule" | "/studio/:slug/instructor/payroll" | "/studio/:slug/onboarding" | "/studio/:slug/dashboard" | "/studio/:slug/discounts" | "/studio/:slug/marketing" | "/studio/:slug/marketing/automations" | "/studio/:slug/marketing/referrals" | "/studio/:slug/branding" | "/studio/:slug/checkout" | "/studio/:slug/checkout/return" | "/studio/:slug/finances" | "/studio/:slug/schedule" | "/studio/:slug/settings" | "/studio/:slug/settings/appointments" | "/studio/:slug/settings/integrations" | "/studio/:slug/settings/developers" | "/studio/:slug/settings/locations" | "/studio/:slug/settings/branding" | "/studio/:slug/settings/hardware" | "/studio/:slug/settings/billing" | "/studio/:slug/settings/addons" | "/studio/:slug/settings/domain" | "/studio/:slug/settings/embeds" | "/studio/:slug/settings/mobile" | "/studio/:slug/settings/roles" | "/studio/:slug/settings/chat" | "/studio/:slug/settings/qr" | "/studio/:slug/students" | "/studio/:slug/students/:id" | "/studio/:slug/checkin" | "/studio/:slug/classes" | "/studio/:slug/classes/:classId/live" | "/studio/:slug/classes/:id/roster" | "/studio/:slug/loyalty" | "/studio/:slug/profile" | "/studio/:slug/reports" | "/studio/:slug/reports/advanced" | "/studio/:slug/reports/custom" | "/studio/:slug/waivers" | "/studio/:slug/waivers/new" | "/studio/:slug/retail" | "/studio/:slug/leads" | "/studio/:slug/tasks" | "/studio/:slug/chat" | "/studio/:slug/chat/:roomId" | "/studio/:slug/data" | "/studio/:slug/data/export" | "/studio/:slug/data/import" | "/studio/:slug/pos";
   };
   "routes/studio.$slug.videos.collections.$id.tsx": {
     id: "routes/studio.$slug.videos.collections.$id";
@@ -735,6 +797,10 @@ type RouteFiles = {
   "routes/studio.$slug.commerce.coupons.tsx": {
     id: "routes/studio.$slug.commerce.coupons";
     page: "/studio/:slug/commerce/coupons";
+  };
+  "routes/studio.$slug.commerce.wizard.tsx": {
+    id: "routes/studio.$slug.commerce.wizard";
+    page: "/studio/:slug/commerce/wizard";
   };
   "routes/studio.$slug.commerce.packs.tsx": {
     id: "routes/studio.$slug.commerce.packs";
@@ -826,7 +892,11 @@ type RouteFiles = {
   };
   "routes/studio.$slug.settings.tsx": {
     id: "routes/studio.$slug.settings";
-    page: "/studio/:slug/settings" | "/studio/:slug/settings/integrations" | "/studio/:slug/settings/developers" | "/studio/:slug/settings/locations" | "/studio/:slug/settings/branding" | "/studio/:slug/settings/hardware" | "/studio/:slug/settings/billing" | "/studio/:slug/settings/addons" | "/studio/:slug/settings/domain" | "/studio/:slug/settings/embeds" | "/studio/:slug/settings/mobile" | "/studio/:slug/settings/roles" | "/studio/:slug/settings/chat" | "/studio/:slug/settings/qr";
+    page: "/studio/:slug/settings" | "/studio/:slug/settings/appointments" | "/studio/:slug/settings/integrations" | "/studio/:slug/settings/developers" | "/studio/:slug/settings/locations" | "/studio/:slug/settings/branding" | "/studio/:slug/settings/hardware" | "/studio/:slug/settings/billing" | "/studio/:slug/settings/addons" | "/studio/:slug/settings/domain" | "/studio/:slug/settings/embeds" | "/studio/:slug/settings/mobile" | "/studio/:slug/settings/roles" | "/studio/:slug/settings/chat" | "/studio/:slug/settings/qr";
+  };
+  "routes/studio.$slug.settings.appointments.tsx": {
+    id: "routes/studio.$slug.settings.appointments";
+    page: "/studio/:slug/settings/appointments";
   };
   "routes/studio.$slug.settings.integrations.tsx": {
     id: "routes/studio.$slug.settings.integrations";
@@ -992,6 +1062,10 @@ type RouteFiles = {
     id: "routes/studio.$slug.pos";
     page: "/studio/:slug/pos";
   };
+  "routes/waiver.$slug.tsx": {
+    id: "routes/waiver.$slug";
+    page: "/waiver/:slug";
+  };
   "routes/embed.$slug.tsx": {
     id: "routes/embed.$slug";
     page: "/embed/:slug" | "/embed/:slug/calendar" | "/embed/:slug/pricing" | "/embed/:slug/book" | "/embed/:slug/chat" | "/embed/:slug/shop";
@@ -1072,13 +1146,17 @@ type RouteFiles = {
     id: "routes/sign-up.$";
     page: "/sign-up/*";
   };
+  "routes/features.tsx": {
+    id: "routes/features";
+    page: "/features";
+  };
   "routes/_index.tsx": {
     id: "routes/_index";
     page: "/";
   };
   "routes/admin.tsx": {
     id: "routes/admin";
-    page: "/admin" | "/admin/website/edit/:pageId" | "/admin/communications/logs" | "/admin/coupons" | "/admin/website" | "/admin/users/:userId" | "/admin/architecture" | "/admin/users" | "/admin/diagnostics" | "/admin/diagnostics/run" | "/admin/projections" | "/admin/financials" | "/admin/financials/failed" | "/admin/workflows" | "/admin/features" | "/admin/tenants" | "/admin/emails" | "/admin/status" | "/admin/videos" | "/admin/comms" | "/admin/chat" | "/admin/chat/:roomId" | "/admin/logs";
+    page: "/admin" | "/admin/website/edit/:pageId" | "/admin/communications/logs" | "/admin/coupons" | "/admin/website" | "/admin/users/:userId" | "/admin/architecture" | "/admin/chat/:roomId" | "/admin/users" | "/admin/chat" | "/admin/diagnostics" | "/admin/diagnostics/run" | "/admin/projections" | "/admin/financials" | "/admin/financials/failed" | "/admin/workflows" | "/admin/features" | "/admin/tenants" | "/admin/emails" | "/admin/mobile" | "/admin/status" | "/admin/videos" | "/admin/comms" | "/admin/plans" | "/admin/faqs" | "/admin/logs";
   };
   "routes/admin.website.edit.$pageId.tsx": {
     id: "routes/admin.website.edit.$pageId";
@@ -1104,9 +1182,17 @@ type RouteFiles = {
     id: "routes/admin.architecture";
     page: "/admin/architecture";
   };
+  "routes/admin.chat.$roomId.tsx": {
+    id: "routes/admin.chat.$roomId";
+    page: "/admin/chat/:roomId";
+  };
   "routes/admin.users._index.tsx": {
     id: "routes/admin.users._index";
     page: "/admin/users";
+  };
+  "routes/admin.chat._index.tsx": {
+    id: "routes/admin.chat._index";
+    page: "/admin/chat";
   };
   "routes/admin.diagnostics.tsx": {
     id: "routes/admin.diagnostics";
@@ -1148,6 +1234,10 @@ type RouteFiles = {
     id: "routes/admin.emails";
     page: "/admin/emails";
   };
+  "routes/admin.mobile.tsx": {
+    id: "routes/admin.mobile";
+    page: "/admin/mobile";
+  };
   "routes/admin.status.tsx": {
     id: "routes/admin.status";
     page: "/admin/status";
@@ -1160,13 +1250,13 @@ type RouteFiles = {
     id: "routes/admin.comms";
     page: "/admin/comms";
   };
-  "routes/admin.chat.tsx": {
-    id: "routes/admin.chat";
-    page: "/admin/chat" | "/admin/chat/:roomId";
+  "routes/admin.plans.tsx": {
+    id: "routes/admin.plans";
+    page: "/admin/plans";
   };
-  "routes/admin.chat.$roomId.tsx": {
-    id: "routes/admin.chat.$roomId";
-    page: "/admin/chat/:roomId";
+  "routes/admin.faqs.tsx": {
+    id: "routes/admin.faqs";
+    page: "/admin/faqs";
   };
   "routes/admin.logs.tsx": {
     id: "routes/admin.logs";
@@ -1184,11 +1274,14 @@ type RouteModules = {
   "routes/create-studio": typeof import("./app/routes/create-studio.tsx");
   "routes/documentation": typeof import("./app/routes/documentation.tsx");
   "routes/documentation.platform.architecture": typeof import("./app/routes/documentation.platform.architecture.tsx");
+  "routes/documentation.guides.class-packs": typeof import("./app/routes/documentation.guides.class-packs.tsx");
   "routes/documentation.platform.tenants": typeof import("./app/routes/documentation.platform.tenants.tsx");
   "routes/documentation.studio.analytics": typeof import("./app/routes/documentation.studio.analytics.tsx");
   "routes/documentation.studio.overview": typeof import("./app/routes/documentation.studio.overview.tsx");
   "routes/documentation.mobile-builder": typeof import("./app/routes/documentation.mobile-builder.tsx");
+  "routes/documentation.guides.waiver": typeof import("./app/routes/documentation.guides.waiver.tsx");
   "routes/documentation.studio.portal": typeof import("./app/routes/documentation.studio.portal.tsx");
+  "routes/documentation.migration": typeof import("./app/routes/documentation.migration.tsx");
   "routes/documentation.commerce": typeof import("./app/routes/documentation.commerce.tsx");
   "routes/documentation.classes": typeof import("./app/routes/documentation.classes.tsx");
   "routes/documentation.reports": typeof import("./app/routes/documentation.reports.tsx");
@@ -1197,10 +1290,12 @@ type RouteModules = {
   "routes/documentation.setup": typeof import("./app/routes/documentation.setup.tsx");
   "routes/documentation.team": typeof import("./app/routes/documentation.team.tsx");
   "routes/documentation.crm": typeof import("./app/routes/documentation.crm.tsx");
+  "routes/sitemap[.]xml": typeof import("./app/routes/sitemap[.]xml.ts");
   "routes/portal.$slug": typeof import("./app/routes/portal.$slug.tsx");
   "routes/portal.$slug.classes": typeof import("./app/routes/portal.$slug.classes.tsx");
   "routes/portal.$slug.profile": typeof import("./app/routes/portal.$slug.profile.tsx");
   "routes/portal.$slug._index": typeof import("./app/routes/portal.$slug._index.tsx");
+  "routes/robots[.]txt": typeof import("./app/routes/robots[.]txt.ts");
   "routes/studio.$slug": typeof import("./app/routes/studio.$slug.tsx");
   "routes/studio.$slug.videos.collections.$id": typeof import("./app/routes/studio.$slug.videos.collections.$id.tsx");
   "routes/studio.$slug.website.editor.$pageId": typeof import("./app/routes/studio.$slug.website.editor.$pageId.tsx");
@@ -1210,6 +1305,7 @@ type RouteModules = {
   "routes/studio.$slug.financials.payroll": typeof import("./app/routes/studio.$slug.financials.payroll.tsx");
   "routes/studio.$slug.financials._index": typeof import("./app/routes/studio.$slug.financials._index.tsx");
   "routes/studio.$slug.commerce.coupons": typeof import("./app/routes/studio.$slug.commerce.coupons.tsx");
+  "routes/studio.$slug.commerce.wizard": typeof import("./app/routes/studio.$slug.commerce.wizard.tsx");
   "routes/studio.$slug.commerce.packs": typeof import("./app/routes/studio.$slug.commerce.packs.tsx");
   "routes/studio.$slug.substitutions": typeof import("./app/routes/studio.$slug.substitutions.tsx");
   "routes/studio.$slug.videos._index": typeof import("./app/routes/studio.$slug.videos._index.tsx");
@@ -1233,6 +1329,7 @@ type RouteModules = {
   "routes/studio.$slug.finances": typeof import("./app/routes/studio.$slug.finances.tsx");
   "routes/studio.$slug.schedule": typeof import("./app/routes/studio.$slug.schedule.tsx");
   "routes/studio.$slug.settings": typeof import("./app/routes/studio.$slug.settings.tsx");
+  "routes/studio.$slug.settings.appointments": typeof import("./app/routes/studio.$slug.settings.appointments.tsx");
   "routes/studio.$slug.settings.integrations": typeof import("./app/routes/studio.$slug.settings.integrations.tsx");
   "routes/studio.$slug.settings.developers": typeof import("./app/routes/studio.$slug.settings.developers.tsx");
   "routes/studio.$slug.settings.locations": typeof import("./app/routes/studio.$slug.settings.locations.tsx");
@@ -1274,6 +1371,7 @@ type RouteModules = {
   "routes/studio.$slug.data.export": typeof import("./app/routes/studio.$slug.data.export.tsx");
   "routes/studio.$slug.data.import": typeof import("./app/routes/studio.$slug.data.import.tsx");
   "routes/studio.$slug.pos": typeof import("./app/routes/studio.$slug.pos.tsx");
+  "routes/waiver.$slug": typeof import("./app/routes/waiver.$slug.tsx");
   "routes/embed.$slug": typeof import("./app/routes/embed.$slug.tsx");
   "routes/embed.$slug.calendar": typeof import("./app/routes/embed.$slug.calendar.tsx");
   "routes/embed.$slug.pricing": typeof import("./app/routes/embed.$slug.pricing.tsx");
@@ -1294,6 +1392,7 @@ type RouteModules = {
   "routes/debug-ssr": typeof import("./app/routes/debug-ssr.tsx");
   "routes/sign-in.$": typeof import("./app/routes/sign-in.$.tsx");
   "routes/sign-up.$": typeof import("./app/routes/sign-up.$.tsx");
+  "routes/features": typeof import("./app/routes/features.tsx");
   "routes/_index": typeof import("./app/routes/_index.tsx");
   "routes/admin": typeof import("./app/routes/admin.tsx");
   "routes/admin.website.edit.$pageId": typeof import("./app/routes/admin.website.edit.$pageId.tsx");
@@ -1302,7 +1401,9 @@ type RouteModules = {
   "routes/admin.website._index": typeof import("./app/routes/admin.website._index.tsx");
   "routes/admin.users.$userId": typeof import("./app/routes/admin.users.$userId.tsx");
   "routes/admin.architecture": typeof import("./app/routes/admin.architecture.tsx");
+  "routes/admin.chat.$roomId": typeof import("./app/routes/admin.chat.$roomId.tsx");
   "routes/admin.users._index": typeof import("./app/routes/admin.users._index.tsx");
+  "routes/admin.chat._index": typeof import("./app/routes/admin.chat._index.tsx");
   "routes/admin.diagnostics": typeof import("./app/routes/admin.diagnostics.tsx");
   "routes/admin.diagnostics.run": typeof import("./app/routes/admin.diagnostics.run.tsx");
   "routes/admin.projections": typeof import("./app/routes/admin.projections.tsx");
@@ -1313,10 +1414,11 @@ type RouteModules = {
   "routes/admin.tenants": typeof import("./app/routes/admin.tenants.tsx");
   "routes/admin._index": typeof import("./app/routes/admin._index.tsx");
   "routes/admin.emails": typeof import("./app/routes/admin.emails.tsx");
+  "routes/admin.mobile": typeof import("./app/routes/admin.mobile.tsx");
   "routes/admin.status": typeof import("./app/routes/admin.status.tsx");
   "routes/admin.videos": typeof import("./app/routes/admin.videos.tsx");
   "routes/admin.comms": typeof import("./app/routes/admin.comms.tsx");
-  "routes/admin.chat": typeof import("./app/routes/admin.chat.tsx");
-  "routes/admin.chat.$roomId": typeof import("./app/routes/admin.chat.$roomId.tsx");
+  "routes/admin.plans": typeof import("./app/routes/admin.plans.tsx");
+  "routes/admin.faqs": typeof import("./app/routes/admin.faqs.tsx");
   "routes/admin.logs": typeof import("./app/routes/admin.logs.tsx");
 };
