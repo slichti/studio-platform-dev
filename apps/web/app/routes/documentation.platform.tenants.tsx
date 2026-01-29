@@ -1,6 +1,6 @@
 
 import { useOutletContext, Navigate } from "react-router";
-import { Users, CreditCard, ToggleLeft, Activity, ShieldAlert, BarChart3 } from "lucide-react";
+import { Users, CreditCard, ToggleLeft, Activity, ShieldAlert, BarChart3, Smartphone } from "lucide-react";
 
 export default function PlatformTenants() {
     const { isPlatformAdmin } = useOutletContext<{ isPlatformAdmin: boolean }>();
@@ -62,7 +62,8 @@ export default function PlatformTenants() {
                             <ul className="space-y-1 text-sm font-mono text-zinc-700 dark:text-zinc-300">
                                 <li>feature_webhooks</li>
                                 <li>feature_beta_ui</li>
-                                <li>maintenance_mode</li>
+                                <li>mobile_maintenance_mode</li>
+                                <li>mobile_min_version</li>
                             </ul>
                         </div>
                         <div className="bg-zinc-50 dark:bg-zinc-800/50 p-6 rounded-xl border border-zinc-200 dark:border-zinc-700">
@@ -72,10 +73,41 @@ export default function PlatformTenants() {
                                 <li>financials</li>
                                 <li>website_builder</li>
                                 <li>mobile_app</li>
+                                <li>mobile_access</li>
                                 <li>vod_streaming</li>
                             </ul>
                         </div>
                     </div>
+                </section>
+
+                {/* Mobile Admin */}
+                <section className="bg-white dark:bg-zinc-900 p-8 rounded-2xl border border-zinc-200 dark:border-zinc-800">
+                    <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-6 flex items-center gap-3">
+                        <Smartphone className="text-indigo-500" /> Mobile Administration
+                    </h2>
+                    <p className="text-zinc-600 dark:text-zinc-400 mb-6">
+                        The <strong>Admin {" > "} Mobile App</strong> dashboard provides centralized control over the universal platform app.
+                    </p>
+                    <ul className="space-y-4">
+                        <li className="flex gap-4">
+                            <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center shrink-0">
+                                <ShieldAlert size={18} className="text-indigo-600 dark:text-indigo-400" />
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-zinc-900 dark:text-zinc-100">Global Maintenance Mode</h4>
+                                <p className="text-sm text-zinc-500">Toggling this instantly blocks all mobile app traffic across every tenant. Use for emergency downtime only.</p>
+                            </div>
+                        </li>
+                        <li className="flex gap-4">
+                            <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center shrink-0">
+                                <Activity size={18} className="text-indigo-600 dark:text-indigo-400" />
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-zinc-900 dark:text-zinc-100">Minimum Version Enforcement</h4>
+                                <p className="text-sm text-zinc-500">Forcing a version update will prevent users with older app builds from connecting to the API.</p>
+                            </div>
+                        </li>
+                    </ul>
                 </section>
 
                 {/* Billing & Status */}

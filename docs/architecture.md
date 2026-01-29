@@ -122,13 +122,19 @@ flowchart TD
 *   **Tenant Isolation**:
     *   All queries are scoped by `tenantId` derived from the request hostname/header via strict middleware.
 
+### Platform Configuration
+The system uses a global `platform_config` table for system-wide toggles and version management.
+*   **Mobile Maintenance Mode**: Globally disables all mobile app connectivity.
+*   **Minimum App Version**: Enforces a mandatory update for all users below a specific version string.
+*   **Feature Gates**: Enables/disables experimental or paid features (e.g., Webhooks) across all tenants.
+
 ## API Layer Structure
 
 ```mermaid
 flowchart TB
     subgraph "API Routes"
         AUTH["/auth/*"]
-        USERS["/users/*"]
+        USER["/users/*"]
         CLASSES["/classes/*"]
         MEMBERS["/members/*"]
         COMMERCE["/commerce/*"]
@@ -136,6 +142,7 @@ flowchart TB
         VIDEO["/video-management/*"]
         CHAT["/chat/*"]
         WEBHOOKS["/webhooks/*"]
+        ADMIN_MOBILE["/admin/mobile/*"]
     end
 
     subgraph "Middleware Stack"
@@ -176,6 +183,7 @@ Instead of white-labeled binaries for each tenant, the system uses a **Single Pl
 *   **Universal Binary**: One app in App Store / Play Store.
 *   **Studio Code**: Users enter a unique `slug` (or scan QR) to "bind" the app to a specific tenant.
 *   **Theming**: The app dynamically fetches `mobile-config` (primary color, features) to rebrand itself on the fly.
+*   **Administration**: Platform admins control tenant access, force minimum versions, and toggle global maintenance mode via the **Admin Mobile Dashboard**.
 *   **Push Notifications**: Tokens are registered to the specific tenant context.
 
 ## Commerce Features

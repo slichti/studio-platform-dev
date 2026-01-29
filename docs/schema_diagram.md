@@ -281,4 +281,22 @@ erDiagram
 
     tenants ||--o{ push_logs : "generates"
     users ||--o{ push_logs : "receives"
+
+    %% Platform & Feature Gating
+    platform_config {
+        string key PK
+        json value
+        boolean enabled
+        string description
+        timestamp updated_at
+    }
+    tenant_features {
+        string id PK
+        string tenant_id FK
+        string feature_key
+        boolean enabled
+        timestamp created_at
+    }
+
+    tenants ||--o{ tenant_features : "has enabled"
 ```

@@ -1,5 +1,5 @@
 
-import { Smartphone, Check } from "lucide-react";
+import { Smartphone, Check, ShieldAlert } from "lucide-react";
 
 export default function MobileBuilderGuide() {
     return (
@@ -69,6 +69,29 @@ export default function MobileBuilderGuide() {
             <p>
                 <i>Note: Publishing to the Apple App Store requires an Apple Developer Account enrolled in the Apple Business Manager program if you are a business entity.</i>
             </p>
+
+            <div className="mt-12 p-8 bg-zinc-900 rounded-2xl border border-zinc-800 text-white not-prose">
+                <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+                    <ShieldAlert size={24} className="text-red-500" /> Platform Admin Controls
+                </h2>
+                <p className="text-zinc-400 mb-6 font-medium">
+                    As a platform administrator, you have global control over the mobile environment via <strong>Admin &gt; Mobile App</strong>.
+                </p>
+                <div className="grid md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <h4 className="font-bold text-red-400">Maintenance Mode</h4>
+                        <p className="text-sm text-zinc-500 leading-relaxed">
+                            Immediately disconnect all mobile clients globally. This is stored in <code>platform_config</code> and takes effect instantly.
+                        </p>
+                    </div>
+                    <div className="space-y-2">
+                        <h4 className="font-bold text-blue-400">Version Management</h4>
+                        <p className="text-sm text-zinc-500 leading-relaxed">
+                            Set a minimum required version to force updates. The app will check this on boot and redirect users to the App Store if they are out of date.
+                        </p>
+                    </div>
+                </div>
+            </div>
 
         </article>
     );
