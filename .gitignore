@@ -12,4 +12,7 @@ yarn-error.log*
 .turbo
 
 # Web build artifacts
-apps/web/functions/
+/apps/web/build/
+/apps/web/.wrangler/
+!/apps/web/functions/[[path]].ts
+/apps/web/functions/_server.js
