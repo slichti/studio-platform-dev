@@ -15,6 +15,8 @@ import statsRouter from './admin.stats';
 import commsRouter from './admin.communications';
 import supportRouter from './admin.support';
 import configRouter from './admin.config';
+import couponsRouter from './admin.coupons';
+import automationsRouter from './admin.automations';
 
 const app = new Hono<HonoContext>();
 
@@ -33,6 +35,16 @@ app.use('*', async (c, next) => {
         console.error(`[Admin Access Denied] UserID: ${auth.userId}, Found: ${!!user}, Role: ${user?.role}, IsPlatformAdmin: ${user?.isPlatformAdmin}`);
         return c.json({ error: 'Platform Admin privileges required' }, 403);
     }
+
+    // Set isPlatformAdmin on auth claims for sub-routes that check it
+    if (user?.isPlatformAdmin) {
+        const existingAuth = c.get('auth');
+        c.set('auth', {
+            ...existingAuth,
+            claims: { ...existingAuth.claims, isPlatformAdmin: true }
+        });
+    }
+
     await next();
 });
 
@@ -46,6 +58,8 @@ app.route('/communications', commsRouter);
 app.route('/support', supportRouter);
 app.route('/config', configRouter);
 app.route('/platform/config', configRouter); // Alias for frontend compatibility (/admin/platform/config)
+app.route('/coupons', couponsRouter);
+app.route('/automations', automationsRouter);
 app.route('/', tenantFeaturesRouter); // Preserves /admin/tenants/:id/features
 
 // GET /logs - Recent Audit Logs (Global view)

@@ -7,6 +7,54 @@ import type { HonoContext } from '../types';
 
 const app = new Hono<HonoContext>();
 
+// GET /preview - Billing Preview for all tenants
+app.get('/preview', async (c) => {
+    const db = createDb(c.env.DB);
+
+    try {
+        const allTenants = await db.select().from(tenants).all();
+
+        // Base subscription prices by tier
+        const tierPrices: Record<string, { name: string, amount: number }> = {
+            basic: { name: 'Basic Plan', amount: 29 },
+            growth: { name: 'Growth Plan', amount: 79 },
+            scale: { name: 'Scale Plan', amount: 199 },
+            enterprise: { name: 'Enterprise Plan', amount: 499 }
+        };
+
+        // Fee structure
+        const fees = {
+            sms: 0.0075,
+            email: 0.0006,
+            streaming: 0.05,
+            storage: 0.02,
+            applicationFeePercent: 0.05
+        };
+
+        const tenantsWithBilling = allTenants.map(t => {
+            const subscription = tierPrices[t.tier || 'basic'] || tierPrices.basic;
+            // For now, usage costs are empty (would need UsageService integration)
+            const costs: Record<string, { quantity: number, amount: number }> = {};
+            const usageTotal = Object.values(costs).reduce((acc, c) => acc + c.amount, 0);
+
+            return {
+                tenant: t,
+                subscription,
+                costs,
+                total: subscription.amount + usageTotal
+            };
+        });
+
+        return c.json({
+            tenants: tenantsWithBilling,
+            fees
+        });
+    } catch (e: any) {
+        console.error('Billing preview failed:', e);
+        return c.json({ error: e.message }, 500);
+    }
+});
+
 // GET /tenants/:id/details - Get Stripe Sync'd Details
 app.get('/tenants/:id/details', async (c) => {
     const db = createDb(c.env.DB);
