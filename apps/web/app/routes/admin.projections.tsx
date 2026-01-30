@@ -1,4 +1,7 @@
 import { useState, useMemo } from "react";
+import { useLoaderData } from "react-router";
+import { getAuth } from "@clerk/react-router/server";
+import { apiRequest } from "../utils/api";
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell, ReferenceLine
@@ -7,15 +10,29 @@ import {
     TrendingUp, Activity, Zap, Info
 } from "lucide-react";
 
+export const loader = async (args: any) => {
+    const { getToken } = await getAuth(args);
+    const token = await getToken();
+    const plans = await apiRequest(`/plans`, token);
+    return { plans };
+};
+
 export default function AdminProjections() {
+    const { plans } = useLoaderData<any>();
+
+    // Find plans or fallback
+    const launchPlan = plans?.find((p: any) => p.slug === 'launch') || { monthlyPriceCents: 0 };
+    const growthPlan = plans?.find((p: any) => p.slug === 'growth') || { monthlyPriceCents: 4900 };
+    const scalePlan = plans?.find((p: any) => p.slug === 'scale') || { monthlyPriceCents: 12900 };
+
     // --- 1. Revenue Drivers ---
     const [tenants, setTenants] = useState(50);
     const [growthRate, setGrowthRate] = useState(5); // % Monthly Growth
 
     // Tiers
-    const [tierBasicPrice, setTierBasicPrice] = useState(29);
-    const [tierGrowthPrice, setTierGrowthPrice] = useState(79);
-    const [tierScalePrice, setTierScalePrice] = useState(149);
+    const [tierBasicPrice, setTierBasicPrice] = useState(launchPlan.monthlyPriceCents / 100);
+    const [tierGrowthPrice, setTierGrowthPrice] = useState(growthPlan.monthlyPriceCents / 100);
+    const [tierScalePrice, setTierScalePrice] = useState(scalePlan.monthlyPriceCents / 100);
 
     const [mixBasic, setMixBasic] = useState(60); // %
     const [mixGrowth, setMixGrowth] = useState(30); // %

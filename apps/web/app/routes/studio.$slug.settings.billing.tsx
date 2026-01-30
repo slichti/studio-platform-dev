@@ -11,38 +11,40 @@ export const loader = async (args: any) => {
     const slug = args.params.slug;
 
     try {
-        const [tenant, usageRes] = await Promise.all([
+        const [tenant, usageRes, plansRes] = await Promise.all([
             apiRequest(`/tenant/info`, token, { headers: { 'X-Tenant-Slug': slug } }),
-            apiRequest(`/tenant/usage`, token, { headers: { 'X-Tenant-Slug': slug } })
+            apiRequest(`/tenant/usage`, token, { headers: { 'X-Tenant-Slug': slug } }),
+            apiRequest(`/plans`, token)
         ]);
 
         if (!tenant.roles?.includes('owner') && !tenant.roles?.includes('admin')) {
-            // In some cases 'tenant' is the studio info object and 'me' is separate, but here apiResponse might differ.
-            // Looking at usage in component: `tenant.features`, `tenant.tier`.
-            // Wait, the loader returns { tenant, usage }. `apiRequest('/tenant/info')` usually returns public/semi-public info.
-            // We need to check the CURRENT MEMBER's role.
-            // We should fetch '/tenant/me' to be sure or trust the API to block `usage` (which we just fixed).
-            // Since we just fixed `usage` to 403, `usageRes` might be { error: 'Unauthorized' }.
             if ((usageRes as any).error) {
                 throw new Response("Unauthorized", { status: 403 });
             }
         }
 
-        return { tenant, usage: usageRes, slug, token };
+        return { tenant, usage: usageRes, plans: plansRes, slug, token };
     } catch (e: any) {
         throw new Response("Unauthorized", { status: 401 });
     }
 };
 
-const TIERS = {
-    basic: { name: 'Basic', students: 50, storage: 1, price: 'Free' },
-    growth: { name: 'Growth', students: 500, storage: 50, price: '$49/mo' },
-    scale: { name: 'Scale', students: 'Unlimited', storage: 1000, price: '$199/mo' }
-};
-
 export default function StudioBilling() {
-    const { tenant, usage, slug, token } = useLoaderData<any>();
-    const tier = (TIERS as any)[tenant.features?.includes('white_label') ? 'scale' : (tenant.tier || 'basic')] || TIERS.basic;
+    const { tenant, usage, plans, slug, token } = useLoaderData<any>();
+
+    // Map plans to TIERS format or use directly
+    const TIERS: Record<string, any> = {};
+    (plans || []).forEach((p: any) => {
+        TIERS[p.slug] = {
+            name: p.name,
+            price: p.monthlyPriceCents === 0 ? 'Free' : `$${p.monthlyPriceCents / 100}/mo`,
+            students: 'Unlimited', // Placeholders until schema supports these limits
+            storage: 'Included',
+            ...p
+        };
+    });
+
+    const tier = (TIERS as any)[tenant.features?.includes('white_label') ? 'scale' : (tenant.tier || 'launch')] || TIERS.launch || { name: 'Unknown', price: 'N/A' };
 
     const handleManageSubscription = async () => {
         try {

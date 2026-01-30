@@ -11,6 +11,7 @@ const app = new Hono<HonoContext>();
 app.get('/preview', async (c) => {
     const db = createDb(c.env.DB);
     const { PricingService, TIERS } = await import('../services/pricing');
+    await PricingService.loadTiersFromDb(db);
 
     try {
         const allTenants = await db.select().from(tenants).all();
@@ -123,18 +124,26 @@ app.post('/charge', async (c) => {
 
 // POST /projections - Platform Revenue Calculator
 app.post('/projections', async (c) => {
-    const { basicCount, growthCount, scaleCount } = await c.req.json();
-    const basicRev = (basicCount || 0) * 29;
-    const growthRev = (growthCount || 0) * 79;
-    const scaleRev = (scaleCount || 0) * 199;
+    const { PricingService, TIERS } = await import('../services/pricing');
+    const { launchCount, growthCount, scaleCount } = await c.req.json();
 
-    const totalRevenue = basicRev + growthRev + scaleRev;
-    const totalTenants = (basicCount || 0) + (growthCount || 0) + (scaleCount || 0);
+    // Use actual tier prices from PricingService (in cents, convert to dollars)
+    const launchPrice = TIERS.launch.price / 100;
+    const growthPrice = TIERS.growth.price / 100;
+    const scalePrice = TIERS.scale.price / 100;
+
+    const launchRev = (launchCount || 0) * launchPrice;
+    const growthRev = (growthCount || 0) * growthPrice;
+    const scaleRev = (scaleCount || 0) * scalePrice;
+
+    const totalRevenue = launchRev + growthRev + scaleRev;
+    const totalTenants = (launchCount || 0) + (growthCount || 0) + (scaleCount || 0);
 
     return c.json({
         totalTenants,
         projectedMonthlyRevenue: totalRevenue,
-        avgRevenuePerTenant: totalTenants > 0 ? (totalRevenue / totalTenants) : 0
+        avgRevenuePerTenant: totalTenants > 0 ? (totalRevenue / totalTenants) : 0,
+        tierPrices: { launch: launchPrice, growth: growthPrice, scale: scalePrice }
     });
 });
 

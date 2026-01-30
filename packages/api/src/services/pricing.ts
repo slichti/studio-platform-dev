@@ -68,8 +68,51 @@ export const TIERS: Record<Tier, {
 };
 
 export class PricingService {
+    private static dbCache: Record<string, any> | null = null;
+
+    static async loadTiersFromDb(db: any) {
+        if (this.dbCache) return this.dbCache;
+
+        try {
+            const { platformPlans } = await import('@studio/db/src/schema');
+            const plans = await db.select().from(platformPlans).where(eq(platformPlans.active, true)).all();
+
+            const tiers: Record<string, any> = {};
+            plans.forEach((p: any) => {
+                tiers[p.slug] = {
+                    name: p.name,
+                    price: p.monthlyPriceCents,
+                    applicationFeePercent: 0, // In transition, placeholder from DB if added
+                    limits: {
+                        students: -1,
+                        instructors: -1,
+                        locations: -1,
+                        storageGB: 1000,
+                        sms: 5000,
+                        email: 50000,
+                        streamingMinutes: -1
+                    },
+                    features: p.features || []
+                };
+            });
+
+            this.dbCache = tiers;
+            return tiers;
+        } catch (e) {
+            console.error("Failed to load tiers from DB, using fallback", e);
+            return TIERS;
+        }
+    }
+
     static getTierConfig(tier: string) {
+        // Fallback for non-async callers
+        if (this.dbCache && this.dbCache[tier]) return this.dbCache[tier];
         return TIERS[tier as Tier] || TIERS.launch;
+    }
+
+    static async getTierConfigAsync(db: any, tier: string) {
+        const tiers = await this.loadTiersFromDb(db);
+        return (tiers as any)[tier] || this.getTierConfig(tier);
     }
 
     static isFeatureEnabled(tier: string, feature: string) {

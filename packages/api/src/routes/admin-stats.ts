@@ -143,11 +143,12 @@ app.get('/architecture', async (c) => {
 // GET /health - Dashboard Key Metrics
 app.get('/health', async (c) => {
     const db = createDb(c.env.DB);
+    const { PricingService, TIERS } = await import('../services/pricing');
+    await PricingService.loadTiersFromDb(db);
     const start = performance.now();
 
     // Parallel Queries
-    // Calculate MRR based on Tenant Tiers
-    // Basic: $0 (Trial/Launch), Growth: $49, Scale: $129 (Just estimates for dashboard)
+    // Calculate MRR based on Tenant Tiers using PricingService
     const [tenantStats, userCount, errorCount, dbCheck] = await Promise.all([
         db.select({
             tier: tenants.tier,
@@ -164,10 +165,17 @@ app.get('/health', async (c) => {
     let estimatedMRR = 0;
     let activeTenants = 0;
 
+    // Get tier prices from PricingService (in cents, convert to dollars)
+    const tierPrices: Record<string, number> = {
+        launch: TIERS.launch.price / 100,
+        growth: TIERS.growth.price / 100,
+        scale: TIERS.scale.price / 100
+    };
+
     tenantStats.forEach(stat => {
         activeTenants += stat.count;
-        if (stat.tier === 'growth') estimatedMRR += (49 * stat.count);
-        if (stat.tier === 'scale') estimatedMRR += (129 * stat.count);
+        const price = tierPrices[stat.tier || 'launch'] || 0;
+        estimatedMRR += price * stat.count;
     });
 
     const dbLatencyMs = Math.round(performance.now() - start);

@@ -197,13 +197,21 @@ export class ReportService {
         };
     }
 
-    getProjection(studentCount: number, monthlyFee: number, costs: number) {
+    async getProjection(studentCount: number, monthlyFee: number, costs: number) {
+        // Import TIERS from pricing service
+        const { PricingService } = await import('./pricing');
+        const tiersConfig = await PricingService.loadTiersFromDb(this.db);
+
         const revenue = studentCount * monthlyFee;
-        const tiers = [
-            { id: 'launch', name: 'Launch', price: 0, fee: 0.05 },
-            { id: 'growth', name: 'Growth', price: 49, fee: 0.015 },
-            { id: 'scale', name: 'Scale', price: 129, fee: 0.0 }
-        ];
+        const tiers = Object.keys(tiersConfig).map(k => {
+            const t = (tiersConfig as any)[k];
+            return {
+                id: k,
+                name: t.name,
+                price: t.price / 100,
+                fee: t.applicationFeePercent || 0
+            };
+        });
 
         const projections = tiers.map(t => {
             const platformCost = t.price + (revenue * t.fee);
@@ -223,7 +231,7 @@ export class ReportService {
         return {
             inputs: { studentCount, monthlyFee, costs },
             projections,
-            recommendation: recommended.tier
+            recommendation: recommended?.tier || 'launch'
         };
     }
 

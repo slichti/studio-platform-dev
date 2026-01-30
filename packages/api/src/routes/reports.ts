@@ -114,7 +114,8 @@ app.post('/projection', async (c) => {
     if (studentCount === undefined || monthlyFee === undefined) return c.json({ error: "Required fields missing" }, 400);
 
     const service = new ReportService(db, tenant.id);
-    return c.json(service.getProjection(studentCount, monthlyFee, costs));
+    const projection = await service.getProjection(studentCount, monthlyFee, costs);
+    return c.json(projection);
 });
 
 // GET /accounting/journal
