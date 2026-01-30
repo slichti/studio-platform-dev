@@ -292,6 +292,7 @@ export const classes = sqliteTable('classes', {
     startTime: integer('start_time', { mode: 'timestamp' }).notNull(),
     durationMinutes: integer('duration_minutes').notNull(),
     capacity: integer('capacity'),
+    waitlistCapacity: integer('waitlist_capacity').default(10), // Default 10 spots on waitlist
     price: integer('price').default(0), // In cents
     memberPrice: integer('member_price'), // Discounted price for members (nullable)
     currency: text('currency').default('usd'),

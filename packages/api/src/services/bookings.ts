@@ -1,9 +1,135 @@
-import { eq, and } from 'drizzle-orm';
-import { bookings, users, tenantMembers, classes, tenants } from '@studio/db/src/schema'; // adjustments needed for imports
+import { eq, and, sql, asc } from 'drizzle-orm';
+import { bookings, tenantMembers, classes, tenants } from '@studio/db/src/schema';
 import { EmailService } from './email';
 
 export class BookingService {
     constructor(private db: any, private env: any) { }
+
+    // 2. Create Booking
+    async createBooking(classId: string, memberId: string, attendanceType: 'in_person' | 'zoom' = 'in_person') {
+        const cls = await this.db.select().from(classes).where(eq(classes.id, classId)).get();
+        if (!cls) throw new Error("Class not found");
+
+        // Check Capacity
+        const confirmedCount = await this.db.select({ count: sql<number>`count(*)` })
+            .from(bookings)
+            .where(and(eq(bookings.classId, classId), eq(bookings.status, 'confirmed')))
+            .get();
+
+        if (cls.capacity && confirmedCount.count >= cls.capacity) {
+            throw new Error("Class is full");
+        }
+
+        const id = crypto.randomUUID();
+        await this.db.insert(bookings).values({
+            id,
+            classId,
+            memberId,
+            status: 'confirmed',
+            attendanceType,
+            createdAt: new Date()
+        }).run();
+
+        return { id, status: 'confirmed' };
+    }
+
+    // 3. Join Waitlist
+    async joinWaitlist(classId: string, memberId: string) {
+        const cls = await this.db.select().from(classes).where(eq(classes.id, classId)).get();
+        if (!cls) throw new Error("Class not found");
+
+        // Check Waitlist Capacity
+        const waitlistCount = await this.db.select({ count: sql<number>`count(*)` })
+            .from(bookings)
+            .where(and(eq(bookings.classId, classId), eq(bookings.status, 'waitlisted')))
+            .get();
+
+        if (cls.waitlistCapacity !== null && waitlistCount.count >= cls.waitlistCapacity) {
+            throw new Error("Waitlist is full");
+        }
+
+        // Determine Position
+        const nextPosition = waitlistCount.count + 1;
+
+        const id = crypto.randomUUID();
+        await this.db.insert(bookings).values({
+            id,
+            classId,
+            memberId,
+            status: 'waitlisted',
+            waitlistPosition: nextPosition,
+            createdAt: new Date()
+        }).run();
+
+        return { id, status: 'waitlisted', position: nextPosition };
+    }
+
+    // 4. Cancel Booking & Auto-Promote
+    async cancelBooking(bookingId: string) {
+        const booking = await this.db.select().from(bookings).where(eq(bookings.id, bookingId)).get();
+        if (!booking) throw new Error("Booking not found");
+
+        if (booking.status === 'cancelled') return;
+
+        // Update status
+        await this.db.update(bookings).set({ status: 'cancelled' }).where(eq(bookings.id, bookingId)).run();
+
+        // If it was a confirmed spot, try to fill it
+        if (booking.status === 'confirmed') {
+            await this.promoteNextInLine(booking.classId);
+        }
+    }
+
+    // 5. Promote Logic
+    private async promoteNextInLine(classId: string) {
+        // Find first in waitlist
+        const next = await this.db.select().from(bookings)
+            .where(and(eq(bookings.classId, classId), eq(bookings.status, 'waitlisted')))
+            .orderBy(asc(bookings.waitlistPosition), asc(bookings.createdAt))
+            .limit(1)
+            .get();
+
+        if (next) {
+            console.log(`[Waitlist] Promoting booking ${next.id} for class ${classId}`);
+
+            // Promote
+            await this.db.update(bookings).set({
+                status: 'confirmed',
+                waitlistPosition: null,
+                waitlistNotifiedAt: new Date()
+            }).where(eq(bookings.id, next.id)).run();
+
+            // Notify User
+            // TODO: Get Tenant/Member info and send email
+            try {
+                // Fetch Member & Tenant to send email
+                const member = await this.db.query.tenantMembers.findFirst({
+                    where: eq(tenantMembers.id, next.memberId),
+                    with: { user: true, tenant: true }
+                });
+
+                if (member?.user?.email && this.env.RESEND_API_KEY) {
+                    const emailService = new EmailService(
+                        this.env.RESEND_API_KEY,
+                        { branding: member.tenant.branding, settings: member.tenant.settings },
+                        undefined, undefined, false, this.db, member.tenantId
+                    );
+
+                    const cls = await this.db.select().from(classes).where(eq(classes.id, classId)).get();
+
+                    await emailService.sendGenericEmail(
+                        member.user.email,
+                        "You've made it off the waitlist!",
+                        `<p>Good news! A spot opened up in <strong>${cls?.title || 'your class'}</strong> and you have been automatically added.</p>
+                         <p>See you there!</p>`
+                    );
+                }
+
+            } catch (e) {
+                console.error("[Waitlist] Failed to send promotion email", e);
+            }
+        }
+    }
 
     async markNoShow(bookingId: string) {
         // 1. Get Booking & Tenant Context

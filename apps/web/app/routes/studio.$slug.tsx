@@ -49,6 +49,7 @@ import { ComponentProps } from "react";
 import { useClerk, useUser } from "@clerk/react-router";
 import { ImpersonationBanner } from "../components/ImpersonationBanner";
 import { ChatWidget } from "../components/chat/ChatWidget";
+import { QuickStartModal } from "../components/onboarding/QuickStartModal";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { params, request } = args;
@@ -201,8 +202,25 @@ export default function StudioLayout() {
     // Also override 'me' slightly to reflect restricted permissions if needed downstream
     // But 'roles' is the main gatekeeper for the Sidebar and children.
 
+    // Quick Start State
+    const [showQuickStart, setShowQuickStart] = useState(() => {
+        const isOwnerOrAdmin = me?.roles?.includes('owner') || me?.roles?.includes('admin');
+        const isCompleted = tenant.settings?.onboardingCompleted;
+        return isOwnerOrAdmin && !isCompleted;
+    });
+
     return (
         <div className="flex h-screen bg-zinc-50 dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100 transition-colors duration-300">
+            {/* Quick Start Wizard */}
+            {!isStudentView && showQuickStart && (
+                <QuickStartModal
+                    isOpen={showQuickStart}
+                    onClose={() => setShowQuickStart(false)}
+                    tenant={tenant}
+                    token={token || ''}
+                />
+            )}
+
             {/* Sidebar */}
             <aside className="w-64 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col fixed inset-y-0 z-20 transition-colors duration-300">
                 <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">

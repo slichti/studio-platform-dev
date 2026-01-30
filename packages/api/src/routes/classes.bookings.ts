@@ -3,6 +3,7 @@ import { createDb } from '../db';
 import { classes, bookings, tenantMembers, users } from '@studio/db/src/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { HonoContext } from '../types';
+import { BookingService } from '../services/bookings';
 
 const app = new Hono<HonoContext>();
 
@@ -25,19 +26,34 @@ app.post('/:id/book', async (c) => {
     const mid = targetId || mem?.id;
     if (!mid) return c.json({ error: 'Member required' }, 400);
 
-    const cl = await db.select().from(classes).where(eq(classes.id, cid)).get();
-    if (!cl) return c.json({ error: 'Class not found' }, 404);
-
-    const bid = crypto.randomUUID();
-    await db.insert(bookings).values({ id: bid, classId: cid, memberId: mid, status: 'confirmed', attendanceType, createdAt: new Date() });
-    return c.json({ id: bid, status: 'confirmed' }, 201);
+    const service = new BookingService(db, c.env);
+    try {
+        const result = await service.createBooking(cid, mid, attendanceType);
+        return c.json(result, 201);
+    } catch (e: any) {
+        if (e.message === 'Class is full') return c.json({ error: 'Class is full', code: 'CLASS_FULL' }, 409);
+        return c.json({ error: e.message }, 500);
+    }
 });
 
 // GET /:id/bookings
 app.get('/:id/bookings', async (c) => {
     if (!c.get('can')('manage_classes')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
-    return c.json(await db.select({ id: bookings.id, status: bookings.status, memberId: bookings.memberId, checkedInAt: bookings.checkedInAt, user: { id: users.id, email: users.email, profile: users.profile } }).from(bookings).innerJoin(tenantMembers, eq(bookings.memberId, tenantMembers.id)).innerJoin(users, eq(tenantMembers.userId, users.id)).where(eq(bookings.classId, c.req.param('id'))).all());
+    return c.json(await db.select({
+        id: bookings.id,
+        status: bookings.status,
+        memberId: bookings.memberId,
+        checkedInAt: bookings.checkedInAt,
+        waitlistPosition: bookings.waitlistPosition,
+        user: { id: users.id, email: users.email, profile: users.profile }
+    })
+        .from(bookings)
+        .innerJoin(tenantMembers, eq(bookings.memberId, tenantMembers.id))
+        .innerJoin(users, eq(tenantMembers.userId, users.id))
+        .where(eq(bookings.classId, c.req.param('id')))
+        .orderBy(bookings.waitlistPosition, bookings.createdAt) // Default sort
+        .all());
 });
 
 // PATCH /:id/bookings/:bookingId/check-in
@@ -70,18 +86,31 @@ app.post('/:id/bookings/:bookingId/cancel', async (c) => {
     if (!b) return c.json({ error: 'Not found' }, 404);
     if (!c.get('can')('manage_classes') && b.member.userId !== auth.userId) return c.json({ error: 'Unauthorized' }, 403);
 
-    await db.update(bookings).set({ status: 'cancelled' }).where(eq(bookings.id, bid)).run();
+    const service = new BookingService(db, c.env);
+    await service.cancelBooking(bid);
     return c.json({ success: true });
 });
 
 // POST /:id/waitlist
 app.post('/:id/waitlist', async (c) => {
     const db = createDb(c.env.DB);
-    const mid = c.get('member')?.id;
-    if (!mid) return c.json({ error: 'Member required' }, 403);
-    const id = crypto.randomUUID();
-    await db.insert(bookings).values({ id, classId: c.req.param('id'), memberId: mid, status: 'waitlisted', createdAt: new Date() });
-    return c.json({ id, status: 'waitlisted' }, 201);
+    const auth = c.get('auth');
+    if (!auth?.userId) return c.json({ error: 'Auth required' }, 401);
+    const tid = c.get('tenant')!.id;
+    const cid = c.req.param('id');
+
+    // Member logic (reuse from book, maybe abstract?)
+    let mem = await db.query.tenantMembers.findFirst({ where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tid)) });
+    if (!mem) return c.json({ error: 'Member required' }, 400);
+
+    const service = new BookingService(db, c.env);
+    try {
+        const result = await service.joinWaitlist(cid, mem.id);
+        return c.json(result, 201);
+    } catch (e: any) {
+        if (e.message === 'Waitlist is full') return c.json({ error: 'Waitlist is full', code: 'WAITLIST_FULL' }, 409);
+        return c.json({ error: e.message }, 500);
+    }
 });
 
 export default app;
