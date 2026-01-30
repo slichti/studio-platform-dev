@@ -75,7 +75,7 @@ app.post('/pdf', async (c) => {
 
     const objectKey = `tenants/${tenant.slug}/waivers/${crypto.randomUUID()}.pdf`;
 
-    await c.env.R2.put(objectKey, await file.arrayBuffer(), {
+    await c.env.R2!.put(objectKey, await file.arrayBuffer(), {
         httpMetadata: { contentType: 'application/pdf' }
     });
 
@@ -123,7 +123,7 @@ app.post('/r2-image', async (c) => {
         const extension = file.type.split('/')[1];
         const objectKey = `tenants/${tenant.slug}/images/${crypto.randomUUID()}.${extension}`;
 
-        await c.env.R2.put(objectKey, await file.arrayBuffer(), {
+        await c.env.R2!.put(objectKey, await file.arrayBuffer(), {
             httpMetadata: { contentType: file.type }
         });
 

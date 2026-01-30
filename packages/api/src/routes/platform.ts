@@ -9,7 +9,7 @@ const app = new Hono<HonoContext>();
 
 // GET /studios: Public Marketplace Search
 app.get('/studios', async (c) => {
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.DB as any);
     const query = c.req.query('q');
 
     const searchCondition = query ? or(like(tenants.name, `%${query}%`), like(tenants.slug, `%${query}%`)) : undefined;
@@ -23,9 +23,9 @@ app.get('/studios', async (c) => {
 // GET /hardware/skus
 app.get('/hardware/skus', async (c) => {
     if (!c.get('can')('view_pos') && !c.get('can')('manage_pos')) return c.json({ error: 'Unauthorized' }, 403);
-    const s = new StripeService(c.env.STRIPE_SECRET_KEY);
+    const stripe = new StripeService(c.env.STRIPE_SECRET_KEY as string);
     try {
-        const skus = await s.listHardwareSkus();
+        const skus = await stripe.listHardwareSkus();
         return c.json(skus);
     } catch (e: any) { return c.json({ error: e.message }, 500); }
 });
@@ -41,9 +41,9 @@ app.post('/hardware/orders', async (c) => {
 
     if (!tenant.stripeAccountId) return c.json({ error: "Stripe not connected" }, 400);
 
-    const s = new StripeService(c.env.STRIPE_SECRET_KEY);
+    const stripe = new StripeService(c.env.STRIPE_SECRET_KEY as string);
     try {
-        const order = await s.createHardwareOrder({ skuId, quantity, shipping }, tenant.stripeAccountId);
+        const order = await stripe.createHardwareOrder({ skuId, quantity, shipping }, tenant.stripeAccountId);
         return c.json(order);
     } catch (e: any) { return c.json({ error: e.message }, 500); }
 });

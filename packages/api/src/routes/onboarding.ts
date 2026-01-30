@@ -163,7 +163,7 @@ app.post('/studio', rateLimit({ limit: 5, window: 300, keyPrefix: 'onboarding' }
             } else {
                 try {
                     const { StripeService } = await import('../services/stripe');
-                    const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
+                    const stripe = new StripeService(c.env.STRIPE_SECRET_KEY as string);
 
                     // 1. Create Customer
                     const profile = user.profile as any;
@@ -290,7 +290,7 @@ app.post('/studio', rateLimit({ limit: 5, window: 300, keyPrefix: 'onboarding' }
                 // Use Platform API Key for onboarding notifications
                 // Pass db and tenantId for logging
                 const emailService = new EmailService(
-                    c.env.RESEND_API_KEY,
+                    c.env.RESEND_API_KEY as string,
                     undefined,
                     undefined,
                     undefined,

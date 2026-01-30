@@ -242,7 +242,7 @@ app.post('/:id/pay', async (c) => {
 
     try {
         const { StripeService } = await import('../services/stripe');
-        const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
+        const stripe = new StripeService(c.env.STRIPE_SECRET_KEY as string);
         const transfer = await stripe.createTransfer({
             amount: payout.amount, currency: payout.currency || 'usd',
             destination: instructor.user.stripeAccountId,
@@ -273,7 +273,7 @@ app.post('/transfer', async (c) => {
 
     try {
         const { StripeService } = await import('../services/stripe');
-        const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
+        const stripe = new StripeService(c.env.STRIPE_SECRET_KEY as string);
         const transfer = await stripe.createTransfer({
             amount, currency: currency || 'usd', destination: instructor.user.stripeAccountId,
             sourceAccountId: tenant.stripeAccountId || undefined, description: `Manual Payout`

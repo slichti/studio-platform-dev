@@ -74,7 +74,7 @@ app.put('/:id', async (c) => {
 // POST /admin/plans/sync - Sync prices from Stripe
 app.post('/sync', async (c) => {
     const db = createDb(c.env.DB);
-    const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
+    const stripe = new StripeService(c.env.STRIPE_SECRET_KEY as string);
 
     // 1. Fetch all active products from Stripe
     // NOTE: In a real implementation, you'd use the Stripe SDK to list products/prices

@@ -16,7 +16,7 @@ const kioskAuth = async (c: any, next: any) => {
     }
     const token = authHeader.split(' ')[1];
     try {
-        const payload = await verify(token, c.env.ENCRYPTION_SECRET, 'HS256');
+        const payload = await verify(token, c.env.ENCRYPTION_SECRET as string, 'HS256');
         if (!payload.kioskTenantId) {
             throw new Error("Invalid Token");
         }
@@ -63,7 +63,7 @@ app.post('/auth', async (c) => {
         kioskTenantId: tenant.id,
         role: 'kiosk',
         exp: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60) // 30 days
-    }, c.env.ENCRYPTION_SECRET, 'HS256');
+    }, c.env.ENCRYPTION_SECRET as string, 'HS256');
 
     return c.json({ token, tenant: { id: tenant.id, name: tenant.name } });
 });

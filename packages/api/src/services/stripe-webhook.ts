@@ -10,17 +10,9 @@ import { UsageService } from './pricing';
 import { DunningService } from './dunning';
 import { FulfillmentService } from './fulfillment';
 import { WebhookService } from './webhooks';
+import { Bindings } from '../types';
 
-type Bindings = {
-    DB: D1Database;
-    RESEND_API_KEY: string;
-    STRIPE_SECRET_KEY: string;
-    STRIPE_WEBHOOK_SECRET: string;
-    PLATFORM_ADMIN_EMAIL?: string;
-    CLOUDFLARE_ACCOUNT_ID: string;
-    CLOUDFLARE_API_TOKEN: string;
-    // Add others if needed
-};
+// Local Bindings removed in favor of shared types
 
 export class StripeWebhookHandler {
     private db: ReturnType<typeof createDb>;
@@ -346,7 +338,7 @@ export class StripeWebhookHandler {
                         try {
                             const emailService = new EmailService(
                                 this.env.RESEND_API_KEY,
-                                undefined,
+                                { branding: tenant.branding as any, settings: tenant.settings as any },
                                 undefined,
                                 undefined,
                                 false,

@@ -5,26 +5,33 @@ import { EmailService } from './services/email';
 
 export interface Bindings {
     DB: D1Database;
-    JWT_SECRET: string;
-    ENCRYPTION_SECRET: string;
+    JWT_SECRET?: string;
+    ENCRYPTION_SECRET?: string;
     RESEND_API_KEY?: string;
     TWILIO_ACCOUNT_SID?: string;
     CLOUDFLARE_ACCOUNT_ID?: string;
     CLOUDFLARE_API_TOKEN?: string;
     CLERK_SECRET_KEY?: string;
+    CLERK_WEBHOOK_SECRET?: string;
     STRIPE_SECRET_KEY?: string;
+    STRIPE_WEBHOOK_SECRET?: string;
+    STRIPE_CLIENT_ID?: string;
     ZOOM_ACCOUNT_ID?: string;
     ENVIRONMENT?: string;
-    R2: R2Bucket;
-    RATE_LIMITER: DurableObjectNamespace;
-    METRICS: DurableObjectNamespace;
+    R2?: R2Bucket;
+    CHAT_ROOM?: DurableObjectNamespace; // Added CHAT_ROOM binding
+    RATE_LIMITER?: DurableObjectNamespace;
+    METRICS?: DurableObjectNamespace;
     PLATFORM_ADMIN_EMAIL?: string;
     IMPERSONATION_SECRET?: string;
-    GOOGLE_CLIENT_ID: string;
-    GOOGLE_CLIENT_SECRET: string;
-    CLOUDFLARE_STREAM_ACCOUNT_ID: string;
-    CLOUDFLARE_STREAM_API_TOKEN: string;
-    GEMINI_API_KEY: string;
+    GOOGLE_CLIENT_ID?: string;
+    GOOGLE_CLIENT_SECRET?: string;
+    CLOUDFLARE_STREAM_ACCOUNT_ID?: string;
+    CLOUDFLARE_STREAM_API_TOKEN?: string;
+    GEMINI_API_KEY?: string;
+    ZOOM_WEBHOOK_SECRET_TOKEN?: string;
+    ZOOM_CLIENT_ID?: string;
+    ZOOM_CLIENT_SECRET?: string;
 }
 
 export interface Variables {

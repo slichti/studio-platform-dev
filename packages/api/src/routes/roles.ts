@@ -2,7 +2,10 @@ import { Hono } from 'hono';
 import { createDb } from '../db';
 import { customRoles, memberCustomRoles } from '@studio/db/src/schema';
 import { eq, and } from 'drizzle-orm';
-import { HonoContext, PERMISSIONS } from '../types';
+import { HonoContext } from '../types';
+import { Permission, RolePermissions } from '../services/permissions';
+
+const ALL_PERMISSIONS = RolePermissions.owner;
 
 const app = new Hono<HonoContext>();
 
@@ -17,7 +20,7 @@ app.get('/', async (c) => {
 app.post('/', async (c) => {
     if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
     const { name, description, permissions } = await c.req.json();
-    const safe = (permissions || []).filter((p: string) => Object.values(PERMISSIONS).includes(p as any));
+    const safe = (permissions || []).filter((p: string) => ALL_PERMISSIONS.includes(p as Permission));
     const db = createDb(c.env.DB);
     const id = crypto.randomUUID();
     await db.insert(customRoles).values({ id, tenantId: c.get('tenant')!.id, name, description, permissions: safe }).run();
@@ -35,7 +38,7 @@ app.put('/:id', async (c) => {
     const up: any = {};
     if (name) up.name = name;
     if (description !== undefined) up.description = description;
-    if (permissions) up.permissions = permissions.filter((p: string) => Object.values(PERMISSIONS).includes(p as any));
+    if (permissions) up.permissions = permissions.filter((p: string) => ALL_PERMISSIONS.includes(p as Permission));
 
     await db.update(customRoles).set(up).where(eq(customRoles.id, role.id)).run();
     return c.json({ success: true });

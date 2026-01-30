@@ -12,6 +12,7 @@
         "esModuleInterop": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
+        "jsx": "react-jsx",
         "baseUrl": ".",
         "paths": {
             "@studio/db": [
@@ -19,6 +20,9 @@
             ],
             "@studio/db/*": [
                 "../db/*"
+            ],
+            "@studio/emails": [
+                "../emails/src/index.ts"
             ]
         }
     },

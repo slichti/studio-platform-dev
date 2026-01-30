@@ -164,13 +164,13 @@ app.post('/products/bulk', async (c) => {
     if (!items || !Array.isArray(items)) return c.json({ error: "Invalid items" }, 400);
 
     const { StripeService } = await import('../services/stripe');
-    const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+    const stripe = new StripeService(c.env.STRIPE_SECRET_KEY as string);
 
     const results = [];
 
     for (const item of items) {
         try {
-            const stripeProduct = await stripeService.createProduct({
+            const stripeProduct = await stripe.createProduct({
                 name: item.name,
                 active: true,
                 metadata: { tenantId: tenant.id, type: item.type },
@@ -182,7 +182,7 @@ app.post('/products/bulk', async (c) => {
                 recurring = { interval: (item.interval === 'annual' ? 'year' : 'month') as any, interval_count: 1 };
             }
 
-            const stripePrice = await stripeService.createPrice({
+            const stripePrice = await stripe.createPrice({
                 productId: stripeProduct.id,
                 unitAmount: item.price,
                 currency: tenant.currency || 'usd',
@@ -240,7 +240,7 @@ app.get('/invoices', async (c) => {
 
     try {
         const { StripeService } = await import('../services/stripe');
-        const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+        const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY as string);
         const invoices = await stripeService.listInvoices(userRecord.stripeCustomerId, 20, tenant.stripeAccountId);
         const mapped = invoices.data.map(inv => ({
             id: inv.id, date: inv.created * 1000, amount: inv.total, currency: inv.currency,
@@ -262,7 +262,7 @@ app.post('/checkout/session', rateLimit({ limit: 10, window: 60, keyPrefix: 'che
     if (!tenant.stripeAccountId) return c.json({ error: "Payments not enabled." }, 400);
 
     try {
-        if (auth.isImpersonating) return c.json({ error: 'Payments cannot be processed while impersonating.' }, 403);
+        if (!!(auth as any).isImpersonating) return c.json({ error: 'Payments cannot be processed while impersonating.' }, 403);
 
         const body = await c.req.json();
         const { packId, planId, couponCode, giftCardCode, giftCardAmount, recipientEmail, recipientName, senderName, message } = body;
@@ -403,7 +403,7 @@ app.post('/failed-payments/:id/retry', async (c) => {
 
     try {
         const { StripeService } = await import('../services/stripe');
-        const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+        const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY as string);
         const stripeSubFull = await stripeService.getSubscription(sub.stripeSubscriptionId, tenant.stripeAccountId);
         const latestInvoice = stripeSubFull.latest_invoice as any;
         if (!latestInvoice) return c.json({ error: "No invoice" }, 400);

@@ -17,9 +17,9 @@ app.get('/stripe/connect', async (c) => {
     const isPlatformAdmin = c.get('auth')?.claims?.isPlatformAdmin === true;
     if (!isPlatformAdmin && !c.get('can')('manage_tenant')) return c.json({ error: "Forbidden" }, 403);
 
-    const state = await sign({ tenantId, userId: c.get('auth')!.userId, exp: Math.floor(Date.now() / 1000) + 600 }, c.env.ENCRYPTION_SECRET, 'HS256');
-    const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
-    return c.redirect(stripe.getConnectUrl(c.env.STRIPE_CLIENT_ID, `${new URL(c.req.url).origin}/studios/stripe/callback`, state));
+    const state = await sign({ tenantId, userId: c.get('auth')!.userId, exp: Math.floor(Date.now() / 1000) + 600 }, c.env.ENCRYPTION_SECRET as string, 'HS256');
+    const stripe = new StripeService(c.env.STRIPE_SECRET_KEY as string);
+    return c.redirect(stripe.getConnectUrl(c.env.STRIPE_CLIENT_ID as string, `${new URL(c.req.url).origin}/studios/stripe/callback`, state));
 });
 
 // GET /stripe/callback
@@ -30,11 +30,11 @@ app.get('/stripe/callback', async (c) => {
 
     let tenantId: string;
     try {
-        const payload = await verify(state, c.env.ENCRYPTION_SECRET, 'HS256');
+        const payload = await verify(state, c.env.ENCRYPTION_SECRET as string, 'HS256');
         tenantId = payload.tenantId as string;
     } catch (e) { return c.json({ error: "Invalid state" }, 400); }
 
-    const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
+    const stripe = new StripeService(c.env.STRIPE_SECRET_KEY as string);
     const db = createDb(c.env.DB);
     try {
         const stripeAccountId = await stripe.connectAccount(code);
@@ -90,7 +90,7 @@ app.put('/:id/integrations', async (c) => {
 
     const db = createDb(c.env.DB);
     const body = await c.req.json();
-    const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
+    const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET as string);
     const updateData: any = {};
 
     if (body.marketingProvider) updateData.marketingProvider = body.marketingProvider;
@@ -127,8 +127,8 @@ app.get('/google/connect', async (c) => {
     if (!isPlatformAdmin && !c.get('can')('manage_tenant')) return c.json({ error: "Forbidden" }, 403);
 
     const { GoogleCalendarService } = await import('../services/google-calendar');
-    const service = new GoogleCalendarService(c.env.GOOGLE_CLIENT_ID, c.env.GOOGLE_CLIENT_SECRET, `${new URL(c.req.url).origin}/studios/google/callback`);
-    const state = await sign({ tenantId, userId: c.get('auth')!.userId, exp: Math.floor(Date.now() / 1000) + 600 }, c.env.ENCRYPTION_SECRET, 'HS256');
+    const service = new GoogleCalendarService(c.env.GOOGLE_CLIENT_ID as string, c.env.GOOGLE_CLIENT_SECRET as string, `${new URL(c.req.url).origin}/studios/google/callback`);
+    const state = await sign({ tenantId, userId: c.get('auth')!.userId, exp: Math.floor(Date.now() / 1000) + 600 }, c.env.ENCRYPTION_SECRET as string, 'HS256');
     return c.redirect(service.getAuthUrl(state));
 });
 
@@ -139,15 +139,15 @@ app.get('/google/callback', async (c) => {
 
     let tenantIdStr: string;
     try {
-        const payload = await verify(state, c.env.ENCRYPTION_SECRET, 'HS256');
+        const payload = await verify(state, c.env.ENCRYPTION_SECRET as string, 'HS256');
         if (payload.userId !== c.get('auth')?.userId) return c.json({ error: "User mismatch" }, 403);
         tenantIdStr = payload.tenantId as string;
     } catch (e) { return c.json({ error: "Invalid state" }, 400); }
 
     const { GoogleCalendarService } = await import('../services/google-calendar');
-    const service = new GoogleCalendarService(c.env.GOOGLE_CLIENT_ID, c.env.GOOGLE_CLIENT_SECRET, `${new URL(c.req.url).origin}/studios/google/callback`);
+    const service = new GoogleCalendarService(c.env.GOOGLE_CLIENT_ID as string, c.env.GOOGLE_CLIENT_SECRET as string, `${new URL(c.req.url).origin}/studios/google/callback`);
     const db = createDb(c.env.DB);
-    const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
+    const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET as string);
 
     try {
         const tokens = await service.exchangeCode(code);

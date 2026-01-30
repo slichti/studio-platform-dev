@@ -116,7 +116,7 @@ app.post('/:id/sign', async (c) => {
                     const split = d.splitTextToSize(template.content, 170); d.text(split, 20, 40);
                     const y = 40 + (split.length * 5) + 20; d.text(`Date: ${new Date().toLocaleString()}`, 20, y);
                     if (signatureData?.startsWith('data:image')) d.addImage(signatureData, 'PNG', 20, y + 10, 100, 40);
-                    await new EmailService(c.env.RESEND_API_KEY, { branding: tenant.branding as any }).sendWaiverCopy(u.email, template.title, d.output('arraybuffer'));
+                    await new EmailService(c.env.RESEND_API_KEY as string, { branding: tenant.branding as any }).sendWaiverCopy(u.email, template.title, d.output('arraybuffer'));
                 }
             } catch (e) { console.error(e); }
         })());
@@ -167,7 +167,7 @@ app.post('/sign/public', async (c) => {
                 if (signatureData?.startsWith('data:image')) d.addImage(signatureData, 'PNG', 20, y + 10, 100, 40);
                 const buf = d.output('arraybuffer');
                 const { EmailService } = await import('../services/email');
-                const es = new EmailService(c.env.RESEND_API_KEY, { branding: tenant.branding as any });
+                const es = new EmailService(c.env.RESEND_API_KEY as string, { branding: tenant.branding as any });
                 await es.sendWaiverCopy(email, t.title, buf);
                 const studioEmail = (tenant.settings as any)?.notifications?.adminEmail;
                 if (studioEmail) await es.sendWaiverCopy(studioEmail, `${t.title} signed by ${firstName}`, buf);

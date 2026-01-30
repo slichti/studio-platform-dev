@@ -59,7 +59,7 @@ app.post('/products', async (c) => {
     if (!parseResult.success) return c.json({ error: 'Invalid input', details: parseResult.error.format() }, 400);
 
     let stripeService: StripeService | undefined;
-    if (c.env.STRIPE_SECRET_KEY) stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+    if (c.env.STRIPE_SECRET_KEY) stripeService = new StripeService(c.env.STRIPE_SECRET_KEY as string);
 
     const service = new PosService(db, tenant.id, c.env, stripeService);
     const id = await service.createProduct(parseResult.data, tenant.stripeAccountId, tenant.currency || 'usd');
@@ -165,7 +165,7 @@ app.post('/connection-token', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant || !tenant.stripeAccountId) return c.json({ error: "Stripe not connected" }, 400);
 
-    const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
+    const stripe = new StripeService(c.env.STRIPE_SECRET_KEY as string);
     try {
         const token = await stripe.createTerminalConnectionToken(tenant.stripeAccountId);
         return c.json({ secret: token.secret });
@@ -184,7 +184,7 @@ app.get('/customers', async (c) => {
     if (!query || query.length < 2) return c.json({ customers: [] });
 
     let stripeService: StripeService | undefined;
-    if (c.env.STRIPE_SECRET_KEY) stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+    if (c.env.STRIPE_SECRET_KEY) stripeService = new StripeService(c.env.STRIPE_SECRET_KEY as string);
 
     const service = new PosService(db, tenant.id, c.env, stripeService);
     return c.json({ customers: await service.searchCustomers(query, tenant.stripeAccountId) });
@@ -199,7 +199,7 @@ app.post('/customers', async (c) => {
     const { email, name, phone } = await c.req.json();
     let stripeCustomerId = null;
     if (c.env.STRIPE_SECRET_KEY && tenant.stripeAccountId) {
-        const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
+        const stripe = new StripeService(c.env.STRIPE_SECRET_KEY as string);
         try {
             const cus = await stripe.createCustomer({ email, name, phone, metadata: { tenantId: tenant.id } }, tenant.stripeAccountId);
             stripeCustomerId = cus.id;
@@ -219,7 +219,7 @@ app.put('/products/:id', async (c) => {
     const body = await c.req.json();
 
     let stripeService: StripeService | undefined;
-    if (c.env.STRIPE_SECRET_KEY) stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+    if (c.env.STRIPE_SECRET_KEY) stripeService = new StripeService(c.env.STRIPE_SECRET_KEY as string);
 
     const service = new PosService(db, tenant.id, c.env, stripeService);
     try {
@@ -239,7 +239,7 @@ app.post('/products/:id/archive', async (c) => {
 
     const id = c.req.param('id');
     let stripeService: StripeService | undefined;
-    if (c.env.STRIPE_SECRET_KEY) stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+    if (c.env.STRIPE_SECRET_KEY) stripeService = new StripeService(c.env.STRIPE_SECRET_KEY as string);
 
     const service = new PosService(db, tenant.id, c.env, stripeService);
     try {
@@ -259,7 +259,7 @@ app.post('/products/import', async (c) => {
 
     const { products } = await c.req.json();
     let stripeService: StripeService | undefined;
-    if (c.env.STRIPE_SECRET_KEY) stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+    if (c.env.STRIPE_SECRET_KEY) stripeService = new StripeService(c.env.STRIPE_SECRET_KEY as string);
     const service = new PosService(db, tenant.id, c.env, stripeService);
 
     const results = { success: 0, failed: 0, errors: [] as string[] };

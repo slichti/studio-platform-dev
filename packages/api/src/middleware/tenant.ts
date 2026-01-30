@@ -105,8 +105,11 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
         }
     }
 
+    const { UsageService } = await import('../services/pricing');
+    const usageService = new UsageService(db, tenant.id);
+
     // Always provide an EmailService, even if using platform default
-    const emailService = new EmailService(emailApiKey || '', db, tenant.id, tenant as any);
+    const emailService = new EmailService(emailApiKey || '', tenant as any, { slug: tenant.slug, name: tenant.name }, usageService, !!emailApiKey, db, tenant.id);
     c.set('email', emailService);
 
     // 2. SMS (Twilio)

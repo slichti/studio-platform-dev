@@ -48,7 +48,7 @@ export class BookingService {
                 const usageService = new UsageService(this.db, member.tenantId);
 
                 const emailService = new EmailService(
-                    this.env.RESEND_API_KEY,
+                    this.env.RESEND_API_KEY as string,
                     emailConfig,
                     undefined,
                     undefined,

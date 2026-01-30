@@ -65,7 +65,7 @@ app.post('/', async (c) => {
     let zm = { id: null, url: null, pwd: null };
     if (zoomEnabled) {
         try {
-            const zs = await ZoomService.getForTenant(tenant, c.env, new EncryptionUtils(c.env.ENCRYPTION_SECRET));
+            const zs = await ZoomService.getForTenant(tenant, c.env, new EncryptionUtils(c.env.ENCRYPTION_SECRET as string));
             if (zs) {
                 const m: any = await zs.createMeeting(title, start, dur);
                 zm = { id: m.id?.toString(), url: m.join_url, pwd: m.password };

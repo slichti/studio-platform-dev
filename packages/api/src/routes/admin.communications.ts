@@ -83,7 +83,7 @@ app.post('/resend/:id', async (c) => {
     const { EmailService } = await import('../services/email');
 
     const emailService = new EmailService(
-        c.env.RESEND_API_KEY || '',
+        c.env.RESEND_API_KEY as string,
         tenant ? { branding: tenant.branding as any, settings: tenant.settings as any } : undefined,
         undefined,
         undefined,

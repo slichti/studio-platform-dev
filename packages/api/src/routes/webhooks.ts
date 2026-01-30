@@ -3,7 +3,7 @@ import { createDb } from '../db';
 import { ZoomService } from '../services/zoom';
 import { StreamService } from '../services/stream';
 import * as schema from '@studio/db/src/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { HonoContext } from '../types';
 
 const app = new Hono<HonoContext>();
@@ -25,8 +25,8 @@ app.post('/zoom', async (c) => {
                 const db = createDb(c.env.DB);
                 const cl = await db.select().from(schema.classes).innerJoin(schema.tenants, eq(schema.classes.tenantId, schema.tenants.id)).where(eq(schema.classes.zoomMeetingId, String(payload.id))).limit(1).get();
                 if (cl && (['growth', 'scale'].includes(cl.tenants.tier))) {
-                    const zs = new ZoomService(c.env.ZOOM_ACCOUNT_ID, c.env.ZOOM_CLIENT_ID, c.env.ZOOM_CLIENT_SECRET, c.env.DB);
-                    const ss = new StreamService(c.env.CLOUDFLARE_ACCOUNT_ID, c.env.CLOUDFLARE_API_TOKEN);
+                    const zs = new ZoomService(c.env.ZOOM_ACCOUNT_ID!, c.env.ZOOM_CLIENT_ID!, c.env.ZOOM_CLIENT_SECRET!, c.env.DB);
+                    const ss = new StreamService(c.env.CLOUDFLARE_ACCOUNT_ID!, c.env.CLOUDFLARE_API_TOKEN!);
                     await ss.uploadViaLink(`${recording.download_url}?access_token=${await (zs as any).getAccessToken()}`, { name: payload.topic || `Meeting ${payload.id}`, meta: { classId: cl.classes.id, tenantId: cl.classes.tenantId } });
                 }
             } catch (e) { console.error(e); }
@@ -58,7 +58,7 @@ app.post('/clerk', async (c) => {
                 const { UsageService } = await import('../services/pricing');
                 for (const m of mems) {
                     const us = new UsageService(db, m.tenantId);
-                    const es = new EmailService((m.tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY!, { branding: m.tenant.branding as any, settings: m.tenant.settings as any }, { slug: m.tenant.slug }, us, !!(m.tenant.resendCredentials as any)?.apiKey);
+                    const es = new EmailService((m.tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY!, { branding: m.tenant.branding as any, settings: m.tenant.settings as any }, { slug: m.tenant.slug }, us, !!(m.tenant.resendCredentials as any)?.apiKey, db, m.tenantId);
                     const as = new AutomationsService(db, m.tenantId, es, new SmsService(m.tenant.twilioCredentials as any, c.env, us, db, m.tenantId));
                     await as.dispatchTrigger('contact_updated', { userId: id, email, firstName: first_name, lastName: last_name, data: { memberId: m.id } });
                 }
@@ -80,7 +80,7 @@ app.post('/stripe', async (c) => {
     if (!sig || !secret || !c.env.STRIPE_SECRET_KEY) return c.json({ error: 'Config' }, 500);
 
     const { Stripe } = await import('stripe');
-    const stripe = new Stripe(c.env.STRIPE_SECRET_KEY, { apiVersion: '2025-12-15.clover' as any });
+    const stripe = new Stripe(c.env.STRIPE_SECRET_KEY as string, { apiVersion: '2025-12-15.clover' as any });
     let event;
     try { event = stripe.webhooks.constructEvent(await c.req.text(), sig, secret); } catch (e: any) { return c.json({ error: e.message }, 400); }
 

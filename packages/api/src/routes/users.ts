@@ -19,7 +19,7 @@ app.get('/me', async (c) => {
 
     if (!user) {
         try {
-            const res = await fetch(`https://api.clerk.com/v1/users/${auth.userId}`, { headers: { 'Authorization': `Bearer ${c.env.CLERK_SECRET_KEY}` } });
+            const res = await fetch(`https://api.clerk.com/v1/users/${auth.userId}`, { headers: { 'Authorization': `Bearer ${c.env.CLERK_SECRET_KEY as string}` } });
             if (!res.ok) return c.json({ error: 'Provisioning failed' }, 500);
             const clerk = await res.json() as any;
             const email = clerk.email_addresses?.[0]?.email_address;
@@ -107,7 +107,7 @@ app.post('/me/switch-profile', async (c) => {
     if (!rel) return c.json({ error: 'Forbidden' }, 403);
 
     const { sign } = await import('hono/jwt');
-    const token = await sign({ sub: targetUserId, impersonatorId: realId, exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) }, c.env.CLERK_SECRET_KEY);
+    const token = await sign({ sub: targetUserId, impersonatorId: realId, exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) }, c.env.CLERK_SECRET_KEY as string);
     return c.json({ token });
 });
 

@@ -109,7 +109,7 @@ app.delete('/:id/recording', async (c) => {
     }
 
     try {
-        const stream = new StreamService(c.env.CLOUDFLARE_STREAM_ACCOUNT_ID, c.env.CLOUDFLARE_STREAM_API_TOKEN);
+        const stream = new StreamService(c.env.CLOUDFLARE_STREAM_ACCOUNT_ID as string, c.env.CLOUDFLARE_STREAM_API_TOKEN as string);
         await stream.deleteVideo(classInfo.cloudflareStreamId);
 
         await db.update(classes)

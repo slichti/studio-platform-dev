@@ -1,6 +1,5 @@
-export * from './components/BaseLayout';
-export * from './templates/WelcomeEmail';
-export * from './templates/BookingConfirmation';
-export * from './templates/InvitationEmail';
-export * from './templates/ReceiptEmail';
-export * from './templates/BroadcastEmail';
+export { WelcomeEmail } from './templates/WelcomeEmail';
+export { BookingConfirmation } from './templates/BookingConfirmation';
+export { InvitationEmail } from './templates/InvitationEmail';
+export { ReceiptEmail } from './templates/ReceiptEmail';
+export { BroadcastEmail } from './templates/BroadcastEmail';

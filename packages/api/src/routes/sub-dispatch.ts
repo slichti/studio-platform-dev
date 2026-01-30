@@ -54,7 +54,7 @@ app.post('/classes/:classId/request', async (c) => {
             const { EmailService } = await import('../services/email');
             const { SmsService } = await import('../services/sms');
             const { PushService } = await import('../services/push');
-            const email = new EmailService(c.env.RESEND_API_KEY, tenant.settings as any, { slug: tenant.slug }, undefined, false, db, tenant.id);
+            const email = new EmailService(c.env.RESEND_API_KEY as string, tenant.settings as any, { slug: tenant.slug }, undefined, false, db, tenant.id);
             const sms = new SmsService(undefined, c.env, undefined, db, tenant.id);
             const push = new PushService(db, tenant.id);
 
@@ -103,8 +103,8 @@ app.post('/items/:requestId/accept', async (c) => {
                     const s = (origMem.settings as any)?.notifications?.substitutions || { email: true, sms: false, push: false };
                     const coverName = member.profile && typeof member.profile === 'string' ? JSON.parse(member.profile).firstName : member.profile?.firstName;
                     const { EmailService } = await import('../services/email');
-                    const email = new EmailService(c.env.RESEND_API_KEY, tenant.settings as any, { slug: tenant.slug }, undefined, false, db, tenant.id);
-                    if (s.email !== false) await email.sendSubRequestFilled(u.email, { classTitle: cls?.title || 'Class', date: formatShortDate(cls?.startTime || new Date()), coveringInstructor: String(coverName) });
+                    const email = new EmailService(c.env.RESEND_API_KEY as string, tenant.settings as any, { slug: tenant.slug }, undefined, false, db, tenant.id);
+                    if (s.email !== false) await email.sendSubRequestFilled(u.email, { classTitle: cls?.title || 'Class', date: formatShortDate(cls?.startTime || new Date()), coveredBy: String(coverName) });
                 }
             }
         } catch (e) { console.error(e); }

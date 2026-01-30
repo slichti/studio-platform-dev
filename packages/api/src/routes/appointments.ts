@@ -234,10 +234,10 @@ app.post('/', async (c) => {
             try {
                 const { GoogleCalendarService } = await import('../services/google-calendar');
                 const { EncryptionUtils } = await import('../utils/encryption');
-                const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
+                const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET as string);
                 const creds = tenant!.googleCalendarCredentials as any;
                 const token = await encryption.decrypt(creds.accessToken);
-                const g = new GoogleCalendarService(c.env.GOOGLE_CLIENT_ID, c.env.GOOGLE_CLIENT_SECRET, '');
+                const g = new GoogleCalendarService(c.env.GOOGLE_CLIENT_ID as string, c.env.GOOGLE_CLIENT_SECRET as string, '');
                 const event = await g.createEvent(token, 'primary', { summary: `Appt: ${service.title}`, description: `Client: ${actingMember!.profile && typeof actingMember!.profile === 'string' ? JSON.parse(actingMember!.profile).firstName : actingMember!.profile?.firstName}\nNotes: ${notes || ''}`, start: { dateTime: start.toISOString() }, end: { dateTime: end.toISOString() } });
                 if (event.id) await db.update(appointments).set({ googleEventId: event.id }).where(eq(appointments.id, id)).run();
             } catch (e) { console.error(e); }

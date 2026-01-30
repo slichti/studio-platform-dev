@@ -41,7 +41,7 @@ app.post('/rooms', async (c) => {
         const notify = (tenant.settings as any)?.chatConfig?.offlineEmail || (tenant.settings as any)?.notifications?.adminEmail;
         if (notify && c.env.RESEND_API_KEY) {
             try {
-                const es = new EmailService(c.env.RESEND_API_KEY, { branding: tenant.branding as any, settings: tenant.settings as any }, { slug: tenant.slug });
+                const es = new EmailService(c.env.RESEND_API_KEY as string, { branding: tenant.branding as any, settings: tenant.settings as any }, { slug: tenant.slug });
                 await es.sendGenericEmail(notify, `New Support: ${name}`, `<p>Request from ${name}. <a href="/studio/${tenant.slug}/chat/${id}">View</a></p>`, true);
             } catch (e) { console.error(e); }
         }
@@ -78,7 +78,7 @@ app.get('/rooms/:id/websocket', async (c) => {
     url.searchParams.set('tenantId', c.get('tenant')!.id);
     url.searchParams.set('userId', c.get('auth')!.userId);
     url.searchParams.set('role', c.get('member')?.roles[0]?.role || 'student');
-    return c.env.CHAT_ROOM.get(c.env.CHAT_ROOM.idFromString(c.req.param('id'))).fetch(url.toString(), c.req.raw);
+    return c.env.CHAT_ROOM!.get(c.env.CHAT_ROOM!.idFromString(c.req.param('id'))).fetch(url.toString(), c.req.raw);
 });
 
 export default app;

@@ -92,7 +92,7 @@ app.post('/churn-check', async (c) => {
                 // AUTOMATION: Trigger Email if became 'at_risk'
                 if (newStatus === 'at_risk' && member.churnStatus === 'safe') {
                     if (churnSettings.automations?.emailEnabled && c.env.RESEND_API_KEY) {
-                        const emailService = new EmailService(c.env.RESEND_API_KEY, {
+                        const emailService = new EmailService(c.env.RESEND_API_KEY as string, {
                             branding: tenant.branding as any,
                             settings: tenant.settings as any
                         }, undefined, undefined, false, db, tenant.id);

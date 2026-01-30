@@ -29,7 +29,7 @@ app.get('/subscriptions', async (c) => {
     const canManage = c.get('can')('manage_commerce');
 
     let query = db.select({ id: subscriptions.id, status: subscriptions.status, currentPeriodEnd: subscriptions.currentPeriodEnd, planName: membershipPlans.name, user: { id: users.id, email: users.email, profile: users.profile } }).from(subscriptions).innerJoin(membershipPlans, eq(subscriptions.planId, membershipPlans.id)).innerJoin(tenantMembers, eq(subscriptions.memberId, tenantMembers.id)).innerJoin(users, eq(tenantMembers.userId, users.id)).where(eq(membershipPlans.tenantId, tenant.id));
-    if (!canManage) query = query.where(eq(users.id, c.get('auth')!.userId)) as any;
+    if (!canManage) query = (query as any).where(eq(users.id, c.get('auth')!.userId));
     return c.json(await query);
 });
 

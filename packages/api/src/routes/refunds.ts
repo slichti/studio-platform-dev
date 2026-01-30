@@ -58,8 +58,8 @@ app.post('/', async (c) => {
 
         let refId = null, finalStatus = 'pending';
         if (stripeId && tenant.stripeAccountId) {
-            const s = new StripeService(c.env.STRIPE_SECRET_KEY);
-            const r = await s.refundPayment(tenant.stripeAccountId, { paymentIntent: stripeId, amount, reason: 'requested_by_customer', metadata: { reason: reason || 'Refund', referenceId, type, performedBy: auth.userId } });
+            const stripe = new StripeService(c.env.STRIPE_SECRET_KEY as string);
+            const r = await stripe.refundPayment(tenant.stripeAccountId, { paymentIntent: stripeId, amount, reason: 'requested_by_customer', metadata: { reason: reason || 'Refund', referenceId, type, performedBy: auth.userId } });
             refId = r.id; finalStatus = 'succeeded';
         } else {
             finalStatus = 'succeeded';

@@ -51,7 +51,7 @@ app.post('/issue', async (c) => {
 
     if (recipientEmail && c.env.RESEND_API_KEY) {
         try {
-            const es = new EmailService(c.env.RESEND_API_KEY, tenant as any, undefined, undefined, false, db, tenant.id);
+            const es = new EmailService(c.env.RESEND_API_KEY as string, tenant as any, undefined, undefined, false, db, tenant.id);
             await es.sendGenericEmail(recipientEmail, `Gift Card from ${tenant.name}`, `<p>$${(amount / 100).toFixed(2)} Credit: ${code}</p>`);
         } catch (e) { console.error(e); }
     }
