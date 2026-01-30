@@ -45,6 +45,7 @@ app.route('/stats', statsRouter);
 app.route('/communications', commsRouter);
 app.route('/support', supportRouter);
 app.route('/config', configRouter);
+app.route('/platform/config', configRouter); // Alias for frontend compatibility (/admin/platform/config)
 app.route('/', tenantFeaturesRouter); // Preserves /admin/tenants/:id/features
 
 // GET /logs - Recent Audit Logs (Global view)
