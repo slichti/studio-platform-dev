@@ -10,19 +10,12 @@ const app = new Hono<HonoContext>();
 // GET /preview - Billing Preview for all tenants
 app.get('/preview', async (c) => {
     const db = createDb(c.env.DB);
+    const { PricingService, TIERS } = await import('../services/pricing');
 
     try {
         const allTenants = await db.select().from(tenants).all();
 
-        // Base subscription prices by tier
-        const tierPrices: Record<string, { name: string, amount: number }> = {
-            basic: { name: 'Basic Plan', amount: 29 },
-            growth: { name: 'Growth Plan', amount: 79 },
-            scale: { name: 'Scale Plan', amount: 199 },
-            enterprise: { name: 'Enterprise Plan', amount: 499 }
-        };
-
-        // Fee structure
+        // Fee structure (consistent with pricing service)
         const fees = {
             sms: 0.0075,
             email: 0.0006,
@@ -32,7 +25,12 @@ app.get('/preview', async (c) => {
         };
 
         const tenantsWithBilling = allTenants.map(t => {
-            const subscription = tierPrices[t.tier || 'basic'] || tierPrices.basic;
+            const tierKey = t.tier || 'launch';
+            const tierConfig = PricingService.getTierConfig(tierKey);
+            const subscription = {
+                name: tierConfig.name + ' Plan',
+                amount: tierConfig.price / 100 // Convert cents to dollars
+            };
             // For now, usage costs are empty (would need UsageService integration)
             const costs: Record<string, { quantity: number, amount: number }> = {};
             const usageTotal = Object.values(costs).reduce((acc, c) => acc + c.amount, 0);
