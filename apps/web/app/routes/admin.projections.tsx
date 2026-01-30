@@ -13,26 +13,30 @@ import {
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
     const token = await getToken();
-    const plans = await apiRequest(`/plans`, token);
+    const plans = await apiRequest(`/public/plans`, token);
     return { plans };
 };
 
 export default function AdminProjections() {
     const { plans } = useLoaderData<any>();
 
-    // Find plans or fallback
-    const launchPlan = plans?.find((p: any) => p.slug === 'launch') || { monthlyPriceCents: 0 };
-    const growthPlan = plans?.find((p: any) => p.slug === 'growth') || { monthlyPriceCents: 4900 };
-    const scalePlan = plans?.find((p: any) => p.slug === 'scale') || { monthlyPriceCents: 12900 };
+    // Find plans or fallback. Public API uses nested prices object.
+    const launchPlan = plans?.find((p: any) => p.slug === 'launch');
+    const growthPlan = plans?.find((p: any) => p.slug === 'growth');
+    const scalePlan = plans?.find((p: any) => p.slug === 'scale');
+
+    const launchPrice = launchPlan?.prices?.monthly ?? 0;
+    const growthPrice = growthPlan?.prices?.monthly ?? 4900;
+    const scalePrice = scalePlan?.prices?.monthly ?? 12900;
 
     // --- 1. Revenue Drivers ---
     const [tenants, setTenants] = useState(50);
     const [growthRate, setGrowthRate] = useState(5); // % Monthly Growth
 
     // Tiers
-    const [tierBasicPrice, setTierBasicPrice] = useState(launchPlan.monthlyPriceCents / 100);
-    const [tierGrowthPrice, setTierGrowthPrice] = useState(growthPlan.monthlyPriceCents / 100);
-    const [tierScalePrice, setTierScalePrice] = useState(scalePlan.monthlyPriceCents / 100);
+    const [tierBasicPrice, setTierBasicPrice] = useState(launchPrice / 100);
+    const [tierGrowthPrice, setTierGrowthPrice] = useState(growthPrice / 100);
+    const [tierScalePrice, setTierScalePrice] = useState(scalePrice / 100);
 
     const [mixBasic, setMixBasic] = useState(60); // %
     const [mixGrowth, setMixGrowth] = useState(30); // %

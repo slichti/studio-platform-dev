@@ -7,18 +7,6 @@ import { HonoContext } from '../types';
 
 const app = new Hono<HonoContext>();
 
-// GET /plans: Public Pricing Plans
-app.get('/plans', async (c) => {
-    const db = createDb(c.env.DB as any);
-    try {
-        const { platformPlans } = await import('@studio/db/src/schema');
-        const list = await db.select().from(platformPlans).where(eq(platformPlans.active, true)).all();
-        return c.json(list);
-    } catch (e: any) {
-        return c.json({ error: e.message }, 500);
-    }
-});
-
 // GET /studios: Public Marketplace Search
 app.get('/studios', async (c) => {
     const db = createDb(c.env.DB as any);

@@ -14,7 +14,7 @@ export const loader = async (args: any) => {
         const [tenant, usageRes, plansRes] = await Promise.all([
             apiRequest(`/tenant/info`, token, { headers: { 'X-Tenant-Slug': slug } }),
             apiRequest(`/tenant/usage`, token, { headers: { 'X-Tenant-Slug': slug } }),
-            apiRequest(`/plans`, token)
+            apiRequest(`/public/plans`, token)
         ]);
 
         if (!tenant.roles?.includes('owner') && !tenant.roles?.includes('admin')) {
@@ -35,9 +35,10 @@ export default function StudioBilling() {
     // Map plans to TIERS format or use directly
     const TIERS: Record<string, any> = {};
     (plans || []).forEach((p: any) => {
+        const monthlyPrice = p.prices?.monthly ?? 0;
         TIERS[p.slug] = {
             name: p.name,
-            price: p.monthlyPriceCents === 0 ? 'Free' : `$${p.monthlyPriceCents / 100}/mo`,
+            price: monthlyPrice === 0 ? 'Free' : `$${monthlyPrice / 100}/mo`,
             students: 'Unlimited', // Placeholders until schema supports these limits
             storage: 'Included',
             ...p
