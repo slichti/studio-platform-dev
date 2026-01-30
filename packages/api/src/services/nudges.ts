@@ -110,20 +110,7 @@ export class NudgeService {
         const now = new Date();
         const cutoffDate = new Date(now);
         cutoffDate.setDate(cutoffDate.getDate() - daysInactive);
-
-        // We want students who:
-        // 1. Have active membership/pack (so they ARE customers)
-        // 2. LAST attended a class < cutoffDate
-        // 3. HAVEN'T been nudged recently (e.g. in last 30 days)
-
-        // Strategy:
-        // Select members with active subs/packs.
-        // For each, check last booking date.
-
-        // MVP Optimization: 
-        // Iterate all active members across all tenants? Expensive.
-        // Let's filter by only tenants who have this feature enabled? 
-        // For now, iterate all active subscriptions as a proxy for "Active Customer".
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
         const activeCustomers = await this.db.select({
             memberId: tenantMembers.id,
@@ -137,98 +124,109 @@ export class NudgeService {
             .from(tenantMembers)
             .innerJoin(users, eq(tenantMembers.userId, users.id))
             .innerJoin(tenants, eq(tenantMembers.tenantId, tenants.id))
-            .where(eq(tenants.status, 'active')) // Only active tenants
+            .where(eq(tenants.status, 'active'))
             .all();
 
-        // This is potentially large. In production, we'd paginate or do this per-tenant via queue.
-        // For current scale, it's fine.
+        // Process in chunks to avoid variable limit (SQLite 999 vars)
+        const CHUNK_SIZE = 50;
+        for (let i = 0; i < activeCustomers.length; i += CHUNK_SIZE) {
+            const chunk = activeCustomers.slice(i, i + CHUNK_SIZE);
+            const memberIds = chunk.map(c => c.memberId);
+            const emails = chunk.map(c => c.email).filter(e => !!e) as string[];
 
-        for (const customer of activeCustomers) {
-            if (!customer.email) continue;
+            if (memberIds.length === 0) continue;
 
-            // Check if they have active access (Subscription OR Pack credits > 0)
-            const hasActiveSub = await this.db.select().from(subscriptions).where(and(
-                eq(subscriptions.memberId, customer.memberId),
-                eq(subscriptions.status, 'active')
-            )).get();
+            // 1. Batch Check Active Access
+            const [activeSubs, activePacks] = await Promise.all([
+                this.db.select({ memberId: subscriptions.memberId }).from(subscriptions)
+                    .where(and(inArray(subscriptions.memberId, memberIds), eq(subscriptions.status, 'active'))).all(),
+                this.db.select({ memberId: purchasedPacks.memberId }).from(purchasedPacks)
+                    .where(and(inArray(purchasedPacks.memberId, memberIds), gt(purchasedPacks.remainingCredits, 0))).all()
+            ]);
 
-            const hasCredits = await this.db.select().from(purchasedPacks).where(and(
-                eq(purchasedPacks.memberId, customer.memberId),
-                gt(purchasedPacks.remainingCredits, 0)
-            )).get();
+            const activeMemberIds = new Set([
+                ...activeSubs.map(s => s.memberId),
+                ...activePacks.map(p => p.memberId)
+            ]);
 
-            if (!hasActiveSub && !hasCredits) continue; // Not an "active" paying customer to retain
-
-            // Check Last Booking
-            const lastBooking = await this.db.select().from(bookings)
+            // 2. Batch Check Last Booking (Group By)
+            const lastBookings = await this.db.select({
+                memberId: bookings.memberId,
+                lastSeen: sql<number>`MAX(${classes.startTime})`
+            })
+                .from(bookings)
                 .innerJoin(classes, eq(bookings.classId, classes.id))
                 .where(and(
-                    eq(bookings.memberId, customer.memberId),
-                    isNotNull(bookings.checkedInAt) // actually attended
+                    inArray(bookings.memberId, memberIds),
+                    isNotNull(bookings.checkedInAt)
                 ))
-                .orderBy(desc(classes.startTime))
-                .limit(1)
-                .get();
+                .groupBy(bookings.memberId)
+                .all();
 
-            let lastAttendedAt = lastBooking ? new Date(lastBooking.classes.startTime) : null;
+            const lastSeenMap = new Map(lastBookings.map(b => [b.memberId, new Date(b.lastSeen)]));
 
-            // If they NEVER attended, maybe use joinedAt?
-            // Let's skip never-attended for "We Miss You", that's a different flow ("First Class").
-            if (!lastAttendedAt) continue;
-
-            if (lastAttendedAt < cutoffDate) {
-                // They are inactive!
-
-                // Check if nudged recently (don't spam every week)
-                const recentNudge = await this.db.select().from(emailLogs).where(and(
-                    eq(emailLogs.recipientEmail, customer.email),
+            // 3. Batch Check Recent Nudges
+            const recentNudges = await this.db.select({ email: emailLogs.recipientEmail }).from(emailLogs)
+                .where(and(
+                    inArray(emailLogs.recipientEmail, emails),
                     eq(emailLogs.status, 'sent'),
                     sql`json_extract(${emailLogs.metadata}, '$.type') = 'nudge_inactive'`,
-                    gte(emailLogs.sentAt, new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)) // 30 days cool-off
-                )).get();
+                    gte(emailLogs.sentAt, thirtyDaysAgo)
+                )).all();
 
-                if (recentNudge) continue;
+            const recentlyNudgedEmails = new Set(recentNudges.map(n => n.email));
 
-                // Send "We Miss You" Email
-                const emailService = new EmailService(this.env.RESEND_API_KEY, {
-                    branding: customer.branding as any,
-                    settings: customer.settings as any
-                });
+            // 4. Process Logic In-Memory
+            for (const customer of chunk) {
+                if (!customer.email) continue;
+                if (!activeMemberIds.has(customer.memberId)) continue; // Not an active customer
+                if (recentlyNudgedEmails.has(customer.email)) continue; // Already nudged
 
-                const profile: any = customer.firstName || {};
-                const name = profile.firstName || 'Friend';
+                const lastSeen = lastSeenMap.get(customer.memberId);
+                // If they never attended, we assume they are "new" and handled by other onboarding flows to avoid spamming "We Miss You" to someone who never came.
+                if (!lastSeen) continue;
 
-                try {
-                    await emailService.sendGenericEmail(
-                        customer.email,
-                        `We miss you at ${customer.tenantName}!`,
-                        `
-                        <p>Hi ${name},</p>
-                        <p>We noticed it's been a while since your last visit. We'd love to see you back on the mat!</p>
-                        <p>Check out our schedule and book your next class today.</p>
-                        <div style="margin-top: 20px;">
-                            <a href="https://${customer.tenantName.toLowerCase().replace(/\s/g, '')}.studio-platform.com/schedule" style="background-color: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Schedule</a>
-                        </div>
-                        `,
-                        false
-                    );
+                if (lastSeen < cutoffDate) {
+                    // Send Nudge
+                    const emailService = new EmailService(this.env.RESEND_API_KEY, {
+                        branding: customer.branding as any,
+                        settings: customer.settings as any
+                    });
 
-                    // Log it
-                    await this.db.insert(emailLogs).values({
-                        id: crypto.randomUUID(),
-                        tenantId: customer.tenantId,
-                        recipientEmail: customer.email,
-                        subject: 'We Miss You',
-                        status: 'sent',
-                        metadata: {
-                            lastAttended: lastAttendedAt.toISOString(),
-                            type: 'nudge_inactive'
-                        }
-                    }).run();
+                    const profile: any = customer.firstName || {};
+                    const name = profile.firstName || 'Friend';
 
-                    console.log(`[Nudge] Sent inactive nudge to ${customer.email} (Last seen: ${lastAttendedAt.toISOString()})`);
-                } catch (e) {
-                    console.error(`[Nudge] Failed to send inactive nudge to ${customer.email}`, e);
+                    try {
+                        await emailService.sendGenericEmail(
+                            customer.email,
+                            `We miss you at ${customer.tenantName}!`,
+                            `
+                            <p>Hi ${name},</p>
+                            <p>We noticed it's been a while since your last visit. We'd love to see you back on the mat!</p>
+                            <p>Check out our schedule and book your next class today.</p>
+                            <div style="margin-top: 20px;">
+                                <a href="https://${customer.tenantName.toLowerCase().replace(/\s/g, '')}.studio-platform.com/schedule" style="background-color: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Schedule</a>
+                            </div>
+                            `,
+                            false
+                        );
+
+                        await this.db.insert(emailLogs).values({
+                            id: crypto.randomUUID(),
+                            tenantId: customer.tenantId,
+                            recipientEmail: customer.email,
+                            subject: 'We Miss You',
+                            status: 'sent',
+                            metadata: {
+                                lastAttended: lastSeen.toISOString(),
+                                type: 'nudge_inactive'
+                            }
+                        }).run();
+
+                        console.log(`[Nudge] Sent inactive nudge to ${customer.email} (Last seen: ${lastSeen.toISOString()})`);
+                    } catch (e) {
+                        console.error(`[Nudge] Failed to send inactive nudge to ${customer.email}`, e);
+                    }
                 }
             }
         }
