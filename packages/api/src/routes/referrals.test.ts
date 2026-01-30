@@ -5,7 +5,7 @@ import referralsApp from './referrals';
 // Mock DB
 const mockGet = vi.fn();
 const mockAll = vi.fn();
-const mockInsert = vi.fn(() => ({ values: vi.fn(() => Promise.resolve()) }));
+const mockInsert = vi.fn(() => ({ values: vi.fn(() => ({ run: vi.fn(() => Promise.resolve()) })) }));
 
 // Recursive mock builder
 const createMockBuilder = () => {
@@ -42,12 +42,12 @@ describe('Referrals API', () => {
         vi.clearAllMocks();
     });
 
-    const createTestApp = (roles = ['member']) => {
-        const testApp = new Hono<{ Bindings: { DB: any }, Variables: { tenant: { id: string }, member: { id: string }, roles: string[] } }>();
+    const createTestApp = (permissions: string[] = []) => {
+        const testApp = new Hono<{ Bindings: { DB: any }, Variables: { tenant: { id: string }, member: { id: string }, can: (p: string) => boolean } }>();
         testApp.use('*', async (c, next) => {
             c.set('tenant', { id: 'tenant_123' });
             c.set('member', { id: 'member_123' });
-            c.set('roles', roles);
+            c.set('can', (permission: string) => permissions.includes(permission));
             await next();
         });
         testApp.route('/', referralsApp);
@@ -88,7 +88,7 @@ describe('Referrals API', () => {
                 { status: 'rewarded' }
             ]);
 
-            const app = createTestApp(['owner']); // Needs owner role
+            const app = createTestApp(['manage_marketing']);
             const res = await app.request('/stats', { method: 'GET' }, { DB: {} });
 
             expect(res.status).toBe(200);
@@ -101,7 +101,7 @@ describe('Referrals API', () => {
         });
 
         it('denies access to non-owners', async () => {
-            const app = createTestApp(['member']);
+            const app = createTestApp([]); // No permissions
             const res = await app.request('/stats', { method: 'GET' }, { DB: {} });
             expect(res.status).toBe(403);
         });

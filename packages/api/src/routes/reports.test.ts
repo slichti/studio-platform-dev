@@ -39,11 +39,11 @@ describe('Reports API', () => {
         vi.clearAllMocks();
     });
 
-    const createTestApp = () => {
-        const testApp = new Hono<{ Bindings: { DB: any }, Variables: { tenant: { id: string }, roles: string[] } }>();
+    const createTestApp = (permissions: string[] = ['view_reports']) => {
+        const testApp = new Hono<{ Bindings: { DB: any }, Variables: { tenant: { id: string }, can: (p: string) => boolean } }>();
         testApp.use('*', async (c, next) => {
             c.set('tenant', { id: 'tenant_123' });
-            c.set('roles', ['owner']);
+            c.set('can', (permission: string) => permissions.includes(permission));
             await next();
         });
         testApp.route('/', reportsApp);
