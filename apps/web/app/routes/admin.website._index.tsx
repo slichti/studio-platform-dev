@@ -5,8 +5,43 @@ import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { useState } from "react";
 import { useAuth } from "@clerk/react-router";
-import { Plus, Edit2, Trash2, Eye, EyeOff, Globe, FileText, ExternalLink } from "lucide-react";
+import { Plus, Edit2, Trash2, Eye, EyeOff, Globe, FileText, ExternalLink, X } from "lucide-react";
 import { ConfirmationDialog, ErrorDialog } from "~/components/Dialogs";
+
+function SitePreviewModal({ isOpen, onClose, url }: { isOpen: boolean, onClose: () => void, url: string }) {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 md:p-8 animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl w-full h-full flex flex-col shadow-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-600 rounded-lg shadow-lg shadow-blue-500/20">
+                            <Globe size={18} className="text-white" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Platform Site Preview</h2>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono truncate max-w-md">{url}</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl transition-colors text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+                    >
+                        <X size={24} />
+                    </button>
+                </div>
+                <div className="flex-1 bg-zinc-100 dark:bg-zinc-950 relative">
+                    <iframe
+                        src={url}
+                        className="w-full h-full border-none"
+                        title="Platform Preview"
+                    />
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -31,6 +66,7 @@ export default function AdminWebsite() {
     // Dialog State
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [errorState, setErrorState] = useState<{ isOpen: boolean, message: string }>({ isOpen: false, message: '' });
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
     const handleCreate = async () => {
         if (!newPage.title || !newPage.slug) return;
@@ -115,14 +151,29 @@ export default function AdminWebsite() {
                     </h1>
                     <p className="text-zinc-500 dark:text-zinc-400 mt-2 font-medium">Design and manage the core presence of the Studio Platform.</p>
                 </div>
-                <button
-                    onClick={() => setCreating(true)}
-                    className="flex items-center gap-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-6 py-3 rounded-xl hover:scale-105 transition-all shadow-xl font-bold"
-                >
-                    <Plus size={20} />
-                    Create Page
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setPreviewUrl("/")}
+                        className="flex items-center gap-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 px-6 py-3 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all font-bold shadow-sm"
+                    >
+                        <Eye size={20} />
+                        Preview Site
+                    </button>
+                    <button
+                        onClick={() => setCreating(true)}
+                        className="flex items-center gap-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-6 py-3 rounded-xl hover:scale-105 transition-all shadow-xl font-bold"
+                    >
+                        <Plus size={20} />
+                        Create Page
+                    </button>
+                </div>
             </div>
+
+            <SitePreviewModal
+                isOpen={!!previewUrl}
+                onClose={() => setPreviewUrl(null)}
+                url={previewUrl || ""}
+            />
 
             {/* Create Modal */}
             {creating && (

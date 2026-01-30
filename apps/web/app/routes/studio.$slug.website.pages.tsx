@@ -5,9 +5,44 @@ import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import { useState } from "react";
 import { useAuth } from "@clerk/react-router";
-import { Plus, Edit2, Trash2, Eye, EyeOff, Globe, FileText } from "lucide-react";
+import { Plus, Edit2, Trash2, Eye, EyeOff, Globe, FileText, ExternalLink, X } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmationDialog } from "~/components/Dialogs";
+
+function SitePreviewModal({ isOpen, onClose, url }: { isOpen: boolean, onClose: () => void, url: string }) {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 md:p-8 animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl w-full h-full flex flex-col shadow-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-600 rounded-lg shadow-lg shadow-blue-500/20">
+                            <Globe size={18} className="text-white" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Live Site Preview</h2>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono truncate max-w-md">{url}</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl transition-colors text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+                    >
+                        <X size={24} />
+                    </button>
+                </div>
+                <div className="flex-1 bg-zinc-100 dark:bg-zinc-950 relative">
+                    <iframe
+                        src={url}
+                        className="w-full h-full border-none"
+                        title="Site Preview"
+                    />
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -32,6 +67,7 @@ export default function WebsitePagesManager() {
     const [creating, setCreating] = useState(false);
     const [newPage, setNewPage] = useState({ title: "", slug: "" });
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
     const handleCreate = async () => {
         if (!newPage.title || !newPage.slug) return;
@@ -109,14 +145,29 @@ export default function WebsitePagesManager() {
                     </h1>
                     <p className="text-zinc-500 mt-1">Create and manage your studio website pages</p>
                 </div>
-                <button
-                    onClick={() => setCreating(true)}
-                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
-                >
-                    <Plus size={18} />
-                    New Page
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setPreviewUrl(`/site/${slug}`)}
+                        className="flex items-center gap-2 bg-white border border-zinc-200 text-zinc-700 px-4 py-2 rounded-lg hover:bg-zinc-50 transition font-medium"
+                    >
+                        <Eye size={18} />
+                        Preview Site
+                    </button>
+                    <button
+                        onClick={() => setCreating(true)}
+                        className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-medium shadow-lg shadow-blue-500/20"
+                    >
+                        <Plus size={18} />
+                        New Page
+                    </button>
+                </div>
             </div>
+
+            <SitePreviewModal
+                isOpen={!!previewUrl}
+                onClose={() => setPreviewUrl(null)}
+                url={previewUrl || ""}
+            />
 
             {/* Create Modal */}
             {creating && (
@@ -196,15 +247,26 @@ export default function WebsitePagesManager() {
                                 >
                                     {page.isPublished ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
+                                <a
+                                    href={`/site/${slug}/${page.slug}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-2 hover:bg-zinc-100 rounded-lg text-zinc-600"
+                                    title="View Live Page"
+                                >
+                                    <ExternalLink size={18} />
+                                </a>
                                 <Link
                                     to={`/studio/${slug}/website/editor/${page.id}`}
                                     className="p-2 hover:bg-blue-50 rounded-lg text-blue-600"
+                                    title="Edit Content"
                                 >
                                     <Edit2 size={18} />
                                 </Link>
                                 <button
                                     onClick={() => handleDelete(page.id)}
                                     className="p-2 hover:bg-red-50 rounded-lg text-red-600"
+                                    title="Delete Page"
                                 >
                                     <Trash2 size={18} />
                                 </button>
