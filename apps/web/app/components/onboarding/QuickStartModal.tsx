@@ -291,7 +291,20 @@ export function QuickStartModal({ isOpen, onClose, tenant, token }: QuickStartMo
 
                     <div className="flex gap-3">
                         <button
-                            onClick={onClose}
+                            onClick={async () => {
+                                try {
+                                    await apiRequest('/quick-start/skip', token, {
+                                        method: 'POST',
+                                        body: JSON.stringify({ tenantId: tenant.id })
+                                    });
+                                    revalidator.revalidate();
+                                    onClose();
+                                } catch (e) {
+                                    console.error("Failed to skip setup", e);
+                                    // Close anyway to not block user
+                                    onClose();
+                                }
+                            }}
                             className="px-4 py-2 text-zinc-500 text-sm hover:text-zinc-700"
                         >
                             Skip Setup

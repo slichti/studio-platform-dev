@@ -432,4 +432,40 @@ app.post('/quick-start', rateLimit({ limit: 10, window: 60, keyPrefix: 'quick-st
     return c.json({ success: true, onboardingCompleted: true });
 });
 
+// POST /quick-start/skip - Mark onboarding as complete without setup
+app.post('/quick-start/skip', rateLimit({ limit: 10, window: 60, keyPrefix: 'quick-start' }), async (c) => {
+    const auth = c.get('auth');
+    if (!auth?.userId) return c.json({ error: "Unauthorized" }, 401);
+
+    const { tenantId } = await c.req.json();
+    if (!tenantId) return c.json({ error: "Tenant ID required" }, 400);
+
+    const db = createDb(c.env.DB);
+
+    // Verify Ownership
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenantId))
+    });
+
+    if (!member) return c.json({ error: "Not a member" }, 403);
+
+    // Check Role
+    const role = await db.select().from(tenantRoles).where(eq(tenantRoles.memberId, member.id)).get();
+    if (role?.role !== 'owner' && role?.role !== 'admin') return c.json({ error: "Must be owner or admin" }, 403);
+
+    const currentTenant = await db.select().from(tenants).where(eq(tenants.id, tenantId)).get();
+    if (!currentTenant) return c.json({ error: "Tenant not found" }, 404);
+
+    const newSettings = {
+        ...(currentTenant.settings || {}),
+        onboardingCompleted: true
+    };
+
+    await db.update(tenants).set({
+        settings: newSettings
+    }).where(eq(tenants.id, tenantId)).run();
+
+    return c.json({ success: true, onboardingCompleted: true });
+});
+
 export default app;
