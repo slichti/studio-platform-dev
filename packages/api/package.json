@@ -12,6 +12,8 @@
     "dependencies": {
         "@clerk/backend": "^2.29.0",
         "@faker-js/faker": "^10.2.0",
+        "@hono/swagger-ui": "^0.5.3",
+        "@hono/zod-openapi": "^1.2.0",
         "@hono/zod-validator": "^0.7.6",
         "@sentry/cloudflare": "^10.33.0",
         "@studio/db": "*",

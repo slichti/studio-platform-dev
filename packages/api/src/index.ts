@@ -64,6 +64,7 @@ import adminSearch from './routes/admin.search'; // [NEW] Admin Search
 import tagsRoutes from './routes/tags'; // [NEW] Tags
 import customFieldRoutes from './routes/custom-fields'; // [NEW] Custom Fields
 import auditLogRoutes from './routes/audit-logs'; // [NEW] Audit Logs
+import docRoutes from './routes/docs'; // [NEW] Docs
 
 export type Bindings = {
   DB: D1Database;
@@ -579,6 +580,8 @@ import { RateLimiter } from './durable-objects/RateLimiter';
 import { Metrics } from './durable-objects/Metrics';
 
 export { ChatRoom, RateLimiter, Metrics };
+
+app.route('/docs', docRoutes); // Mount docs at /docs
 
 export default {
   fetch: app.fetch,

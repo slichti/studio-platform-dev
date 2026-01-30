@@ -7,6 +7,7 @@ import { ReportService } from './services/reports';
 import { AutomationsService } from './services/automations';
 import { EmailService } from './services/email';
 import { NotificationService } from './services/notifications';
+import { NudgeService } from './services/nudges';
 
 export const scheduled = async (event: any, env: any, ctx: any) => {
     console.log("Cron trigger fired:", event.cron);
@@ -266,7 +267,19 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
     // 5. Billing Renewal Notifications
     await processRenewals(db, env);
 
-    // 6. Scheduled Reports
+    // 6. Student Nudges (Trial Expiring / Inactive)
+    const nudgeService = new NudgeService(db, env);
+    try {
+        await nudgeService.checkTrialExpiring(3); // 3 days before
+        // Weekly run optimization: Check if today is Monday (or any specific day)
+        // Or simpler: checkInactiveStudents includes logic to not spam (30 day cool-off).
+        // So harmless to run daily, but let's stick to simple logic.
+        await nudgeService.checkInactiveStudents(14); // 14 days inactive
+    } catch (e) {
+        console.error("Failed to process nudges", e);
+    }
+
+    // 7. Scheduled Reports
     const dueReports = await db.query.scheduledReports.findMany({
         where: and(
             lte(scheduledReports.nextRun, now),
