@@ -69,7 +69,7 @@ export function ChatWidget({ roomId, tenantId, userId, userName, apiUrl = "", en
         const wsProtocol = baseUrl.startsWith('https') ? 'wss://' : 'ws://';
         const wsHost = baseUrl.replace(/^http(s)?:\/\//, '');
 
-        let wsUrl = `${wsProtocol}${wsHost}/api/chat/rooms/${roomId}/websocket?roomId=${roomId}&tenantId=${tenantId}&userId=${effectiveUserId}&userName=${encodeURIComponent(effectiveUserName)}`;
+        let wsUrl = `${wsProtocol}${wsHost}/chat/rooms/${roomId}/websocket?roomId=${roomId}&tenantId=${tenantId}&userId=${effectiveUserId}&userName=${encodeURIComponent(effectiveUserName)}`;
 
         if (token) {
             wsUrl += `&token=${token}`;

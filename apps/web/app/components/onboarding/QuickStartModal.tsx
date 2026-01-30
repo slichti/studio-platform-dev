@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Modal } from "../Modal"; // Adjust path as needed
 import { apiRequest } from "../../utils/api";
 import { useRevalidator, useParams, Link } from "react-router";
@@ -21,19 +21,33 @@ export function QuickStartModal({ isOpen, onClose, tenant, token }: QuickStartMo
     // Form State
     const [formData, setFormData] = useState({
         name: tenant.name,
-        timezone: tenant.locations?.[0]?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        timezone: tenant.locations?.[0]?.timezone || 'UTC', // Default to stable value
         currency: tenant.currency || 'usd',
         branding: {
             primaryColor: tenant.branding?.primaryColor || '#2563EB',
-            // Default font usually Inter
         },
         firstClass: {
             title: 'Morning Flow',
-            date: new Date().toISOString().split('T')[0], // Today
+            date: '', // Set in useEffect
             time: '09:00',
             duration: 60
         }
     });
+
+    // Hydration Fix: Set client-side defaults
+    useEffect(() => {
+        const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
+
+        setFormData(prev => ({
+            ...prev,
+            timezone: tenant.locations?.[0]?.timezone || userTz,
+            firstClass: {
+                ...prev.firstClass,
+                date: today
+            }
+        }));
+    }, []);
 
     // Top 30 Common Timezones (Better UX than full list)
     const commonTimezones = [
@@ -75,7 +89,7 @@ export function QuickStartModal({ isOpen, onClose, tenant, token }: QuickStartMo
                 }
             };
 
-            const res = await apiRequest('/quick-start', token, {
+            const res = await apiRequest('/onboarding/quick-start', token, {
                 method: 'POST',
                 body: JSON.stringify(payload)
             });
@@ -293,7 +307,7 @@ export function QuickStartModal({ isOpen, onClose, tenant, token }: QuickStartMo
                         <button
                             onClick={async () => {
                                 try {
-                                    await apiRequest('/quick-start/skip', token, {
+                                    await apiRequest('/onboarding/quick-start/skip', token, {
                                         method: 'POST',
                                         body: JSON.stringify({ tenantId: tenant.id })
                                     });
