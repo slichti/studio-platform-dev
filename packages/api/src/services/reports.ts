@@ -655,4 +655,10 @@ export class ReportService {
         }
         return `<p>Report summary generated.</p>`;
     }
+
+    async getChurnRisk(threshold = 50) {
+        const { ChurnService } = await import('./churn');
+        const churnService = new ChurnService(this.db, this.tenantId);
+        return await churnService.getAtRiskMembers(threshold);
+    }
 }

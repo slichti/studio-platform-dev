@@ -165,6 +165,7 @@ export const tenantRoles = sqliteTable('tenant_roles', {
     memberId: text('member_id').notNull().references(() => tenantMembers.id),
     role: text('role', { enum: ['owner', 'admin', 'instructor', 'student', 'custom'] }).notNull(),
     customRoleId: text('custom_role_id').references(() => customRoles.id), // Only used if role='custom'
+    permissions: text('permissions', { mode: 'json' }), // JSON Array of specific permissions e.g. ['manage_billing']
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     memberRoleIdx: index('member_role_idx').on(table.memberId, table.role),

@@ -55,6 +55,19 @@ app.get('/retention', async (c) => {
     return c.json(result);
 });
 
+// GET /retention/churn-risk
+app.get('/retention/churn-risk', async (c) => {
+    if (!c.get('can')('view_reports')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const threshold = parseInt(c.req.query('threshold') || '50');
+    const service = new ReportService(db, tenant.id);
+    const result = await service.getChurnRisk(threshold);
+    return c.json(result);
+});
+
 // GET /upcoming-renewals
 app.get('/upcoming-renewals', async (c) => {
     if (!c.get('can')('view_reports')) return c.json({ error: 'Unauthorized' }, 403);
