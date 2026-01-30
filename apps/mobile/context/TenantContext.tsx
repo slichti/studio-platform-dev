@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { AuthStore } from '../lib/auth';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { apiRequest } from '../lib/api';
 
 type TenantTheme = {
     primaryColor: string;
@@ -42,6 +43,21 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         loadTenant();
     }, []);
 
+    const loadTheme = async (tenantSlug: string) => {
+        try {
+            const tenant = await apiRequest(`/studios/${tenantSlug}`);
+            if (tenant?.branding) {
+                setTheme({
+                    primaryColor: tenant.branding.primaryColor || DEFAULT_THEME.primaryColor,
+                    logoUrl: tenant.branding.logoUrl,
+                    font: tenant.branding.font
+                });
+            }
+        } catch (e) {
+            console.error('Failed to fetch tenant theme', e);
+        }
+    };
+
     const loadTenant = async () => {
         try {
             // Load slug from storage
@@ -54,8 +70,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
             if (storedSlug) {
                 setSlugState(storedSlug);
-                // TODO: Fetch theme from API
-                // For now, use default
+                await loadTheme(storedSlug);
             }
         } catch (e) {
             console.error('Failed to load tenant', e);
@@ -71,7 +86,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
             await SecureStore.setItemAsync('active_tenant_slug', newSlug);
         }
         setSlugState(newSlug);
-        // TODO: Fetch theme from API
+        await loadTheme(newSlug);
     };
 
     return (

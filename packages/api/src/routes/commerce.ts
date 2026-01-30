@@ -1,40 +1,21 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantMembers, coupons, couponRedemptions, classPackDefinitions, giftCards, membershipPlans } from '@studio/db/src/schema'; // Ensure exported
+import { tenants, tenantMembers, coupons, couponRedemptions, classPackDefinitions, giftCards, membershipPlans, users, userRelationships } from '@studio/db/src/schema';
 import { eq, and, gt, sql } from 'drizzle-orm';
 import { rateLimit } from '../middleware/rateLimit';
+import { HonoContext } from '../types';
 
-type Bindings = {
-    DB: D1Database;
-    STRIPE_SECRET_KEY: string;
-    RESEND_API_KEY: string;
-};
+const app = new Hono<HonoContext>();
 
-type Variables = {
-    tenant: typeof tenants.$inferSelect;
-    member?: typeof tenantMembers.$inferSelect;
-    roles?: string[];
-    auth: {
-        userId: string | null;
-        claims: any;
-    };
-    isImpersonating?: boolean;
-};
-
-const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
-
-// GET /coupons - List (Owner/Instructor only)
+// GET /coupons - List
 app.get('/coupons', async (c) => {
-    const db = createDb(c.env.DB);
-    const tenant = c.get('tenant');
-    const roles = c.get('roles') || [];
-
-    // Security: Only owners and instructors can view coupons
-    if (!roles.includes('owner') && !roles.includes('instructor')) {
+    if (!c.get('can')('view_commerce')) {
         return c.json({ error: 'Access Denied' }, 403);
     }
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
-    // Sort by newest and include usage count
     const list = await db.select({
         coupon: coupons,
         usageCount: sql<number>`count(${couponRedemptions.id})`
@@ -49,24 +30,21 @@ app.get('/coupons', async (c) => {
     return c.json({
         coupons: list.map(({ coupon, usageCount }) => ({
             ...coupon,
-            usageCount // Add calculated count
+            usageCount
         }))
     });
 });
 
-// POST /coupons - Create (Owner only)
+// POST /coupons - Create
 app.post('/coupons', async (c) => {
-    const db = createDb(c.env.DB);
-    const tenant = c.get('tenant');
-    const roles = c.get('roles') || [];
-
-    // Security: Only owners can create coupons
-    if (!roles.includes('owner')) {
+    if (!c.get('can')('manage_commerce')) {
         return c.json({ error: 'Access Denied' }, 403);
     }
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
     const { code, type, value, usageLimit } = await c.req.json();
-
     if (!code || !type || !value) return c.json({ error: "Missing fields" }, 400);
 
     try {
@@ -83,24 +61,20 @@ app.post('/coupons', async (c) => {
 
         return c.json({ success: true, id });
     } catch (e: any) {
-        if (e.message?.includes('UNIQUE')) {
-            return c.json({ error: "Code already exists" }, 409);
-        }
+        if (e.message?.includes('UNIQUE')) return c.json({ error: "Code already exists" }, 409);
         return c.json({ error: e.message }, 500);
     }
 });
 
-// DELETE /coupons/:id - Deactivate (Owner only)
+// DELETE /coupons/:id - Deactivate
 app.delete('/coupons/:id', async (c) => {
-    const db = createDb(c.env.DB);
-    const tenant = c.get('tenant');
-    const roles = c.get('roles') || [];
-    const id = c.req.param('id');
-
-    // Security: Only owners can deactivate coupons
-    if (!roles.includes('owner')) {
+    if (!c.get('can')('manage_commerce')) {
         return c.json({ error: 'Access Denied' }, 403);
     }
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+    const id = c.req.param('id');
 
     await db.update(coupons)
         .set({ active: false })
@@ -112,8 +86,12 @@ app.delete('/coupons/:id', async (c) => {
 
 // PATCH /coupons/:id/reactivate
 app.patch('/coupons/:id/reactivate', async (c) => {
+    if (!c.get('can')('manage_commerce')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
     const id = c.req.param('id');
     const { days } = await c.req.json().catch(() => ({ days: 7 }));
 
@@ -121,10 +99,7 @@ app.patch('/coupons/:id/reactivate', async (c) => {
     newExpiry.setDate(newExpiry.getDate() + (days || 7));
 
     await db.update(coupons)
-        .set({
-            active: true,
-            expiresAt: newExpiry
-        })
+        .set({ active: true, expiresAt: newExpiry })
         .where(and(eq(coupons.id, id), eq(coupons.tenantId, tenant.id)))
         .run();
 
@@ -137,13 +112,10 @@ app.patch('/coupons/:id/reactivate', async (c) => {
 app.get('/packs', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    // const { classPackDefinitions } = await import('@studio/db/src/schema');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
     const packs = await db.select().from(classPackDefinitions)
-        .where(and(
-            eq(classPackDefinitions.tenantId, tenant.id),
-            eq(classPackDefinitions.active, true)
-        ))
+        .where(and(eq(classPackDefinitions.tenantId, tenant.id), eq(classPackDefinitions.active, true)))
         .orderBy(sql`${classPackDefinitions.price} ASC`)
         .all();
 
@@ -152,20 +124,17 @@ app.get('/packs', async (c) => {
 
 // POST /packs - Create
 app.post('/packs', async (c) => {
+    if (!c.get('can')('manage_commerce')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const roles = c.get('roles');
-
-    if (!roles?.includes('owner') && !roles?.includes('instructor')) {
-        return c.json({ error: "Unauthorized" }, 403);
-    }
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
     const { name, credits, price, expirationDays, imageUrl, vodEnabled } = await c.req.json();
     if (!name || !credits) return c.json({ error: "Missing fields" }, 400);
 
-    const { classPackDefinitions } = await import('@studio/db/src/schema');
     const id = crypto.randomUUID();
-
     await db.insert(classPackDefinitions).values({
         id,
         tenantId: tenant.id,
@@ -183,88 +152,58 @@ app.post('/packs', async (c) => {
 
 // POST /products/bulk - Bulk Create (Wizard)
 app.post('/products/bulk', async (c) => {
+    if (!c.get('can')('manage_commerce')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const role = c.get('roles');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
-    if (!role?.includes('owner')) return c.json({ error: "Unauthorized" }, 403);
-
-    const body = await c.req.json() as { items: { type: 'pack' | 'membership', name: string, price: number, credits?: number, expirationDays?: number, interval?: 'monthly' | 'annual' }[] };
+    const body = await c.req.json() as any;
     const items = body.items;
     if (!items || !Array.isArray(items)) return c.json({ error: "Invalid items" }, 400);
 
     const { StripeService } = await import('../services/stripe');
-    const { classPackDefinitions, membershipPlans } = await import('@studio/db/src/schema');
     const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
 
     const results = [];
 
     for (const item of items) {
         try {
-            // 1. Create Stripe Product
             const stripeProduct = await stripeService.createProduct({
                 name: item.name,
                 active: true,
-                metadata: {
-                    tenantId: tenant.id,
-                    type: item.type // 'pack' or 'membership'
-                },
-                taxCode: 'txcd_00000000' // Nontaxable (General - Services)
+                metadata: { tenantId: tenant.id, type: item.type },
+                taxCode: 'txcd_00000000'
             }, tenant.stripeAccountId || undefined);
 
-            // 2. Create Stripe Price
             let recurring = undefined;
             if (item.type === 'membership' && item.interval) {
-                recurring = {
-                    interval: (item.interval === 'annual' ? 'year' : 'month') as any,
-                    interval_count: 1
-                };
+                recurring = { interval: (item.interval === 'annual' ? 'year' : 'month') as any, interval_count: 1 };
             }
 
             const stripePrice = await stripeService.createPrice({
                 productId: stripeProduct.id,
-                unitAmount: item.price, // cents
+                unitAmount: item.price,
                 currency: tenant.currency || 'usd',
                 recurring
             }, tenant.stripeAccountId || undefined);
 
-            // 3. Save to DB
             const id = crypto.randomUUID();
             if (item.type === 'pack') {
                 await db.insert(classPackDefinitions).values({
-                    id,
-                    tenantId: tenant.id,
-                    name: item.name,
-                    price: item.price,
-                    credits: item.credits || 1,
-                    expirationDays: item.expirationDays || null,
-                    active: true,
-                    // We don't store stripe IDs on pack definition usually? 
-                    // Actually we should. The schema might need update if we want to sync perfectly.
-                    // Checking schema... `classPackDefinitions` has no stripeId fields in default schema usually?
-                    // Let's check schema. If not, we rely on price lookup or add it.
-                    // For now, let's assume we just store it or if schema doesn't have it, we skip it.
-                    // Wait, `commerce.ts` checkout uses `pack.price` (DB) for one-time payments usually, 
-                    // BUT for `membershipPlans` we DEFINITELY need stripeProductId/PriceId.
-                    // Let's assume `membershipPlans` has it.
+                    id, tenantId: tenant.id, name: item.name, price: item.price,
+                    credits: item.credits || 1, expirationDays: item.expirationDays || null, active: true
                 }).run();
             } else if (item.type === 'membership') {
                 await db.insert(membershipPlans).values({
-                    id,
-                    tenantId: tenant.id,
-                    name: item.name,
-                    price: item.price,
+                    id, tenantId: tenant.id, name: item.name, price: item.price,
                     interval: item.interval === 'annual' ? 'year' : 'month',
-                    stripeProductId: stripeProduct.id,
-                    stripePriceId: stripePrice.id,
-                    active: true
+                    stripeProductId: stripeProduct.id, stripePriceId: stripePrice.id, active: true
                 } as any).run();
             }
-
             results.push({ name: item.name, status: 'created', id });
-
         } catch (e: any) {
-            console.error(`Failed to create ${item.name}`, e);
             results.push({ name: item.name, status: 'failed', error: e.message });
         }
     }
@@ -276,199 +215,91 @@ app.post('/products/bulk', async (c) => {
 app.post('/validate', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
     const { code } = await c.req.json();
-
     if (!code) return c.json({ valid: false }, 400);
 
     const coupon = await db.select().from(coupons)
-        .where(and(
-            eq(coupons.tenantId, tenant.id),
-            eq(coupons.code, code.toUpperCase()),
-            eq(coupons.active, true)
-        ))
-        .get();
+        .where(and(eq(coupons.tenantId, tenant.id), eq(coupons.code, code.toUpperCase()), eq(coupons.active, true))).get();
 
-    if (!coupon) {
-        return c.json({ valid: false, reason: "Invalid code" }, 404);
-    }
+    if (!coupon) return c.json({ valid: false, reason: "Invalid code" }, 404);
 
-    // Check usage limits if we tracked redemptions count on the coupon row or counted redemptions table
-    // For MVP, simplistic check:
-
-    return c.json({
-        valid: true,
-        coupon: {
-            code: coupon.code,
-            type: coupon.type,
-            value: coupon.value
-        }
-    });
+    return c.json({ valid: true, coupon: { code: coupon.code, type: coupon.type, value: coupon.value } });
 });
-
 
 // GET /invoices - List Billing History
 app.get('/invoices', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     const user = c.get('auth');
-
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
     if (!user?.userId) return c.json({ error: "Unauthorized" }, 401);
 
-    // 1. Get Customer ID
-    const { users } = await import('@studio/db/src/schema');
-    const userRecord = await db.select({ stripeCustomerId: users.stripeCustomerId })
-        .from(users)
-        .where(eq(users.id, user.userId))
-        .get();
-
-    if (!userRecord || !userRecord.stripeCustomerId) {
-        return c.json({ invoices: [] });
-    }
-
-    if (!tenant.stripeAccountId) {
-        return c.json({ invoices: [] });
-    }
+    const userRecord = await db.select({ stripeCustomerId: users.stripeCustomerId }).from(users).where(eq(users.id, user.userId)).get();
+    if (!userRecord || !userRecord.stripeCustomerId || !tenant.stripeAccountId) return c.json({ invoices: [] });
 
     try {
         const { StripeService } = await import('../services/stripe');
         const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
-
-        // 2. List Invoices
         const invoices = await stripeService.listInvoices(userRecord.stripeCustomerId, 20, tenant.stripeAccountId);
-
-        // 3. Map to simple format
         const mapped = invoices.data.map(inv => ({
-            id: inv.id,
-            date: inv.created * 1000,
-            amount: inv.total,
-            currency: inv.currency,
-            status: inv.status,
-            pdfUrl: inv.invoice_pdf,
-            number: inv.number,
+            id: inv.id, date: inv.created * 1000, amount: inv.total, currency: inv.currency,
+            status: inv.status, pdfUrl: inv.invoice_pdf, number: inv.number,
             description: inv.lines?.data?.[0]?.description || 'Payment'
         }));
-
         return c.json({ invoices: mapped });
-
     } catch (e: any) {
-        console.error("Failed to list invoices", e);
         return c.json({ error: "Failed to fetch invoices" }, 500);
     }
 });
 
-
-// POST /checkout/session - Create Stripe Session (with optional coupon)
+// POST /checkout/session
 app.post('/checkout/session', rateLimit({ limit: 10, window: 60, keyPrefix: 'checkout' }), async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const user = c.get('auth'); // from authMiddleware
-    const member = c.get('member');
-
-    // Check if tenant has stripe connected
-    if (!tenant.stripeAccountId) {
-        return c.json({ error: "Payments not enabled for this studio." }, 400);
-    }
+    const auth = c.get('auth');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+    if (!tenant.stripeAccountId) return c.json({ error: "Payments not enabled." }, 400);
 
     try {
-        // Security: Prevent impersonators from processing payments
-        // Note: Variables type definition in commerce.ts needs to include isImpersonating
-        const isImpersonating = (c.get('auth') as any)?.isImpersonating || c.get('isImpersonating' as any);
-        // Safest way if type definition isn't updated yet in this file
-        if (isImpersonating) {
-            return c.json({ error: 'System admins cannot process payments on behalf of customers.' }, 403);
-        }
+        if (auth.isImpersonating) return c.json({ error: 'Payments cannot be processed while impersonating.' }, 403);
 
         const body = await c.req.json();
         const { packId, planId, couponCode, giftCardCode, giftCardAmount, recipientEmail, recipientName, senderName, message } = body;
+        if (!packId && !giftCardAmount && !planId) return c.json({ error: "Product ID required" }, 400);
 
-        if (!packId && !giftCardAmount && !planId) return c.json({ error: "Product ID or Amount required" }, 400);
-
-        let finalAmount = 0;
-        let basePrice = 0;
-        let discountAmount = 0;
-        let pack = null;
-        let plan = null;
-        let stripeMode: 'payment' | 'subscription' = 'payment';
+        let finalAmount = 0, basePrice = 0, discountAmount = 0, pack = null, plan = null, stripeMode: 'payment' | 'subscription' = 'payment';
 
         if (packId) {
-            // 1. Fetch Pack
             pack = await db.select().from(classPackDefinitions)
-                .where(and(eq(classPackDefinitions.id, packId), eq(classPackDefinitions.tenantId, tenant.id)))
-                .get();
-
+                .where(and(eq(classPackDefinitions.id, packId), eq(classPackDefinitions.tenantId, tenant.id))).get();
             if (!pack) return c.json({ error: "Pack not found" }, 404);
-            finalAmount = pack.price || 0;
-            basePrice = finalAmount;
+            finalAmount = basePrice = pack.price || 0;
         } else if (planId) {
-            // 1b. Fetch Plan
             plan = await db.select().from(membershipPlans)
-                .where(and(eq(membershipPlans.id, planId), eq(membershipPlans.tenantId, tenant.id)))
-                .get();
-
-            if (!plan) return c.json({ error: "Plan not found" }, 404);
-            if (!plan.active) return c.json({ error: "Plan is no longer active" }, 400);
-
-            finalAmount = plan.price || 0;
-            basePrice = finalAmount;
-
-            if (plan.interval && plan.interval !== 'one_time') {
-                stripeMode = 'subscription';
-            }
-        } else {
-            if (giftCardAmount) {
-                finalAmount = parseInt(giftCardAmount);
-                basePrice = finalAmount;
-            } else {
-                return c.json({ error: "Product or Amount required" }, 400);
-            }
+                .where(and(eq(membershipPlans.id, planId), eq(membershipPlans.tenantId, tenant.id))).get();
+            if (!plan || !plan.active) return c.json({ error: "Plan not found/active" }, 404);
+            finalAmount = basePrice = plan.price || 0;
+            if (plan.interval && plan.interval !== 'one_time') stripeMode = 'subscription';
+        } else if (giftCardAmount) {
+            finalAmount = basePrice = parseInt(giftCardAmount);
         }
 
         let appliedCouponId = undefined;
-        let appliedGiftCardId = undefined;
-
-        // 2. Apply Coupon
         if (couponCode) {
-            const coupon = await db.select().from(coupons)
-                .where(and(
-                    eq(coupons.tenantId, tenant.id),
-                    eq(coupons.code, couponCode.toUpperCase()),
-                    eq(coupons.active, true)
-                )).get();
-
+            const coupon = await db.select().from(coupons).where(and(eq(coupons.tenantId, tenant.id), eq(coupons.code, couponCode.toUpperCase()), eq(coupons.active, true))).get();
             if (coupon) {
-                if (coupon.type === 'percent') {
-                    discountAmount = Math.round(basePrice * (coupon.value / 100));
-                } else {
-                    discountAmount = coupon.value;
-                }
-                finalAmount -= discountAmount;
-                if (finalAmount < 0) finalAmount = 0;
+                discountAmount = coupon.type === 'percent' ? Math.round(basePrice * (coupon.value / 100)) : coupon.value;
+                finalAmount = Math.max(0, finalAmount - discountAmount);
                 appliedCouponId = coupon.id;
             }
         }
 
-
-
-        // 4. Calculate Net Amount (Post-Discount, Pre-Tax)
         const taxableAmount = Math.max(0, basePrice - discountAmount);
-
-        // Manual Tax Removed - Using Stripe Tax
-
-        // 4b. Apply Gift Card to the Total
-        let amountToPay = taxableAmount;
-        let creditApplied = 0;
-
-        // Use the variable declared at top of function
-        appliedGiftCardId = undefined;
+        let amountToPay = taxableAmount, creditApplied = 0, appliedGiftCardId = undefined;
 
         if (giftCardCode && amountToPay > 0) {
-            const card = await db.select().from(giftCards)
-                .where(and(
-                    eq(giftCards.tenantId, tenant.id),
-                    eq(giftCards.code, giftCardCode.toUpperCase()),
-                    eq(giftCards.status, 'active')
-                )).get();
-
+            const card = await db.select().from(giftCards).where(and(eq(giftCards.tenantId, tenant.id), eq(giftCards.code, giftCardCode.toUpperCase()), eq(giftCards.status, 'active'))).get();
             if (card) {
                 creditApplied = Math.min(card.currentBalance, amountToPay);
                 amountToPay -= creditApplied;
@@ -476,291 +307,112 @@ app.post('/checkout/session', rateLimit({ limit: 10, window: 60, keyPrefix: 'che
             }
         }
 
-        // 4c. Handle Zero Amount
-        const taxAmount = 0; // Handled by Stripe Automatic Tax
         if (amountToPay === 0) {
-            // Direct Fulfillment
             const { FulfillmentService } = await import('../services/fulfillment');
-            const fulfillment = new FulfillmentService(createDb(c.env.DB), c.env.RESEND_API_KEY);
-            const mockPaymentId = `direct_${crypto.randomUUID()}`;
-
+            const fulfillment = new FulfillmentService(db, c.env.RESEND_API_KEY);
+            const mockId = `direct_${crypto.randomUUID()}`;
             if (pack) {
-                await fulfillment.fulfillPackPurchase({
-                    packId: pack.id,
-                    tenantId: tenant.id,
-                    memberId: member?.id || undefined,
-                    userId: user?.userId,
-                    couponId: appliedCouponId
-                }, mockPaymentId, 0);
+                await fulfillment.fulfillPackPurchase({ packId: pack.id, tenantId: tenant.id, memberId: c.get('member')?.id, userId: auth.userId, couponId: appliedCouponId }, mockId, 0);
             }
-
             if (giftCardAmount) {
-                await fulfillment.fulfillGiftCardPurchase({
-                    type: 'gift_card_purchase',
-                    tenantId: tenant.id,
-                    userId: user?.userId,
-                    recipientEmail, recipientName, senderName, message,
-                    amount: parseInt(giftCardAmount)
-                }, mockPaymentId, parseInt(giftCardAmount));
+                await fulfillment.fulfillGiftCardPurchase({ type: 'gift_card_purchase', tenantId: tenant.id, userId: auth.userId, recipientEmail, recipientName, senderName, message, amount: parseInt(giftCardAmount) }, mockId, parseInt(giftCardAmount));
             }
-
-            if (appliedGiftCardId && creditApplied > 0) {
-                await fulfillment.redeemGiftCard(appliedGiftCardId, creditApplied, mockPaymentId);
-            }
-            return c.json({ complete: true, returnUrl: `${new URL(c.req.url).origin}/studio/${tenant.slug}/return?session_id=${mockPaymentId}` });
+            if (appliedGiftCardId && creditApplied > 0) await fulfillment.redeemGiftCard(appliedGiftCardId, creditApplied, mockId);
+            return c.json({ complete: true, returnUrl: `${new URL(c.req.url).origin}/studio/${tenant.slug}/return?session_id=${mockId}` });
         }
 
-        // 5. Calculate Stripe Fee Surcharge
         const amountWithFee = Math.round((amountToPay + 30) / (1 - 0.029));
         const stripeFee = amountWithFee - amountToPay;
 
-        // 6. Fetch Customer Details for Stripe
-        let customerEmail = undefined;
-        let stripeCustomerId = undefined;
-
-        if (user?.userId) {
-            const { users, userRelationships } = await import('@studio/db/src/schema');
-            const userRecord = await db.select({ email: users.email, stripeCustomerId: users.stripeCustomerId }).from(users).where(eq(users.id, user.userId)).get();
-
+        let customerEmail = undefined, stripeCustomerId = undefined;
+        if (auth.userId) {
+            const userRecord = await db.select({ email: users.email, stripeCustomerId: users.stripeCustomerId }).from(users).where(eq(users.id, auth.userId)).get();
             if (userRecord) {
                 customerEmail = userRecord.email;
-                stripeCustomerId = userRecord.stripeCustomerId;
-
-                // Family Logic
-                if (!stripeCustomerId) {
-                    const parents = await db.query.userRelationships.findMany({
-                        where: eq(userRelationships.childUserId, user.userId)
-                    });
-
-                    if (parents.length > 0) {
-                        const parentIds = parents.map(p => p.parentUserId);
-                        const parentUsers = await db.query.users.findMany({
-                            where: (users, { inArray }) => inArray(users.id, parentIds),
-                            columns: { stripeCustomerId: true, email: true }
-                        });
-
-                        const parentWithStripe = parentUsers.find(p => p.stripeCustomerId);
-                        if (parentWithStripe) {
-                            stripeCustomerId = parentWithStripe.stripeCustomerId;
-                            if (customerEmail?.endsWith('@placeholder.studio')) {
-                                customerEmail = parentWithStripe.email;
-                            }
-                        }
-                    }
-                }
+                stripeCustomerId = userRecord.stripeCustomerId || (await db.query.userRelationships.findFirst({ where: eq(userRelationships.childUserId, auth.userId) }).then(async r => {
+                    if (!r) return undefined;
+                    const p = await db.query.users.findFirst({ where: eq(users.id, r.parentUserId), columns: { stripeCustomerId: true } });
+                    return p?.stripeCustomerId;
+                }));
             }
         }
 
-        // 7. Create Stripe Session with Line Items
         const { StripeService } = await import('../services/stripe');
         const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY || '');
-
-        // Construct Line Items
         const lineItems = [];
-        const itemName = pack ? pack.name : (plan ? plan.name : 'Gift Card Credit');
-
-        // Distribute Credit to item
-        const creditData = { remaining: creditApplied };
-        const itemNet = Math.max(0, taxableAmount - creditData.remaining);
-
-        if (itemNet > 0) {
-            const priceData: any = {
-                currency: tenant.currency || 'usd',
-                product_data: {
-                    name: itemName,
-                    tax_code: 'txcd_00000000' // Explicitly set as Nontaxable Service for on-the-fly items
-                },
-                unit_amount: itemNet
-            };
-
-            if (stripeMode === 'subscription' && plan) {
-                priceData.recurring = {
-                    interval: plan.interval, // 'month', 'year', 'week'
-                    interval_count: 1
-                };
-            }
-
-            lineItems.push({
-                price_data: priceData,
-                quantity: 1
-            });
-        }
-
-        if (stripeFee > 0) {
+        if (taxableAmount > 0) {
             lineItems.push({
                 price_data: {
                     currency: tenant.currency || 'usd',
-                    product_data: {
-                        name: 'Processing Fee',
-                        tax_code: 'txcd_00000000' // Fees are usually nontaxable service
-                    },
-                    unit_amount: stripeFee
+                    product_data: { name: pack ? pack.name : (plan ? plan.name : 'Gift Card Credit'), tax_code: 'txcd_00000000' },
+                    unit_amount: Math.max(0, taxableAmount - creditApplied),
+                    ...(stripeMode === 'subscription' && plan ? { recurring: { interval: plan.interval as any, interval_count: 1 } } : {})
                 },
                 quantity: 1
             });
         }
+        if (stripeFee > 0) lineItems.push({ price_data: { currency: tenant.currency || 'usd', product_data: { name: 'Processing Fee', tax_code: 'txcd_00000000' }, unit_amount: stripeFee }, quantity: 1 });
 
-        // 8. Calculate Application Fee
         const { PricingService } = await import('../services/pricing');
-        const tierConfig = PricingService.getTierConfig(tenant.tier);
-        // tierConfig.applicationFeePercent is e.g. 0.05 for 5%
-        const appFeeDecimal = tierConfig.applicationFeePercent;
+        const tier = PricingService.getTierConfig(tenant.tier);
+        const appFeeDecimal = tier.applicationFeePercent;
 
-        let applicationFeeAmount;
-        let applicationFeePercent;
-
-        if (stripeMode === 'subscription') {
-            // Stripe expects percent as number, e.g. 5 for 5%
-            if (appFeeDecimal > 0) {
-                applicationFeePercent = appFeeDecimal * 100;
+        const session = await stripeService.createEmbeddedCheckoutSession(tenant.stripeAccountId!, {
+            currency: tenant.currency || 'usd',
+            returnUrl: `${new URL(c.req.url).origin}/studio/${tenant.slug}/return?session_id={CHECKOUT_SESSION_ID}`,
+            customerEmail, customer: stripeCustomerId || undefined, lineItems, mode: stripeMode, automaticTax: true,
+            applicationFeeAmount: stripeMode !== 'subscription' && appFeeDecimal > 0 ? Math.round(amountWithFee * appFeeDecimal) : undefined,
+            applicationFeePercent: stripeMode === 'subscription' && appFeeDecimal > 0 ? appFeeDecimal * 100 : undefined,
+            metadata: {
+                type: pack ? 'pack_purchase' : (plan ? 'membership_purchase' : 'gift_card_purchase'),
+                packId: pack?.id || '', planId: plan?.id || '', tenantId: tenant.id, userId: auth.userId || 'guest',
+                couponId: appliedCouponId || '', recipientEmail, recipientName, senderName, message,
+                productName: pack ? pack.name : (plan ? plan.name : 'Gift Card'), totalCharge: String(amountWithFee),
+                usedGiftCardId: appliedGiftCardId || ''
             }
-        } else {
-            // Calculate absolute amount for one-time payments
-            // We take a cut of the TOTAL charged amount (including the processing fee surcharge)
-            if (appFeeDecimal > 0) {
-                applicationFeeAmount = Math.round(amountWithFee * appFeeDecimal);
-            }
-        }
-
-        const session = await stripeService.createEmbeddedCheckoutSession(
-            tenant.stripeAccountId,
-            {
-                currency: tenant.currency || 'usd',
-                returnUrl: `${new URL(c.req.url).origin}/studio/${tenant.slug}/return?session_id={CHECKOUT_SESSION_ID}`,
-                customerEmail,
-                customer: stripeCustomerId || undefined,
-                lineItems,
-                mode: stripeMode,
-                automaticTax: true,
-                applicationFeeAmount,
-                applicationFeePercent,
-                metadata: {
-                    type: pack ? 'pack_purchase' : (plan ? 'membership_purchase' : 'gift_card_purchase'),
-                    packId: pack?.id || '',
-                    planId: plan?.id || '',
-                    tenantId: tenant.id,
-                    userId: user?.userId || 'guest',
-                    couponId: appliedCouponId || '',
-                    recipientEmail: recipientEmail || '',
-                    recipientName: recipientName || '',
-                    senderName: senderName || '',
-                    message: message || '',
-
-                    // Detailed Financial Metadata
-                    vendorName: tenant.name,
-                    productName: itemName,
-                    basePrice: String(basePrice),
-                    discountAmount: String(discountAmount),
-                    taxAmount: String(taxAmount),
-                    creditApplied: String(creditApplied),
-                    subtotal: String(taxableAmount), // net of coupon
-                    processingFee: String(stripeFee),
-                    totalCharge: String(amountWithFee),
-                    applicationFee: String(applicationFeeAmount || (applicationFeePercent ? `${applicationFeePercent}%` : '0')),
-                    couponCode: couponCode || '',
-                    usedGiftCardId: appliedGiftCardId || '',
-                    giftCardCode: giftCardCode || ''
-                }
-            }
-        );
+        });
 
         return c.json({ clientSecret: session.client_secret });
     } catch (e: any) {
-        console.error("Stripe Error:", e);
-        return c.json({ error: "Payment init failed: " + e.message }, 500);
+        return c.json({ error: e.message }, 500);
     }
 });
 
-
-// --- Failed Payments (Dunning) ---
-
-// GET /failed-payments - List active dunning/failed subscriptions
+// GET /failed-payments
 app.get('/failed-payments', async (c) => {
+    if (!c.get('can')('view_commerce')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
     const { DunningService } = await import('../services/dunning');
-
     const dunning = new DunningService(db, tenant.id);
-    const payments = await dunning.getFailedPayments(); // Now returns warnings too
-
-    return c.json({ payments });
+    return c.json({ payments: await dunning.getFailedPayments() });
 });
 
-// POST /failed-payments/:id/retry - Retry payment for subscription
+// POST /failed-payments/:id/retry
 app.post('/failed-payments/:id/retry', async (c) => {
+    if (!c.get('can')('manage_commerce')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const role = c.get('roles');
-    if (!role?.includes('owner') && !role?.includes('admin')) return c.json({ error: "Unauthorized" }, 403);
-
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
     const subscriptionId = c.req.param('id');
     const { subscriptions } = await import('@studio/db/src/schema');
 
-    // 1. Get Subscription
-    const sub = await db.select().from(subscriptions)
-        .where(and(eq(subscriptions.id, subscriptionId), eq(subscriptions.tenantId, tenant.id)))
-        .get();
-
-    if (!sub || !sub.stripeSubscriptionId) {
-        return c.json({ error: "Subscription not found or not linked to Stripe" }, 404);
-    }
-
-    if (!tenant.stripeAccountId) {
-        return c.json({ error: "Stripe not connected" }, 400);
-    }
+    const sub = await db.select().from(subscriptions).where(and(eq(subscriptions.id, subscriptionId), eq(subscriptions.tenantId, tenant.id))).get();
+    if (!sub || !sub.stripeSubscriptionId || !tenant.stripeAccountId) return c.json({ error: "Not found/configured" }, 404);
 
     try {
         const { StripeService } = await import('../services/stripe');
         const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
-
-        // 2. Get Stripe Subscription to find latest invoice
-        const stripeSub = await stripeService.getSubscription(sub.stripeSubscriptionId); // Note: getSubscription uses Platform key if not careful? 
-        // Wait, StripeService logic: `getClient` handles account switching. 
-        // `getSubscription` usually calls `retrieve(subId, options)`.
-        // BUT `getSubscription` in `stripe.ts` DOES NOT take `connectedAccountId` argument!
-        // It uses `this.stripe`.
-        // CRITICAL FIX: I need to update `getSubscription` to take `connectedAccountId`.
-        // Or assume subscriptions are on Platform?
-        // User architecture: `commerce.ts` checkout uses `connectedAccountId`. So subs are on Connected Account.
-        // `stripe.ts` `getSubscription` implementation (seen in step 3614 line 254-259) does NOT take accountId.
-        // It uses `this.stripe.subscriptions.retrieve(...)`.
-        // This means it looks on Platform Account.
-        // IF subscriptions are created on Connected Account (via checkout session `stripeAccount: ...`), they exist on Connected Account.
-        // So `getSubscription` will FAIL if I don't pass `stripeAccount`.
-
-        // Quick Fix inside this route: Use `stripeService['getClient']` logic manually or add method?
-        // Better: I'll use `stripeService.client` manually here if I can't update `stripe.ts` easily in this batch.
-        // Actually, I can use `stripeService.client.subscriptions.retrieve({ ... }, { stripeAccount: tenant.stripeAccountId })`.
-        // But `stripeService.client` is private?
-        // It is `private stripe: Stripe;`. `getClient` is private.
-        // I should have updated `getSubscription` in `stripe.ts`.
-
-        // ALTERNATIVE: Use `stripeService.stripe`? No, private.
-        // I MUST update `stripe.ts` `getSubscription` to take accountId.
-
-        // I will update `stripe.ts` in a separate call or same batch if I can.
-        // But I already submitted the tool call for `stripe.ts`.
-        // I will fix it in `stripe.ts` in the NEXT step.
-        // For now, I'll write this code assuming I will fix `getSubscription` signature.
-        // `stripeService.getSubscription(sub.stripeSubscriptionId, tenant.stripeAccountId)`
-
-        const stripeSubFull = await stripeService.getSubscription(sub.stripeSubscriptionId, tenant.stripeAccountId || undefined);
-
+        const stripeSubFull = await stripeService.getSubscription(sub.stripeSubscriptionId, tenant.stripeAccountId);
         const latestInvoice = stripeSubFull.latest_invoice as any;
-        if (!latestInvoice) {
-            return c.json({ error: "No invoice found to retry" }, 400);
-        }
+        if (!latestInvoice) return c.json({ error: "No invoice" }, 400);
 
-        // 3. Pay Invoice
         const result = await stripeService.payInvoice(tenant.stripeAccountId, latestInvoice.id || latestInvoice);
-
         return c.json({ success: true, status: result.status });
-
     } catch (e: any) {
-        console.error("Retry Error", e);
         return c.json({ error: e.message }, 500);
     }
 });
 
 export default app;
-

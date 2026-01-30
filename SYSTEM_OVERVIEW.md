@@ -101,6 +101,12 @@ sequenceDiagram
     API-->>Student: Booking Confirmed
 ```
 
+### 3. Conflict Detection
+The system prevents double-bookings for rooms and staff members via a centralized `ConflictService`.
+- **Instructor Conflicts**: Checked when creating or updating classes, and when claiming substitutions.
+- **Room Conflicts**: Checked when scheduling classes or manual appointments to prevent space overlaps.
+- **Overridability**: Admins can override conflicts if necessary, but the API returns 409 by default.
+
 ### 3. Notifications & Substitute Dispatch
 The system checks user preferences before sending alerts.
 *   **Trigger**: Sub Request Created or Filled.
@@ -160,6 +166,12 @@ sequenceDiagram
     API->>DB: Create Order / Decrement Stock
     API->>DB: Fulfill Product (Grant Credits/Membership/GiftCardBalance)
 ```
+
+### 6. Advanced Payroll Generation
+The payroll engine supports both flat/hourly rates and percentage-of-revenue payouts.
+- **Gross vs Net**: Tenants can configure whether percentages are calculated on gross revenue or net (after estimated transaction fees).
+- **Credit Value Calculation**: For students using class packs, the revenue for that booking is calculated by prorating the pack's purchase price over its total credits.
+- **Refund Reconciliation**: Webhooks automatically reverse class credits and disable gift cards if the associated Stripe transaction is refunded.
 
 ## Security Implementation
 

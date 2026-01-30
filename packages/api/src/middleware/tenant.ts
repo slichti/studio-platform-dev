@@ -1,8 +1,10 @@
 import { Context, Next } from 'hono';
 import { createDb } from '../db';
 import { eq, and } from 'drizzle-orm';
-import { tenants, tenantMembers, tenantRoles, users, tenantFeatures } from '@studio/db/src/schema';
+import { tenants, tenantMembers, tenantRoles, users, tenantFeatures, customRoles, memberCustomRoles } from '@studio/db/src/schema';
 import { EncryptionUtils } from '../utils/encryption';
+import { PermissionService, Permission } from '../services/permissions';
+import { Variables } from '../types';
 
 // Extend Hono Context to include tenant
 type Bindings = {
@@ -11,16 +13,7 @@ type Bindings = {
     RESEND_API_KEY: string;
 };
 
-type Variables = {
-    tenant: typeof tenants.$inferSelect;
-    auth?: { userId: string; claims: any };
-    member?: any; // tenantMembers.$inferSelect
-    roles?: string[];
-    features: Set<string>;
-    emailApiKey?: string;
-    twilioCredentials?: { accountSid: string; authToken: string; fromNumber: string };
-    isImpersonating?: boolean;
-};
+// Variables were moved to types.ts and imported above
 
 export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variables: Variables }>, next: Next) => {
     const url = new URL(c.req.url);
@@ -126,12 +119,14 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
         }
     }
 
-    // Fetch Features
     const features = await db.query.tenantFeatures.findMany({
         where: and(eq(tenantFeatures.tenantId, tenant.id), eq(tenantFeatures.enabled, true))
     });
     const featureSet = new Set(features.map(f => f.featureKey || ''));
     c.set('features', featureSet);
+
+    // Initial default for 'can' helper
+    c.set('can', () => false);
 
     // 3. Security Check: If User is Authenticated, Verify Membership
     const auth = c.get('auth');
@@ -220,6 +215,23 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
         }
 
         c.set('roles', roles);
+
+        // --- Permission Resolution ---
+        let customPerms: string[] = [];
+        if (member) {
+            // Fetch Custom Roles Permissions
+            const customRolesResult = await db.select({ permissions: customRoles.permissions })
+                .from(memberCustomRoles)
+                .innerJoin(customRoles, eq(memberCustomRoles.customRoleId, customRoles.id))
+                .where(eq(memberCustomRoles.memberId, member.id))
+                .all();
+
+            customPerms = customRolesResult.flatMap(r => (r.permissions as string[]) || []);
+        }
+
+        const permissions = PermissionService.resolvePermissions(roles, customPerms);
+        c.set('permissions', permissions as any as Set<string>);
+        c.set('can', (p: string) => PermissionService.can(permissions, p as Permission));
 
         // --- 2FA Enforcement for Owners ---
         // Requirement: Owners must have MFA enabled/verified.

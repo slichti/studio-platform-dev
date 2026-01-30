@@ -160,37 +160,38 @@ export const tenantMembers = sqliteTable('tenant_members', {
 // A member can have multiple roles in a tenant (e.g. Owner + Instructor)
 // If role is 'custom', customRoleId must be provided.
 export const tenantRoles = sqliteTable('tenant_roles', {
+    id: text('id').primaryKey(),
     memberId: text('member_id').notNull().references(() => tenantMembers.id),
     role: text('role', { enum: ['owner', 'admin', 'instructor', 'student', 'custom'] }).notNull(),
     customRoleId: text('custom_role_id').references(() => customRoles.id), // Only used if role='custom'
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
-    pk: primaryKey({ columns: [table.memberId, table.role, table.customRoleId] }), // Composite PK needs to handle custom roles potentially
-    // Actually, simpler PK: [memberId, role] if role != custom, but if role==custom, we might have multiple?
-    // Let's assume one 'custom' role entry per member per specific custom role? 
-    // If I assign 2 custom roles, I need checks.
-    // Let's stick to: member can have 'owner', 'instructor', and MULTIPLE 'custom' roles?
-    // Drizzle Composite PK with nullable columns is tricky.
-    // Improved Design: just use a unique ID for the row if it gets complex, but let's keep it simple for now.
-    // If role is 'custom', uniqueness should be on [memberId, customRoleId].
-    // If role is 'owner', uniqueness on [memberId, role].
-
-    // For simplicity in Phase 30: Let's assume a member has a list of roles.
-    // If I want to assign Custom Role A and Custom Role B, they are distinct rows.
-    // Row 1: role='custom', customRoleId='A'
-    // Row 2: role='custom', customRoleId='B'
-    // So PK should include customRoleId (sqlite handles nullable in PK uniquely? No.)
-    // D1/SQLite: Primary Key columns must not be null.
-
-    // ERROR PREVENT: customRoleId CANNOT be in PK if it is nullable.
-    // Solution: Add a surrogate key `id` OR make `customRoleId` not null but default to empty string equivalent? No.
-    // Alternative: `tenant_roles` is just for system roles. Create `tenant_member_custom_roles` table?
-    // OR: Just make `customRoleId` non-null for keys and verify logic locally. 
-    // BUT legacy data has no customRoleId.
-
-    // New Table Approach is safer for migration and logic.
-    // Let's create `tenant_member_roles` linking to `custom_roles`.
+    memberRoleIdx: index('member_role_idx').on(table.memberId, table.role),
+    customRoleIdx: index('member_custom_role_idx').on(table.memberId, table.customRoleId),
 }));
+// Actually, simpler PK: [memberId, role] if role != custom, but if role==custom, we might have multiple?
+// Let's assume one 'custom' role entry per member per specific custom role? 
+// If I assign 2 custom roles, I need checks.
+// Let's stick to: member can have 'owner', 'instructor', and MULTIPLE 'custom' roles?
+// Drizzle Composite PK with nullable columns is tricky.
+// Improved Design: just use a unique ID for the row if it gets complex, but let's keep it simple for now.
+// If role is 'custom', uniqueness should be on [memberId, customRoleId].
+// If role is 'owner', uniqueness on [memberId, role].
+
+// For simplicity in Phase 30: Let's assume a member has a list of roles.
+// If I want to assign Custom Role A and Custom Role B, they are distinct rows.
+// Row 1: role='custom', customRoleId='A'
+// Row 2: role='custom', customRoleId='B'
+// So PK should include customRoleId (sqlite handles nullable in PK uniquely? No.)
+// D1/SQLite: Primary Key columns must not be null.
+
+// ERROR PREVENT: customRoleId CANNOT be in PK if it is nullable.
+// Solution: Add a surrogate key `id` OR make `customRoleId` not null but default to empty string equivalent? No.
+// Alternative: `tenant_roles` is just for system roles. Create `tenant_member_custom_roles` table?
+// OR: Just make `customRoleId` non-null for keys and verify logic locally. 
+// BUT legacy data has no customRoleId.
+
+// New Table Approach is safer for migration and logic.
 
 // Re-defining tenantRoles (keeping backward compat)
 // We will ADD a new table `memberCustomRoles` instead of modifying `tenantRoles` heavily to break PKs.
@@ -225,10 +226,14 @@ export const auditLogs = sqliteTable('audit_logs', {
     tenantId: text('tenant_id').references(() => tenants.id),
     action: text('action').notNull(), // e.g., 'impersonate', 'update_settings'
     targetId: text('target_id'), // User/Class/Tenant ID affected
+    targetType: text('target_type'), // e.g., 'member', 'class', 'tenant'
     details: text('details', { mode: 'json' }),
     ipAddress: text('ip_address'),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
-});
+}, (table) => ({
+    tenantIdx: index('audit_tenant_idx').on(table.tenantId),
+    targetIdx: index('audit_target_idx').on(table.targetType, table.targetId),
+}));
 
 // --- Usage Logs (Billing) ---
 export const usageLogs = sqliteTable('usage_logs', {
@@ -423,6 +428,7 @@ export const appointments = sqliteTable('appointments', {
     endTime: integer('end_time', { mode: 'timestamp' }).notNull(),
 
     status: text('status', { enum: ['pending', 'confirmed', 'cancelled', 'completed'] }).default('confirmed'),
+    locationId: text('location_id').references(() => locations.id), // Where the appointment happens
     notes: text('notes'),
 
     // Zoom/Virtual support
@@ -446,6 +452,7 @@ export const payrollConfig = sqliteTable('payroll_config', {
 
     payModel: text('pay_model', { enum: ['flat', 'percentage', 'hourly'] }).notNull(), // 'flat' (per class/session), 'percentage' (of revenue), 'hourly' (based on duration)
     rate: integer('rate').notNull(), // If flat/hourly: in cents. If percentage: in basis points (e.g. 5000 = 50%)
+    payoutBasis: text('payout_basis', { enum: ['gross', 'net'] }).default('net'), // For percentage: calculate on gross price or net (after Stripe fees)
 
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
@@ -663,6 +670,7 @@ export const purchasedPacks = sqliteTable('purchased_packs', {
     initialCredits: integer('initial_credits').notNull(),
     remainingCredits: integer('remaining_credits').notNull(),
     price: integer('purchased_price_cents').default(0), // Actual price paid
+    status: text('status', { enum: ['active', 'refunded', 'expired'] }).default('active').notNull(),
     stripePaymentId: text('stripe_payment_id'),
     expiresAt: integer('expires_at', { mode: 'timestamp' }),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
@@ -813,6 +821,7 @@ export const giftCards = sqliteTable('gift_cards', {
     status: text('status', { enum: ['active', 'exhausted', 'disabled', 'expired'] }).default('active').notNull(),
     expiryDate: integer('expiry_date', { mode: 'timestamp' }),
     buyerMemberId: text('buyer_member_id').references(() => tenantMembers.id),
+    stripePaymentId: text('stripe_payment_id'),
     recipientMemberId: text('recipient_member_id').references(() => tenantMembers.id), // Link to Student Member (if known)
     recipientEmail: text('recipient_email'),
     notes: text('notes'),
@@ -1038,6 +1047,54 @@ export const referrals = sqliteTable('referrals', {
     referrerIdx: index('referral_referrer_idx').on(table.referrerId),
 }));
 
+// --- Tagging System ---
+export const memberTags = sqliteTable('member_tags', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    name: text('name').notNull(),
+    color: text('color'),
+    description: text('description'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('member_tag_tenant_idx').on(table.tenantId),
+}));
+
+export const membersToTags = sqliteTable('members_to_tags', {
+    memberId: text('member_id').notNull().references(() => tenantMembers.id, { onDelete: 'cascade' }),
+    tagId: text('tag_id').notNull().references(() => memberTags.id, { onDelete: 'cascade' }),
+}, (table) => ({
+    pk: primaryKey({ columns: [table.memberId, table.tagId] }),
+}));
+
+// --- Custom Fields ---
+export const customFieldDefinitions = sqliteTable('custom_field_definitions', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    entityType: text('entity_type', { enum: ['member', 'class', 'lead'] }).notNull(),
+    key: text('key').notNull(),
+    label: text('label').notNull(),
+    fieldType: text('field_type', { enum: ['text', 'number', 'boolean', 'date', 'select'] }).notNull(),
+    options: text('options', { mode: 'json' }), // For 'select' type
+    isRequired: integer('is_required', { mode: 'boolean' }).default(false).notNull(),
+    isActive: integer('is_active', { mode: 'boolean' }).default(true).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantEntityIdx: index('cf_def_tenant_entity_idx').on(table.tenantId, table.entityType),
+    uniqueKey: uniqueIndex('cf_def_unique_key_idx').on(table.tenantId, table.entityType, table.key),
+}));
+
+export const customFieldValues = sqliteTable('custom_field_values', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    definitionId: text('definition_id').notNull().references(() => customFieldDefinitions.id),
+    entityId: text('entity_id').notNull(), // memberId, classId, or leadId
+    value: text('value'), // Stored as string, cast at runtime
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    entityIdx: index('cf_val_entity_idx').on(table.entityId),
+    uniqueVal: uniqueIndex('cf_val_unique_idx').on(table.entityId, table.definitionId),
+}));
+
 // --- Community Feed ---
 export const communityPosts = sqliteTable('community_posts', {
     id: text('id').primaryKey(),
@@ -1109,6 +1166,8 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
     classPackDefinitions: many(classPackDefinitions),
     leads: many(leads),
     tasks: many(tasks),
+    memberTags: many(memberTags),
+    customFieldDefinitions: many(customFieldDefinitions),
 }));
 
 export const tenantMembersRelations = relations(tenantMembers, ({ one, many }) => ({
@@ -1125,6 +1184,7 @@ export const tenantMembersRelations = relations(tenantMembers, ({ one, many }) =
     memberships: many(subscriptions), // Alias subscriptions as memberships
     purchasedPacks: many(purchasedPacks),
     waiverSignatures: many(waiverSignatures),
+    tags: many(membersToTags),
 }));
 
 export const tenantRolesRelations = relations(tenantRoles, ({ one }) => ({
@@ -1179,6 +1239,10 @@ export const bookingsRelations = relations(bookings, ({ one }) => ({
     member: one(tenantMembers, {
         fields: [bookings.memberId],
         references: [tenantMembers.id],
+    }),
+    usedPack: one(purchasedPacks, {
+        fields: [bookings.usedPackId],
+        references: [purchasedPacks.id],
     }),
 }));
 
@@ -1452,6 +1516,24 @@ export const webhookEndpoints = sqliteTable('webhook_endpoints', {
 }, (table) => ({
     tenantIdx: index('webhook_tenant_idx').on(table.tenantId),
 }));
+
+export const webhookLogs = sqliteTable('webhook_logs', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    endpointId: text('endpoint_id').notNull().references(() => webhookEndpoints.id),
+    eventType: text('event_type').notNull(),
+    payload: text('payload', { mode: 'json' }).notNull(),
+    statusCode: integer('status_code'),
+    responseBody: text('response_body'),
+    error: text('error'),
+    durationMs: integer('duration_ms'),
+    attemptCount: integer('attempt_count').default(1),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('webhook_log_tenant_idx').on(table.tenantId),
+    endpointIdx: index('webhook_log_endpoint_idx').on(table.endpointId),
+    eventIdx: index('webhook_log_event_idx').on(table.eventType),
+}));
 // --- Platform Global Config ---
 export const platformConfig = sqliteTable('platform_config', {
     key: text('key').primaryKey(), // e.g. 'feature_mobile_app'
@@ -1482,6 +1564,25 @@ export const websitePagesRelations = relations(websitePages, ({ one }) => ({
     tenant: one(tenants, {
         fields: [websitePages.tenantId],
         references: [tenants.id],
+    }),
+}));
+
+export const webhookEndpointsRelations = relations(webhookEndpoints, ({ one, many }) => ({
+    tenant: one(tenants, {
+        fields: [webhookEndpoints.tenantId],
+        references: [tenants.id],
+    }),
+    logs: many(webhookLogs),
+}));
+
+export const webhookLogsRelations = relations(webhookLogs, ({ one }) => ({
+    tenant: one(tenants, {
+        fields: [webhookLogs.tenantId],
+        references: [tenants.id],
+    }),
+    endpoint: one(webhookEndpoints, {
+        fields: [webhookLogs.endpointId],
+        references: [webhookEndpoints.id],
     }),
 }));
 
@@ -1627,5 +1728,43 @@ export const faqsRelations = relations(faqs, ({ one }) => ({
     tenant: one(tenants, {
         fields: [faqs.tenantId],
         references: [tenants.id],
+    }),
+}));
+
+export const memberTagsRelations = relations(memberTags, ({ one, many }) => ({
+    tenant: one(tenants, {
+        fields: [memberTags.tenantId],
+        references: [tenants.id],
+    }),
+    members: many(membersToTags),
+}));
+
+export const membersToTagsRelations = relations(membersToTags, ({ one }) => ({
+    member: one(tenantMembers, {
+        fields: [membersToTags.memberId],
+        references: [tenantMembers.id],
+    }),
+    tag: one(memberTags, {
+        fields: [membersToTags.tagId],
+        references: [memberTags.id],
+    }),
+}));
+
+export const customFieldDefinitionsRelations = relations(customFieldDefinitions, ({ one, many }) => ({
+    tenant: one(tenants, {
+        fields: [customFieldDefinitions.tenantId],
+        references: [tenants.id],
+    }),
+    values: many(customFieldValues),
+}));
+
+export const customFieldValuesRelations = relations(customFieldValues, ({ one }) => ({
+    tenant: one(tenants, {
+        fields: [customFieldValues.tenantId],
+        references: [tenants.id],
+    }),
+    definition: one(customFieldDefinitions, {
+        fields: [customFieldValues.definitionId],
+        references: [customFieldDefinitions.id],
     }),
 }));

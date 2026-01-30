@@ -27,6 +27,7 @@ export class RateLimiter extends DurableObject {
         const key = url.searchParams.get("key");
         const limitStr = url.searchParams.get("limit");
         const windowStr = url.searchParams.get("window");
+        const costStr = url.searchParams.get("cost") || "1";
 
         if (!key || !limitStr || !windowStr) {
             return new Response("Missing parameters", { status: 400 });
@@ -34,6 +35,7 @@ export class RateLimiter extends DurableObject {
 
         const limit = parseInt(limitStr);
         const windowSeconds = parseInt(windowStr);
+        const cost = parseInt(costStr);
         const now = Date.now();
 
         let entry = this.counters.get(key);
@@ -45,16 +47,16 @@ export class RateLimiter extends DurableObject {
         }
 
         if (!entry) {
-            entry = { count: 1, expiresAt: now + (windowSeconds * 1000) };
+            entry = { count: cost, expiresAt: now + (windowSeconds * 1000) };
             this.counters.set(key, entry);
-            return new Response(JSON.stringify({ allowed: true, remaining: limit - 1 }), { status: 200 });
+            return new Response(JSON.stringify({ allowed: true, remaining: limit - cost }), { status: 200 });
         }
 
-        if (entry.count >= limit) {
-            return new Response(JSON.stringify({ allowed: false, remaining: 0 }), { status: 429 });
+        if (entry.count + cost > limit) {
+            return new Response(JSON.stringify({ allowed: false, remaining: limit - entry.count }), { status: 429 });
         }
 
-        entry.count++;
+        entry.count += cost;
         return new Response(JSON.stringify({ allowed: true, remaining: limit - entry.count }), { status: 200 });
     }
 

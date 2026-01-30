@@ -19,15 +19,26 @@ export interface Bindings {
     METRICS: DurableObjectNamespace;
     PLATFORM_ADMIN_EMAIL?: string;
     IMPERSONATION_SECRET?: string;
+    GOOGLE_CLIENT_ID: string;
+    GOOGLE_CLIENT_SECRET: string;
+    CLOUDFLARE_STREAM_ACCOUNT_ID: string;
+    CLOUDFLARE_STREAM_API_TOKEN: string;
+    GEMINI_API_KEY: string;
 }
 
 export interface Variables {
-    auth: { userId: string };
+    auth: { userId: string; claims?: any };
     roles?: string[];
+    permissions?: Set<string>;
+    can: (permission: string) => boolean;
     tenant?: typeof tenants.$inferSelect;
-    member?: typeof tenantMembers.$inferSelect;
+    member?: any; // often includes user relation
     user?: typeof users.$inferSelect;
     traceId?: string;
+    features: Set<string>;
+    isImpersonating?: boolean;
+    emailApiKey?: string;
+    twilioCredentials?: { accountSid: string; authToken: string; fromNumber: string };
 }
 
 export type HonoContext = {

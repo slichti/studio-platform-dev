@@ -66,24 +66,55 @@ export class WebhookService {
         const bodyString = JSON.stringify(bodyObj);
 
         const results = await Promise.allSettled(targets.map(async (ep) => {
-            const signature = await this.sign(bodyString, ep.secret);
-            const res = await fetch(ep.url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Studio-Event': eventType,
-                    'X-Studio-Signature': signature,
-                    'User-Agent': 'StudioPlatform-Webhook/1.0'
-                },
-                body: bodyString
-            });
+            const startTime = Date.now();
+            let statusCode: number | null = null;
+            let responseBody: string | null = null;
+            let error: string | null = null;
 
-            if (!res.ok) {
-                throw new Error(`Status ${res.status}`);
+            try {
+                const signature = await this.sign(bodyString, ep.secret);
+                const res = await fetch(ep.url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Studio-Event': eventType,
+                        'X-Studio-Signature': signature,
+                        'User-Agent': 'StudioPlatform-Webhook/1.0'
+                    },
+                    body: bodyString
+                });
+
+                statusCode = res.status;
+                try {
+                    responseBody = await res.text();
+                } catch (e) {
+                    // Ignore body parse errors
+                }
+
+                if (!res.ok) {
+                    throw new Error(`Status ${res.status}`);
+                }
+            } catch (e: any) {
+                error = e.message;
+                throw e;
+            } finally {
+                const durationMs = Date.now() - startTime;
+                await this.db.insert(schema.webhookLogs).values({
+                    id: crypto.randomUUID(),
+                    tenantId,
+                    endpointId: ep.id,
+                    eventType,
+                    payload: bodyObj,
+                    statusCode,
+                    responseBody,
+                    error,
+                    durationMs,
+                    createdAt: new Date()
+                }).run();
             }
         }));
 
-        // Log failures?
+        // Log failures to console as well
         results.forEach((r, i) => {
             if (r.status === 'rejected') {
                 console.error(`[Webhooks] Failed to send to ${targets[i].url}:`, r.reason);

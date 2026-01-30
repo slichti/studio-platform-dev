@@ -54,6 +54,9 @@ export class StripeWebhookHandler {
                 case 'capability.updated':
                     await this.handleCapabilityUpdated(event);
                     break;
+                case 'charge.refunded':
+                    await this.handleChargeRefunded(event);
+                    break;
                 default:
                     // console.log(`Unhandled Stripe event: ${event.type}`);
                     break;
@@ -434,6 +437,55 @@ export class StripeWebhookHandler {
                     }
                 }
             } catch (e) { console.error('Failed to trigger subscription_terminated', e); }
+        }
+    }
+
+    private async handleChargeRefunded(event: Stripe.Event) {
+        const charge = event.data.object as Stripe.Charge;
+        const paymentIntentId = charge.payment_intent as string;
+
+        if (!paymentIntentId) return;
+
+        // 1. Check if it was a Pack Purchase
+        const pack = await this.db.select().from(schema.purchasedPacks).where(eq(schema.purchasedPacks.stripePaymentId, paymentIntentId)).get();
+        if (pack) {
+            console.log(`[Stripe] Refund detected for Pack ${pack.id}. Reversing credits.`);
+            await this.db.update(schema.purchasedPacks)
+                .set({ status: 'refunded', remainingCredits: 0 })
+                .where(eq(schema.purchasedPacks.id, pack.id))
+                .run();
+
+            await this.db.insert(schema.auditLogs).values({
+                id: crypto.randomUUID(),
+                action: 'pack.refunded',
+                actorId: 'system',
+                targetType: 'member_pack',
+                tenantId: pack.tenantId,
+                targetId: pack.id,
+                details: { paymentIntentId, amount: charge.amount_refunded },
+                createdAt: new Date()
+            }).run();
+        }
+
+        // 2. Check if it was a Gift Card Purchase
+        const giftCard = await this.db.select().from(schema.giftCards).where(eq(schema.giftCards.stripePaymentId, paymentIntentId)).get();
+        if (giftCard) {
+            console.log(`[Stripe] Refund detected for Gift Card ${giftCard.id}. Disabling.`);
+            await this.db.update(schema.giftCards)
+                .set({ status: 'disabled', currentBalance: 0 })
+                .where(eq(schema.giftCards.id, giftCard.id))
+                .run();
+
+            await this.db.insert(schema.auditLogs).values({
+                id: crypto.randomUUID(),
+                action: 'gift_card.refunded',
+                actorId: 'system',
+                targetType: 'gift_card',
+                tenantId: giftCard.tenantId,
+                targetId: giftCard.id,
+                details: { paymentIntentId, amount: charge.amount_refunded },
+                createdAt: new Date()
+            }).run();
         }
     }
 

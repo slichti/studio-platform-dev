@@ -1,152 +1,49 @@
-
 import { Hono } from 'hono';
 import { eq, and, desc } from 'drizzle-orm';
 import { createDb } from '../db';
-import { challenges, userChallenges, tenants } from '@studio/db/src/schema'; // Updated import path
-import { authMiddleware } from '../middleware/auth';
-import { tenantMiddleware } from '../middleware/tenant';
+import { challenges, userChallenges, tenants } from '@studio/db/src/schema';
 import { ChallengeService } from '../services/challenges';
+import { HonoContext } from '../types';
 
-type Bindings = {
-    DB: D1Database;
-};
+const app = new Hono<HonoContext>();
 
-type Variables = {
-    tenant: { id: string };
-    roles: string[];
-    member: { userId: string };
-    auth: { userId: string };
-};
-
-const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
-
-// GET /leaderboard - Get tenant-wide leaderboard
 app.get('/leaderboard', async (c) => {
     const db = createDb(c.env.DB);
-    const tenant = c.get('tenant');
-    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
-
-
-    const service = new ChallengeService(db, tenant.id);
-    const leaderboard = await service.getLeaderboard();
-    return c.json(leaderboard);
+    return c.json(await new ChallengeService(db, c.get('tenant')!.id).getLeaderboard());
 });
 
-// GET /challenges - List all challenges for the tenant
 app.get('/', async (c) => {
     const db = createDb(c.env.DB);
-    const tenant = c.get('tenant');
-
-    // Safety check for tenant context
-    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
-
-    // Feature Gate: Fetch full tenant to check tier
-    const tenantRecord = await db.select().from(tenants).where(eq(tenants.id, tenant.id)).get();
-    if (!tenantRecord) return c.json({ error: 'Tenant not found' }, 404);
-
-    const isLoyaltyEnabled = ['growth', 'scale'].includes(tenantRecord.tier);
-    if (!isLoyaltyEnabled) return c.json({ error: 'Loyalty feature not enabled' }, 403);
-
-    const result = await db.select()
-        .from(challenges)
-        .where(and(
-            eq(challenges.tenantId, tenant.id),
-            eq(challenges.active, true)
-        ))
-        .orderBy(desc(challenges.createdAt));
-
-    return c.json(result);
+    const t = c.get('tenant')!;
+    if (!['growth', 'scale'].includes(t.tier)) return c.json({ error: 'Disabled' }, 403);
+    return c.json(await db.select().from(challenges).where(and(eq(challenges.tenantId, t.id), eq(challenges.active, true))).orderBy(desc(challenges.createdAt)));
 });
 
-// POST /challenges - Create a new challenge (Admin only)
 app.post('/', async (c) => {
+    if (!c.get('can')('manage_marketing')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
-    const tenant = c.get('tenant');
-    const roles = c.get('roles') || [];
-
-    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
-
-    // Authorization check
-    if (!roles.includes('admin') && !roles.includes('owner') && !roles.includes('instructor')) {
-        return c.json({ error: 'Unauthorized' }, 403);
-    }
-
     const body = await c.req.json();
-    const { title, description, type, targetValue, rewardType, rewardValue, startDate, endDate } = body;
-
-    const newChallenge = await db.insert(challenges).values({
-        id: crypto.randomUUID(),
-        tenantId: tenant.id,
-        title,
-        description,
-        type: type as 'count' | 'streak',
-        targetValue,
-        rewardType: rewardType as 'badge' | 'coupon' | 'retail_credit',
-        rewardValue,
-        startDate: startDate ? new Date(startDate) : undefined,
-        endDate: endDate ? new Date(endDate) : undefined,
-        active: true
-    }).returning().get();
-
-    return c.json(newChallenge);
+    const chan = await db.insert(challenges).values({ id: crypto.randomUUID(), tenantId: c.get('tenant')!.id, ...body, startDate: body.startDate ? new Date(body.startDate) : undefined, endDate: body.endDate ? new Date(body.endDate) : undefined, active: true }).returning().get();
+    return c.json(chan);
 });
 
-// GET /challenges/my-progress - Get current user's progress
 app.get('/my-progress', async (c) => {
     const db = createDb(c.env.DB);
-    const tenant = c.get('tenant');
     const member = c.get('member');
-
-    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
-    if (!member) return c.json({ error: 'Member context required' }, 401);
-
-    const activeChallenges = await db.select()
-        .from(challenges)
-        .where(
-            and(
-                eq(challenges.tenantId, tenant.id),
-                eq(challenges.active, true)
-            )
-        );
-
-    const progressMap = new Map();
-    const userProgress = await db.select()
-        .from(userChallenges)
-        .where(
-            and(
-                eq(userChallenges.userId, member.userId),
-                eq(userChallenges.tenantId, tenant.id)
-            )
-        );
-
-    userProgress.forEach(p => progressMap.set(p.challengeId, p));
-
-    const enriched = activeChallenges.map(ch => ({
-        ...ch,
-        userProgress: progressMap.get(ch.id) || { progress: 0, status: 'active' }
-    }));
-
-    return c.json(enriched);
+    if (!member) return c.json({ error: 'Unauthorized' }, 401);
+    const active = await db.select().from(challenges).where(and(eq(challenges.tenantId, c.get('tenant')!.id), eq(challenges.active, true)));
+    const prog = await db.select().from(userChallenges).where(and(eq(userChallenges.userId, member.userId), eq(userChallenges.tenantId, c.get('tenant')!.id)));
+    const map = new Map(prog.map(p => [p.challengeId, p]));
+    return c.json(active.map(ch => ({ ...ch, userProgress: map.get(ch.id) || { progress: 0, status: 'active' } })));
 });
 
-// POST /challenges/:id/join - Join a challenge
 app.post('/:id/join', async (c) => {
-    const db = createDb(c.env.DB);
-    const tenant = c.get('tenant');
     const member = c.get('member');
-    const challengeId = c.req.param('id');
-
-    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
-    if (!member) return c.json({ error: 'Member context required' }, 401);
-
-    // Use ChallengeService for consistent logic
+    if (!member) return c.json({ error: 'Unauthorized' }, 401);
     try {
-        const service = new ChallengeService(db, tenant.id);
-        await service.joinChallenge(member.userId, challengeId);
+        await new ChallengeService(createDb(c.env.DB), c.get('tenant')!.id).joinChallenge(member.userId, c.req.param('id'));
         return c.json({ success: true });
-    } catch (e: any) {
-        return c.json({ error: e.message }, 400);
-    }
+    } catch (e: any) { return c.json({ error: e.message }, 400); }
 });
 
 export default app;

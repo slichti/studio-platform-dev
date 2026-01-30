@@ -85,6 +85,7 @@ export class FulfillmentService {
                 initialValue: amount,
                 currentBalance: amount,
                 buyerMemberId,
+                stripePaymentId: paymentId,
                 recipientMemberId,
                 recipientEmail,
                 notes: metadata.message || null,

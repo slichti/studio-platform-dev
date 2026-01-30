@@ -203,7 +203,8 @@ app.post('/studio', rateLimit({ limit: 5, window: 300, keyPrefix: 'onboarding' }
         }).run();
 
         await db.insert(tenantRoles).values({
-            memberId,
+            id: crypto.randomUUID(),
+            memberId: memberId,
             role: 'owner'
         }).run();
 

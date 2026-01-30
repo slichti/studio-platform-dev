@@ -1,30 +1,16 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { locations, tenants, tenantMembers } from '@studio/db/src/schema';
+import { locations } from '@studio/db/src/schema';
 import { eq, and } from 'drizzle-orm';
+import { HonoContext } from '../types';
 
-type Bindings = {
-    DB: D1Database;
-};
-
-type Variables = {
-    tenant: typeof tenants.$inferSelect;
-    member?: any;
-    roles?: string[];
-    auth: {
-        userId: string | null;
-        claims: any;
-    };
-    features: Set<string>;
-    isImpersonating?: boolean;
-};
-
-const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
+const app = new Hono<HonoContext>();
 
 // GET /: List locations
 app.get('/', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context missing' }, 400);
 
     const allLocations = await db.select().from(locations).where(eq(locations.tenantId, tenant.id));
     return c.json({ locations: allLocations });
@@ -32,8 +18,12 @@ app.get('/', async (c) => {
 
 // POST /: Create location
 app.post('/', async (c) => {
+    if (!c.get('can')('manage_tenant')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context missing' }, 400);
     const { name, address, timezone } = await c.req.json();
 
     if (!name) return c.json({ error: "Name is required" }, 400);
@@ -64,8 +54,12 @@ app.post('/', async (c) => {
 
 // DELETE /:id : Delete location
 app.delete('/:id', async (c) => {
+    if (!c.get('can')('manage_tenant')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context missing' }, 400);
     const id = c.req.param('id');
 
     // TODO: Check if classes exist for this location before deleting

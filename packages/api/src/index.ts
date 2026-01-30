@@ -81,6 +81,10 @@ export type Bindings = {
   ENCRYPTION_SECRET: string;
   LIVEKIT_API_KEY: string;
   LIVEKIT_API_SECRET: string;
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
+  CLOUDFLARE_STREAM_ACCOUNT_ID: string;
+  CLOUDFLARE_STREAM_API_TOKEN: string;
   RATE_LIMITER: DurableObjectNamespace;
   METRICS: DurableObjectNamespace;
 };
@@ -259,6 +263,19 @@ authenticatedPaths.forEach(path => {
 
 // then, establish studio context and member status (Tenant)
 studioPaths.forEach(path => app.use(path, tenantMiddleware));
+
+// [NEW] Resource-Intensive Route Overrides (Higher Costs)
+const expensivePaths = [
+  '/reports/export',
+  '/payroll/generate',
+  '/members/bulk',
+  '/import/*'
+];
+
+expensivePaths.forEach(path => {
+  // These cost 10x a normal request
+  app.use(path, rateLimitMiddleware(600, 60, 10));
+});
 
 // 4. Infrastructure/Common Studio Logic
 const studioApp = new Hono<{ Bindings: Bindings, Variables: Variables }>()

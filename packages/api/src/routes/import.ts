@@ -192,6 +192,7 @@ app.post('/csv', async (c) => {
 
                 // 3. Assign Default Role (Student)
                 await db.insert(tenantRoles).values({
+                    id: crypto.randomUUID(),
                     memberId,
                     role: 'student'
                 }).run();

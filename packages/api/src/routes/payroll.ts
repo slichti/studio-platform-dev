@@ -1,36 +1,14 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import {
-    payrollConfig,
-    payouts,
-    payrollItems,
-    tenantMembers,
-    classes,
-    bookings,
-    users,
-    appointments,
-    appointmentServices
-} from '@studio/db/src/schema';
-import { and, eq, between, sql, desc, inArray } from 'drizzle-orm';
+import { payrollConfig, payouts, payrollItems, tenantMembers, classes, bookings, users, appointments, appointmentServices } from '@studio/db/src/schema';
+import { and, eq, between, sql, desc } from 'drizzle-orm';
+import { HonoContext } from '../types';
 
-// Type definitions for context
-import { tenants } from '@studio/db/src/schema'; // We need this for the generic type logic if used, or just rely on runtime injection if typical
-// Re-using the pattern from reports.ts for Bindings/Variables
-type Bindings = {
-    DB: D1Database;
-    STRIPE_SECRET_KEY: string;
-};
-
-type Variables = {
-    tenant: typeof tenants.$inferSelect;
-    member?: any;
-    roles?: string[];
-};
-
-const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
+const app = new Hono<HonoContext>();
 
 // GET /config - List all instructors and their payroll config
 app.get('/config', async (c) => {
+    if (!c.get('can')('manage_payroll')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
@@ -38,125 +16,83 @@ app.get('/config', async (c) => {
     const { isFeatureEnabled } = await import('../utils/features');
     if (!isFeatureEnabled(tenant, 'payroll')) return c.json({ error: 'Payroll feature not enabled' }, 403);
 
-    const roles = c.get('roles') || [];
-    if (!roles.includes('owner')) return c.json({ error: 'Unauthorized' }, 403);
-
-
-    // Get all instructors
-    // We need to join with potential payrollConfig
     const instructors = await db.select({
         memberId: tenantMembers.id,
         firstName: sql<string>`json_extract(${tenantMembers.profile}, '$.firstName')`,
         lastName: sql<string>`json_extract(${tenantMembers.profile}, '$.lastName')`,
-        role: sql<string>`'instructor'`, // Simplified for now, we should filter by role really
+        role: sql<string>`'instructor'`,
         config: {
             id: payrollConfig.id,
             payModel: payrollConfig.payModel,
             rate: payrollConfig.rate,
+            payoutBasis: payrollConfig.payoutBasis,
         },
         stripeAccountId: users.stripeAccountId
     })
         .from(tenantMembers)
         .leftJoin(users, eq(tenantMembers.userId, users.id))
         .leftJoin(payrollConfig, eq(tenantMembers.id, payrollConfig.memberId))
-        .where(and(
-            eq(tenantMembers.tenantId, tenant.id),
-            // Filter for instructors? simpler to just get all members who ARE instructors?
-            // For now, let's just get all members and filtering in UI or query if we can join roles.
-            // Joining roles is better.
-        ))
+        .where(eq(tenantMembers.tenantId, tenant.id))
         .all();
-
-    // Filter for only 'instructor' role if possible, or leave to UI. 
-    // Let's optimize by joining tenantRoles
-    /*
-    const rows = await db.select(...)
-        .from(tenantMembers)
-        .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
-        .where(eq(tenantRoles.role, 'instructor'))
-    */
 
     return c.json({ instructors });
 });
 
 // POST /config - Update instructor payroll config
 app.post('/config', async (c) => {
+    if (!c.get('can')('manage_payroll')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const roles = c.get('roles') || [];
-    if (!roles.includes('owner')) return c.json({ error: 'Unauthorized' }, 403);
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
     const body = await c.req.json();
-    const { memberId, payModel, rate } = body; // rate in cents (flat/hourly) or basis points (%)
+    const { memberId, payModel, rate, payoutBasis } = body;
 
-    if (!memberId || !payModel || rate === undefined) {
-        return c.json({ error: 'Missing required fields' }, 400);
-    }
+    if (!memberId || !payModel || rate === undefined) return c.json({ error: 'Missing required fields' }, 400);
 
-    // Upsert
-    // Check if exists
     const existing = await db.select().from(payrollConfig).where(eq(payrollConfig.memberId, memberId)).get();
 
     if (existing) {
         await db.update(payrollConfig)
-            .set({ payModel, rate, updatedAt: new Date() })
-            .where(eq(payrollConfig.id, existing.id))
-            .run();
+            .set({ payModel, rate, payoutBasis, updatedAt: new Date() })
+            .where(eq(payrollConfig.id, existing.id)).run();
     } else {
-        // Need userId for the schema link? Schema says userId is NOT NULL referencing users.id
-        // We have memberId. We need to fetch the member to get the userId.
         const member = await db.select().from(tenantMembers).where(eq(tenantMembers.id, memberId)).get();
         if (!member) return c.json({ error: 'Member not found' }, 404);
 
         await db.insert(payrollConfig).values({
-            id: crypto.randomUUID(),
-            tenantId: tenant.id,
-            memberId,
-            userId: member.userId,
-            payModel,
-            rate
+            id: crypto.randomUUID(), tenantId: tenant.id, memberId, userId: member.userId,
+            payModel, rate, payoutBasis: payoutBasis || 'net'
         }).run();
     }
-
     return c.json({ success: true });
 });
 
-// POST /generate - Calculate and Preview or Create
+// POST /generate
 app.post('/generate', async (c) => {
+    if (!c.get('can')('manage_payroll')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const roles = c.get('roles') || [];
-    if (!roles.includes('owner')) return c.json({ error: 'Unauthorized' }, 403);
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
     const { startDate, endDate, commit } = await c.req.json();
-
     if (!startDate || !endDate) return c.json({ error: "Date range required" }, 400);
 
     const start = new Date(startDate);
     const end = new Date(endDate);
-
-    // 1. Get all instructors with config
     const configs = await db.select().from(payrollConfig).where(eq(payrollConfig.tenantId, tenant.id)).all();
-
     const results = [];
 
     for (const config of configs) {
         let totalDue = 0;
         const items: any[] = [];
 
-        // 2. Find Classes
         const instructorClasses = await db.select()
             .from(classes)
-            .where(and(
-                eq(classes.instructorId, config.memberId!),
-                between(classes.startTime, start, end),
-                eq(classes.status, 'active') // Only active classes
-            )).all();
+            .where(and(eq(classes.instructorId, config.memberId!), between(classes.startTime, start, end), eq(classes.status, 'active'))).all();
 
         for (const cls of instructorClasses) {
-            let amount = 0;
-            let details = "";
-
+            let amount = 0, details = "";
             if (config.payModel === 'flat') {
                 amount = config.rate;
                 details = `Flat rate per class`;
@@ -165,59 +101,41 @@ app.post('/generate', async (c) => {
                 amount = Math.round(config.rate * hours);
                 details = `${hours.toFixed(2)} hours @ $${(config.rate / 100).toFixed(2)}/hr`;
             } else if (config.payModel === 'percentage') {
-                // Complex: Need bookings revenue
-                // For MVP, if checks 'price' of class * attendees? Or purely bookings?
-                // Let's assume % of Class Price * Count (Simplistic revenue)
-                // Or % or bookings.
-                // Let's do % of estimated revenue for now (Price * Confirmed Attendees)
-                // Accurate way: Sum of bookings pos charges?
-                // Fallback: (Class Price * Booked Count) * (Rate / 10000)
-
-                // Fetch count
-                const bookingCount = await db.select({ count: sql<number>`count(*)` })
-                    .from(bookings)
-                    .where(and(eq(bookings.classId, cls.id), eq(bookings.status, 'confirmed')))
-                    .get();
-
-                const revenue = (cls.price || 0) * (bookingCount?.count || 0);
-                amount = Math.round(revenue * (config.rate / 10000)); // Rate is basis points (5000 = 50%)
-                details = `${(config.rate / 100)}% of $${(revenue / 100).toFixed(2)} (Est. Revenue)`;
+                const classBookings = await db.query.bookings.findMany({
+                    where: and(eq(bookings.classId, cls.id), eq(bookings.status, 'confirmed')),
+                    with: { usedPack: true }
+                });
+                let revenue = 0;
+                for (const b of classBookings) {
+                    if (b.paymentMethod === 'drop_in') revenue += (cls.price || 0);
+                    else if (b.paymentMethod === 'credit' && b.usedPack) revenue += Math.round((b.usedPack.price || 0) / (b.usedPack.initialCredits || 1));
+                }
+                let basisAmount = revenue, basisLabel = "Gross Revenue";
+                if (config.payoutBasis === 'net') {
+                    const estimatedFees = Math.round(revenue * 0.029) + (classBookings.filter(b => b.paymentMethod === 'drop_in').length * 30);
+                    basisAmount = Math.max(0, revenue - estimatedFees);
+                    basisLabel = "Net Revenue (Est.)";
+                }
+                amount = Math.round(basisAmount * (config.rate / 10000));
+                details = `${(config.rate / 100)}% of $${(basisAmount / 100).toFixed(2)} (${basisLabel})`;
             }
-
             if (amount > 0) {
                 totalDue += amount;
-                items.push({
-                    type: 'class',
-                    referenceId: cls.id,
-                    title: cls.title,
-                    date: cls.startTime,
-                    amount,
-                    details
-                });
+                items.push({ type: 'class', referenceId: cls.id, title: cls.title, date: cls.startTime, amount, details });
             }
         }
 
-        // 3. Find Appointments (Completed)
         const instructorAppointments = await db.select({
-            id: appointments.id,
-            startTime: appointments.startTime,
-            endTime: appointments.endTime,
-            servicePrice: appointmentServices.price,
-            serviceTitle: appointmentServices.title
+            id: appointments.id, startTime: appointments.startTime, endTime: appointments.endTime,
+            servicePrice: appointmentServices.price, serviceTitle: appointmentServices.title
         })
             .from(appointments)
             .innerJoin(appointmentServices, eq(appointments.serviceId, appointmentServices.id))
-            .where(and(
-                eq(appointments.instructorId, config.memberId!),
-                between(appointments.startTime, start, end),
-                eq(appointments.status, 'completed')
-            )).all();
+            .where(and(eq(appointments.instructorId, config.memberId!), between(appointments.startTime, start, end), eq(appointments.status, 'completed'))).all();
 
         for (const apt of instructorAppointments) {
-            let amount = 0;
-            let details = "";
+            let amount = 0, details = "";
             const durationMinutes = (apt.endTime.getTime() - apt.startTime.getTime()) / (1000 * 60);
-
             if (config.payModel === 'flat') {
                 amount = config.rate;
                 details = `Flat rate per appointment`;
@@ -230,62 +148,31 @@ app.post('/generate', async (c) => {
                 amount = Math.round(revenue * (config.rate / 10000));
                 details = `${(config.rate / 100)}% of $${(revenue / 100).toFixed(2)} service price`;
             }
-
             if (amount > 0) {
                 totalDue += amount;
-                items.push({
-                    type: 'appointment',
-                    referenceId: apt.id,
-                    title: apt.serviceTitle,
-                    date: apt.startTime,
-                    amount,
-                    details
-                });
+                items.push({ type: 'appointment', referenceId: apt.id, title: apt.serviceTitle, date: apt.startTime, amount, details });
             }
         }
 
-
-        if (totalDue > 0) {
-            results.push({
-                instructorId: config.memberId,
-                amount: totalDue,
-                itemCount: items.length,
-                items
-            });
-        }
+        if (totalDue > 0) results.push({ instructorId: config.memberId, amount: totalDue, itemCount: items.length, items });
     }
 
     if (commit) {
-        // Save to DB
-        const generatedIds = [];
         for (const res of results) {
             const payoutId = crypto.randomUUID();
             await db.insert(payouts).values({
-                id: payoutId,
-                tenantId: tenant.id,
-                instructorId: res.instructorId!,
-                amount: res.amount,
-                periodStart: start,
-                periodEnd: end,
-                status: 'processing',
-                createdAt: new Date()
+                id: payoutId, tenantId: tenant.id, instructorId: res.instructorId!, amount: res.amount,
+                periodStart: start, periodEnd: end, status: 'processing', createdAt: new Date()
             }).run();
-
             for (const item of res.items) {
                 await db.insert(payrollItems).values({
-                    id: crypto.randomUUID(),
-                    payoutId,
-                    type: item.type,
-                    referenceId: item.referenceId,
-                    amount: item.amount,
-                    details: JSON.stringify({ note: item.details, title: item.title, date: item.date })
+                    id: crypto.randomUUID(), payoutId, type: item.type, referenceId: item.referenceId,
+                    amount: item.amount, details: JSON.stringify({ note: item.details, title: item.title, date: item.date })
                 }).run();
             }
-            generatedIds.push(payoutId);
         }
-        return c.json({ success: true, count: generatedIds.length });
+        return c.json({ success: true, count: results.length });
     }
-
     return c.json({ preview: results });
 });
 
@@ -294,28 +181,21 @@ app.get('/history', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     const member = c.get('member');
-    const roles = c.get('roles') || [];
     const isMine = c.req.query('mine') === 'true';
 
-    // If requesting own history, filter by memberId.
-    // Otherwise, assume Admin view (Requires 'owner' role)
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
     let whereClause = eq(payouts.tenantId, tenant.id);
     if (isMine) {
         if (!member) return c.json({ error: 'Member context not found' }, 404);
         whereClause = and(whereClause, eq(payouts.instructorId, member.id))!;
     } else {
-        // Strict check for Owner role to view all history
-        if (!roles.includes('owner')) return c.json({ error: 'Unauthorized' }, 403);
+        if (!c.get('can')('manage_payroll')) return c.json({ error: 'Unauthorized' }, 403);
     }
 
     const list = await db.select({
-        id: payouts.id,
-        amount: payouts.amount,
-        status: payouts.status,
-        periodStart: payouts.periodStart,
-        periodEnd: payouts.periodEnd,
-        paidAt: payouts.paidAt,
+        id: payouts.id, amount: payouts.amount, status: payouts.status, periodStart: payouts.periodStart,
+        periodEnd: payouts.periodEnd, paidAt: payouts.paidAt,
         instructorFirstName: sql<string>`json_extract(${tenantMembers.profile}, '$.firstName')`,
         instructorLastName: sql<string>`json_extract(${tenantMembers.profile}, '$.lastName')`,
         stripeAccountId: users.stripeAccountId
@@ -330,134 +210,83 @@ app.get('/history', async (c) => {
     return c.json({ history: list });
 });
 
-// POST /:id/approve - Mark as Paid
+// POST /:id/approve
 app.post('/:id/approve', async (c) => {
+    if (!c.get('can')('manage_payroll')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const roles = c.get('roles') || [];
-    if (!roles.includes('owner')) return c.json({ error: 'Unauthorized' }, 403);
-
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
     const id = c.req.param('id');
 
-    await db.update(payouts)
-        .set({ status: 'paid', paidAt: new Date(), notes: 'Manually marked as paid' })
-        .where(and(eq(payouts.id, id), eq(payouts.tenantId, tenant.id)))
-        .run();
-
+    await db.update(payouts).set({ status: 'paid', paidAt: new Date(), notes: 'Manually marked as paid' })
+        .where(and(eq(payouts.id, id), eq(payouts.tenantId, tenant.id))).run();
     return c.json({ success: true });
 });
 
-// POST /:id/pay - Execute Payout via Stripe
+// POST /:id/pay
 app.post('/:id/pay', async (c) => {
+    if (!c.get('can')('manage_payroll')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const roles = c.get('roles') || [];
-    if (!roles.includes('owner')) return c.json({ error: 'Unauthorized' }, 403);
-
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
     const id = c.req.param('id');
     const payout = await db.select().from(payouts).where(and(eq(payouts.id, id), eq(payouts.tenantId, tenant.id))).get();
 
-    if (!payout) return c.json({ error: "Payout not found" }, 404);
-    if (payout.status === 'paid') return c.json({ error: "Already paid" }, 400);
+    if (!payout || payout.status === 'paid') return c.json({ error: "Invalid payout" }, 400);
 
-    // Get Instructor User ID to find Stripe Account
     const instructor = await db.query.tenantMembers.findFirst({
-        where: eq(tenantMembers.id, payout.instructorId),
-        with: {
-            user: true
-        }
+        where: eq(tenantMembers.id, payout.instructorId), with: { user: true }
     });
 
-    if (!instructor || !instructor.user.stripeAccountId) {
-        return c.json({ error: "Instructor has no connected Stripe Account" }, 400);
-    }
+    if (!instructor?.user.stripeAccountId) return c.json({ error: "Missing instructor Stripe account" }, 400);
 
     try {
         const { StripeService } = await import('../services/stripe');
         const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
-
         const transfer = await stripe.createTransfer({
-            amount: payout.amount,
-            currency: payout.currency || 'usd',
+            amount: payout.amount, currency: payout.currency || 'usd',
             destination: instructor.user.stripeAccountId,
-            sourceAccountId: tenant.stripeAccountId || undefined, // Pass source if available (wrapper logic pending)
-            description: `Payout ${payout.id} from ${tenant.name}`
+            sourceAccountId: tenant.stripeAccountId || undefined,
+            description: `Payout ${payout.id}`
         });
 
-        await db.update(payouts)
-            .set({
-                status: 'paid',
-                paidAt: new Date(),
-                stripeTransferId: transfer.id,
-                notes: 'Paid via Stripe Transfer'
-            })
-            .where(eq(payouts.id, id))
-            .run();
-
-        // Audit? (Implicit in Payout Record)
-
+        await db.update(payouts).set({ status: 'paid', paidAt: new Date(), stripeTransferId: transfer.id, notes: 'Paid via Stripe' })
+            .where(eq(payouts.id, id)).run();
         return c.json({ success: true, transferId: transfer.id });
     } catch (e: any) {
-        console.error("Payout Transfer Failed", e);
-        return c.json({ error: e.message || "Transfer Failed" }, 500);
+        return c.json({ error: e.message }, 500);
     }
 });
 
-// POST /transfer - Manual Ad-Hoc Payout
+// POST /transfer
 app.post('/transfer', async (c) => {
+    if (!c.get('can')('manage_payroll')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const roles = c.get('roles') || [];
-    if (!roles.includes('owner')) return c.json({ error: 'Unauthorized' }, 403);
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
     const { instructorId, amount, currency, notes } = await c.req.json();
+    if (!instructorId || !amount) return c.json({ error: "Missing fields" }, 400);
 
-    if (!instructorId || !amount) return c.json({ error: "Missing required fields" }, 400);
-
-    // 1. Get Instructor
-    const instructor = await db.query.tenantMembers.findFirst({
-        where: eq(tenantMembers.id, instructorId),
-        with: { user: true }
-    });
-
-    if (!instructor || !instructor.user.stripeAccountId) {
-        return c.json({ error: "Instructor has no connected Stripe Account" }, 400);
-    }
+    const instructor = await db.query.tenantMembers.findFirst({ where: eq(tenantMembers.id, instructorId), with: { user: true } });
+    if (!instructor?.user.stripeAccountId) return c.json({ error: "Missing instructor Stripe account" }, 400);
 
     try {
         const { StripeService } = await import('../services/stripe');
         const stripe = new StripeService(c.env.STRIPE_SECRET_KEY);
-
-        // 2. Create Transfer
         const transfer = await stripe.createTransfer({
-            amount: amount,
-            currency: currency || 'usd',
-            destination: instructor.user.stripeAccountId,
-            sourceAccountId: tenant.stripeAccountId || undefined,
-            description: `Manual Payout from ${tenant.name}`
+            amount, currency: currency || 'usd', destination: instructor.user.stripeAccountId,
+            sourceAccountId: tenant.stripeAccountId || undefined, description: `Manual Payout`
         });
 
-        // 3. Record Payout
-        const payoutId = crypto.randomUUID();
         await db.insert(payouts).values({
-            id: payoutId,
-            tenantId: tenant.id,
-            instructorId: instructorId,
-            amount: amount,
-            currency: currency || 'usd',
-            periodStart: new Date(),
-            periodEnd: new Date(),
-            status: 'paid',
-            paidAt: new Date(),
-            stripeTransferId: transfer.id,
-            notes: notes || 'Manual Transfer',
-            createdAt: new Date()
+            id: crypto.randomUUID(), tenantId: tenant.id, instructorId, amount,
+            currency: currency || 'usd', periodStart: new Date(), periodEnd: new Date(),
+            status: 'paid', paidAt: new Date(), stripeTransferId: transfer.id, notes: notes || 'Manual', createdAt: new Date()
         }).run();
-
         return c.json({ success: true, transferId: transfer.id });
     } catch (e: any) {
-        console.error("Manual Transfer Failed", e);
-        return c.json({ error: e.message || "Transfer Failed" }, 500);
+        return c.json({ error: e.message }, 500);
     }
 });
 

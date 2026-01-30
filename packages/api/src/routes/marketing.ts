@@ -9,31 +9,17 @@ import { isFeatureEnabled } from '../utils/features';
 import { AutomationsService } from '../services/automations';
 import { EncryptionUtils } from '../utils/encryption';
 
-type Bindings = {
-    DB: D1Database;
-    RESEND_API_KEY: string;
-    GEMINI_API_KEY: string;
-    ENCRYPTION_SECRET: string;
-};
+import { HonoContext } from '../types';
 
-type Variables = {
-    auth: {
-        userId: string;
-    };
-    tenant: any;
-    member?: any;
-    roles?: string[];
-};
-
-const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
+const app = new Hono<HonoContext>();
 
 // GET /campaigns - List campaigns
 app.get('/', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const roles = c.get('roles') || [];
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
-    if (!roles.includes('owner') && !roles.includes('instructor')) {
+    if (!c.get('can')('manage_marketing')) {
         return c.json({ error: "Unauthorized" }, 403);
     }
 
@@ -49,9 +35,9 @@ app.get('/', async (c) => {
 app.post('/', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const roles = c.get('roles') || [];
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
-    if (!roles.includes('owner')) {
+    if (!c.get('can')('manage_marketing')) {
         return c.json({ error: "Unauthorized" }, 403);
     }
 
@@ -202,8 +188,9 @@ app.post('/', async (c) => {
         }
     } else {
         // System / Resend Logic
-        const resendKey = tenant.resendCredentials?.apiKey || c.env.RESEND_API_KEY;
-        const isByokEmail = !!tenant.resendCredentials?.apiKey;
+        const resendCredentials = tenant.resendCredentials as { apiKey?: string } | null;
+        const resendKey = resendCredentials?.apiKey || c.env.RESEND_API_KEY!;
+        const isByokEmail = !!resendCredentials?.apiKey;
         const emailService = new EmailService(
             resendKey,
             { branding: tenant.branding as any, settings: tenant.settings as any },
@@ -261,9 +248,9 @@ app.post('/', async (c) => {
 app.get('/automations', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const roles = c.get('roles') || [];
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
-    if (!roles.includes('owner') && !roles.includes('instructor')) {
+    if (!c.get('can')('manage_marketing')) {
         return c.json({ error: "Unauthorized" }, 403);
     }
 
@@ -313,9 +300,9 @@ app.get('/automations', async (c) => {
 app.post('/automations', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const roles = c.get('roles') || [];
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
-    if (!roles.includes('owner')) {
+    if (!c.get('can')('manage_marketing')) {
         return c.json({ error: "Unauthorized" }, 403);
     }
 
@@ -344,9 +331,9 @@ app.post('/automations', async (c) => {
 app.patch('/automations/:id', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const roles = c.get('roles') || [];
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
-    if (!roles.includes('owner')) {
+    if (!c.get('can')('manage_marketing')) {
         return c.json({ error: "Unauthorized" }, 403);
     }
 
@@ -385,9 +372,9 @@ app.patch('/automations/:id', async (c) => {
 app.delete('/automations/:id', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const roles = c.get('roles') || [];
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
-    if (!roles.includes('owner')) {
+    if (!c.get('can')('manage_marketing')) {
         return c.json({ error: "Unauthorized" }, 403);
     }
 
@@ -404,9 +391,9 @@ app.delete('/automations/:id', async (c) => {
 app.post('/automations/:id/test', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const roles = c.get('roles') || [];
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
-    if (!roles.includes('owner')) {
+    if (!c.get('can')('manage_marketing')) {
         return c.json({ error: "Unauthorized" }, 403);
     }
 
@@ -422,8 +409,9 @@ app.post('/automations/:id/test', async (c) => {
     if (!automation) return c.json({ error: "Automation not found" }, 404);
 
     const usageService = new UsageService(db, tenant.id);
-    const resendKey = tenant.resendCredentials?.apiKey || c.env.RESEND_API_KEY;
-    const isByokEmail = !!tenant.resendCredentials?.apiKey;
+    const resendCredentials = tenant.resendCredentials as { apiKey?: string } | null;
+    const resendKey = resendCredentials?.apiKey || c.env.RESEND_API_KEY;
+    const isByokEmail = !!resendCredentials?.apiKey;
 
     const emailService = new EmailService(
         resendKey,
@@ -473,9 +461,9 @@ app.post('/automations/:id/test', async (c) => {
 // POST /automations/ai/generate - Generate automation email content with AI
 app.post('/automations/ai/generate', async (c) => {
     const tenant = c.get('tenant');
-    const roles = c.get('roles') || [];
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
-    if (!roles.includes('owner')) {
+    if (!c.get('can')('manage_marketing')) {
         return c.json({ error: 'Unauthorized' }, 403);
     }
 
@@ -502,8 +490,6 @@ app.post('/automations/ai/generate', async (c) => {
 
     try {
         const prompt = `You are a marketing assistant for a boutique fitness studio called "${tenant.name}".
-
-Generate an automation email for the following trigger event: ${triggerDescription}
 
 Generate an automation email for the following trigger event: ${triggerDescription}
 
@@ -558,6 +544,8 @@ Respond in this exact JSON format:
 // POST /content/generate - AI Content Assistant
 app.post('/content/generate', async (c) => {
     const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+
     if (!isFeatureEnabled(tenant, 'ai_content')) {
         return c.json({ error: "AI Content feature not enabled" }, 403);
     }
@@ -597,16 +585,18 @@ app.post('/content/generate', async (c) => {
 // Debug Endpoint: Trigger Automations Now
 app.post('/automations/trigger-debug', async (c) => {
     const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
     // EmailService imported at top
     const usageService = new UsageService(createDb(c.env.DB), tenant.id);
 
-    const resendKey = tenant.resendCredentials?.apiKey || c.env.RESEND_API_KEY;
-    const isByokEmail = !!tenant.resendCredentials?.apiKey;
+    const resendCredentials = tenant.resendCredentials as { apiKey?: string } | null;
+    const resendKey = resendCredentials?.apiKey || c.env.RESEND_API_KEY!;
+    const isByokEmail = !!resendCredentials?.apiKey;
 
     const emailService = new EmailService(
         resendKey,
-        { branding: tenant.branding, settings: tenant.settings },
+        { branding: tenant.branding as any, settings: tenant.settings as any },
         { slug: tenant.slug },
         usageService,
         isByokEmail,
@@ -627,9 +617,9 @@ app.post('/automations/trigger-debug', async (c) => {
 app.get('/email-stats', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const roles = c.get('roles') || [];
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
-    if (!roles.includes('owner')) {
+    if (!c.get('can')('manage_marketing')) {
         return c.json({ error: "Unauthorized" }, 403);
     }
 

@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
             const pushTokenString = (
                 await Notifications.getExpoPushTokenAsync({
-                    projectId: 'your-project-id', // TODO: Add project ID if using managed workflow
+                    projectId: '727c9d96-1c30-4ded-b4ae-55d4f185deca', // Updated managed project ID
                 })
             ).data;
 

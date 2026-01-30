@@ -1,0 +1,108 @@
+import { Hono } from 'hono';
+import { createDb } from '../db';
+import { tenants, auditLogs } from '@studio/db/src/schema';
+import { eq } from 'drizzle-orm';
+import { UsageService } from '../services/pricing';
+import type { HonoContext } from '../types';
+
+const app = new Hono<HonoContext>();
+
+// GET /tenants/:id/details - Get Stripe Sync'd Details
+app.get('/tenants/:id/details', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+    const tenant = await db.query.tenants.findFirst({
+        where: eq(tenants.id, tenantId)
+    });
+    if (!tenant) return c.json({ error: "Tenant not found" }, 404);
+    return c.json({ stripeAccountId: tenant.stripeAccountId, tier: tenant.tier });
+});
+
+// POST /tenants/:id/waive - Waive current usage
+app.post('/tenants/:id/waive', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+    const auth = c.get('auth');
+
+    const tenant = await db.query.tenants.findFirst({
+        where: eq(tenants.id, tenantId)
+    });
+    if (!tenant) return c.json({ error: "Tenant not found" }, 404);
+
+    await db.insert(auditLogs).values({
+        id: crypto.randomUUID(),
+        action: 'waive_usage_admin',
+        actorId: auth.userId,
+        targetId: tenantId,
+        details: { waivedAt: new Date() },
+        ipAddress: c.req.header('CF-Connecting-IP')
+    });
+
+    return c.json({ success: true });
+});
+
+// PATCH /tenants/:id/subscription - Admin Update Subscription
+app.patch('/tenants/:id/subscription', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+    const { status, trialDays } = await c.req.json();
+
+    const updateData: any = {};
+    if (status) updateData.status = status;
+    if (trialDays) updateData.trialDays = trialDays;
+
+    await db.update(tenants).set(updateData).where(eq(tenants.id, tenantId)).run();
+    return c.json({ success: true });
+});
+
+// POST /charge - Execute chargebacks
+app.post('/charge', async (c) => {
+    const db = createDb(c.env.DB);
+    const { BillingService } = await import('../services/billing');
+    if (!c.env.STRIPE_SECRET_KEY) return c.json({ error: "Stripe Key Missing" }, 500);
+
+    const allTenants = await db.select().from(tenants).all();
+    const results = [];
+    for (const tenant of allTenants) {
+        try {
+            const billing = new BillingService(db, c.env.STRIPE_SECRET_KEY);
+            await billing.syncUsageToStripe(tenant.id);
+            results.push({ tenantId: tenant.id, success: true });
+        } catch (e: any) {
+            results.push({ tenantId: tenant.id, error: e.message });
+        }
+    }
+    return c.json({ success: true, charged: results.length, details: results });
+});
+
+// POST /projections - Platform Revenue Calculator
+app.post('/projections', async (c) => {
+    const { basicCount, growthCount, scaleCount } = await c.req.json();
+    const basicRev = (basicCount || 0) * 29;
+    const growthRev = (growthCount || 0) * 79;
+    const scaleRev = (scaleCount || 0) * 199;
+
+    const totalRevenue = basicRev + growthRev + scaleRev;
+    const totalTenants = (basicCount || 0) + (growthCount || 0) + (scaleCount || 0);
+
+    return c.json({
+        totalTenants,
+        projectedMonthlyRevenue: totalRevenue,
+        avgRevenuePerTenant: totalTenants > 0 ? (totalRevenue / totalTenants) : 0
+    });
+});
+
+// POST /sync-stats - Force Recalculate usage
+app.post('/sync-stats', async (c) => {
+    const db = createDb(c.env.DB);
+    const allTenants = await db.select().from(tenants).all();
+    let updated = 0;
+    for (const tenant of allTenants) {
+        const service = new UsageService(db, tenant.id);
+        await service.syncTenantStats();
+        updated++;
+    }
+    return c.json({ success: true, updated });
+});
+
+export default app;

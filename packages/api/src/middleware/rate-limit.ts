@@ -3,7 +3,7 @@ import { Context, Next } from 'hono';
 import { createDb } from '../db';
 import { auditLogs } from '@studio/db/src/schema';
 
-export const rateLimitMiddleware = (limit: number = 300, window: number = 60) => {
+export const rateLimitMiddleware = (limit: number = 300, window: number = 60, cost: number = 1) => {
     return async (c: Context, next: Next) => {
         // Skip for OPTIONS (CORS preflight)
         if (c.req.method === 'OPTIONS') {
@@ -48,7 +48,7 @@ export const rateLimitMiddleware = (limit: number = 300, window: number = 60) =>
         const stub = c.env.RATE_LIMITER.get(doId);
 
         try {
-            const res = await stub.fetch(`http://do/?key=${key}&limit=${limit}&window=${window}`);
+            const res = await stub.fetch(`http://do/?key=${key}&limit=${limit}&window=${window}&cost=${cost}`);
 
             if (res.status === 429) {
                 // [TRACKING] Log blocked request to Audit Logs

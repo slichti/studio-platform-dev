@@ -1,100 +1,47 @@
-
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { customReports, tenants } from '@studio/db/src/schema';
+import { customReports } from '@studio/db/src/schema';
 import { ReportService } from '../services/reports';
 import { eq, and, desc } from 'drizzle-orm';
-import { authMiddleware } from '../middleware/auth';
+import { HonoContext } from '../types';
 
-type Bindings = {
-    DB: D1Database;
-};
+const app = new Hono<HonoContext>();
 
-type Variables = {
-    tenant: typeof tenants.$inferSelect;
-    user: any;
-    roles?: string[];
-};
-
-const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
-
-app.use('*', authMiddleware);
-
-// GET / - List Saved Reports
+// GET /
 app.get('/', async (c) => {
+    if (!c.get('can')('view_reports') && !c.get('can')('manage_reports')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
-    const tenant = c.get('tenant');
-
-    const reports = await db.select().from(customReports)
-        .where(eq(customReports.tenantId, tenant.id))
-        .orderBy(desc(customReports.createdAt))
-        .all();
-
-    return c.json({ reports });
+    const list = await db.select().from(customReports).where(eq(customReports.tenantId, c.get('tenant')!.id)).orderBy(desc(customReports.createdAt)).all();
+    return c.json({ reports: list });
 });
 
-// POST /query - Run Ad-hoc Query
+// POST /query
 app.post('/query', async (c) => {
+    if (!c.get('can')('view_reports') && !c.get('can')('manage_reports')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
-    const tenant = c.get('tenant');
-    const body = await c.req.json();
+    const { metrics, dimensions, filters, format } = await c.req.json();
+    const service = new ReportService(db, c.get('tenant')!.id);
+    const res = await service.query({ metrics, dimensions, filters: { ...filters, startDate: new Date(filters.startDate), endDate: new Date(filters.endDate) } });
 
-    const { metrics, dimensions, filters } = body;
-    // Validate?
-    // Filters should have start/end date
-    const validatedFilters = {
-        ...filters,
-        startDate: new Date(filters.startDate),
-        endDate: new Date(filters.endDate)
-    };
-
-    const service = new ReportService(db, tenant.id);
-    const result = await service.query({ metrics, dimensions, filters: validatedFilters });
-
-    // Handle CSV
-    if (body.format === 'csv') {
-        const csv = service.generateCsv(result.chartData, metrics);
-        return c.text(csv, 200, {
-            'Content-Type': 'text/csv',
-            'Content-Disposition': `attachment; filename="report-${new Date().toISOString()}.csv"`
-        });
-    }
-
-    return c.json(result);
+    if (format === 'csv') return c.text(service.generateCsv(res.chartData, metrics), 200, { 'Content-Type': 'text/csv', 'Content-Disposition': `attachment; filename="report.csv"` });
+    return c.json(res);
 });
 
-// POST / - Save Report
+// POST /
 app.post('/', async (c) => {
+    if (!c.get('can')('manage_reports')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
-    const tenant = c.get('tenant');
-    const user = c.get('user');
     const { name, config, isPublic } = await c.req.json();
-
     const id = crypto.randomUUID();
-    await db.insert(customReports).values({
-        id,
-        tenantId: tenant.id,
-        name,
-        config, // JSON
-        isPublic: !!isPublic,
-        createdBy: user.id,
-        createdAt: new Date(),
-        updatedAt: new Date()
-    });
-
+    await db.insert(customReports).values({ id, tenantId: c.get('tenant')!.id, name, config, isPublic: !!isPublic, createdBy: c.get('auth')!.userId, createdAt: new Date(), updatedAt: new Date() }).run();
     return c.json({ success: true, id });
 });
 
-// DELETE /:id - Delete Report
+// DELETE /:id
 app.delete('/:id', async (c) => {
+    if (!c.get('can')('manage_reports')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
-    const tenant = c.get('tenant');
-    const id = c.req.param('id');
-
-    await db.delete(customReports)
-        .where(and(eq(customReports.id, id), eq(customReports.tenantId, tenant.id)))
-        .run();
-
+    await db.delete(customReports).where(and(eq(customReports.id, c.req.param('id')), eq(customReports.tenantId, c.get('tenant')!.id))).run();
     return c.json({ success: true });
 });
 
