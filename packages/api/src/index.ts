@@ -61,6 +61,9 @@ import publicRoutes from './routes/public'; // [NEW] Import
 import faqRoutes from './routes/faqs'; // [NEW] FAQs
 import adminMobile from './routes/admin.mobile'; // [NEW] Admin Mobile
 import adminSearch from './routes/admin.search'; // [NEW] Admin Search
+import tagsRoutes from './routes/tags'; // [NEW] Tags
+import customFieldRoutes from './routes/custom-fields'; // [NEW] Custom Fields
+import auditLogRoutes from './routes/audit-logs'; // [NEW] Audit Logs
 
 export type Bindings = {
   DB: D1Database;
@@ -562,6 +565,11 @@ app.route('/sub-dispatch', subDispatch);
 app.route('/guest', guestRoutes);
 app.route('/platform-pages', platformPagesRoutes);
 app.route('/faqs', faqRoutes); // [NEW] FAQ management
+
+// Feature Routes
+studioApp.route('/tags', tagsRoutes);
+studioApp.route('/custom-fields', customFieldRoutes);
+studioApp.route('/audit-logs', auditLogRoutes);
 
 import { scheduled } from './cron';
 

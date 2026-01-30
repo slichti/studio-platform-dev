@@ -39,7 +39,8 @@ import {
     MessageSquare,
     CircleHelp,
     QrCode,
-    Trophy
+    Trophy,
+    History // Added History
 } from "lucide-react";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { CommandBar } from "../components/CommandBar";
@@ -309,6 +310,8 @@ export default function StudioLayout() {
                                     <NavItem to={`/studio/${slug}/settings/chat`} icon={<MessageSquare size={18} />}>Chat Settings</NavItem>
                                 )}
                                 <NavItem to={`/studio/${slug}/settings/appointments`} icon={<Calendar size={18} />}>Appointment Services</NavItem>
+                                <NavItem to={`/studio/${slug}/settings/tags-fields`} icon={<Tag size={18} />}>Tags & Fields</NavItem>
+                                <NavItem to={`/studio/${slug}/settings/activity`} icon={<History size={18} />}>Activity Log</NavItem>
                                 <NavItem to={`/studio/${slug}/data`} icon={<Database size={18} />}>Data</NavItem>
                                 <NavItem to={`/studio/${slug}/settings`} end icon={<Settings size={18} />}>Settings</NavItem>
                             </SidebarGroup>
