@@ -4,6 +4,7 @@ import { eq, and } from 'drizzle-orm';
 import { tenants, tenantMembers, tenantRoles, users, tenantFeatures, customRoles, memberCustomRoles } from '@studio/db/src/schema';
 import { EncryptionUtils } from '../utils/encryption';
 import { PermissionService, Permission } from '../services/permissions';
+import { EmailService } from '../services/email';
 import { Variables } from '../types';
 
 // Extend Hono Context to include tenant
@@ -90,17 +91,23 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
     const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
 
     // 1. Email (Resend)
+    let emailApiKey = c.env.RESEND_API_KEY;
     if (tenant.resendCredentials) {
         try {
             const creds = tenant.resendCredentials as any;
             if (creds.apiKey) {
                 const decrypted = await encryption.decrypt(creds.apiKey);
+                emailApiKey = decrypted;
                 c.set('emailApiKey', decrypted);
             }
         } catch (e) {
             console.error("Failed to decrypt Email credentials", e);
         }
     }
+
+    // Always provide an EmailService, even if using platform default
+    const emailService = new EmailService(emailApiKey || '', db, tenant.id, tenant as any);
+    c.set('email', emailService);
 
     // 2. SMS (Twilio)
     if (tenant.twilioCredentials) {

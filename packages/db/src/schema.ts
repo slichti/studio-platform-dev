@@ -30,6 +30,7 @@ export const tenants = sqliteTable('tenants', {
     googleCredentials: text('google_credentials', { mode: 'json' }), // JSON: { clientId, measurementId }
     slackCredentials: text('slack_credentials', { mode: 'json' }), // JSON: { webhookUrl, botToken }
     googleCalendarCredentials: text('google_calendar_credentials'), // Temporarily disabled JSON mode to fix raw string crash
+    resendAudienceId: text('resend_audience_id'), // Added for Resend Audience tracking
     status: text('status', { enum: ['active', 'paused', 'suspended', 'archived'] }).default('active').notNull(),
     tier: text('tier', { enum: ['launch', 'growth', 'scale'] }).default('launch').notNull(),
     subscriptionStatus: text('subscription_status', { enum: ['active', 'past_due', 'canceled', 'trialing'] }).default('active').notNull(),

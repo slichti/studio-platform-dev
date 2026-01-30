@@ -1,0 +1,21 @@
+{
+    "name": "@studio/emails",
+    "version": "0.0.0",
+    "private": true,
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "scripts": {
+        "dev": "email dev --dir src/templates",
+        "build": "email export --dir src/templates",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@react-email/components": "0.0.33",
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0"
+    },
+    "devDependencies": {
+        "react-email": "3.0.7",
+        "typescript": "^5.9.3"
+    }
+}

@@ -12,8 +12,10 @@
     "dependencies": {
         "@clerk/backend": "^2.29.0",
         "@faker-js/faker": "^10.2.0",
+        "@hono/zod-validator": "^0.7.6",
         "@sentry/cloudflare": "^10.33.0",
         "@studio/db": "*",
+        "@studio/emails": "*",
         "drizzle-orm": "^0.45.1",
         "hono": "^4.11.3",
         "jspdf": "^4.0.0",

@@ -1,6 +1,7 @@
 // Shared API Response Types
 
 import { tenants, tenantMembers, users } from '@studio/db/src/schema'; // Ensure consistent import
+import { EmailService } from './services/email';
 
 export interface Bindings {
     DB: D1Database;
@@ -38,6 +39,7 @@ export interface Variables {
     features: Set<string>;
     isImpersonating?: boolean;
     emailApiKey?: string;
+    email: EmailService;
     twilioCredentials?: { accountSid: string; authToken: string; fromNumber: string };
 }
 

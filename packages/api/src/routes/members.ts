@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { eq, and, desc, sql, inArray } from 'drizzle-orm';
-import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings, tenants, marketingAutomations, emailLogs, coupons, automationLogs } from '@studio/db/src/schema';
+import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings, tenants, marketingAutomations, emailLogs, coupons, automationLogs, purchasedPacks, waiverSignatures } from '@studio/db/src/schema';
 import { HonoContext } from '../types';
 
 const app = new Hono<HonoContext>();
@@ -55,9 +55,14 @@ app.post('/', async (c) => {
     // Side effects... (Email, Automations, Webhooks)
     c.executionCtx.waitUntil((async () => {
         try {
-            const { EmailService } = await import('../services/email');
-            const es = new EmailService((tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY!, { settings: tenant.settings as any, branding: tenant.branding as any }, { slug: tenant.slug }, us, !!(tenant.resendCredentials as any)?.apiKey);
-            if (token) await es.sendInvitation(email, tenant.name, `${c.req.header('origin')}/login?email=${encodeURIComponent(email)}&token=${token}`);
+            const es = c.get('email');
+            if (token) {
+                await es.sendInvitation(email, `${c.req.header('origin')}/login?email=${encodeURIComponent(email)}&token=${token}`);
+            }
+
+            // Sync to Resend Audience
+            await es.syncContact(email, firstName, lastName);
+
             const { AutomationsService } = await import('../services/automations');
             const { SmsService } = await import('../services/sms');
             const as = new AutomationsService(db, tenant.id, es, new SmsService(tenant.twilioCredentials as any, c.env, us, db, tenant.id));
