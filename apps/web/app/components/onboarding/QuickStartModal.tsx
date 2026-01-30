@@ -262,7 +262,7 @@ export function QuickStartModal({ isOpen, onClose, tenant, token }: QuickStartMo
                             <div className="col-span-2">
                                 <label className="block text-sm font-medium text-zinc-700 mb-1">Duration (minutes)</label>
                                 <div className="flex items-center gap-4">
-                                    {[30, 45, 60, 90].map(mins => (
+                                    {[30, 45, 50, 60, 90, 120].map(mins => (
                                         <button
                                             key={mins}
                                             onClick={() => setFormData({ ...formData, firstClass: { ...formData.firstClass, duration: mins } })}
