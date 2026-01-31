@@ -1,4 +1,4 @@
-import { Hono } from 'hono'
+// import { Hono } from 'hono' - Replaced by OpenAPIHono
 import { createDb } from './db';
 import { tenants, tenantMembers, tenantFeatures, users, classes, bookings, posOrders, purchasedPacks, waiverTemplates, waiverSignatures, tenantRoles, platformConfig, customRoles, memberCustomRoles } from '@studio/db/src/schema';
 import { eq, and, count, sum, gte, like, or } from 'drizzle-orm';
@@ -106,12 +106,24 @@ export type Variables = {
   validated_json?: any;
 };
 
+import { OpenAPIHono } from '@hono/zod-openapi';
+import { swaggerUI } from '@hono/swagger-ui';
 import { traceMiddleware } from './middleware/trace';
 import { sentryMiddleware } from './middleware/sentry';
 
 // ...
 
-const app = new Hono<{ Bindings: Bindings, Variables: Variables }>()
+const app = new OpenAPIHono<{ Bindings: Bindings, Variables: Variables }>()
+
+app.doc('/doc', {
+  openapi: '3.0.0',
+  info: {
+    version: '1.0.0',
+    title: 'Studio Platform API',
+  },
+});
+
+app.get('/docs', swaggerUI({ url: '/doc' }));
 
 app.use('*', traceMiddleware);
 app.use('*', sentryMiddleware()); // [NEW] Sentry error tracking
@@ -279,7 +291,7 @@ expensivePaths.forEach(path => {
 });
 
 // 4. Infrastructure/Common Studio Logic
-const studioApp = new Hono<{ Bindings: Bindings, Variables: Variables }>()
+const studioApp = new OpenAPIHono<{ Bindings: Bindings, Variables: Variables }>()
 
 // 5. Setup Feature Route sub-apps (will be mounted in next step)
 // 5. Setup Feature Route sub-apps (will be mounted in next step)
