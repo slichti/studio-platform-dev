@@ -18,8 +18,8 @@ Implementing a sophisticated rate-limiting strategy beyond static IP-based limit
 ### 2. Authorization Evolution: Capability-Based RBAC
 Moving from role strings to specific permissions.
 
-- **[MODIFY] `schema.ts`**: Add `permissions` (JSON array) to `tenant_roles` or a new `role_permissions` join table.
-- **[NEW] Auth Utilities**: `can(memberId, 'manage_billing')` helper.
+- **[COMPLETED] `schema.ts`**: Add `permissions` (JSON array) to `tenant_roles` or a new `role_permissions` join table.
+- **[COMPLETED] Auth Utilities**: `can(memberId, 'manage_billing')` helper (Implemented in `tenantMiddleware`).
 - **[MODIFY] All Route Files**: Replace `.includes('owner')` with capability checks where appropriate.
 
 ---
@@ -27,8 +27,8 @@ Moving from role strings to specific permissions.
 ### 3. API Standardization: OpenAPI / Swagger
 Ensuring the API is machine-readable and well-documented.
 
-- **[NEW] Dependency**: Add `@hono/zod-openapi`.
-- **[MODIFY] Route Refactoring**: Transition Hono routes to `createRoute` from `@hono/zod-openapi`.
+- **[COMPLETED] Dependency**: Add `@hono/zod-openapi`.
+- **[IN PROGRESS] Route Refactoring**: Transition Hono routes to `createRoute` from `@hono/zod-openapi`. (`tenant-integrations` completed)
 - **[NEW] Documentation Endpoint**: Expose `GET /api/docs` using Swagger or Scalar UI.
 
 ---
@@ -43,10 +43,10 @@ Identifying at-risk members before they leave.
 
 ---
 
-### 5. Developer Experience: Webhook Management
+### 5. Developer Experience: Webhook Management [COMPLETED]
 Exposing the inner workings of integrations to studio owners.
 
-- **[MODIFY] `tenant-integrations.ts`**:
+- **[COMPLETED] `tenant-integrations.ts`**:
   - `GET /webhooks/:id/logs`: Expose the `webhook_logs` table data.
   - `POST /webhooks/:id/test`: Send a mock payload to verify endpoint connectivity.
 
