@@ -141,6 +141,7 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
     // 3. Security Check: If User is Authenticated, Verify Membership
     const auth = c.get('auth');
     let roles: string[] = [];
+    let assignedPermissions: string[] = [];
     let isPlatformAdmin = false;
 
     if (auth && auth.userId) {
@@ -204,6 +205,8 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
                 where: eq(tenantRoles.memberId, member.id)
             });
             const dbRoles = rolesResult.map(r => r.role);
+            // Permissions explicitly assigned to the role assignment (overrides/additions)
+            assignedPermissions = rolesResult.flatMap(r => (r.permissions as unknown as string[]) || []);
 
             // Only merge if NOT overriding as a lower role (student/instructor)
             if (!isPlatformAdmin || !roles.length || roles.includes('owner')) {
@@ -229,14 +232,27 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
         // --- Permission Resolution ---
         let customPerms: string[] = [];
         if (member) {
-            // Fetch Custom Roles Permissions
+            // 1. Fetch Custom Roles Permissions (from custom_roles table)
             const customRolesResult = await db.select({ permissions: customRoles.permissions })
                 .from(memberCustomRoles)
                 .innerJoin(customRoles, eq(memberCustomRoles.customRoleId, customRoles.id))
-                .where(eq(memberCustomRoles.memberId, member.id))
+                .where(eq(memberCustomRoles.memberId, member.id!))
                 .all();
 
-            customPerms = customRolesResult.flatMap(r => (r.permissions as string[]) || []);
+            // 2. Combine with explicit permissions from tenant_roles
+            // (We fetched 'assignedPermissions' above)
+            // Note: 'member' variable is in scope here because if(member) block
+            // However, 'assignedPermissions' was defined inside the 'if(member)' block above. 
+            // I need to ensure the variables are accessible.
+            // Wait, I am replacing a block that includes where assignedPermissions is defined.
+
+            // Re-fetching or using the variables if strictly in scope.
+            // The block I am replacing STARTS at rolesResult fetch.
+
+            customPerms = [
+                ...customRolesResult.flatMap(r => (r.permissions as string[]) || []),
+                ...assignedPermissions
+            ];
         }
 
         const permissions = PermissionService.resolvePermissions(roles, customPerms);
