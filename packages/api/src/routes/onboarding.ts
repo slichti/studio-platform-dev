@@ -338,98 +338,105 @@ app.post('/studio', rateLimit({ limit: 5, window: 300, keyPrefix: 'onboarding' }
 
 // POST /quick-start - Update Tenant & Create First Class
 app.post('/quick-start', rateLimit({ limit: 10, window: 60, keyPrefix: 'quick-start' }), async (c) => {
-    const auth = c.get('auth');
-    if (!auth?.userId) return c.json({ error: "Unauthorized" }, 401);
+    try {
+        const auth = c.get('auth');
+        if (!auth?.userId) return c.json({ error: "Unauthorized" }, 401);
 
-    const { tenantId, name, timezone, currency, branding, firstClass } = await c.req.json();
-    if (!tenantId) return c.json({ error: "Tenant ID required" }, 400);
+        const { tenantId, name, timezone, currency, branding, firstClass } = await c.req.json();
+        if (!tenantId) return c.json({ error: "Tenant ID required" }, 400);
 
-    const db = createDb(c.env.DB);
+        const db = createDb(c.env.DB);
 
-    // Verify Ownership
-    const member = await db.query.tenantMembers.findFirst({
-        where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenantId))
-    });
+        // Verify Ownership
+        const member = await db.query.tenantMembers.findFirst({
+            where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenantId))
+        });
 
-    if (!member) return c.json({ error: "Not a member" }, 403);
+        if (!member) return c.json({ error: "Not a member" }, 403);
 
-    // Check Role
-    const role = await db.select().from(tenantRoles).where(eq(tenantRoles.memberId, member.id)).get();
-    if (role?.role !== 'owner') return c.json({ error: "Must be owner" }, 403);
+        // Check Role
+        const role = await db.select().from(tenantRoles).where(eq(tenantRoles.memberId, member.id)).get();
+        if (role?.role !== 'owner') return c.json({ error: "Must be owner" }, 403);
 
-    // 1. Update Tenant Settings (Branding, Name, Timezone indirectly via Location)
-    const currentTenant = await db.select().from(tenants).where(eq(tenants.id, tenantId)).get();
-    if (!currentTenant) return c.json({ error: "Tenant not found" }, 404);
+        // 1. Update Tenant Settings (Branding, Name, Timezone indirectly via Location)
+        const currentTenant = await db.select().from(tenants).where(eq(tenants.id, tenantId)).get();
+        if (!currentTenant) return c.json({ error: "Tenant not found" }, 404);
 
-    const newSettings = {
-        ...(currentTenant.settings || {}),
-        onboardingCompleted: true
-    };
+        const newSettings = {
+            ...(currentTenant.settings || {}),
+            onboardingCompleted: true
+        };
 
-    await db.update(tenants).set({
-        name,
-        currency: currency || 'usd',
-        branding, // { primaryColor: '#...', logoUrl: '...' }
-        settings: newSettings
-    }).where(eq(tenants.id, tenantId)).run();
+        await db.update(tenants).set({
+            name,
+            currency: currency || 'usd',
+            branding, // { primaryColor: '#...', logoUrl: '...' }
+            settings: newSettings
+        }).where(eq(tenants.id, tenantId)).run();
 
 
-    // 2. Create/Update Primary Location
-    let locationId: string;
-    const existingLoc = await db.select().from(locations).where(and(eq(locations.tenantId, tenantId), eq(locations.isPrimary, true))).get();
+        // 2. Create/Update Primary Location
+        let locationId: string;
+        const existingLoc = await db.select().from(locations).where(and(eq(locations.tenantId, tenantId), eq(locations.isPrimary, true))).get();
 
-    if (!existingLoc) {
-        locationId = crypto.randomUUID();
-        await db.insert(locations).values({
-            id: locationId,
-            tenantId,
-            name: 'Main Studio',
-            timezone: timezone || 'UTC',
-            isPrimary: true,
-            isActive: true
-        }).run();
-    } else {
-        locationId = existingLoc.id;
-        await db.update(locations).set({ timezone: timezone || 'UTC' }).where(eq(locations.id, locationId)).run();
+        if (!existingLoc) {
+            locationId = crypto.randomUUID();
+            await db.insert(locations).values({
+                id: locationId,
+                tenantId,
+                name: 'Main Studio',
+                timezone: timezone || 'UTC',
+                isPrimary: true,
+                isActive: true
+            }).run();
+        } else {
+            locationId = existingLoc.id;
+            await db.update(locations).set({ timezone: timezone || 'UTC' }).where(eq(locations.id, locationId)).run();
+        }
+
+        // 3. Create First Class (if provided)
+        if (firstClass) {
+            const { title, startTime, duration } = firstClass;
+
+            const seriesId = crypto.randomUUID();
+            const start = new Date(startTime);
+
+            // Create Series
+            await db.insert(classSeries).values({
+                id: seriesId,
+                tenantId,
+                instructorId: member.id,
+                locationId: locationId,
+                title: title || 'My First Class',
+                durationMinutes: duration || 60,
+                price: 0,
+                currency: currency || 'usd',
+                recurrenceRule: '', // One-off
+                validFrom: start,
+                createdAt: new Date()
+            }).run();
+
+            // Create Instance
+            await db.insert(classes).values({
+                id: crypto.randomUUID(),
+                tenantId,
+                instructorId: member.id,
+                locationId: locationId,
+                seriesId: seriesId,
+                title: title || 'My First Class',
+                startTime: start,
+                durationMinutes: duration || 60,
+                status: 'active',
+                capacity: 20, // Default
+                createdAt: new Date()
+            }).run();
+        }
+
+        return c.json({ success: true, onboardingCompleted: true });
+    } catch (e: any) {
+        console.error("Quick Start Error:", e);
+        return c.json({ error: e.message, stack: e.stack }, 500);
     }
-
-    // 3. Create First Class (if provided)
-    if (firstClass) {
-        const { title, startTime, duration } = firstClass;
-
-        const seriesId = crypto.randomUUID();
-        const start = new Date(startTime);
-
-        // Create Series
-        await db.insert(classSeries).values({
-            id: seriesId,
-            tenantId,
-            instructorId: member.id,
-            locationId: locationId,
-            title: title || 'My First Class',
-            durationMinutes: duration || 60,
-            recurrenceRule: '', // One-off
-            validFrom: start,
-            createdAt: new Date()
-        }).run();
-
-        // Create Instance
-        await db.insert(classes).values({
-            id: crypto.randomUUID(),
-            tenantId,
-            instructorId: member.id,
-            locationId: locationId,
-            seriesId: seriesId,
-            title: title || 'My First Class',
-            startTime: start,
-            durationMinutes: duration || 60,
-            status: 'active',
-            capacity: 20, // Default
-            createdAt: new Date()
-        }).run();
-    }
-
-    return c.json({ success: true, onboardingCompleted: true });
 });
 
 // POST /quick-start/skip - Mark onboarding as complete without setup

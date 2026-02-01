@@ -76,4 +76,23 @@ app.delete('/:id', async (c) => {
     return c.json({ success: true });
 });
 
+// POST /seed - Dev only
+app.post('/seed', async (c) => {
+    // Strict Platform Admin Check
+    const isPlatformAdmin = c.get('auth')?.claims?.isPlatformAdmin === true;
+    if (!isPlatformAdmin) return c.json({ error: 'Unauthorized' }, 403);
+
+    const db = createDb(c.env.DB);
+    const body = await c.req.json().catch(() => ({})); // Optional body
+
+    try {
+        const { seedTenant } = await import('../utils/seeding');
+        const result = await seedTenant(db, body);
+        return c.json({ success: true, tenant: result });
+    } catch (e: any) {
+        console.error("Seeding failed", e);
+        return c.json({ error: e.message }, 500);
+    }
+});
+
 export default app;
