@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: corepack enable
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -19,8 +20,7 @@ jobs:
       - run: npm run lint
         env:
           ESLINT_USE_FLAT_CONFIG: false
-      - run: npm run typecheck --workspace=apps/web
-      - run: npm run typecheck --workspace=packages/api
+      - run: npm run typecheck
       - run: npm test
 
   deploy-api:
@@ -29,6 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: corepack enable
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -46,6 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: corepack enable
       - uses: actions/setup-node@v4
         with:
           node-version: 20
