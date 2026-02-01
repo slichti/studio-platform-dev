@@ -24,37 +24,39 @@ jobs:
       - run: npm run typecheck
       # - run: npm test  # Temporarily disabled due to CI-specific module resolution issues with pathe
 
-  deploy-api:
-    needs: validate
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: corepack enable && corepack prepare npm@11.7.0 --activate
-      - run: npm install
-      - uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: 'packages/api'
+  # Deploy jobs temporarily disabled due to CI-specific module resolution issues
+  # See: semver and pathe module not found errors in Ubuntu runner
+  # deploy-api:
+  #   needs: validate
+  #   if: github.ref == 'refs/heads/main'
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 20
+  #     - run: corepack enable && corepack prepare npm@11.7.0 --activate
+  #     - run: npm install
+  #     - uses: cloudflare/wrangler-action@v3
+  #       with:
+  #         apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  #         accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  #         workingDirectory: 'packages/api'
 
-  deploy-web:
-    needs: validate
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: corepack enable && corepack prepare npm@11.7.0 --activate
-      - run: npm install
-      - run: npm run build --workspace=apps/web
-      - run: npx wrangler pages deploy build/client --project-name studio-platform-web --branch main --commit-dirty=true
-        working-directory: apps/web
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  # deploy-web:
+  #   needs: validate
+  #   if: github.ref == 'refs/heads/main'
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 20
+  #     - run: corepack enable && corepack prepare npm@11.7.0 --activate
+  #     - run: npm install
+  #     - run: npm run build --workspace=apps/web
+  #     - run: npx wrangler pages deploy build/client --project-name studio-platform-web --branch main --commit-dirty=true
+  #       working-directory: apps/web
+  #       env:
+  #         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  #         CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
