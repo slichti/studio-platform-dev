@@ -20,7 +20,7 @@
         "esModuleInterop": true,
         "jsx": "react-jsx",
         "module": "ESNext",
-        "moduleResolution": "Bundler",
+        "moduleResolution": "bundler",
         "types": [
             "react-router",
             "react-router-dom"
