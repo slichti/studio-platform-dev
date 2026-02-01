@@ -21,10 +21,6 @@
         "jsx": "react-jsx",
         "module": "ESNext",
         "moduleResolution": "bundler",
-        "types": [
-            "react-router",
-            "react-router-dom"
-        ],
         "resolveJsonModule": true,
         "target": "ES2022",
         "strict": true,
