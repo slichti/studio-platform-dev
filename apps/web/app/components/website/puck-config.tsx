@@ -1,8 +1,7 @@
 // Puck Component Library for Studio Websites
 // These components are used in the drag-and-drop website builder
 
-import type { Config } from "@measured/puck";
-import { DropZone } from "@measured/puck";
+import { Config, DropZone } from "@puckeditor/core";
 import DOMPurify from 'isomorphic-dompurify';
 
 // --- Component Definitions ---
@@ -10,7 +9,7 @@ import DOMPurify from 'isomorphic-dompurify';
 // Hero Section
 const Hero = ({ title, subtitle, ctaText, ctaLink, backgroundImage, alignment, overlayOpacity, backgroundColor, textColor }: any) => (
     <section
-        className={`relative py-32 px-8 ${alignment === 'left' ? 'text-left' : 'text-center'} overflow-hidden transition-colors`}
+        className={`relative py - 32 px - 8 ${alignment === 'left' ? 'text-left' : 'text-center'} overflow - hidden transition - colors`}
         style={{
             backgroundColor: backgroundColor || '#18181b', // Default zinc-900
             color: textColor || '#ffffff'
@@ -44,10 +43,10 @@ const Columns = ({ distribution, backgroundColor, textColor, padding }: any) => 
     const cols = distribution === '1-1' ? 'md:grid-cols-2' : distribution === '1-1-1' ? 'md:grid-cols-3' : 'md:grid-cols-4';
     return (
         <section
-            className={`${padding === 'large' ? 'py-32' : padding === 'small' ? 'py-8' : 'py-16'} px-8 transition-colors`}
+            className={`${padding === 'large' ? 'py-32' : padding === 'small' ? 'py-8' : 'py-16'} px - 8 transition - colors`}
             style={{ backgroundColor: backgroundColor || 'transparent', color: textColor || 'inherit' }}
         >
-            <div className={`grid grid-cols-1 ${cols} gap-12 max-w-7xl mx-auto`}>
+            <div className={`grid grid - cols - 1 ${cols} gap - 12 max - w - 7xl mx - auto`}>
                 <div className="flex flex-col gap-8">
                     <DropZone zone="left" />
                 </div>
@@ -75,7 +74,7 @@ const TextBlock = ({ content, alignment, backgroundColor, textColor }: any) => (
         className="py-16 px-8 transition-colors"
         style={{ backgroundColor: backgroundColor || 'transparent', color: textColor || 'inherit' }}
     >
-        <div className={`max-w-4xl mx-auto prose prose-2xl dark:prose-invert ${alignment === 'center' ? 'text-center' : ''}`}>
+        <div className={`max - w - 4xl mx - auto prose prose - 2xl dark: prose - invert ${alignment === 'center' ? 'text-center' : ''} `}>
             <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content || "<p>Add your content here...</p>") }} />
         </div>
     </section>
@@ -283,11 +282,11 @@ const MapSection = ({ title, address, height }: any) => {
                         src={`https://maps.google.com/maps?q=${encodedAddress}&t=&z=13&ie=UTF8&iwloc=&output=embed`}
                         title="Location Map"
                         className="w-full h-full grayscale active:grayscale-0 transition-all duration-700"
-                    ></iframe>
-                </div>
+                    ></iframe >
+                </div >
                 {address && <div className="mt-8 text-center"><span className="bg-zinc-900 text-white px-8 py-3 rounded-full font-black uppercase tracking-widest text-sm">{address}</span></div>}
-            </div>
-        </section>
+            </div >
+        </section >
     );
 };
 

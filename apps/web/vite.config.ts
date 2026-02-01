@@ -22,7 +22,7 @@ export default defineConfig({
                             return 'vendor-livekit';
                         }
                         // Puck editor - only used in website editor
-                        if (id.includes('@measured/puck')) {
+                        if (id.includes('@puckeditor/core')) {
                             return 'vendor-puck';
                         }
                         // Sentry - only for error tracking

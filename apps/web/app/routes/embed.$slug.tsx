@@ -25,7 +25,7 @@ export default function EmbedLayout() {
     const style = tenant.branding ? {
         '--primary': tenant.branding.primaryColor || '#3b82f6',
         '--font-sans': tenant.branding.font || 'Inter',
-    } as React.CSSProperties : {};
+    } as any : {};
 
     return (
         <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">

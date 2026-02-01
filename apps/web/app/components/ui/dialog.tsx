@@ -1,5 +1,5 @@
 import { Dialog as HeadlessDialog, Transition, TransitionChild, DialogPanel, DialogTitle as HeadlessDialogTitle } from '@headlessui/react'
-import { Fragment, useState, createContext, useContext } from 'react'
+import React, { Fragment, useState, createContext, useContext } from 'react'
 import { X } from 'lucide-react'
 
 // Adapting to: <Dialog> <DialogTrigger> <DialogContent> ...

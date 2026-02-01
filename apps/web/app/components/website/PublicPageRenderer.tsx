@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Render } from "@measured/puck";
+import { Render, Data } from "@puckeditor/core";
 import { puckConfig } from "~/components/website/puck-config";
 import { SignedIn, useUser } from "@clerk/react-router";
 import { Edit2 } from "lucide-react";
