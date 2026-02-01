@@ -41,7 +41,7 @@ app.post('/', async (c) => {
 
     const id = crypto.randomUUID();
     try {
-        await db.insert(tenants).values({ id, name, slug, tier: tier || 'basic', status: 'active', createdAt: new Date() }).run();
+        await db.insert(tenants).values({ id, name, slug, tier: tier || 'launch', status: 'active', createdAt: new Date() }).run();
         const mid = crypto.randomUUID();
         await db.insert(tenantMembers).values({ id: mid, tenantId: id, userId: auth.userId, status: 'active' }).run();
         await db.insert(tenantRoles).values({ id: crypto.randomUUID(), memberId: mid, role: 'owner' }).run();
