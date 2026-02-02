@@ -1,21 +1,31 @@
-import { useOutletContext } from "react-router";
-import { useState, useEffect } from "react";
+import { useOutletContext, useParams } from "react-router";
+import { useState } from "react";
 import { apiRequest } from "../utils/api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { Loader2, DollarSign, Calendar, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, DollarSign, CheckCircle2, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@clerk/react-router";
+
 import {
     Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger
 } from "~/components/ui/dialog";
 import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
-
-// We'll need rudimentary UI components, if not present we'll use standard HTML/Tailwind
+import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
+import { Select } from "~/components/ui/select";
+import { Card, CardContent } from "~/components/ui/Card";
+import { Badge } from "~/components/ui/Badge";
+import { usePayrollHistory, usePayrollConfig } from "~/hooks/usePayroll";
+import { ComponentErrorBoundary } from "~/components/ErrorBoundary";
 
 export default function PayrollDashboard() {
-    const { tenant, token } = useOutletContext<any>() as any;
+    const { slug } = useParams();
+    const { tenant } = useOutletContext<any>() as any;
+    const { getToken } = useAuth();
 
-    if (!token) return <div className="p-8 flex items-center gap-2 text-zinc-500"><Loader2 className="animate-spin" /> Loading access token...</div>;
+    if (!slug) return <div>Invalid Slug</div>;
 
     return (
         <div className="p-8 max-w-6xl mx-auto">
@@ -32,261 +42,258 @@ export default function PayrollDashboard() {
                 </TabsList>
 
                 <TabsContent value="run">
-                    <RunPayroll token={token} />
+                    <RunPayroll slug={slug} />
                 </TabsContent>
 
                 <TabsContent value="history">
-                    <PayrollHistory token={token} />
+                    <PayrollHistory slug={slug} />
                 </TabsContent>
 
                 <TabsContent value="config">
-                    <PayrollConfig token={token} />
+                    <PayrollConfig slug={slug} />
                 </TabsContent>
             </Tabs>
         </div>
     );
 }
 
-function RunPayroll({ token }: { token: string }) {
-    const [startDate, setStartDate] = useState(format(new Date(new Date().setDate(1)), 'yyyy-MM-dd')); // Start of month
+function RunPayroll({ slug }: { slug: string }) {
+    const { getToken } = useAuth();
+    // Use first day of current month
+    const [startDate, setStartDate] = useState(format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd'));
     const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd')); // Today
     const [preview, setPreview] = useState<any[] | null>(null);
-    const [loading, setLoading] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
 
-    const handlePreview = async () => {
-        setLoading(true);
-        try {
+    const generateMutation = useMutation({
+        mutationFn: async ({ commit }: { commit: boolean }) => {
+            const token = await getToken();
             const res = await apiRequest('/payroll/generate', token, {
                 method: 'POST',
-                body: JSON.stringify({ startDate, endDate, commit: false })
+                headers: { 'X-Tenant-Slug': slug },
+                body: JSON.stringify({ startDate, endDate, commit })
             }) as any;
-            if (res.error) {
-                toast.error(res.error);
-                return;
-            }
-            setPreview(res.preview || []);
-        } catch (e) {
-            console.error(e);
-            toast.error("Failed to generate preview");
-        } finally {
-            setLoading(false);
-        }
-    };
-    // ... (RunPayroll continues, assume existing code unless changed)
-    // Skipping large chunks of unchanged code is risky with replace_file_content if we don't match exactly.
-    // I will just replace the specific function blocks or use smaller chunks.
-    // Redoing replacement to target specific blocks.
-
-
-    const handleCommit = async () => {
-        setShowConfirm(true);
-    };
-
-    const confirmCommit = async () => {
-        setLoading(true);
-        try {
-            const res = await apiRequest('/payroll/generate', token, {
-                method: 'POST',
-                body: JSON.stringify({ startDate, endDate, commit: true })
-            }) as any;
-            if (res.success) {
-                toast.success(`Successfully generated ${res.count} payouts.`);
+            if (res.error) throw new Error(res.error);
+            return res;
+        },
+        onSuccess: (data, variables) => {
+            if (variables.commit) {
+                toast.success(`Successfully generated ${data.count} payouts.`);
                 setPreview(null);
+                setShowConfirm(false);
+            } else {
+                setPreview(data.preview || []);
             }
-        } catch (e) {
-            console.error(e);
-            toast.error("Failed to commit payroll");
-        } finally {
-            setLoading(false);
-        }
-    };
+        },
+        onError: (e: any) => toast.error(e.message)
+    });
 
     return (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
-            <h3 className="text-lg font-semibold mb-4">Generate Cycle</h3>
-            <div className="flex gap-4 items-end mb-6">
-                <div>
-                    <label className="block text-xs font-medium text-zinc-500 mb-1">Start Date</label>
-                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded px-3 py-2 text-sm" />
-                </div>
-                <div>
-                    <label className="block text-xs font-medium text-zinc-500 mb-1">End Date</label>
-                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded px-3 py-2 text-sm" />
-                </div>
-                <button onClick={handlePreview} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors">
-                    {loading ? 'Processing...' : 'Preview Calculation'}
-                </button>
-            </div>
-
-            {preview && (
-                <div className="space-y-4">
-                    <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-lg flex justify-between items-center">
-                        <span className="font-medium text-zinc-700 dark:text-zinc-300">Total Calculation</span>
-                        <span className="text-xl font-bold text-green-600">
-                            ${(preview.reduce((acc: any, curr: any) => acc + curr.amount, 0) / 100).toFixed(2)}
-                        </span>
+        <Card>
+            <CardContent className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Generate Cycle</h3>
+                <div className="flex flex-col sm:flex-row gap-4 items-end mb-6">
+                    <div>
+                        <label className="block text-xs font-medium text-zinc-500 mb-1">Start Date</label>
+                        <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-[180px]" />
                     </div>
-
-                    <div className="space-y-2">
-                        {preview.map((p: any) => (
-                            <div key={p.instructorId} className="border border-zinc-200 dark:border-zinc-800 rounded p-4 flex justify-between items-start">
-                                <div>
-                                    <div className="font-semibold text-zinc-900 dark:text-zinc-100">Instructor ID: {p.instructorId.substring(0, 8)}...</div>
-                                    <div className="text-xs text-zinc-500">{p.itemCount} items calculated</div>
-                                    <ul className="mt-2 text-xs text-zinc-500 space-y-1">
-                                        {p.items.map((item: any, i: number) => (
-                                            <li key={i}>• {item.title} ({new Date(item.date).toLocaleDateString()}): {item.details} = <strong>${(item.amount / 100).toFixed(2)}</strong></li>
-                                        ))}
-                                    </ul>
-                                </div>
-                                <div className="text-lg font-bold">${(p.amount / 100).toFixed(2)}</div>
-                            </div>
-                        ))}
+                    <div>
+                        <label className="block text-xs font-medium text-zinc-500 mb-1">End Date</label>
+                        <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-[180px]" />
                     </div>
+                    <Button
+                        onClick={() => generateMutation.mutate({ commit: false })}
+                        disabled={generateMutation.isPending}
+                    >
+                        {generateMutation.isPending && !showConfirm ? 'Processing...' : 'Preview Calculation'}
+                    </Button>
+                </div>
 
-                    {preview.length === 0 && <div className="text-zinc-500 text-sm">No payouts calculated for this period. check configurations or activity.</div>}
-
-                    {preview.length > 0 && (
-                        <div className="flex justify-end mt-6">
-                            <button onClick={handleCommit} disabled={loading} className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded shadow font-medium">
-                                Generate & Save
-                            </button>
+                {preview && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-lg flex justify-between items-center border border-zinc-100 dark:border-zinc-700">
+                            <span className="font-medium text-zinc-700 dark:text-zinc-300">Total Calculation</span>
+                            <span className="text-xl font-bold text-green-600">
+                                ${(preview.reduce((acc: any, curr: any) => acc + curr.amount, 0) / 100).toFixed(2)}
+                            </span>
                         </div>
-                    )}
-                </div>
-            )}
-        </div>
+
+                        <div className="space-y-2">
+                            {preview.map((p: any) => (
+                                <div key={p.instructorId} className="border border-zinc-200 dark:border-zinc-800 rounded p-4 flex justify-between items-start bg-white dark:bg-zinc-900">
+                                    <div>
+                                        <div className="font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                            Instructor
+                                            <span className="text-xs font-normal text-zinc-500 bg-zinc-100 px-1.5 py-0.5 rounded dark:bg-zinc-800">
+                                                {p.instructorId.substring(0, 8)}...
+                                            </span>
+                                        </div>
+                                        <div className="text-xs text-zinc-500 mt-1">{p.itemCount} items calculated</div>
+                                        <ul className="mt-2 text-xs text-zinc-500 space-y-1">
+                                            {p.items.map((item: any, i: number) => (
+                                                <li key={i}>• {item.title} ({new Date(item.date).toLocaleDateString()}): {item.details} = <strong>${(item.amount / 100).toFixed(2)}</strong></li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                    <div className="text-lg font-bold">${(p.amount / 100).toFixed(2)}</div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {preview.length === 0 && <div className="text-zinc-500 text-sm italic">No payouts calculated for this period. Check configurations or activity logs.</div>}
+
+                        {preview.length > 0 && (
+                            <div className="flex justify-end mt-6">
+                                <Button
+                                    onClick={() => setShowConfirm(true)}
+                                    className="bg-green-600 hover:bg-green-700 text-white"
+                                >
+                                    Generate & Save
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </CardContent>
+
+            <ConfirmDialog
+                isOpen={showConfirm}
+                onClose={() => setShowConfirm(false)}
+                onConfirm={() => generateMutation.mutate({ commit: true })}
+                title="Confirm Payroll Generation"
+                message="This will create payout records for the calculated amounts. These will appear in history as 'Processing' or 'Pending'."
+                confirmText={generateMutation.isPending ? "Generating..." : "Generate Records"}
+            />
+        </Card>
     );
 }
 
-function PayrollHistory({ token }: { token: string }) {
-    const [history, setHistory] = useState<any[]>([]);
+function PayrollHistory({ slug }: { slug: string }) {
+    const { getToken } = useAuth();
+    const queryClient = useQueryClient();
+    const { data: history = [], isLoading } = usePayrollHistory(slug);
+
     const [itemToPay, setItemToPay] = useState<string | null>(null);
     const [processPaymentId, setProcessPaymentId] = useState<string | null>(null);
-    const [processing, setProcessing] = useState(false);
 
-    const fetchHistory = async () => {
-        const res = await apiRequest('/payroll/history', token) as any;
-        setHistory(res.history);
-    };
+    const approveMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const token = await getToken();
+            const res = await apiRequest(`/payroll/${id}/approve`, token, {
+                method: 'POST',
+                headers: { 'X-Tenant-Slug': slug }
+            });
+            if ((res as any).error) throw new Error((res as any).error);
+            return res;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['payroll-history', slug] });
+            setItemToPay(null);
+            toast.success("Marked as paid");
+        },
+        onError: (e: any) => toast.error(e.message)
+    });
 
-    useEffect(() => { fetchHistory() }, []);
-
-    const markPaid = (id: string) => {
-        setItemToPay(id);
-    };
-
-    const confirmMarkPaid = async () => {
-        if (!itemToPay) return;
-        await apiRequest(`/payroll/${itemToPay}/approve`, token, { method: 'POST' });
-        fetchHistory();
-        setItemToPay(null);
-    };
-
-    const handlePayNow = (id: string) => {
-        setProcessPaymentId(id);
-    };
-
-    const confirmPayNow = async () => {
-        if (!processPaymentId) return;
-        setProcessing(true);
-        try {
-            const res: any = await apiRequest(`/payroll/${processPaymentId}/pay`, token, { method: 'POST' });
-            if (res.error) {
-                toast.error("Payment Failed: " + res.error);
-            } else {
-                toast.success("Payment Successful! Transfer ID: " + res.transferId);
-                fetchHistory();
-            }
-        } catch (e: any) {
-            toast.error("Payment Error: " + e.message);
-        } finally {
-            setProcessing(false);
+    const payNowMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const token = await getToken();
+            const res: any = await apiRequest(`/payroll/${id}/pay`, token, {
+                method: 'POST',
+                headers: { 'X-Tenant-Slug': slug }
+            });
+            if (res.error) throw new Error(res.error);
+            return res;
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['payroll-history', slug] });
             setProcessPaymentId(null);
-        }
-    };
+            toast.success("Payment Successful! Transfer ID: " + data.transferId);
+        },
+        onError: (e: any) => toast.error(e.message)
+    });
+
+    if (isLoading) return <div>Loading history...</div>;
 
     return (
-
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden">
-            <table className="w-full text-sm text-left">
-                <thead className="bg-zinc-50 dark:bg-zinc-800 text-zinc-500 font-medium border-b border-zinc-200 dark:border-zinc-800">
-                    <tr>
-                        <th className="p-4">Period</th>
-                        <th className="p-4">Instructor</th>
-                        <th className="p-4">Amount</th>
-                        <th className="p-4">Status</th>
-                        <th className="p-4">Actions</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                    {history.map(row => (
-                        <tr key={row.id}>
-                            <td className="p-4">
-                                {new Date(row.periodStart).toLocaleDateString()} - {new Date(row.periodEnd).toLocaleDateString()}
-                            </td>
-                            <td className="p-4 font-medium">
-                                <div>{row.instructorFirstName} {row.instructorLastName}</div>
-                                {row.stripeAccountId && <div className="text-[10px] text-green-600 font-mono">Connected</div>}
-                            </td>
-                            <td className="p-4 font-mono font-medium">
-                                ${(row.amount / 100).toFixed(2)}
-                            </td>
-                            <td className="p-4">
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${row.status === 'paid' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                                    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                                    }`}>
-                                    {row.status.toUpperCase()}
-                                </span>
-                            </td>
-                            <td className="p-4 flex gap-2">
-                                {row.status !== 'paid' && (
-                                    <>
-                                        <button onClick={() => markPaid(row.id)} className="text-zinc-600 hover:text-zinc-900 text-xs font-medium border border-zinc-200 rounded px-2 py-1">
-                                            Mark Paid (Manual)
-                                        </button>
-                                        {row.stripeAccountId && (
-                                            <button onClick={() => handlePayNow(row.id)} className="text-white bg-green-600 hover:bg-green-700 text-xs font-medium rounded px-2 py-1 shadow-sm flex items-center gap-1">
-                                                <DollarSign size={12} /> Pay Now
-                                            </button>
-                                        )}
-                                    </>
-                                )}
-                                {row.status === 'paid' && row.paidAt && (
-                                    <span className="text-xs text-zinc-400">Paid {new Date(row.paidAt).toLocaleDateString()}</span>
-                                )}
-                            </td>
+        <>
+            <Card className="overflow-hidden border-zinc-200 dark:border-zinc-800">
+                <table className="w-full text-sm text-left">
+                    <thead className="bg-zinc-50 dark:bg-zinc-800 text-zinc-500 font-medium border-b border-zinc-200 dark:border-zinc-800">
+                        <tr>
+                            <th className="p-4">Period</th>
+                            <th className="p-4">Instructor</th>
+                            <th className="p-4">Amount</th>
+                            <th className="p-4">Status</th>
+                            <th className="p-4">Actions</th>
                         </tr>
-                    ))}
-                    {history.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-zinc-500">No history found.</td></tr>}
-                </tbody>
-            </table>
-
+                    </thead>
+                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                        {history.map((row: any) => (
+                            <tr key={row.id}>
+                                <td className="p-4">
+                                    {new Date(row.periodStart).toLocaleDateString()} - {new Date(row.periodEnd).toLocaleDateString()}
+                                </td>
+                                <td className="p-4 font-medium">
+                                    <div>{row.instructorFirstName} {row.instructorLastName}</div>
+                                    {row.stripeAccountId && <Badge variant="outline" className="text-[10px] text-green-600 border-green-200 mt-1">Stripe Connected</Badge>}
+                                </td>
+                                <td className="p-4 font-mono font-medium">
+                                    ${(row.amount / 100).toFixed(2)}
+                                </td>
+                                <td className="p-4">
+                                    <Badge variant={row.status === 'paid' ? 'success' : 'warning'}>
+                                        {row.status.toUpperCase()}
+                                    </Badge>
+                                </td>
+                                <td className="p-4 flex gap-2">
+                                    {row.status !== 'paid' && (
+                                        <>
+                                            <Button variant="outline" size="sm" onClick={() => setItemToPay(row.id)}>
+                                                Mark Paid
+                                            </Button>
+                                            {row.stripeAccountId && (
+                                                <Button size="sm" onClick={() => setProcessPaymentId(row.id)} className="bg-green-600 hover:bg-green-700 text-white">
+                                                    <DollarSign size={14} className="mr-1" /> Pay Now
+                                                </Button>
+                                            )}
+                                        </>
+                                    )}
+                                    {row.status === 'paid' && row.paidAt && (
+                                        <span className="text-xs text-zinc-400">Paid {new Date(row.paidAt).toLocaleDateString()}</span>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                        {history.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-zinc-500">No history found.</td></tr>}
+                    </tbody>
+                </table>
+            </Card>
 
             <ConfirmDialog
-                open={!!itemToPay}
-                onOpenChange={(open) => !open && setItemToPay(null)}
-                onConfirm={confirmMarkPaid}
+                isOpen={!!itemToPay}
+                onClose={() => setItemToPay(null)}
+                onConfirm={() => { if (itemToPay) approveMutation.mutate(itemToPay) }}
                 title="Mark as Paid"
-                description="Are you sure you want to manually mark this record as paid?"
+                message="Are you sure you want to manually mark this record as paid?"
                 confirmText="Mark Paid"
             />
 
             <ConfirmDialog
-                open={!!processPaymentId}
-                onOpenChange={(open) => !open && setProcessPaymentId(null)}
-                onConfirm={confirmPayNow}
+                isOpen={!!processPaymentId}
+                onClose={() => setProcessPaymentId(null)}
+                onConfirm={() => { if (processPaymentId) payNowMutation.mutate(processPaymentId) }}
                 title="Process Stripe Transfer"
-                description="This will instantly transfer funds from your platform balance to the instructor's connected Stripe account. This cannot be undone."
-                confirmText={processing ? "Processing..." : "Pay Now"}
+                message="This will instantly transfer funds from your platform balance to the instructor's connected Stripe account. This cannot be undone."
+                confirmText={payNowMutation.isPending ? "Processing..." : "Pay Now"}
             />
-        </div >
+        </>
     )
 }
 
-function PayrollConfig({ token }: { token: string }) {
-    const [instructors, setInstructors] = useState<any[]>([]);
+function PayrollConfig({ slug }: { slug: string }) {
+    const { getToken } = useAuth();
+    const queryClient = useQueryClient();
+    const { data: instructors = [], isLoading } = usePayrollConfig(slug);
 
     // Config form
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -298,22 +305,44 @@ function PayrollConfig({ token }: { token: string }) {
     const [payInstructor, setPayInstructor] = useState<any>(null);
     const [payAmount, setPayAmount] = useState('');
     const [payNote, setPayNote] = useState('');
-    const [paying, setPaying] = useState(false);
 
-    const openPayModal = (inst: any) => {
-        setPayInstructor(inst);
-        setPayAmount('');
-        setPayNote('');
-        setPayModalOpen(true);
-    };
+    const saveConfigMutation = useMutation({
+        mutationFn: async () => {
+            const token = await getToken();
+            let rate = parseFloat(formRate);
+            if (formModel === 'flat' || formModel === 'hourly') {
+                rate = Math.round(rate * 100);
+            } else {
+                rate = Math.round(rate * 100);
+            }
 
-    const handleManualPay = async () => {
-        if (!payInstructor || !payAmount) return;
-        setPaying(true);
-        try {
+            const res = await apiRequest('/payroll/config', token, {
+                method: 'POST',
+                headers: { 'X-Tenant-Slug': slug },
+                body: JSON.stringify({
+                    memberId: editingId,
+                    payModel: formModel,
+                    rate
+                })
+            });
+            if ((res as any).error) throw new Error((res as any).error);
+            return res;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['payroll-config', slug] });
+            setEditingId(null);
+            toast.success("Configuration saved");
+        },
+        onError: (e: any) => toast.error(e.message)
+    });
+
+    const manualPayMutation = useMutation({
+        mutationFn: async () => {
+            const token = await getToken();
             const amountCents = Math.round(parseFloat(payAmount) * 100);
             const res: any = await apiRequest('/payroll/transfer', token, {
                 method: 'POST',
+                headers: { 'X-Tenant-Slug': slug },
                 body: JSON.stringify({
                     instructorId: payInstructor.memberId,
                     amount: amountCents,
@@ -321,58 +350,17 @@ function PayrollConfig({ token }: { token: string }) {
                 })
             });
 
-            if (res.error) {
-                toast.error(res.error);
-            } else {
-                toast.success('Transfer Successful');
-                setPayModalOpen(false);
-                // Refresh history or whatever if needed, but history is in another tab
-            }
-        } catch (e: any) {
-            toast.error(e.message);
-        } finally {
-            setPaying(false);
-        }
-    };
+            if (res.error) throw new Error(res.error);
+            return res;
+        },
+        onSuccess: () => {
+            toast.success('Transfer Successful');
+            setPayModalOpen(false);
+            setPayInstructor(null);
+        },
+        onError: (e: any) => toast.error(e.message)
+    });
 
-    const fetchConfig = async () => {
-        try {
-            const res = await apiRequest('/payroll/config', token) as any;
-            if (res.error) {
-                toast.error("Failed to load config: " + res.error);
-                return;
-            }
-            setInstructors(res.instructors || []);
-        } catch (e) {
-            console.error("Config fetch error", e);
-            toast.error("Could not load instructor list");
-        }
-    };
-
-    useEffect(() => { fetchConfig() }, []);
-
-    const handleSave = async () => {
-        if (!editingId) return;
-        let rate = parseFloat(formRate);
-        if (formModel === 'flat' || formModel === 'hourly') {
-            // Convert to cents
-            rate = Math.round(rate * 100);
-        } else {
-            // Percentage: basis points. Input 50% -> 5000
-            rate = Math.round(rate * 100);
-        }
-
-        await apiRequest('/payroll/config', token, {
-            method: 'POST',
-            body: JSON.stringify({
-                memberId: editingId,
-                payModel: formModel,
-                rate
-            })
-        });
-        setEditingId(null);
-        fetchConfig();
-    };
 
     const startEdit = (inst: any) => {
         setEditingId(inst.memberId);
@@ -385,84 +373,92 @@ function PayrollConfig({ token }: { token: string }) {
         }
     };
 
+    const openPayModal = (inst: any) => {
+        setPayInstructor(inst);
+        setPayAmount('');
+        setPayNote('');
+        setPayModalOpen(true);
+    };
+
+    if (isLoading) return <div>Loading config...</div>;
 
     return (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden">
-            <table className="w-full text-sm text-left">
-                <thead className="bg-zinc-50 dark:bg-zinc-800 text-zinc-500 font-medium border-b border-zinc-200 dark:border-zinc-800">
-                    <tr>
-                        <th className="p-4">Name</th>
-                        <th className="p-4">Stripe Status</th>
-                        <th className="p-4">Current Model</th>
-                        <th className="p-4">Rate</th>
-                        <th className="p-4">Action</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                    {instructors.map(inst => (
-                        <tr key={inst.memberId}>
-                            <td className="p-4 font-medium">{inst.firstName} {inst.lastName}</td>
-                            <td className="p-4">
-                                {inst.stripeAccountId ? (
-                                    <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded-full">
-                                        <CheckCircle2 size={12} /> Connected
-                                    </span>
-                                ) : (
-                                    <span className="inline-flex items-center gap-1 text-xs text-zinc-400 font-medium bg-zinc-100 px-2 py-0.5 rounded-full">
-                                        Not Connected
-                                    </span>
-                                )}
-                            </td>
-                            <td className="p-4 text-zinc-600 dark:text-zinc-400 capitalize">
-                                {inst.config ? inst.config.payModel : 'Not Set'}
-                            </td>
-                            <td className="p-4 font-mono">
-                                {inst.config ? (
-                                    inst.config.payModel === 'percentage'
-                                        ? `${(inst.config.rate / 100)}%`
-                                        : `$${(inst.config.rate / 100).toFixed(2)}`
-                                ) : '-'}
-                            </td>
-                            <td className="p-4 flex gap-2">
-                                <Dialog>
-                                    <DialogTrigger asChild>
-                                        <button onClick={() => startEdit(inst)} className="text-zinc-600 hover:text-zinc-900 font-medium text-xs border border-zinc-200 rounded px-3 py-1.5">Configure</button>
-                                    </DialogTrigger>
-                                    <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle>Configure Payroll</DialogTitle>
-                                            <DialogDescription>Set default pay rate for {inst.firstName}.</DialogDescription>
-                                        </DialogHeader>
-                                        <div className="space-y-4 py-4">
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Pay Model</label>
-                                                <select className="w-full rounded border border-zinc-300 p-2" value={formModel} onChange={e => setFormModel(e.target.value)}>
-                                                    <option value="flat">Flat Rate (Per Class)</option>
-                                                    <option value="hourly">Hourly Rate</option>
-                                                    <option value="percentage">Revenue Share (%)</option>
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">
-                                                    {formModel === 'percentage' ? 'Percentage (%)' : 'Rate ($)'}
-                                                </label>
-                                                <input type="number" step="0.01" className="w-full rounded border border-zinc-300 p-2" value={formRate} onChange={e => setFormRate(e.target.value)} />
-                                            </div>
-                                            <button onClick={handleSave} className="w-full bg-blue-600 text-white rounded py-2 font-medium">Save Configuration</button>
-                                        </div>
-                                    </DialogContent>
-                                </Dialog>
-
-                                {inst.stripeAccountId && (
-                                    <button onClick={() => openPayModal(inst)} className="bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded px-3 py-1.5 shadow-sm flex items-center gap-1">
-                                        <DollarSign size={12} /> Pay
-                                    </button>
-                                )}
-                            </td>
+        <>
+            <Card className="overflow-hidden border-zinc-200 dark:border-zinc-800">
+                <table className="w-full text-sm text-left">
+                    <thead className="bg-zinc-50 dark:bg-zinc-800 text-zinc-500 font-medium border-b border-zinc-200 dark:border-zinc-800">
+                        <tr>
+                            <th className="p-4">Name</th>
+                            <th className="p-4">Stripe Status</th>
+                            <th className="p-4">Current Model</th>
+                            <th className="p-4">Rate</th>
+                            <th className="p-4">Action</th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                        {instructors.map((inst: any) => (
+                            <tr key={inst.memberId}>
+                                <td className="p-4 font-medium">{inst.firstName} {inst.lastName}</td>
+                                <td className="p-4">
+                                    {inst.stripeAccountId ? (
+                                        <Badge variant="success" className="text-xs"><CheckCircle2 size={12} className="mr-1" /> Connected</Badge>
+                                    ) : (
+                                        <Badge variant="secondary" className="text-xs">Not Connected</Badge>
+                                    )}
+                                </td>
+                                <td className="p-4 text-zinc-600 dark:text-zinc-400 capitalize">
+                                    {inst.config ? inst.config.payModel : 'Not Set'}
+                                </td>
+                                <td className="p-4 font-mono">
+                                    {inst.config ? (
+                                        inst.config.payModel === 'percentage'
+                                            ? `${(inst.config.rate / 100)}%`
+                                            : `$${(inst.config.rate / 100).toFixed(2)}`
+                                    ) : '-'}
+                                </td>
+                                <td className="p-4 flex gap-2">
+                                    <Dialog open={editingId === inst.memberId} onOpenChange={(open) => !open && setEditingId(null)}>
+                                        <DialogTrigger asChild>
+                                            <Button variant="outline" size="sm" onClick={() => startEdit(inst)}>Configure</Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader>
+                                                <DialogTitle>Configure Payroll</DialogTitle>
+                                                <DialogDescription>Set default pay rate for {inst.firstName}.</DialogDescription>
+                                            </DialogHeader>
+                                            <div className="space-y-4 py-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium mb-1">Pay Model</label>
+                                                    <Select value={formModel} onChange={(e) => setFormModel(e.target.value)} className="w-full border-zinc-300">
+                                                        <option value="flat">Flat Rate (Per Class)</option>
+                                                        <option value="hourly">Hourly Rate</option>
+                                                        <option value="percentage">Revenue Share (%)</option>
+                                                    </Select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium mb-1">
+                                                        {formModel === 'percentage' ? 'Percentage (%)' : 'Rate ($)'}
+                                                    </label>
+                                                    <Input type="number" step="0.01" value={formRate} onChange={e => setFormRate(e.target.value)} />
+                                                </div>
+                                                <Button onClick={() => saveConfigMutation.mutate()} className="w-full" disabled={saveConfigMutation.isPending}>
+                                                    Save Configuration
+                                                </Button>
+                                            </div>
+                                        </DialogContent>
+                                    </Dialog>
+
+                                    {inst.stripeAccountId && (
+                                        <Button size="sm" onClick={() => openPayModal(inst)} className="bg-green-600 hover:bg-green-700 text-white">
+                                            <DollarSign size={14} className="mr-1" /> Pay
+                                        </Button>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </Card>
 
             {/* Manual Pay Modal */}
             <Dialog open={payModalOpen} onOpenChange={setPayModalOpen}>
@@ -478,24 +474,23 @@ function PayrollConfig({ token }: { token: string }) {
                             <label className="block text-sm font-medium mb-1">Amount ($)</label>
                             <div className="relative">
                                 <span className="absolute left-3 top-2 text-zinc-500">$</span>
-                                <input
+                                <Input
                                     type="number"
                                     min="0.50"
                                     step="0.01"
                                     value={payAmount}
                                     onChange={e => setPayAmount(e.target.value)}
-                                    className="w-full pl-8 p-2 border border-zinc-300 rounded"
+                                    className="pl-8"
                                     placeholder="0.00"
                                 />
                             </div>
                         </div>
                         <div>
                             <label className="block text-sm font-medium mb-1">Note / Reference</label>
-                            <input
+                            <Input
                                 type="text"
                                 value={payNote}
                                 onChange={e => setPayNote(e.target.value)}
-                                className="w-full p-2 border border-zinc-300 rounded"
                                 placeholder="e.g. Bonus for weekend workshop"
                             />
                         </div>
@@ -505,16 +500,16 @@ function PayrollConfig({ token }: { token: string }) {
                             <p>Funds will be transferred immediately from your platform balance to the instructor's Stripe account. This cannot be undone.</p>
                         </div>
 
-                        <button
-                            onClick={handleManualPay}
-                            disabled={paying || !payAmount}
-                            className={`w-full py-2 rounded font-medium text-white ${paying ? 'bg-zinc-400' : 'bg-green-600 hover:bg-green-700'}`}
+                        <Button
+                            onClick={() => manualPayMutation.mutate()}
+                            disabled={manualPayMutation.isPending || !payAmount}
+                            className={`w-full ${manualPayMutation.isPending ? 'bg-zinc-400' : 'bg-green-600 hover:bg-green-700'}`}
                         >
-                            {paying ? 'Processing...' : 'Transfer Funds'}
-                        </button>
+                            {manualPayMutation.isPending ? 'Processing...' : 'Transfer Funds'}
+                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>
-        </div>
+        </>
     )
 }

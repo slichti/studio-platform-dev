@@ -40,7 +40,8 @@ import {
     CircleHelp,
     QrCode,
     Trophy,
-    History // Added History
+    History,
+    Shield
 } from "lucide-react";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { CommandBar } from "../components/CommandBar";
@@ -315,7 +316,10 @@ export default function StudioLayout() {
                                 )}
 
                                 {(['admin', 'owner'].some(r => effectiveRoles.includes(r))) && (
-                                    <NavItem to={`/studio/${slug}/settings/roles`} icon={<Users size={18} />}>Roles & Permissions</NavItem>
+                                    <>
+                                        <NavItem to={`/studio/${slug}/settings/staff`} icon={<Users size={18} />}>Team</NavItem>
+                                        <NavItem to={`/studio/${slug}/settings/roles`} icon={<Shield size={18} />}>Roles & Permissions</NavItem>
+                                    </>
                                 )}
 
                                 {featureSet.has('financials') && (

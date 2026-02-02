@@ -15,7 +15,7 @@ import { Select } from "~/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/Table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "~/components/ui/DropdownMenu";
 import { ConfirmationDialog } from "~/components/Dialogs";
-import { useMembers } from "~/hooks/useMembers";
+import { useStudents } from "~/hooks/useStudents";
 import { ComponentErrorBoundary } from "~/components/ErrorBoundary";
 import { apiRequest } from "~/utils/api";
 import { cn } from "~/lib/utils";
@@ -37,8 +37,8 @@ export default function StudioStudents() {
     const [editingMember, setEditingMember] = useState<any | null>(null);
     const [pendingRoleChange, setPendingRoleChange] = useState<{ memberId: string, newRole: string } | null>(null);
 
-    // FETCH DATA using useMembers hook
-    const { data: members = [], isLoading, error } = useMembers(slug || '');
+    // FETCH DATA using useStudents hook
+    const { data: members = [], isLoading, error } = useStudents(slug || '');
 
     // Filter Logic
     const filteredMembers = members.filter((m: any) => {

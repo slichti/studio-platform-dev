@@ -6,6 +6,7 @@ interface Member {
     profile: any;
     status: string;
     joinedAt: string;
+    roles?: { role: string }[];
 }
 
 export function useMembers(tenantSlug: string) {
