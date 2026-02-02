@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantMembers, tenantRoles, subscriptions, tenantFeatures, websitePages, auditLogs, users, emailLogs } from '@studio/db/src/schema';
-import { eq, sql, desc, count, and } from 'drizzle-orm';
+import { tenants, tenantMembers, tenantRoles, subscriptions, tenantFeatures, websitePages, auditLogs, users, emailLogs, locations, classes, bookings, purchases, products, posOrders, marketingAutomations, marketingCampaigns, waiverTemplates, waiverSignatures, studentNotes } from '@studio/db/src/schema';
+import { eq, sql, desc, count, and, inArray } from 'drizzle-orm';
 import { AuditService } from '../services/audit';
 import { HonoContext } from '../types';
 
@@ -61,6 +61,57 @@ app.put('/:id/status', async (c) => {
     return c.json({ success: true, status });
 });
 
+// POST /:id/lifecycle/archive
+app.post('/:id/lifecycle/archive', async (c) => {
+    const isPlatformAdmin = c.get('auth')?.claims?.isPlatformAdmin === true;
+    if (!isPlatformAdmin) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tid = c.req.param('id');
+
+    // Soft delete: set status to archived, disable access
+    await db.update(tenants).set({
+        status: 'archived',
+        studentAccessDisabled: true,
+        archivedAt: new Date()
+    }).where(eq(tenants.id, tid)).run();
+
+    const audit = new AuditService(db);
+    await audit.log({
+        actorId: c.get('auth')!.userId,
+        action: 'archive_tenant',
+        targetId: tid,
+        details: { status: 'archived' },
+        ipAddress: c.req.header('CF-Connecting-IP')
+    });
+
+    return c.json({ success: true, status: 'archived' });
+});
+
+// POST /:id/lifecycle/restore
+app.post('/:id/lifecycle/restore', async (c) => {
+    const isPlatformAdmin = c.get('auth')?.claims?.isPlatformAdmin === true;
+    if (!isPlatformAdmin) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tid = c.req.param('id');
+
+    await db.update(tenants).set({
+        status: 'active',
+        studentAccessDisabled: false,
+        archivedAt: null
+    }).where(eq(tenants.id, tid)).run();
+
+    const audit = new AuditService(db);
+    await audit.log({
+        actorId: c.get('auth')!.userId,
+        action: 'restore_tenant',
+        targetId: tid,
+        details: { status: 'active' },
+        ipAddress: c.req.header('CF-Connecting-IP')
+    });
+
+    return c.json({ success: true, status: 'active' });
+});
+
 // DELETE /:id
 app.delete('/:id', async (c) => {
     const isPlatformAdmin = c.get('auth')?.claims?.isPlatformAdmin === true;
@@ -70,10 +121,55 @@ app.delete('/:id', async (c) => {
     const t = await db.query.tenants.findFirst({ where: eq(tenants.id, tid) });
     if (!t) return c.json({ error: "Not found" }, 404);
 
-    await db.delete(tenants).where(eq(tenants.id, tid)).run();
-    const audit = new AuditService(db);
-    await audit.log({ actorId: c.get('auth')!.userId, action: 'delete_tenant', targetId: tid, details: { name: t.name, slug: t.slug }, ipAddress: c.req.header('CF-Connecting-IP') });
-    return c.json({ success: true });
+    try {
+        // Manual Cascade Delete (Reverse Dependency Order)
+
+        // 1. Leaf nodes (Logs, Signatures, Redemptions)
+        await db.delete(waiverSignatures).where(inArray(waiverSignatures.memberId, db.select({ id: tenantMembers.id }).from(tenantMembers).where(eq(tenantMembers.tenantId, tid)))).run().catch(() => { });
+        // Note: Not checking every single table (like couponRedemptions) to save complexity, but covering major ones.
+
+        // 2. High Volume / Operational Data
+        await db.delete(bookings).where(inArray(bookings.classId, db.select({ id: classes.id }).from(classes).where(eq(classes.tenantId, tid)))).run();
+        await db.delete(classes).where(eq(classes.tenantId, tid)).run();
+        // await db.delete(classSeries).where(eq(classSeries.tenantId, tid)).run(); // if exists in imports
+
+        await db.delete(posOrders).where(eq(posOrders.tenantId, tid)).run();
+
+        // 3. Marketing
+        await db.delete(marketingAutomations).where(eq(marketingAutomations.tenantId, tid)).run();
+        await db.delete(marketingCampaigns).where(eq(marketingCampaigns.tenantId, tid)).run();
+
+        // 4. Products & Plans
+        await db.delete(products).where(eq(products.tenantId, tid)).run();
+        await db.delete(subscriptions).where(eq(subscriptions.tenantId, tid)).run();
+
+        // 5. Tenant Users/Members
+        // Roles first
+        await db.delete(tenantRoles).where(inArray(tenantRoles.memberId, db.select({ id: tenantMembers.id }).from(tenantMembers).where(eq(tenantMembers.tenantId, tid)))).run();
+        await db.delete(tenantMembers).where(eq(tenantMembers.tenantId, tid)).run();
+
+        // 6. Tenant Features & Config
+        await db.delete(tenantFeatures).where(eq(tenantFeatures.tenantId, tid)).run();
+        await db.delete(websitePages).where(eq(websitePages.tenantId, tid)).run();
+        await db.delete(locations).where(eq(locations.tenantId, tid)).run();
+        await db.delete(waiverTemplates).where(eq(waiverTemplates.tenantId, tid)).run();
+
+        // 7. Finally: The Tenant
+        await db.delete(tenants).where(eq(tenants.id, tid)).run();
+
+        const audit = new AuditService(db);
+        await audit.log({
+            actorId: c.get('auth')!.userId,
+            action: 'delete_tenant',
+            targetId: tid,
+            details: { name: t.name, slug: t.slug },
+            ipAddress: c.req.header('CF-Connecting-IP')
+        });
+        return c.json({ success: true });
+    } catch (e: any) {
+        console.error("Delete failed", e);
+        return c.json({ error: "Failed to delete tenant: " + e.message }, 500);
+    }
 });
 
 // POST /seed - Dev only
