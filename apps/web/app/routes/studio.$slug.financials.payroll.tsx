@@ -157,11 +157,11 @@ function RunPayroll({ slug }: { slug: string }) {
             </CardContent>
 
             <ConfirmDialog
-                isOpen={showConfirm}
-                onClose={() => setShowConfirm(false)}
+                open={showConfirm}
+                onOpenChange={setShowConfirm}
                 onConfirm={() => generateMutation.mutate({ commit: true })}
                 title="Confirm Payroll Generation"
-                message="This will create payout records for the calculated amounts. These will appear in history as 'Processing' or 'Pending'."
+                description="This will create payout records for the calculated amounts. These will appear in history as 'Processing' or 'Pending'."
                 confirmText={generateMutation.isPending ? "Generating..." : "Generate Records"}
             />
         </Card>
@@ -270,20 +270,20 @@ function PayrollHistory({ slug }: { slug: string }) {
             </Card>
 
             <ConfirmDialog
-                isOpen={!!itemToPay}
-                onClose={() => setItemToPay(null)}
+                open={!!itemToPay}
+                onOpenChange={(open) => !open && setItemToPay(null)}
                 onConfirm={() => { if (itemToPay) approveMutation.mutate(itemToPay) }}
                 title="Mark as Paid"
-                message="Are you sure you want to manually mark this record as paid?"
+                description="Are you sure you want to manually mark this record as paid?"
                 confirmText="Mark Paid"
             />
 
             <ConfirmDialog
-                isOpen={!!processPaymentId}
-                onClose={() => setProcessPaymentId(null)}
+                open={!!processPaymentId}
+                onOpenChange={(open) => !open && setProcessPaymentId(null)}
                 onConfirm={() => { if (processPaymentId) payNowMutation.mutate(processPaymentId) }}
                 title="Process Stripe Transfer"
-                message="This will instantly transfer funds from your platform balance to the instructor's connected Stripe account. This cannot be undone."
+                description="This will instantly transfer funds from your platform balance to the instructor's connected Stripe account. This cannot be undone."
                 confirmText={payNowMutation.isPending ? "Processing..." : "Pay Now"}
             />
         </>

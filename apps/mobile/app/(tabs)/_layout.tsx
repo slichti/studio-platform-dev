@@ -1,6 +1,6 @@
 
 import { Tabs } from 'expo-router';
-import { Home, Calendar, User, Trophy, CreditCard, IconProps } from 'lucide-react-native';
+import { Home, Calendar, User, Trophy, CreditCard } from 'lucide-react-native';
 import { ComponentProps } from 'react';
 
 // Type workaround for lucide-react-native@0.563.0 - LucideProps type is incomplete

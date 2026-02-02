@@ -15,7 +15,7 @@ export function useMember(tenantSlug: string, memberId: string) {
                     'X-Tenant-Slug': tenantSlug
                 }
             });
-            const data = await res.json() as { member: any };
+            const data = await res.json() as { member: any; error?: string };
             if (data.error) throw new Error(data.error);
             return data.member;
         },

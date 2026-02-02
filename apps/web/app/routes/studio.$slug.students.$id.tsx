@@ -312,8 +312,8 @@ export default function StudentProfile() {
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${activeTab === tab.id
-                                    ? "border-blue-600 text-blue-600 dark:text-blue-400"
-                                    : "border-transparent text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+                                ? "border-blue-600 text-blue-600 dark:text-blue-400"
+                                : "border-transparent text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
                                 }`}
                         >
                             {tab.label}
@@ -638,22 +638,22 @@ export default function StudentProfile() {
                 </Dialog>
 
                 <ConfirmDialog
-                    isOpen={!!noteToDelete}
-                    onClose={() => setNoteToDelete(null)}
+                    open={!!noteToDelete}
+                    onOpenChange={(open) => !open && setNoteToDelete(null)}
                     onConfirm={() => { if (noteToDelete) deleteNoteMutation.mutate(noteToDelete); }}
                     title="Delete Note"
-                    message="Are you sure you want to delete this note? This cannot be undone."
+                    description="Are you sure you want to delete this note? This cannot be undone."
                     confirmText="Delete"
                 />
 
                 <ConfirmDialog
-                    isOpen={isDeactivating}
-                    onClose={() => setIsDeactivating(false)}
+                    open={isDeactivating}
+                    onOpenChange={(open) => setIsDeactivating(open)}
                     onConfirm={() => {
                         updateStatusMutation.mutate(member.status === 'active' ? 'inactive' : 'active')
                     }}
                     title={member.status === 'active' ? 'Deactivate Member' : 'Activate Member'}
-                    message={member.status === 'active' ? "This will prevent the member from booking classes. History preserved." : "This will restore access for this member."}
+                    description={member.status === 'active' ? "This will prevent the member from booking classes. History preserved." : "This will restore access for this member."}
                     confirmText={member.status === 'active' ? "Deactivate" : "Activate"}
                 />
 

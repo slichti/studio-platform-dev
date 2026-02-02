@@ -10,9 +10,9 @@ export function DropdownMenu({ children }: { children: React.ReactNode }) {
     )
 }
 
-export function DropdownMenuTrigger({ children, className }: { children: React.ReactNode; className?: string }) {
+export function DropdownMenuTrigger({ children, className, ...props }: { children: React.ReactNode; className?: string } & any) {
     return (
-        <Menu.Button className={cn("inline-flex justify-center", className)}>
+        <Menu.Button className={cn("inline-flex justify-center", className)} {...props}>
             {children}
         </Menu.Button>
     )

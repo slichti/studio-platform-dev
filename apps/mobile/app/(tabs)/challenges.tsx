@@ -93,7 +93,7 @@ export default function ChallengesScreen() {
                                             <View className={`p-3 rounded-xl ${completed ? 'bg-green-100' : 'bg-orange-100'}`}>
                                                 {completed ?
                                                     <Check size={24} color={completed ? '#16a34a' : '#ea580c' as any} /> :
-                                                    <Trophy size={24} color="#ea580c" as any />
+                                                    <Trophy size={24} color="#ea580c" />
                                                 }
                                             </View>
                                             <View className="flex-1">
