@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { createDb } from '../db';
 import { tenants, tenantMembers, tenantRoles, users, auditLogs, websitePages, platformPlans, locations, classes, classSeries } from '@studio/db/src/schema';
 import { eq, and, sql } from 'drizzle-orm';
-import { rateLimit } from '../middleware/rateLimit';
+import { rateLimitMiddleware } from '../middleware/rate-limit';
 
 type Bindings = {
     STRIPE_SECRET_KEY: string;
@@ -45,7 +45,7 @@ app.get('/check-slug', async (c) => {
 });
 
 // POST /studio - Create new tenant & cleanup user
-app.post('/studio', rateLimit({ limit: 5, window: 300, keyPrefix: 'onboarding' }), async (c) => {
+app.post('/studio', rateLimitMiddleware({ limit: 5, window: 300, keyPrefix: 'onboarding' }), async (c) => {
     const auth = c.get('auth');
     if (!auth?.userId) {
         return c.json({ error: "Unauthorized" }, 401);
@@ -337,7 +337,7 @@ app.post('/studio', rateLimit({ limit: 5, window: 300, keyPrefix: 'onboarding' }
 });
 
 // POST /quick-start - Update Tenant & Create First Class
-app.post('/quick-start', rateLimit({ limit: 10, window: 60, keyPrefix: 'quick-start' }), async (c) => {
+app.post('/quick-start', rateLimitMiddleware({ limit: 10, window: 60, keyPrefix: 'quick-start' }), async (c) => {
     try {
         const auth = c.get('auth');
         if (!auth?.userId) return c.json({ error: "Unauthorized" }, 401);
@@ -440,7 +440,7 @@ app.post('/quick-start', rateLimit({ limit: 10, window: 60, keyPrefix: 'quick-st
 });
 
 // POST /quick-start/skip - Mark onboarding as complete without setup
-app.post('/quick-start/skip', rateLimit({ limit: 10, window: 60, keyPrefix: 'quick-start' }), async (c) => {
+app.post('/quick-start/skip', rateLimitMiddleware({ limit: 10, window: 60, keyPrefix: 'quick-start' }), async (c) => {
     const auth = c.get('auth');
     if (!auth?.userId) return c.json({ error: "Unauthorized" }, 401);
 

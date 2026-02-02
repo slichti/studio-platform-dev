@@ -127,6 +127,13 @@ The system uses a global `platform_config` table for system-wide toggles and ver
 *   **Mobile Maintenance Mode**: Globally disables all mobile app connectivity.
 *   **Minimum App Version**: Enforces a mandatory update for all users below a specific version string.
 *   **Feature Gates**: Enables/disables experimental or paid features (e.g., Webhooks) across all tenants.
+### Platform Scalability & Protection
+*   **Dynamic Rate Limiting**:
+    *   **Cost-Based**: Weighted requests (1 point for GET, 10 points for bulk/export) ensure fair resource usage.
+    *   **Global & Granular**:
+        *   Global: 300 req/min/IP.
+        *   Authenticated: 600 req/min/User.
+        *   Isolated Buckets: Public routes (onboarding, booking) have separate counters to prevent DoS.
 
 ## API Layer Structure
 
@@ -147,7 +154,8 @@ flowchart TB
 
     subgraph "Middleware Stack"
         CORS[CORS] --> SENTRY[Sentry]
-        SENTRY --> TENANT[Tenant Resolution]
+        SENTRY --> RATELIMIT[Global Rate Limiter]
+        RATELIMIT --> TENANT[Tenant Resolution]
         TENANT --> AUTHMW[Auth Middleware]
         AUTHMW --> ROUTES[Route Handlers]
     end

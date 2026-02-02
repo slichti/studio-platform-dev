@@ -127,7 +127,7 @@ app.get('/docs', swaggerUI({ url: '/doc' }));
 
 app.use('*', traceMiddleware);
 app.use('*', sentryMiddleware()); // [NEW] Sentry error tracking
-app.use('*', rateLimitMiddleware(300, 60)); // [NEW] Global Rate Limit: 300 req/min
+app.use('*', rateLimitMiddleware({ limit: 300, window: 60 })); // [NEW] Global Rate Limit: 300 req/min
 app.use('*', logger((str, ...rest) => {
   // Custom logger wrapper could go here, but Hono logger is simple.
   // For now we rely on the header being set by traceMiddleware for standard logs
@@ -271,7 +271,7 @@ authenticatedPaths.forEach(path => {
   app.use(path, authMiddleware);
   // [NEW] Granular Rate Limit for Authenticated Users (Higher limit: 600 req/min)
   // This runs AFTER authMiddleware, so it will use the user ID as the key.
-  app.use(path, rateLimitMiddleware(600, 60));
+  app.use(path, rateLimitMiddleware({ limit: 600, window: 60 }));
 });
 
 // then, establish studio context and member status (Tenant)
@@ -287,7 +287,7 @@ const expensivePaths = [
 
 expensivePaths.forEach(path => {
   // These cost 10x a normal request
-  app.use(path, rateLimitMiddleware(600, 60, 10));
+  app.use(path, rateLimitMiddleware({ limit: 600, window: 60, cost: 10 }));
 });
 
 // 4. Infrastructure/Common Studio Logic

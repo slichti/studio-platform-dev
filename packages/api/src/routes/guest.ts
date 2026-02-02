@@ -5,7 +5,7 @@ import * as schema from '@studio/db/src/schema'; // Import all schema
 // Import specific tables for usage
 import { tenants, classes, classSeries, tenantMembers, users, bookings, purchasedPacks } from '@studio/db/src/schema';
 import { eq, and, gte, lte, desc, asc, sql } from 'drizzle-orm';
-import { rateLimit } from '../middleware/rateLimit';
+import { rateLimitMiddleware } from '../middleware/rate-limit';
 
 const app = new Hono<{ Bindings: any }>();
 
@@ -48,7 +48,7 @@ app.get('/schedule/:slug', async (c) => {
 });
 
 // POST /booking - Guest Booking
-app.post('/booking', rateLimit({ limit: 5, window: 60, keyPrefix: 'guest_booking' }), async (c) => {
+app.post('/booking', rateLimitMiddleware({ limit: 5, window: 60, keyPrefix: 'guest_booking' }), async (c) => {
     const db = createDb(c.env.DB);
     const body = await c.req.json();
     const { token, classId, tenantId, guestDetails } = body;
@@ -173,7 +173,7 @@ app.post('/booking', rateLimit({ limit: 5, window: 60, keyPrefix: 'guest_booking
 
 
 // Existing Token Endpoint (kept for reference/usage)
-app.post('/token', rateLimit({ limit: 5, window: 60, keyPrefix: 'guest_token' }), async (c) => {
+app.post('/token', rateLimitMiddleware({ limit: 5, window: 60, keyPrefix: 'guest_token' }), async (c) => {
     const { name, email } = await c.req.json<{ name: string; email: string }>();
 
     if (!email) return c.json({ error: "Email required" }, 400);
@@ -193,7 +193,7 @@ app.post('/token', rateLimit({ limit: 5, window: 60, keyPrefix: 'guest_token' })
 });
 
 // POST /public/chat/start - Start a guest support chat
-app.post('/chat/start', rateLimit({ limit: 3, window: 60, keyPrefix: 'guest_chat_start' }), async (c) => {
+app.post('/chat/start', rateLimitMiddleware({ limit: 3, window: 60, keyPrefix: 'guest_chat_start' }), async (c) => {
     const db = createDb(c.env.DB);
     const body = await c.req.json<{
         tenantSlug: string;

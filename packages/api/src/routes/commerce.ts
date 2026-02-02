@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { createDb } from '../db';
 import { tenants, tenantMembers, coupons, couponRedemptions, classPackDefinitions, giftCards, membershipPlans, users, userRelationships } from '@studio/db/src/schema';
 import { eq, and, gt, sql } from 'drizzle-orm';
-import { rateLimit } from '../middleware/rateLimit';
+import { rateLimitMiddleware } from '../middleware/rate-limit';
 import { HonoContext } from '../types';
 
 const app = new Hono<HonoContext>();
@@ -254,7 +254,7 @@ app.get('/invoices', async (c) => {
 });
 
 // POST /checkout/session
-app.post('/checkout/session', rateLimit({ limit: 10, window: 60, keyPrefix: 'checkout' }), async (c) => {
+app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPrefix: 'checkout' }), async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     const auth = c.get('auth');

@@ -3,7 +3,15 @@ import { Context, Next } from 'hono';
 import { createDb } from '../db';
 import { auditLogs } from '@studio/db/src/schema';
 
-export const rateLimitMiddleware = (limit: number = 300, window: number = 60, cost: number = 1) => {
+export type RateLimitOptions = {
+    limit?: number;
+    window?: number;
+    cost?: number;
+    keyPrefix?: string;
+};
+
+export const rateLimitMiddleware = (options: RateLimitOptions = {}) => {
+    const { limit = 300, window = 60, cost = 1, keyPrefix } = options;
     return async (c: Context, next: Next) => {
         // Skip for OPTIONS (CORS preflight)
         if (c.req.method === 'OPTIONS') {
@@ -33,6 +41,10 @@ export const rateLimitMiddleware = (limit: number = 300, window: number = 60, co
                 const ip = c.req.header('CF-Connecting-IP') || '127.0.0.1';
                 key = `ip:${ip}`;
             }
+        }
+
+        if (keyPrefix) {
+            key = `${keyPrefix}:${key}`;
         }
 
         // Get RateLimiter Stub

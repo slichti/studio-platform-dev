@@ -298,5 +298,15 @@ erDiagram
         timestamp created_at
     }
 
+    audit_logs {
+        string id PK
+        string action
+        string actor_id FK
+        string target_id
+        string ip_address
+        json details
+        timestamp created_at
+    }
+
     tenants ||--o{ tenant_features : "has enabled"
 ```
