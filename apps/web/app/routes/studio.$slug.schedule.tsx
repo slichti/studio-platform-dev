@@ -1,80 +1,65 @@
-// @ts-ignore
-import { useLoaderData, useOutletContext } from "react-router";
-// @ts-ignore
-import type { LoaderFunctionArgs } from "react-router";
-import { getAuth } from "@clerk/react-router/server";
-import { apiRequest } from "../utils/api";
-import { useState, useCallback } from "react";
+import { useParams, useOutletContext } from "react-router";
+import { useState, useCallback, useMemo } from "react";
+import { Plus } from "lucide-react";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+
 import { WeeklyCalendar } from "../components/schedule/WeeklyCalendar";
 import { CreateClassModal } from "../components/CreateClassModal";
 import { ClassDetailModal } from "../components/ClassDetailModal";
 import { BookingModal } from "../components/BookingModal";
-import { Plus } from "lucide-react";
+import { ComponentErrorBoundary } from "~/components/ErrorBoundary";
+import { Button } from "~/components/ui/button";
 
-
-
-export const loader = async (args: LoaderFunctionArgs) => {
-    const { params } = args;
-    const { getToken, userId } = await getAuth(args);
-    if (!userId) {
-        return { classes: [], locations: [], instructors: [], error: "Unauthorized" };
-    }
-    const token = await getToken();
-
-    // Fetch classes, locations, and instructors parallel
-    // Note: Students may get 403 on members/locations endpoints, so catch individually
-    try {
-        const [classes, locationsRes, instructorsRes, familyRes] = await Promise.all([
-            apiRequest("/classes", token, { headers: { 'X-Tenant-Slug': params.slug! } }),
-            apiRequest("/locations", token, { headers: { 'X-Tenant-Slug': params.slug! } }).catch(() => ({ locations: [] })),
-            apiRequest("/members?role=instructor", token, { headers: { 'X-Tenant-Slug': params.slug! } }).catch(() => ({ members: [] })),
-            apiRequest("/users/me/family", token, { headers: { 'X-Tenant-Slug': params.slug! } }).catch(() => ({ family: [] }))
-        ]);
-
-        return {
-            classes: classes || [],
-            locations: (locationsRes as any).locations || [],
-            instructors: (instructorsRes as any).members || [],
-            family: (familyRes as any).family || [],
-            error: null
-        };
-    } catch (e: any) {
-        console.error("Failed to fetch schedule data", e);
-        return { classes: [], locations: [], instructors: [], error: "Failed to load schedule" };
-    }
-};
-
+import { useClasses } from "~/hooks/useClasses";
+import { useUser } from "~/hooks/useUser";
+import { useStudioData } from "~/hooks/useStudioData";
 
 export default function StudioSchedule() {
-    const { classes: initialClasses, locations, instructors, family, error } = useLoaderData<any>();
+    const { slug } = useParams();
+    const queryClient = useQueryClient();
+
+    // Context & Hooks
     const { tenant, me, features, roles, isStudentView } = useOutletContext<any>() || {};
     const canSchedule = !isStudentView && (roles?.includes('owner') || roles?.includes('instructor'));
-    const [classes, setClasses] = useState(initialClasses || []);
+
+    // Data Fetching
+    const { data: classesData = [], isLoading: isLoadingClasses, error } = useClasses(slug!);
+    const { data: studioData } = useStudioData(slug!);
+    const { data: userData } = useUser(slug);
+
+    const family = userData?.family || [];
+    const locations = studioData?.locations || [];
+    const instructors = studioData?.instructors || [];
+
+    // Local State
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
-    const [isBookingOpen, setIsBookingOpen] = useState(false); // New state for booking modal
+    const [isBookingOpen, setIsBookingOpen] = useState(false);
     const [selectedClass, setSelectedClass] = useState<any>(null);
 
-    // Map API classes to Calendar events
-    const events = classes.map((c: any) => ({
+    // Derived State
+    const events = useMemo(() => classesData.map((c: any) => ({
         id: c.id,
         title: c.title,
         start: new Date(c.startTime),
         end: new Date(new Date(c.startTime).getTime() + c.durationMinutes * 60000),
         resource: c
-    }));
+    })), [classesData]);
 
-    const handleCreateSuccess = (newClass: any) => {
-        setClasses([...classes, newClass]);
+    // Handlers
+    const handleCreateSuccess = () => {
+        queryClient.invalidateQueries({ queryKey: ['classes', slug] });
+        setIsCreateOpen(false);
     };
 
     const handleSelectSlot = useCallback(
         ({ start }: { start: Date }) => {
-            // Optional: Pre-fill date when clicking on calendar slot
-            // For now just open modal
-            setIsCreateOpen(true);
+            if (canSchedule) {
+                setIsCreateOpen(true);
+            }
         },
-        []
+        [canSchedule]
     );
 
     const handleSelectEvent = useCallback((event: any) => {
@@ -82,49 +67,13 @@ export default function StudioSchedule() {
         setIsDetailOpen(true);
     }, []);
 
-    const handleRecordingAdded = (classId: string, videoId: string) => {
-        // Update local state to reflect change
-        setClasses(classes.map((c: any) => {
-            if (c.id === classId) {
-                return {
-                    ...c,
-                    cloudflareStreamId: videoId,
-                    recordingStatus: 'processing'
-                };
-            }
-            return c;
-        }));
-    };
-
-    const handleRecordingDeleted = (classId: string) => {
-        setClasses(classes.map((c: any) => {
-            if (c.id === classId) {
-                return {
-                    ...c,
-                    cloudflareStreamId: null,
-                    recordingStatus: null
-                };
-            }
-            return c;
-        }));
-    };
-
-    const handleSubRequested = (classId: string) => {
-        // Since the current instructor requested a sub, we mark local state
-        setClasses(classes.map((c: any) => {
-            if (c.id === classId) {
-                return {
-                    ...c,
-                    substitutions: [{ status: 'pending', id: 'temp-' + Date.now() }] // optimistic update
-                };
-            }
-            return c;
-        }));
+    const refreshClasses = () => {
+        queryClient.invalidateQueries({ queryKey: ['classes', slug] });
     };
 
     return (
-        <div className="p-6 h-screen flex flex-col">
-            <div className="flex justify-between items-center mb-6">
+        <div className="p-6 h-screen flex flex-col space-y-4">
+            <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Schedule</h1>
                     <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
@@ -132,30 +81,23 @@ export default function StudioSchedule() {
                     </p>
                 </div>
                 {canSchedule && (
-                    <button
-                        onClick={() => setIsCreateOpen(true)}
-                        className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors font-medium text-sm"
-                    >
-                        <Plus size={16} />
+                    <Button onClick={() => setIsCreateOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
                         Schedule Class
-                    </button>
+                    </Button>
                 )}
             </div>
 
-            {error && (
-                <div className="bg-red-50 text-red-700 p-4 rounded mb-4 text-sm">
-                    {error}
+            <ComponentErrorBoundary>
+                <div className="flex-1 overflow-hidden bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-800">
+                    <WeeklyCalendar
+                        events={events}
+                        onSelectEvent={handleSelectEvent}
+                        onSelectSlot={handleSelectSlot}
+                        defaultDate={new Date()}
+                    />
                 </div>
-            )}
-
-            <div className="flex-1 overflow-hidden">
-                <WeeklyCalendar
-                    events={events}
-                    onSelectEvent={handleSelectEvent}
-                    onSelectSlot={handleSelectSlot}
-                    defaultDate={new Date()}
-                />
-            </div>
+            </ComponentErrorBoundary>
 
             <CreateClassModal
                 isOpen={isCreateOpen}
@@ -171,14 +113,14 @@ export default function StudioSchedule() {
                 onClose={() => setIsDetailOpen(false)}
                 classEvent={selectedClass}
 
-                onRecordingAdded={handleRecordingAdded}
-                onRecordingDeleted={handleRecordingDeleted}
+                onRecordingAdded={refreshClasses}
+                onRecordingDeleted={refreshClasses}
                 canAttachRecording={features?.has('vod')}
 
                 currentUserMemberId={me?.member?.id}
                 userRoles={me?.roles}
                 tenantSlug={tenant?.slug}
-                onSubRequested={handleSubRequested}
+                onSubRequested={refreshClasses}
                 onBookRequested={() => {
                     setIsDetailOpen(false);
                     setIsBookingOpen(true);
@@ -189,7 +131,7 @@ export default function StudioSchedule() {
                 isOpen={isBookingOpen}
                 onClose={() => setIsBookingOpen(false)}
                 classEvent={selectedClass}
-                family={family || []}
+                family={family}
             />
         </div>
     );
