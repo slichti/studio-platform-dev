@@ -130,16 +130,49 @@ export default function App() {
 export function ErrorBoundary() {
     const error = useRouteError();
     console.error(error);
+
     return (
-        <html lang="en">
+        <html lang="en" className="h-full">
             <head>
-                <title>Oh no!</title>
+                <title>Application Error</title>
                 <Meta />
                 <Links />
             </head>
-            <body style={{ padding: "20px", fontFamily: "system-ui" }}>
-                <h1>App Error</h1>
-                <pre>{error instanceof Error ? error.message : JSON.stringify(error)}</pre>
+            <body className="h-full flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-50">
+                <div className="w-full max-w-md p-6 space-y-6 text-center">
+                    <div className="flex justify-center">
+                        <div className="rounded-full bg-red-100 p-3 dark:bg-red-900/20">
+                            <svg className="h-8 w-8 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <h1 className="text-2xl font-semibold tracking-tight">System Error</h1>
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                            We encountered an unexpected issue. Please try refreshing the page.
+                        </p>
+                    </div>
+
+                    <div className="bg-zinc-100 dark:bg-zinc-900 rounded-md p-4 text-left overflow-auto max-h-48 text-xs font-mono border border-zinc-200 dark:border-zinc-800">
+                        {error instanceof Error ? error.message : JSON.stringify(error)}
+                    </div>
+
+                    <div className="flex gap-4 justify-center">
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 dark:ring-offset-zinc-950 dark:focus-visible:ring-zinc-300 bg-zinc-900 text-zinc-50 hover:bg-zinc-900/90 h-10 px-4 py-2 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-50/90"
+                        >
+                            Reload Page
+                        </button>
+                        <a
+                            href="/"
+                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 dark:ring-offset-zinc-950 dark:focus-visible:ring-zinc-300 border border-zinc-200 bg-white hover:bg-zinc-100 hover:text-zinc-900 h-10 px-4 py-2 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
+                        >
+                            Go Home
+                        </a>
+                    </div>
+                </div>
                 <Scripts />
             </body>
         </html>

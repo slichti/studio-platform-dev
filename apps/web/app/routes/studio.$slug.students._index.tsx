@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "~/components/ui/DropdownMenu";
 import { ConfirmationDialog } from "~/components/Dialogs";
 import { useMembers } from "~/hooks/useMembers";
+import { ComponentErrorBoundary } from "~/components/ErrorBoundary";
 import { apiRequest } from "~/utils/api";
 import { cn } from "~/lib/utils";
 
@@ -214,100 +215,102 @@ export default function StudioStudents() {
                 </div>
             </div>
 
-            <Card className="overflow-hidden">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-10">
-                                <input type="checkbox"
-                                    className="rounded border-zinc-300 dark:border-zinc-700"
-                                    checked={filteredMembers.length > 0 && selectedIds.size === filteredMembers.length}
-                                    onChange={toggleSelectAll}
-                                />
-                            </TableHead>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Joined</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {isLoading ? (
-                            Array.from({ length: 5 }).map((_, i) => (
-                                <TableRow key={i}>
-                                    <TableCell colSpan={5}>
-                                        <div className="h-10 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : filteredMembers.length === 0 ? (
+            <ComponentErrorBoundary>
+                <Card className="overflow-hidden">
+                    <Table>
+                        <TableHeader>
                             <TableRow>
-                                <TableCell colSpan={5} className="text-center italic">No students found.</TableCell>
+                                <TableHead className="w-10">
+                                    <input type="checkbox"
+                                        className="rounded border-zinc-300 dark:border-zinc-700"
+                                        checked={filteredMembers.length > 0 && selectedIds.size === filteredMembers.length}
+                                        onChange={toggleSelectAll}
+                                    />
+                                </TableHead>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Joined</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
-                        ) : (
-                            filteredMembers.map((member: any) => (
-                                <TableRow key={member.id} className={cn(selectedIds.has(member.id) && "bg-blue-50/50 dark:bg-blue-900/10")}>
-                                    <TableCell>
-                                        <input type="checkbox"
-                                            className="rounded border-zinc-300 dark:border-zinc-700"
-                                            checked={selectedIds.has(member.id)}
-                                            onChange={() => toggleSelect(member.id)}
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                        <Link to={member.id} className="flex items-center gap-3 group">
-                                            <div className="h-9 w-9 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500 font-medium group-hover:bg-zinc-200 dark:bg-zinc-800">
-                                                {(member.profile?.firstName?.[0] || 'U')}
-                                            </div>
-                                            <div>
-                                                <div className="font-medium text-zinc-900 group-hover:underline dark:text-zinc-50">
-                                                    {member.profile?.firstName} {member.profile?.lastName}
-                                                </div>
-                                                <div className="text-xs text-zinc-500">{member.user?.email}</div>
-                                            </div>
-                                        </Link>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant={member.status === 'active' ? 'success' : 'secondary'}>
-                                            {member.status}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-zinc-500 dark:text-zinc-400">
-                                        {format(new Date(member.joinedAt || new Date()), 'MMM d, yyyy')}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger>
-                                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                                    <span className="sr-only">Open menu</span>
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent>
-                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                <DropdownMenuItem onClick={() => setEditingMember(member)}>
-                                                    Manage Role
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => navigator.clipboard.writeText(member.user?.email)}>
-                                                    Copy Email
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => setEditingMember(member)}>
-                                                    Remove Student
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
+                        </TableHeader>
+                        <TableBody>
+                            {isLoading ? (
+                                Array.from({ length: 5 }).map((_, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell colSpan={5}>
+                                            <div className="h-10 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            ) : filteredMembers.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="text-center italic">No students found.</TableCell>
                                 </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
+                            ) : (
+                                filteredMembers.map((member: any) => (
+                                    <TableRow key={member.id} className={cn(selectedIds.has(member.id) && "bg-blue-50/50 dark:bg-blue-900/10")}>
+                                        <TableCell>
+                                            <input type="checkbox"
+                                                className="rounded border-zinc-300 dark:border-zinc-700"
+                                                checked={selectedIds.has(member.id)}
+                                                onChange={() => toggleSelect(member.id)}
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Link to={member.id} className="flex items-center gap-3 group">
+                                                <div className="h-9 w-9 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500 font-medium group-hover:bg-zinc-200 dark:bg-zinc-800">
+                                                    {(member.profile?.firstName?.[0] || 'U')}
+                                                </div>
+                                                <div>
+                                                    <div className="font-medium text-zinc-900 group-hover:underline dark:text-zinc-50">
+                                                        {member.profile?.firstName} {member.profile?.lastName}
+                                                    </div>
+                                                    <div className="text-xs text-zinc-500">{member.user?.email}</div>
+                                                </div>
+                                            </Link>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant={member.status === 'active' ? 'success' : 'secondary'}>
+                                                {member.status}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-zinc-500 dark:text-zinc-400">
+                                            {format(new Date(member.joinedAt || new Date()), 'MMM d, yyyy')}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger>
+                                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                                        <span className="sr-only">Open menu</span>
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent>
+                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                    <DropdownMenuItem onClick={() => setEditingMember(member)}>
+                                                        Manage Role
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => navigator.clipboard.writeText(member.user?.email)}>
+                                                        Copy Email
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => setEditingMember(member)}>
+                                                        Remove Student
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
 
-                <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 text-center text-xs text-zinc-500">
-                    Showing {filteredMembers.length} member{filteredMembers.length !== 1 && 's'}
-                </div>
-            </Card>
+                    <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 text-center text-xs text-zinc-500">
+                        Showing {filteredMembers.length} member{filteredMembers.length !== 1 && 's'}
+                    </div>
+                </Card>
+            </ComponentErrorBoundary>
 
             <Dialog open={isAddingMember} onOpenChange={setIsAddingMember}>
                 <DialogContent>
