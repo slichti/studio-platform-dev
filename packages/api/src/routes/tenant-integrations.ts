@@ -6,6 +6,8 @@ import { HonoContext } from '../types';
 
 const app = new OpenAPIHono<HonoContext>();
 
+import { ErrorResponseSchema, SuccessResponseSchema } from '../lib/openapi';
+
 // --- Schemas ---
 
 const WebhookEndpointSchema = z.object({
@@ -37,8 +39,6 @@ const CredentialsSchema = z.object({
     flodesk: z.object({ configured: z.boolean() })
 });
 
-const ErrorResponse = z.object({ error: z.string() });
-
 // --- Routes ---
 
 // GET /webhooks
@@ -49,7 +49,7 @@ const listWebhooksRoute = createRoute({
     summary: 'List webhook endpoints',
     responses: {
         200: { content: { 'application/json': { schema: z.object({ endpoints: z.array(WebhookEndpointSchema) }) } }, description: 'List of endpoints' },
-        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized' }
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' }
     }
 });
 
@@ -94,8 +94,8 @@ const createWebhookRoute = createRoute({
     },
     responses: {
         200: { content: { 'application/json': { schema: z.object({ success: z.boolean(), id: z.string(), secret: z.string() }) } }, description: 'Created' },
-        400: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Bad Request' },
-        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized' }
+        400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Bad Request' },
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' }
     }
 });
 
@@ -131,8 +131,8 @@ const updateWebhookRoute = createRoute({
         }
     },
     responses: {
-        200: { content: { 'application/json': { schema: z.object({ success: z.boolean() }) } }, description: 'Updated' },
-        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized' }
+        200: { content: { 'application/json': { schema: SuccessResponseSchema } }, description: 'Updated' },
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' }
     }
 });
 
@@ -160,8 +160,8 @@ const listWebhookLogsRoute = createRoute({
     },
     responses: {
         200: { content: { 'application/json': { schema: z.object({ logs: z.array(WebhookLogSchema) }) } }, description: 'Logs' },
-        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized' },
-        404: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Not found' }
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' },
+        404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Not found' }
     }
 });
 
@@ -196,9 +196,9 @@ const testWebhookRoute = createRoute({
     },
     responses: {
         200: { content: { 'application/json': { schema: z.object({ success: z.boolean(), statusCode: z.number(), responseBody: z.string().optional() }) } }, description: 'Test sent' },
-        400: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Failed to send' },
-        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized' },
-        404: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Not found' }
+        400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Failed to send' },
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' },
+        404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Not found' }
     }
 });
 
@@ -261,7 +261,7 @@ const getCredentialsRoute = createRoute({
     summary: 'Get integration credentials status',
     responses: {
         200: { content: { 'application/json': { schema: CredentialsSchema } }, description: 'Credentials status' },
-        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized' }
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' }
     }
 });
 
@@ -295,8 +295,8 @@ const updateCredentialsRoute = createRoute({
         }
     },
     responses: {
-        200: { content: { 'application/json': { schema: z.object({ success: z.boolean() }) } }, description: 'Updated' },
-        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized' }
+        200: { content: { 'application/json': { schema: SuccessResponseSchema } }, description: 'Updated' },
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' }
     }
 });
 

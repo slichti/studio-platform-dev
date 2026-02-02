@@ -4,6 +4,8 @@ import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings, tenants, marketingAutomations, emailLogs, coupons, automationLogs, purchasedPacks, waiverSignatures } from '@studio/db/src/schema';
 import { HonoContext } from '../types';
 
+import { ErrorResponseSchema, SuccessResponseSchema } from '../lib/openapi';
+
 const app = new OpenAPIHono<HonoContext>();
 
 // --- Schemas ---
@@ -32,11 +34,6 @@ const MemberListResponse = z.object({
     members: z.array(MemberSchema)
 });
 
-const ErrorResponse = z.object({
-    error: z.string(),
-    code: z.string().optional()
-});
-
 const SettingsSchema = z.record(z.any()).openapi('MemberSettings');
 
 // --- Routes ---
@@ -58,7 +55,7 @@ const listMembersRoute = createRoute({
             description: 'List of members'
         },
         403: {
-            content: { 'application/json': { schema: ErrorResponse } },
+            content: { 'application/json': { schema: ErrorResponseSchema } },
             description: 'Unauthorized'
         }
     }
@@ -108,9 +105,9 @@ const createMemberRoute = createRoute({
             content: { 'application/json': { schema: z.object({ success: z.boolean(), memberId: z.string() }) } },
             description: 'Member created'
         },
-        400: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Bad Request' },
-        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Forbidden' },
-        409: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Conflict' }
+        400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Bad Request' },
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Forbidden' },
+        409: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Conflict' }
     }
 });
 
@@ -173,10 +170,10 @@ const deleteMemberRoute = createRoute({
         params: z.object({ id: z.string() })
     },
     responses: {
-        200: { content: { 'application/json': { schema: z.object({ success: z.boolean() }) } }, description: 'Archived' },
-        400: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Bad Request' },
-        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized' },
-        404: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Not found' }
+        200: { content: { 'application/json': { schema: SuccessResponseSchema } }, description: 'Archived' },
+        400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Bad Request' },
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' },
+        404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Not found' }
     }
 });
 
@@ -206,9 +203,9 @@ const acceptInviteRoute = createRoute({
     },
     responses: {
         200: { content: { 'application/json': { schema: z.object({ success: z.boolean(), tenantId: z.string() }) } }, description: 'Accepted' },
-        401: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized' },
-        404: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Invalid token' },
-        409: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Already joined' }
+        401: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' },
+        404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Invalid token' },
+        409: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Already joined' }
     }
 });
 
@@ -237,7 +234,7 @@ const getMyBookingsRoute = createRoute({
     summary: 'Get current member bookings',
     responses: {
         200: { content: { 'application/json': { schema: z.object({ bookings: z.array(z.any()) }) } }, description: 'List of bookings' },
-        404: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Not a member' }
+        404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Not a member' }
     }
 });
 
@@ -257,7 +254,7 @@ const getMeRoute = createRoute({
     summary: 'Get current member details',
     responses: {
         200: { content: { 'application/json': { schema: z.object({ member: z.any() }) } }, description: 'Member details' }, // Relaxed schema
-        404: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Not a member' }
+        404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Not a member' }
     }
 });
 
@@ -286,7 +283,7 @@ const updateMySettingsRoute = createRoute({
     },
     responses: {
         200: { content: { 'application/json': { schema: z.object({ success: z.boolean(), settings: SettingsSchema }) } }, description: 'Updated' },
-        404: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Not a member' }
+        404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Not a member' }
     }
 });
 
@@ -313,10 +310,10 @@ const updateMemberRoleRoute = createRoute({
         }
     },
     responses: {
-        200: { content: { 'application/json': { schema: z.object({ success: z.boolean() }) } }, description: 'Role updated' },
-        400: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Bad Request / Self' },
-        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized / Limit' },
-        404: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Not found' }
+        200: { content: { 'application/json': { schema: SuccessResponseSchema } }, description: 'Role updated' },
+        400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Bad Request / Self' },
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized / Limit' },
+        404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Not found' }
     }
 });
 
@@ -373,7 +370,7 @@ const getMemberNotesRoute = createRoute({
     },
     responses: {
         200: { content: { 'application/json': { schema: z.object({ notes: z.array(z.any()) }) } }, description: 'Notes' },
-        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized' }
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' }
     }
 });
 
@@ -398,8 +395,8 @@ const createMemberNoteRoute = createRoute({
     },
     responses: {
         200: { content: { 'application/json': { schema: z.object({ note: z.any() }) } }, description: 'Note created' }, // Schema could be tighter
-        400: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Author error' },
-        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized' }
+        400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Author error' },
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' }
     }
 });
 
@@ -428,8 +425,8 @@ const updateMemberStatusRoute = createRoute({
     },
     responses: {
         200: { content: { 'application/json': { schema: z.object({ success: z.boolean(), status: z.string() }) } }, description: 'Status updated' },
-        400: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Self modification' },
-        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized' }
+        400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Self modification' },
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' }
     }
 });
 
@@ -467,8 +464,8 @@ const bulkMemberActionRoute = createRoute({
     },
     responses: {
         200: { content: { 'application/json': { schema: z.object({ success: z.boolean(), affected: z.number() }) } }, description: 'Action complete' },
-        400: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Some not found' },
-        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized' }
+        400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Some not found' },
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' }
     }
 });
 
