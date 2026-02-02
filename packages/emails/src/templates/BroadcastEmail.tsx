@@ -14,7 +14,7 @@ interface BroadcastEmailProps {
 }
 
 export const BroadcastEmail = ({
-    content,
+    content = "",
     subject,
     studioName,
     ...baseProps
