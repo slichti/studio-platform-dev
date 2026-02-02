@@ -1,4 +1,5 @@
-import { z } from '@hono/zod-openapi';
+import { OpenAPIHono, z } from '@hono/zod-openapi';
+import { Bindings, Variables } from '../types';
 
 /**
  * Standard Error Response Schema
@@ -40,3 +41,7 @@ export const ValidationErrorSchema = z.object({
         message: z.string(),
     })),
 }).openapi('ValidationError');
+
+export function createOpenAPIApp<V extends Variables = Variables>() {
+    return new OpenAPIHono<{ Bindings: Bindings, Variables: V }>();
+}

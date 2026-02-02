@@ -35,19 +35,24 @@ export interface Bindings {
 }
 
 export interface Variables {
-    auth: { userId: string; claims?: any };
+    auth: { userId: string; claims: any };
     roles?: string[];
     permissions?: Set<string>;
     can: (permission: string) => boolean;
-    tenant?: typeof tenants.$inferSelect;
+    tenant: typeof tenants.$inferSelect;
     member?: any; // often includes user relation
     user?: typeof users.$inferSelect;
     traceId?: string;
     features: Set<string>;
     isImpersonating?: boolean;
+    validated_json?: any;
     emailApiKey?: string;
     email: EmailService;
     twilioCredentials?: { accountSid: string; authToken: string; fromNumber: string };
+}
+
+export interface StudioVariables extends Variables {
+    tenant: typeof tenants.$inferSelect;
 }
 
 export type HonoContext = {

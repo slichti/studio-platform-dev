@@ -66,54 +66,15 @@ import customFieldRoutes from './routes/custom-fields'; // [NEW] Custom Fields
 import auditLogRoutes from './routes/audit-logs'; // [NEW] Audit Logs
 import docRoutes from './routes/docs'; // [NEW] Docs
 
-export type Bindings = {
-  DB: D1Database;
-  CLERK_SECRET_KEY: string;
-  CLERK_PEM_PUBLIC_KEY: string;
-  ZOOM_ACCOUNT_ID: string;
-  ZOOM_CLIENT_ID: string;
-  ZOOM_CLIENT_SECRET: string;
-  ZOOM_WEBHOOK_SECRET_TOKEN: string;
-  CLOUDFLARE_ACCOUNT_ID: string;
-  CLOUDFLARE_API_TOKEN: string;
-  STRIPE_SECRET_KEY: string;
-  STRIPE_PUBLISHABLE_KEY: string;
-  STRIPE_CLIENT_ID: string;
-  RESEND_API_KEY: string;
-  CLERK_WEBHOOK_SECRET: string;
-  R2: R2Bucket;
-  ENCRYPTION_SECRET: string;
-  LIVEKIT_API_KEY: string;
-  LIVEKIT_API_SECRET: string;
-  GOOGLE_CLIENT_ID: string;
-  GOOGLE_CLIENT_SECRET: string;
-  CLOUDFLARE_STREAM_ACCOUNT_ID: string;
-  CLOUDFLARE_STREAM_API_TOKEN: string;
-  RATE_LIMITER: DurableObjectNamespace;
-  METRICS: DurableObjectNamespace;
-};
-
-export type Variables = {
-  tenant: typeof tenants.$inferSelect;
-  member?: any; // Includes user relation from 'with' query
-  roles?: string[];
-  auth: {
-    userId: string | null;
-    claims: any;
-  };
-  features: Set<string>;
-  isImpersonating?: boolean;
-  validated_json?: any;
-};
-
-import { OpenAPIHono } from '@hono/zod-openapi';
+import { createOpenAPIApp } from './lib/openapi';
+import { Bindings, Variables, StudioVariables } from './types';
 import { swaggerUI } from '@hono/swagger-ui';
 import { traceMiddleware } from './middleware/trace';
 import { sentryMiddleware } from './middleware/sentry';
 
 // ...
 
-const app = new OpenAPIHono<{ Bindings: Bindings, Variables: Variables }>()
+const app = createOpenAPIApp()
 
 app.doc('/doc', {
   openapi: '3.0.0',
@@ -291,7 +252,8 @@ expensivePaths.forEach(path => {
 });
 
 // 4. Infrastructure/Common Studio Logic
-const studioApp = new OpenAPIHono<{ Bindings: Bindings, Variables: Variables }>()
+// 4. Infrastructure/Common Studio Logic
+const studioApp = createOpenAPIApp()
 
 // 5. Setup Feature Route sub-apps (will be mounted in next step)
 // 5. Setup Feature Route sub-apps (will be mounted in next step)
