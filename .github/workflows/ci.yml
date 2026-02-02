@@ -16,7 +16,7 @@ jobs:
           node-version: 'lts/*'
       - run: corepack enable && corepack prepare npm@11.7.0 --activate
       - run: npm --version
-      - run: npm install
+      - run: npm ci
       - run: npm run lint
         env:
           ESLINT_USE_FLAT_CONFIG: false
@@ -34,7 +34,7 @@ jobs:
         with:
           node-version: 'lts/*'
       - run: corepack enable && corepack prepare npm@11.7.0 --activate
-      - run: npm install
+      - run: npm ci
       - run: ls -la node_modules/semver/ && ls -la node_modules/pathe/dist/shared/
       - uses: cloudflare/wrangler-action@v3
         with:
@@ -52,7 +52,7 @@ jobs:
         with:
           node-version: 'lts/*'
       - run: corepack enable && corepack prepare npm@11.7.0 --activate
-      - run: npm install
+      - run: npm ci
       - run: ls -la node_modules/semver/ && ls -la node_modules/pathe/dist/shared/
       - run: npm run build --workspace=apps/web
       - run: npx wrangler pages deploy build/client --project-name studio-platform-web --branch main --commit-dirty=true
