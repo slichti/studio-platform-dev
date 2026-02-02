@@ -34,7 +34,9 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
 
     const now = new Date();
 
-    return await db.transaction(async (tx: any) => {
+    // db.transaction is causing "Failed query: begin params:" on D1 (which doesn't support BEGIN statement)
+    // Running sequentially without transaction for now.
+    const runSeed = async (tx: any) => {
         // 1. Create Tenant
         let tenant = await tx.select().from(tenants).where(eq(tenants.slug, tenantSlug)).get();
         if (!tenant) {
@@ -279,5 +281,7 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
         await tx.insert(products).values(productValues).onConflictDoNothing();
 
         return tenant;
-    });
+    };
+
+    return await runSeed(db);
 }
