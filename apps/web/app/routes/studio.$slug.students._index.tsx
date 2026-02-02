@@ -1,6 +1,6 @@
 import { useParams, Link, useOutletContext } from "react-router";
 import { useState } from "react";
-import { Search, UserPlus, Filter, MoreHorizontal, Mail, ArrowUpDown, X, UserMinus, ShieldCheck, Download } from "lucide-react";
+import { Search, UserPlus, Filter, MoreHorizontal } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -10,7 +10,11 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/components/ui/Card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "~/components/ui/dialog";
-import { ConfirmationDialog } from "~/components/Dialogs"; // Keeping existing custom dialog for now if complex, or refactor later
+import { Badge } from "~/components/ui/Badge";
+import { Select } from "~/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/Table";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "~/components/ui/DropdownMenu";
+import { ConfirmationDialog } from "~/components/Dialogs";
 import { useMembers } from "~/hooks/useMembers";
 import { apiRequest } from "~/utils/api";
 import { cn } from "~/lib/utils";
@@ -32,9 +36,6 @@ export default function StudioStudents() {
     const [editingMember, setEditingMember] = useState<any | null>(null);
     const [pendingRoleChange, setPendingRoleChange] = useState<{ memberId: string, newRole: string } | null>(null);
 
-    // Bulk Action State
-    const [bulkAction, setBulkAction] = useState<'email' | 'status' | 'sms_consent' | null>(null);
-
     // FETCH DATA using useMembers hook
     const { data: members = [], isLoading, error } = useMembers(slug || '');
 
@@ -48,7 +49,6 @@ export default function StudioStudents() {
         return matchesSearch && matchesStatus;
     });
 
-    // Mutations (kept inline for now, but using invalidateQueries)
     const handleAddMember = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -155,14 +155,12 @@ export default function StudioStudents() {
                 </div>
             </div>
 
-            {/* ERROR STATE */}
             {error && (
                 <div className="p-4 bg-red-50 text-red-700 rounded border border-red-100 dark:bg-red-900/10 dark:text-red-400 dark:border-red-900/20">
                     Failed to load members. Please try again.
                 </div>
             )}
 
-            {/* METRICS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card>
                     <CardHeader className="pb-2">
@@ -188,7 +186,6 @@ export default function StudioStudents() {
                 </Card>
             </div>
 
-            {/* FILTERS */}
             <div className="flex items-center gap-4">
                 <div className="relative flex-1 max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
@@ -217,86 +214,101 @@ export default function StudioStudents() {
                 </div>
             </div>
 
-            {/* TABLE */}
             <Card className="overflow-hidden">
-                <div className="relative w-full overflow-auto">
-                    <table className="w-full text-sm text-left">
-                        <thead className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
-                            <tr>
-                                <th className="px-6 py-3 w-10">
-                                    <input type="checkbox"
-                                        className="rounded border-zinc-300 dark:border-zinc-700"
-                                        checked={filteredMembers.length > 0 && selectedIds.size === filteredMembers.length}
-                                        onChange={toggleSelectAll}
-                                    />
-                                </th>
-                                <th className="px-6 py-3 font-medium text-zinc-500 dark:text-zinc-400">Name</th>
-                                <th className="px-6 py-3 font-medium text-zinc-500 dark:text-zinc-400">Status</th>
-                                <th className="px-6 py-3 font-medium text-zinc-500 dark:text-zinc-400">Joined</th>
-                                <th className="px-6 py-3 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                            {isLoading ? (
-                                Array.from({ length: 5 }).map((_, i) => (
-                                    <tr key={i}>
-                                        <td className="p-4" colSpan={5}>
-                                            <div className="h-10 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : filteredMembers.length === 0 ? (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-8 text-center text-zinc-500 italic">No students found.</td>
-                                </tr>
-                            ) : (
-                                filteredMembers.map((member: any) => (
-                                    <tr key={member.id} className={cn("hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors", selectedIds.has(member.id) && "bg-blue-50/50 dark:bg-blue-900/10")}>
-                                        <td className="px-6 py-4">
-                                            <input type="checkbox"
-                                                className="rounded border-zinc-300 dark:border-zinc-700"
-                                                checked={selectedIds.has(member.id)}
-                                                onChange={() => toggleSelect(member.id)}
-                                            />
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <Link to={member.id} className="flex items-center gap-3 group">
-                                                <div className="h-9 w-9 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500 font-medium group-hover:bg-zinc-200 dark:bg-zinc-800">
-                                                    {(member.profile?.firstName?.[0] || 'U')}
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="w-10">
+                                <input type="checkbox"
+                                    className="rounded border-zinc-300 dark:border-zinc-700"
+                                    checked={filteredMembers.length > 0 && selectedIds.size === filteredMembers.length}
+                                    onChange={toggleSelectAll}
+                                />
+                            </TableHead>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Joined</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {isLoading ? (
+                            Array.from({ length: 5 }).map((_, i) => (
+                                <TableRow key={i}>
+                                    <TableCell colSpan={5}>
+                                        <div className="h-10 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : filteredMembers.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={5} className="text-center italic">No students found.</TableCell>
+                            </TableRow>
+                        ) : (
+                            filteredMembers.map((member: any) => (
+                                <TableRow key={member.id} className={cn(selectedIds.has(member.id) && "bg-blue-50/50 dark:bg-blue-900/10")}>
+                                    <TableCell>
+                                        <input type="checkbox"
+                                            className="rounded border-zinc-300 dark:border-zinc-700"
+                                            checked={selectedIds.has(member.id)}
+                                            onChange={() => toggleSelect(member.id)}
+                                        />
+                                    </TableCell>
+                                    <TableCell>
+                                        <Link to={member.id} className="flex items-center gap-3 group">
+                                            <div className="h-9 w-9 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500 font-medium group-hover:bg-zinc-200 dark:bg-zinc-800">
+                                                {(member.profile?.firstName?.[0] || 'U')}
+                                            </div>
+                                            <div>
+                                                <div className="font-medium text-zinc-900 group-hover:underline dark:text-zinc-50">
+                                                    {member.profile?.firstName} {member.profile?.lastName}
                                                 </div>
-                                                <div>
-                                                    <div className="font-medium text-zinc-900 group-hover:underline dark:text-zinc-50">
-                                                        {member.profile?.firstName} {member.profile?.lastName}
-                                                    </div>
-                                                    <div className="text-xs text-zinc-500">{member.user?.email}</div>
-                                                </div>
-                                            </Link>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize",
-                                                member.status === 'active' ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-400"
-                                            )}>
-                                                {member.status}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-zinc-500 dark:text-zinc-400">
-                                            {format(new Date(member.joinedAt || new Date()), 'MMM d, yyyy')}
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <Button variant="ghost" size="sm" onClick={() => setEditingMember(member)}>Edit</Button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                                                <div className="text-xs text-zinc-500">{member.user?.email}</div>
+                                            </div>
+                                        </Link>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant={member.status === 'active' ? 'success' : 'secondary'}>
+                                            {member.status}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-zinc-500 dark:text-zinc-400">
+                                        {format(new Date(member.joinedAt || new Date()), 'MMM d, yyyy')}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger>
+                                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                                    <span className="sr-only">Open menu</span>
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent>
+                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                <DropdownMenuItem onClick={() => setEditingMember(member)}>
+                                                    Manage Role
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => navigator.clipboard.writeText(member.user?.email)}>
+                                                    Copy Email
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => setEditingMember(member)}>
+                                                    Remove Student
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        )}
+                    </TableBody>
+                </Table>
+
                 <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 text-center text-xs text-zinc-500">
                     Showing {filteredMembers.length} member{filteredMembers.length !== 1 && 's'}
                 </div>
             </Card>
 
-            {/* ADD MEMBER MODAL */}
             <Dialog open={isAddingMember} onOpenChange={setIsAddingMember}>
                 <DialogContent>
                     <DialogHeader>
@@ -328,7 +340,6 @@ export default function StudioStudents() {
                 </DialogContent>
             </Dialog>
 
-            {/* EDIT MEMBER MODAL */}
             <Dialog open={!!editingMember} onOpenChange={(open) => !open && setEditingMember(null)}>
                 <DialogContent>
                     <DialogHeader>
@@ -339,7 +350,7 @@ export default function StudioStudents() {
                         <div className="space-y-6 py-4">
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Role</label>
-                                <select
+                                <Select
                                     className="flex h-10 w-full items-center justify-between rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:placeholder:text-zinc-400 dark:focus:ring-zinc-300"
                                     value={(Array.isArray(editingMember.roles) ? editingMember.roles : []).find((r: any) => r.role === 'owner' || r.role === 'instructor')?.role || 'student'}
                                     onChange={(e) => setPendingRoleChange({ memberId: editingMember.id, newRole: e.target.value })}
@@ -347,7 +358,7 @@ export default function StudioStudents() {
                                 >
                                     <option value="student">Student</option>
                                     <option value="instructor">Instructor</option>
-                                </select>
+                                </Select>
                             </div>
 
                             <div className="rounded-md border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-900/20">

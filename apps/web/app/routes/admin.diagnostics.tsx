@@ -112,7 +112,7 @@ export default function AdminDiagnostics() {
                                 {data.status === 'ok' ? (
                                     <Badge variant="default" className="bg-green-600 hover:bg-green-700">Operational</Badge>
                                 ) : (
-                                    <Badge variant="error">Degraded</Badge>
+                                    <Badge variant="destructive">Degraded</Badge>
                                 )}
                             </div>
                         ) : (
