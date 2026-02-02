@@ -14,7 +14,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
       - run: corepack enable && corepack prepare npm@11.7.0 --activate
       - run: npm --version
       - run: npm install
@@ -34,7 +33,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
       - run: corepack enable && corepack prepare npm@11.7.0 --activate
       - run: npm install
       - uses: cloudflare/wrangler-action@v3
@@ -52,7 +50,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
       - run: corepack enable && corepack prepare npm@11.7.0 --activate
       - run: npm install
       - run: npm run build --workspace=apps/web
