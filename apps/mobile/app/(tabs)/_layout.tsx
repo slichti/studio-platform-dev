@@ -1,6 +1,13 @@
 
 import { Tabs } from 'expo-router';
-import { Home, Calendar, User, Trophy, CreditCard } from 'lucide-react-native';
+import { Home, Calendar, User, Trophy, CreditCard, IconProps } from 'lucide-react-native';
+import { ComponentProps } from 'react';
+
+// Type workaround for lucide-react-native@0.563.0 - LucideProps type is incomplete
+type IconComponent = typeof Home;
+const Icon = ({ component: Component, color, size }: { component: IconComponent; color: string; size: number }) => (
+  <Component size={size} color={color as ComponentProps<IconComponent>['color']} />
+);
 
 export default function TabLayout() {
   return (
@@ -24,35 +31,35 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <Home size={24} color={color} />,
+          tabBarIcon: ({ color }) => <Icon component={Home} size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="schedule"
         options={{
           title: 'Schedule',
-          tabBarIcon: ({ color }) => <Calendar size={24} color={color} />,
+          tabBarIcon: ({ color }) => <Icon component={Calendar} size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="shop"
         options={{
           title: 'Shop',
-          tabBarIcon: ({ color }) => <CreditCard size={24} color={color} />,
+          tabBarIcon: ({ color }) => <Icon component={CreditCard} size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => <User size={24} color={color} />,
+          tabBarIcon: ({ color }) => <Icon component={User} size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="challenges"
         options={{
           title: 'Challenges',
-          tabBarIcon: ({ color }) => <Trophy size={24} color={color} />,
+          tabBarIcon: ({ color }) => <Icon component={Trophy} size={24} color={color} />,
         }}
       />
     </Tabs>

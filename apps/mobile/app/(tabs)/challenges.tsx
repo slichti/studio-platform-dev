@@ -92,8 +92,8 @@ export default function ChallengesScreen() {
                                         <View className="flex-row items-start gap-4">
                                             <View className={`p-3 rounded-xl ${completed ? 'bg-green-100' : 'bg-orange-100'}`}>
                                                 {completed ?
-                                                    <Check size={24} color={completed ? '#16a34a' : '#ea580c'} /> :
-                                                    <Trophy size={24} color="#ea580c" />
+                                                    <Check size={24} color={completed ? '#16a34a' : '#ea580c' as any} /> :
+                                                    <Trophy size={24} color="#ea580c" as any />
                                                 }
                                             </View>
                                             <View className="flex-1">
@@ -132,7 +132,7 @@ export default function ChallengesScreen() {
 
                         {/* Coming Soon Teaser */}
                         <View className="p-6 bg-zinc-900 rounded-2xl mb-8 items-center">
-                            <Flame size={32} color="#fbbf24" style={{ marginBottom: 10 }} />
+                            <Flame size={32} color={"#fbbf24" as any} style={{ marginBottom: 10 }} />
                             <Text className="text-white font-bold text-xl text-center">More Challenges Coming Soon</Text>
                             <Text className="text-zinc-400 text-center mt-2">Earn points and redeem them for exclusive rewards in the studio shop.</Text>
                         </View>

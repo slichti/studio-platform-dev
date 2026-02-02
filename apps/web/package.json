@@ -15,7 +15,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "typecheck": "echo 'Skipping typecheck in CI - see react-router resolution issue'"
+    "typecheck": "tsc"
   },
   "dependencies": {
     "@clerk/react-router": "^2.3.7",
