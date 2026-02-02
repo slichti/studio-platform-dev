@@ -1,7 +1,9 @@
 // Puck Component Library for Studio Websites
 // These components are used in the drag-and-drop website builder
 
-import { Config, DropZone } from "@puckeditor/core";
+import type { Config } from "@puckeditor/core";
+import { lazy, Suspense } from "react";
+const DropZone = lazy(() => import("@puckeditor/core").then(m => ({ default: m.DropZone })));
 import DOMPurify from 'isomorphic-dompurify';
 
 // --- Component Definitions ---
@@ -48,19 +50,19 @@ const Columns = ({ distribution, backgroundColor, textColor, padding }: any) => 
         >
             <div className={`grid grid - cols - 1 ${cols} gap - 12 max - w - 7xl mx - auto`}>
                 <div className="flex flex-col gap-8">
-                    <DropZone zone="left" />
+                    <Suspense fallback={null}><DropZone zone="left" /></Suspense>
                 </div>
                 <div className="flex flex-col gap-8">
-                    <DropZone zone="center" />
+                    <Suspense fallback={null}><DropZone zone="center" /></Suspense>
                 </div>
                 {(distribution === '1-1-1' || distribution === '1-1-1-1') && (
                     <div className="flex flex-col gap-8">
-                        <DropZone zone="right" />
+                        <Suspense fallback={null}><DropZone zone="right" /></Suspense>
                     </div>
                 )}
                 {distribution === '1-1-1-1' && (
                     <div className="flex flex-col gap-8">
-                        <DropZone zone="far-right" />
+                        <Suspense fallback={null}><DropZone zone="far-right" /></Suspense>
                     </div>
                 )}
             </div>
