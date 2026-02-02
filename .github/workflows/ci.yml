@@ -35,6 +35,7 @@ jobs:
           node-version: 'lts/*'
       - run: corepack enable && corepack prepare npm@11.7.0 --activate
       - run: npm install
+      - run: ls -la node_modules/semver/ && ls -la node_modules/pathe/dist/shared/
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -52,6 +53,7 @@ jobs:
           node-version: 'lts/*'
       - run: corepack enable && corepack prepare npm@11.7.0 --activate
       - run: npm install
+      - run: ls -la node_modules/semver/ && ls -la node_modules/pathe/dist/shared/
       - run: npm run build --workspace=apps/web
       - run: npx wrangler pages deploy build/client --project-name studio-platform-web --branch main --commit-dirty=true
         working-directory: apps/web
