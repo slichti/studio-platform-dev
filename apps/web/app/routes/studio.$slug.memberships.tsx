@@ -1,373 +1,369 @@
-// @ts-ignore
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-// @ts-ignore
-import { useLoaderData, Form, useActionData, useNavigation, useOutletContext, useSubmit } from "react-router";
-import { getAuth } from "@clerk/react-router/server";
-import { apiRequest } from "../utils/api";
+import { useParams, useOutletContext } from "react-router";
 import { useState, useEffect } from "react";
-import { Modal } from "../components/Modal";
-import { CardCreator } from "../components/CardCreator";
 import { useAuth } from "@clerk/react-router";
-import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Plus, Edit, Trash2, Check, X, Loader2 } from "lucide-react";
 
-// Loader: Fetch plans and subscriptions
-export const loader = async (args: LoaderFunctionArgs) => {
-    const { params } = args;
-    const { getToken } = await getAuth(args);
-    const token = await getToken();
+import { Button } from "~/components/ui/button";
+import { Card, CardContent } from "~/components/ui/Card";
+import { Badge } from "~/components/ui/Badge";
+import { Input } from "~/components/ui/input";
+import { Textarea } from "~/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "~/components/ui/dialog";
+import { ConfirmationDialog } from "~/components/Dialogs";
+import { ComponentErrorBoundary } from "~/components/ErrorBoundary";
+import { CardCreator } from "../components/CardCreator"; // Keeping this custom component
+import { Label } from "~/components/ui/label";
 
-    try {
-        const [plans, subscriptions] = await Promise.all([
-            apiRequest("/memberships/plans", token, { headers: { 'X-Tenant-Slug': params.slug! } }),
-            apiRequest("/memberships/subscriptions", token, { headers: { 'X-Tenant-Slug': params.slug! } })
-        ]);
-
-        return { plans: plans || [], subscriptions: subscriptions || [] };
-    } catch (e: any) {
-        console.error("Failed to load membership data", e);
-        return { plans: [], subscriptions: [], error: e.message };
-    }
-};
-
-// Action: Create, Update, Delete Plan
-export const action = async (args: ActionFunctionArgs) => {
-    const { request, params } = args;
-    const { getToken } = await getAuth(args);
-    const token = await getToken();
-    const formData = await request.formData();
-    const intent = formData.get("intent");
-
-    if (intent === "delete_plan") {
-        const planId = formData.get("planId");
-        try {
-            await apiRequest(`/memberships/plans/${planId}`, token, {
-                method: "DELETE",
-                headers: { 'X-Tenant-Slug': params.slug! }
-            });
-            return { success: true, intent: "delete_plan" };
-        } catch (e: any) {
-            return { error: e.message };
-        }
-    }
-
-    // Default: Create/Update
-    const planId = formData.get("planId");
-
-    const name = formData.get("name");
-    const price = Number(formData.get("price") || 0) * 100;
-    const interval = formData.get("interval");
-    const description = formData.get("description");
-    const imageUrl = formData.get("imageUrl");
-    const overlayTitle = formData.get("overlayTitle");
-    const overlaySubtitle = formData.get("overlaySubtitle");
-    const vodEnabled = formData.get("vodEnabled") === "on";
-
-    try {
-        const url = planId ? `/memberships/plans/${planId}` : "/memberships/plans";
-        const method = planId ? "PATCH" : "POST";
-
-        const result = await apiRequest(url, token, {
-            method,
-            headers: { 'X-Tenant-Slug': params.slug! },
-            body: JSON.stringify({
-                name,
-                price,
-                interval,
-                description,
-                imageUrl,
-                overlayTitle,
-                overlaySubtitle,
-                vodEnabled
-            })
-        });
-        return { success: true, intent: planId ? "update_plan" : "create_plan" };
-    } catch (e: any) {
-        console.error("Failed to save membership plan:", e);
-        return { error: e.message };
-    }
-};
+import { usePlans, useSubscriptions, type Plan } from "~/hooks/useMemberships";
+import { apiRequest } from "~/utils/api";
+import { cn } from "~/lib/utils";
 
 export default function StudioMemberships() {
-    const { plans, subscriptions, error } = useLoaderData<any>();
-    const actionData = useActionData();
-    const navigation = useNavigation();
-    const isSubmitting = navigation.state === "submitting";
-    const { isStudentView } = useOutletContext<any>();
+    const { slug } = useParams();
+    const { getToken } = useAuth();
+    const queryClient = useQueryClient();
+    const { isStudentView } = useOutletContext<any>() || {};
 
-    // Modal State: Create or Edit
-    const [modalState, setModalState] = useState<{ type: 'closed' } | { type: 'create' } | { type: 'edit', plan: any }>({ type: 'closed' });
+    // Data
+    const { data: plans = [], isLoading: isLoadingPlans, error: plansError } = usePlans(slug!);
+    const { data: subscriptions = [], isLoading: isLoadingSubs } = useSubscriptions(slug!);
 
-    const submit = useSubmit();
-    const { getToken } = useAuth(); // Clerk hook for client-side token
+    // State
+    const [modalState, setModalState] = useState<{ type: 'closed' } | { type: 'create' } | { type: 'edit', plan: Plan }>({ type: 'closed' });
+    const [planToDelete, setPlanToDelete] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Handlers
+    const refresh = () => {
+        queryClient.invalidateQueries({ queryKey: ['plans', slug] });
+        queryClient.invalidateQueries({ queryKey: ['subscriptions', slug] });
+    };
+
+    const handleDelete = async () => {
+        if (!planToDelete) return;
+        try {
+            const token = await getToken();
+            await apiRequest(`/memberships/plans/${planToDelete}`, token, {
+                method: "DELETE",
+                headers: { 'X-Tenant-Slug': slug! }
+            });
+            toast.success("Plan deleted");
+            refresh();
+        } catch (e: any) {
+            toast.error(e.message || "Failed to delete plan");
+        } finally {
+            setPlanToDelete(null);
+        }
+    };
+
+    const handleSave = async (data: any, planId?: string) => {
+        setIsSubmitting(true);
+        try {
+            const token = await getToken();
+            const url = planId ? `/memberships/plans/${planId}` : "/memberships/plans";
+            const method = planId ? "PATCH" : "POST";
+
+            await apiRequest(url, token, {
+                method,
+                headers: { 'X-Tenant-Slug': slug! },
+                body: JSON.stringify(data)
+            });
+
+            toast.success(planId ? "Plan updated" : "Plan created");
+            refresh();
+            setModalState({ type: 'closed' });
+        } catch (e: any) {
+            console.error(e);
+            toast.error(e.message || "Failed to save plan");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="flex flex-col h-full bg-zinc-50 dark:bg-zinc-950 p-6 space-y-6 overflow-y-auto">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Memberships</h2>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">Manage your membership tiers and view subscriptions.</p>
+                </div>
+                {!isStudentView && (
+                    <Button onClick={() => setModalState({ type: 'create' })}>
+                        <Plus className="mr-2 h-4 w-4" /> New Plan
+                    </Button>
+                )}
+            </div>
+
+            <ComponentErrorBoundary>
+                {/* Plans Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {isLoadingPlans ? (
+                        Array.from({ length: 3 }).map((_, i) => (
+                            <Card key={i} className="opacity-50">
+                                <div className="h-48 bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+                                <CardContent className="p-6 space-y-4">
+                                    <div className="h-6 w-1/2 bg-zinc-100 dark:bg-zinc-800 animate-pulse rounded" />
+                                    <div className="h-4 w-full bg-zinc-100 dark:bg-zinc-800 animate-pulse rounded" />
+                                </CardContent>
+                            </Card>
+                        ))
+                    ) : plans.length === 0 ? (
+                        <div className="col-span-full text-center p-12 rounded-lg bg-white dark:bg-zinc-900 border border-dashed border-zinc-300 dark:border-zinc-700">
+                            <h3 className="font-medium mb-1 text-zinc-900 dark:text-zinc-100">No Membership Plans</h3>
+                            <p className="text-sm mb-4 text-zinc-500 dark:text-zinc-400">Create tiers like "Unlimited" or "10-Pack" for your students.</p>
+                            {!isStudentView && (
+                                <Button variant="link" onClick={() => setModalState({ type: 'create' })}>Create first plan</Button>
+                            )}
+                        </div>
+                    ) : (
+                        plans.map((plan) => (
+                            <Card key={plan.id} className="overflow-hidden group hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
+                                <div className="relative h-48 w-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
+                                    {plan.imageUrl ? (
+                                        <img src={plan.imageUrl} alt={plan.name} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-zinc-400">
+                                            No Image
+                                        </div>
+                                    )}
+                                    {(plan.overlayTitle || plan.overlaySubtitle) && (
+                                        <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-center text-center p-4">
+                                            <div className="bg-white/90 dark:bg-black/70 backdrop-blur-sm px-4 py-2 rounded-lg max-w-[90%]">
+                                                {plan.overlayTitle && <h3 className="font-bold text-lg text-zinc-900 dark:text-white uppercase tracking-wider">{plan.overlayTitle}</h3>}
+                                                {plan.overlaySubtitle && <p className="text-xs text-zinc-700 dark:text-zinc-300 mt-0.5">{plan.overlaySubtitle}</p>}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                <CardContent className="p-6">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100">{plan.name}</h3>
+                                        {plan.vodEnabled && <Badge variant="secondary" className="text-xs">VOD Access</Badge>}
+                                    </div>
+                                    <div className="text-2xl font-bold mb-4 text-zinc-900 dark:text-zinc-100">
+                                        ${(plan.price / 100).toFixed(2)}
+                                        <span className="text-sm font-normal text-zinc-500 dark:text-zinc-400">/{plan.interval}</span>
+                                    </div>
+                                    <p className="text-sm mb-6 min-h-[40px] text-zinc-500 dark:text-zinc-400 line-clamp-2">{plan.description || "No description provided."}</p>
+
+                                    {isStudentView ? (
+                                        <Button
+                                            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                                            onClick={() => window.location.href = `checkout?planId=${plan.id}`}
+                                        >
+                                            Subscribe Now
+                                        </Button>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            <Button variant="outline" className="w-full" onClick={() => setModalState({ type: 'edit', plan })}>
+                                                Edit Plan
+                                            </Button>
+                                            <Button variant="ghost" className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setPlanToDelete(plan.id)}>
+                                                Delete Plan
+                                            </Button>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        ))
+                    )}
+                </div>
+
+                {/* Subscriptions Table */}
+                <div className="space-y-4">
+                    <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Active Subscriptions</h3>
+                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden shadow-sm">
+                        {isLoadingSubs ? (
+                            <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-zinc-400" /></div>
+                        ) : subscriptions.length === 0 ? (
+                            <div className="p-8 text-center text-zinc-500 dark:text-zinc-400">No active subscriptions yet.</div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
+                                        <tr>
+                                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Student</th>
+                                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Plan</th>
+                                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Status</th>
+                                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Renewal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                        {subscriptions.map((sub) => (
+                                            <tr key={sub.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/20">
+                                                <td className="px-6 py-4">
+                                                    <div className="font-medium text-zinc-900 dark:text-zinc-100">{sub.user.profile?.fullName || sub.user.email}</div>
+                                                    <div className="text-xs text-zinc-500 dark:text-zinc-400">{sub.user.email}</div>
+                                                </td>
+                                                <td className="px-6 py-4 text-sm text-zinc-600 dark:text-zinc-300">{sub.planName}</td>
+                                                <td className="px-6 py-4">
+                                                    <Badge variant={sub.status === 'active' ? 'default' : 'secondary'} className={sub.status === 'active' ? 'bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400' : ''}>
+                                                        {sub.status}
+                                                    </Badge>
+                                                </td>
+                                                <td className="px-6 py-4 text-sm text-zinc-500 dark:text-zinc-400">
+                                                    {sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd).toLocaleDateString() : 'N/A'}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </ComponentErrorBoundary>
+
+            {/* Modals */}
+            <PlanModal
+                isOpen={modalState.type !== 'closed'}
+                plan={modalState.type === 'edit' ? modalState.plan : undefined}
+                onClose={() => setModalState({ type: 'closed' })}
+                onSave={handleSave}
+                isSubmitting={isSubmitting}
+                tenantSlug={slug!}
+            />
+
+            <ConfirmationDialog
+                isOpen={!!planToDelete}
+                onClose={() => setPlanToDelete(null)}
+                onConfirm={handleDelete}
+                title="Delete Membership Plan"
+                message="Are you sure you want to delete this plan? This cannot be undone and may affect existing subscriptions."
+                confirmText="Delete Plan"
+                isDestructive
+            />
+        </div>
+    );
+}
+
+function PlanModal({ isOpen, plan, onClose, onSave, isSubmitting, tenantSlug }: { isOpen: boolean; plan?: Plan; onClose: () => void; onSave: (data: any, id?: string) => void; isSubmitting: boolean; tenantSlug: string }) {
+    const { getToken } = useAuth();
+
+    // Form State
+    const [name, setName] = useState("");
+    const [price, setPrice] = useState("");
+    const [interval, setInterval] = useState("month");
+    const [description, setDescription] = useState("");
+    const [vodEnabled, setVodEnabled] = useState(false);
 
     // Card Creator State
     const [cardData, setCardData] = useState<{ image: Blob | null, title: string, subtitle: string, previewUrl: string }>({
         image: null, title: '', subtitle: '', previewUrl: ''
     });
-
     const [uploading, setUploading] = useState(false);
-    const [planToDelete, setPlanToDelete] = useState<string | null>(null);
 
+    // Init Effect
     useEffect(() => {
-        if (actionData?.success && !isSubmitting) {
-            setModalState({ type: 'closed' });
-            setCardData({ image: null, title: '', subtitle: '', previewUrl: '' });
-        }
-    }, [actionData, isSubmitting]);
+        if (isOpen) {
+            setName(plan?.name || "");
+            setPrice(plan ? (plan.price / 100).toFixed(2) : "");
+            setInterval(plan?.interval || "month");
+            setDescription(plan?.description || "");
+            setVodEnabled(plan?.vodEnabled || false);
 
-    // Reset card data when modal opens
-    useEffect(() => {
-        if (modalState.type === 'create') {
-            setCardData({ image: null, title: '', subtitle: '', previewUrl: '' });
-        } else if (modalState.type === 'edit') {
             setCardData({
                 image: null,
-                title: modalState.plan.overlayTitle || '',
-                subtitle: modalState.plan.overlaySubtitle || '',
-                previewUrl: ''
+                title: plan?.overlayTitle || "",
+                subtitle: plan?.overlaySubtitle || "",
+                previewUrl: plan?.imageUrl || "" // Use previewUrl to show existing image
             });
         }
-    }, [modalState.type, modalState.type === 'edit' ? modalState.plan : null]);
+    }, [isOpen, plan]);
 
-    const handleCreateWrapper = async (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setUploading(true);
 
-        const form = e.currentTarget;
-        const formData = new FormData(form);
-
         try {
+            let imageUrl = plan?.imageUrl;
+
             // Upload Image if present (only if changed/new blob)
             if (cardData.image) {
                 const token = await getToken();
-                const slug = window.location.pathname.split('/')[2];
                 const uploadFormData = new FormData();
                 const file = new File([cardData.image], "card.jpg", { type: "image/jpeg" });
                 uploadFormData.append('file', file);
 
-                // Use configured API URL or fallback
                 const apiUrl = import.meta.env.VITE_API_URL || 'https://studio-platform-api.slichti.workers.dev';
                 const res = await fetch(`${apiUrl}/uploads/r2-image`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
-                        'X-Tenant-Slug': slug
+                        'X-Tenant-Slug': tenantSlug
                     },
                     body: uploadFormData
                 });
 
                 if (!res.ok) throw new Error("Image upload failed");
                 const data = await res.json() as { url: string };
-                formData.append('imageUrl', data.url);
-            } else if (modalState.type === 'edit' && modalState.plan.imageUrl) {
-                // Keep existing URL if no new image
-                formData.append('imageUrl', modalState.plan.imageUrl);
+                imageUrl = data.url;
             }
 
-            // Append Overlay Text
-            formData.append('overlayTitle', cardData.title);
-            formData.append('overlaySubtitle', cardData.subtitle);
+            const payload = {
+                name,
+                price: Number(price) * 100,
+                interval,
+                description,
+                imageUrl,
+                overlayTitle: cardData.title,
+                overlaySubtitle: cardData.subtitle,
+                vodEnabled
+            };
 
-            if (modalState.type === 'edit') {
-                formData.append('planId', modalState.plan.id);
-            }
-
-            submit(formData, { method: "post" });
-        } catch (err) {
-            console.error(err);
-            alert("Failed to save plan: " + err);
+            await onSave(payload, plan?.id);
+        } catch (err: any) {
+            toast.error("Failed to upload image or save plan: " + err.message);
         } finally {
             setUploading(false);
         }
     };
 
-    const isOpen = modalState.type !== 'closed';
-    const planToEdit = modalState.type === 'edit' ? modalState.plan : null;
-
     return (
-        <div className="text-zinc-900 dark:text-zinc-100">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">Memberships</h2>
-                {!isStudentView && (
-                    <button
-                        onClick={() => setModalState({ type: 'create' })}
-                        className="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors text-sm font-medium"
-                    >
-                        + New Plan
-                    </button>
-                )}
-            </div>
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>{plan ? "Edit Membership Plan" : "Create Membership Plan"}</DialogTitle>
+                </DialogHeader>
 
-            {error && (
-                <div className="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 p-4 rounded mb-4 text-sm">
-                    Failed to load plans: {error}
-                </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-                {plans.length === 0 ? (
-                    <div className="col-span-full text-center p-12 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-dashed border-zinc-300 dark:border-zinc-700">
-                        <h3 className="font-medium mb-1 text-zinc-900 dark:text-zinc-100">No Membership Plans</h3>
-                        <p className="text-sm mb-4 text-zinc-500 dark:text-zinc-400">Create tiers like "Unlimited" or "10-Pack" for your students.</p>
-                        <button onClick={() => setModalState({ type: 'create' })} className="text-blue-600 hover:underline">Create first plan</button>
-                    </div>
-                ) : (
-                    plans.map((plan: any) => (
-                        <div key={plan.id} className="rounded-lg shadow-sm transition-colors overflow-hidden group bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-                            {/* Card Header Image */}
-                            <div className="relative h-48 w-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
-                                {plan.imageUrl ? (
-                                    <img src={plan.imageUrl} alt={plan.name} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-zinc-400">
-                                        No Image
-                                    </div>
-                                )}
-
-                                {/* Overlay Text */}
-                                {(plan.overlayTitle || plan.overlaySubtitle) && (
-                                    <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-center text-center p-4">
-                                        <div className="bg-white/90 dark:bg-black/70 backdrop-blur-sm px-4 py-2 rounded-lg max-w-[90%]">
-                                            {plan.overlayTitle && <h3 className="font-bold text-lg text-zinc-900 dark:text-white uppercase tracking-wider">{plan.overlayTitle}</h3>}
-                                            {plan.overlaySubtitle && <p className="text-xs text-zinc-700 dark:text-zinc-300 mt-0.5">{plan.overlaySubtitle}</p>}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="p-6">
-                                <h3 className="font-bold text-lg mb-2 text-zinc-900 dark:text-zinc-100">{plan.name}</h3>
-                                <div className="text-2xl font-bold mb-4 text-zinc-900 dark:text-zinc-100">
-                                    ${(plan.price / 100).toFixed(2)}
-                                    <span className="text-sm font-normal text-zinc-500 dark:text-zinc-400">/{plan.interval}</span>
-                                </div>
-                                <p className="text-sm mb-6 min-h-[40px] text-zinc-500 dark:text-zinc-400">{plan.description || "No description provided."}</p>
-                                {isStudentView ? (
-                                    <button
-                                        onClick={() => {
-                                            window.location.href = `checkout?planId=${plan.id}`;
-                                        }}
-                                        className="w-full py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-colors shadow-sm"
-                                    >
-                                        Subscribe Now
-                                    </button>
-                                ) : (
-                                    <>
-                                        <button
-                                            onClick={() => setModalState({ type: 'edit', plan })}
-                                            className="w-full py-2 rounded hover:bg-zinc-50 dark:hover:bg-zinc-800 font-medium text-sm border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 transition-colors"
-                                        >
-                                            Edit Plan
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setPlanToDelete(plan.id)}
-                                            className="w-full mt-2 text-red-600 hover:text-red-800 dark:hover:text-red-400 text-xs font-medium"
-                                        >
-                                            Delete Plan
-                                        </button>
-
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    ))
-                )}
-            </div>
-
-            {/* List Active Subscriptions */}
-            <h3 className="text-lg font-bold mb-4 text-zinc-900 dark:text-zinc-100">Active Subscriptions</h3>
-            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden shadow-sm">
-                {subscriptions && subscriptions.length > 0 ? (
-                    <table className="w-full text-left">
-                        <thead className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
-                            <tr>
-                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Student</th>
-                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Plan</th>
-                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Renewal</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                            {subscriptions.map((sub: any) => (
-                                <tr key={sub.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/20">
-                                    <td className="px-6 py-4">
-                                        <div className="font-medium text-zinc-900 dark:text-zinc-100">{sub.user.profile?.fullName || sub.user.email}</div>
-                                        <div className="text-xs text-zinc-500 dark:text-zinc-400">{sub.user.email}</div>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-zinc-600 dark:text-zinc-300">{sub.planName}</td>
-                                    <td className="px-6 py-4">
-                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${sub.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300'
-                                            }`}>
-                                            {sub.status}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-zinc-500 dark:text-zinc-400">
-                                        {sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd).toLocaleDateString() : 'N/A'}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                ) : (
-                    <div className="p-8 text-center text-zinc-500 dark:text-zinc-400">
-                        No active subscriptions yet.
-                    </div>
-                )}
-            </div>
-
-            {/* Create/Edit Plan Modal */}
-            <Modal
-                isOpen={isOpen}
-                onClose={() => setModalState({ type: 'closed' })}
-                title={modalState.type === 'edit' ? "Edit Membership Plan" : "Create Membership Plan"}
-                maxWidth="max-w-4xl"
-            >
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-8 py-4">
                     {/* Left: Card Visuals */}
-                    <div>
-                        <h4 className="font-semibold mb-4 text-zinc-900 dark:text-zinc-100">Card Appearance</h4>
+                    <div className="space-y-4">
+                        <Label>Card Appearance</Label>
                         <CardCreator
-                            key={planToEdit ? planToEdit.id : 'new'}
-                            initialImage={planToEdit?.imageUrl}
-                            initialTitle={planToEdit?.overlayTitle}
-                            initialSubtitle={planToEdit?.overlaySubtitle}
-                            onChange={setCardData}
+                            initialImage={plan?.imageUrl} // Backwards compat if component uses this
+                            initialTitle={cardData.title}
+                            initialSubtitle={cardData.subtitle}
+                            onChange={(newData) => {
+                                // Merge updates carefully
+                                setCardData(prev => ({ ...prev, ...newData }));
+                            }}
                         />
+                        <p className="text-xs text-zinc-500">
+                            Upload an image and set text overlays to customize how this plan appears in the store.
+                        </p>
                     </div>
 
                     {/* Right: Plan Details */}
-                    <Form method="post" onSubmit={handleCreateWrapper} className="space-y-4">
-                        <div>
-                            <h4 className="font-semibold mb-4 text-zinc-900 dark:text-zinc-100">Plan Details</h4>
-                            <label className="block text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Plan Name (Internal)</label>
-                            <input
-                                name="name"
-                                required
-                                defaultValue={planToEdit?.name || ''}
-                                placeholder="e.g. Gold Unlimited"
-                                className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md focus:ring-blue-500 focus:border-blue-500 text-zinc-900 dark:text-zinc-100"
-                            />
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Plan Name (Internal)</Label>
+                            <Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Gold Unlimited" />
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Price ($)</label>
-                                <input
-                                    type="number"
-                                    name="price"
-                                    step="0.01"
-                                    required
-                                    defaultValue={planToEdit ? (planToEdit.price / 100).toFixed(2) : ''}
-                                    className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md focus:ring-blue-500 focus:border-blue-500 text-zinc-900 dark:text-zinc-100"
-                                />
+                            <div className="space-y-2">
+                                <Label>Price ($)</Label>
+                                <Input type="number" step="0.01" required value={price} onChange={(e) => setPrice(e.target.value)} />
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Interval</label>
+                            <div className="space-y-2">
+                                <Label>Interval</Label>
                                 <select
-                                    name="interval"
-                                    defaultValue={planToEdit?.interval || 'month'}
-                                    className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md focus:ring-blue-500 focus:border-blue-500 text-zinc-900 dark:text-zinc-100"
+                                    className="flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:focus-visible:ring-zinc-300"
+                                    value={interval}
+                                    onChange={(e) => setInterval(e.target.value)}
                                 >
                                     <option value="month">Monthly</option>
                                     <option value="week">Weekly</option>
@@ -377,62 +373,42 @@ export default function StudioMemberships() {
                             </div>
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Description</label>
-                            <textarea
-                                name="description"
-                                rows={3}
-                                defaultValue={planToEdit?.description || ''}
-                                className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md focus:ring-blue-500 focus:border-blue-500 text-zinc-900 dark:text-zinc-100"
-                            />
+                        <div className="space-y-2">
+                            <Label>Description</Label>
+                            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center space-x-2 pt-2">
                             <input
                                 type="checkbox"
-                                name="vodEnabled"
                                 id="vodEnabled"
-                                defaultChecked={planToEdit?.vodEnabled || false}
-                                className="rounded border-zinc-300 dark:border-zinc-700 text-blue-600 focus:ring-blue-500"
+                                checked={vodEnabled}
+                                onChange={(e) => setVodEnabled(e.target.checked)}
+                                className="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
                             />
-                            <label htmlFor="vodEnabled" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Include VOD Access</label>
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400 ml-2">(Allows entry to On-Demand Library)</p>
+                            <div className="grid gap-1.5 leading-none">
+                                <label
+                                    htmlFor="vodEnabled"
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                >
+                                    Include VOD Access
+                                </label>
+                                <p className="text-sm text-zinc-500">
+                                    Allows entry to On-Demand Library
+                                </p>
+                            </div>
                         </div>
+                    </div>
 
-                        <div className="pt-4 flex gap-3">
-                            <button
-                                type="button"
-                                onClick={() => setModalState({ type: 'closed' })}
-                                className="flex-1 px-4 py-2 border border-zinc-200 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={isSubmitting || uploading}
-                                className="flex-1 px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-md hover:opacity-90 font-medium disabled:opacity-50 transition-colors"
-                            >
-                                {uploading ? "Uploading..." : (isSubmitting ? "Saving..." : (modalState.type === 'edit' ? "Save Changes" : "Create Plan"))}
-                            </button>
-                        </div>
-                    </Form>
-                </div>
-            </Modal>
-
-            <ConfirmDialog
-                open={!!planToDelete}
-                onOpenChange={(open) => !open && setPlanToDelete(null)}
-                onConfirm={() => {
-                    if (planToDelete) {
-                        submit({ intent: 'delete_plan', planId: planToDelete }, { method: "post" });
-                        setPlanToDelete(null);
-                    }
-                }}
-                title="Delete Membership Plan"
-                description="Are you sure you want to delete this plan? This cannot be undone and may affect existing subscriptions."
-                confirmText="Delete Plan"
-                variant="destructive"
-            />
-        </div >
+                    <div className="col-span-full flex justify-end gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                        <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting || uploading}>Cancel</Button>
+                        <Button type="submit" disabled={isSubmitting || uploading}>
+                            {(isSubmitting || uploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {plan ? "Save Changes" : "Create Plan"}
+                        </Button>
+                    </div>
+                </form>
+            </DialogContent>
+        </Dialog>
     );
 }
