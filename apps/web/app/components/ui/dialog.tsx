@@ -1,6 +1,7 @@
 import { Dialog as HeadlessDialog, Transition, TransitionChild, DialogPanel, DialogTitle as HeadlessDialogTitle } from '@headlessui/react'
 import React, { Fragment, useState, createContext, useContext } from 'react'
 import { X } from 'lucide-react'
+import { cn } from '../../lib/utils'
 
 // Adapting to: <Dialog> <DialogTrigger> <DialogContent> ...
 const DialogContext = createContext<any>(null);
@@ -70,7 +71,7 @@ function DialogContent({ children, className }: any) {
                             leaveFrom="opacity-100 scale-100"
                             leaveTo="opacity-0 scale-95"
                         >
-                            <DialogPanel className={`w-full max-w-lg transform overflow-hidden rounded-lg bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-zinc-950 dark:border dark:border-zinc-800 ${className}`}>
+                            <DialogPanel className={cn("w-full max-w-lg transform overflow-hidden rounded-lg bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-zinc-950 dark:border dark:border-zinc-800", className)}>
                                 {children}
                                 <button
                                     className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100 focus:outline-none"
@@ -88,15 +89,15 @@ function DialogContent({ children, className }: any) {
 }
 
 function DialogHeader({ children, className }: any) {
-    return <div className={`flex flex-col space-y-1.5 text-center sm:text-left ${className}`}>{children}</div>
+    return <div className={cn("flex flex-col space-y-1.5 text-center sm:text-left", className)}>{children}</div>
 }
 
 function DialogTitle({ children, className }: any) {
-    return <HeadlessDialogTitle as="h3" className={`text-lg font-semibold leading-none tracking-tight ${className}`}>{children}</HeadlessDialogTitle>
+    return <HeadlessDialogTitle as="h3" className={cn("text-lg font-semibold leading-none tracking-tight", className)}>{children}</HeadlessDialogTitle>
 }
 
 function DialogDescription({ children, className }: any) {
-    return <p className={`text-sm text-zinc-500 dark:text-zinc-400 ${className}`}>{children}</p>
+    return <p className={cn("text-sm text-zinc-500 dark:text-zinc-400", className)}>{children}</p>
 }
 
 function DialogClose({ children }: any) {
@@ -110,10 +111,10 @@ function DialogClose({ children }: any) {
 
 export { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription, DialogClose }
 
-function DialogFooter({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) {
+function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
     return (
         <div
-            className={`flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 ${className}`}
+            className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)}
             {...props}
         />
     )

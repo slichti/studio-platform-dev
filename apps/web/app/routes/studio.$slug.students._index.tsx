@@ -1,71 +1,128 @@
-// @ts-ignore
-import type { LoaderFunctionArgs } from "react-router";
-// @ts-ignore
-import { useLoaderData, useOutletContext, Link, useParams } from "react-router";
-import { getAuth } from "@clerk/react-router/server";
-import { apiRequest } from "../utils/api";
+import { useParams, Link, useOutletContext } from "react-router";
 import { useState } from "react";
-import { useAuth } from "@clerk/react-router";
+import { Search, UserPlus, Filter, MoreHorizontal, Mail, ArrowUpDown, X, UserMinus, ShieldCheck, Download } from "lucide-react";
+import { format } from "date-fns";
 import { toast } from "sonner";
-import { ConfirmationDialog } from "~/components/Dialogs";
-import { Mail, UserMinus, ShieldCheck, Download, X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@clerk/react-router";
 
-type Student = {
-    id: string; // Member ID
-    user: {
-        id: string; // Clerk ID
-        email: string;
-        profile?: {
-            firstName?: string;
-            lastName?: string;
-        }
-    };
-    joinedAt: string;
-};
-
-export const loader = async (args: LoaderFunctionArgs) => {
-    const { params } = args;
-    const { getToken } = await getAuth(args);
-    const token = await getToken();
-
-    try {
-        const res = await apiRequest("/members", token, {
-            headers: { 'X-Tenant-Slug': params.slug! }
-        }) as any;
-        const members = Array.isArray(res.members) ? res.members : [];
-        return { members };
-    } catch (e: any) {
-        console.error("Failed to load members", e);
-        return { members: [], error: e.message, errorDetails: (e as any).data };
-    }
-};
+import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/components/ui/Card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "~/components/ui/dialog";
+import { ConfirmationDialog } from "~/components/Dialogs"; // Keeping existing custom dialog for now if complex, or refactor later
+import { useMembers } from "~/hooks/useMembers";
+import { apiRequest } from "~/utils/api";
+import { cn } from "~/lib/utils";
 
 export default function StudioStudents() {
-    const { members, error, errorDetails } = useLoaderData<{ members: Student[], error?: string, errorDetails?: any }>();
+    const { slug } = useParams();
     const { roles } = useOutletContext<any>();
-    const params = useParams();
-    const slug = params.slug;
     const isOwner = roles && roles.includes('owner');
     const { getToken } = useAuth();
+    const queryClient = useQueryClient();
 
-    const [updating, setUpdating] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const [statusFilter, setStatusFilter] = useState("all");
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+    // Member Management State
     const [isAddingMember, setIsAddingMember] = useState(false);
-    const [isSubmittingMember, setIsSubmittingMember] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [editingMember, setEditingMember] = useState<any | null>(null);
     const [pendingRoleChange, setPendingRoleChange] = useState<{ memberId: string, newRole: string } | null>(null);
-    const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
 
     // Bulk Action State
-    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [bulkAction, setBulkAction] = useState<'email' | 'status' | 'sms_consent' | null>(null);
-    const [isProcessingBulk, setIsProcessingBulk] = useState(false);
 
-    const toggleSelectAll = () => {
-        if (selectedIds.size === filteredMembers.length) {
-            setSelectedIds(new Set());
-        } else {
-            setSelectedIds(new Set(filteredMembers.map((m: any) => m.id)));
+    // FETCH DATA using useMembers hook
+    const { data: members = [], isLoading, error } = useMembers(slug || '');
+
+    // Filter Logic
+    const filteredMembers = members.filter((m: any) => {
+        const q = searchQuery.toLowerCase();
+        const name = `${m.profile?.firstName || ''} ${m.profile?.lastName || ''}`.toLowerCase();
+        const email = (m.user?.email || '').toLowerCase();
+        const matchesSearch = name.includes(q) || email.includes(q);
+        const matchesStatus = statusFilter === 'all' || m.status === statusFilter;
+        return matchesSearch && matchesStatus;
+    });
+
+    // Mutations (kept inline for now, but using invalidateQueries)
+    const handleAddMember = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        const formData = new FormData(e.currentTarget);
+
+        try {
+            const token = await getToken();
+            const res = await apiRequest(`/members`, token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': slug! },
+                body: JSON.stringify({
+                    email: formData.get('email'),
+                    firstName: formData.get('firstName'),
+                    lastName: formData.get('lastName')
+                })
+            }) as any;
+
+            if (res.error) toast.error(res.error);
+            else {
+                toast.success("Member added");
+                setIsAddingMember(false);
+                queryClient.invalidateQueries({ queryKey: ['members', slug] });
+            }
+        } catch (e: any) {
+            toast.error(e.message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const confirmRemoveMember = async () => {
+        if (!editingMember) return;
+        setIsSubmitting(true);
+        try {
+            const token = await getToken();
+            const res = await apiRequest(`/members/${editingMember.id}`, token, {
+                method: "DELETE",
+                headers: { 'X-Tenant-Slug': slug! }
+            }) as any;
+
+            if (res.error) toast.error(res.error);
+            else {
+                toast.success("Member removed");
+                setEditingMember(null);
+                queryClient.invalidateQueries({ queryKey: ['members', slug] });
+            }
+        } catch (e: any) {
+            toast.error(e.message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const confirmRoleChange = async () => {
+        if (!pendingRoleChange) return;
+        setIsSubmitting(true);
+        try {
+            const token = await getToken();
+            const res = await apiRequest(`/members/${pendingRoleChange.memberId}/role`, token, {
+                method: "PATCH",
+                headers: { 'X-Tenant-Slug': slug! },
+                body: JSON.stringify({ role: pendingRoleChange.newRole })
+            }) as any;
+
+            if (res.error) toast.error(res.error);
+            else {
+                toast.success("Role updated");
+                setPendingRoleChange(null);
+                queryClient.invalidateQueries({ queryKey: ['members', slug] });
+            }
+        } catch (e: any) {
+            toast.error(e.message);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -76,404 +133,238 @@ export default function StudioStudents() {
         setSelectedIds(next);
     };
 
-    // Filter members
-    const filteredMembers = (members || []).filter((m: any) => {
-        const q = searchQuery.toLowerCase();
-        const name = `${m.user?.profile?.firstName || ''} ${m.user?.profile?.lastName || ''}`.toLowerCase();
-        const email = (m.user?.email || '').toLowerCase();
-        return name.includes(q) || email.includes(q);
-    });
-
-    const handleAddMember = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        setIsSubmittingMember(true);
-        const formData = new FormData(e.currentTarget);
-        const email = formData.get('email');
-        const firstName = formData.get('firstName');
-        const lastName = formData.get('lastName');
-
-        if (!slug) {
-            toast.error("Missing studio slug");
-            setIsSubmittingMember(false);
-            return;
-        }
-
-        try {
-            const token = await getToken();
-            const res = await apiRequest(`/members`, token, {
-                method: "POST",
-                headers: { 'X-Tenant-Slug': slug },
-                body: JSON.stringify({ email, firstName, lastName })
-            }) as any;
-
-            if (res.error) {
-                toast.error(res.error);
-            } else {
-                toast.success("Member added successfully");
-                window.location.reload();
-            }
-        } catch (e: any) {
-            toast.error(e.message);
-        } finally {
-            setIsSubmittingMember(false);
-            setIsAddingMember(false);
-        }
-    };
-
-    const handleRemoveMember = async () => {
-        if (!editingMember) return;
-        setShowRemoveConfirm(true);
-    };
-
-    const confirmRemoveMember = async () => {
-        if (!editingMember) return;
-
-
-        setUpdating(editingMember.id);
-        try {
-            const token = await getToken();
-            const res = await apiRequest(`/members/${editingMember.id}`, token, {
-                method: "DELETE",
-                headers: { 'X-Tenant-Slug': slug! }
-            }) as any;
-            if (res.error) toast.error(res.error);
-            else {
-                toast.success("Member removed");
-                setEditingMember(null);
-                window.location.reload();
-            }
-        } catch (e: any) {
-            toast.error(e.message);
-        } finally {
-            setUpdating(null);
-            setShowRemoveConfirm(false);
-        }
-    };
-
-    const handleRoleChange = (memberId: string, newRole: string) => {
-        setPendingRoleChange({ memberId, newRole });
-    };
-
-    const confirmRoleChange = async () => {
-        if (!pendingRoleChange) return;
-        const { memberId, newRole } = pendingRoleChange;
-
-        setUpdating(memberId);
-
-        if (!slug) {
-            toast.error("Missing studio slug");
-            setUpdating(null);
-            return;
-        }
-
-        try {
-            const token = await getToken();
-            const res = await apiRequest(`/members/${memberId}/role`, token, {
-                method: "PATCH",
-                headers: { 'X-Tenant-Slug': slug },
-                body: JSON.stringify({ role: newRole })
-            }) as any;
-            if (res.error) toast.error(res.error);
-            else {
-                toast.success("Role updated");
-                window.location.reload();
-            }
-        } catch (e: any) {
-            toast.error(e.message);
-        } finally {
-            setUpdating(null);
-            setPendingRoleChange(null);
-        }
-    };
-
-    const handleBulkAction = async (action: string, data?: any) => {
-        if (selectedIds.size === 0) return;
-
-        setIsProcessingBulk(true);
-        try {
-            const token = await getToken();
-            const res = await apiRequest(`/members/bulk`, token, {
-                method: "POST",
-                headers: { 'X-Tenant-Slug': slug! },
-                body: JSON.stringify({
-                    action,
-                    memberIds: Array.from(selectedIds),
-                    data
-                })
-            }) as any;
-
-            if (res.error) {
-                toast.error(res.error);
-            } else if (action === 'export' && res.csv) {
-                // Download CSV
-                const blob = new Blob([res.csv], { type: 'text/csv' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.setAttribute('hidden', '');
-                a.setAttribute('href', url);
-                a.setAttribute('download', `members_export_${new Date().getTime()}.csv`);
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                toast.success("Export started");
-            } else {
-                toast.success("Bulk action completed successfully");
-                window.location.reload();
-            }
-        } catch (e: any) {
-            toast.error(e.message);
-        } finally {
-            setIsProcessingBulk(false);
-            setBulkAction(null);
-        }
+    const toggleSelectAll = () => {
+        if (selectedIds.size === filteredMembers.length) setSelectedIds(new Set());
+        else setSelectedIds(new Set(filteredMembers.map((m: any) => m.id)));
     };
 
     return (
-        <div>
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">People</h2>
-                <div className="flex gap-2">
-                    <input
-                        placeholder="Search members..."
+        <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">People</h1>
+                    <p className="text-zinc-500 dark:text-zinc-400">Manage your student base and memberships.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline">
+                        <Filter className="h-4 w-4 mr-2" /> Filter
+                    </Button>
+                    <Button onClick={() => setIsAddingMember(true)}>
+                        <UserPlus className="h-4 w-4 mr-2" /> Add Member
+                    </Button>
+                </div>
+            </div>
+
+            {/* ERROR STATE */}
+            {error && (
+                <div className="p-4 bg-red-50 text-red-700 rounded border border-red-100 dark:bg-red-900/10 dark:text-red-400 dark:border-red-900/20">
+                    Failed to load members. Please try again.
+                </div>
+            )}
+
+            {/* METRICS */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardDescription>Total Students</CardDescription>
+                        <CardTitle className="text-3xl">{members.length}</CardTitle>
+                    </CardHeader>
+                </Card>
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardDescription>Active Memberships</CardDescription>
+                        <CardTitle className="text-3xl">
+                            {members.filter((m: any) => m.status === 'active').length}
+                        </CardTitle>
+                    </CardHeader>
+                </Card>
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardDescription>New This Month</CardDescription>
+                        <CardTitle className="text-3xl">
+                            {members.filter((m: any) => new Date(m.joinedAt) > new Date(new Date().setDate(1))).length}
+                        </CardTitle>
+                    </CardHeader>
+                </Card>
+            </div>
+
+            {/* FILTERS */}
+            <div className="flex items-center gap-4">
+                <div className="relative flex-1 max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                    <Input
+                        placeholder="Search students..."
+                        className="pl-9"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="px-3 py-2 border border-zinc-200 dark:border-zinc-800 rounded-md text-sm min-w-[250px] bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400"
                     />
-                    <button
-                        onClick={() => setIsAddingMember(true)}
-                        className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 text-sm font-medium transition-colors"
-                    >
-                        Add Member
-                    </button>
+                </div>
+                <div className="flex items-center bg-zinc-100 p-1 rounded-md dark:bg-zinc-800">
+                    {['all', 'active', 'inactive'].map((status) => (
+                        <button
+                            key={status}
+                            onClick={() => setStatusFilter(status)}
+                            className={cn(
+                                "px-3 py-1.5 text-sm font-medium rounded-sm capitalize transition-all",
+                                statusFilter === status
+                                    ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50"
+                                    : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+                            )}
+                        >
+                            {status}
+                        </button>
+                    ))}
                 </div>
             </div>
 
-            {error && (
-                <div className="bg-red-50 text-red-700 p-4 rounded mb-4 text-sm border border-red-100">
-                    Failed to load members: {error}
-                    {errorDetails && (
-                        <pre className="mt-2 text-xs bg-red-100 p-2 rounded overflow-auto">
-                            {JSON.stringify(errorDetails, null, 2)}
-                        </pre>
-                    )}
-                </div>
-            )}
-
-            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden shadow-sm">
-                <table className="w-full text-left">
-                    <thead className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
-                        <tr>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider w-10">
-                                <input
-                                    type="checkbox"
-                                    className="rounded border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-blue-600 focus:ring-blue-500"
-                                    checked={filteredMembers.length > 0 && selectedIds.size === filteredMembers.length}
-                                    onChange={toggleSelectAll}
-                                />
-                            </th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Name</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Email</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Role</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Joined</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                        {members.length === 0 ? (
+            {/* TABLE */}
+            <Card className="overflow-hidden">
+                <div className="relative w-full overflow-auto">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
                             <tr>
-                                <td colSpan={5} className="px-6 py-8 text-center text-zinc-500 dark:text-zinc-400 italic">
-                                    No members found yet.
-                                </td>
+                                <th className="px-6 py-3 w-10">
+                                    <input type="checkbox"
+                                        className="rounded border-zinc-300 dark:border-zinc-700"
+                                        checked={filteredMembers.length > 0 && selectedIds.size === filteredMembers.length}
+                                        onChange={toggleSelectAll}
+                                    />
+                                </th>
+                                <th className="px-6 py-3 font-medium text-zinc-500 dark:text-zinc-400">Name</th>
+                                <th className="px-6 py-3 font-medium text-zinc-500 dark:text-zinc-400">Status</th>
+                                <th className="px-6 py-3 font-medium text-zinc-500 dark:text-zinc-400">Joined</th>
+                                <th className="px-6 py-3 text-right">Actions</th>
                             </tr>
-                        ) : filteredMembers.length === 0 ? (
-                            <tr>
-                                <td colSpan={5} className="px-6 py-8 text-center text-zinc-500 dark:text-zinc-400 italic">
-                                    No members match your search for "{searchQuery}".
-                                </td>
-                            </tr>
-                        ) : (
-                            filteredMembers.map((member: any) => (
-                                <tr key={member.id} className={`hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors ${selectedIds.has(member.id) ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
-                                    <td className="px-6 py-4">
-                                        <input
-                                            type="checkbox"
-                                            className="rounded border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-blue-600 focus:ring-blue-500"
-                                            checked={selectedIds.has(member.id)}
-                                            onChange={() => toggleSelect(member.id)}
-                                        />
-                                    </td>
-                                    <td className="px-6 py-4 font-medium text-zinc-900 dark:text-zinc-100">
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-8 w-8 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center text-xs font-bold uppercase ring-1 ring-blue-200 dark:ring-blue-800">
-                                                {(member.user?.email || '??').substring(0, 2)}
-                                            </div>
-                                            <Link
-                                                to={`${member.id}`}
-                                                className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
-                                            >
-                                                {member.user?.profile?.firstName ? `${member.user.profile.firstName} ${member.user.profile.lastName}` : 'Unknown Student'}
-                                            </Link>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400 text-sm">{member.user.email}</td>
-                                    <td className="px-6 py-4">
-                                        {isOwner ? (
-                                            <select
-                                                disabled={updating === member.id}
-                                                className="text-sm border border-zinc-200 dark:border-zinc-700 rounded-md p-1.5 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 outline-none"
-                                                value={(Array.isArray(member.roles) ? member.roles : []).find((r: any) => r.role === 'owner' || r.role === 'instructor')?.role || 'student'}
-                                                onChange={(e) => handleRoleChange(member.id, e.target.value)}
-                                            >
-                                                <option value="student">Student</option>
-                                                <option value="instructor">Instructor</option>
-                                                <option value="owner">Owner</option>
-                                            </select>
-                                        ) : (
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 capitalize border border-zinc-200 dark:border-zinc-700">
-                                                {(Array.isArray(member.roles) ? member.roles : []).map((r: any) => r.role).join(', ') || 'Student'}
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4 text-zinc-500 dark:text-zinc-400 text-sm">
-                                        {new Date(member.joinedAt).toLocaleDateString()}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <button
-                                            onClick={() => setEditingMember(member)}
-                                            className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 text-sm font-medium transition-colors"
-                                        >
-                                            Edit
-                                        </button>
-                                    </td>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                            {isLoading ? (
+                                Array.from({ length: 5 }).map((_, i) => (
+                                    <tr key={i}>
+                                        <td className="p-4" colSpan={5}>
+                                            <div className="h-10 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : filteredMembers.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="px-6 py-8 text-center text-zinc-500 italic">No students found.</td>
                                 </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
-
-                <div className="p-4 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 text-center text-xs text-zinc-500 dark:text-zinc-400">
-                    Showing {filteredMembers.length} member{filteredMembers.length === 1 ? '' : 's'}
+                            ) : (
+                                filteredMembers.map((member: any) => (
+                                    <tr key={member.id} className={cn("hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors", selectedIds.has(member.id) && "bg-blue-50/50 dark:bg-blue-900/10")}>
+                                        <td className="px-6 py-4">
+                                            <input type="checkbox"
+                                                className="rounded border-zinc-300 dark:border-zinc-700"
+                                                checked={selectedIds.has(member.id)}
+                                                onChange={() => toggleSelect(member.id)}
+                                            />
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <Link to={member.id} className="flex items-center gap-3 group">
+                                                <div className="h-9 w-9 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500 font-medium group-hover:bg-zinc-200 dark:bg-zinc-800">
+                                                    {(member.profile?.firstName?.[0] || 'U')}
+                                                </div>
+                                                <div>
+                                                    <div className="font-medium text-zinc-900 group-hover:underline dark:text-zinc-50">
+                                                        {member.profile?.firstName} {member.profile?.lastName}
+                                                    </div>
+                                                    <div className="text-xs text-zinc-500">{member.user?.email}</div>
+                                                </div>
+                                            </Link>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize",
+                                                member.status === 'active' ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-400"
+                                            )}>
+                                                {member.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-zinc-500 dark:text-zinc-400">
+                                            {format(new Date(member.joinedAt || new Date()), 'MMM d, yyyy')}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <Button variant="ghost" size="sm" onClick={() => setEditingMember(member)}>Edit</Button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
                 </div>
-            </div>
-
-            {/* Add Member Modal */}
-            {isAddingMember && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 w-full max-w-md shadow-2xl border border-zinc-200 dark:border-zinc-700 animate-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-start mb-4">
-                            <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Add New Member</h2>
-                            <button onClick={() => setIsAddingMember(false)} className="text-zinc-400 hover:text-zinc-600">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 18 18" /></svg>
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleAddMember} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Email Address</label>
-                                <input
-                                    type="email"
-                                    name="email"
-                                    required
-                                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-shadow"
-                                    placeholder="student@example.com"
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">First Name</label>
-                                    <input
-                                        type="text"
-                                        name="firstName"
-                                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-shadow"
-                                        placeholder="Jane"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Last Name</label>
-                                    <input
-                                        type="text"
-                                        name="lastName"
-                                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-shadow"
-                                        placeholder="Doe"
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex justify-end gap-3 mt-6 pt-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsAddingMember(false)}
-                                    className="px-4 py-2 text-sm font-medium border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={isSubmittingMember}
-                                    className="px-4 py-2 text-sm font-bold bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 transition-colors shadow-sm"
-                                >
-                                    {isSubmittingMember ? "Adding Member..." : "Add Member"}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+                <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 text-center text-xs text-zinc-500">
+                    Showing {filteredMembers.length} member{filteredMembers.length !== 1 && 's'}
                 </div>
-            )}
-            {/* Manage Member Modal */}
-            {editingMember && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 w-full max-w-md shadow-2xl border border-zinc-200 dark:border-zinc-700 animate-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-start mb-4">
-                            <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Manage Member</h3>
-                            <button onClick={() => setEditingMember(null)} className="text-zinc-400 hover:text-zinc-600">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 18 18" /></svg>
-                            </button>
-                        </div>
-                        <p className="text-sm text-zinc-500 mb-6">
-                            Managing <strong>{editingMember.user.email}</strong>
-                        </p>
+            </Card>
 
-                        <div className="space-y-6">
-                            <div>
-                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Role</label>
+            {/* ADD MEMBER MODAL */}
+            <Dialog open={isAddingMember} onOpenChange={setIsAddingMember}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Add New Member</DialogTitle>
+                        <DialogDescription>Invite a new student to your studio.</DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleAddMember} className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Email</label>
+                            <Input name="email" type="email" required placeholder="student@example.com" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">First Name</label>
+                                <Input name="firstName" placeholder="Jane" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Last Name</label>
+                                <Input name="lastName" placeholder="Doe" />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setIsAddingMember(false)}>Cancel</Button>
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting ? "Adding..." : "Add Member"}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* EDIT MEMBER MODAL */}
+            <Dialog open={!!editingMember} onOpenChange={(open) => !open && setEditingMember(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Manage Member</DialogTitle>
+                        <DialogDescription>Managing {editingMember?.user?.email}</DialogDescription>
+                    </DialogHeader>
+                    {editingMember && (
+                        <div className="space-y-6 py-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Role</label>
                                 <select
-                                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                                    className="flex h-10 w-full items-center justify-between rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:placeholder:text-zinc-400 dark:focus:ring-zinc-300"
                                     value={(Array.isArray(editingMember.roles) ? editingMember.roles : []).find((r: any) => r.role === 'owner' || r.role === 'instructor')?.role || 'student'}
-                                    onChange={(e) => handleRoleChange(editingMember.id, e.target.value)}
+                                    onChange={(e) => setPendingRoleChange({ memberId: editingMember.id, newRole: e.target.value })}
                                     disabled={!isOwner}
                                 >
                                     <option value="student">Student</option>
                                     <option value="instructor">Instructor</option>
                                 </select>
-                                {!isOwner && <p className="text-xs text-zinc-500 mt-1">Only owners can manage roles.</p>}
                             </div>
 
-                            <div className="bg-red-50 dark:bg-red-900/10 p-4 rounded-lg border border-red-100 dark:border-red-900/20">
-                                <h4 className="text-sm font-bold text-red-900 dark:text-red-400 mb-1">Danger Zone</h4>
-                                <p className="text-xs text-red-700 dark:text-red-300 mb-3">
-                                    Removing a member will archive their access to the studio.
-                                </p>
-                                <button
-                                    onClick={handleRemoveMember}
-                                    disabled={updating === editingMember.id || !isOwner}
-                                    className="w-full px-4 py-2 text-sm bg-white dark:bg-zinc-900 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 font-medium transition-colors"
-                                >
-                                    {updating === editingMember.id ? 'Removing...' : 'Remove from Studio'}
-                                </button>
+                            <div className="rounded-md border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-900/20">
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-1">
+                                        <p className="text-sm font-medium text-red-900 dark:text-red-200">Danger Zone</p>
+                                        <p className="text-xs text-red-700 dark:text-red-300">Remove this student from the studio.</p>
+                                    </div>
+                                    <Button variant="destructive" size="sm" onClick={confirmRemoveMember} disabled={isSubmitting || !isOwner}>
+                                        Remove
+                                    </Button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            )}
-            {/* Confirmation Dialogs */}
-            <ConfirmationDialog
-                isOpen={showRemoveConfirm}
-                onClose={() => setShowRemoveConfirm(false)}
-                onConfirm={confirmRemoveMember}
-                title="Remove Member"
-                message={`Are you sure you want to remove ${editingMember?.user.email} from the studio? This will archive their membership.`}
-                isDestructive={true}
-                confirmText="Remove"
-            />
+                    )}
+                </DialogContent>
+            </Dialog>
 
             <ConfirmationDialog
                 isOpen={!!pendingRoleChange}
@@ -483,108 +374,6 @@ export default function StudioStudents() {
                 message={`Are you sure you want to change this user's role to ${pendingRoleChange?.newRole}?`}
                 confirmText="Change Role"
             />
-
-            {/* Floating Action Bar */}
-            {selectedIds.size > 0 && (
-                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-6 py-4 rounded-full shadow-2xl z-50 animate-in slide-in-from-bottom-8 duration-300 ring-1 ring-white/10 dark:ring-black/10">
-                    <div className="flex items-center gap-3 pr-4 border-r border-zinc-700 dark:border-zinc-300">
-                        <span className="text-sm font-bold truncate max-w-[100px]">{selectedIds.size} Selected</span>
-                        <button
-                            onClick={() => setSelectedIds(new Set())}
-                            className="bg-zinc-800 dark:bg-zinc-200 p-1 rounded-full hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-colors"
-                        >
-                            <X size={14} />
-                        </button>
-                    </div>
-
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => setBulkAction('email')}
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-zinc-800 dark:hover:bg-zinc-200 text-sm font-medium transition-colors"
-                        >
-                            <Mail size={16} />
-                            <span>Email</span>
-                        </button>
-                        <button
-                            onClick={() => setBulkAction('status')}
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-zinc-800 dark:hover:bg-zinc-200 text-sm font-medium transition-colors"
-                        >
-                            <ShieldCheck size={16} />
-                            <span>Status</span>
-                        </button>
-                        <button
-                            onClick={() => handleBulkAction('export')}
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-zinc-800 dark:hover:bg-zinc-200 text-sm font-medium transition-colors"
-                        >
-                            <Download size={16} />
-                            <span>Export</span>
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Bulk Action Modals */}
-            {bulkAction === 'email' && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 w-full max-w-lg shadow-2xl border border-zinc-200 dark:border-zinc-700">
-                        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                            <Mail className="text-blue-500" />
-                            Bulk Email
-                        </h2>
-                        <form onSubmit={(e) => {
-                            e.preventDefault();
-                            const formData = new FormData(e.currentTarget);
-                            handleBulkAction('email', {
-                                subject: formData.get('subject'),
-                                body: formData.get('body')
-                            });
-                        }}>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Subject</label>
-                                    <input name="subject" required className="w-full px-3 py-2 border rounded-md dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100" placeholder="Important Update" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Message</label>
-                                    <textarea name="body" required rows={5} className="w-full px-3 py-2 border rounded-md dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100" placeholder="Hello students..." />
-                                </div>
-                            </div>
-                            <div className="flex justify-end gap-3 mt-6">
-                                <button type="button" onClick={() => setBulkAction(null)} className="px-4 py-2 text-sm border rounded-md">Cancel</button>
-                                <button type="submit" disabled={isProcessingBulk} className="px-4 py-2 text-sm bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-md font-bold disabled:opacity-50">
-                                    {isProcessingBulk ? "Sending..." : "Send to Selected"}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {bulkAction === 'status' && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 w-full max-w-sm shadow-2xl border border-zinc-200 dark:border-zinc-700">
-                        <h2 className="text-xl font-bold mb-4">Update Status</h2>
-                        <p className="text-sm text-zinc-500 mb-6">Select a new status for the {selectedIds.size} selected members.</p>
-                        <form onSubmit={(e) => {
-                            e.preventDefault();
-                            const formData = new FormData(e.currentTarget);
-                            handleBulkAction('status', { status: formData.get('status') });
-                        }}>
-                            <select name="status" className="w-full px-3 py-2 border rounded-md dark:bg-zinc-800 mb-6 text-zinc-900 dark:text-zinc-100">
-                                <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
-                                <option value="archived">Archived</option>
-                            </select>
-                            <div className="flex justify-end gap-3">
-                                <button type="button" onClick={() => setBulkAction(null)} className="px-4 py-2 text-sm border rounded-md">Cancel</button>
-                                <button type="submit" disabled={isProcessingBulk} className="px-4 py-2 text-sm bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-md font-bold">
-                                    Apply Changes
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-        </div >
+        </div>
     );
 }

@@ -15,6 +15,8 @@ import { useEffect } from "react";
 import { ClerkProvider } from "@clerk/react-router";
 import { rootAuthLoader } from "@clerk/react-router/server";
 import { ThemeProvider } from "./components/ThemeProvider";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./lib/query-client";
 
 import styles from "./index.css?url";
 
@@ -75,28 +77,29 @@ export default function App() {
 
     return (
         <ClerkProvider loaderData={loaderData} signUpFallbackRedirectUrl="/" signInFallbackRedirectUrl="/dashboard">
-            <ThemeProvider defaultTheme="light" storageKey="studio-theme">
-                <html lang="en" suppressHydrationWarning>
-                    <head>
-                        <meta charSet="utf-8" />
-                        <Meta />
-                        <Links />
-                        {/* Google Analytics */}
-                        {(loaderData as any)?.env?.VITE_GA_ID && (
-                            <>
-                                <script async src={`https://www.googletagmanager.com/gtag/js?id=${(loaderData as any).env.VITE_GA_ID}`}></script>
-                                <script dangerouslySetInnerHTML={{
-                                    __html: `
+            <QueryClientProvider client={queryClient}>
+                <ThemeProvider defaultTheme="light" storageKey="studio-theme">
+                    <html lang="en" suppressHydrationWarning>
+                        <head>
+                            <meta charSet="utf-8" />
+                            <Meta />
+                            <Links />
+                            {/* Google Analytics */}
+                            {(loaderData as any)?.env?.VITE_GA_ID && (
+                                <>
+                                    <script async src={`https://www.googletagmanager.com/gtag/js?id=${(loaderData as any).env.VITE_GA_ID}`}></script>
+                                    <script dangerouslySetInnerHTML={{
+                                        __html: `
                                     window.dataLayer = window.dataLayer || [];
                                     function gtag(){dataLayer.push(arguments);}
                                     gtag('js', new Date());
                                     gtag('config', '${(loaderData as any).env.VITE_GA_ID}');
                                 `}} />
-                            </>
-                        )}
-                        {/* Emergency SW Kill Script - runs before hydration */}
-                        <script dangerouslySetInnerHTML={{
-                            __html: `
+                                </>
+                            )}
+                            {/* Emergency SW Kill Script - runs before hydration */}
+                            <script dangerouslySetInnerHTML={{
+                                __html: `
                             if ('serviceWorker' in navigator && !sessionStorage.getItem('sw_killed_v3')) {
                                 navigator.serviceWorker.getRegistrations().then(registrations => {
                                     if (registrations.length > 0) {
@@ -107,18 +110,19 @@ export default function App() {
                                 });
                             }
                         `}} />
-                    </head>
-                    <body className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 font-sans antialiased selection:bg-blue-100 dark:selection:bg-blue-900" suppressHydrationWarning>
-                        <Outlet />
-                        <Toaster position="top-right" richColors />
-                        <ScrollRestoration />
-                        <Scripts />
-                        <script dangerouslySetInnerHTML={{
-                            __html: `window.ENV = ${JSON.stringify((loaderData as any)?.env || {})}`
-                        }} />
-                    </body>
-                </html>
-            </ThemeProvider>
+                        </head>
+                        <body className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 font-sans antialiased selection:bg-blue-100 dark:selection:bg-blue-900" suppressHydrationWarning>
+                            <Outlet />
+                            <Toaster position="top-right" richColors />
+                            <ScrollRestoration />
+                            <Scripts />
+                            <script dangerouslySetInnerHTML={{
+                                __html: `window.ENV = ${JSON.stringify((loaderData as any)?.env || {})}`
+                            }} />
+                        </body>
+                    </html>
+                </ThemeProvider>
+            </QueryClientProvider>
         </ClerkProvider>
     );
 }
