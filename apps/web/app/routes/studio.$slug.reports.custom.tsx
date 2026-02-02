@@ -4,8 +4,9 @@ import type { MetaFunction } from "react-router";
 import { apiRequest } from "~/utils/api";
 import {
     BarChart3, Calendar, Filter, Download, Save,
-    ChevronDown, Plus, Trash2, RefreshCw, Layers
+    ChevronDown, Plus, Trash2, RefreshCw, Layers, DollarSign, Users, UserPlus
 } from "lucide-react";
+import { MetricCard } from "~/components/charts/MetricCard";
 import {
     ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
     CartesianGrid, Tooltip, Legend, LineChart, Line
@@ -275,20 +276,25 @@ export default function CustomReportsPage() {
                             {/* Summary Cards */}
                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                                 {metrics.includes('revenue') && (
-                                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-5 rounded-xl shadow-sm">
-                                        <p className="text-sm text-zinc-500 mb-1">Total Revenue</p>
-                                        <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                                            ${reportData.summary?.revenue?.toFixed(2) || '0.00'}
-                                        </p>
-                                    </div>
+                                    <MetricCard
+                                        title="Total Revenue"
+                                        value={`$${reportData.summary?.revenue?.toFixed(2) || '0.00'}`}
+                                        icon={<DollarSign size={20} className="text-blue-500" />}
+                                    />
                                 )}
                                 {metrics.includes('attendance') && (
-                                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-5 rounded-xl shadow-sm">
-                                        <p className="text-sm text-zinc-500 mb-1">Total Attendance</p>
-                                        <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                                            {reportData.summary?.attendance || 0}
-                                        </p>
-                                    </div>
+                                    <MetricCard
+                                        title="Total Attendance"
+                                        value={reportData.summary?.attendance || 0}
+                                        icon={<Users size={20} className="text-emerald-500" />}
+                                    />
+                                )}
+                                {metrics.includes('new_signups') && (
+                                    <MetricCard
+                                        title="New Signups"
+                                        value={reportData.summary?.new_signups || 0}
+                                        icon={<UserPlus size={20} className="text-amber-500" />}
+                                    />
                                 )}
                             </div>
 

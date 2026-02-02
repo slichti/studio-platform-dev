@@ -1,38 +1,34 @@
-// @ts-ignore
 import { useOutletContext, Link } from "react-router";
-import { ProjectionsCalculator } from "../components/ProjectionsCalculator";
 import { useState, useEffect } from "react";
-import { apiRequest } from "../utils/api";
-import {
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    Legend,
-    ResponsiveContainer,
-    LineChart,
-    Line,
-    AreaChart,
-    Area
-} from 'recharts';
-import { Loader2, DollarSign, Users, TrendingUp, CheckCircle2, Download, Calendar, Mail, Trash2, X, Plus } from "lucide-react";
-import { PrivacyBlur } from "../components/PrivacyBlur";
-import { useAdminPrivacy } from "../hooks/useAdminPrivacy";
+import { Loader2, DollarSign, Users, TrendingUp, CheckCircle2, Download, Calendar, Mail, Trash2, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@clerk/react-router";
+
+import { useRevenue, useAttendance, useRetention, useReportSchedules, useReportScheduleMutations, DateRange } from "~/hooks/useAnalytics";
+import { useAdminPrivacy } from "~/hooks/useAdminPrivacy";
+import { MetricCard } from "~/components/charts/MetricCard";
+import { RevenueChart } from "~/components/charts/RevenueChart";
+import { AttendanceChart } from "~/components/charts/AttendanceChart";
+import { PrivacyBlur } from "~/components/PrivacyBlur";
+import { ProjectionsCalculator } from "~/components/ProjectionsCalculator";
 
 export default function StudioReports() {
     const { tenant } = useOutletContext<any>();
+    const { getToken } = useAuth();
+
     const [activeTab, setActiveTab] = useState<'financials' | 'attendance' | 'projections'>('financials');
-    const [loading, setLoading] = useState(true);
-    const [revenueData, setRevenueData] = useState<any>(null);
-    const [retentionData, setRetentionData] = useState<any>(null);
-    const [attendanceData, setAttendanceData] = useState<any>(null);
-    const [dateRange, setDateRange] = useState('30d'); // 30d, 90d, 1y
+    const [dateRange, setDateRange] = useState<DateRange>('30d');
     const [exporting, setExporting] = useState(false);
     const [showSchedules, setShowSchedules] = useState(false);
-    const [schedules, setSchedules] = useState<any[]>([]);
+
+    // Hooks
+    const { data: revenueData, isLoading: loadingRevenue } = useRevenue(tenant.slug, dateRange);
+    const { data: attendanceData, isLoading: loadingAttendance } = useAttendance(tenant.slug, dateRange);
+    const { data: retentionData } = useRetention(tenant.slug);
+    const { data: schedules = [] } = useReportSchedules(tenant.slug);
+    const { createMutation: createSchedule, deleteMutation: deleteSchedule } = useReportScheduleMutations(tenant.slug);
+
+    // Schedule Form
     const [isCreatingSchedule, setIsCreatingSchedule] = useState(false);
     const [newSchedule, setNewSchedule] = useState({ reportType: 'revenue', frequency: 'weekly', recipients: '' });
 
@@ -41,82 +37,21 @@ export default function StudioReports() {
     useEffect(() => {
         setImpersonating(!!localStorage.getItem('impersonation_token'));
     }, []);
-
     const { isPrivacyMode } = useAdminPrivacy();
-    // Blur if impersonating AND privacy mode is active
     const shouldBlur = impersonating && isPrivacyMode;
-
-    useEffect(() => {
-        fetchData();
-        if (showSchedules) fetchSchedules();
-    }, [activeTab, dateRange, showSchedules]);
-
-    const fetchSchedules = async () => {
-        const token = await (window as any).Clerk?.session?.getToken();
-        try {
-            const res = await apiRequest('/reports/schedules', token);
-            setSchedules(res);
-        } catch (e) {
-            console.error("Failed to fetch schedules", e);
-        }
-    };
 
     const handleCreateSchedule = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsCreatingSchedule(true);
-        const token = await (window as any).Clerk?.session?.getToken();
         try {
             const recipients = newSchedule.recipients.split(',').map(r => r.trim()).filter(r => !!r);
-            await apiRequest('/reports/schedules', token, {
-                method: 'POST',
-                body: JSON.stringify({ ...newSchedule, recipients })
-            });
+            await createSchedule.mutateAsync({ ...newSchedule, recipients });
             toast.success("Schedule created");
-            fetchSchedules();
             setNewSchedule({ reportType: 'revenue', frequency: 'weekly', recipients: '' });
         } catch (e: any) {
             toast.error(e.message);
         } finally {
             setIsCreatingSchedule(false);
-        }
-    };
-
-    const handleDeleteSchedule = async (id: string) => {
-        const token = await (window as any).Clerk?.session?.getToken();
-        try {
-            await apiRequest(`/reports/schedules/${id}`, token, { method: 'DELETE' });
-            toast.success("Schedule deleted");
-            fetchSchedules();
-        } catch (e: any) {
-            toast.error(e.message);
-        }
-    };
-
-    const fetchData = async () => {
-        setLoading(true);
-        // Calculate dates
-        const end = new Date();
-        const start = new Date();
-        if (dateRange === '30d') start.setDate(end.getDate() - 30);
-        if (dateRange === '90d') start.setDate(end.getDate() - 90);
-        if (dateRange === '1y') start.setFullYear(end.getFullYear() - 1);
-
-        const token = await (window as any).Clerk?.session?.getToken(); // Fallback if context missing
-
-        try {
-            if (activeTab === 'financials') {
-                const res = await apiRequest(`/reports/revenue?startDate=${start.toISOString()}&endDate=${end.toISOString()}`, token);
-                setRevenueData(res);
-                const retentionRes = await apiRequest(`/reports/retention?startDate=${start.toISOString()}&endDate=${end.toISOString()}`, token);
-                setRetentionData(retentionRes);
-            } else {
-                const res = await apiRequest(`/reports/attendance?startDate=${start.toISOString()}&endDate=${end.toISOString()}`, token);
-                setAttendanceData(res);
-            }
-        } catch (e) {
-            console.error("Failed to fetch report data", e);
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -128,9 +63,9 @@ export default function StudioReports() {
         if (dateRange === '90d') start.setDate(end.getDate() - 90);
         if (dateRange === '1y') start.setFullYear(end.getFullYear() - 1);
 
-        const token = await (window as any).Clerk?.session?.getToken();
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/reports/accounting/journal?format=csv&startDate=${start.toISOString()}&endDate=${end.toISOString()}`, {
+            const token = await getToken();
+            const response = await fetch(`${(window as any).ENV.VITE_API_URL || ''}/reports/accounting/journal?format=csv&startDate=${start.toISOString()}&endDate=${end.toISOString()}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'X-Tenant-Slug': tenant.slug
@@ -145,12 +80,13 @@ export default function StudioReports() {
             window.URL.revokeObjectURL(url);
         } catch (e) {
             console.error("Failed to export journal", e);
+            toast.error("Export failed");
         } finally {
             setExporting(false);
         }
     };
 
-    if (loading && !revenueData && !attendanceData) {
+    if (loadingRevenue || loadingAttendance) {
         return <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-zinc-400" /></div>;
     }
 
@@ -226,7 +162,7 @@ export default function StudioReports() {
                 </div>
 
                 {showSchedules && (
-                    <div className="mt-6 space-y-6">
+                    <div className="mt-6 space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             {/* Create Schedule Form */}
                             <div className="bg-white dark:bg-zinc-900 p-5 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
@@ -286,7 +222,7 @@ export default function StudioReports() {
                                 {schedules.length === 0 ? (
                                     <div className="text-zinc-400 text-sm italic py-8 text-center border-2 border-dashed rounded-lg">No schedules configured.</div>
                                 ) : (
-                                    schedules.map(s => (
+                                    schedules.map((s: any) => (
                                         <div key={s.id} className="bg-white dark:bg-zinc-900 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800 flex justify-between items-center shadow-sm">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 bg-zinc-50 dark:bg-zinc-800 rounded-full flex items-center justify-center text-blue-600">
@@ -298,7 +234,10 @@ export default function StudioReports() {
                                                 </div>
                                             </div>
                                             <button
-                                                onClick={() => handleDeleteSchedule(s.id)}
+                                                onClick={() => {
+                                                    deleteSchedule.mutate(s.id);
+                                                    toast.success("Schedule deleted");
+                                                }}
                                                 className="p-2 text-zinc-400 hover:text-red-500 transition-colors"
                                             >
                                                 <Trash2 size={16} />
@@ -319,26 +258,26 @@ export default function StudioReports() {
                         <MetricCard
                             title="Gross Volume (Period)"
                             value={<PrivacyBlur revealed={!shouldBlur} placeholder="***">{`$${(revenueData.grossVolume / 100).toFixed(2)}`}</PrivacyBlur>}
-                            icon={<DollarSign size={20} className="text-green-500" />}
+                            icon={<DollarSign size={20} className="text-green-600" />}
                         />
                         <MetricCard
                             title="Monthly Recurring Revenue"
                             value={<PrivacyBlur revealed={!shouldBlur} placeholder="***">{`$${(revenueData.mrr / 100).toFixed(2)}`}</PrivacyBlur>}
                             subtext="Active subscriptions snapshot"
-                            icon={<TrendingUp size={20} className="text-blue-500" />}
+                            icon={<TrendingUp size={20} className="text-blue-600" />}
                         />
                         <MetricCard
                             title="Sales Breakdown"
                             value={<PrivacyBlur revealed={!shouldBlur} placeholder="***">{`${((revenueData.breakdown.retail / (revenueData.grossVolume || 1)) * 100).toFixed(0)}% Retail`}</PrivacyBlur>}
                             subtext={`$${(revenueData.breakdown.packs / 100).toFixed(0)} Packs`}
-                            icon={<DollarSign size={20} className="text-purple-500" />}
+                            icon={<DollarSign size={20} className="text-purple-600" />}
                         />
                         {retentionData && (
                             <MetricCard
                                 title="Member Retention"
                                 value={`${retentionData.retentionRate.toFixed(1)}%`}
                                 subtext={`-${retentionData.churnCount} Churned / +${retentionData.newCount} New`}
-                                icon={<Users size={20} className="text-pink-500" />}
+                                icon={<Users size={20} className="text-pink-600" />}
                             />
                         )}
                     </>
@@ -348,13 +287,13 @@ export default function StudioReports() {
                         <MetricCard
                             title="Total Bookings"
                             value={attendanceData.totalBookings}
-                            icon={<Users size={20} className="text-blue-500" />}
+                            icon={<Users size={20} className="text-blue-600" />}
                         />
                         <MetricCard
                             title="Check-in Rate"
                             value={`${((attendanceData.totalCheckins / (attendanceData.totalBookings || 1)) * 100).toFixed(0)}%`}
                             subtext={`${attendanceData.totalCheckins} Checked-in`}
-                            icon={<CheckCircle2 size={20} className="text-green-500" />}
+                            icon={<CheckCircle2 size={20} className="text-green-600" />}
                         />
                     </>
                 )}
@@ -365,7 +304,7 @@ export default function StudioReports() {
                 <ProjectionsCalculator />
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2 bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative">
+                    <div className="lg:col-span-2 bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative min-h-[400px]">
                         <h3 className="text-lg font-semibold mb-6">
                             {activeTab === 'financials' ? 'Revenue Trends' : 'Attendance Trends'}
                         </h3>
@@ -376,55 +315,9 @@ export default function StudioReports() {
                             </div>
                         )}
 
-                        <div className="h-80 w-full flex items-center justify-center text-zinc-400 text-sm">
-                            {activeTab === 'financials' && revenueData?.chartData ? (
-                                isEmpty(revenueData.chartData) ? (
-                                    <div className="text-center">
-                                        <div className="mb-2">No revenue data for this period</div>
-                                        <div className="text-xs text-zinc-500">Record sales in POS to see trends</div>
-                                    </div>
-                                ) : (
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <AreaChart data={revenueData.chartData}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E4E7" />
-                                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#71717A', fontSize: 12 }} dy={10}
-                                                tickFormatter={(val) => formatDate(val)}
-                                            />
-                                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#71717A', fontSize: 12 }} />
-                                            <Tooltip
-                                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                                formatter={(value: any) => [`$${Number(value).toFixed(2)}`, 'Revenue']}
-                                                labelFormatter={(l) => new Date(l).toLocaleDateString()}
-                                            />
-                                            <Area type="monotone" dataKey="value" stroke="#3B82F6" fill="#EFF6FF" strokeWidth={2} />
-                                        </AreaChart>
-                                    </ResponsiveContainer>
-                                )
-                            ) : null}
-
-                            {activeTab === 'attendance' && attendanceData?.chartData ? (
-                                isEmpty(attendanceData.chartData) ? (
-                                    <div className="text-center">
-                                        <div className="mb-2">No attendance data for this period</div>
-                                    </div>
-                                ) : (
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <AreaChart data={attendanceData.chartData}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E4E7" />
-                                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#71717A', fontSize: 12 }} dy={10}
-                                                tickFormatter={(val) => formatDate(val)}
-                                            />
-                                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#71717A', fontSize: 12 }} />
-                                            <Tooltip
-                                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                                formatter={(value: any) => [value, 'Attendees']}
-                                                labelFormatter={(l) => new Date(l).toLocaleDateString()}
-                                            />
-                                            <Area type="monotone" dataKey="value" stroke="#10B981" fill="#ECFDF5" strokeWidth={2} />
-                                        </AreaChart>
-                                    </ResponsiveContainer>
-                                )
-                            ) : null}
+                        <div className="h-80 w-full">
+                            {activeTab === 'financials' && <RevenueChart data={revenueData?.chartData} />}
+                            {activeTab === 'attendance' && <AttendanceChart data={attendanceData?.chartData} />}
                         </div>
                     </div>
 
@@ -485,32 +378,4 @@ export default function StudioReports() {
             )}
         </div>
     );
-}
-
-function MetricCard({ title, value, subtext, icon }: any) {
-    return (
-        <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-            <div className="flex justify-between items-start mb-4">
-                <div className="p-2 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                    {icon}
-                </div>
-                {/* Percent change could go here */}
-            </div>
-            <div>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium mb-1">{title}</p>
-                <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{value}</div>
-                {subtext && <p className="text-xs text-zinc-500 mt-2">{subtext}</p>}
-            </div>
-        </div>
-    );
-}
-
-function isEmpty(data: any[]) {
-    if (!data || data.length === 0) return true;
-    return data.every(d => d.value === 0);
-}
-
-function formatDate(iso: string) {
-    const d = new Date(iso);
-    return `${d.getMonth() + 1}/${d.getDate()}`;
 }
