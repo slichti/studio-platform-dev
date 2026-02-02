@@ -24,18 +24,14 @@ type Plan = {
 };
 
 export async function loader() {
-    try {
-        // Fetch public plans server-side or client-side. 
-        // Note: apiRequest with null token works for public endpoints if backend allows.
-        // Assuming /public/plans is available.
-        // We can ALSO fetch this in a useEffect client-side if loader context is tricky, 
-        // but Remix loader is better for SEO/initial paint.
-        // However, sticking to client-side apiRequest pattern used elsewhere for consistency if needed.
-        // Let's try client-fetch pattern in component to avoid ssr auth issues if any.
-        return null;
-    } catch {
-        return null;
-    }
+    // Fetch public plans server-side or client-side. 
+    // Note: apiRequest with null token works for public endpoints if backend allows.
+    // Assuming /public/plans is available.
+    // We can ALSO fetch this in a useEffect client-side if loader context is tricky, 
+    // but Remix loader is better for SEO/initial paint.
+    // However, sticking to client-side apiRequest pattern used elsewhere for consistency if needed.
+    // Let's try client-fetch pattern in component to avoid ssr auth issues if any.
+    return null;
 }
 
 const STATIC_FEATURES_TEMPLATE = [

@@ -34,7 +34,9 @@ const MemberListResponse = z.object({
     members: z.array(MemberSchema)
 });
 
-const SettingsSchema = z.record(z.any()).openapi('MemberSettings');
+const SettingsSchema = z.record(z.string(), z.any()).openapi('MemberSettings');
+
+
 
 // --- Routes ---
 
@@ -292,7 +294,18 @@ app.openapi(updateMySettingsRoute, async (c) => {
     if (!member) return c.json({ error: 'Not a member' }, 404);
     const db = createDb(c.env.DB);
     const body = c.req.valid('json');
-    const s = { ...(member.settings as any || {}), ...body, notifications: { ...(member.settings as any || {}).notifications, ...body.notifications } };
+    const currentSettings = (member.settings as Record<string, any>) || {};
+    const currentNotifications = (currentSettings.notifications as Record<string, any>) || {};
+    const bodyNotifications = (body.notifications as Record<string, any>) || {};
+
+    const s = {
+        ...currentSettings,
+        ...body,
+        notifications: {
+            ...currentNotifications,
+            ...bodyNotifications
+        }
+    };
     await db.update(tenantMembers).set({ settings: s }).where(eq(tenantMembers.id, member.id)).run();
     return c.json({ success: true, settings: s }, 200);
 });
@@ -331,7 +344,7 @@ app.openapi(updateMemberRoleRoute, async (c) => {
         const { UsageService } = await import('../services/pricing');
         if (!(await new UsageService(db, c.get('tenant')!.id).checkLimit('instructors', c.get('tenant')!.tier || 'launch'))) return c.json({ error: "Limit", code: "LIMIT_REACHED" }, 403);
     }
-    await db.insert(tenantRoles).values({ id: crypto.randomUUID(), memberId: mid, role }).run();
+    await db.insert(tenantRoles).values({ id: crypto.randomUUID(), memberId: mid, role: role as any }).run();
     return c.json({ success: true }, 200);
 });
 
@@ -378,7 +391,7 @@ app.openapi(getMemberNotesRoute, async (c) => {
     if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const list = await db.query.studentNotes.findMany({ where: eq(studentNotes.studentId, c.req.valid('param').id), orderBy: [desc(studentNotes.createdAt)], with: { author: { with: { user: true } } } });
-    return c.json({ notes: list }, 200);
+    return c.json({ notes: list as any[] }, 200);
 });
 
 // POST /members/:id/notes
@@ -439,7 +452,7 @@ app.openapi(updateMemberStatusRoute, async (c) => {
     if (mid === me?.id) return c.json({ error: 'Self' }, 400);
 
     const { status } = c.req.valid('json');
-    await db.update(tenantMembers).set({ status }).where(and(eq(tenantMembers.id, mid), eq(tenantMembers.tenantId, c.get('tenant')!.id))).run();
+    await db.update(tenantMembers).set({ status: status as any }).where(and(eq(tenantMembers.id, mid), eq(tenantMembers.tenantId, c.get('tenant')!.id))).run();
     return c.json({ success: true, status }, 200);
 });
 
