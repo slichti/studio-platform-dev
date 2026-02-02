@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantMembers, tenantRoles, subscriptions, tenantFeatures, websitePages, auditLogs, users, emailLogs, locations, classes, bookings, purchases, products, posOrders, marketingAutomations, marketingCampaigns, waiverTemplates, waiverSignatures, studentNotes } from '@studio/db/src/schema';
+import { tenants, tenantMembers, tenantRoles, subscriptions, tenantFeatures, websitePages, auditLogs, users, emailLogs, locations, classes, bookings, products, posOrders, marketingAutomations, marketingCampaigns, waiverTemplates, waiverSignatures, studentNotes } from '@studio/db/src/schema'; // Removed purchases
 import { eq, sql, desc, count, and, inArray } from 'drizzle-orm';
 import { AuditService } from '../services/audit';
 import { HonoContext } from '../types';
