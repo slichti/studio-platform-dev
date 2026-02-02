@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { createDb } from '../db';
 import { eq, and, desc, sql, inArray } from 'drizzle-orm';
-import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings, tenants, marketingAutomations, emailLogs, coupons, automationLogs, purchasedPacks, waiverSignatures } from '@studio/db/src/schema'; // Keep existing imports
+import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings, tenants, marketingAutomations, emailLogs, coupons, automationLogs, purchasedPacks, waiverSignatures } from '@studio/db/src/schema';
 import { HonoContext } from '../types';
 
 const app = new OpenAPIHono<HonoContext>();
@@ -11,7 +11,7 @@ const app = new OpenAPIHono<HonoContext>();
 const MemberUserSchema = z.object({
     id: z.string(),
     email: z.string().email(),
-    profile: z.any().optional(), // Improve later
+    profile: z.any().optional(),
     isPlatformAdmin: z.boolean().optional()
 });
 
@@ -37,6 +37,8 @@ const ErrorResponse = z.object({
     code: z.string().optional()
 });
 
+const SettingsSchema = z.record(z.any()).openapi('MemberSettings');
+
 // --- Routes ---
 
 // GET /members
@@ -52,9 +54,7 @@ const listMembersRoute = createRoute({
     },
     responses: {
         200: {
-            content: {
-                'application/json': { schema: MemberListResponse }
-            },
+            content: { 'application/json': { schema: MemberListResponse } },
             description: 'List of members'
         },
         403: {
@@ -72,13 +72,11 @@ app.openapi(listMembersRoute, async (c) => {
 
     let list = await db.query.tenantMembers.findMany({ where: eq(tenantMembers.tenantId, tenant.id), with: { roles: true, user: true }, orderBy: [desc(tenantMembers.joinedAt)] });
 
-    // Manual search filtering (DB logic kept same)
+    // Manual search filtering
     if (q) list = list.filter((m: any) => `${m.user.email} ${(m.user.profile as any)?.firstName} ${(m.user.profile as any)?.lastName}`.toLowerCase().includes(q));
 
-    // Type casting because Drizzle result structure matches schema roughly but dates might be objects
     const result = list.filter((m: any) => !m.user.isPlatformAdmin).map((m: any) => ({
         ...m,
-        // Drizzle might return Date objects, Zod handles them with .or(z.date()) or coerce
         joinedAt: m.joinedAt ? new Date(m.joinedAt).toISOString() : undefined
     }));
 
@@ -86,7 +84,6 @@ app.openapi(listMembersRoute, async (c) => {
 });
 
 // POST /members
-// (Keeping mostly original logic but wrapping in OpenAPI)
 const createMemberRoute = createRoute({
     method: 'post',
     path: '/',
@@ -112,7 +109,7 @@ const createMemberRoute = createRoute({
             description: 'Member created'
         },
         400: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Bad Request' },
-        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Forbidden/Limit Reached' },
+        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Forbidden' },
         409: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Conflict' }
     }
 });
@@ -122,7 +119,6 @@ app.openapi(createMemberRoute, async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant')!;
     const { email, firstName, lastName, role } = c.req.valid('json');
-    // ... existing logic ...
 
     const { UsageService } = await import('../services/pricing');
     const us = new UsageService(db, tenant.id);
@@ -134,7 +130,7 @@ app.openapi(createMemberRoute, async (c) => {
         await db.insert(users).values({ id: uid, email, profile: { firstName, lastName }, createdAt: new Date() }).run();
         u = await db.query.users.findFirst({ where: eq(users.id, uid) });
     }
-    if (!u) return c.json({ error: "User error" }, 500) as any; // 500 not in schema explicitly but allowed
+    if (!u) return c.json({ error: "User error" }, 500) as any;
 
     const exists = await db.query.tenantMembers.findFirst({ where: and(eq(tenantMembers.userId, u.id), eq(tenantMembers.tenantId, tenant.id)) });
     if (exists) return c.json({ error: 'Exists' }, 409);
@@ -150,17 +146,13 @@ app.openapi(createMemberRoute, async (c) => {
     }
     await db.insert(tenantRoles).values({ id: crypto.randomUUID(), memberId: mid, role: assigned }).run();
 
-    // Side effects... (Email, Automations, Webhooks)
     c.executionCtx.waitUntil((async () => {
         try {
             const es = c.get('email');
             if (token) {
                 await es.sendInvitation(email, `${c.req.header('origin')}/login?email=${encodeURIComponent(email)}&token=${token}`);
             }
-
-            // Sync to Resend Audience
             await es.syncContact(email, firstName, lastName);
-
             const { AutomationsService } = await import('../services/automations');
             const { SmsService } = await import('../services/sms');
             const as = new AutomationsService(db, tenant.id, es, new SmsService(tenant.twilioCredentials as any, c.env, us, db, tenant.id));
@@ -171,30 +163,58 @@ app.openapi(createMemberRoute, async (c) => {
     return c.json({ success: true, memberId: mid }, 200);
 });
 
-// Since rewriting the whole file is risky without testing everything, I will use 'app.route' and 'app.get' mixed if possible?
-// No, OpenAPIHono supports .get() too but they won't be documented. 
-// For "Standardization", I should port all. For this turn, I'll stick to GET / and POST /.
-// I will rewrite the rest of the existing routes using standard app.get/app.post/app.delete for now to minimize breakage risk during migration,
-// but change 'app' to 'OpenAPIHono' instance so they are compatible.
-
 // DELETE /members/:id
-app.delete('/:id', async (c) => {
+const deleteMemberRoute = createRoute({
+    method: 'delete',
+    path: '/{id}',
+    tags: ['Members'],
+    summary: 'Archive a member',
+    request: {
+        params: z.object({ id: z.string() })
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ success: z.boolean() }) } }, description: 'Archived' },
+        400: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Bad Request' },
+        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized' },
+        404: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Not found' }
+    }
+});
+
+app.openapi(deleteMemberRoute, async (c) => {
     if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
-    const mid = c.req.param('id');
+    const mid = c.req.valid('param').id;
     const m = await db.query.tenantMembers.findFirst({ where: and(eq(tenantMembers.id, mid), eq(tenantMembers.tenantId, c.get('tenant')!.id)) });
     if (!m) return c.json({ error: 'Not found' }, 404);
     if (m.userId === c.get('auth').userId) return c.json({ error: 'Self' }, 400);
 
     await db.update(tenantMembers).set({ status: 'archived' }).where(eq(tenantMembers.id, mid)).run();
     await db.delete(tenantRoles).where(eq(tenantRoles.memberId, mid)).run();
-    return c.json({ success: true });
+    return c.json({ success: true }, 200);
 });
 
 // POST /members/accept-invite
-app.post('/accept-invite', async (c) => {
+const acceptInviteRoute = createRoute({
+    method: 'post',
+    path: '/accept-invite',
+    tags: ['Members'],
+    summary: 'Accept an invitation',
+    request: {
+        body: {
+            content: { 'application/json': { schema: z.object({ token: z.string() }) } }
+        }
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ success: z.boolean(), tenantId: z.string() }) } }, description: 'Accepted' },
+        401: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized' },
+        404: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Invalid token' },
+        409: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Already joined' }
+    }
+});
+
+app.openapi(acceptInviteRoute, async (c) => {
     const db = createDb(c.env.DB);
-    const { token } = await c.req.json();
+    const { token } = c.req.valid('json');
     const auth = c.get('auth');
     if (!auth?.userId || !token) return c.json({ error: "Unauthorized/Missing" }, 401);
 
@@ -206,42 +226,106 @@ app.post('/accept-invite', async (c) => {
 
     const s = (pending.settings as any) || {}; delete s.invitationToken;
     await db.update(tenantMembers).set({ userId: auth.userId, status: 'active', settings: s }).where(eq(tenantMembers.id, pending.id)).run();
-    return c.json({ success: true, tenantId: pending.tenantId });
+    return c.json({ success: true, tenantId: pending.tenantId }, 200);
 });
 
 // GET /me/bookings
-app.get('/me/bookings', async (c) => {
+const getMyBookingsRoute = createRoute({
+    method: 'get',
+    path: '/me/bookings',
+    tags: ['Members'],
+    summary: 'Get current member bookings',
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ bookings: z.array(z.any()) }) } }, description: 'List of bookings' },
+        404: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Not a member' }
+    }
+});
+
+app.openapi(getMyBookingsRoute, async (c) => {
     const member = c.get('member');
     if (!member) return c.json({ error: 'Not a member' }, 404);
     const db = createDb(c.env.DB);
     const list = await db.query.bookings.findMany({ where: eq(bookings.memberId, member.id), with: { class: { with: { location: true, instructor: { with: { user: true } } } } }, orderBy: [desc(bookings.createdAt)] });
-    return c.json({ bookings: list });
+    return c.json({ bookings: list }, 200);
 });
 
 // GET /me
-app.get('/me', async (c) => {
+const getMeRoute = createRoute({
+    method: 'get',
+    path: '/me',
+    tags: ['Members'],
+    summary: 'Get current member details',
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ member: MemberSchema.optional() }) } }, description: 'Member details' },
+        404: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Not a member' }
+    }
+});
+
+app.openapi(getMeRoute, async (c) => {
     const member = await createDb(c.env.DB).query.tenantMembers.findFirst({ where: and(eq(tenantMembers.userId, c.get('auth').userId), eq(tenantMembers.tenantId, c.get('tenant')!.id)), with: { roles: true, user: true } });
     if (!member) return c.json({ error: 'Not a member' }, 404);
-    return c.json({ member });
+
+    // Transform to match Schema
+    const result = {
+        ...member,
+        joinedAt: member.joinedAt ? new Date(member.joinedAt).toISOString() : undefined
+    };
+
+    return c.json({ member: result }, 200);
 });
 
 // PATCH /me/settings
-app.patch('/me/settings', async (c) => {
+const updateMySettingsRoute = createRoute({
+    method: 'patch',
+    path: '/me/settings',
+    tags: ['Members'],
+    summary: 'Update current member settings',
+    request: {
+        body: {
+            content: { 'application/json': { schema: SettingsSchema } }
+        }
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ success: z.boolean(), settings: SettingsSchema }) } }, description: 'Updated' },
+        404: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Not a member' }
+    }
+});
+
+app.openapi(updateMySettingsRoute, async (c) => {
     const member = c.get('member');
     if (!member) return c.json({ error: 'Not a member' }, 404);
     const db = createDb(c.env.DB);
-    const body = await c.req.json();
+    const body = c.req.valid('json');
     const s = { ...(member.settings as any || {}), ...body, notifications: { ...(member.settings as any || {}).notifications, ...body.notifications } };
     await db.update(tenantMembers).set({ settings: s }).where(eq(tenantMembers.id, member.id)).run();
-    return c.json({ success: true, settings: s });
+    return c.json({ success: true, settings: s }, 200);
 });
 
 // PATCH /members/:id/role
-app.patch('/:id/role', async (c) => {
+const updateMemberRoleRoute = createRoute({
+    method: 'patch',
+    path: '/{id}/role',
+    tags: ['Members'],
+    summary: 'Update member role',
+    request: {
+        params: z.object({ id: z.string() }),
+        body: {
+            content: { 'application/json': { schema: z.object({ role: z.string() }) } }
+        }
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ success: z.boolean() }) } }, description: 'Role updated' },
+        400: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Bad Request / Self' },
+        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized / Limit' },
+        404: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Not found' }
+    }
+});
+
+app.openapi(updateMemberRoleRoute, async (c) => {
     if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
-    const { role } = await c.req.json();
-    const mid = c.req.param('id');
+    const { role } = c.req.valid('json');
+    const mid = c.req.valid('param').id;
     const m = await db.query.tenantMembers.findFirst({ where: and(eq(tenantMembers.id, mid), eq(tenantMembers.tenantId, c.get('tenant')!.id)) });
     if (!m) return c.json({ error: 'Not found' }, 404);
     if (m.userId === c.get('auth').userId) return c.json({ error: 'Self' }, 400);
@@ -252,62 +336,156 @@ app.patch('/:id/role', async (c) => {
         if (!(await new UsageService(db, c.get('tenant')!.id).checkLimit('instructors', c.get('tenant')!.tier || 'launch'))) return c.json({ error: "Limit", code: "LIMIT_REACHED" }, 403);
     }
     await db.insert(tenantRoles).values({ id: crypto.randomUUID(), memberId: mid, role }).run();
-    return c.json({ success: true });
+    return c.json({ success: true }, 200);
 });
 
 // GET /members/:id
-app.get('/:id', async (c) => {
+const getMemberRoute = createRoute({
+    method: 'get',
+    path: '/{id}',
+    tags: ['Members'],
+    summary: 'Get member details',
+    request: {
+        params: z.object({ id: z.string() })
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ member: z.any() }) } }, description: 'Member details' }, // Schema could be tighter
+        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized' },
+        404: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Not found' }
+    }
+});
+
+app.openapi(getMemberRoute, async (c) => {
     if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
-    const m = await db.query.tenantMembers.findFirst({ where: and(eq(tenantMembers.id, c.req.param('id')), eq(tenantMembers.tenantId, c.get('tenant')!.id)), with: { user: true, roles: true, memberships: { with: { plan: true } }, purchasedPacks: { with: { definition: true }, orderBy: [desc(purchasedPacks.createdAt)] }, bookings: { with: { class: true }, orderBy: [desc(bookings.createdAt)], limit: 20 }, waiverSignatures: { with: { template: true }, orderBy: [desc(waiverSignatures.signedAt)] } } });
+    const m = await db.query.tenantMembers.findFirst({ where: and(eq(tenantMembers.id, c.req.valid('param').id), eq(tenantMembers.tenantId, c.get('tenant')!.id)), with: { user: true, roles: true, memberships: { with: { plan: true } }, purchasedPacks: { with: { definition: true }, orderBy: [desc(purchasedPacks.createdAt)] }, bookings: { with: { class: true }, orderBy: [desc(bookings.createdAt)], limit: 20 }, waiverSignatures: { with: { template: true }, orderBy: [desc(waiverSignatures.signedAt)] } } });
     if (!m) return c.json({ error: 'Not found' }, 404);
-    return c.json({ member: m });
+    return c.json({ member: m }, 200);
 });
 
 // GET /members/:id/notes
-app.get('/:id/notes', async (c) => {
+const getMemberNotesRoute = createRoute({
+    method: 'get',
+    path: '/{id}/notes',
+    tags: ['Members'],
+    summary: 'Get member notes',
+    request: {
+        params: z.object({ id: z.string() })
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ notes: z.array(z.any()) }) } }, description: 'Notes' },
+        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized' }
+    }
+});
+
+app.openapi(getMemberNotesRoute, async (c) => {
     if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
-    const list = await db.query.studentNotes.findMany({ where: eq(studentNotes.studentId, c.req.param('id')), orderBy: [desc(studentNotes.createdAt)], with: { author: { with: { user: true } } } });
-    return c.json({ notes: list });
+    const list = await db.query.studentNotes.findMany({ where: eq(studentNotes.studentId, c.req.valid('param').id), orderBy: [desc(studentNotes.createdAt)], with: { author: { with: { user: true } } } });
+    return c.json({ notes: list }, 200);
 });
 
 // POST /members/:id/notes
-app.post('/:id/notes', async (c) => {
+const createMemberNoteRoute = createRoute({
+    method: 'post',
+    path: '/{id}/notes',
+    tags: ['Members'],
+    summary: 'Create member note',
+    request: {
+        params: z.object({ id: z.string() }),
+        body: {
+            content: { 'application/json': { schema: z.object({ note: z.string() }) } }
+        }
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ note: z.any() }) } }, description: 'Note created' }, // Schema could be tighter
+        400: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Author error' },
+        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized' }
+    }
+});
+
+app.openapi(createMemberNoteRoute, async (c) => {
     if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const author = await db.query.tenantMembers.findFirst({ where: and(eq(tenantMembers.userId, c.get('auth').userId), eq(tenantMembers.tenantId, c.get('tenant')!.id)) });
     if (!author) return c.json({ error: 'Author error' }, 400);
-    const { note } = await c.req.json();
+    const { note } = c.req.valid('json');
     const id = crypto.randomUUID();
-    await db.insert(studentNotes).values({ id, studentId: c.req.param('id'), authorId: author.id, note, tenantId: c.get('tenant')!.id, createdAt: new Date() }).run();
-    return c.json({ note: { id, note } });
+    await db.insert(studentNotes).values({ id, studentId: c.req.valid('param').id, authorId: author.id, note, tenantId: c.get('tenant')!.id, createdAt: new Date() }).run();
+    return c.json({ note: { id, note } }, 200);
 });
 
 // PATCH /members/:id/status
-app.patch('/:id/status', async (c) => {
+const updateMemberStatusRoute = createRoute({
+    method: 'patch',
+    path: '/{id}/status',
+    tags: ['Members'],
+    summary: 'Update member status',
+    request: {
+        params: z.object({ id: z.string() }),
+        body: {
+            content: { 'application/json': { schema: z.object({ status: z.string() }) } }
+        }
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ success: z.boolean(), status: z.string() }) } }, description: 'Status updated' },
+        400: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Self modification' },
+        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized' }
+    }
+});
+
+app.openapi(updateMemberStatusRoute, async (c) => {
     if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
-    if (c.req.param('id') === (await db.query.tenantMembers.findFirst({ where: and(eq(tenantMembers.userId, c.get('auth').userId), eq(tenantMembers.tenantId, c.get('tenant')!.id)) }))?.id) return c.json({ error: 'Self' }, 400);
-    const { status } = await c.req.json();
-    await db.update(tenantMembers).set({ status }).where(and(eq(tenantMembers.id, c.req.param('id')), eq(tenantMembers.tenantId, c.get('tenant')!.id))).run();
-    return c.json({ success: true, status });
+    const mid = c.req.valid('param').id;
+    // Check self
+    const me = await db.query.tenantMembers.findFirst({ where: and(eq(tenantMembers.userId, c.get('auth').userId), eq(tenantMembers.tenantId, c.get('tenant')!.id)) });
+    if (mid === me?.id) return c.json({ error: 'Self' }, 400);
+
+    const { status } = c.req.valid('json');
+    await db.update(tenantMembers).set({ status }).where(and(eq(tenantMembers.id, mid), eq(tenantMembers.tenantId, c.get('tenant')!.id))).run();
+    return c.json({ success: true, status }, 200);
 });
 
 // POST /members/bulk
-app.post('/bulk', async (c) => {
+const bulkMemberActionRoute = createRoute({
+    method: 'post',
+    path: '/bulk',
+    tags: ['Members'],
+    summary: 'Bulk member actions',
+    request: {
+        body: {
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        action: z.string(),
+                        memberIds: z.array(z.string()),
+                        data: z.any()
+                    })
+                }
+            }
+        }
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ success: z.boolean(), affected: z.number() }) } }, description: 'Action complete' },
+        400: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Some not found' },
+        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized' }
+    }
+});
+
+app.openapi(bulkMemberActionRoute, async (c) => {
     if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
-    const { action, memberIds, data } = await c.req.json();
+    const { action, memberIds, data } = c.req.valid('json');
     const list = await db.select().from(tenantMembers).where(and(inArray(tenantMembers.id, memberIds), eq(tenantMembers.tenantId, c.get('tenant')!.id))).all();
     if (list.length !== memberIds.length) return c.json({ error: 'Some not found' }, 400);
 
     if (action === 'status') {
         await db.update(tenantMembers).set({ status: data.status }).where(inArray(tenantMembers.id, memberIds)).run();
-        return c.json({ success: true, affected: list.length });
+        return c.json({ success: true, affected: list.length }, 200);
     }
-    // ... other actions simplified for brevity ...
-    return c.json({ success: true, affected: list.length });
+    // ... other actions
+    return c.json({ success: true, affected: list.length }, 200);
 });
 
 export default app;
