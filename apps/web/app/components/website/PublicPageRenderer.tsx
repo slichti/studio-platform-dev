@@ -1,8 +1,11 @@
 import { Link } from "react-router";
-import { Render, Data } from "@puckeditor/core";
+// Use lazy loading for Puck components to avoid global side-effects in Cloudflare Workers
+import { lazy, Suspense } from "react";
+const Render = lazy(() => import("@puckeditor/core").then(m => ({ default: m.Render })));
+
 import { puckConfig } from "~/components/website/puck-config";
 import { SignedIn, useUser } from "@clerk/react-router";
-import { Edit2 } from "lucide-react";
+import { Edit2, Loader2 } from "lucide-react";
 import { ChatWidget } from "~/components/chat/ChatWidget";
 
 interface PublicPageRendererProps {
@@ -15,7 +18,13 @@ export function PublicPageRenderer({ page, tenantSlug }: PublicPageRendererProps
 
     return (
         <div className="min-h-screen bg-white relative">
-            <Render config={puckConfig} data={page.content} />
+            <Suspense fallback={
+                <div className="flex h-screen items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
+                </div>
+            }>
+                <Render config={puckConfig} data={page.content} />
+            </Suspense>
 
             <ChatWidget
                 roomId={user ? `support-${user.id}` : "support-guest"}

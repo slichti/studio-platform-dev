@@ -3,12 +3,13 @@
 import { useLoaderData, useNavigate, useParams } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { useAuth } from "@clerk/react-router";
-import { Puck, Data } from "@puckeditor/core";
+// Lazy load Puck to avoid Cloudflare Worker global scope side-effects
+const Puck = lazy(() => import("@puckeditor/core").then(m => ({ default: m.Puck })));
 import "@puckeditor/core/dist/index.css";
 import { puckConfig } from "../components/website/puck-config";
-import { Save, ArrowLeft, Eye } from "lucide-react";
+import { Save, ArrowLeft, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const loader = async (args: any) => {
@@ -121,12 +122,18 @@ export default function WebsiteEditor() {
 
             {/* Puck Editor */}
             <div className="flex-1 overflow-hidden">
-                <Puck
-                    config={puckConfig}
-                    data={data}
-                    onPublish={handleSave}
-                    onChange={setData}
-                />
+                <Suspense fallback={
+                    <div className="flex h-full items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
+                    </div>
+                }>
+                    <Puck
+                        config={puckConfig}
+                        data={data}
+                        onPublish={handleSave}
+                        onChange={setData}
+                    />
+                </Suspense>
             </div>
         </div>
     );
