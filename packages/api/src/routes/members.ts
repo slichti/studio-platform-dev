@@ -346,8 +346,8 @@ const getMemberRoute = createRoute({
     },
     responses: {
         200: { content: { 'application/json': { schema: z.object({ member: z.any() }) } }, description: 'Member details' }, // Schema could be tighter
-        403: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Unauthorized' },
-        404: { content: { 'application/json': { schema: ErrorResponse } }, description: 'Not found' }
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' },
+        404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Not found' }
     }
 });
 
