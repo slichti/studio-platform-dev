@@ -25,6 +25,7 @@ import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { apiRequest } from '../lib/api';
+import Constants from 'expo-constants';
 
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -63,9 +64,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 console.log('Failed to get push token for push notification!');
                 return;
             }
+            const projectId = Constants?.expoConfig?.extra?.eas?.projectId || Constants?.easConfig?.projectId;
+            if (!projectId) {
+                console.log("No Project ID found for push notifications");
+                return;
+            }
             const pushTokenString = (
                 await Notifications.getExpoPushTokenAsync({
-                    projectId: '727c9d96-1c30-4ded-b4ae-55d4f185deca', // Updated managed project ID
+                    projectId,
                 })
             ).data;
 

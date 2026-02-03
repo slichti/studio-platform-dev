@@ -1,4 +1,4 @@
-import { View, Text, SafeAreaView, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, SafeAreaView, SectionList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { useState, useEffect, useCallback } from 'react';
 import { apiRequest } from '../../lib/api';
 import { useRouter } from 'expo-router';
@@ -49,6 +49,19 @@ export default function ScheduleScreen() {
         fetchSchedule();
     };
 
+    const groupedData = classes.reduce((acc: any, curr) => {
+        const date = new Date(curr.startTime);
+        const day = date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+        if (!acc[day]) acc[day] = [];
+        acc[day].push(curr);
+        return acc;
+    }, {});
+
+    const sections = Object.keys(groupedData).map(day => ({
+        title: day,
+        data: groupedData[day]
+    }));
+
     const renderItem = ({ item }: { item: ClassSession }) => {
         const date = new Date(item.startTime);
         const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -61,11 +74,11 @@ export default function ScheduleScreen() {
 
         return (
             <TouchableOpacity
-                className="bg-white p-4 rounded-xl border border-zinc-100 mb-3 flex-row justify-between items-center"
+                className="bg-white p-4 rounded-xl border border-zinc-100 mb-3 flex-row justify-between items-center shadow-sm"
                 onPress={() => router.push(`/class/${item.id}`)}
             >
                 <View className="flex-1">
-                    <Text className="text-zinc-500 text-xs mb-1 uppercase font-bold">{date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} • {time}</Text>
+                    <Text className="text-zinc-500 text-xs mb-1 uppercase font-bold">{time}</Text>
                     <Text className="text-lg font-bold text-zinc-900 mb-1">{item.title}</Text>
                     <Text className="text-zinc-500 text-sm">{instructorName}</Text>
                 </View>
@@ -97,12 +110,16 @@ export default function ScheduleScreen() {
                     <ActivityIndicator color="black" />
                 </View>
             ) : (
-                <FlatList
-                    data={classes}
+                <SectionList
+                    sections={sections}
                     renderItem={renderItem}
+                    renderSectionHeader={({ section: { title } }) => (
+                        <Text className="text-zinc-900 font-bold text-lg bg-white pt-4 pb-2 px-1">{title}</Text>
+                    )}
                     keyExtractor={item => item.id}
                     contentContainerStyle={{ padding: 16 }}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                    stickySectionHeadersEnabled={false}
                     ListEmptyComponent={
                         <View className="items-center mt-20">
                             <Text className="text-zinc-400">No upcoming classes scheduled.</Text>

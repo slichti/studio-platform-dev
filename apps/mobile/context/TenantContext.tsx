@@ -13,6 +13,7 @@ type TenantTheme = {
 
 type TenantContextType = {
     slug: string | null;
+    tenant: any; // Full tenant object
     theme: TenantTheme;
     setSlug: (slug: string) => Promise<void>;
     isLoading: boolean;
@@ -25,6 +26,7 @@ const DEFAULT_THEME: TenantTheme = {
 
 const TenantContext = createContext<TenantContextType>({
     slug: null,
+    tenant: null,
     theme: DEFAULT_THEME,
     setSlug: async () => { },
     isLoading: true,
@@ -36,6 +38,7 @@ export function useTenant() {
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
     const [slug, setSlugState] = useState<string | null>(null);
+    const [tenant, setTenant] = useState<any>(null);
     const [theme, setTheme] = useState<TenantTheme>(DEFAULT_THEME);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -45,13 +48,16 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
     const loadTheme = async (tenantSlug: string) => {
         try {
-            const tenant = await apiRequest(`/studios/${tenantSlug}`);
-            if (tenant?.branding) {
-                setTheme({
-                    primaryColor: tenant.branding.primaryColor || DEFAULT_THEME.primaryColor,
-                    logoUrl: tenant.branding.logoUrl,
-                    font: tenant.branding.font
-                });
+            const data = await apiRequest(`/public/tenant/${tenantSlug}`); // Use public/tenant for info
+            if (data) {
+                setTenant(data);
+                if (data.branding) {
+                    setTheme({
+                        primaryColor: data.branding.primaryColor || DEFAULT_THEME.primaryColor,
+                        logoUrl: data.branding.logoUrl,
+                        font: data.branding.font
+                    });
+                }
             }
         } catch (e) {
             console.error('Failed to fetch tenant theme', e);
@@ -70,6 +76,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
             if (storedSlug) {
                 setSlugState(storedSlug);
+                // In a real app we might verify if it's still valid or just fetch info
                 await loadTheme(storedSlug);
             }
         } catch (e) {
@@ -90,7 +97,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <TenantContext.Provider value={{ slug, theme, setSlug, isLoading }}>
+        <TenantContext.Provider value={{ slug, tenant, theme, setSlug, isLoading }}>
             {children}
         </TenantContext.Provider>
     );

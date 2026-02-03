@@ -56,6 +56,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="referrals"
+        options={{
+          title: 'Refer & Earn',
+          tabBarIcon: ({ color }) => <Icon component={Trophy} size={24} color={color} />, // Fallback icon or change to Gift if available. Lucide Gift is good.
+        }}
+      />
+      <Tabs.Screen
         name="challenges"
         options={{
           title: 'Challenges',

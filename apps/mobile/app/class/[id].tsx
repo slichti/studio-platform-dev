@@ -1,4 +1,4 @@
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { apiRequest } from '../../lib/api';
@@ -126,19 +126,34 @@ export default function ClassDetailScreen() {
             </ScrollView>
 
             <View className="p-6 border-t border-zinc-100 safe-bottom">
-                <TouchableOpacity
-                    onPress={handleBook}
-                    disabled={isBooked || processing}
-                    className={`w-full py-4 rounded-xl items-center flex-row justify-center ${isBooked ? 'bg-green-600' : 'bg-black'}`}
-                >
-                    {processing ? (
-                        <ActivityIndicator color="white" />
-                    ) : (
-                        <Text className="text-white font-bold text-lg">
-                            {isBooked ? (classData.userBookingStatus === 'waitlisted' ? 'Waitlisted' : 'Booked') : 'Book Class'}
-                        </Text>
+                <View className="flex-row gap-4">
+                    {isBooked && (
+                        <TouchableOpacity
+                            onPress={() => {
+                                const start = new Date(classData.startTime).toISOString().replace(/-|:|\.\d\d\d/g, "");
+                                const end = new Date(new Date(classData.startTime).getTime() + classData.durationMinutes * 60000).toISOString().replace(/-|:|\.\d\d\d/g, "");
+                                const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(classData.title)}&dates=${start}/${end}&details=${encodeURIComponent(classData.description || "")}&location=${encodeURIComponent(classData.location?.name || "Studio")}`;
+                                Linking.openURL(url);
+                            }}
+                            className="flex-1 py-4 rounded-xl items-center justify-center bg-zinc-100"
+                        >
+                            <Ionicons name="calendar-outline" size={24} color="black" />
+                        </TouchableOpacity>
                     )}
-                </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={handleBook}
+                        disabled={isBooked || processing}
+                        className={`flex-1 py-4 rounded-xl items-center flex-row justify-center ${isBooked ? 'bg-green-600' : 'bg-black'}`}
+                    >
+                        {processing ? (
+                            <ActivityIndicator color="white" />
+                        ) : (
+                            <Text className="text-white font-bold text-lg">
+                                {isBooked ? (classData.userBookingStatus === 'waitlisted' ? 'Waitlisted' : 'Booked') : 'Book Class'}
+                            </Text>
+                        )}
+                    </TouchableOpacity>
+                </View>
             </View>
         </SafeAreaView>
     );

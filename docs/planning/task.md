@@ -28,3 +28,16 @@
 - [x] Implement Capability-Based RBAC <!-- id: 29 -->
 - [x] Implement Churn Prediction API & Service <!-- id: 30 -->
 - [x] Implement Webhook Logs UI & Testing API <!-- id: 31 -->
+
+# [PHASE 3] Retention & Growth Engine
+- [x] Link Churn Service to Automations (High Risk Trigger) <!-- id: 32 -->
+- [x] Enhance Churn Prediction Algorithm (Ghosting, Cancellations) <!-- id: 33 -->
+- [x] Implement Referral System (Schema, API, UI) <!-- id: 34 -->
+
+# [PHASE 4] Mobile Experience Upgrade
+- [x] Implement Push Notifications (Expo Integration) <!-- id: 35 -->
+- [x] Add Referral & Earn Screen (Native Share) <!-- id: 36 -->
+- [x] Upgrade Booking Flow & Calendar Integration <!-- id: 37 -->
+- [x] Add Profile Stats & Streak Dashboard <!-- id: 38 -->
+
+

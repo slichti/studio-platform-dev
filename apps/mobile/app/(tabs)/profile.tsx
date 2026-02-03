@@ -3,21 +3,27 @@ import { useState, useEffect } from 'react';
 import { apiRequest } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { LogOut, Settings, CreditCard, Bell } from 'lucide-react-native';
+import StreakCard from '../../components/StreakCard';
 
 export default function ProfileScreen() {
     const { signOut } = useAuth();
 
     const [myBookings, setMyBookings] = useState<any[]>([]);
+    const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        loadBookings();
+        loadData();
     }, []);
 
-    const loadBookings = async () => {
+    const loadData = async () => {
         try {
-            const data = await apiRequest('/bookings/my-upcoming');
-            setMyBookings(data);
+            const [bookingsData, userData] = await Promise.all([
+                apiRequest('/bookings/my-upcoming'),
+                apiRequest('/tenant/me')
+            ]);
+            setMyBookings(bookingsData);
+            setUser(userData);
         } catch (e) {
             console.error(e);
         } finally {
@@ -58,13 +64,22 @@ export default function ProfileScreen() {
 
             <ScrollView className="flex-1 px-4">
                 {/* User Info Card */}
-                <View className="bg-zinc-50 p-6 rounded-2xl border border-zinc-100 mb-8 flex-row items-center gap-4">
-                    <View className="w-16 h-16 rounded-full bg-zinc-200" />
+                <View className="bg-zinc-50 p-6 rounded-2xl border border-zinc-100 mb-6 flex-row items-center gap-4">
+                    <View className="w-16 h-16 rounded-full bg-zinc-200 items-center justify-center">
+                        <Text className="text-2xl font-bold text-zinc-400">
+                            {user?.firstName?.[0] || 'U'}
+                        </Text>
+                    </View>
                     <View>
-                        <Text className="text-lg font-bold text-zinc-900">Student Name</Text>
-                        <Text className="text-zinc-500">primary@email.com</Text>
+                        <Text className="text-lg font-bold text-zinc-900">
+                            {user?.firstName} {user?.lastName}
+                        </Text>
+                        <Text className="text-zinc-500">{user?.user?.email || 'Member'}</Text>
                     </View>
                 </View>
+
+                {/* Streak */}
+                <StreakCard streak={user?.stats?.currentStreak || 0} />
 
                 <View className="mb-8">
                     <Text className="text-lg font-bold text-zinc-900 mb-4">My Bookings</Text>
