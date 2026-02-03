@@ -37,12 +37,12 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = "max-w-md" 
 
             {/* Content */}
             <div
-                className={`relative rounded-xl shadow-2xl w-full ${maxWidth} overflow-hidden animate-in zoom-in-95 duration-200 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800`}
+                className={`relative rounded-xl shadow-2xl w-full ${maxWidth} overflow-hidden animate-in zoom-in-95 duration-200 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex flex-col max-h-[90vh]`}
                 role="dialog"
                 aria-modal="true"
             >
                 {title && (
-                    <div className="px-6 py-4 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
+                    <div className="px-6 py-4 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
                         <h3 className="font-semibold text-lg text-zinc-900 dark:text-zinc-100">{title}</h3>
                         <button
                             onClick={onClose}
@@ -52,7 +52,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = "max-w-md" 
                         </button>
                     </div>
                 )}
-                <div className="p-6 text-zinc-900 dark:text-zinc-100">
+                <div className="p-6 text-zinc-900 dark:text-zinc-100 overflow-y-auto">
                     {children}
                 </div>
             </div>
