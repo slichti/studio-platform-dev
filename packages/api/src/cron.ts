@@ -8,6 +8,7 @@ import { AutomationsService } from './services/automations';
 import { EmailService } from './services/email';
 import { NotificationService } from './services/notifications';
 import { NudgeService } from './services/nudges';
+import { ChurnService } from './services/churn';
 
 export const scheduled = async (event: any, env: any, ctx: any) => {
     console.log("Cron trigger fired:", event.cron);
@@ -239,14 +240,12 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
 
 
 
-    // 4. Automated Workflows (Trial / Flows)
+    // 4. Automated Workflows (Trial / Flows) & Daily Maintenance
     // Runs on every tick (e.g. 15 mins)
-    // It iterates all active tenants and processes triggers.
-    // Optimization: We could query only tenants with enabled automations first.
-    // For now, let's iterate known active tenants from previous steps or query distinct tenants.
-    // Or just query ALL active tenants.
-    // AutomationsService does query by tenantId.
-    // Let's loop all Active tenants.
+
+    // Determine if this is the "Daily" run (e.g. 00:00 - 00:15 UTC)
+    const isDailyRun = now.getUTCHours() === 0 && now.getUTCMinutes() < 15;
+    if (isDailyRun) console.log("Starting Daily Maintenance Tasks...");
 
     const allTenants = await db.select({ id: tenants.id, branding: tenants.branding, settings: tenants.settings }).from(tenants).where(eq(tenants.status, 'active')).all();
 
@@ -261,6 +260,16 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
             await autoService.processTimeBasedAutomations();
         } catch (e) {
             console.error(`Failed to process automations for tenant ${tenant.id}`, e);
+        }
+
+        // Daily: Update Churn Scores
+        if (isDailyRun) {
+            try {
+                const churnService = new ChurnService(db, tenant.id);
+                await churnService.updateAllScores();
+            } catch (e) {
+                console.error(`Failed to update churn scores for tenant ${tenant.id}`, e);
+            }
         }
     }
 
