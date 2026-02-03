@@ -1,109 +1,186 @@
+
 import { DrizzleD1Database } from 'drizzle-orm/d1';
-import { tenantMembers, bookings, subscriptions } from '@studio/db/src/schema'; // Updated path
-import { eq, and, lte, desc, getTableColumns, sql } from 'drizzle-orm';
+import { bookings, classes, tenantMembers, users } from '@studio/db/src/schema';
+import { eq, and, sql, lt, desc } from 'drizzle-orm';
+import * as schema from '@studio/db/src/schema';
+
+export type ChurnRiskLevel = 'low' | 'medium' | 'high';
+
+export interface ChurnAnalysisResult {
+    memberId: string;
+    riskLevel: ChurnRiskLevel;
+    churnScore: number; // 0-100 (lower is higher risk)
+    daysSinceLastAttendance: number;
+    lastAttendanceDate: Date | null;
+}
 
 export class ChurnService {
-    constructor(private db: DrizzleD1Database<any>, private tenantId: string) { }
+    constructor(private db: DrizzleD1Database<typeof schema>, private tenantId: string) { }
 
     /**
-     * Calculates churn risk score for a member (0-100).
-     * Higher score = LOWER risk (Safe). Lower score = HIGH risk (Churning).
-     * Factors:
-     * - Days since last booking
-     * - Subscription status
-     * - Attendance rate
+     * Calculates churn risk for a single member based on attendance history.
      */
-    async calculateChurnScore(memberId: string): Promise<number> {
-        let score = 100;
-
-        // 1. Get Member & Subscription Status
-        const member = await this.db.select()
-            .from(tenantMembers)
-            .where(and(eq(tenantMembers.id, memberId), eq(tenantMembers.tenantId, this.tenantId)))
-            .get();
-
-        if (!member) return 0; // Unknown member is risky? Or just ignore.
-
-        // 2. Check Subscription
-        const activeSub = await this.db.select()
-            .from(subscriptions)
-            .where(and(
-                eq(subscriptions.memberId, memberId),
-                eq(subscriptions.status, 'active')
-            ))
-            .get();
-
-        if (!activeSub) {
-            score -= 50; // No active sub = very high risk / already churned logic
-        }
-
-        // 3. Last Activity (Booking)
-        const lastBooking = await this.db.select()
+    async analyzeMemberRisk(memberId: string): Promise<ChurnAnalysisResult> {
+        // 1. Get Last Attendance
+        const lastBooking = await this.db.select({
+            date: classes.startTime
+        })
             .from(bookings)
+            .innerJoin(classes, eq(bookings.classId, classes.id))
             .where(and(
                 eq(bookings.memberId, memberId),
-                eq(bookings.status, 'confirmed')
+                eq(bookings.status, 'confirmed'),
+                eq(classes.tenantId, this.tenantId),
+                lt(classes.startTime, new Date())
             ))
-            .orderBy(desc(bookings.createdAt)) // Approximation using created check
-            // Better: use class startTime if available, but joins are expensive. 
-            // Let's assume booking creation is a proxy for engagement activity.
+            .orderBy(desc(classes.startTime))
             .limit(1)
             .get();
 
-        if (lastBooking) {
-            const daysSince = lastBooking.createdAt
-                ? (Date.now() - new Date(lastBooking.createdAt).getTime()) / (1000 * 60 * 60 * 24)
-                : 999;
+        const member = await this.db.query.tenantMembers.findFirst({
+            where: and(eq(tenantMembers.id, memberId), eq(tenantMembers.tenantId, this.tenantId))
+        });
 
-            if (daysSince > 30) score -= 40;
-            else if (daysSince > 14) score -= 20;
-        } else {
-            score -= 30; // Never booked
+        if (!member) throw new Error("Member not found");
+
+        const lastDate = lastBooking ? new Date(lastBooking.date) : null;
+        const joinedDate = member.joinedAt || new Date(); // Fallback
+        const referenceDate = lastDate || joinedDate;
+
+        const now = new Date();
+        const daysSince = Math.floor((now.getTime() - referenceDate.getTime()) / (1000 * 60 * 60 * 24));
+
+        let risk: ChurnRiskLevel = 'low';
+        let score = 100;
+
+        // Simple Heuristic Algorithm (Phase 1)
+        if (daysSince > 60) {
+            risk = 'high';
+            score = 10;
+        } else if (daysSince > 30) {
+            risk = 'medium';
+            score = 40;
+        } else if (daysSince > 14) {
+            score = 70; // Warning zone
         }
 
-        return Math.max(0, score);
-    }
+        // Penalty for no attendance ever (if joined > 14 days ago)
+        if (!lastDate && daysSince > 14) {
+            score -= 10;
+            if (daysSince > 30) risk = 'high';
+        }
 
-    async getAtRiskMembers(threshold = 50) {
-        // This is expensive to run on-demand for all.
-        // Ideally, we run this via a Cron or just for a paginated list.
-        // For MVP/Report, we'll fetch members and calculate.
-        // Optimally: stored column 'churnScore' in tenantMembers updated nightly.
-
-        // For now, let's query members with low `churnScore` (assuming we update it).
-        // Since we aren't running the update job yet, this might return defaults.
-        // Let's implement the LIVE calculation for the top X members or query by stored score?
-        // The schema has `churnScore` default 100.
-
-        return await this.db.select()
-            .from(tenantMembers)
-            .where(and(
-                eq(tenantMembers.tenantId, this.tenantId),
-                lte(tenantMembers.churnScore, threshold)
-            ))
-            .limit(50)
-            .all();
+        return {
+            memberId,
+            riskLevel: risk,
+            churnScore: score,
+            daysSinceLastAttendance: daysSince,
+            lastAttendanceDate: lastDate
+        };
     }
 
     /**
-     * Nightly job to update scores
+     * Updates the churn score in the database for a member.
+     */
+    async updateMemberScore(memberId: string, result: ChurnAnalysisResult) {
+        let churnStatus: 'safe' | 'at_risk' | 'churned' = 'safe';
+        if (result.riskLevel === 'high') churnStatus = 'churned'; // or 'at_risk' depending on definition. Let's map high -> churned for now as "Likely Churned"
+        if (result.riskLevel === 'medium') churnStatus = 'at_risk';
+
+        await this.db.update(tenantMembers)
+            .set({
+                churnScore: result.churnScore,
+                churnStatus: churnStatus,
+                lastChurnCheck: new Date()
+            })
+            .where(eq(tenantMembers.id, memberId))
+            .run();
+    }
+
+    /**
+     * Batch analyzes all active members in the tenant.
+     */
+    async analyzeAllMembers(): Promise<ChurnAnalysisResult[]> {
+        // Optimization: Fetch all needed data in bulk instead of N+1
+        const allMembers = await this.db.query.tenantMembers.findMany({
+            where: and(eq(tenantMembers.tenantId, this.tenantId), eq(tenantMembers.status, 'active'))
+        });
+
+        if (!allMembers.length) return [];
+
+        const lastBookings = await this.db.select({
+            memberId: bookings.memberId,
+            lastDate: sql<string>`MAX(${classes.startTime})`
+        })
+            .from(bookings)
+            .innerJoin(classes, eq(bookings.classId, classes.id))
+            .where(and(
+                eq(bookings.status, 'confirmed'),
+                eq(classes.tenantId, this.tenantId),
+                lt(classes.startTime, new Date())
+            ))
+            .groupBy(bookings.memberId)
+            .all();
+
+        const lastMap = new Map<string, Date>();
+        lastBookings.forEach(lb => {
+            if (lb.lastDate) lastMap.set(lb.memberId, new Date(lb.lastDate));
+        });
+
+        const now = new Date();
+        const results: ChurnAnalysisResult[] = [];
+
+        for (const m of allMembers) {
+            const last = lastMap.get(m.id) || null;
+            const referencetime = last ? last.getTime() : (m.joinedAt ? m.joinedAt.getTime() : now.getTime());
+
+            const daysSince = Math.floor((now.getTime() - referencetime) / (1000 * 60 * 60 * 24));
+
+            let risk: ChurnRiskLevel = 'low';
+            let score = 100;
+
+            if (daysSince > 60) {
+                risk = 'high';
+                score = 10;
+            } else if (daysSince > 30) {
+                risk = 'medium';
+                score = 40;
+            } else if (daysSince > 14) {
+                score = 70;
+            }
+
+            if (!last && daysSince > 14) {
+                score -= 10;
+                if (daysSince > 30) risk = 'high';
+            }
+
+            results.push({
+                memberId: m.id,
+                riskLevel: risk,
+                churnScore: Math.max(0, score),
+                daysSinceLastAttendance: daysSince,
+                lastAttendanceDate: last
+            });
+        }
+
+        return results;
+    }
+
+    /**
+     * Updates churn scores for all members in the database.
+     * Used by Cron Jobs.
      */
     async updateAllScores() {
-        const members = await this.db.select({ id: tenantMembers.id }).from(tenantMembers).where(eq(tenantMembers.tenantId, this.tenantId)).all();
-        for (const m of members) {
-            const score = await this.calculateChurnScore(m.id);
-            let status: 'safe' | 'at_risk' | 'churned' = 'safe';
-            if (score < 30) status = 'churned';
-            else if (score < 60) status = 'at_risk';
+        const results = await this.analyzeAllMembers();
+        await Promise.all(results.map(r => this.updateMemberScore(r.memberId, r)));
+    }
 
-            await this.db.update(tenantMembers)
-                .set({
-                    churnScore: score,
-                    churnStatus: status,
-                    lastChurnCheck: new Date()
-                })
-                .where(eq(tenantMembers.id, m.id))
-                .execute();
-        }
+    /**
+     * Returns members with a churn score below the threshold.
+     * Used by ReportService.
+     */
+    async getAtRiskMembers(threshold: number) {
+        const results = await this.analyzeAllMembers();
+        return results.filter(r => r.churnScore < threshold);
     }
 }

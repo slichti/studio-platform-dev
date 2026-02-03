@@ -26,5 +26,5 @@
 - [x] Implement Dynamic Rate Limiting <!-- id: 27 -->
 - [x] Migrate to OpenAPI/Zod-OpenAPI <!-- id: 28 -->
 - [x] Implement Capability-Based RBAC <!-- id: 29 -->
-- [ ] Implement Churn Prediction API & Service <!-- id: 30 -->
-- [ ] Implement Webhook Logs UI & Testing API <!-- id: 31 -->
+- [x] Implement Churn Prediction API & Service <!-- id: 30 -->
+- [x] Implement Webhook Logs UI & Testing API <!-- id: 31 -->

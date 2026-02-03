@@ -18,7 +18,7 @@ export function useWebhooks(tenantSlug: string, enabled: boolean = true) {
         queryKey: ['webhooks', tenantSlug],
         queryFn: async () => {
             const token = await getToken();
-            const res = await apiRequest("/integrations/webhooks", token, {
+            const res = await apiRequest("/tenant/webhooks/endpoints", token, {
                 headers: { 'X-Tenant-Slug': tenantSlug }
             });
             // Handle { endpoints: [...] } or [...] response shape

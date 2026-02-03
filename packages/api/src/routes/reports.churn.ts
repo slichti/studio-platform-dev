@@ -2,8 +2,9 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { createOpenAPIApp } from '../lib/openapi';
 import { StudioVariables } from '../types';
 import { createDb } from '../db';
-import { tenants, tenantMembers, bookings, classes, users } from '@studio/db/src/schema';
-import { eq, and, sql, desc, lt, isNull } from 'drizzle-orm';
+import { ChurnService } from '../services/churn';
+import { tenantMembers } from '@studio/db/src/schema';
+import { eq, and } from 'drizzle-orm';
 
 const app = createOpenAPIApp<StudioVariables>();
 
@@ -43,93 +44,66 @@ app.openapi(createRoute({
 
     const db = createDb(c.env.DB);
     const tenantId = c.get('tenant').id;
+    const churnService = new ChurnService(db, tenantId);
 
-    // 1. Get all active members
+    // Run live analysis (or fetch cached from DB if we trusted the job)
+    // For now, we calculate live for the report to be fresh.
+    const results = await churnService.analyzeAllMembers();
+
+    // Enrich with Names
     const members = await db.query.tenantMembers.findMany({
         where: and(eq(tenantMembers.tenantId, tenantId), eq(tenantMembers.status, 'active')),
         with: { user: true }
     });
+    const memberMap = new Map(members.map(m => [m.id, m]));
 
-    if (!members.length) {
-        return c.json({ totalMembers: 0, atRiskCount: 0, churnedCount: 0, atRiskMembers: [] });
-    }
-
-    // 2. Get last booking for each member
-    // Complex join: Select memberId, MAX(classes.startTime)
-    const lastBookings = await db.select({
-        memberId: bookings.memberId,
-        lastDate: sql<string>`MAX(${classes.startTime})`
-    })
-        .from(bookings)
-        .innerJoin(classes, eq(bookings.classId, classes.id))
-        .where(and(
-            eq(bookings.status, 'confirmed'),
-            eq(classes.tenantId, tenantId),
-            lt(classes.startTime, new Date()) // Only past classes
-        ))
-        .groupBy(bookings.memberId)
-        .all();
-
-    const lastMap = new Map<string, Date>();
-    lastBookings.forEach(lb => {
-        if (lb.lastDate) lastMap.set(lb.memberId, new Date(lb.lastDate));
+    const enriched = results.map(r => {
+        const m = memberMap.get(r.memberId);
+        return {
+            ...r,
+            firstName: (m?.user.profile as any)?.firstName,
+            lastName: (m?.user.profile as any)?.lastName,
+            lastAttendance: r.lastAttendanceDate ? r.lastAttendanceDate.toISOString() : null
+        };
     });
 
-    // 3. Analyze Risk
-    const now = new Date();
-    const risks: z.infer<typeof ChurnRiskSchema>[] = [];
-    let atRisk = 0;
-    let churned = 0;
-
-    for (const m of members) {
-        const last = lastMap.get(m.id);
-        const joined = m.joinedAt || new Date(); // If no joinedAt, assume new? Or use created_at
-
-        let daysSince = 0;
-        if (last) {
-            daysSince = Math.floor((now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
-        } else {
-            // Never attended? Use joined date
-            daysSince = Math.floor((now.getTime() - (joined.getTime())) / (1000 * 60 * 60 * 24));
-        }
-
-        let risk: 'low' | 'medium' | 'high' = 'low';
-        let score = 100;
-
-        if (daysSince > 60) {
-            risk = 'high';
-            score = 10;
-            churned++;
-        } else if (daysSince > 30) {
-            risk = 'medium';
-            score = 40;
-            atRisk++;
-        } else if (daysSince > 14) {
-            score = 70; // Slightly lower score but still low risk
-        }
-
-        if (risk !== 'low') {
-            risks.push({
-                memberId: m.id,
-                firstName: (m.user.profile as any)?.firstName,
-                lastName: (m.user.profile as any)?.lastName,
-                lastAttendance: last ? last.toISOString() : null,
-                daysSinceLastAttendance: daysSince,
-                riskLevel: risk,
-                churnScore: score
-            });
-        }
-    }
-
-    // Sort by highest risk (days inactive)
-    risks.sort((a, b) => b.daysSinceLastAttendance - a.daysSinceLastAttendance);
+    const atRiskMembers = enriched.filter(r => r.riskLevel !== 'low');
+    atRiskMembers.sort((a, b) => b.daysSinceLastAttendance - a.daysSinceLastAttendance);
 
     return c.json({
         totalMembers: members.length,
-        atRiskCount: atRisk,
-        churnedCount: churned,
-        atRiskMembers: risks
+        atRiskCount: results.filter(r => r.riskLevel === 'medium').length,
+        churnedCount: results.filter(r => r.riskLevel === 'high').length,
+        atRiskMembers: atRiskMembers
     });
+});
+
+app.openapi(createRoute({
+    method: 'post',
+    path: '/analyze',
+    tags: ['Admin Stats'],
+    summary: 'Trigger Churn Analysis Batch',
+    description: 'Calculates scores and updates the database for all members.',
+    responses: {
+        200: {
+            description: 'Analysis Complete',
+            content: { 'application/json': { schema: z.object({ processed: z.number() }) } }
+        },
+        403: { description: 'Unauthorized' }
+    }
+}), async (c) => {
+    if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
+
+    const db = createDb(c.env.DB);
+    const tenantId = c.get('tenant').id;
+    const churnService = new ChurnService(db, tenantId);
+
+    const results = await churnService.analyzeAllMembers();
+
+    // Update DB
+    await Promise.all(results.map(r => churnService.updateMemberScore(r.memberId, r)));
+
+    return c.json({ processed: results.length });
 });
 
 export default app;

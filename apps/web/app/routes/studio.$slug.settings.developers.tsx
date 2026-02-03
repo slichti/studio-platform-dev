@@ -1,20 +1,22 @@
+
 import { useState } from "react";
 import { useParams, useOutletContext } from "react-router";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "~/components/ui/Card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/Card";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Badge } from "~/components/ui/Badge";
-import { Trash2, Terminal, Loader2, Key, Copy, Check, Plus, AlertCircle, ShieldCheck } from "lucide-react";
+import { Trash2, Terminal, Loader2, Key, Copy, Check, Plus, AlertCircle, ShieldCheck, Activity, Play } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmationDialog } from "~/components/Dialogs";
 import { ComponentErrorBoundary } from "~/components/ErrorBoundary";
-
 import { useAuth } from "@clerk/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "~/utils/api";
 import { useWebhooks } from "~/hooks/useWebhooks";
 import { cn } from "~/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/Table";
 
 export default function DevelopersPage() {
     const { slug } = useParams();
@@ -42,7 +44,7 @@ export default function DevelopersPage() {
         setIsCreating(true);
         try {
             const token = await getToken();
-            await apiRequest("/integrations/webhooks", token, {
+            await apiRequest("/tenant/webhooks/endpoints", token, {
                 method: 'POST',
                 headers: { 'X-Tenant-Slug': slug || '' },
                 body: JSON.stringify({
@@ -65,7 +67,7 @@ export default function DevelopersPage() {
         if (!deleteWebhookId) return;
         try {
             const token = await getToken();
-            await apiRequest(`/integrations/webhooks/${deleteWebhookId}`, token, {
+            await apiRequest(`/tenant/webhooks/endpoints/${deleteWebhookId}`, token, {
                 method: 'DELETE',
                 headers: { 'X-Tenant-Slug': slug || '' }
             });
@@ -141,143 +143,161 @@ export default function DevelopersPage() {
 
             <ComponentErrorBoundary>
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                    {/* --- WEBHOOKS SECTION --- */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Outgoing Webhooks</CardTitle>
-                            <CardDescription>
-                                Subscription endpoints that receive JSON payloads when events occur.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            {isLoading ? (
-                                <div className="space-y-3">
-                                    {[1, 2].map(i => <div key={i} className="h-16 bg-zinc-100 dark:bg-zinc-800 animate-pulse rounded-lg" />)}
-                                </div>
-                            ) : (
-                                <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden">
-                                    <table className="w-full text-sm">
-                                        <thead className="bg-zinc-50 dark:bg-zinc-900/50 text-zinc-500 dark:text-zinc-400 font-medium border-b border-zinc-100 dark:border-zinc-800">
-                                            <tr>
-                                                <th className="text-left py-3 px-4">Endpoint</th>
-                                                <th className="text-left py-3 px-4">Events</th>
-                                                <th className="text-right py-3 px-4">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                                            {endpoints.length === 0 && (
-                                                <tr>
-                                                    <td colSpan={3} className="py-8 text-center text-zinc-500">No webhooks configured.</td>
-                                                </tr>
-                                            )}
-                                            {endpoints.map(ep => (
-                                                <tr key={ep.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/40 transition-colors">
-                                                    <td className="py-3 px-4">
-                                                        <div className="font-mono text-blue-600 dark:text-blue-400 break-all">{ep.url}</div>
-                                                        <div className="text-[10px] text-zinc-400 mt-1 flex items-center gap-1">
-                                                            <Key className="h-3 w-3" /> Secret: <span className="blur-xs hover:blur-none transition-all cursor-text">{ep.secret.substring(0, 10)}...</span>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-5 w-5 ml-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
-                                                                onClick={() => copyToClipboard(ep.secret, `sec-${ep.id}`)}
-                                                            >
-                                                                {copiedId === `sec-${ep.id}` ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
-                                                            </Button>
-                                                        </div>
-                                                    </td>
-                                                    <td className="py-3 px-4">
-                                                        <div className="flex flex-wrap gap-1">
-                                                            {(Array.isArray(ep.events) ? ep.events : (ep.events as string).split(',')).map((ev: string) => (
-                                                                <Badge key={ev} variant="secondary" className="text-[10px] font-mono font-medium">
-                                                                    {ev}
-                                                                </Badge>
-                                                            ))}
-                                                        </div>
-                                                    </td>
-                                                    <td className="py-3 px-4 text-right">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 h-8 w-8"
-                                                            onClick={() => setDeleteWebhookId(ep.id)}
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
+                    <Tabs defaultValue="endpoints">
+                        <TabsList className="mb-4">
+                            <TabsTrigger value="endpoints">Endpoints</TabsTrigger>
+                            <TabsTrigger value="logs">Logs</TabsTrigger>
+                            <TabsTrigger value="test">Test Tool</TabsTrigger>
+                        </TabsList>
 
-                            <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800">
-                                <h4 className="text-sm font-semibold mb-3">Add Endpoint</h4>
-                                <div className="grid gap-4 sm:grid-cols-2">
-                                    <div className="space-y-1.5">
-                                        <Label>Target URL</Label>
-                                        <Input
-                                            placeholder="https://api.myapp.com/webhooks"
-                                            value={createUrl}
-                                            onChange={e => setCreateUrl(e.target.value)}
-                                        />
+                        <TabsContent value="endpoints" className="space-y-6">
+                            {/* --- WEBHOOKS SECTION --- */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Outgoing Webhooks</CardTitle>
+                                    <CardDescription>
+                                        Subscription endpoints that receive JSON payloads when events occur.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                    {isLoading ? (
+                                        <div className="space-y-3">
+                                            {[1, 2].map(i => <div key={i} className="h-16 bg-zinc-100 dark:bg-zinc-800 animate-pulse rounded-lg" />)}
+                                        </div>
+                                    ) : (
+                                        <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden">
+                                            <table className="w-full text-sm">
+                                                <thead className="bg-zinc-50 dark:bg-zinc-900/50 text-zinc-500 dark:text-zinc-400 font-medium border-b border-zinc-100 dark:border-zinc-800">
+                                                    <tr>
+                                                        <th className="text-left py-3 px-4">Endpoint</th>
+                                                        <th className="text-left py-3 px-4">Events</th>
+                                                        <th className="text-right py-3 px-4">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                                    {endpoints.length === 0 && (
+                                                        <tr>
+                                                            <td colSpan={3} className="py-8 text-center text-zinc-500">No webhooks configured.</td>
+                                                        </tr>
+                                                    )}
+                                                    {endpoints.map(ep => (
+                                                        <tr key={ep.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/40 transition-colors">
+                                                            <td className="py-3 px-4">
+                                                                <div className="font-mono text-blue-600 dark:text-blue-400 break-all">{ep.url}</div>
+                                                                <div className="text-[10px] text-zinc-400 mt-1 flex items-center gap-1">
+                                                                    <Key className="h-3 w-3" /> Secret: <span className="blur-xs hover:blur-none transition-all cursor-text">{ep.secret.substring(0, 10)}...</span>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-5 w-5 ml-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                                                                        onClick={() => copyToClipboard(ep.secret, `sec-${ep.id}`)}
+                                                                    >
+                                                                        {copiedId === `sec-${ep.id}` ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                                                                    </Button>
+                                                                </div>
+                                                            </td>
+                                                            <td className="py-3 px-4">
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {(Array.isArray(ep.events) ? ep.events : (ep.events as string).split(',')).map((ev: string) => (
+                                                                        <Badge key={ev} variant="secondary" className="text-[10px] font-mono font-medium">
+                                                                            {ev}
+                                                                        </Badge>
+                                                                    ))}
+                                                                </div>
+                                                            </td>
+                                                            <td className="py-3 px-4 text-right">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 h-8 w-8"
+                                                                    onClick={() => setDeleteWebhookId(ep.id)}
+                                                                >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+
+                                    <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800">
+                                        <h4 className="text-sm font-semibold mb-3">Add Endpoint</h4>
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                            <div className="space-y-1.5">
+                                                <Label>Target URL</Label>
+                                                <Input
+                                                    placeholder="https://api.myapp.com/webhooks"
+                                                    value={createUrl}
+                                                    onChange={e => setCreateUrl(e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label>Events (comma separated)</Label>
+                                                <Input
+                                                    value={createEvents}
+                                                    onChange={e => setCreateEvents(e.target.value)}
+                                                />
+                                                <p className="text-[10px] text-zinc-400">Available: student.created, payment.succeeded, *</p>
+                                            </div>
+                                        </div>
+                                        <div className="mt-4 flex justify-end">
+                                            <Button
+                                                onClick={handleCreateWebhook}
+                                                disabled={!createUrl || isCreating}
+                                                className="gap-2"
+                                            >
+                                                {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                                                Register Webhook
+                                            </Button>
+                                        </div>
                                     </div>
-                                    <div className="space-y-1.5">
-                                        <Label>Events (comma separated)</Label>
-                                        <Input
-                                            value={createEvents}
-                                            onChange={e => setCreateEvents(e.target.value)}
-                                        />
-                                        <p className="text-[10px] text-zinc-400">Available: student.created, payment.succeeded, *</p>
+                                </CardContent>
+                            </Card>
+
+                            {/* --- API KEYS SECTION --- */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>API Access</CardTitle>
+                                    <CardDescription>
+                                        Identify your requests and authenticate with the Studio API.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Studio ID</Label>
+                                        <div className="flex gap-2">
+                                            <Input readOnly value={tenant?.id || ''} className="font-mono bg-zinc-50 dark:bg-zinc-900 max-w-md" />
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                onClick={() => copyToClipboard(tenant?.id || '', 'tenantId')}
+                                            >
+                                                {copiedId === 'tenantId' ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                                            </Button>
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="mt-4 flex justify-end">
-                                    <Button
-                                        onClick={handleCreateWebhook}
-                                        disabled={!createUrl || isCreating}
-                                        className="gap-2"
-                                    >
-                                        {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                                        Register Webhook
-                                    </Button>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
 
-                    {/* --- API KEYS SECTION --- */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>API Access</CardTitle>
-                            <CardDescription>
-                                Identify your requests and authenticate with the Studio API.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <Label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Studio ID</Label>
-                                <div className="flex gap-2">
-                                    <Input readOnly value={tenant?.id || ''} className="font-mono bg-zinc-50 dark:bg-zinc-900 max-w-md" />
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        onClick={() => copyToClipboard(tenant?.id || '', 'tenantId')}
-                                    >
-                                        {copiedId === 'tenantId' ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                                    </Button>
-                                </div>
-                            </div>
+                                    <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/50 rounded-lg p-4 flex gap-3">
+                                        <ShieldCheck className="h-5 w-5 text-blue-600 shrink-0" />
+                                        <div className="text-xs text-blue-700 dark:text-blue-300">
+                                            <p className="font-semibold mb-1">Authenticated Requests</p>
+                                            <p>Requests from your own application must include your generated Webhook Secret or a valid Studio JWT in the <code>Authorization</code> or <code>X-Studio-Signature</code> header.</p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
 
-                            <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/50 rounded-lg p-4 flex gap-3">
-                                <ShieldCheck className="h-5 w-5 text-blue-600 shrink-0" />
-                                <div className="text-xs text-blue-700 dark:text-blue-300">
-                                    <p className="font-semibold mb-1">Authenticated Requests</p>
-                                    <p>Requests from your own application must include your generated Webhook Secret or a valid Studio JWT in the <code>Authorization</code> or <code>X-Studio-Signature</code> header.</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                        <TabsContent value="logs">
+                            <WebhookLogs slug={slug || ''} />
+                        </TabsContent>
+
+                        <TabsContent value="test">
+                            <WebhookTester slug={slug || ''} />
+                        </TabsContent>
+                    </Tabs>
                 </div>
             </ComponentErrorBoundary>
 
@@ -291,5 +311,124 @@ export default function DevelopersPage() {
                 confirmText="Delete Endpoint"
             />
         </div>
+    );
+}
+
+function WebhookLogs({ slug }: { slug: string }) {
+    const { getToken } = useAuth();
+    const { data: logs = [], isLoading } = useQuery({
+        queryKey: ['webhookRequests', slug],
+        queryFn: async () => {
+            const token = await getToken();
+            const res = await apiRequest("/tenant/webhooks/logs?limit=50", token, {
+                headers: { 'X-Tenant-Slug': slug }
+            });
+            return res as any[];
+        },
+        refetchInterval: 5000
+    });
+
+    if (isLoading) return <div className="text-center py-10">Loading logs...</div>;
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Recent Activity</CardTitle>
+                <CardDescription>Log of recent webhook delivery attempts.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="rounded-md border">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Event</TableHead>
+                                <TableHead>Time</TableHead>
+                                <TableHead className="text-right">Duration</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {logs.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={4} className="h-24 text-center">
+                                        No logs found.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                            {logs.map((log) => (
+                                <TableRow key={log.id}>
+                                    <TableCell>
+                                        <Badge variant={log.statusCode >= 200 && log.statusCode < 300 ? "default" : "destructive"}>
+                                            {log.statusCode || 'ERR'}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="font-medium font-mono text-xs">{log.eventType}</TableCell>
+                                    <TableCell className="text-muted-foreground text-xs">
+                                        {new Date(log.createdAt).toLocaleString()}
+                                    </TableCell>
+                                    <TableCell className="text-right font-mono text-xs">
+                                        {log.durationMs}ms
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+function WebhookTester({ slug }: { slug: string }) {
+    const { getToken } = useAuth();
+    const [eventType, setEventType] = useState("test.ping");
+    const [payload, setPayload] = useState(JSON.stringify({ message: "Hello World" }, null, 2));
+    const [loading, setLoading] = useState(false);
+
+    const handleSend = async () => {
+        try {
+            setLoading(true);
+            const token = await getToken();
+            await apiRequest("/tenant/webhooks/test", token, {
+                method: 'POST',
+                headers: { 'X-Tenant-Slug': slug },
+                body: JSON.stringify({
+                    eventType,
+                    payload: JSON.parse(payload)
+                })
+            });
+            toast.success("Test event triggered!");
+        } catch (e: any) {
+            toast.error("Failed: " + e.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Test Tool</CardTitle>
+                <CardDescription>Manually trigger a webhook event to all your registered endpoints.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div>
+                    <Label>Event Type</Label>
+                    <Input value={eventType} onChange={e => setEventType(e.target.value)} />
+                </div>
+                <div>
+                    <Label>Payload (JSON)</Label>
+                    <textarea
+                        className="w-full h-32 p-3 font-mono text-xs border rounded-md"
+                        value={payload}
+                        onChange={e => setPayload(e.target.value)}
+                    />
+                </div>
+                <Button onClick={handleSend} disabled={loading} className="w-full">
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="h-4 w-4 mr-2" />}
+                    Trigger Event
+                </Button>
+            </CardContent>
+        </Card>
     );
 }

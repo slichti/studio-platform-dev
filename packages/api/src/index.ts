@@ -546,6 +546,9 @@ studioApp.route('/tags', tagsRoutes);
 studioApp.route('/custom-fields', customFieldRoutes);
 studioApp.route('/audit-logs', auditLogRoutes);
 
+import tenantWebhooksRouter from './routes/tenant.webhooks';
+studioApp.route('/webhooks', tenantWebhooksRouter);
+
 import { scheduled } from './cron';
 
 // Durable Objects
