@@ -89,63 +89,17 @@ CREATE TABLE `__new_tenant_roles` (
 	FOREIGN KEY (`custom_role_id`) REFERENCES `custom_roles`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-INSERT INTO `__new_tenant_roles`("id", "member_id", "role", "custom_role_id", "permissions", "created_at") SELECT "id", "member_id", "role", "custom_role_id", "permissions", "created_at" FROM `tenant_roles`;--> statement-breakpoint
+INSERT INTO `__new_tenant_roles`("id", "member_id", "role", "custom_role_id", "permissions", "created_at") 
+SELECT lower(hex(randomblob(16))), "member_id", "role", "custom_role_id", "permissions", "created_at" 
+FROM `tenant_roles`
+WHERE "member_id" IN (SELECT "id" FROM `tenant_members`)
+AND ("custom_role_id" IS NULL OR "custom_role_id" IN (SELECT "id" FROM `custom_roles`));--> statement-breakpoint
 DROP TABLE `tenant_roles`;--> statement-breakpoint
 ALTER TABLE `__new_tenant_roles` RENAME TO `tenant_roles`;--> statement-breakpoint
 PRAGMA foreign_keys=ON;--> statement-breakpoint
 CREATE INDEX `member_role_idx` ON `tenant_roles` (`member_id`,`role`);--> statement-breakpoint
 CREATE INDEX `member_custom_role_idx` ON `tenant_roles` (`member_id`,`custom_role_id`);--> statement-breakpoint
-CREATE TABLE `__new_tenants` (
-	`id` text PRIMARY KEY NOT NULL,
-	`slug` text NOT NULL,
-	`name` text NOT NULL,
-	`custom_domain` text,
-	`branding` text,
-	`mobile_app_config` text,
-	`settings` text,
-	`custom_field_definitions` text,
-	`stripe_account_id` text,
-	`stripe_customer_id` text,
-	`stripe_subscription_id` text,
-	`current_period_end` integer,
-	`marketing_provider` text DEFAULT 'system' NOT NULL,
-	`resend_credentials` text,
-	`twilio_credentials` text,
-	`flodesk_credentials` text,
-	`currency` text DEFAULT 'usd' NOT NULL,
-	`zoom_credentials` text,
-	`mailchimp_credentials` text,
-	`zapier_credentials` text,
-	`google_credentials` text,
-	`slack_credentials` text,
-	`google_calendar_credentials` text,
-	`resend_audience_id` text,
-	`status` text DEFAULT 'active' NOT NULL,
-	`tier` text DEFAULT 'launch' NOT NULL,
-	`subscription_status` text DEFAULT 'active' NOT NULL,
-	`is_public` integer DEFAULT false NOT NULL,
-	`sms_usage` integer DEFAULT 0 NOT NULL,
-	`email_usage` integer DEFAULT 0 NOT NULL,
-	`streaming_usage` integer DEFAULT 0 NOT NULL,
-	`sms_limit` integer,
-	`email_limit` integer,
-	`streaming_limit` integer,
-	`billing_exempt` integer DEFAULT false NOT NULL,
-	`storage_usage` integer DEFAULT 0 NOT NULL,
-	`member_count` integer DEFAULT 0 NOT NULL,
-	`instructor_count` integer DEFAULT 0 NOT NULL,
-	`last_billed_at` integer,
-	`archived_at` integer,
-	`grace_period_ends_at` integer,
-	`student_access_disabled` integer DEFAULT false NOT NULL,
-	`created_at` integer DEFAULT (strftime('%s', 'now'))
-);
---> statement-breakpoint
-INSERT INTO `__new_tenants`("id", "slug", "name", "custom_domain", "branding", "mobile_app_config", "settings", "custom_field_definitions", "stripe_account_id", "stripe_customer_id", "stripe_subscription_id", "current_period_end", "marketing_provider", "resend_credentials", "twilio_credentials", "flodesk_credentials", "currency", "zoom_credentials", "mailchimp_credentials", "zapier_credentials", "google_credentials", "slack_credentials", "google_calendar_credentials", "resend_audience_id", "status", "tier", "subscription_status", "is_public", "sms_usage", "email_usage", "streaming_usage", "sms_limit", "email_limit", "streaming_limit", "billing_exempt", "storage_usage", "member_count", "instructor_count", "last_billed_at", "archived_at", "grace_period_ends_at", "student_access_disabled", "created_at") SELECT "id", "slug", "name", "custom_domain", "branding", "mobile_app_config", "settings", "custom_field_definitions", "stripe_account_id", "stripe_customer_id", "stripe_subscription_id", "current_period_end", "marketing_provider", "resend_credentials", "twilio_credentials", "flodesk_credentials", "currency", "zoom_credentials", "mailchimp_credentials", "zapier_credentials", "google_credentials", "slack_credentials", "google_calendar_credentials", "resend_audience_id", "status", "tier", "subscription_status", "is_public", "sms_usage", "email_usage", "streaming_usage", "sms_limit", "email_limit", "streaming_limit", "billing_exempt", "storage_usage", "member_count", "instructor_count", "last_billed_at", "archived_at", "grace_period_ends_at", "student_access_disabled", "created_at" FROM `tenants`;--> statement-breakpoint
-DROP TABLE `tenants`;--> statement-breakpoint
-ALTER TABLE `__new_tenants` RENAME TO `tenants`;--> statement-breakpoint
-CREATE UNIQUE INDEX `tenants_slug_unique` ON `tenants` (`slug`);--> statement-breakpoint
-CREATE UNIQUE INDEX `tenants_custom_domain_unique` ON `tenants` (`custom_domain`);--> statement-breakpoint
+ALTER TABLE `tenants` ADD COLUMN `custom_field_definitions` text;--> statement-breakpoint
 ALTER TABLE `appointments` ADD `location_id` text REFERENCES locations(id);--> statement-breakpoint
 ALTER TABLE `audit_logs` ADD `target_type` text;--> statement-breakpoint
 CREATE INDEX `audit_tenant_idx` ON `audit_logs` (`tenant_id`);--> statement-breakpoint
