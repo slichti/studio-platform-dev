@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { createDb } from '../db';
 import { auditLogs } from '@studio/db/src/schema';
 import { eq, and, desc, gte, lte } from 'drizzle-orm';
-import { Bindings, Variables } from '..';
+import { Bindings, Variables } from '../types';
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 

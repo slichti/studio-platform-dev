@@ -471,7 +471,7 @@ studioApp.post('/portal', async (c) => {
     return c.json({ error: "No billing account found" }, 400);
   }
 
-  const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY);
+  const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY as string);
 
   try {
     const session = await stripeService.createBillingPortalSession(

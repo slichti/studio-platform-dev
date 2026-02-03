@@ -4,6 +4,7 @@ import { ReportService } from '../services/reports';
 import { scheduledReports } from '@studio/db/src/schema';
 import { eq, and } from 'drizzle-orm';
 import { HonoContext } from '../types';
+import churnRouter from './reports.churn';
 
 const app = new Hono<HonoContext>();
 
@@ -56,17 +57,8 @@ app.get('/retention', async (c) => {
 });
 
 // GET /retention/churn-risk
-app.get('/retention/churn-risk', async (c) => {
-    if (!c.get('can')('view_reports')) return c.json({ error: 'Unauthorized' }, 403);
-    const db = createDb(c.env.DB);
-    const tenant = c.get('tenant');
-    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
-
-    const threshold = parseInt(c.req.query('threshold') || '50');
-    const service = new ReportService(db, tenant.id);
-    const result = await service.getChurnRisk(threshold);
-    return c.json(result);
-});
+// Mounted Churn Router (Replaces simple endpoint)
+app.route('/retention/risk', churnRouter);
 
 // GET /upcoming-renewals
 app.get('/upcoming-renewals', async (c) => {

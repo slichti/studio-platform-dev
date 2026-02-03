@@ -2,7 +2,7 @@ import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { createDb } from '../db';
 import { memberTags } from '@studio/db/src/schema';
 import { eq, and } from 'drizzle-orm';
-import { Bindings, Variables } from '..';
+import { Bindings, Variables } from '../types';
 
 const app = new OpenAPIHono<{ Bindings: Bindings, Variables: Variables }>();
 

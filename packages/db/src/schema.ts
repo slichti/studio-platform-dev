@@ -10,6 +10,7 @@ export const tenants = sqliteTable('tenants', {
     branding: text('branding', { mode: 'json' }), // JSON: { primaryColor, logoUrl, font }
     mobileAppConfig: text('mobile_app_config', { mode: 'json' }), // JSON: { appName, iconUrl, splashUrl, primaryColor }
     settings: text('settings', { mode: 'json' }), // JSON: { enableStudentRegistration, noShowFeeEnabled, noShowFeeAmount, notifications }
+    customFieldDefinitions: text('custom_field_definitions', { mode: 'json' }), // JSON: [{ key: 'tshirt_size', label: 'T-Shirt Size', type: 'text', options: [] }]
     stripeAccountId: text('stripe_account_id'), // Connect Account ID (Receiving money)
     stripeCustomerId: text('stripe_customer_id'), // Platform Customer ID (Paying for SaaS)
     stripeSubscriptionId: text('stripe_subscription_id'), // Active info
@@ -134,6 +135,7 @@ export const tenantMembers = sqliteTable('tenant_members', {
     userId: text('user_id').notNull().references(() => users.id),
     profile: text('profile', { mode: 'json' }), // Studio-specific profile overrides (e.g. bio for instructors)
     settings: text('settings', { mode: 'json' }), // User's preferences for this studio (notifications etc)
+    customFields: text('custom_fields', { mode: 'json' }), // JSON: { tshirt_size: 'L' }
     status: text('status', { enum: ['active', 'inactive', 'archived'] }).default('active').notNull(),
     joinedAt: integer('joined_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 
@@ -297,6 +299,11 @@ export const classes = sqliteTable('classes', {
     price: integer('price').default(0), // In cents
     memberPrice: integer('member_price'), // Discounted price for members (nullable)
     currency: text('currency').default('usd'),
+
+    // Payroll Override (Phase 7)
+    payrollModel: text('payroll_model', { enum: ['flat', 'percentage', 'hourly'] }), // Null = use Instructor Default
+    payrollValue: integer('payroll_value'), // Rate in cents or Basis Points (5000 = 50%)
+
     type: text('type', { enum: ['class', 'workshop', 'event', 'appointment'] }).default('class').notNull(),
     allowCredits: integer('allow_credits', { mode: 'boolean' }).default(true).notNull(), // Can pay with credits?
     includedPlanIds: text('included_plan_ids', { mode: 'json' }), // JSON Array of Plan IDs that get this free

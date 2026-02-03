@@ -28,6 +28,7 @@ const MemberSchema = z.object({
     joinedAt: z.string().or(z.date()).optional(),
     user: MemberUserSchema,
     roles: z.array(MemberRoleSchema).optional(),
+    customFields: z.record(z.string(), z.any()).optional()
 }).openapi('Member');
 
 const MemberListResponse = z.object({

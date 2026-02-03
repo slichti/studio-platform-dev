@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { createDb } from '../db';
 import { tenants, tenantFeatures, users, platformConfig, auditLogs } from '@studio/db/src/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
-import { Variables, Bindings } from '../index';
+import { Variables, Bindings } from '../types';
 
 const app = new Hono<{ Variables: Variables, Bindings: Bindings }>();
 

@@ -24,6 +24,9 @@ const ClassSchema = z.object({
     locationId: z.string().nullable().optional(),
     zoomEnabled: z.boolean(),
     status: z.string(),
+    // Payroll (Phase 7)
+    payrollModel: z.enum(['flat', 'percentage', 'hourly']).optional().nullable(),
+    payrollValue: z.number().optional().nullable(),
     // Augmented fields
     bookingCount: z.number().optional(),
     waitlistCount: z.number().optional(),
@@ -39,11 +42,13 @@ const CreateClassSchema = z.object({
     capacity: z.number().int().optional(),
     price: z.number().min(0).optional(),
     memberPrice: z.number().min(0).optional(),
-    instructorId: z.string().optional(),
+    instructorId: z.string(),
     locationId: z.string().optional(),
     zoomEnabled: z.boolean().optional(),
     allowCredits: z.boolean().optional(),
-    includedPlanIds: z.array(z.string()).optional()
+    includedPlanIds: z.array(z.string()).optional(),
+    payrollModel: z.enum(['flat', 'percentage', 'hourly']).optional(),
+    payrollValue: z.number().optional()
 });
 
 const UpdateClassSchema = CreateClassSchema.partial();
@@ -94,7 +99,8 @@ app.openapi(createRoute({
         startTime: r.startTime.toISOString(), // Ensure string
         price: (r.price ?? 0) as any as number,
         bookingCount: bm.get(r.id) || 0,
-        waitlistCount: wm.get(r.id) || 0
+        waitlistCount: wm.get(r.id) || 0,
+        zoomEnabled: !!r.zoomEnabled
     })));
 });
 
@@ -193,6 +199,8 @@ app.openapi(createRoute({
         zoomMeetingUrl: zm.url,
         zoomPassword: zm.pwd,
         status: 'active',
+        payrollModel: body.payrollModel || null,
+        payrollValue: body.payrollValue || null,
         createdAt: new Date()
     }).returning();
 
@@ -225,7 +233,7 @@ app.openapi(createRoute({
     if (!ex) return c.json({ error: "Not found" }, 404);
 
     const up: any = {};
-    const keys = ['title', 'description', 'startTime', 'durationMinutes', 'capacity', 'price', 'memberPrice', 'allowCredits', 'includedPlanIds', 'zoomEnabled', 'status', 'instructorId', 'locationId'];
+    const keys = ['title', 'description', 'startTime', 'durationMinutes', 'capacity', 'price', 'memberPrice', 'allowCredits', 'includedPlanIds', 'zoomEnabled', 'status', 'instructorId', 'locationId', 'payrollModel', 'payrollValue'];
     // Manual mapping or loop, but since we parsed Validated JSON, we can trust keys
     Object.keys(body).forEach(k => {
         if (keys.includes(k)) {
