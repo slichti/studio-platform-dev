@@ -49,15 +49,27 @@ export class RateLimiter extends DurableObject {
         if (!entry) {
             entry = { count: cost, expiresAt: now + (windowSeconds * 1000) };
             this.counters.set(key, entry);
-            return new Response(JSON.stringify({ allowed: true, remaining: limit - cost }), { status: 200 });
+            return new Response(JSON.stringify({
+                allowed: true,
+                remaining: Math.max(0, limit - cost),
+                reset: Math.floor(entry.expiresAt / 1000)
+            }), { status: 200 });
         }
 
         if (entry.count + cost > limit) {
-            return new Response(JSON.stringify({ allowed: false, remaining: limit - entry.count }), { status: 429 });
+            return new Response(JSON.stringify({
+                allowed: false,
+                remaining: Math.max(0, limit - entry.count),
+                reset: Math.floor(entry.expiresAt / 1000)
+            }), { status: 429 });
         }
 
         entry.count += cost;
-        return new Response(JSON.stringify({ allowed: true, remaining: limit - entry.count }), { status: 200 });
+        return new Response(JSON.stringify({
+            allowed: true,
+            remaining: Math.max(0, limit - entry.count),
+            reset: Math.floor(entry.expiresAt / 1000)
+        }), { status: 200 });
     }
 
     async alarm() {

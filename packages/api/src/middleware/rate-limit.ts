@@ -11,7 +11,7 @@ export type RateLimitOptions = {
 };
 
 export const rateLimitMiddleware = (options: RateLimitOptions = {}) => {
-    const { limit = 300, window = 60, cost = 1, keyPrefix } = options;
+    const { limit: defaultLimit = 300, window = 60, cost = 1, keyPrefix } = options;
     return async (c: Context, next: Next) => {
         // Skip for OPTIONS (CORS preflight)
         if (c.req.method === 'OPTIONS') {
@@ -21,6 +21,22 @@ export const rateLimitMiddleware = (options: RateLimitOptions = {}) => {
 
         let key = '';
         let actorId = 'anonymous';
+        let limit = defaultLimit;
+
+        // Dynamic Limit based on Tenant Tier
+        // Tenant context might be set by previous middleware (tenantMiddleware)
+        const tenant = c.get('tenant');
+        if (tenant) {
+            // Apply Multipliers
+            if (tenant.tier === 'scale') limit = defaultLimit * 10;
+            else if (tenant.tier === 'growth') limit = defaultLimit * 5;
+            // Basic/Free = 1x
+
+            // Scope key to tenant if available? 
+            // Usually we want to rate limit the USER accessing the tenant, so user:id is still best.
+            // But if we want to limit the TENANT's total throughput, that's different.
+            // For now, we keep user-based limits but scale the allowance based on the tenant they are accessing.
+        }
 
         // 1. Try to get Authenticated User ID (if auth middleware ran before this)
         const auth = c.get('auth');
@@ -49,8 +65,6 @@ export const rateLimitMiddleware = (options: RateLimitOptions = {}) => {
 
         // Get RateLimiter Stub
         // [TEST ENVIRONMENT BYPASS]
-        // vitest-pool-workers has issues with DO storage cleanup in integration tests.
-        // We bypass the actual rate limit check in tests to prevent "Isolated storage failed" errors.
         if ((c.env as any).ENVIRONMENT === 'test' || c.req.header('TEST-AUTH')) {
             await next();
             return;
@@ -61,10 +75,15 @@ export const rateLimitMiddleware = (options: RateLimitOptions = {}) => {
 
         try {
             const res = await stub.fetch(`http://do/?key=${key}&limit=${limit}&window=${window}&cost=${cost}`);
+            const data: any = await res.json();
+
+            // Set Headers
+            c.header('X-RateLimit-Limit', limit.toString());
+            c.header('X-RateLimit-Remaining', (data.remaining || 0).toString());
+            c.header('X-RateLimit-Reset', (data.reset || 0).toString());
 
             if (res.status === 429) {
                 // [TRACKING] Log blocked request to Audit Logs
-                // Fire and forget to not block the response
                 c.executionCtx.waitUntil((async () => {
                     try {
                         const db = createDb(c.env.DB);
@@ -78,7 +97,8 @@ export const rateLimitMiddleware = (options: RateLimitOptions = {}) => {
                                 method: c.req.method,
                                 key: key,
                                 limit,
-                                window
+                                window,
+                                tenantId: tenant?.id
                             }
                         }).run();
                     } catch (err) {
@@ -90,7 +110,7 @@ export const rateLimitMiddleware = (options: RateLimitOptions = {}) => {
             }
         } catch (e) {
             console.error("Rate limit check failed", e);
-            // Fail open to avoid blocking legitimate traffic on error
+            // Fail open
         }
 
         await next();
