@@ -1,0 +1,26 @@
+-- Repair migration for partially applied 0056
+-- Ensure columns exist (SQLite doesn't support IF NOT EXISTS on ADD COLUMN, but typically we can just try to add them if we know they are missing)
+-- Since we suspect 0056 failed at tenant_roles optimization, we re-apply the tail end of schema changes.
+
+-- 1. Tenant Custom Fields
+ALTER TABLE `tenants` ADD COLUMN `custom_field_definitions` text;
+-- 2. Appointments Location
+ALTER TABLE `appointments` ADD `location_id` text REFERENCES locations(id);
+-- 3. Audit Logs
+ALTER TABLE `audit_logs` ADD `target_type` text;
+CREATE INDEX IF NOT EXISTS `audit_tenant_idx` ON `audit_logs` (`tenant_id`);
+CREATE INDEX IF NOT EXISTS `audit_target_idx` ON `audit_logs` (`target_type`,`target_id`);
+-- 4. Classes (Fixes 500 Error)
+ALTER TABLE `classes` ADD `waitlist_capacity` integer DEFAULT 10;
+ALTER TABLE `classes` ADD `payroll_model` text;
+ALTER TABLE `classes` ADD `payroll_value` integer;
+-- 5. Gift Cards
+ALTER TABLE `gift_cards` ADD `stripe_payment_id` text;
+-- 6. Payroll Config
+ALTER TABLE `payroll_config` ADD `payout_basis` text DEFAULT 'net';
+-- 7. Purchased Packs
+ALTER TABLE `purchased_packs` ADD `status` text DEFAULT 'active' NOT NULL;
+-- 8. Subscriptions
+ALTER TABLE `subscriptions` ADD `canceled_at` integer;
+-- 9. Tenant Members
+ALTER TABLE `tenant_members` ADD `custom_fields` text;
