@@ -273,116 +273,117 @@ export default function StudioLayout() {
 
                         {featureSet.has('pos') && (
                             <>
-                                {isStudentView ? "My Coupons" : "Coupons"}
-                            </NavItem>
-                        <NavItem to={`/studio/${slug}/commerce/referrals`} icon={<Award size={18} />}>Refer & Earn</NavItem>
-                        <NavItem to={`/studio/${slug}/commerce/gift-cards`} icon={<Ticket size={18} />}>Gift Cards</NavItem>
-                    </>
+                                <NavItem to={`/studio/${slug}/commerce/coupons`} icon={<Ticket size={18} />}>
+                                    {isStudentView ? "My Coupons" : "Coupons"}
+                                </NavItem>
+                                <NavItem to={`/studio/${slug}/commerce/referrals`} icon={<Award size={18} />}>Refer & Earn</NavItem>
+                                <NavItem to={`/studio/${slug}/commerce/gift-cards`} icon={<Ticket size={18} />}>Gift Cards</NavItem>
+                            </>
                         )}
-                </SidebarGroup>
+                    </SidebarGroup>
 
-                {/* HIDE CRM and Management when in Student View */}
-                {!isStudentView && (
-                    <>
-                        <SidebarGroup title="CRM">
-                            <NavItem to={`/studio/${slug}/leads`} icon={<User size={18} />}>Leads</NavItem>
-                            <NavItem to={`/studio/${slug}/tasks`} icon={<ListTodo size={18} />}>Tasks</NavItem>
-                            {(featureSet.has('marketing')) && (
-                                <NavItem to={`/studio/${slug}/marketing`} icon={<Mail size={18} />}>Email Automations</NavItem>
-                            )}
-                            {(featureSet.has('loyalty')) && (
-                                <NavItem to={`/studio/${slug}/loyalty`} icon={<Award size={18} />}>Loyalty</NavItem>
-                            )}
-                        </SidebarGroup>
+                    {/* HIDE CRM and Management when in Student View */}
+                    {!isStudentView && (
+                        <>
+                            <SidebarGroup title="CRM">
+                                <NavItem to={`/studio/${slug}/leads`} icon={<User size={18} />}>Leads</NavItem>
+                                <NavItem to={`/studio/${slug}/tasks`} icon={<ListTodo size={18} />}>Tasks</NavItem>
+                                {(featureSet.has('marketing')) && (
+                                    <NavItem to={`/studio/${slug}/marketing`} icon={<Mail size={18} />}>Email Automations</NavItem>
+                                )}
+                                {(featureSet.has('loyalty')) && (
+                                    <NavItem to={`/studio/${slug}/loyalty`} icon={<Award size={18} />}>Loyalty</NavItem>
+                                )}
+                            </SidebarGroup>
 
-                        <SidebarGroup title="Online Presence">
-                            {featureSet.has('website_builder') && (
-                                <NavItem to={`/studio/${slug}/website/pages`} icon={<Globe size={18} />}>Website Builder</NavItem>
-                            )}
-                            <NavItem to={`/studio/${slug}/settings/embeds`} icon={<Code size={18} />}>Website Widgets</NavItem>
-                            {featureSet.has('mobile_app') && (
-                                <NavItem to={`/studio/${slug}/settings/mobile`} icon={<Smartphone size={18} />}>Mobile App</NavItem>
-                            )}
-                            <NavItem to={`/studio/${slug}/settings/qr`} icon={<QrCode size={18} />}>QR Codes</NavItem>
-                        </SidebarGroup>
+                            <SidebarGroup title="Online Presence">
+                                {featureSet.has('website_builder') && (
+                                    <NavItem to={`/studio/${slug}/website/pages`} icon={<Globe size={18} />}>Website Builder</NavItem>
+                                )}
+                                <NavItem to={`/studio/${slug}/settings/embeds`} icon={<Code size={18} />}>Website Widgets</NavItem>
+                                {featureSet.has('mobile_app') && (
+                                    <NavItem to={`/studio/${slug}/settings/mobile`} icon={<Smartphone size={18} />}>Mobile App</NavItem>
+                                )}
+                                <NavItem to={`/studio/${slug}/settings/qr`} icon={<QrCode size={18} />}>QR Codes</NavItem>
+                            </SidebarGroup>
 
-                        <SidebarGroup title="Management">
-                            <NavItem to={`/studio/${slug}/students`} icon={<Users size={18} />}>People</NavItem>
-                            {(['scale'].includes(tenant.tier) || featureSet.has('payroll')) && (
-                                <NavItem to={`/studio/${slug}/financials/payroll`} icon={<CreditCard size={18} />}>Payroll Admin</NavItem>
-                            )}
-                            {(['instructor', 'admin', 'owner'].some(r => effectiveRoles.includes(r))) && (
-                                <NavItem to={`/studio/${slug}/financials/my-payouts`} icon={<DollarSign size={18} />}>My Payouts</NavItem>
-                            )}
+                            <SidebarGroup title="Management">
+                                <NavItem to={`/studio/${slug}/students`} icon={<Users size={18} />}>People</NavItem>
+                                {(['scale'].includes(tenant.tier) || featureSet.has('payroll')) && (
+                                    <NavItem to={`/studio/${slug}/financials/payroll`} icon={<CreditCard size={18} />}>Payroll Admin</NavItem>
+                                )}
+                                {(['instructor', 'admin', 'owner'].some(r => effectiveRoles.includes(r))) && (
+                                    <NavItem to={`/studio/${slug}/financials/my-payouts`} icon={<DollarSign size={18} />}>My Payouts</NavItem>
+                                )}
 
-                            {(['admin', 'owner'].some(r => effectiveRoles.includes(r))) && (
-                                <>
-                                    <NavItem to={`/studio/${slug}/settings/staff`} icon={<Users size={18} />}>Team</NavItem>
-                                    <NavItem to={`/studio/${slug}/settings/roles`} icon={<Shield size={18} />}>Roles & Permissions</NavItem>
-                                </>
-                            )}
+                                {(['admin', 'owner'].some(r => effectiveRoles.includes(r))) && (
+                                    <>
+                                        <NavItem to={`/studio/${slug}/settings/staff`} icon={<Users size={18} />}>Team</NavItem>
+                                        <NavItem to={`/studio/${slug}/settings/roles`} icon={<Shield size={18} />}>Roles & Permissions</NavItem>
+                                    </>
+                                )}
 
-                            {featureSet.has('financials') && (
-                                <NavItem to={`/studio/${slug}/finances`} end icon={<DollarSign size={18} />}>Finances</NavItem>
-                            )}
-                            <NavItem to={`/studio/${slug}/discounts`} icon={<Tag size={18} />}>Discounts</NavItem>
-                            <NavItem to={`/studio/${slug}/settings/integrations`} icon={<Smartphone size={18} />}>Integrations</NavItem>
-                            <NavItem to={`/studio/${slug}/settings/developers`} icon={<Terminal size={18} />}>Developers</NavItem>
-                            {featureSet.has('chat') && (
-                                <NavItem to={`/studio/${slug}/settings/chat`} icon={<MessageSquare size={18} />}>Chat Settings</NavItem>
-                            )}
-                            <NavItem to={`/studio/${slug}/settings/appointments`} icon={<Calendar size={18} />}>Appointment Services</NavItem>
-                            <NavItem to={`/studio/${slug}/settings/tags-fields`} icon={<Tag size={18} />}>Tags & Fields</NavItem>
-                            <NavItem to={`/studio/${slug}/settings/activity`} icon={<History size={18} />}>Activity Log</NavItem>
-                            <NavItem to={`/studio/${slug}/data`} icon={<Database size={18} />}>Data</NavItem>
-                            <NavItem to={`/studio/${slug}/settings`} end icon={<Settings size={18} />}>Settings</NavItem>
-                        </SidebarGroup>
+                                {featureSet.has('financials') && (
+                                    <NavItem to={`/studio/${slug}/finances`} end icon={<DollarSign size={18} />}>Finances</NavItem>
+                                )}
+                                <NavItem to={`/studio/${slug}/discounts`} icon={<Tag size={18} />}>Discounts</NavItem>
+                                <NavItem to={`/studio/${slug}/settings/integrations`} icon={<Smartphone size={18} />}>Integrations</NavItem>
+                                <NavItem to={`/studio/${slug}/settings/developers`} icon={<Terminal size={18} />}>Developers</NavItem>
+                                {featureSet.has('chat') && (
+                                    <NavItem to={`/studio/${slug}/settings/chat`} icon={<MessageSquare size={18} />}>Chat Settings</NavItem>
+                                )}
+                                <NavItem to={`/studio/${slug}/settings/appointments`} icon={<Calendar size={18} />}>Appointment Services</NavItem>
+                                <NavItem to={`/studio/${slug}/settings/tags-fields`} icon={<Tag size={18} />}>Tags & Fields</NavItem>
+                                <NavItem to={`/studio/${slug}/settings/activity`} icon={<History size={18} />}>Activity Log</NavItem>
+                                <NavItem to={`/studio/${slug}/data`} icon={<Database size={18} />}>Data</NavItem>
+                                <NavItem to={`/studio/${slug}/settings`} end icon={<Settings size={18} />}>Settings</NavItem>
+                            </SidebarGroup>
 
-                        <SidebarGroup title="Analytics">
-                            <NavItem to={`/studio/${slug}/reports`} icon={<BarChart3 size={18} />}>Reports</NavItem>
-                        </SidebarGroup>
-                    </>
-                )}
-            </nav>
+                            <SidebarGroup title="Analytics">
+                                <NavItem to={`/studio/${slug}/reports`} icon={<BarChart3 size={18} />}>Reports</NavItem>
+                            </SidebarGroup>
+                        </>
+                    )}
+                </nav>
 
 
-            <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex flex-col gap-3">
-                {/* View as Student Toggle */}
-                {!isStudentView && (me?.roles?.includes('owner') || me?.roles?.includes('admin') || (me?.user as any)?.isPlatformAdmin || isImpersonating) && (
-                    <button
-                        onClick={toggleStudentView}
+                <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex flex-col gap-3">
+                    {/* View as Student Toggle */}
+                    {!isStudentView && (me?.roles?.includes('owner') || me?.roles?.includes('admin') || (me?.user as any)?.isPlatformAdmin || isImpersonating) && (
+                        <button
+                            onClick={toggleStudentView}
+                            className="flex items-center gap-2 text-zinc-500 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 text-xs font-medium transition mb-1"
+                        >
+                            <Users size={14} />
+                            <span>View as Student</span>
+                        </button>
+                    )}
+
+                    {/* System Admin Escape Hatch */}
+                    {((me?.user as any)?.isPlatformAdmin || isImpersonating) && !isStudentView && (
+                        <a href="/admin" className="flex items-center gap-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 text-xs font-medium transition mb-1"
+                        >
+                            <Users size={14} />
+                            <span>Return to Admin</span>
+                        </a>
+                    )}
+
+                    <Link
+                        to="/documentation"
                         className="flex items-center gap-2 text-zinc-500 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 text-xs font-medium transition mb-1"
                     >
-                        <Users size={14} />
-                        <span>View as Student</span>
-                    </button>
-                )}
-
-                {/* System Admin Escape Hatch */}
-                {((me?.user as any)?.isPlatformAdmin || isImpersonating) && !isStudentView && (
-                    <a href="/admin" className="flex items-center gap-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 text-xs font-medium transition mb-1"
-                    >
-                        <Users size={14} />
-                        <span>Return to Admin</span>
-                    </a>
-                )}
-
-                <Link
-                    to="/documentation"
-                    className="flex items-center gap-2 text-zinc-500 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 text-xs font-medium transition mb-1"
-                >
-                    <CircleHelp size={14} />
-                    <span>Documentation</span>
-                </Link>
+                        <CircleHelp size={14} />
+                        <span>Documentation</span>
+                    </Link>
 
 
-                <div className="pt-4 mt-auto">
-                    <PoweredBy tier={tenant.tier} branding={tenant.branding} />
+                    <div className="pt-4 mt-auto">
+                        <PoweredBy tier={tenant.tier} branding={tenant.branding} />
+                    </div>
                 </div>
-            </div>
-        </aside >
+            </aside >
 
-            {/* Main Content */ }
+            {/* Main Content */}
             <main className="flex-1 ml-64 flex flex-col min-w-0 relative">
 
                 {/* Impersonation Banner */}

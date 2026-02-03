@@ -1,4 +1,4 @@
-import { json, LoaderFunctionArgs } from "react-router";
+import { LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useParams } from "react-router";
 import { useState } from "react";
 import { apiRequest } from "../utils/api";
@@ -19,7 +19,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
         throw new Response(stats.error, { status: 500 });
     }
 
-    return json({ stats });
+    return { stats };
 };
 
 export default function ReferralDashboard() {
