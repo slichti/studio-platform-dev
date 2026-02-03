@@ -21,8 +21,7 @@ jobs:
         env:
           ESLINT_USE_FLAT_CONFIG: false
       - run: npm run typecheck -- --filter=!mobile --filter=!web
-      # Temporarily disabled: pathe package has corrupted dist in CI
-      # - run: npm run test -- --filter=!web
+      - run: npm run test -- --filter=!web
 
   deploy-api:
     needs: validate

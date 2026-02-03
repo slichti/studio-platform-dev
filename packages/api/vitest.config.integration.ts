@@ -19,6 +19,7 @@ export default defineWorkersConfig({
         alias: {
             '@studio/db/src': join(__dirname, '../db/src'),
             '@studio/db': join(__dirname, '../db'),
+            '@studio/emails': join(__dirname, '../emails/src'),
         },
         include: ['**/*.integration.test.ts'],
     },
