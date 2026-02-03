@@ -17,19 +17,9 @@
 - [x] Implement Mobile App Enhancements (Auth/Theme) <!-- id: 11 -->
 - [x] Refactor API Routes (admin.ts, classes.ts) <!-- id: 12 -->
 - [x] Create API Blueprint & Gap Analysis <!-- id: 15 -->
-- [ ] Add Audit Logs UI <!-- id: 13 -->
-- [ ] Enhance Automated Testing <!-- id: 14 -->
-
-# [EXECUTION] Implementing API Improvements
-- [x] Extend Schema (Tags, Custom Fields, Payroll Basis) <!-- id: 16 -->
-- [x] Implement Conflict Detection Service <!-- id: 17 -->
-- [x] Integrate Conflict Detection into Classes & Subs <!-- id: 18 -->
-- [x] Enhance Payroll with Percentage-of-Revenue Logic <!-- id: 19 -->
-- [x] Implement Automated Refund Reconciliation <!-- id: 20 -->
-- [x] Implement Bulk Check-in & Webhook Logging <!-- id: 21 -->
-- [x] Update Internal Documentation & System Overview <!-- id: 22 -->
+- [x] Add Audit Logs UI <!-- id: 13 -->
 - [ ] Implement UI for Tags & Custom Fields in Studio Settings <!-- id: 23 -->
-- [x] Verify, Commit, and Push Changes <!-- id: 24 -->
+- [ ] Enhance Automated Testing <!-- id: 14 -->
 
 # [PLANNING] Phase 2: API Resilience & Standardization
 - [x] Create Detailed Implementation Plan for Phase 2 <!-- id: 26 -->

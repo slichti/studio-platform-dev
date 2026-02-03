@@ -1,0 +1,2717 @@
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "b3767d464aadb80930d20710139462c30658375483ca267e4d3dc69fd2b2e07d",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117113131,
+    "event": {
+        "request": {
+            "url": "http://do/?key=user:REDACTED&limit=600&window=60&cost=1",
+            "method": "GET",
+            "headers": {}
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 246,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "b3767d464aadb80930d20710139462c30658375483ca267e4d3dc69fd2b2e07d",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117112864,
+    "event": {
+        "request": {
+            "url": "http://do/?key=token:REDACTED&limit=300&window=60&cost=1",
+            "method": "GET",
+            "headers": {}
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "b3767d464aadb80930d20710139462c30658375483ca267e4d3dc69fd2b2e07d",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117113131,
+    "event": {
+        "request": {
+            "url": "http://do/?key=user:REDACTED&limit=600&window=60&cost=1",
+            "method": "GET",
+            "headers": {}
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 245,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "b3767d464aadb80930d20710139462c30658375483ca267e4d3dc69fd2b2e07d",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117112866,
+    "event": {
+        "request": {
+            "url": "http://do/?key=token:REDACTED&limit=300&window=60&cost=1",
+            "method": "GET",
+            "headers": {}
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 257,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "e6566ec4bf9e544050fcfe44f6b09d55677e2047754b32a9a967be05afb4fde0",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117113277,
+    "event": {
+        "request": {
+            "url": "http://do/ping",
+            "method": "POST",
+            "headers": {
+                "content-type": "text/plain;charset=UTF-8"
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 246,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "e6566ec4bf9e544050fcfe44f6b09d55677e2047754b32a9a967be05afb4fde0",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117113279,
+    "event": {
+        "request": {
+            "url": "http://do/ping",
+            "method": "POST",
+            "headers": {
+                "content-type": "text/plain;charset=UTF-8"
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 707,
+    "cpuTime": 34,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [
+        {
+            "message": [
+                "<-- GET /tenant/info"
+            ],
+            "level": "log",
+            "timestamp": 1770117113113
+        },
+        {
+            "message": [
+                "[AUTH] GET https://studio-platform-api.slichti.workers.dev/tenant/info - Auth: Bearer ****"
+            ],
+            "level": "log",
+            "timestamp": 1770117113113
+        },
+        {
+            "message": [
+                "[TenantMiddleware] Set tenant context for studio-platform-api.slichti.workers.dev: Garden Yoga (tnt_3ca491c5-aa05-4c2d-b2f3-02e9f3301bfc)"
+            ],
+            "level": "log",
+            "timestamp": 1770117113162
+        },
+        {
+            "message": [
+                "[DEBUG] TenantMiddleware: User user_377aQ2rw6dIQk5k43U71YKUHDMM found:",
+                "YES"
+            ],
+            "level": "log",
+            "timestamp": 1770117113189
+        },
+        {
+            "message": [
+                "[DEBUG] User Role: user, isPlatformAdmin: true"
+            ],
+            "level": "log",
+            "timestamp": 1770117113189
+        },
+        {
+            "message": [
+                "[DEBUG] isPlatformAdmin resolved to: true"
+            ],
+            "level": "log",
+            "timestamp": 1770117113189
+        },
+        {
+            "message": [
+                "--> GET /tenant/info \u001b[32m200\u001b[0m 142ms"
+            ],
+            "level": "log",
+            "timestamp": 1770117113255
+        }
+    ],
+    "eventTimestamp": 1770117112146,
+    "event": {
+        "request": {
+            "url": "https://studio-platform-api.slichti.workers.dev/tenant/info",
+            "method": "GET",
+            "headers": {
+                "accept-encoding": "gzip, br",
+                "authorization": "REDACTED",
+                "cf-connecting-ip": "2a06:98c0:3600::103",
+                "cf-ipcountry": "US",
+                "cf-ray": "9c817d6ed6ceae77",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "cf-worker": "studio-platform-web.pages.dev",
+                "connection": "Keep-Alive",
+                "content-type": "application/json",
+                "host": "studio-platform-api.slichti.workers.dev",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "2a06:98c0:3600::103",
+                "x-request-id": "06ed96c8-159f-44ff-aea6-4cef01529e8e",
+                "x-tenant-slug": "garden-yoga"
+            },
+            "cf": {
+                "requestHeaderNames": {},
+                "httpProtocol": "HTTP/1.1",
+                "tlsCipher": "",
+                "continent": "NA",
+                "asn": 13335,
+                "verifiedBotCategory": "",
+                "country": "US",
+                "isEUCountry": false,
+                "region": "Illinois",
+                "tlsClientCiphersSha1": "",
+                "tlsClientAuth": {
+                    "certIssuerDNLegacy": "",
+                    "certIssuerSKI": "",
+                    "certSubjectDNRFC2253": "",
+                    "certSubjectDNLegacy": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certSKI": "",
+                    "certSerial": "",
+                    "certIssuerDN": "",
+                    "certVerified": "NONE",
+                    "certNotAfter": "",
+                    "certSubjectDN": "",
+                    "certPresented": "0",
+                    "certRevoked": "0",
+                    "certIssuerSerial": "",
+                    "certIssuerDNRFC2253": "",
+                    "certFingerprintSHA1": ""
+                },
+                "tlsClientRandom": "",
+                "tlsClientHelloLength": "",
+                "colo": "ORD",
+                "timezone": "America/Chicago",
+                "longitude": "-87.65005",
+                "latitude": "41.85003",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestPriority": "",
+                "postalCode": "60602",
+                "city": "Chicago",
+                "tlsVersion": "",
+                "regionCode": "IL",
+                "asOrganization": "Cloudflare, Inc.",
+                "metroCode": "602",
+                "tlsClientExtensionsSha1Le": "",
+                "tlsClientExtensionsSha1": ""
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 707,
+    "cpuTime": 63,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [
+        {
+            "message": [
+                "<-- GET /tenant/me"
+            ],
+            "level": "log",
+            "timestamp": 1770117113109
+        },
+        {
+            "message": [
+                "[AUTH] GET https://studio-platform-api.slichti.workers.dev/tenant/me - Auth: Bearer ****"
+            ],
+            "level": "log",
+            "timestamp": 1770117113109
+        },
+        {
+            "message": [
+                "[TenantMiddleware] Set tenant context for studio-platform-api.slichti.workers.dev: Garden Yoga (tnt_3ca491c5-aa05-4c2d-b2f3-02e9f3301bfc)"
+            ],
+            "level": "log",
+            "timestamp": 1770117113151
+        },
+        {
+            "message": [
+                "[DEBUG] TenantMiddleware: User user_377aQ2rw6dIQk5k43U71YKUHDMM found:",
+                "YES"
+            ],
+            "level": "log",
+            "timestamp": 1770117113178
+        },
+        {
+            "message": [
+                "[DEBUG] User Role: user, isPlatformAdmin: true"
+            ],
+            "level": "log",
+            "timestamp": 1770117113178
+        },
+        {
+            "message": [
+                "[DEBUG] isPlatformAdmin resolved to: true"
+            ],
+            "level": "log",
+            "timestamp": 1770117113178
+        },
+        {
+            "message": [
+                "--> GET /tenant/me \u001b[32m200\u001b[0m 107ms"
+            ],
+            "level": "log",
+            "timestamp": 1770117113216
+        }
+    ],
+    "eventTimestamp": 1770117112146,
+    "event": {
+        "request": {
+            "url": "https://studio-platform-api.slichti.workers.dev/tenant/me",
+            "method": "GET",
+            "headers": {
+                "accept-encoding": "gzip, br",
+                "authorization": "REDACTED",
+                "cf-connecting-ip": "2a06:98c0:3600::103",
+                "cf-ipcountry": "US",
+                "cf-ray": "9c817d6ed6cdae77",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "cf-worker": "studio-platform-web.pages.dev",
+                "connection": "Keep-Alive",
+                "content-type": "application/json",
+                "host": "studio-platform-api.slichti.workers.dev",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "2a06:98c0:3600::103",
+                "x-request-id": "45434387-9bb8-46a1-a73e-d74e31dc9593",
+                "x-tenant-slug": "garden-yoga"
+            },
+            "cf": {
+                "requestHeaderNames": {},
+                "httpProtocol": "HTTP/1.1",
+                "tlsCipher": "",
+                "continent": "NA",
+                "asn": 13335,
+                "verifiedBotCategory": "",
+                "country": "US",
+                "isEUCountry": false,
+                "region": "Illinois",
+                "tlsClientCiphersSha1": "",
+                "tlsClientAuth": {
+                    "certIssuerDNLegacy": "",
+                    "certIssuerSKI": "",
+                    "certSubjectDNRFC2253": "",
+                    "certSubjectDNLegacy": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certSKI": "",
+                    "certSerial": "",
+                    "certIssuerDN": "",
+                    "certVerified": "NONE",
+                    "certNotAfter": "",
+                    "certSubjectDN": "",
+                    "certPresented": "0",
+                    "certRevoked": "0",
+                    "certIssuerSerial": "",
+                    "certIssuerDNRFC2253": "",
+                    "certFingerprintSHA1": ""
+                },
+                "tlsClientRandom": "",
+                "tlsClientHelloLength": "",
+                "colo": "ORD",
+                "timezone": "America/Chicago",
+                "longitude": "-87.65005",
+                "latitude": "41.85003",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestPriority": "",
+                "postalCode": "60602",
+                "city": "Chicago",
+                "tlsVersion": "",
+                "regionCode": "IL",
+                "asOrganization": "Cloudflare, Inc.",
+                "metroCode": "602",
+                "tlsClientExtensionsSha1Le": "",
+                "tlsClientExtensionsSha1": ""
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "b3767d464aadb80930d20710139462c30658375483ca267e4d3dc69fd2b2e07d",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117113239,
+    "event": {
+        "request": {
+            "url": "http://do/?key=ip:162.232.88.41&limit=300&window=60&cost=1",
+            "method": "GET",
+            "headers": {}
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 12,
+    "cpuTime": 2,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [
+        {
+            "message": [
+                "<-- GET /chat/rooms/support-mem_a5585fd3-5771-455b-b1e7-b5d1cebfc2c3/websocket?roomId=support-mem_a5585fd3-5771-455b-b1e7-b5d1cebfc2c3&tenantId=platform&userId=mem_a5585fd3-5771-455b-b1e7-b5d1cebfc2c3&userName=User%20&token=eyJhbGciOiJSUzI1NiIsImNhdCI6ImNsX0I3ZDRQRDExMUFBQSIsImtpZCI6Imluc18zNzJtdjdISjVRM0QwVWFRdVliaGx5Q3BqVFoiLCJ0eXAiOiJKV1QifQ.eyJhenAiOiJodHRwczovL3N0dWRpby1wbGF0Zm9ybS1kZXYuc2xpY2h0aS5vcmciLCJleHAiOjE3NzAxMTcxNjUsImZ2YSI6WzEzOTIsLTFdLCJpYXQiOjE3NzAxMTcxMDUsImlzcyI6Imh0dHBzOi8vdGVuZGVyLWNhcmRpbmFsLTIuY2xlcmsuYWNjb3VudHMuZGV2IiwibmJmIjoxNzcwMTE3MDk1LCJzaWQiOiJzZXNzXzM5NzQ0NXA1MDhFYWZWeWM3ck9ZUFJKM1o4RiIsInN0cyI6ImFjdGl2ZSIsInN1YiI6InVzZXJfMzc3YVEycnc2ZElRazVrNDNVNzFZS1VIRE1NIiwidiI6Mn0.C_ccsZ3MIVmFIxmqRfUN2Q5yUc1DLZRvLEEqMx82ExtVIeFVUpMOPXMozTrf8swbbBsBL2rCiWUDdjc1XYpSMe3BNEcazkPiy_JPq6pWOWR0bfOdd5IrQjWcFgeTMvcKsyAjepb1PYBEgLeQI0E5SiK7uCZvLGtTGiyOQ2hX-47t14YD_KcVcnUGm0CUJxmM7GmfeQO5u7vNkdbfZeEYgwHHUxq62vnbKAuUeBEULutH-KmdSPnoBtuyNzLPuVdhR8KfoPUiAMrLyE__knBb_s_9afPoWWr0FJp06Eb5fgCncKPLXzXYZWwIYYqhdI5Go5J21zvMKnuQuf-uoFv1yQ"
+            ],
+            "level": "log",
+            "timestamp": 1770117114248
+        },
+        {
+            "message": [
+                "Global App Error:",
+                "TypeError: Cannot read properties of undefined (reading 'id')"
+            ],
+            "level": "error",
+            "timestamp": 1770117114248
+        },
+        {
+            "message": [
+                "--> GET /chat/rooms/support-mem_a5585fd3-5771-455b-b1e7-b5d1cebfc2c3/websocket?roomId=support-mem_a5585fd3-5771-455b-b1e7-b5d1cebfc2c3&tenantId=platform&userId=mem_a5585fd3-5771-455b-b1e7-b5d1cebfc2c3&userName=User%20&token=eyJhbGciOiJSUzI1NiIsImNhdCI6ImNsX0I3ZDRQRDExMUFBQSIsImtpZCI6Imluc18zNzJtdjdISjVRM0QwVWFRdVliaGx5Q3BqVFoiLCJ0eXAiOiJKV1QifQ.eyJhenAiOiJodHRwczovL3N0dWRpby1wbGF0Zm9ybS1kZXYuc2xpY2h0aS5vcmciLCJleHAiOjE3NzAxMTcxNjUsImZ2YSI6WzEzOTIsLTFdLCJpYXQiOjE3NzAxMTcxMDUsImlzcyI6Imh0dHBzOi8vdGVuZGVyLWNhcmRpbmFsLTIuY2xlcmsuYWNjb3VudHMuZGV2IiwibmJmIjoxNzcwMTE3MDk1LCJzaWQiOiJzZXNzXzM5NzQ0NXA1MDhFYWZWeWM3ck9ZUFJKM1o4RiIsInN0cyI6ImFjdGl2ZSIsInN1YiI6InVzZXJfMzc3YVEycnc2ZElRazVrNDNVNzFZS1VIRE1NIiwidiI6Mn0.C_ccsZ3MIVmFIxmqRfUN2Q5yUc1DLZRvLEEqMx82ExtVIeFVUpMOPXMozTrf8swbbBsBL2rCiWUDdjc1XYpSMe3BNEcazkPiy_JPq6pWOWR0bfOdd5IrQjWcFgeTMvcKsyAjepb1PYBEgLeQI0E5SiK7uCZvLGtTGiyOQ2hX-47t14YD_KcVcnUGm0CUJxmM7GmfeQO5u7vNkdbfZeEYgwHHUxq62vnbKAuUeBEULutH-KmdSPnoBtuyNzLPuVdhR8KfoPUiAMrLyE__knBb_s_9afPoWWr0FJp06Eb5fgCncKPLXzXYZWwIYYqhdI5Go5J21zvMKnuQuf-uoFv1yQ \u001b[31m500\u001b[0m 0ms"
+            ],
+            "level": "log",
+            "timestamp": 1770117114248
+        }
+    ],
+    "eventTimestamp": 1770117114237,
+    "event": {
+        "request": {
+            "url": "https://studio-platform-api.slichti.workers.dev/chat/rooms/support-mem_a5585fd3-5771-455b-b1e7-b5d1cebfc2c3/websocket?roomId=support-mem_a5585fd3-5771-455b-b1e7-b5d1cebfc2c3&tenantId=platform&userId=mem_a5585fd3-5771-455b-b1e7-b5d1cebfc2c3&userName=User%20&token=REDACTED.REDACTED.REDACTED",
+            "method": "GET",
+            "headers": {
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "cache-control": "no-cache",
+                "cf-connecting-ip": "162.232.88.41",
+                "cf-ipcountry": "US",
+                "cf-ray": "9c817d7bbf685624",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Upgrade",
+                "host": "studio-platform-api.slichti.workers.dev",
+                "origin": "https://studio-platform-dev.slichti.org",
+                "pragma": "no-cache",
+                "sec-websocket-extensions": "permessage-deflate; client_max_window_bits",
+                "sec-websocket-key": "REDACTED",
+                "sec-websocket-version": "13",
+                "upgrade": "websocket",
+                "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "162.232.88.41"
+            },
+            "cf": {
+                "clientTcpRtt": 16,
+                "requestHeaderNames": {},
+                "httpProtocol": "HTTP/1.1",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "continent": "NA",
+                "asn": 7018,
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "verifiedBotCategory": "",
+                "country": "US",
+                "isEUCountry": false,
+                "region": "Michigan",
+                "tlsClientCiphersSha1": "tQJ4J5nKzcB8rojp6mWkZo8HEVU=",
+                "tlsClientAuth": {
+                    "certIssuerDNLegacy": "",
+                    "certIssuerSKI": "",
+                    "certSubjectDNRFC2253": "",
+                    "certSubjectDNLegacy": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certSKI": "",
+                    "certSerial": "",
+                    "certIssuerDN": "",
+                    "certVerified": "NONE",
+                    "certNotAfter": "",
+                    "certSubjectDN": "",
+                    "certPresented": "0",
+                    "certRevoked": "0",
+                    "certIssuerSerial": "",
+                    "certIssuerDNRFC2253": "",
+                    "certFingerprintSHA1": ""
+                },
+                "tlsClientRandom": "Nu8j8T+cQsjNbeEex/hfMAiabKthIoKOFeHHXbdEtkI=",
+                "tlsExportedAuthenticator": {
+                    "clientFinished": "f324bf11837ee0082252695c251a2f958c81d0c2d764b2822e291361b13f0acb",
+                    "clientHandshake": "582e4ea24d2c518ae00807e9db79f94d1d2cd3161da4f020be4fff070c7ec620",
+                    "serverHandshake": "dffe032a79f0b2416243f7ea779230db981493aedbd0ed009b9156fc4730d80a",
+                    "serverFinished": "52a26eadf81d2efab2a25b7570f23f452cde43607d2c82d46ac0adecbeacb70e"
+                },
+                "tlsClientHelloLength": "1737",
+                "colo": "ORD",
+                "timezone": "America/Detroit",
+                "longitude": "-83.88954",
+                "latitude": "42.33834",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestPriority": "",
+                "postalCode": "48130",
+                "city": "Dexter",
+                "tlsVersion": "TLSv1.3",
+                "regionCode": "MI",
+                "asOrganization": "AT&T Enterprises, LLC",
+                "metroCode": "505",
+                "tlsClientExtensionsSha1Le": "c49ilTWJv2D+EpE1RznQKjfFu+w=",
+                "tlsClientExtensionsSha1": "r48149RFDN5//KDip68g4hO2uPs="
+            }
+        },
+        "response": {
+            "status": 500
+        }
+    }
+}
+{
+    "wallTime": 30,
+    "cpuTime": 27,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [
+        {
+            "message": [
+                "<-- OPTIONS /memberships/plans"
+            ],
+            "level": "log",
+            "timestamp": 1770117115474
+        },
+        {
+            "message": [
+                "--> OPTIONS /memberships/plans \u001b[32m204\u001b[0m 0ms"
+            ],
+            "level": "log",
+            "timestamp": 1770117115477
+        }
+    ],
+    "eventTimestamp": 1770117114545,
+    "event": {
+        "request": {
+            "url": "https://studio-platform-api.slichti.workers.dev/memberships/plans",
+            "method": "OPTIONS",
+            "headers": {
+                "accept": "*/*",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "access-control-request-headers": "authorization,content-type,x-request-id,x-tenant-slug",
+                "access-control-request-method": "GET",
+                "cf-connecting-ip": "162.232.88.41",
+                "cf-ipcountry": "US",
+                "cf-ray": "9c817d7dd8bc22dc",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "host": "studio-platform-api.slichti.workers.dev",
+                "origin": "https://studio-platform-dev.slichti.org",
+                "priority": "u=1, i",
+                "referer": "https://studio-platform-dev.slichti.org/",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "cross-site",
+                "transfer-encoding": "chunked",
+                "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "162.232.88.41"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "ORD",
+                "asn": 7018,
+                "asOrganization": "AT&T Enterprises, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "Dexter",
+                "continent": "NA",
+                "region": "Michigan",
+                "regionCode": "MI",
+                "timezone": "America/Detroit",
+                "longitude": "-83.88954",
+                "latitude": "42.33834",
+                "postalCode": "48130",
+                "metroCode": "505",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "/4Cb9bt6+zoaAtEeLrlt7gbxVPyD3JJ/VckA4X21lCY=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "it/iJ8EtDriGVnBr3lPHVOmEwho=",
+                "tlsClientExtensionsSha1Le": "",
+                "tlsClientHelloLength": "1761",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 204
+        }
+    }
+}
+{
+    "wallTime": 31,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [
+        {
+            "message": [
+                "<-- OPTIONS /members?role=instructor"
+            ],
+            "level": "log",
+            "timestamp": 1770117115504
+        },
+        {
+            "message": [
+                "--> OPTIONS /members?role=instructor \u001b[32m204\u001b[0m 0ms"
+            ],
+            "level": "log",
+            "timestamp": 1770117115506
+        }
+    ],
+    "eventTimestamp": 1770117114548,
+    "event": {
+        "request": {
+            "url": "https://studio-platform-api.slichti.workers.dev/members?role=instructor",
+            "method": "OPTIONS",
+            "headers": {
+                "accept": "*/*",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "access-control-request-headers": "authorization,content-type,x-request-id,x-tenant-slug",
+                "access-control-request-method": "GET",
+                "cf-connecting-ip": "162.232.88.41",
+                "cf-ipcountry": "US",
+                "cf-ray": "9c817d7dd8ba22dc",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "host": "studio-platform-api.slichti.workers.dev",
+                "origin": "https://studio-platform-dev.slichti.org",
+                "priority": "u=1, i",
+                "referer": "https://studio-platform-dev.slichti.org/",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "cross-site",
+                "transfer-encoding": "chunked",
+                "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "162.232.88.41"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "ORD",
+                "asn": 7018,
+                "asOrganization": "AT&T Enterprises, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "Dexter",
+                "continent": "NA",
+                "region": "Michigan",
+                "regionCode": "MI",
+                "timezone": "America/Detroit",
+                "longitude": "-83.88954",
+                "latitude": "42.33834",
+                "postalCode": "48130",
+                "metroCode": "505",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "/4Cb9bt6+zoaAtEeLrlt7gbxVPyD3JJ/VckA4X21lCY=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "it/iJ8EtDriGVnBr3lPHVOmEwho=",
+                "tlsClientExtensionsSha1Le": "",
+                "tlsClientHelloLength": "1761",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 204
+        }
+    }
+}
+{
+    "wallTime": 31,
+    "cpuTime": 1,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [
+        {
+            "message": [
+                "<-- OPTIONS /locations"
+            ],
+            "level": "log",
+            "timestamp": 1770117115503
+        },
+        {
+            "message": [
+                "--> OPTIONS /locations \u001b[32m204\u001b[0m 0ms"
+            ],
+            "level": "log",
+            "timestamp": 1770117115505
+        }
+    ],
+    "eventTimestamp": 1770117114545,
+    "event": {
+        "request": {
+            "url": "https://studio-platform-api.slichti.workers.dev/locations",
+            "method": "OPTIONS",
+            "headers": {
+                "accept": "*/*",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "access-control-request-headers": "authorization,content-type,x-request-id,x-tenant-slug",
+                "access-control-request-method": "GET",
+                "cf-connecting-ip": "162.232.88.41",
+                "cf-ipcountry": "US",
+                "cf-ray": "9c817d7dd8b822dc",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "host": "studio-platform-api.slichti.workers.dev",
+                "origin": "https://studio-platform-dev.slichti.org",
+                "priority": "u=1, i",
+                "referer": "https://studio-platform-dev.slichti.org/",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "cross-site",
+                "transfer-encoding": "chunked",
+                "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "162.232.88.41"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "ORD",
+                "asn": 7018,
+                "asOrganization": "AT&T Enterprises, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "Dexter",
+                "continent": "NA",
+                "region": "Michigan",
+                "regionCode": "MI",
+                "timezone": "America/Detroit",
+                "longitude": "-83.88954",
+                "latitude": "42.33834",
+                "postalCode": "48130",
+                "metroCode": "505",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "/4Cb9bt6+zoaAtEeLrlt7gbxVPyD3JJ/VckA4X21lCY=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "it/iJ8EtDriGVnBr3lPHVOmEwho=",
+                "tlsClientExtensionsSha1Le": "",
+                "tlsClientHelloLength": "1761",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 204
+        }
+    }
+}
+{
+    "wallTime": 31,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [
+        {
+            "message": [
+                "<-- OPTIONS /users/me"
+            ],
+            "level": "log",
+            "timestamp": 1770117115504
+        },
+        {
+            "message": [
+                "--> OPTIONS /users/me \u001b[32m204\u001b[0m 0ms"
+            ],
+            "level": "log",
+            "timestamp": 1770117115506
+        }
+    ],
+    "eventTimestamp": 1770117114547,
+    "event": {
+        "request": {
+            "url": "https://studio-platform-api.slichti.workers.dev/users/me",
+            "method": "OPTIONS",
+            "headers": {
+                "accept": "*/*",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "access-control-request-headers": "authorization,content-type,x-request-id,x-tenant-slug",
+                "access-control-request-method": "GET",
+                "cf-connecting-ip": "162.232.88.41",
+                "cf-ipcountry": "US",
+                "cf-ray": "9c817d7dd8bb22dc",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "host": "studio-platform-api.slichti.workers.dev",
+                "origin": "https://studio-platform-dev.slichti.org",
+                "priority": "u=1, i",
+                "referer": "https://studio-platform-dev.slichti.org/",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "cross-site",
+                "transfer-encoding": "chunked",
+                "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "162.232.88.41"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "ORD",
+                "asn": 7018,
+                "asOrganization": "AT&T Enterprises, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "Dexter",
+                "continent": "NA",
+                "region": "Michigan",
+                "regionCode": "MI",
+                "timezone": "America/Detroit",
+                "longitude": "-83.88954",
+                "latitude": "42.33834",
+                "postalCode": "48130",
+                "metroCode": "505",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "/4Cb9bt6+zoaAtEeLrlt7gbxVPyD3JJ/VckA4X21lCY=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "it/iJ8EtDriGVnBr3lPHVOmEwho=",
+                "tlsClientExtensionsSha1Le": "",
+                "tlsClientHelloLength": "1761",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 204
+        }
+    }
+}
+{
+    "wallTime": 30,
+    "cpuTime": 1,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [
+        {
+            "message": [
+                "<-- OPTIONS /users/me/family"
+            ],
+            "level": "log",
+            "timestamp": 1770117115502
+        },
+        {
+            "message": [
+                "--> OPTIONS /users/me/family \u001b[32m204\u001b[0m 0ms"
+            ],
+            "level": "log",
+            "timestamp": 1770117115504
+        }
+    ],
+    "eventTimestamp": 1770117114545,
+    "event": {
+        "request": {
+            "url": "https://studio-platform-api.slichti.workers.dev/users/me/family",
+            "method": "OPTIONS",
+            "headers": {
+                "accept": "*/*",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "access-control-request-headers": "authorization,content-type,x-request-id,x-tenant-slug",
+                "access-control-request-method": "GET",
+                "cf-connecting-ip": "162.232.88.41",
+                "cf-ipcountry": "US",
+                "cf-ray": "9c817d7dd8b922dc",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "host": "studio-platform-api.slichti.workers.dev",
+                "origin": "https://studio-platform-dev.slichti.org",
+                "priority": "u=1, i",
+                "referer": "https://studio-platform-dev.slichti.org/",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "cross-site",
+                "transfer-encoding": "chunked",
+                "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "162.232.88.41"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "ORD",
+                "asn": 7018,
+                "asOrganization": "AT&T Enterprises, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "Dexter",
+                "continent": "NA",
+                "region": "Michigan",
+                "regionCode": "MI",
+                "timezone": "America/Detroit",
+                "longitude": "-83.88954",
+                "latitude": "42.33834",
+                "postalCode": "48130",
+                "metroCode": "505",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "/4Cb9bt6+zoaAtEeLrlt7gbxVPyD3JJ/VckA4X21lCY=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "it/iJ8EtDriGVnBr3lPHVOmEwho=",
+                "tlsClientExtensionsSha1Le": "",
+                "tlsClientHelloLength": "1761",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 204
+        }
+    }
+}
+{
+    "wallTime": 32,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [
+        {
+            "message": [
+                "<-- OPTIONS /classes?status=active"
+            ],
+            "level": "log",
+            "timestamp": 1770117115504
+        },
+        {
+            "message": [
+                "--> OPTIONS /classes?status=active \u001b[32m204\u001b[0m 0ms"
+            ],
+            "level": "log",
+            "timestamp": 1770117115506
+        }
+    ],
+    "eventTimestamp": 1770117114549,
+    "event": {
+        "request": {
+            "url": "https://studio-platform-api.slichti.workers.dev/classes?status=active",
+            "method": "OPTIONS",
+            "headers": {
+                "accept": "*/*",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "access-control-request-headers": "authorization,content-type,x-request-id,x-tenant-slug",
+                "access-control-request-method": "GET",
+                "cf-connecting-ip": "162.232.88.41",
+                "cf-ipcountry": "US",
+                "cf-ray": "9c817d7dd8bd22dc",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "host": "studio-platform-api.slichti.workers.dev",
+                "origin": "https://studio-platform-dev.slichti.org",
+                "priority": "u=1, i",
+                "referer": "https://studio-platform-dev.slichti.org/",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "cross-site",
+                "transfer-encoding": "chunked",
+                "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "162.232.88.41"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "ORD",
+                "asn": 7018,
+                "asOrganization": "AT&T Enterprises, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "Dexter",
+                "continent": "NA",
+                "region": "Michigan",
+                "regionCode": "MI",
+                "timezone": "America/Detroit",
+                "longitude": "-83.88954",
+                "latitude": "42.33834",
+                "postalCode": "48130",
+                "metroCode": "505",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "/4Cb9bt6+zoaAtEeLrlt7gbxVPyD3JJ/VckA4X21lCY=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "it/iJ8EtDriGVnBr3lPHVOmEwho=",
+                "tlsClientExtensionsSha1Le": "",
+                "tlsClientHelloLength": "1761",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 204
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "b3767d464aadb80930d20710139462c30658375483ca267e4d3dc69fd2b2e07d",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117114260,
+    "event": {
+        "request": {
+            "url": "http://do/?key=token:REDACTED&limit=300&window=60&cost=1",
+            "method": "GET",
+            "headers": {}
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "b3767d464aadb80930d20710139462c30658375483ca267e4d3dc69fd2b2e07d",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117115630,
+    "event": {
+        "request": {
+            "url": "http://do/?key=token:REDACTED&limit=300&window=60&cost=1",
+            "method": "GET",
+            "headers": {}
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "b3767d464aadb80930d20710139462c30658375483ca267e4d3dc69fd2b2e07d",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117115627,
+    "event": {
+        "request": {
+            "url": "http://do/?key=token:REDACTED&limit=300&window=60&cost=1",
+            "method": "GET",
+            "headers": {}
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "b3767d464aadb80930d20710139462c30658375483ca267e4d3dc69fd2b2e07d",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117115630,
+    "event": {
+        "request": {
+            "url": "http://do/?key=token:REDACTED&limit=300&window=60&cost=1",
+            "method": "GET",
+            "headers": {}
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "b3767d464aadb80930d20710139462c30658375483ca267e4d3dc69fd2b2e07d",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117115649,
+    "event": {
+        "request": {
+            "url": "http://do/?key=user:REDACTED&limit=600&window=60&cost=1",
+            "method": "GET",
+            "headers": {}
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "b3767d464aadb80930d20710139462c30658375483ca267e4d3dc69fd2b2e07d",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117115668,
+    "event": {
+        "request": {
+            "url": "http://do/?key=user:REDACTED&limit=600&window=60&cost=1",
+            "method": "GET",
+            "headers": {}
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "b3767d464aadb80930d20710139462c30658375483ca267e4d3dc69fd2b2e07d",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117115684,
+    "event": {
+        "request": {
+            "url": "http://do/?key=user:REDACTED&limit=600&window=60&cost=1",
+            "method": "GET",
+            "headers": {}
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "e6566ec4bf9e544050fcfe44f6b09d55677e2047754b32a9a967be05afb4fde0",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117113581,
+    "event": {
+        "request": {
+            "url": "http://do/ping",
+            "method": "POST",
+            "headers": {
+                "content-type": "text/plain;charset=UTF-8"
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 88,
+    "cpuTime": 11,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [
+        {
+            "message": [
+                "<-- GET /users/me"
+            ],
+            "level": "log",
+            "timestamp": 1770117115664
+        },
+        {
+            "message": [
+                "[AUTH] GET https://studio-platform-api.slichti.workers.dev/users/me - Auth: Bearer ****"
+            ],
+            "level": "log",
+            "timestamp": 1770117115664
+        },
+        {
+            "message": [
+                "--> GET /users/me \u001b[32m200\u001b[0m 30ms"
+            ],
+            "level": "log",
+            "timestamp": 1770117115695
+        }
+    ],
+    "eventTimestamp": 1770117115624,
+    "event": {
+        "request": {
+            "url": "https://studio-platform-api.slichti.workers.dev/users/me",
+            "method": "GET",
+            "headers": {
+                "accept": "*/*",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "authorization": "REDACTED",
+                "cf-connecting-ip": "162.232.88.41",
+                "cf-ipcountry": "US",
+                "cf-ray": "9c817d84a8c822dc",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "content-type": "application/json",
+                "dnt": "1",
+                "host": "studio-platform-api.slichti.workers.dev",
+                "origin": "https://studio-platform-dev.slichti.org",
+                "priority": "u=1, i",
+                "referer": "https://studio-platform-dev.slichti.org/",
+                "sec-ch-ua": "\"Not(A:Brand\";v=\"8\", \"Chromium\";v=\"144\", \"Google Chrome\";v=\"144\"",
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": "\"macOS\"",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "cross-site",
+                "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "162.232.88.41",
+                "x-request-id": "5bd243f1-9f95-46cc-a112-7e74e0782903",
+                "x-tenant-slug": "garden-yoga"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "ORD",
+                "asn": 7018,
+                "asOrganization": "AT&T Enterprises, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "Dexter",
+                "continent": "NA",
+                "region": "Michigan",
+                "regionCode": "MI",
+                "timezone": "America/Detroit",
+                "longitude": "-83.88954",
+                "latitude": "42.33834",
+                "postalCode": "48130",
+                "metroCode": "505",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "/4Cb9bt6+zoaAtEeLrlt7gbxVPyD3JJ/VckA4X21lCY=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "it/iJ8EtDriGVnBr3lPHVOmEwho=",
+                "tlsClientExtensionsSha1Le": "",
+                "tlsClientHelloLength": "1761",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "e6566ec4bf9e544050fcfe44f6b09d55677e2047754b32a9a967be05afb4fde0",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117115709,
+    "event": {
+        "request": {
+            "url": "http://do/ping",
+            "method": "POST",
+            "headers": {
+                "content-type": "text/plain;charset=UTF-8"
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 134,
+    "cpuTime": 22,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [
+        {
+            "message": [
+                "<-- GET /users/me/family"
+            ],
+            "level": "log",
+            "timestamp": 1770117115630
+        },
+        {
+            "message": [
+                "[AUTH] GET https://studio-platform-api.slichti.workers.dev/users/me/family - Auth: Bearer ****"
+            ],
+            "level": "log",
+            "timestamp": 1770117115630
+        },
+        {
+            "message": [
+                "Global App Error:",
+                "Error: Failed query: select \"id\", \"parent_user_id\", \"child_user_id\", \"type\", \"created_at\" from \"user_relationships\" \"userRelationships\" where \"userRelationships\".\"parent_user_id\" = ?\nparams: user_377aQ2rw6dIQk5k43U71YKUHDMM"
+            ],
+            "level": "error",
+            "timestamp": 1770117115676
+        },
+        {
+            "message": [
+                "--> GET /users/me/family \u001b[31m500\u001b[0m 46ms"
+            ],
+            "level": "log",
+            "timestamp": 1770117115676
+        }
+    ],
+    "eventTimestamp": 1770117115620,
+    "event": {
+        "request": {
+            "url": "https://studio-platform-api.slichti.workers.dev/users/me/family",
+            "method": "GET",
+            "headers": {
+                "accept": "*/*",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "authorization": "REDACTED",
+                "cf-connecting-ip": "162.232.88.41",
+                "cf-ipcountry": "US",
+                "cf-ray": "9c817d8498c622dc",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "content-type": "application/json",
+                "dnt": "1",
+                "host": "studio-platform-api.slichti.workers.dev",
+                "origin": "https://studio-platform-dev.slichti.org",
+                "priority": "u=1, i",
+                "referer": "https://studio-platform-dev.slichti.org/",
+                "sec-ch-ua": "\"Not(A:Brand\";v=\"8\", \"Chromium\";v=\"144\", \"Google Chrome\";v=\"144\"",
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": "\"macOS\"",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "cross-site",
+                "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "162.232.88.41",
+                "x-request-id": "4da9d27d-2857-436c-94c5-47f011527570",
+                "x-tenant-slug": "garden-yoga"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "ORD",
+                "asn": 7018,
+                "asOrganization": "AT&T Enterprises, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "Dexter",
+                "continent": "NA",
+                "region": "Michigan",
+                "regionCode": "MI",
+                "timezone": "America/Detroit",
+                "longitude": "-83.88954",
+                "latitude": "42.33834",
+                "postalCode": "48130",
+                "metroCode": "505",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "/4Cb9bt6+zoaAtEeLrlt7gbxVPyD3JJ/VckA4X21lCY=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "it/iJ8EtDriGVnBr3lPHVOmEwho=",
+                "tlsClientExtensionsSha1Le": "",
+                "tlsClientHelloLength": "1761",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 500
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "e6566ec4bf9e544050fcfe44f6b09d55677e2047754b32a9a967be05afb4fde0",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117115739,
+    "event": {
+        "request": {
+            "url": "http://do/ping",
+            "method": "POST",
+            "headers": {
+                "content-type": "text/plain;charset=UTF-8"
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 222,
+    "cpuTime": 23,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [
+        {
+            "message": [
+                "<-- GET /memberships/plans"
+            ],
+            "level": "log",
+            "timestamp": 1770117115673
+        },
+        {
+            "message": [
+                "[AUTH] GET https://studio-platform-api.slichti.workers.dev/memberships/plans - Auth: Bearer ****"
+            ],
+            "level": "log",
+            "timestamp": 1770117115673
+        },
+        {
+            "message": [
+                "[TenantMiddleware] Set tenant context for studio-platform-api.slichti.workers.dev: Garden Yoga (tnt_3ca491c5-aa05-4c2d-b2f3-02e9f3301bfc)"
+            ],
+            "level": "log",
+            "timestamp": 1770117115695
+        },
+        {
+            "message": [
+                "[DEBUG] TenantMiddleware: User user_377aQ2rw6dIQk5k43U71YKUHDMM found:",
+                "YES"
+            ],
+            "level": "log",
+            "timestamp": 1770117115759
+        },
+        {
+            "message": [
+                "[DEBUG] User Role: user, isPlatformAdmin: true"
+            ],
+            "level": "log",
+            "timestamp": 1770117115759
+        },
+        {
+            "message": [
+                "[DEBUG] isPlatformAdmin resolved to: true"
+            ],
+            "level": "log",
+            "timestamp": 1770117115759
+        },
+        {
+            "message": [
+                "--> GET /memberships/plans \u001b[32m200\u001b[0m 144ms"
+            ],
+            "level": "log",
+            "timestamp": 1770117115817
+        }
+    ],
+    "eventTimestamp": 1770117115627,
+    "event": {
+        "request": {
+            "url": "https://studio-platform-api.slichti.workers.dev/memberships/plans",
+            "method": "GET",
+            "headers": {
+                "accept": "*/*",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "authorization": "REDACTED",
+                "cf-connecting-ip": "162.232.88.41",
+                "cf-ipcountry": "US",
+                "cf-ray": "9c817d8498c722dc",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "content-type": "application/json",
+                "dnt": "1",
+                "host": "studio-platform-api.slichti.workers.dev",
+                "origin": "https://studio-platform-dev.slichti.org",
+                "priority": "u=1, i",
+                "referer": "https://studio-platform-dev.slichti.org/",
+                "sec-ch-ua": "\"Not(A:Brand\";v=\"8\", \"Chromium\";v=\"144\", \"Google Chrome\";v=\"144\"",
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": "\"macOS\"",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "cross-site",
+                "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "162.232.88.41",
+                "x-request-id": "5befe963-f7bb-4d36-ace1-5854e1578b26",
+                "x-tenant-slug": "garden-yoga"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "ORD",
+                "asn": 7018,
+                "asOrganization": "AT&T Enterprises, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "Dexter",
+                "continent": "NA",
+                "region": "Michigan",
+                "regionCode": "MI",
+                "timezone": "America/Detroit",
+                "longitude": "-83.88954",
+                "latitude": "42.33834",
+                "postalCode": "48130",
+                "metroCode": "505",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "/4Cb9bt6+zoaAtEeLrlt7gbxVPyD3JJ/VckA4X21lCY=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "it/iJ8EtDriGVnBr3lPHVOmEwho=",
+                "tlsClientExtensionsSha1Le": "",
+                "tlsClientHelloLength": "1761",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "e6566ec4bf9e544050fcfe44f6b09d55677e2047754b32a9a967be05afb4fde0",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117115861,
+    "event": {
+        "request": {
+            "url": "http://do/ping",
+            "method": "POST",
+            "headers": {
+                "content-type": "text/plain;charset=UTF-8"
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 325,
+    "cpuTime": 85,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [
+        {
+            "message": [
+                "<-- GET /members?role=instructor"
+            ],
+            "level": "log",
+            "timestamp": 1770117115650
+        },
+        {
+            "message": [
+                "[AUTH] GET https://studio-platform-api.slichti.workers.dev/members?role=instructor - Auth: Bearer ****"
+            ],
+            "level": "log",
+            "timestamp": 1770117115650
+        },
+        {
+            "message": [
+                "[AUTH] GET https://studio-platform-api.slichti.workers.dev/members?role=instructor - Auth: Bearer ****"
+            ],
+            "level": "log",
+            "timestamp": 1770117115666
+        },
+        {
+            "message": [
+                "[TenantMiddleware] Set tenant context for studio-platform-api.slichti.workers.dev: Garden Yoga (tnt_3ca491c5-aa05-4c2d-b2f3-02e9f3301bfc)"
+            ],
+            "level": "log",
+            "timestamp": 1770117115692
+        },
+        {
+            "message": [
+                "[DEBUG] TenantMiddleware: User user_377aQ2rw6dIQk5k43U71YKUHDMM found:",
+                "YES"
+            ],
+            "level": "log",
+            "timestamp": 1770117115724
+        },
+        {
+            "message": [
+                "[DEBUG] User Role: user, isPlatformAdmin: true"
+            ],
+            "level": "log",
+            "timestamp": 1770117115724
+        },
+        {
+            "message": [
+                "[DEBUG] isPlatformAdmin resolved to: true"
+            ],
+            "level": "log",
+            "timestamp": 1770117115724
+        },
+        {
+            "message": [
+                "[TenantMiddleware] Set tenant context for studio-platform-api.slichti.workers.dev: Garden Yoga (tnt_3ca491c5-aa05-4c2d-b2f3-02e9f3301bfc)"
+            ],
+            "level": "log",
+            "timestamp": 1770117115781
+        },
+        {
+            "message": [
+                "[DEBUG] TenantMiddleware: User user_377aQ2rw6dIQk5k43U71YKUHDMM found:",
+                "YES"
+            ],
+            "level": "log",
+            "timestamp": 1770117115810
+        },
+        {
+            "message": [
+                "[DEBUG] User Role: user, isPlatformAdmin: true"
+            ],
+            "level": "log",
+            "timestamp": 1770117115810
+        },
+        {
+            "message": [
+                "[DEBUG] isPlatformAdmin resolved to: true"
+            ],
+            "level": "log",
+            "timestamp": 1770117115810
+        },
+        {
+            "message": [
+                "--> GET /members?role=instructor \u001b[32m200\u001b[0m 217ms"
+            ],
+            "level": "log",
+            "timestamp": 1770117115867
+        }
+    ],
+    "eventTimestamp": 1770117115624,
+    "event": {
+        "request": {
+            "url": "https://studio-platform-api.slichti.workers.dev/members?role=instructor",
+            "method": "GET",
+            "headers": {
+                "accept": "*/*",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "authorization": "REDACTED",
+                "cf-connecting-ip": "162.232.88.41",
+                "cf-ipcountry": "US",
+                "cf-ray": "9c817d84a8ca22dc",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "content-type": "application/json",
+                "dnt": "1",
+                "host": "studio-platform-api.slichti.workers.dev",
+                "origin": "https://studio-platform-dev.slichti.org",
+                "priority": "u=1, i",
+                "referer": "https://studio-platform-dev.slichti.org/",
+                "sec-ch-ua": "\"Not(A:Brand\";v=\"8\", \"Chromium\";v=\"144\", \"Google Chrome\";v=\"144\"",
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": "\"macOS\"",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "cross-site",
+                "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "162.232.88.41",
+                "x-request-id": "6d99e8a2-9841-4f96-b5aa-308d69c68858",
+                "x-tenant-slug": "garden-yoga"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "ORD",
+                "asn": 7018,
+                "asOrganization": "AT&T Enterprises, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "Dexter",
+                "continent": "NA",
+                "region": "Michigan",
+                "regionCode": "MI",
+                "timezone": "America/Detroit",
+                "longitude": "-83.88954",
+                "latitude": "42.33834",
+                "postalCode": "48130",
+                "metroCode": "505",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "/4Cb9bt6+zoaAtEeLrlt7gbxVPyD3JJ/VckA4X21lCY=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "it/iJ8EtDriGVnBr3lPHVOmEwho=",
+                "tlsClientExtensionsSha1Le": "",
+                "tlsClientHelloLength": "1761",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "b3767d464aadb80930d20710139462c30658375483ca267e4d3dc69fd2b2e07d",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117116609,
+    "event": {
+        "request": {
+            "url": "http://do/?key=token:REDACTED&limit=300&window=60&cost=1",
+            "method": "GET",
+            "headers": {}
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "b3767d464aadb80930d20710139462c30658375483ca267e4d3dc69fd2b2e07d",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117115698,
+    "event": {
+        "request": {
+            "url": "http://do/?key=token:REDACTED&limit=300&window=60&cost=1",
+            "method": "GET",
+            "headers": {}
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "b3767d464aadb80930d20710139462c30658375483ca267e4d3dc69fd2b2e07d",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117116624,
+    "event": {
+        "request": {
+            "url": "http://do/?key=user:REDACTED&limit=600&window=60&cost=1",
+            "method": "GET",
+            "headers": {}
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "b3767d464aadb80930d20710139462c30658375483ca267e4d3dc69fd2b2e07d",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117116650,
+    "event": {
+        "request": {
+            "url": "http://do/?key=user:REDACTED&limit=600&window=60&cost=1",
+            "method": "GET",
+            "headers": {}
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "e6566ec4bf9e544050fcfe44f6b09d55677e2047754b32a9a967be05afb4fde0",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117115958,
+    "event": {
+        "request": {
+            "url": "http://do/ping",
+            "method": "POST",
+            "headers": {
+                "content-type": "text/plain;charset=UTF-8"
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "e6566ec4bf9e544050fcfe44f6b09d55677e2047754b32a9a967be05afb4fde0",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1770117116926,
+    "event": {
+        "request": {
+            "url": "http://do/ping",
+            "method": "POST",
+            "headers": {
+                "content-type": "text/plain;charset=UTF-8"
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 358,
+    "cpuTime": 75,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [
+        {
+            "message": [
+                "<-- GET /locations"
+            ],
+            "level": "log",
+            "timestamp": 1770117116589
+        },
+        {
+            "message": [
+                "[AUTH] GET https://studio-platform-api.slichti.workers.dev/locations - Auth: Bearer ****"
+            ],
+            "level": "log",
+            "timestamp": 1770117116589
+        },
+        {
+            "message": [
+                "[AUTH] GET https://studio-platform-api.slichti.workers.dev/locations - Auth: Bearer ****"
+            ],
+            "level": "log",
+            "timestamp": 1770117116611
+        },
+        {
+            "message": [
+                "[TenantMiddleware] Set tenant context for studio-platform-api.slichti.workers.dev: Garden Yoga (tnt_3ca491c5-aa05-4c2d-b2f3-02e9f3301bfc)"
+            ],
+            "level": "log",
+            "timestamp": 1770117116635
+        },
+        {
+            "message": [
+                "[DEBUG] TenantMiddleware: User user_377aQ2rw6dIQk5k43U71YKUHDMM found:",
+                "YES"
+            ],
+            "level": "log",
+            "timestamp": 1770117116667
+        },
+        {
+            "message": [
+                "[DEBUG] User Role: user, isPlatformAdmin: true"
+            ],
+            "level": "log",
+            "timestamp": 1770117116667
+        },
+        {
+            "message": [
+                "[DEBUG] isPlatformAdmin resolved to: true"
+            ],
+            "level": "log",
+            "timestamp": 1770117116667
+        },
+        {
+            "message": [
+                "[TenantMiddleware] Set tenant context for studio-platform-api.slichti.workers.dev: Garden Yoga (tnt_3ca491c5-aa05-4c2d-b2f3-02e9f3301bfc)"
+            ],
+            "level": "log",
+            "timestamp": 1770117116729
+        },
+        {
+            "message": [
+                "[DEBUG] TenantMiddleware: User user_377aQ2rw6dIQk5k43U71YKUHDMM found:",
+                "YES"
+            ],
+            "level": "log",
+            "timestamp": 1770117116761
+        },
+        {
+            "message": [
+                "[DEBUG] User Role: user, isPlatformAdmin: true"
+            ],
+            "level": "log",
+            "timestamp": 1770117116761
+        },
+        {
+            "message": [
+                "[DEBUG] isPlatformAdmin resolved to: true"
+            ],
+            "level": "log",
+            "timestamp": 1770117116761
+        },
+        {
+            "message": [
+                "--> GET /locations \u001b[32m200\u001b[0m 277ms"
+            ],
+            "level": "log",
+            "timestamp": 1770117116866
+        }
+    ],
+    "eventTimestamp": 1770117115623,
+    "event": {
+        "request": {
+            "url": "https://studio-platform-api.slichti.workers.dev/locations",
+            "method": "GET",
+            "headers": {
+                "accept": "*/*",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "authorization": "REDACTED",
+                "cf-connecting-ip": "162.232.88.41",
+                "cf-ipcountry": "US",
+                "cf-ray": "9c817d84a8c922dc",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "content-type": "application/json",
+                "dnt": "1",
+                "host": "studio-platform-api.slichti.workers.dev",
+                "origin": "https://studio-platform-dev.slichti.org",
+                "priority": "u=1, i",
+                "referer": "https://studio-platform-dev.slichti.org/",
+                "sec-ch-ua": "\"Not(A:Brand\";v=\"8\", \"Chromium\";v=\"144\", \"Google Chrome\";v=\"144\"",
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": "\"macOS\"",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "cross-site",
+                "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "162.232.88.41",
+                "x-request-id": "0abc6cb6-2f3d-42f8-941e-bcbcddb48a73",
+                "x-tenant-slug": "garden-yoga"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "ORD",
+                "asn": 7018,
+                "asOrganization": "AT&T Enterprises, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "Dexter",
+                "continent": "NA",
+                "region": "Michigan",
+                "regionCode": "MI",
+                "timezone": "America/Detroit",
+                "longitude": "-83.88954",
+                "latitude": "42.33834",
+                "postalCode": "48130",
+                "metroCode": "505",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "/4Cb9bt6+zoaAtEeLrlt7gbxVPyD3JJ/VckA4X21lCY=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "it/iJ8EtDriGVnBr3lPHVOmEwho=",
+                "tlsClientExtensionsSha1Le": "",
+                "tlsClientHelloLength": "1761",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 353,
+    "cpuTime": 90,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [
+        {
+            "message": [
+                "<-- GET /classes?status=active"
+            ],
+            "level": "log",
+            "timestamp": 1770117116630
+        },
+        {
+            "message": [
+                "[TenantMiddleware] Set tenant context for studio-platform-api.slichti.workers.dev: Garden Yoga (tnt_3ca491c5-aa05-4c2d-b2f3-02e9f3301bfc)"
+            ],
+            "level": "log",
+            "timestamp": 1770117116660
+        },
+        {
+            "message": [
+                "[DEBUG] TenantMiddleware: User user_377aQ2rw6dIQk5k43U71YKUHDMM found:",
+                "YES"
+            ],
+            "level": "log",
+            "timestamp": 1770117116689
+        },
+        {
+            "message": [
+                "[DEBUG] User Role: user, isPlatformAdmin: true"
+            ],
+            "level": "log",
+            "timestamp": 1770117116689
+        },
+        {
+            "message": [
+                "[DEBUG] isPlatformAdmin resolved to: true"
+            ],
+            "level": "log",
+            "timestamp": 1770117116689
+        },
+        {
+            "message": [
+                "[TenantMiddleware] Set tenant context for studio-platform-api.slichti.workers.dev: Garden Yoga (tnt_3ca491c5-aa05-4c2d-b2f3-02e9f3301bfc)"
+            ],
+            "level": "log",
+            "timestamp": 1770117116749
+        },
+        {
+            "message": [
+                "[DEBUG] TenantMiddleware: User user_377aQ2rw6dIQk5k43U71YKUHDMM found:",
+                "YES"
+            ],
+            "level": "log",
+            "timestamp": 1770117116775
+        },
+        {
+            "message": [
+                "[DEBUG] User Role: user, isPlatformAdmin: true"
+            ],
+            "level": "log",
+            "timestamp": 1770117116775
+        },
+        {
+            "message": [
+                "[DEBUG] isPlatformAdmin resolved to: true"
+            ],
+            "level": "log",
+            "timestamp": 1770117116775
+        },
+        {
+            "message": [
+                "--> GET /classes?status=active \u001b[32m200\u001b[0m 207ms"
+            ],
+            "level": "log",
+            "timestamp": 1770117116837
+        }
+    ],
+    "eventTimestamp": 1770117115623,
+    "event": {
+        "request": {
+            "url": "https://studio-platform-api.slichti.workers.dev/classes?status=active",
+            "method": "GET",
+            "headers": {
+                "accept": "*/*",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "authorization": "REDACTED",
+                "cf-connecting-ip": "162.232.88.41",
+                "cf-ipcountry": "US",
+                "cf-ray": "9c817d84a8cb22dc",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "content-type": "application/json",
+                "dnt": "1",
+                "host": "studio-platform-api.slichti.workers.dev",
+                "origin": "https://studio-platform-dev.slichti.org",
+                "priority": "u=1, i",
+                "referer": "https://studio-platform-dev.slichti.org/",
+                "sec-ch-ua": "\"Not(A:Brand\";v=\"8\", \"Chromium\";v=\"144\", \"Google Chrome\";v=\"144\"",
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": "\"macOS\"",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "cross-site",
+                "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "162.232.88.41",
+                "x-request-id": "33e54dc3-4793-4f75-b172-386493604bac",
+                "x-tenant-slug": "garden-yoga"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "ORD",
+                "asn": 7018,
+                "asOrganization": "AT&T Enterprises, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "Dexter",
+                "continent": "NA",
+                "region": "Michigan",
+                "regionCode": "MI",
+                "timezone": "America/Detroit",
+                "longitude": "-83.88954",
+                "latitude": "42.33834",
+                "postalCode": "48130",
+                "metroCode": "505",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "/4Cb9bt6+zoaAtEeLrlt7gbxVPyD3JJ/VckA4X21lCY=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "it/iJ8EtDriGVnBr3lPHVOmEwho=",
+                "tlsClientExtensionsSha1Le": "",
+                "tlsClientHelloLength": "1761",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 677,
+    "cpuTime": 54,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "63b6a329-9ecd-42d3-a011-58912085a4a5"
+    },
+    "scriptName": "studio-platform-api",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [
+        {
+            "message": [
+                "Cron trigger fired:",
+                "*/15 * * * *"
+            ],
+            "level": "log",
+            "timestamp": 1770117329026
+        },
+        {
+            "message": [
+                "Processing Renewals for target range: 2026-02-06T00:00:00.000Z - 2026-02-06T23:59:59.999Z"
+            ],
+            "level": "log",
+            "timestamp": 1770117329422
+        },
+        {
+            "message": [
+                "[Nudge] Checking trials expiring in 3 days..."
+            ],
+            "level": "log",
+            "timestamp": 1770117329462
+        },
+        {
+            "message": [
+                "[Nudge] Checking students inactive for 14+ days..."
+            ],
+            "level": "log",
+            "timestamp": 1770117329500
+        },
+        {
+            "message": [
+                "Failed to process nudges",
+                "Error: Failed query: select \"bookings\".\"member_id\", MAX(\"classes\".\"start_time\") from \"bookings\" inner join \"classes\" on \"bookings\".\"class_id\" = \"classes\".\"id\" where (\"bookings\".\"member_id\" in (?, ?, ?) and \"bookings\".\"checked_in_at\" is not null) group by \"bookings\".\"member_id\"\nparams: mem_a5585fd3-5771-455b-b1e7-b5d1cebfc2c3,ae69c366-4a95-42fb-9ac1-aedfdeca4bae,e0d9a313-1c60-4257-ba1d-6f5e217b2914"
+            ],
+            "level": "error",
+            "timestamp": 1770117329627
+        }
+    ],
+    "eventTimestamp": 1770117328007,
+    "event": {
+        "cron": "*/15 * * * *",
+        "scheduledTime": 1770117327000
+    }
+}
