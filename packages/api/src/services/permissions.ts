@@ -1,49 +1,72 @@
 
 export type Permission =
     | 'manage_tenant'
+    | 'view_tenant'
     | 'manage_billing'
+    | 'view_billing'
     | 'manage_members'
+    | 'view_members'
     | 'manage_classes'
+    | 'view_classes'
     | 'manage_staff'
     | 'view_reports'
     | 'view_financials'
     | 'check_in_students'
     | 'manage_pos'
     | 'manage_inventory'
-    | 'manage_marketing';
+    | 'manage_marketing'
+    | 'view_settings'
+    | 'manage_settings'
+    | 'manage_content'
+    | 'manage_leads'
+    | 'manage_community'
+    | 'view_commerce'
+    | 'manage_commerce'
+    | 'view_pos';
 
 export const RolePermissions: Record<string, Permission[]> = {
-    owner: [
-        'manage_tenant',
-        'manage_billing',
-        'manage_members',
-        'manage_classes',
+    owner: [ // All permissions + administrative
+        'manage_tenant', 'view_tenant',
+        'manage_billing', 'view_billing',
+        'manage_members', 'view_members',
+        'manage_classes', 'view_classes',
+        'manage_staff',
+        'view_reports', 'view_financials',
+        'check_in_students',
+        'manage_pos', 'view_pos', 'manage_inventory',
+        'manage_marketing',
+        'view_settings', 'manage_settings',
+        'manage_content',
+        'manage_leads',
+        'manage_community',
+        'view_commerce', 'manage_commerce'
+    ],
+    admin: [ // Operations Manager
+        'view_tenant',
+        'manage_members', 'view_members',
+        'manage_classes', 'view_classes',
         'manage_staff',
         'view_reports',
-        'view_financials',
         'check_in_students',
-        'manage_pos',
-        'manage_inventory',
-        'manage_marketing'
+        'manage_pos', 'view_pos', 'manage_inventory',
+        'manage_marketing',
+        'view_settings', 'manage_settings',
+        'manage_content',
+        'manage_leads',
+        'manage_community',
+        'view_commerce', 'manage_commerce'
     ],
-    admin: [
-        'manage_tenant',
-        'manage_members',
-        'manage_classes',
-        'manage_staff',
-        'view_reports',
+    instructor: [ // Staff
+        'view_members',
+        'manage_classes', 'view_classes',
         'check_in_students',
-        'manage_pos',
-        'manage_marketing'
+        'manage_pos', 'view_pos', 'manage_inventory',
+        'manage_content'
     ],
-    instructor: [
-        'manage_classes',
-        'manage_members',
-        'check_in_students',
-        'manage_pos',
-        'manage_inventory'
-    ],
-    student: []
+    student: [
+        // Students typically have 'view_classes' via public API but internal RBAC usually restricts 'manage'
+        // 'view_classes' might be public, but let's include it for explicit internal checks if needed.
+    ]
 };
 
 export class PermissionService {
@@ -65,7 +88,7 @@ export class PermissionService {
     }
 
     static can(memberPermissions: Set<Permission>, requiredPermission: Permission): boolean {
-        // Platform Admins (handled outside this or injected) can do everything
+        // Platform Admins (handled outside or injected) can do everything
         return memberPermissions.has(requiredPermission);
     }
 }

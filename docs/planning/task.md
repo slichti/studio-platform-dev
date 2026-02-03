@@ -25,6 +25,6 @@
 - [x] Create Detailed Implementation Plan for Phase 2 <!-- id: 26 -->
 - [x] Implement Dynamic Rate Limiting <!-- id: 27 -->
 - [x] Migrate to OpenAPI/Zod-OpenAPI <!-- id: 28 -->
-- [ ] Implement Capability-Based RBAC <!-- id: 29 -->
+- [x] Implement Capability-Based RBAC <!-- id: 29 -->
 - [ ] Implement Churn Prediction API & Service <!-- id: 30 -->
 - [ ] Implement Webhook Logs UI & Testing API <!-- id: 31 -->
