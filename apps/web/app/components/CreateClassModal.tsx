@@ -40,6 +40,8 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
         type: 'class',
         memberPrice: "",
         allowCredits: true,
+        payrollModel: 'default', // default, flat, percentage, hourly
+        payrollValue: "",
 
         includedPlanIds: [] as string[],
         recurringDays: [] as string[]
@@ -85,7 +87,9 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                     type: formData.type,
                     memberPrice: formData.memberPrice ? Number(formData.memberPrice) : null,
                     allowCredits: formData.allowCredits,
-                    includedPlanIds: formData.includedPlanIds
+                    includedPlanIds: formData.includedPlanIds,
+                    payrollModel: formData.payrollModel === 'default' ? null : formData.payrollModel,
+                    payrollValue: formData.payrollModel !== 'default' && formData.payrollValue ? Number(formData.payrollValue) : null
                 })
             });
 
@@ -113,6 +117,8 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                     type: 'class',
                     memberPrice: "",
                     allowCredits: true,
+                    payrollModel: 'default',
+                    payrollValue: "",
 
                     includedPlanIds: [],
                     recurringDays: []
@@ -308,6 +314,41 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                                 </label>
                             ))}
                             {plans.length === 0 && <span className="text-zinc-400 italic">No plans found.</span>}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Payroll Configuration */}
+                <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-lg space-y-4">
+                    <h3 className="text-sm font-semibold text-zinc-900 border-b border-zinc-200 pb-2">Investigator Payroll (Smart Pricing)</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-medium text-zinc-700 mb-1">Payroll Model</label>
+                            <select
+                                className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white"
+                                value={formData.payrollModel}
+                                onChange={(e) => setFormData({ ...formData, payrollModel: e.target.value as any })}
+                            >
+                                <option value="default">Use Instructor Default</option>
+                                <option value="flat">Flat Rate Per Class</option>
+                                <option value="hourly">Hourly Rate</option>
+                                <option value="percentage">Percentage of Revenue</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-zinc-700 mb-1">
+                                {formData.payrollModel === 'percentage' ? 'Percentage (%)' : 'Rate ($)'}
+                            </label>
+                            <input
+                                type="number"
+                                min="0"
+                                step={formData.payrollModel === 'percentage' ? "1" : "0.01"}
+                                className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                                value={formData.payrollValue}
+                                onChange={(e) => setFormData({ ...formData, payrollValue: e.target.value })}
+                                disabled={formData.payrollModel === 'default'}
+                                placeholder={formData.payrollModel === 'default' ? 'Using Default' : 'Enter value'}
+                            />
                         </div>
                     </div>
                 </div>

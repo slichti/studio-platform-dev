@@ -59,6 +59,10 @@ export default function StudentProfile() {
     const hasActiveMembership = member?.memberships?.some((m: any) => m.status === 'active');
     const membershipStatus = hasActiveMembership ? 'Active' : 'Inactive';
 
+    // Custom Fields
+    const customFieldsDef = tenant.customFieldDefinitions || {};
+    const memberCustomFields = member?.customFields || {};
+
     // No Shows Calculation (Client side for now)
     const noShows = member?.bookings?.filter((b: any) => {
         if (b.status !== 'confirmed') return false;
@@ -366,6 +370,25 @@ export default function StudentProfile() {
                                         </div>
                                     </CardContent>
                                 </Card>
+
+                                {Object.keys(customFieldsDef).length > 0 && (
+                                    <Card className="mt-6">
+                                        <CardHeader><CardTitle className="text-sm uppercase text-zinc-500 tracking-wider">Additional Info</CardTitle></CardHeader>
+                                        <CardContent className="space-y-4 text-sm">
+                                            {Object.entries(customFieldsDef).map(([key, def]: [string, any]) => (
+                                                <div key={key}>
+                                                    <label className="block text-xs text-zinc-400">{def.label}</label>
+                                                    <div className="text-zinc-800 dark:text-zinc-200">
+                                                        {def.fieldType === 'boolean'
+                                                            ? (memberCustomFields[key] ? 'Yes' : 'No')
+                                                            : (memberCustomFields[key]?.toString() || "—")
+                                                        }
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </CardContent>
+                                    </Card>
+                                )}
                             </div>
                         </div>
                     )}
@@ -587,12 +610,26 @@ export default function StudentProfile() {
                         <form onSubmit={(e) => {
                             e.preventDefault();
                             const formData = new FormData(e.currentTarget);
-                            updateProfileMutation.mutate({
+                            const updates: any = {
                                 firstName: formData.get("firstName"),
                                 lastName: formData.get("lastName"),
-                                phone: formData.get("phone")
+                                phone: formData.get("phone"),
+                                customFields: {}
+                            };
+
+                            // Collect custom fields
+                            Object.keys(customFieldsDef).forEach(key => {
+                                const val = formData.get(`custom_${key}`);
+                                if (customFieldsDef[key].fieldType === 'boolean') {
+                                    // Checkbox
+                                    updates.customFields[key] = (e.currentTarget.elements.namedItem(`custom_${key}`) as HTMLInputElement).checked;
+                                } else {
+                                    updates.customFields[key] = val;
+                                }
                             });
-                        }} className="space-y-4 py-4">
+
+                            updateProfileMutation.mutate(updates);
+                        }} className="space-y-4 py-4 mt-2 max-h-[70vh] overflow-y-auto px-1">
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">First Name</label>
@@ -607,7 +644,45 @@ export default function StudentProfile() {
                                 <label className="text-sm font-medium">Phone</label>
                                 <Input name="phone" defaultValue={userProfile.phone} />
                             </div>
-                            <DialogFooter>
+
+                            {/* Custom Fields Inputs */}
+                            {Object.keys(customFieldsDef).length > 0 && (
+                                <div className="space-y-4 border-t border-zinc-100 pt-4 mt-4">
+                                    <h4 className="font-medium text-sm text-zinc-900">Additional Information</h4>
+                                    {Object.entries(customFieldsDef).map(([key, def]: [string, any]) => (
+                                        <div key={key} className="space-y-2">
+                                            <label className="text-sm font-medium">{def.label} {def.isRequired && "*"}</label>
+                                            {def.fieldType === 'select' ? (
+                                                <Select name={`custom_${key}`} defaultValue={memberCustomFields[key] || ""}>
+                                                    <option value="">Select...</option>
+                                                    {def.options?.map((opt: string) => (
+                                                        <option key={opt} value={opt}>{opt}</option>
+                                                    ))}
+                                                </Select>
+                                            ) : def.fieldType === 'boolean' ? (
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="checkbox"
+                                                        name={`custom_${key}`}
+                                                        defaultChecked={!!memberCustomFields[key]}
+                                                        className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                                                    />
+                                                    <span className="text-sm text-zinc-600">{def.label}</span>
+                                                </div>
+                                            ) : (
+                                                <Input
+                                                    type={def.fieldType === 'number' ? 'number' : def.fieldType === 'date' ? 'date' : 'text'}
+                                                    name={`custom_${key}`}
+                                                    defaultValue={memberCustomFields[key] || ""}
+                                                    required={def.isRequired}
+                                                />
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <DialogFooter className="mt-4">
                                 <Button type="button" variant="outline" onClick={() => setIsEditingProfile(false)}>Cancel</Button>
                                 <Button type="submit" disabled={updateProfileMutation.isPending}>Save Changes</Button>
                             </DialogFooter>

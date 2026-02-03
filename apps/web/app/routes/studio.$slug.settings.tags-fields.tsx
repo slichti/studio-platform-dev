@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { type LoaderFunctionArgs } from "react-router";
-import { useLoaderData, useRevalidator } from "react-router";
+import { useLoaderData, useRevalidator, useParams } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { Plus, Trash2, Edit2, Tag, Database, Save, X, Check } from "lucide-react";
@@ -10,11 +10,12 @@ import { ConfirmationDialog } from "~/components/Dialogs";
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken } = await getAuth(args);
     const token = await getToken();
+    const { slug } = args.params;
 
     // Fetch both tags and custom fields
     const [tags, customFields] = await Promise.all([
-        apiRequest<any[]>("/tags", token),
-        apiRequest<any[]>("/custom-fields", token)
+        apiRequest<any[]>("/tags", token, { headers: { 'X-Tenant-Slug': slug } }),
+        apiRequest<any[]>("/custom-fields", token, { headers: { 'X-Tenant-Slug': slug } })
     ]);
 
     return { tags, customFields, token };
@@ -23,6 +24,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 export default function TagsAndFieldsSettings() {
     const { tags, customFields, token } = useLoaderData<typeof loader>();
     const { revalidate } = useRevalidator();
+    const { slug } = useParams();
     const [activeTab, setActiveTab] = useState<'tags' | 'fields'>('tags');
 
     // Tags State
@@ -50,12 +52,14 @@ export default function TagsAndFieldsSettings() {
             if (editingTag) {
                 await apiRequest(`/tags/${editingTag.id}`, token, {
                     method: "PUT",
+                    headers: { 'X-Tenant-Slug': slug! },
                     body: JSON.stringify(newTag)
                 });
                 toast.success("Tag updated");
             } else {
                 await apiRequest("/tags", token, {
                     method: "POST",
+                    headers: { 'X-Tenant-Slug': slug! },
                     body: JSON.stringify(newTag)
                 });
                 toast.success("Tag created");
@@ -72,7 +76,10 @@ export default function TagsAndFieldsSettings() {
     const handleDeleteTag = async () => {
         if (!deleteTagId) return;
         try {
-            await apiRequest(`/tags/${deleteTagId}`, token, { method: "DELETE" });
+            await apiRequest(`/tags/${deleteTagId}`, token, {
+                method: "DELETE",
+                headers: { 'X-Tenant-Slug': slug! }
+            });
             toast.success("Tag deleted");
             revalidate();
         } catch (e: any) {
@@ -91,6 +98,7 @@ export default function TagsAndFieldsSettings() {
             if (editingField) {
                 await apiRequest(`/custom-fields/${editingField.id}`, token, {
                     method: "PUT",
+                    headers: { 'X-Tenant-Slug': slug! },
                     body: JSON.stringify({
                         label: newField.label,
                         options: newField.options,
@@ -101,6 +109,7 @@ export default function TagsAndFieldsSettings() {
             } else {
                 await apiRequest("/custom-fields", token, {
                     method: "POST",
+                    headers: { 'X-Tenant-Slug': slug! },
                     body: JSON.stringify(newField)
                 });
                 toast.success("Field created");
@@ -117,7 +126,10 @@ export default function TagsAndFieldsSettings() {
     const handleDeleteField = async () => {
         if (!deleteFieldId) return;
         try {
-            await apiRequest(`/custom-fields/${deleteFieldId}`, token, { method: "DELETE" });
+            await apiRequest(`/custom-fields/${deleteFieldId}`, token, {
+                method: "DELETE",
+                headers: { 'X-Tenant-Slug': slug! }
+            });
             toast.success("Field deleted");
             revalidate();
         } catch (e: any) {
@@ -139,8 +151,8 @@ export default function TagsAndFieldsSettings() {
                 <button
                     onClick={() => setActiveTab('tags')}
                     className={`px-6 py-3 font-medium text-sm transition-colors border-b-2 ${activeTab === 'tags'
-                            ? "border-blue-600 text-blue-600"
-                            : "border-transparent text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+                        ? "border-blue-600 text-blue-600"
+                        : "border-transparent text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
                         }`}
                 >
                     Member Tags
@@ -148,8 +160,8 @@ export default function TagsAndFieldsSettings() {
                 <button
                     onClick={() => setActiveTab('fields')}
                     className={`px-6 py-3 font-medium text-sm transition-colors border-b-2 ${activeTab === 'fields'
-                            ? "border-blue-600 text-blue-600"
-                            : "border-transparent text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+                        ? "border-blue-600 text-blue-600"
+                        : "border-transparent text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
                         }`}
                 >
                     Custom Fields
