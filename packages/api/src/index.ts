@@ -65,6 +65,7 @@ import tagsRoutes from './routes/tags'; // [NEW] Tags
 import customFieldRoutes from './routes/custom-fields'; // [NEW] Custom Fields
 import auditLogRoutes from './routes/audit-logs'; // [NEW] Audit Logs
 import docRoutes from './routes/docs'; // [NEW] Docs
+import referrals from './routes/referrals'; // [NEW] Referrals
 
 import { createOpenAPIApp } from './lib/openapi';
 import { Bindings, Variables, StudioVariables } from './types';
@@ -182,6 +183,7 @@ const studioPaths = [
   '/tenant', '/tenant/*',
   '/classes', '/classes/*',
   '/commerce', '/commerce/*',
+  '/referrals', '/referrals/*', // [NEW] Referrals
   '/coupons', '/coupons/*',  // [FIX] Added
   '/gift-cards', '/gift-cards/*',
   '/refunds', '/refunds/*',
@@ -207,6 +209,7 @@ const authenticatedPaths = [
   '/uploads', '/uploads/*',
   '/refunds', '/refunds/*',
   '/coupons', '/coupons/*', // [FIX] Added
+  '/referrals', '/referrals/*', // [NEW] Referrals
   '/platform', '/platform/*',
   '/tenant', '/tenant/*',
   '/integrations', '/integrations/*',
@@ -498,6 +501,7 @@ app.route('/marketing', marketing);
 app.route('/coupons', coupons);
 app.route('/substitutions', substitutions);
 app.route('/leads', leads);
+app.route('/referrals', referrals);
 app.route('/pos', pos);
 app.route('/uploads', uploadRoutes);
 app.route('/reports', reports);

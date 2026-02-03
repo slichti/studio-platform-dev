@@ -799,11 +799,41 @@ export const posOrders = sqliteTable('pos_orders', {
     status: text('status', { enum: ['pending', 'completed', 'cancelled', 'refunded'] }).default('completed').notNull(),
     paymentMethod: text('payment_method', { enum: ['card', 'cash', 'account', 'other'] }).default('card'),
     stripePaymentIntentId: text('stripe_payment_intent_id'),
-
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     tenantIdx: index('pos_order_tenant_idx').on(table.tenantId),
     memberIdx: index('pos_order_member_idx').on(table.memberId),
+}));
+
+// --- Phase 4: Referrals ---
+export const referralCodes = sqliteTable('referral_codes', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    userId: text('user_id').notNull().references(() => users.id), // The referrer
+    memberId: text('member_id').references(() => tenantMembers.id), // Optional link to member profile (for easier lookup)
+    code: text('code').notNull(), // Unique string e.g. "JOHN-123"
+    clicks: integer('clicks').default(0),
+    signups: integer('signups').default(0),
+    earnings: integer('earnings').default(0), // Total earned in cents
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    active: integer('active', { mode: 'boolean' }).default(true),
+}, (table) => ({
+    uniqueCode: uniqueIndex('referral_code_unique_idx').on(table.tenantId, table.code),
+    userIdx: index('referral_user_idx').on(table.userId),
+}));
+
+export const referralRewards = sqliteTable('referral_rewards', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    referrerUserId: text('referrer_user_id').notNull().references(() => users.id),
+    referredUserId: text('referred_user_id').notNull().references(() => users.id), // The new user
+    status: text('status', { enum: ['pending', 'paid', 'voided'] }).default('pending'),
+    amount: integer('amount').notNull(), // Amount to be paid/credited
+    currency: text('currency').default('usd'),
+    paidAt: integer('paid_at', { mode: 'timestamp' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    referrerIdx: index('reward_referrer_idx').on(table.referrerUserId),
 }));
 
 export const posOrderItems = sqliteTable('pos_order_items', {
