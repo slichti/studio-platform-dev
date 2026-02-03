@@ -1,15 +1,77 @@
-import { Hono } from 'hono';
-import { tenants, tenantMembers, users, tenantRoles } from '@studio/db/src/schema';
+import { createRoute, z } from '@hono/zod-openapi';
+import { createOpenAPIApp } from '../lib/openapi';
+import { tenants, tenantMembers, tenantRoles } from '@studio/db/src/schema'; // users not used directly in modified code? Check usage.
 import { createDb } from '../db';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { sign, verify } from 'hono/jwt';
 import { StripeService } from '../services/stripe';
 import { EncryptionUtils } from '../utils/encryption';
-import { HonoContext } from '../types';
+import { StudioVariables } from '../types';
 
-const app = new Hono<HonoContext>();
+const app = createOpenAPIApp<StudioVariables>();
 
-// GET /stripe/connect
+// --- Schemas ---
+
+const StudioSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    slug: z.string(),
+    logo: z.string().nullable().optional(),
+    settings: z.record(z.string(), z.any()).optional(),
+    branding: z.record(z.string(), z.any()).optional(),
+    stripeAccountId: z.string().nullable().optional()
+}).openapi('Studio');
+
+const CreateStudioSchema = z.object({
+    name: z.string().min(1),
+    slug: z.string().min(3)
+});
+
+const ValidateSlugSchema = z.object({
+    slug: z.string()
+});
+
+const UpdateIntegrationsSchema = z.object({
+    marketingProvider: z.string().optional(),
+    resendApiKey: z.string().optional(),
+    twilioAccountSid: z.string().optional(),
+    twilioAuthToken: z.string().optional(),
+    twilioFromNumber: z.string().optional(),
+    zoomAccountId: z.string().optional(),
+    zoomClientId: z.string().optional(),
+    zoomClientSecret: z.string().optional(),
+    mailchimpApiKey: z.string().optional(),
+    mailchimpServerPrefix: z.string().optional(),
+    mailchimpListId: z.string().optional(),
+    flodeskApiKey: z.string().optional(),
+    slackWebhookUrl: z.string().optional(),
+    slackBotToken: z.string().optional(),
+    chatEnabled: z.boolean().optional(),
+    chatConfig: z.record(z.string(), z.any()).optional()
+});
+
+const MobileConfigSchema = z.object({
+    enabled: z.boolean(),
+    theme: z.object({
+        primaryColor: z.string(),
+        darkMode: z.boolean()
+    }),
+    features: z.object({
+        booking: z.boolean(),
+        shop: z.boolean(),
+        vod: z.boolean(),
+        profile: z.boolean()
+    }),
+    links: z.object({
+        iosStore: z.string().optional(),
+        androidStore: z.string().optional()
+    })
+});
+
+
+// --- Routes ---
+
+// GET /stripe/connect (OAuth - kept as standard route)
 app.get('/stripe/connect', async (c) => {
     const tenantId = c.req.query('tenantId');
     if (!tenantId) return c.json({ error: 'Tenant ID required' }, 400);
@@ -22,7 +84,7 @@ app.get('/stripe/connect', async (c) => {
     return c.redirect(stripe.getConnectUrl(c.env.STRIPE_CLIENT_ID as string, `${new URL(c.req.url).origin}/studios/stripe/callback`, state));
 });
 
-// GET /stripe/callback
+// GET /stripe/callback (OAuth - kept as standard route)
 app.get('/stripe/callback', async (c) => {
     const { code, state, error } = c.req.query();
     if (error) return c.json({ error }, 400);
@@ -44,10 +106,22 @@ app.get('/stripe/callback', async (c) => {
 });
 
 // POST / - Create Studio
-app.post('/', async (c) => {
+app.openapi(createRoute({
+    method: 'post',
+    path: '/',
+    tags: ['Studios'],
+    summary: 'Create a new studio',
+    request: {
+        body: { content: { 'application/json': { schema: CreateStudioSchema } } }
+    },
+    responses: {
+        201: { content: { 'application/json': { schema: StudioSchema } }, description: 'Studio created' },
+        400: { description: 'Invalid input' },
+        500: { description: 'Server error' }
+    }
+}), async (c) => {
     const db = createDb(c.env.DB);
-    const { name, slug } = await c.req.json();
-    if (!name || !slug) return c.json({ error: 'Missing name or slug' }, 400);
+    const { name, slug } = c.req.valid('json');
     const id = crypto.randomUUID();
 
     try {
@@ -59,37 +133,78 @@ app.post('/', async (c) => {
             await db.insert(tenantRoles).values({ id: crypto.randomUUID(), memberId, role: 'owner' }).run();
         }
         return c.json({ id, name, slug }, 201);
-    } catch (e: any) { return c.json({ error: e.message }, 500); }
+    } catch (e: any) { return c.json({ error: e.message } as any, 500); }
 });
 
 // GET /:idOrSlug
-app.get('/:idOrSlug', async (c) => {
+app.openapi(createRoute({
+    method: 'get',
+    path: '/{idOrSlug}',
+    tags: ['Studios'],
+    summary: 'Get studio details',
+    request: {
+        params: z.object({ idOrSlug: z.string() })
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: StudioSchema } }, description: 'Studio found' },
+        404: { description: 'Not found' }
+    }
+}), async (c) => {
     const db = createDb(c.env.DB);
-    const p = c.req.param('idOrSlug');
+    const p = c.req.valid('param').idOrSlug;
     let res = await db.select().from(tenants).where(eq(tenants.id, p)).get();
     if (!res) res = await db.select().from(tenants).where(eq(tenants.slug, p)).get();
-    if (!res) return c.json({ error: 'Not found' }, 404);
-    return c.json(res);
+    if (!res) return c.json({ error: 'Not found' } as any, 404);
+
+    // Ensure all required fields for schema are present (handle nulls if schema requires non-nullable, but schema has lots of optionals)
+    return c.json(res as any);
 });
 
 // POST /validate-slug
-app.post('/validate-slug', async (c) => {
+app.openapi(createRoute({
+    method: 'post',
+    path: '/validate-slug',
+    tags: ['Studios'],
+    summary: 'Validate studio slug',
+    request: {
+        body: { content: { 'application/json': { schema: ValidateSlugSchema } } }
+    },
+    responses: {
+        200: {
+            content: { 'application/json': { schema: z.object({ valid: z.boolean(), error: z.string().optional() }) } },
+            description: 'Validation result'
+        }
+    }
+}), async (c) => {
     const db = createDb(c.env.DB);
-    const { slug } = await c.req.json();
-    if (!slug || slug.length < 3) return c.json({ valid: false, error: 'Too short' });
+    const { slug } = c.req.valid('json');
+    if (slug.length < 3) return c.json({ valid: false, error: 'Too short' });
     if (['admin', 'api', 'www', 'studio', 'app'].includes(slug.toLowerCase())) return c.json({ valid: false, error: 'Reserved' });
     const exists = await db.select().from(tenants).where(eq(tenants.slug, slug)).get();
     return c.json({ valid: !exists });
 });
 
 // PUT /:id/integrations
-app.put('/:id/integrations', async (c) => {
-    const id = c.req.param('id');
+app.openapi(createRoute({
+    method: 'put',
+    path: '/{id}/integrations',
+    tags: ['Studios'],
+    summary: 'Update studio integrations',
+    request: {
+        params: z.object({ id: z.string() }),
+        body: { content: { 'application/json': { schema: UpdateIntegrationsSchema } } }
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ success: z.boolean(), message: z.string().optional() }) } }, description: 'Updated' },
+        403: { description: 'Forbidden' }
+    }
+}), async (c) => {
+    const id = c.req.valid('param').id;
     const isPlatformAdmin = c.get('auth')?.claims?.isPlatformAdmin === true;
-    if (!isPlatformAdmin && !c.get('can')('manage_tenant')) return c.json({ error: 'Forbidden' }, 403);
+    if (!isPlatformAdmin && !c.get('can')('manage_tenant')) return c.json({ error: 'Forbidden' } as any, 403);
 
     const db = createDb(c.env.DB);
-    const body = await c.req.json();
+    const body = c.req.valid('json');
     const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET as string);
     const updateData: any = {};
 
@@ -114,12 +229,12 @@ app.put('/:id/integrations', async (c) => {
         updateData.settings = { ...(current?.settings as any || {}), ...(body.chatEnabled !== undefined && { chatEnabled: body.chatEnabled }), ...(body.chatConfig !== undefined && { chatConfig: body.chatConfig }) };
     }
 
-    if (Object.keys(updateData).length === 0) return c.json({ message: "No change" });
+    if (Object.keys(updateData).length === 0) return c.json({ success: true, message: "No change" });
     await db.update(tenants).set(updateData).where(eq(tenants.id, id)).run();
     return c.json({ success: true });
 });
 
-// GET /google/connect
+// GET /google/connect (OAuth - kept as standard route)
 app.get('/google/connect', async (c) => {
     const tenantId = c.req.query('tenantId');
     if (!tenantId) return c.json({ error: 'Tenant ID required' }, 400);
@@ -132,7 +247,7 @@ app.get('/google/connect', async (c) => {
     return c.redirect(service.getAuthUrl(state));
 });
 
-// GET /google/callback
+// GET /google/callback (OAuth - kept as standard route)
 app.get('/google/callback', async (c) => {
     const { code, state, error } = c.req.query();
     if (error || !code || !state) return c.json({ error: error || 'Missing params' }, 400);
@@ -159,37 +274,76 @@ app.get('/google/callback', async (c) => {
 });
 
 // DELETE /:id/integrations/google
-app.delete('/:id/integrations/google', async (c) => {
+app.openapi(createRoute({
+    method: 'delete',
+    path: '/{id}/integrations/google',
+    tags: ['Studios'],
+    summary: 'Disconnect Google Calendar',
+    request: {
+        params: z.object({ id: z.string() })
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ success: z.boolean() }) } }, description: 'Disconnected' },
+        403: { description: 'Forbidden' }
+    }
+}), async (c) => {
     const isPlatformAdmin = c.get('auth')?.claims?.isPlatformAdmin === true;
-    if (!isPlatformAdmin && !c.get('can')('manage_tenant')) return c.json({ error: 'Forbidden' }, 403);
+    if (!isPlatformAdmin && !c.get('can')('manage_tenant')) return c.json({ error: 'Forbidden' } as any, 403);
     const db = createDb(c.env.DB);
-    await db.update(tenants).set({ googleCalendarCredentials: null }).where(eq(tenants.id, c.req.param('id'))).run();
+    await db.update(tenants).set({ googleCalendarCredentials: null }).where(eq(tenants.id, c.req.valid('param').id)).run();
     return c.json({ success: true });
 });
 
 // GET /:id/mobile-config
-app.get('/:id/mobile-config', async (c) => {
-    const id = c.req.param('id');
+app.openapi(createRoute({
+    method: 'get',
+    path: '/{id}/mobile-config',
+    tags: ['Studios'],
+    summary: 'Get mobile config',
+    request: {
+        params: z.object({ id: z.string() })
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: MobileConfigSchema } }, description: 'Config found' },
+        404: { description: 'Not found' },
+        403: { description: 'Forbidden' }
+    }
+}), async (c) => {
+    const id = c.req.valid('param').id;
     const isPlatformAdmin = c.get('auth')?.claims?.isPlatformAdmin === true;
-    if (!isPlatformAdmin && !c.get('can')('view_tenant')) return c.json({ error: "Forbidden" }, 403);
+    if (!isPlatformAdmin && !c.get('can')('view_tenant')) return c.json({ error: "Forbidden" } as any, 403);
 
     const db = createDb(c.env.DB);
     const t = await db.select().from(tenants).where(eq(tenants.id, id)).get();
-    if (!t) return c.json({ error: 'Not found' }, 404);
+    if (!t) return c.json({ error: 'Not found' } as any, 404);
     const s = (t.settings as any) || {};
     return c.json(s.mobileConfig || { enabled: false, theme: { primaryColor: (t.branding as any)?.primaryColor || '#000000', darkMode: false }, features: { booking: true, shop: true, vod: true, profile: true }, links: { iosStore: '', androidStore: '' } });
 });
 
 // PUT /:id/mobile-config
-app.put('/:id/mobile-config', async (c) => {
-    const id = c.req.param('id');
-    if (!c.get('can')('manage_tenant')) return c.json({ error: 'Forbidden' }, 403);
+app.openapi(createRoute({
+    method: 'put',
+    path: '/{id}/mobile-config',
+    tags: ['Studios'],
+    summary: 'Update mobile config',
+    request: {
+        params: z.object({ id: z.string() }),
+        body: { content: { 'application/json': { schema: MobileConfigSchema } } }
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ success: z.boolean() }) } }, description: 'Updated' },
+        403: { description: 'Forbidden' },
+        404: { description: 'Not found' }
+    }
+}), async (c) => {
+    const id = c.req.valid('param').id;
+    if (!c.get('can')('manage_tenant')) return c.json({ error: 'Forbidden' } as any, 403);
 
     const db = createDb(c.env.DB);
     const t = await db.select().from(tenants).where(eq(tenants.id, id)).get();
-    if (!t) return c.json({ error: 'Not found' }, 404);
+    if (!t) return c.json({ error: 'Not found' } as any, 404);
 
-    await db.update(tenants).set({ settings: { ...(t.settings as any || {}), mobileConfig: await c.req.json() } }).where(eq(tenants.id, id)).run();
+    await db.update(tenants).set({ settings: { ...(t.settings as any || {}), mobileConfig: c.req.valid('json') } }).where(eq(tenants.id, id)).run();
     return c.json({ success: true });
 });
 
