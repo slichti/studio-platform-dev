@@ -4,7 +4,7 @@ import * as schema from '@studio/db/src/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { InventoryService } from '../services/inventory';
 import { createOpenAPIApp, ErrorResponseSchema, SuccessResponseSchema } from '../lib/openapi';
-import { AppError } from '../utils/errors';
+import { AppError, UnauthorizedError } from '../utils/errors';
 
 const app = createOpenAPIApp();
 
@@ -62,6 +62,9 @@ app.openapi(createRoute({
     }
 }), async (c) => {
     const tenant = c.get('tenant');
+    const can = c.get('can');
+    if (!can('manage_inventory')) throw new UnauthorizedError('Insufficient permissions');
+
     const db = createDb(c.env.DB);
 
     const inventory = await db.query.products.findMany({
@@ -90,8 +93,11 @@ app.openapi(createRoute({
 }), async (c) => {
     const tenant = c.get('tenant');
     const member = c.get('member');
+    const can = c.get('can');
     const db = createDb(c.env.DB);
     const body = c.req.valid('json');
+
+    if (!can('manage_inventory')) throw new UnauthorizedError('Insufficient permissions');
 
     const service = new InventoryService(db, tenant.id);
     try {
@@ -116,7 +122,10 @@ app.openapi(createRoute({
     }
 }), async (c) => {
     const tenant = c.get('tenant');
+    const can = c.get('can');
     const db = createDb(c.env.DB);
+
+    if (!can('manage_inventory')) throw new UnauthorizedError('Insufficient permissions');
 
     const result = await db.query.suppliers.findMany({
         where: eq(schema.suppliers.tenantId, tenant.id)
@@ -140,8 +149,11 @@ app.openapi(createRoute({
     }
 }), async (c) => {
     const tenant = c.get('tenant');
+    const can = c.get('can');
     const db = createDb(c.env.DB);
     const body = c.req.valid('json');
+
+    if (!can('manage_inventory')) throw new UnauthorizedError('Insufficient permissions');
 
     const supplier = await db.insert(schema.suppliers).values({
         id: crypto.randomUUID(),
@@ -169,6 +181,9 @@ app.openapi(createRoute({
     }
 }), async (c) => {
     const tenant = c.get('tenant');
+    const can = c.get('can');
+    if (!can('manage_inventory')) throw new UnauthorizedError('Insufficient permissions');
+
     const db = createDb(c.env.DB);
 
     const pos = await db.query.purchaseOrders.findMany({
@@ -200,8 +215,11 @@ app.openapi(createRoute({
 }), async (c) => {
     const tenant = c.get('tenant');
     const member = c.get('member');
+    const can = c.get('can');
     const db = createDb(c.env.DB);
     const poId = c.req.param('id');
+
+    if (!can('manage_inventory')) throw new UnauthorizedError('Insufficient permissions');
 
     const service = new InventoryService(db, tenant.id);
     try {

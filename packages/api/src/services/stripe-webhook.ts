@@ -221,6 +221,22 @@ export class StripeWebhookHandler {
                 }
             }
 
+            // [NEW] Audit Log inbound Checkout success
+            await this.db.insert(schema.auditLogs).values({
+                id: crypto.randomUUID(),
+                action: 'stripe.checkout_completed',
+                actorId: 'system',
+                tenantId: metadata.tenantId,
+                targetId: session.id,
+                details: {
+                    type: metadata.type || (metadata.packId ? 'pack_purchase' : 'unknown'),
+                    amount: amount_total,
+                    packId: metadata.packId,
+                    metadata: metadata
+                },
+                createdAt: new Date()
+            }).run();
+
             // 4. Product Purchase (Automation)
             try {
                 const tenant = await this.db.query.tenants.findFirst({ where: eq(schema.tenants.id, metadata.tenantId) });

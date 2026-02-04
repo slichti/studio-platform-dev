@@ -5,7 +5,7 @@ import { AggregatorService } from '../services/aggregators';
 import { StudioVariables } from '../types';
 import * as schema from '@studio/db/src/schema';
 import { eq, and } from 'drizzle-orm';
-import { AppError } from '../utils/errors';
+import { AppError, NotFoundError, UnauthorizedError } from '../utils/errors';
 
 const app = createOpenAPIApp<StudioVariables>();
 
@@ -38,14 +38,14 @@ app.openapi(createRoute({
     summary: 'Aggregator schedule feed',
     responses: {
         200: { content: { 'application/json': { schema: FeedResponseSchema } }, description: 'Schedule feed' },
-        403: { description: 'Integration not enabled' },
-        404: { description: 'Tenant not found' }
+        403: { content: { 'application/json': { schema: z.object({ error: z.string(), code: z.string() }) } }, description: 'Integration not enabled' },
+        404: { content: { 'application/json': { schema: z.object({ error: z.string(), code: z.string() }) } }, description: 'Tenant not found' }
     }
 }), async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
 
-    if (!tenant) throw new AppError('Tenant context required', 404, 'TENANT_REQUIRED');
+    if (!tenant) throw new NotFoundError('Tenant context required');
 
     const features = await db.query.tenantFeatures.findMany({
         where: and(
@@ -55,7 +55,7 @@ app.openapi(createRoute({
     });
 
     const hasAnyAggregator = features.some(f => f.featureKey === 'classpass' || f.featureKey === 'gympass');
-    if (!hasAnyAggregator) throw new AppError('Integration not enabled', 403, 'INTEGRATION_DISABLED');
+    if (!hasAnyAggregator) throw new UnauthorizedError('Integration not enabled');
 
     const service = new AggregatorService(db, c.env, tenant.id);
     const schedule = await service.getScheduleFeed();

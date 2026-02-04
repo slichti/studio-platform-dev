@@ -9,6 +9,7 @@ import { SmsService } from '../services/sms';
 import { UsageService } from '../services/pricing';
 import { users, tenantMembers } from '@studio/db/src/schema'; // Added tenantMembers to imports
 import { eq } from 'drizzle-orm';
+import { AppError, UnauthorizedError, NotFoundError, BadRequestError } from '../utils/errors';
 
 interface CartItem {
     productId: string;
@@ -20,9 +21,8 @@ const app = new Hono<HonoContext>();
 
 // GET /products - List available inventory
 app.get('/products', async (c) => {
-    if (!c.get('can')('manage_pos') && !c.get('can')('view_pos')) {
-        return c.json({ error: "Access Denied" }, 403);
-    }
+    if (!c.get('can')('manage_pos') && !c.get('can')('view_pos')) throw new UnauthorizedError('Access Denied');
+
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
@@ -35,9 +35,8 @@ app.get('/products', async (c) => {
 
 // POST /products - Add new product
 app.post('/products', async (c) => {
-    if (!c.get('can')('manage_inventory')) {
-        return c.json({ error: "Access Denied" }, 403);
-    }
+    if (!c.get('can')('manage_inventory')) throw new UnauthorizedError('Access Denied');
+
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
@@ -69,9 +68,8 @@ app.post('/products', async (c) => {
 
 // POST /orders - Create a POS Sale
 app.post('/orders', async (c) => {
-    if (!c.get('can')('manage_pos')) {
-        return c.json({ error: "Access Denied" }, 403);
-    }
+    if (!c.get('can')('manage_pos')) throw new UnauthorizedError('Access Denied');
+
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
@@ -117,7 +115,7 @@ app.post('/orders', async (c) => {
 
 // GET /orders - History
 app.get('/orders', async (c) => {
-    if (!c.get('can')('manage_pos')) return c.json({ error: "Access Denied" }, 403);
+    if (!c.get('can')('manage_pos')) throw new UnauthorizedError('Access Denied');
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
@@ -128,7 +126,7 @@ app.get('/orders', async (c) => {
 
 // POST /process-payment
 app.post('/process-payment', async (c) => {
-    if (!c.get('can')('manage_pos')) return c.json({ error: "Access Denied" }, 403);
+    if (!c.get('can')('manage_pos')) throw new UnauthorizedError('Access Denied');
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
@@ -161,7 +159,7 @@ app.post('/process-payment', async (c) => {
 
 // POST /connection-token
 app.post('/connection-token', async (c) => {
-    if (!c.get('can')('manage_pos')) return c.json({ error: "Access Denied" }, 403);
+    if (!c.get('can')('manage_pos')) throw new UnauthorizedError('Access Denied');
     const tenant = c.get('tenant');
     if (!tenant || !tenant.stripeAccountId) return c.json({ error: "Stripe not connected" }, 400);
 
@@ -176,7 +174,7 @@ app.post('/connection-token', async (c) => {
 
 // GET /customers
 app.get('/customers', async (c) => {
-    if (!c.get('can')('manage_pos')) return c.json({ error: "Access Denied" }, 403);
+    if (!c.get('can')('manage_pos')) throw new UnauthorizedError('Access Denied');
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
@@ -192,7 +190,7 @@ app.get('/customers', async (c) => {
 
 // POST /customers
 app.post('/customers', async (c) => {
-    if (!c.get('can')('manage_pos')) return c.json({ error: "Access Denied" }, 403);
+    if (!c.get('can')('manage_pos')) throw new UnauthorizedError('Access Denied');
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
@@ -210,7 +208,7 @@ app.post('/customers', async (c) => {
 
 // PUT /products/:id
 app.put('/products/:id', async (c) => {
-    if (!c.get('can')('manage_inventory')) return c.json({ error: "Access Denied" }, 403);
+    if (!c.get('can')('manage_inventory')) throw new UnauthorizedError('Access Denied');
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
@@ -232,7 +230,7 @@ app.put('/products/:id', async (c) => {
 
 // POST /products/:id/archive
 app.post('/products/:id/archive', async (c) => {
-    if (!c.get('can')('manage_inventory')) return c.json({ error: "Access Denied" }, 403);
+    if (!c.get('can')('manage_inventory')) throw new UnauthorizedError('Access Denied');
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
@@ -252,7 +250,7 @@ app.post('/products/:id/archive', async (c) => {
 
 // POST /products/import
 app.post('/products/import', async (c) => {
-    if (!c.get('can')('manage_inventory')) return c.json({ error: "Access Denied" }, 403);
+    if (!c.get('can')('manage_inventory')) throw new UnauthorizedError('Access Denied');
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
@@ -278,8 +276,8 @@ app.post('/products/import', async (c) => {
 // POST /products/images
 app.post('/products/images', async (c) => {
     const tenant = c.get('tenant');
-    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
-    if (!c.get('can')('manage_inventory')) return c.json({ error: "Access Denied" }, 403);
+    if (!tenant) throw new BadRequestError('Tenant context missing');
+    if (!c.get('can')('manage_inventory')) throw new UnauthorizedError('Access Denied');
 
     const formData = await c.req.parseBody();
     const file = formData['file'];
@@ -307,6 +305,7 @@ app.post('/products/images', async (c) => {
 
 // POST /validate-coupon
 app.post('/validate-coupon', async (c) => {
+    if (!c.get('can')('manage_pos') && !c.get('can')('view_pos')) throw new UnauthorizedError('Access Denied');
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
