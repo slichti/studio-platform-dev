@@ -77,8 +77,15 @@ app.post('/validate', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
-    const { code } = await c.req.json();
-    if (!code) return c.json({ valid: false });
+    let code;
+    try {
+        const body = await c.req.json();
+        code = body.code;
+    } catch (e) {
+        return c.json({ valid: false, error: "Invalid JSON" }, 400);
+    }
+
+    if (!code || typeof code !== 'string') return c.json({ valid: false });
 
     // Check code existence
     const ref = await db.select().from(referralCodes)
@@ -101,8 +108,15 @@ app.post('/apply', async (c) => {
     const member = c.get('member');
     if (!tenant || !member) return c.json({ error: 'Auth required' }, 401);
 
-    const { code } = await c.req.json();
-    if (!code) return c.json({ error: 'Code required' }, 400);
+    let code;
+    try {
+        const body = await c.req.json();
+        code = body.code;
+    } catch (e) {
+        return c.json({ error: 'Invalid JSON' }, 400);
+    }
+
+    if (!code || typeof code !== 'string') return c.json({ error: 'Code required' }, 400);
 
     // 1. Validate Code
     const ref = await db.select().from(referralCodes)
@@ -154,7 +168,14 @@ app.post('/apply', async (c) => {
 app.post('/track-click', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const { code } = await c.req.json();
+    let code;
+    try {
+        const body = await c.req.json();
+        code = body.code;
+    } catch (e) {
+        // Ignore JSON errors for telemetry, just don't track
+        return c.json({ success: true });
+    }
 
     if (tenant && code) {
         // Atomic Increment

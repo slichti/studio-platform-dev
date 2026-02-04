@@ -21,6 +21,7 @@ app.use('*', async (c, next) => {
 
     await next();
 });
+// SECURITY NOTE: All routes below are protected by the middleware above which requires Platform Admin access.
 
 // 1. Get Global Mobile Stats & Config
 app.get('/config', async (c) => {

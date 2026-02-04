@@ -155,6 +155,9 @@ app.delete('/:id', async (c) => {
         await db.delete(waiverTemplates).where(eq(waiverTemplates.tenantId, tid)).run();
 
         // 7. Finally: The Tenant
+        // TODO: [Security/Cost] Clean up R2 buckets (tenants/slug/*) and CF Images. 
+        // Currently, files remain orphaned. If slug is reused, new tenant might access old files.
+        // Mitigation: Generate slugs with random suffix or ensure slug history check.
         await db.delete(tenants).where(eq(tenants.id, tid)).run();
 
         const audit = new AuditService(db);
