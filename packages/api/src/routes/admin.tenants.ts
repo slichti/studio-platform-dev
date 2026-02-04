@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantMembers, tenantRoles, subscriptions, tenantFeatures, websitePages, auditLogs, users, emailLogs, locations, classes, bookings, products, posOrders, marketingAutomations, marketingCampaigns, waiverTemplates, waiverSignatures, studentNotes } from '@studio/db/src/schema'; // Removed purchases
+import { tenants, tenantMembers, tenantRoles, subscriptions, tenantFeatures, websitePages, auditLogs, users, emailLogs, locations, classes, bookings, products, posOrders, marketingAutomations, marketingCampaigns, waiverTemplates, waiverSignatures, studentNotes, uploads } from '@studio/db/src/schema'; // Removed purchases
 import { eq, sql, desc, count, and, inArray } from 'drizzle-orm';
 import { AuditService } from '../services/audit';
 import { HonoContext } from '../types';
@@ -154,10 +154,22 @@ app.delete('/:id', async (c) => {
         await db.delete(locations).where(eq(locations.tenantId, tid)).run();
         await db.delete(waiverTemplates).where(eq(waiverTemplates.tenantId, tid)).run();
 
-        // 7. Finally: The Tenant
-        // TODO: [Security/Cost] Clean up R2 buckets (tenants/slug/*) and CF Images. 
-        // Currently, files remain orphaned. If slug is reused, new tenant might access old files.
-        // Mitigation: Generate slugs with random suffix or ensure slug history check.
+        // 7. Files & Storage
+        await db.delete(uploads).where(eq(uploads.tenantId, tid)).run();
+
+        c.executionCtx.waitUntil((async () => {
+            try {
+                const { StorageService } = await import('../services/storage');
+                const ss = new StorageService(c.env.R2!);
+                // Delete everything under tenants/{slug}/
+                await ss.deleteDirectory(`tenants/${t.slug}/`);
+                console.log(`Cleaned up R2 for tenant ${t.slug}`);
+            } catch (e) {
+                console.error("Failed to clean up R2", e);
+            }
+        })());
+
+        // 8. Finally: The Tenant
         await db.delete(tenants).where(eq(tenants.id, tid)).run();
 
         const audit = new AuditService(db);
