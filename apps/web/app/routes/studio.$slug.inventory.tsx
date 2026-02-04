@@ -21,7 +21,8 @@ import {
     RefreshCw,
     Filter,
     Edit3,
-    Eye
+    Eye,
+    Settings
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -277,8 +278,8 @@ export default function InventoryDashboard() {
                                                 <div className="flex items-center gap-2 mb-1">
                                                     <h3 className="font-bold text-zinc-900 dark:text-zinc-100">{order.poNumber}</h3>
                                                     <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${order.status === 'received' ? 'bg-green-50 text-green-700 border-green-100' :
-                                                            order.status === 'sent' ? 'bg-blue-50 text-blue-700 border-blue-100' :
-                                                                'bg-zinc-100 text-zinc-600 border-zinc-200'
+                                                        order.status === 'sent' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                                                            'bg-zinc-100 text-zinc-600 border-zinc-200'
                                                         }`}>
                                                         {order.status}
                                                     </span>
