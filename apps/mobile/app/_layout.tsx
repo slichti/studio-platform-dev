@@ -1,5 +1,5 @@
 import '../global.css';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { AuthProvider } from '../context/AuthContext';
 import { TenantProvider } from '../context/TenantContext';
 import { View, Platform } from 'react-native';
@@ -22,9 +22,10 @@ Notifications.setNotificationHandler({
 export default function RootLayout() {
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    registerForPushNotificationsAsync();
+    // Note: Permission request & Token registration is handled in AuthContext upon login.
 
     notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
       console.log("Notification Received:", notification);
@@ -32,6 +33,17 @@ export default function RootLayout() {
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
       console.log("Notification Responded:", response);
+      const data = response.notification.request.content.data as { url?: string };
+      if (data?.url) {
+        try {
+          // Handle deep link (e.g. /class/123)
+          // Ensure it's a relative path or handle scheme
+          const path = data.url.replace(/^.*:\/\//, ''); // rudimentary strip scheme
+          router.push(path as any);
+        } catch (e) {
+          console.error("Deep link failed", e);
+        }
+      }
     });
 
     return () => {
@@ -56,34 +68,4 @@ export default function RootLayout() {
   );
 }
 
-async function registerForPushNotificationsAsync() {
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF231F7C',
-    });
-  }
 
-  if (Device.isDevice) {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    if (finalStatus !== 'granted') {
-      console.log('Failed to get push token for push notification!');
-      return;
-    }
-
-    // Project ID is handled automatically in managed workflow usually, but good practice if using bare
-    const projectId = Constants?.expoConfig?.extra?.eas?.projectId || Constants?.easConfig?.projectId;
-    const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-    console.log("Expo Push Token:", token);
-
-    // We should save this token to the user profile via AuthContext, but let's do it in the AuthProvider or Login flow effectively.
-    // For now, we store in global specific storage or pass to context.
-  }
-}

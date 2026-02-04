@@ -116,7 +116,13 @@ app.get('/session-info', (c) => c.json({ userId: c.get('auth')?.userId, isImpers
 
 // POST /push-token
 app.post('/push-token', async (c) => {
-    const { token } = await c.req.json();
+    let token;
+    try {
+        const body = await c.req.json();
+        token = body.token;
+    } catch (e) {
+        return c.json({ error: 'Invalid JSON' }, 400);
+    }
     if (!token) return c.json({ error: 'Token required' }, 400);
     const db = createDb(c.env.DB);
     await db.update(users).set({ pushToken: token }).where(eq(users.id, c.get('auth')!.userId)).run();

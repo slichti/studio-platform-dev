@@ -62,7 +62,14 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             favicon: "./assets/images/favicon.png"
         },
         plugins: [
-            "expo-router"
+            "expo-router",
+            [
+                "expo-notifications",
+                {
+                    "icon": "./assets/images/notification-icon.png",
+                    "color": "#ffffff"
+                }
+            ]
         ],
         experiments: {
             typedRoutes: true
