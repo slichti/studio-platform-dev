@@ -414,6 +414,13 @@
       "when": 1770224604777,
       "tag": "0058_pink_loki",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "6",
+      "when": 1770230619718,
+      "tag": "0059_omniscient_ironclad",
+      "breakpoints": true
     }
   ]
 }

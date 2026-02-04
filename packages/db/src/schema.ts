@@ -553,6 +553,7 @@ export const marketingAutomations = sqliteTable('marketing_automations', {
     delayHours: integer('delay_hours').default(0),
 
     channels: text('channels', { mode: 'json' }).default(sql`('["email"]')`), // ['email', 'sms']
+    recipients: text('recipients', { mode: 'json' }).default(sql`('["student"]')`), // ['student', 'owner']
     couponConfig: text('coupon_config', { mode: 'json' }), // { type: 'percent', value: 20, validityDays: 7 }
 
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),

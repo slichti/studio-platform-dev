@@ -3,6 +3,7 @@ import { eq, and, lt, gt, gte, lte, or, isNull, sql } from 'drizzle-orm';
 import { marketingAutomations, automationLogs, subscriptions, tenantMembers, users, tenants, coupons, bookings, posOrders, classes, locations } from '@studio/db/src/schema'; // Added bookings, posOrders, locations
 import { EmailService } from './email';
 import { SmsService } from './sms'; // Active
+import { tenantRoles } from '@studio/db/src/schema';
 import { UsageService } from './pricing';
 
 export class AutomationsService {
@@ -428,6 +429,50 @@ export class AutomationsService {
     }
 
     private async executeAutomation(automation: any, context: { userId: string, email?: string, firstName?: string, lastName?: string, data?: any }) {
+        const recipients = (automation.recipients as string[]) || ['student'];
+
+        // 1. Send to Student (Original Target)
+        if (recipients.includes('student')) {
+            await this.dispatchToUser(automation, context, 'student');
+        }
+
+        // 2. Send to Owners
+        if (recipients.includes('owner')) {
+            const owners = await this.db.select({
+                userId: tenantMembers.userId,
+                email: users.email,
+                profile: users.profile
+            })
+                .from(tenantMembers)
+                .innerJoin(users, eq(tenantMembers.userId, users.id))
+                .innerJoin(tenantRoles, eq(tenantRoles.memberId, tenantMembers.id))
+                .where(and(
+                    eq(tenantMembers.tenantId, this.tenantId),
+                    eq(tenantRoles.role, 'owner')
+                )).all();
+
+            for (const owner of owners) {
+                // Enrich context for Owner
+                // They need to know WHO the event is about (The Student)
+                const ownerContext = {
+                    userId: owner.userId,
+                    email: owner.email,
+                    firstName: (owner.profile as any)?.firstName || 'Owner',
+                    lastName: (owner.profile as any)?.lastName || '',
+                    data: {
+                        ...context.data,
+                        studentName: `${context.firstName || ''} ${context.lastName || ''}`.trim(),
+                        studentEmail: context.email,
+                        studentId: context.userId,
+                        isOwnerNotification: true
+                    }
+                };
+                await this.dispatchToUser(automation, ownerContext, 'owner');
+            }
+        }
+    }
+
+    private async dispatchToUser(automation: any, context: { userId: string, email?: string, firstName?: string, lastName?: string, data?: any }, recipientType: string) {
         // 1. Idempotency Check
         const channels: string[] = automation.channels || ['email'];
         const channel = channels[0] || 'email';
@@ -443,7 +488,7 @@ export class AutomationsService {
             const recent = await this.db.select().from(automationLogs)
                 .where(and(
                     eq(automationLogs.automationId, automation.id),
-                    eq(automationLogs.userId, context.userId),
+                    eq(automationLogs.userId, context.userId), // Idempotency per recipient
                     gt(automationLogs.triggeredAt, cutoff)
                 )).get();
             if (recent) return;
@@ -542,7 +587,7 @@ export class AutomationsService {
                 automationId: automation.id,
                 userId: context.userId,
                 channel: channel,
-                metadata: { couponCode }
+                metadata: { couponCode, recipientType }
             }).run();
 
         } catch (e) {
@@ -585,7 +630,7 @@ export class AutomationsService {
         if (data && typeof data === 'object') {
             for (const [key, val] of Object.entries(data)) {
                 if (typeof val === 'string' || typeof val === 'number') {
-                    processed = processed.replace(new RegExp(`{{${key}}}`, 'g'), String(val));
+                    processed = processed.replace(new RegExp(`\\{{1,2}${key}\\}{1,2}`, 'gi'), String(val));
                 }
             }
         }

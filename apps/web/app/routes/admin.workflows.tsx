@@ -34,6 +34,7 @@ interface Automation {
     timingType: 'immediate' | 'delay' | 'before' | 'after';
     timingValue: number;
     isEnabled: boolean;
+    recipients?: string[]; // ['student', 'owner']
     tenantId?: string | null;
 }
 
@@ -69,7 +70,8 @@ export const action = async (args: ActionFunctionArgs) => {
                 subject: formData.get('subject'),
                 content: formData.get('content'),
                 timingType: formData.get('timingType'),
-                timingValue: Number(formData.get('timingValue'))
+                timingValue: Number(formData.get('timingValue')),
+                recipients: formData.getAll('recipients') // Helpers
             };
             await apiRequest('/admin/automations', token, {
                 method: 'POST',
@@ -83,6 +85,18 @@ export const action = async (args: ActionFunctionArgs) => {
             if (formData.has('content')) data.content = formData.get('content');
             if (formData.has('timingType')) data.timingType = formData.get('timingType');
             if (formData.has('timingValue')) data.timingValue = Number(formData.get('timingValue'));
+
+            // recipients (always read if form submitted)
+            const recipients = formData.getAll('recipients');
+            if (recipients.length > 0) data.recipients = recipients;
+            // If empty, we might want to default to singleton student or handle it. 
+            // For now, let's assume at least one is checked via validation or default.
+            if (recipients.length === 0 && formData.get('_action') === 'update') {
+                // If this was a full form submit, we might want to clear it? 
+                // Or if it's partial toggle, we don't touch it.
+                // The edit form submits all. 
+                data.recipients = [];
+            }
 
             await apiRequest(`/admin/automations/${id}`, token, {
                 method: 'PATCH',
@@ -249,6 +263,11 @@ function AutomationCard({ auto, getIcon, getTimingLabel, fetcher }: { auto: Auto
                                     auto.triggerEvent.replace('_', ' ')
                         }
                     </span>
+                    {auto.recipients?.includes('owner') && (
+                        <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs border border-purple-200">
+                            + Owner
+                        </span>
+                    )}
                 </div>
             </div>
 
@@ -369,6 +388,38 @@ function WorkflowForm({ initialData, onSubmit }: WorkflowFormProps) {
                             placeholder="Hours"
                             className="w-20"
                         />
+                    </div>
+                </div>
+            </div>
+
+            <div className="space-y-2">
+                <Label>Recipients</Label>
+                <div className="flex gap-4">
+                    <div className="flex items-center space-x-2">
+                        <input
+                            type="checkbox"
+                            name="recipients"
+                            value="student"
+                            id="r_student"
+                            defaultChecked={!initialData || !initialData.recipients || initialData.recipients.includes('student')}
+                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <Label htmlFor="r_student" className="font-normal text-zinc-700 dark:text-zinc-300">
+                            Student (User)
+                        </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <input
+                            type="checkbox"
+                            name="recipients"
+                            value="owner"
+                            id="r_owner"
+                            defaultChecked={initialData?.recipients?.includes('owner')}
+                            className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <Label htmlFor="r_owner" className="font-normal text-zinc-700 dark:text-zinc-300">
+                            Studio Owner
+                        </Label>
                     </div>
                 </div>
             </div>
