@@ -192,7 +192,9 @@ export class StripeWebhookHandler {
         const session = event.data.object as Stripe.Checkout.Session;
         const { metadata, amount_total } = session;
 
-        console.log(`[Stripe] Checkout Completed: ${session.id} (Metadata: ${JSON.stringify(metadata)})`);
+        const logMetadata = metadata ? { ...metadata } : {};
+        if (logMetadata.message) logMetadata.message = '[REDACTED]';
+        console.log(`[Stripe] Checkout Completed: ${session.id} (Metadata: ${JSON.stringify(logMetadata)})`);
 
         if (metadata && metadata.tenantId) {
             const fulfillment = new FulfillmentService(this.db, this.env.RESEND_API_KEY);
