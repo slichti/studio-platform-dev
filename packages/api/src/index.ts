@@ -399,7 +399,7 @@ studioApp.post('/features', async (c) => {
 
   const { featureKey, enabled } = await c.req.json();
   // Allowlist of self-service features
-  const ALLOWED_FEATURES = ['sms', 'webhooks', 'kiosk'];
+  const ALLOWED_FEATURES = ['sms', 'webhooks', 'kiosk', 'classpass', 'gympass'];
 
   if (!ALLOWED_FEATURES.includes(featureKey)) {
     return c.json({ error: "Feature not available for self-service" }, 400);

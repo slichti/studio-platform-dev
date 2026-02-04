@@ -3,13 +3,13 @@ import { useState, useEffect } from "react";
 import { useParams, useOutletContext } from "react-router";
 import { apiRequest } from "~/utils/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/Card";
-import { Trash2, Loader2, Key, MessageSquare, Mail, Save, CreditCard, CheckCircle, Smartphone, Send, Shield } from "lucide-react";
+import { Trash2, Loader2, Key, MessageSquare, Mail, Save, CreditCard, CheckCircle, Smartphone, Send, Shield, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmationDialog } from "~/components/Dialogs";
 
 export default function IntegrationsPage() {
     const { slug } = useParams();
-    const { tenant } = useOutletContext<any>() || {};
+    const { tenant, features } = useOutletContext<any>() || {};
 
     // Integration Credentials State (For BYOK forms)
     const [credentials, setCredentials] = useState<any>(null);
@@ -34,6 +34,22 @@ export default function IntegrationsPage() {
             window.location.reload();
         } catch (e: any) {
             toast.error(e.message || "Failed to save");
+        }
+    };
+
+    // Feature Toggle Helper
+    const toggleFeature = async (featureKey: string, enabled: boolean) => {
+        try {
+            const token = await (window as any).Clerk?.session?.getToken();
+            await apiRequest(`/tenant/features`, token, {
+                method: 'POST',
+                headers: { 'X-Tenant-Slug': slug || '' },
+                body: JSON.stringify({ featureKey, enabled })
+            });
+            toast.success(`${enabled ? 'Enabled' : 'Disabled'} ${featureKey}`);
+            window.location.reload();
+        } catch (e: any) {
+            toast.error(e.message || "Failed to update feature");
         }
     };
 
@@ -206,6 +222,51 @@ export default function IntegrationsPage() {
                             className={`px-3 py-2 text-xs font-medium rounded border ${tenant.settings?.chatEnabled !== false ? 'bg-zinc-50 border-zinc-300 text-zinc-700' : 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700'}`}
                         >
                             {tenant.settings?.chatEnabled !== false ? 'Disable Chat' : 'Enable Chat'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* --- SECTION 2: CLASS AGGREGATORS --- */}
+            <div className="mb-8">
+                <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-2">Class Aggregators</h2>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">Connect with external booking platforms to fill your classes.</p>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* ClassPass */}
+                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-5 shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                <Layers className="h-4 w-4" /> ClassPass
+                            </h3>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${features?.has('classpass') ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
+                                {features?.has('classpass') ? 'Active' : 'Inactive'}
+                            </span>
+                        </div>
+                        <p className="text-xs text-zinc-500 mb-4">Allow ClassPass users to book your classes. We'll sync your schedule automatically.</p>
+                        <button
+                            onClick={() => toggleFeature('classpass', !features?.has('classpass'))}
+                            className={`px-3 py-2 text-xs font-medium rounded border ${features?.has('classpass') ? 'bg-zinc-50 border-zinc-300 text-zinc-700 hover:bg-zinc-100' : 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700'}`}
+                        >
+                            {features?.has('classpass') ? 'Disable ClassPass' : 'Enable ClassPass'}
+                        </button>
+                    </div>
+
+                    {/* Gympass */}
+                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-5 shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                <Layers className="h-4 w-4" /> Gympass (Wellhub)
+                            </h3>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${features?.has('gympass') ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
+                                {features?.has('gympass') ? 'Active' : 'Inactive'}
+                            </span>
+                        </div>
+                        <p className="text-xs text-zinc-500 mb-4">Connect with corporate wellness programs through Gympass.</p>
+                        <button
+                            onClick={() => toggleFeature('gympass', !features?.has('gympass'))}
+                            className={`px-3 py-2 text-xs font-medium rounded border ${features?.has('gympass') ? 'bg-zinc-50 border-zinc-300 text-zinc-700 hover:bg-zinc-100' : 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700'}`}
+                        >
+                            {features?.has('gympass') ? 'Disable Gympass' : 'Enable Gympass'}
                         </button>
                     </div>
                 </div>
