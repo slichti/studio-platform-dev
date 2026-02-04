@@ -5,6 +5,8 @@ import { StreamService } from '../services/stream';
 import * as schema from '@studio/db/src/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { HonoContext } from '../types';
+import { AggregatorService } from '../services/aggregators';
+import { tenants } from '@studio/db/src/schema'; // For lookup
 
 const app = new Hono<HonoContext>();
 
@@ -93,6 +95,83 @@ app.post('/stripe', async (c) => {
         await db.insert(schema.processedWebhooks).values({ id: event.id, type: 'stripe' }).run();
     } catch (e) { console.error(e); return c.json({ error: 'Fail' }, 500); }
     return c.json({ received: true });
+});
+
+// --- Aggregator Webhooks ---
+
+/**
+ * ClassPass Booking/Cancellation Webhook
+ */
+app.post('/classpass', async (c) => {
+    const body = await c.req.json();
+    const db = createDb(c.env.DB);
+
+    // ClassPass usually includes a partner_id or we resolve via custom header
+    const partnerId = c.req.header('X-Partner-Id');
+    if (!partnerId) return c.json({ error: 'Missing Partner ID' }, 400);
+
+    const tenant = await db.query.tenants.findFirst({
+        where: sql`${schema.tenants.aggregatorConfig}->'classpass'->>'partnerId' = ${partnerId}`
+    });
+
+    if (!tenant) return c.json({ error: 'Tenant not found' }, 404);
+
+    const service = new AggregatorService(db, c.env, tenant.id);
+
+    try {
+        if (body.type === 'RESERVATION_CREATE') {
+            await service.processPartnerBooking({
+                classId: body.reservation.class_id,
+                externalSource: 'classpass',
+                externalId: body.reservation.id,
+                userEmail: body.user.email,
+                userFirstName: body.user.first_name,
+                userLastName: body.user.last_name
+            });
+        } else if (body.type === 'RESERVATION_CANCEL') {
+            await service.processPartnerCancellation('classpass', body.reservation.id);
+        }
+    } catch (e: any) {
+        console.error('[ClassPass Webhook] Error:', e);
+        return c.json({ error: e.message }, 500);
+    }
+
+    return c.json({ success: true });
+});
+
+/**
+ * Gympass (Wellhub) Notify Webhook
+ */
+app.post('/gympass', async (c) => {
+    const body = await c.req.json();
+    const db = createDb(c.env.DB);
+
+    // Resolve tenant via slug or ID in metadata
+    const tenantId = body.gym_id;
+    const tenant = await db.query.tenants.findFirst({ where: eq(schema.tenants.id, tenantId) });
+
+    if (!tenant) return c.json({ error: 'Invalid gym_id' }, 404);
+
+    const service = new AggregatorService(db, c.env, tenant.id);
+
+    try {
+        if (body.event === 'booking.created') {
+            await service.processPartnerBooking({
+                classId: body.data.class_id,
+                externalSource: 'gympass',
+                externalId: body.data.booking_id,
+                userEmail: body.user.email,
+                userFirstName: body.user.first_name,
+                userLastName: body.user.last_name
+            });
+        } else if (body.event === 'booking.cancelled') {
+            await service.processPartnerCancellation('gympass', body.data.booking_id);
+        }
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+
+    return c.json({ success: true });
 });
 
 export default app;

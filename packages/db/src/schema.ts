@@ -58,6 +58,7 @@ export const tenants = sqliteTable('tenants', {
     archivedAt: integer('archived_at', { mode: 'timestamp' }),
     gracePeriodEndsAt: integer('grace_period_ends_at', { mode: 'timestamp' }),
     studentAccessDisabled: integer('student_access_disabled', { mode: 'boolean' }).default(false).notNull(),
+    aggregatorConfig: text('aggregator_config', { mode: 'json' }), // { classpass: { partnerId: '...' }, gympass: { ... } }
 
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
@@ -394,6 +395,8 @@ export const bookings = sqliteTable('bookings', {
     paymentMethod: text('payment_method', { enum: ['credit', 'subscription', 'drop_in', 'free'] }),
     usedPackId: text('used_pack_id').references(() => purchasedPacks.id), // If credit, which pack?
 
+    externalSource: text('external_source'),
+    externalId: text('external_id'),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     memberClassIdx: index('member_class_idx').on(table.memberId, table.classId),

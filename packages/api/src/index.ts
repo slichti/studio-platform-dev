@@ -58,6 +58,7 @@ import adminStats from './routes/admin-stats'; // [NEW] Import
 import adminPlans from './routes/admin.plans'; // [NEW] Import
 import analytics from './routes/analytics'; // [NEW] Analytics
 import publicRoutes from './routes/public'; // [NEW] Import
+import aggregatorRoutes from './routes/aggregators'; // [NEW] Aggregators
 import faqRoutes from './routes/faqs'; // [NEW] FAQs
 import adminMobile from './routes/admin.mobile'; // [NEW] Admin Mobile
 import adminSearch from './routes/admin.search'; // [NEW] Admin Search
@@ -136,6 +137,7 @@ app.get('/', (c) => {
 })
 
 app.route('/public', publicRoutes); // [NEW] Mount public routes
+app.route('/aggregators', aggregatorRoutes); // [NEW] Aggregator Feeds
 
 app.get('/public/tenant/:slug', async (c) => {
   const slug = c.req.param('slug');
