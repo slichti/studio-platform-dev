@@ -407,6 +407,13 @@
       "when": 1770152352116,
       "tag": "0057_curly_gorilla_man",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "6",
+      "when": 1770224604777,
+      "tag": "0058_pink_loki",
+      "breakpoints": true
     }
   ]
 }

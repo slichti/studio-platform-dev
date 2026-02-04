@@ -69,6 +69,8 @@ import auditLogRoutes from './routes/audit-logs'; // [NEW] Audit Logs
 import inventory from './routes/inventory'; // [NEW] Inventory
 import docRoutes from './routes/docs'; // [NEW] Docs
 import referrals from './routes/referrals'; // [NEW] Referrals
+import tenantWebhooksRouter from './routes/tenant.webhooks';
+import progressRoutes from './routes/progress';
 
 import { createOpenAPIApp } from './lib/openapi';
 import { Bindings, Variables, StudioVariables } from './types';
@@ -187,8 +189,6 @@ const studioPaths = [
   '/leads', '/leads/*',
   '/pos', '/pos/*',
   '/uploads', '/uploads/*',
-  '/pos', '/pos/*',
-  '/uploads', '/uploads/*',
   '/tenant', '/tenant/*',
   '/classes', '/classes/*',
   '/commerce', '/commerce/*',
@@ -244,7 +244,6 @@ const publicStudioPaths = [
 
 // 3. Apply Middleware
 
-// first, identify the user (Auth)
 // first, identify the user (Auth)
 publicStudioPaths.forEach(path => app.use(path, optionalAuthMiddleware));
 authenticatedPaths.forEach(path => {
@@ -401,7 +400,6 @@ studioApp.put('/credentials/zoom', async (c) => {
   const { accountId, clientId, clientSecret } = await c.req.json();
   if (!accountId || !clientId || !clientSecret) return c.json({ error: 'Missing credentials' }, 400);
   await db.update(tenants).set({ zoomCredentials: { accountId, clientId, clientSecret } }).where(eq(tenants.id, tenant.id)).run();
-  await db.update(tenants).set({ zoomCredentials: { accountId, clientId, clientSecret } }).where(eq(tenants.id, tenant.id)).run();
   return c.json({ success: true });
 });
 
@@ -522,7 +520,6 @@ app.route('/pos', pos);
 app.route('/uploads', uploadRoutes);
 app.route('/reports', reports);
 app.route('/analytics', analytics); // [NEW] Analytics
-app.route('/payroll', payroll);
 
 app.route('/classes', classRoutes);
 app.route('/commerce', commerce);
@@ -567,10 +564,8 @@ studioApp.route('/tags', tagsRoutes);
 studioApp.route('/custom-fields', customFieldRoutes);
 studioApp.route('/audit-logs', auditLogRoutes);
 
-import tenantWebhooksRouter from './routes/tenant.webhooks';
 studioApp.route('/webhooks', tenantWebhooksRouter);
 
-import progressRoutes from './routes/progress';
 studioApp.route('/progress', progressRoutes); // [NEW] Progress Tracking
 
 import { scheduled } from './cron';
