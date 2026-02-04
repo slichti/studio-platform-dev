@@ -151,7 +151,7 @@ export default function AdminArchitecture() {
                                 <span className="font-mono text-zinc-500 dark:text-zinc-600 text-xs">`packages/api`</span>
 
                                 <div className="flex gap-1 mt-3 justify-center flex-wrap">
-                                    {['Routing', 'Rate Limiting', 'Auth Context', 'Observability'].map(tag => (
+                                    {['Routing', 'Rate Limiting', 'Auth Context', 'Service Layer'].map(tag => (
                                         <span key={tag} className="px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-500/5 border border-indigo-100 dark:border-indigo-500/10 text-indigo-600 dark:text-indigo-300/[0.7] text-[10px] font-medium">
                                             {tag}
                                         </span>
@@ -171,7 +171,7 @@ export default function AdminArchitecture() {
                             sub="apps/core-api"
                             icon={Shield}
                             color="emerald"
-                            items={['Identity', 'Tenants', 'Onboarding', 'Platform Admin']}
+                            items={['Identity', 'Tenants', 'Onboarding', 'Platform Admin', 'RBAC']}
                         />
                         <ServiceCard
                             title="Commerce API"
@@ -185,7 +185,7 @@ export default function AdminArchitecture() {
                             sub="apps/studio-api"
                             icon={Calendar}
                             color="orange"
-                            items={['Classes', 'Bookings', 'Members', 'Waivers', 'Payroll']}
+                            items={['Classes', 'Bookings', 'Members', 'Waivers', 'Payroll', 'Progress Tracking']}
                         />
                     </div>
 
