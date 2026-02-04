@@ -271,6 +271,71 @@ export default function IntegrationsPage() {
                     </div>
                 </div>
             </div>
+            {/* --- SECTION 3: PROGRESS TRACKING --- */}
+            <div className="mb-8">
+                <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-2">Progress Tracking</h2>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">Enable visual progress metrics for your members. Configure which metrics are visible based on your studio type.</p>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Feature Toggle */}
+                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-5 shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                <Layers className="h-4 w-4" /> Advanced Progress Tracking
+                            </h3>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${features?.has('progress_tracking') ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
+                                {features?.has('progress_tracking') ? 'Active' : 'Inactive'}
+                            </span>
+                        </div>
+                        <p className="text-xs text-zinc-500 mb-4">Show members their attendance streaks, class counts, and personal achievements. Metrics adapt based on your studio type.</p>
+                        <button
+                            onClick={() => toggleFeature('progress_tracking', !features?.has('progress_tracking'))}
+                            className={`px-3 py-2 text-xs font-medium rounded border ${features?.has('progress_tracking') ? 'bg-zinc-50 border-zinc-300 text-zinc-700 hover:bg-zinc-100' : 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700'}`}
+                        >
+                            {features?.has('progress_tracking') ? 'Disable Progress Tracking' : 'Enable Progress Tracking'}
+                        </button>
+                    </div>
+
+                    {/* Studio Type Configuration */}
+                    {features?.has('progress_tracking') && (
+                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-5 shadow-sm">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                    <Layers className="h-4 w-4" /> Studio Type
+                                </h3>
+                            </div>
+                            <p className="text-xs text-zinc-500 mb-3">Select your studio type to show relevant metrics. Yoga studios see mindfulness metrics. Gyms see strength/cardio metrics.</p>
+                            <form onSubmit={async (e) => {
+                                e.preventDefault();
+                                const studioType = new FormData(e.currentTarget).get("studioType") as string;
+                                try {
+                                    const token = await (window as any).Clerk?.session?.getToken();
+                                    await apiRequest(`/progress/settings`, token, {
+                                        method: 'PUT',
+                                        headers: { 'X-Tenant-Slug': slug || '' },
+                                        body: JSON.stringify({ studioType })
+                                    });
+                                    await apiRequest(`/progress/seed-defaults`, token, {
+                                        method: 'POST',
+                                        headers: { 'X-Tenant-Slug': slug || '' },
+                                        body: JSON.stringify({ studioType })
+                                    });
+                                    toast.success("Studio type saved and metrics configured.");
+                                    window.location.reload();
+                                } catch (err: any) {
+                                    toast.error(err.message || "Failed to save");
+                                }
+                            }} className="space-y-3">
+                                <select name="studioType" defaultValue={tenant.settings?.progressTracking?.studioType || 'yoga'} className="w-full text-sm border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800 rounded px-3 py-2">
+                                    <option value="yoga">Yoga / Mindfulness Studio</option>
+                                    <option value="gym">Gym / Fitness Center</option>
+                                    <option value="hybrid">Hybrid (Show All Metrics)</option>
+                                </select>
+                                <button type="submit" className="text-xs bg-blue-600 text-white border border-blue-600 hover:bg-blue-700 px-3 py-2 rounded font-medium">Save Studio Type</button>
+                            </form>
+                        </div>
+                    )}
+                </div>
+            </div>
 
             {/* Confirmation Dialogs */}
             <ConfirmationDialog

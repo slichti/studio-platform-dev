@@ -939,6 +939,41 @@ export const userChallenges = sqliteTable('user_challenges', {
     tenantIdx: index('user_challenge_tenant_idx').on(table.tenantId),
 }));
 
+// --- Progress Tracking (Advanced Metrics) ---
+export const progressMetricDefinitions = sqliteTable('progress_metric_definitions', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(), // e.g. "Classes Attended", "Total Minutes", "Weight Lifted"
+    category: text('category', { enum: ['mindfulness', 'strength', 'cardio', 'custom'] }).notNull(),
+    unit: text('unit').notNull(), // e.g. "classes", "minutes", "lbs", "kg"
+    icon: text('icon'), // Lucide icon name
+    aggregation: text('aggregation', { enum: ['sum', 'max', 'avg', 'latest'] }).default('sum'),
+    visibleToStudents: integer('visible_to_students', { mode: 'boolean' }).default(true).notNull(),
+    active: integer('active', { mode: 'boolean' }).default(true).notNull(),
+    displayOrder: integer('display_order').default(0).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('progress_metric_tenant_idx').on(table.tenantId),
+    categoryIdx: index('progress_metric_category_idx').on(table.tenantId, table.category),
+}));
+
+export const memberProgressEntries = sqliteTable('member_progress_entries', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+    memberId: text('member_id').notNull().references(() => tenantMembers.id, { onDelete: 'cascade' }),
+    metricDefinitionId: text('metric_definition_id').notNull().references(() => progressMetricDefinitions.id, { onDelete: 'cascade' }),
+    value: integer('value').notNull(), // Actual value (e.g. 150 lbs, 45 minutes)
+    recordedAt: integer('recorded_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    source: text('source', { enum: ['auto', 'manual', 'import'] }).default('auto'),
+    metadata: text('metadata', { mode: 'json' }), // { classId, exerciseName, notes }
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    memberIdx: index('progress_entry_member_idx').on(table.memberId),
+    metricIdx: index('progress_entry_metric_idx').on(table.metricDefinitionId),
+    tenantIdx: index('progress_entry_tenant_idx').on(table.tenantId),
+    recordedIdx: index('progress_entry_recorded_idx').on(table.memberId, table.recordedAt),
+}));
+
 // --- Phase 4b: Video Management ---
 export const videos = sqliteTable('videos', {
     id: text('id').primaryKey(),

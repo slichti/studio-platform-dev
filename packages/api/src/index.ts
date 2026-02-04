@@ -399,7 +399,7 @@ studioApp.post('/features', async (c) => {
 
   const { featureKey, enabled } = await c.req.json();
   // Allowlist of self-service features
-  const ALLOWED_FEATURES = ['sms', 'webhooks', 'kiosk', 'classpass', 'gympass'];
+  const ALLOWED_FEATURES = ['sms', 'webhooks', 'kiosk', 'classpass', 'gympass', 'progress_tracking'];
 
   if (!ALLOWED_FEATURES.includes(featureKey)) {
     return c.json({ error: "Feature not available for self-service" }, 400);
@@ -552,6 +552,9 @@ studioApp.route('/audit-logs', auditLogRoutes);
 
 import tenantWebhooksRouter from './routes/tenant.webhooks';
 studioApp.route('/webhooks', tenantWebhooksRouter);
+
+import progressRoutes from './routes/progress';
+studioApp.route('/progress', progressRoutes); // [NEW] Progress Tracking
 
 import { scheduled } from './cron';
 
