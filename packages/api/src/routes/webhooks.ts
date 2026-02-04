@@ -6,7 +6,9 @@ import * as schema from '@studio/db/src/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { HonoContext } from '../types';
 import { AggregatorService } from '../services/aggregators';
-import { tenants } from '@studio/db/src/schema'; // For lookup
+import { tenants, processedWebhooks } from '@studio/db/src/schema'; // For lookup
+import { verifyHmacSignature } from '../utils/security';
+import { AppError } from '../utils/errors';
 
 const app = new Hono<HonoContext>();
 
@@ -103,18 +105,32 @@ app.post('/stripe', async (c) => {
  * ClassPass Booking/Cancellation Webhook
  */
 app.post('/classpass', async (c) => {
-    const body = await c.req.json();
+    const rawBody = await c.req.text();
+    const body = JSON.parse(rawBody);
     const db = createDb(c.env.DB);
 
-    // ClassPass usually includes a partner_id or we resolve via custom header
     const partnerId = c.req.header('X-Partner-Id');
-    if (!partnerId) return c.json({ error: 'Missing Partner ID' }, 400);
+    const signature = c.req.header('X-ClassPass-Signature');
+
+    if (!partnerId || !signature) throw new AppError('Missing authentication headers', 401, 'AUTH_REQUIRED');
 
     const tenant = await db.query.tenants.findFirst({
         where: sql`${schema.tenants.aggregatorConfig}->'classpass'->>'partnerId' = ${partnerId}`
     });
 
-    if (!tenant) return c.json({ error: 'Tenant not found' }, 404);
+    if (!tenant) throw new AppError('Tenant not found', 404, 'TENANT_NOT_FOUND');
+
+    // 1. Verify Signature
+    const secret = (tenant.aggregatorConfig as any)?.classpass?.webhookSecret;
+    if (!secret) throw new AppError('Tenant missing ClassPass secret', 403, 'MISSING_SECRET');
+
+    const isValid = await verifyHmacSignature(rawBody, secret, signature);
+    if (!isValid) throw new AppError('Invalid signature', 401, 'INVALID_SIGNATURE');
+
+    // 2. Track Idempotency
+    const eventId = `classpass:${body.reservation?.id || body.event_id}`;
+    const exists = await db.select().from(processedWebhooks).where(eq(processedWebhooks.id, eventId)).get();
+    if (exists) return c.json({ success: true, duplicated: true });
 
     const service = new AggregatorService(db, c.env, tenant.id);
 
@@ -131,9 +147,10 @@ app.post('/classpass', async (c) => {
         } else if (body.type === 'RESERVATION_CANCEL') {
             await service.processPartnerCancellation('classpass', body.reservation.id);
         }
+
+        await db.insert(processedWebhooks).values({ id: eventId, type: 'classpass' }).run();
     } catch (e: any) {
-        console.error('[ClassPass Webhook] Error:', e);
-        return c.json({ error: e.message }, 500);
+        throw new AppError(e.message, 500, 'AGGREGATOR_ERROR');
     }
 
     return c.json({ success: true });
@@ -143,14 +160,29 @@ app.post('/classpass', async (c) => {
  * Gympass (Wellhub) Notify Webhook
  */
 app.post('/gympass', async (c) => {
-    const body = await c.req.json();
+    const rawBody = await c.req.text();
+    const body = JSON.parse(rawBody);
     const db = createDb(c.env.DB);
 
-    // Resolve tenant via slug or ID in metadata
+    const signature = c.req.header('X-Gympass-Signature');
+    if (!signature) throw new AppError('Missing signature', 401, 'AUTH_REQUIRED');
+
     const tenantId = body.gym_id;
     const tenant = await db.query.tenants.findFirst({ where: eq(schema.tenants.id, tenantId) });
 
-    if (!tenant) return c.json({ error: 'Invalid gym_id' }, 404);
+    if (!tenant) throw new AppError('Invalid gym_id', 404, 'TENANT_NOT_FOUND');
+
+    // 1. Verify Signature
+    const secret = (tenant.aggregatorConfig as any)?.gympass?.webhookSecret;
+    if (!secret) throw new AppError('Tenant missing Gympass secret', 403, 'MISSING_SECRET');
+
+    const isValid = await verifyHmacSignature(rawBody, secret, signature);
+    if (!isValid) throw new AppError('Invalid signature', 401, 'INVALID_SIGNATURE');
+
+    // 2. Track Idempotency
+    const eventId = `gympass:${body.data?.booking_id || body.event_id}`;
+    const exists = await db.select().from(processedWebhooks).where(eq(processedWebhooks.id, eventId)).get();
+    if (exists) return c.json({ success: true, duplicated: true });
 
     const service = new AggregatorService(db, c.env, tenant.id);
 
@@ -167,8 +199,10 @@ app.post('/gympass', async (c) => {
         } else if (body.event === 'booking.cancelled') {
             await service.processPartnerCancellation('gympass', body.data.booking_id);
         }
+
+        await db.insert(processedWebhooks).values({ id: eventId, type: 'gympass' }).run();
     } catch (e: any) {
-        return c.json({ error: e.message }, 500);
+        throw new AppError(e.message, 500, 'AGGREGATOR_ERROR');
     }
 
     return c.json({ success: true });

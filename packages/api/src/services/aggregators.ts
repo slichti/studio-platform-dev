@@ -1,6 +1,7 @@
 import { eq, and, sql, gte, lte } from 'drizzle-orm';
 import * as schema from '@studio/db/src/schema';
 import { BookingService } from './bookings';
+import { AuditService } from './audit'; // [NEW] Audit
 
 export interface AggregatorFeedItem {
     id: string;
@@ -18,9 +19,11 @@ export interface AggregatorFeedItem {
 
 export class AggregatorService {
     private bookingService: BookingService;
+    private audit: AuditService;
 
     constructor(private db: any, private env: any, private tenantId: string) {
         this.bookingService = new BookingService(db, env);
+        this.audit = new AuditService(db);
     }
 
     /**
@@ -143,6 +146,19 @@ export class AggregatorService {
             paymentMethod: 'free' // Usually handled by aggregator billing split later
         }).where(eq(schema.bookings.id, booking.id)).run();
 
+        // [NEW] Audit Log
+        await this.audit.log({
+            actorId: 'system',
+            action: `aggregator.booking_created`,
+            targetId: booking.id,
+            tenantId: this.tenantId,
+            details: {
+                source: params.externalSource,
+                externalId: params.externalId,
+                email: params.userEmail
+            }
+        });
+
         return booking;
     }
 
@@ -163,6 +179,19 @@ export class AggregatorService {
         }
 
         await this.bookingService.cancelBooking(booking.id);
+
+        // [NEW] Audit Log
+        await this.audit.log({
+            actorId: 'system',
+            action: `aggregator.booking_cancelled`,
+            targetId: booking.id,
+            tenantId: this.tenantId,
+            details: {
+                source: externalSource,
+                externalId: externalId
+            }
+        });
+
         return { success: true };
     }
 }

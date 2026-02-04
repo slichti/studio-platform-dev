@@ -63,6 +63,7 @@ import faqRoutes from './routes/faqs'; // [NEW] FAQs
 import adminMobile from './routes/admin.mobile'; // [NEW] Admin Mobile
 import adminSearch from './routes/admin.search'; // [NEW] Admin Search
 import tagsRoutes from './routes/tags'; // [NEW] Tags
+import { AppError } from './utils/errors';
 import customFieldRoutes from './routes/custom-fields'; // [NEW] Custom Fields
 import auditLogRoutes from './routes/audit-logs'; // [NEW] Audit Logs
 import docRoutes from './routes/docs'; // [NEW] Docs
@@ -113,6 +114,11 @@ app.use('*', cors({
 
 app.onError((err: any, c) => {
   console.error('Global App Error:', err);
+
+  // Handle centralized AppErrors
+  if (err instanceof AppError) {
+    return c.json(err.toJSON(), err.statusCode as any);
+  }
 
   // Only expose detailed error info in non-production environments
   const isDev = (c.env as any).ENVIRONMENT !== 'production';
@@ -194,7 +200,9 @@ const studioPaths = [
   '/sub-dispatch', '/sub-dispatch/*',
   '/waitlist', '/waitlist/*',
   '/video-management', '/video-management/*',
-  '/bookings', '/bookings/*'
+  '/bookings', '/bookings/*',
+  '/aggregators', '/aggregators/*',
+  '/webhooks', '/webhooks/*'
 ];
 
 const authenticatedPaths = [
@@ -219,7 +227,8 @@ const authenticatedPaths = [
   '/waitlist', '/waitlist/*',
   '/video-management', '/video-management/*',
   '/bookings', '/bookings/*',
-  '/diagnostics', '/diagnostics/*'  // Security: Require auth for diagnostics
+  '/diagnostics', '/diagnostics/*',  // Security: Require auth for diagnostics
+  '/webhooks/stripe', '/webhooks/zoom', '/webhooks/clerk' // Specific ones that need some level of auth or signature
 ];
 
 const publicStudioPaths = [
