@@ -16,3 +16,6 @@ yarn-error.log*
 /apps/web/.wrangler/
 !/apps/web/functions/[[path]].ts
 /apps/web/functions/_server.js
+
+# Email build artifacts
+packages/emails/out/
