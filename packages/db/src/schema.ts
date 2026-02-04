@@ -9,7 +9,7 @@ export const tenants = sqliteTable('tenants', {
     customDomain: text('custom_domain').unique(),
     branding: text('branding', { mode: 'json' }), // JSON: { primaryColor, logoUrl, font }
     mobileAppConfig: text('mobile_app_config', { mode: 'json' }), // JSON: { appName, iconUrl, splashUrl, primaryColor }
-    settings: text('settings', { mode: 'json' }), // JSON: { enableStudentRegistration, noShowFeeEnabled, noShowFeeAmount, notifications }
+    settings: text('settings', { mode: 'json' }), // JSON: { enableStudentRegistration, noShowFeeEnabled, noShowFeeAmount, notifications, progressTracking: { studioType, enabledCategories, showLeaderboards } }
     customFieldDefinitions: text('custom_field_definitions', { mode: 'json' }), // JSON: [{ key: 'tshirt_size', label: 'T-Shirt Size', type: 'text', options: [] }]
     stripeAccountId: text('stripe_account_id'), // Connect Account ID (Receiving money)
     stripeCustomerId: text('stripe_customer_id'), // Platform Customer ID (Paying for SaaS)
@@ -596,6 +596,9 @@ export const emailLogs = sqliteTable('email_logs', {
     emailIdx: index('email_log_email_idx').on(table.recipientEmail),
     sentAtIdx: index('email_log_sent_at_idx').on(table.sentAt),
 }));
+
+
+
 
 
 // --- Membership Plans (Tiers) ---

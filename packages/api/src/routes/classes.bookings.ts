@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { classes, bookings, tenantMembers, users } from '@studio/db/src/schema';
+import { classes, bookings, tenantMembers, users, progressMetricDefinitions } from '@studio/db/src/schema'; // Added progressMetricDefinitions
 import { eq, and, inArray } from 'drizzle-orm';
 import { HonoContext } from '../types';
 import { BookingService } from '../services/bookings';
@@ -62,6 +62,35 @@ app.patch('/:id/bookings/:bookingId/check-in', async (c) => {
     const db = createDb(c.env.DB);
     const { checkedIn } = await c.req.json();
     await db.update(bookings).set({ checkedInAt: checkedIn ? new Date() : null }).where(eq(bookings.id, c.req.param('bookingId'))).run();
+
+    // Auto-Log Progress
+    if (checkedIn) {
+        c.executionCtx.waitUntil((async () => {
+            try {
+                const { ProgressService } = await import('../services/progress');
+                const auth = c.get('auth');
+                const tenantId = c.get('tenant')!.id;
+                // Fetch memberId from booking
+                const booking = await db.select().from(bookings).where(eq(bookings.id, c.req.param('bookingId'))).get();
+                if (booking) {
+                    const ps = new ProgressService(db, tenantId);
+                    await ps.logEntry({ memberId: booking.memberId, metricDefinitionId: '', value: 1, source: 'auto', metadata: { bookingId: booking.id }, recordedAt: new Date() })
+                        .catch(async () => {
+                            // Fallback: Resolve metric name if ID is unknown (Service usually needs name, but logEntry takes ID. Need to look up ID by Name first or use helper)
+                            // Refactoring: ProgressService.logEntryByName helper would be better, but let's do it manually for now or update service.
+                            // Checking existing Service... it takes { metricDefinitionId }
+                            // I need to look up the ID for "Classes Attended" first.
+                            const metric = await db.query.progressMetricDefinitions.findFirst({
+                                where: and(eq(progressMetricDefinitions.tenantId, tenantId), eq(progressMetricDefinitions.name, 'Classes Attended'))
+                            });
+                            if (metric) {
+                                await ps.logEntry({ memberId: booking.memberId, metricDefinitionId: metric.id, value: 1, source: 'auto', metadata: { bookingId: booking.id }, recordedAt: new Date() });
+                            }
+                        });
+                }
+            } catch (e) { console.error("Progress Log Error", e); }
+        })());
+    }
     return c.json({ success: true });
 });
 
@@ -72,6 +101,27 @@ app.post('/:id/bulk-check-in', async (c) => {
     const { bookingIds, checkedIn } = await c.req.json();
     if (!bookingIds?.length) return c.json({ error: "Missing IDs" }, 400);
     await db.update(bookings).set({ checkedInAt: checkedIn ? new Date() : null }).where(inArray(bookings.id, bookingIds)).run();
+
+    // Auto-Log Bulk
+    if (checkedIn) {
+        c.executionCtx.waitUntil((async () => {
+            try {
+                const { ProgressService } = await import('../services/progress');
+                const tenantId = c.get('tenant')!.id;
+                const ps = new ProgressService(db, tenantId);
+                // Resolve Metric ID once
+                const metric = await db.query.progressMetricDefinitions.findFirst({
+                    where: and(eq(progressMetricDefinitions.tenantId, tenantId), eq(progressMetricDefinitions.name, 'Classes Attended'))
+                });
+                if (!metric) return;
+
+                const bList = await db.select().from(bookings).where(inArray(bookings.id, bookingIds)).all();
+                for (const b of bList) {
+                    await ps.logEntry({ memberId: b.memberId, metricDefinitionId: metric.id, value: 1, source: 'auto', metadata: { bookingId: b.id }, recordedAt: new Date() });
+                }
+            } catch (e) { console.error("Bulk Progress Log Error", e); }
+        })());
+    }
     return c.json({ success: true, count: bookingIds.length });
 });
 

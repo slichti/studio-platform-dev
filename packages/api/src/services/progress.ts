@@ -187,4 +187,36 @@ export class ProgressService {
 
         return { seeded: toInsert.length, skipped: defaults.length - toInsert.length };
     }
+
+    async createMetric(data: any) {
+        const id = crypto.randomUUID();
+        await this.db.insert(progressMetricDefinitions).values({
+            id,
+            tenantId: this.tenantId,
+            name: data.name,
+            category: data.category || 'custom',
+            unit: data.unit,
+            icon: data.icon,
+            aggregation: data.aggregation || 'sum',
+            visibleToStudents: data.visibleToStudents ?? true,
+            active: true,
+            displayOrder: 99 // Default to end
+        }).run();
+        return { id, ...data };
+    }
+
+    async updateMetric(id: string, data: any) {
+        await this.db.update(progressMetricDefinitions)
+            .set(data)
+            .where(and(eq(progressMetricDefinitions.id, id), eq(progressMetricDefinitions.tenantId, this.tenantId)))
+            .run();
+        return { success: true };
+    }
+
+    async deleteMetric(id: string) {
+        await this.db.delete(progressMetricDefinitions)
+            .where(and(eq(progressMetricDefinitions.id, id), eq(progressMetricDefinitions.tenantId, this.tenantId)))
+            .run();
+        return { success: true };
+    }
 }

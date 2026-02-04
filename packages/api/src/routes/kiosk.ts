@@ -186,6 +186,22 @@ protectedApp.post('/checkin/:bookingId', async (c) => {
         // optional: updatedBy: 'kiosk' if we tracked that
     }).where(eq(bookings.id, bookingId)).run();
 
+    // Auto-Log Progress
+    c.executionCtx.waitUntil((async () => {
+        try {
+            const { ProgressService } = await import('../services/progress');
+            const { progressMetricDefinitions } = await import('@studio/db/src/schema');
+            const ps = new ProgressService(db, tenantId);
+            const metric = await db.select().from(progressMetricDefinitions)
+                .where(and(eq(progressMetricDefinitions.tenantId, tenantId), eq(progressMetricDefinitions.name, 'Classes Attended')))
+                .get();
+
+            if (metric) {
+                await ps.logEntry({ memberId: booking.bookings.memberId, metricDefinitionId: metric.id, value: 1, source: 'auto', metadata: { bookingId: booking.bookings.id, kiosk: true }, recordedAt: new Date() });
+            }
+        } catch (e) { console.error("Kiosk Progress Log Error", e); }
+    })());
+
     return c.json({ success: true, timestamp: new Date() });
 });
 

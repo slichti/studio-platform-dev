@@ -41,7 +41,8 @@ import {
     QrCode,
     Trophy,
     History,
-    Shield
+    Shield,
+    Activity
 } from "lucide-react";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { CommandBar } from "../components/CommandBar";
@@ -252,6 +253,9 @@ export default function StudioLayout() {
                             {isStudentView ? "Attendance History" : "Check-in"}
                         </NavItem>
                         <NavItem to={`/studio/${slug}/challenges`} icon={<Trophy size={18} />}>Challenges</NavItem>
+                        {featureSet.has('progress_tracking') && (
+                            <NavItem to={`/studio/${slug}/progress`} icon={<Activity size={18} />}>My Progress</NavItem>
+                        )}
                         {/* Only show Substitutions to Instructors/Admins */}
                         {!isStudentView && (
                             <NavItem to={`/studio/${slug}/substitutions`} icon={<RefreshCw size={18} />}>Substitutions</NavItem>

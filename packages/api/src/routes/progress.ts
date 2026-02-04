@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { createDb } from '../db';
 import { HonoContext } from '../types';
 import { ProgressService } from '../services/progress';
+import { progressMetricDefinitions } from '@studio/db/src/schema'; // Type import if needed
 
 const app = new Hono<HonoContext>();
 
@@ -22,7 +23,6 @@ app.get('/metrics', async (c) => {
     const metrics = await service.getMetrics(isStaff);
     return c.json(metrics);
 });
-
 // POST /metrics - Create new metric (admin only)
 app.post('/metrics', async (c) => {
     if (!c.get('can')('manage_progress')) {
@@ -31,10 +31,29 @@ app.post('/metrics', async (c) => {
 
     const service = getService(c);
     const body = await c.req.json();
-    const metric = await service.logEntry({ ...body, source: 'manual' });
+    const metric = await service.createMetric(body);
 
     return c.json(metric, 201);
 });
+
+// PUT /metrics/:id - Update metric definition
+app.put('/metrics/:id', async (c) => {
+    if (!c.get('can')('manage_progress')) return c.json({ error: 'Unauthorized' }, 403);
+    const service = getService(c);
+    const body = await c.req.json();
+    await service.updateMetric(c.req.param('id'), body);
+    return c.json({ success: true });
+});
+
+// DELETE /metrics/:id - Delete metric definition
+app.delete('/metrics/:id', async (c) => {
+    if (!c.get('can')('manage_progress')) return c.json({ error: 'Unauthorized' }, 403);
+    const service = getService(c);
+    await service.deleteMetric(c.req.param('id'));
+    return c.json({ success: true });
+});
+
+
 
 // GET /my-stats - Get current user's aggregated stats
 app.get('/my-stats', async (c) => {
