@@ -308,5 +308,32 @@ erDiagram
         timestamp created_at
     }
 
-    tenants ||--o{ tenant_features : "has enabled"
+    %% Progress Tracking
+    progress_metric_definitions {
+        string id PK
+        string tenant_id FK
+        string name
+        enum category
+        string unit
+        string icon
+        enum aggregation
+        boolean visible_to_students
+        boolean active
+        integer display_order
+    }
+    member_progress_entries {
+        string id PK
+        string tenant_id FK
+        string member_id FK
+        string metric_definition_id FK
+        integer value
+        timestamp recorded_at
+        enum source
+        json metadata
+    }
+
+    tenants ||--o{ progress_metric_definitions : "defines"
+    progress_metric_definitions ||--o{ member_progress_entries : "has"
+    tenant_members ||--o{ member_progress_entries : "logs"
+    tenants ||--o{ member_progress_entries : "contains"
 ```

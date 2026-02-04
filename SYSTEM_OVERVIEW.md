@@ -173,6 +173,32 @@ The payroll engine supports both flat/hourly rates and percentage-of-revenue pay
 - **Credit Value Calculation**: For students using class packs, the revenue for that booking is calculated by prorating the pack's purchase price over its total credits.
 - **Refund Reconciliation**: Webhooks automatically reverse class credits and disable gift cards if the associated Stripe transaction is refunded.
 
+### 7. Advanced Progress Tracking
+The system allows studios to track member performance and attendance milestones based on their business focus.
+- **Studio Types**: Owners select a business model (Yoga, Gym, Hybrid) which seeds relevant default metrics.
+- **Metric Visibility**: Admins can toggle whether specific metrics (e.g., "Weight Lifted") are visible to students.
+- **Aggregation**: Data is automatically aggregated using functions like `SUM`, `MAX`, or `AVG` to provide meaningful stats.
+
+```mermaid
+sequenceDiagram
+    participant Owner
+    participant API
+    participant DB
+    participant Student
+
+    Note over Owner, DB: Setup & Seeding
+    Owner->>API: PUT /progress/settings (studioType: "Gym")
+    API->>DB: Store Progress Config
+    Owner->>API: POST /progress/seed-defaults
+    API->>DB: Create default Gym metrics (Strength, Cardio)
+
+    Note over Student, DB: Visualization
+    Student->>API: GET /progress/my-stats
+    API->>DB: Aggregating entries for member
+    DB-->>API: Return totals per metric
+    API-->>Student: Display visual stat cards
+```
+
 ## Security Implementation
 
 ### Authentication Strategy

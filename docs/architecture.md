@@ -101,6 +101,7 @@ flowchart TD
         STU -.->|Cannot| PHOTOS[Access Photos]
         STU -.->|Can| BOOK[Book Classes]
         STU -.->|Can| VIDEOS[Watch Videos]
+        STU -.->|Can| PROGRESS[View Progress]
     end
 
 ```
@@ -149,6 +150,7 @@ flowchart TB
         VIDEO["/video-management/*"]
         CHAT["/chat/*"]
         WEBHOOKS["/webhooks/*"]
+        PROGRESS["/progress/*"]
         ADMIN_MOBILE["/admin/mobile/*"]
     end
 
@@ -169,6 +171,7 @@ flowchart TB
     ROUTES --> VIDEO
     ROUTES --> CHAT
     ROUTES --> WEBHOOKS
+    ROUTES --> PROGRESS
 ```
 
 ## Technology Stack
