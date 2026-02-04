@@ -1,4 +1,4 @@
-// @ts-ignore
+
 import { useLoaderData, useNavigate } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";

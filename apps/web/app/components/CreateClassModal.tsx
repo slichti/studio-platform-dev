@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Modal } from "./Modal";
 import { apiRequest } from "../utils/api";
 import { useAuth } from "@clerk/react-router";
-// @ts-ignore
+
 import { useParams } from "react-router";
 
 interface CreateClassModalProps {

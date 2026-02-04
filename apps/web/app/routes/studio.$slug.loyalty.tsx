@@ -1,7 +1,7 @@
 
-// @ts-ignore
+
 import { useLoaderData, useActionData, Form, useNavigation, useSubmit, redirect, useOutletContext } from "react-router";
-// @ts-ignore
+
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { apiRequest } from "~/utils/api";
 import { getAuth } from "@clerk/react-router/server";
@@ -91,7 +91,7 @@ export const action = async (args: ActionFunctionArgs) => {
 };
 
 export default function LoyaltyPage() {
-    // @ts-ignore
+
     const { challenges, error } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -99,13 +99,13 @@ export default function LoyaltyPage() {
     useEffect(() => {
         if (actionData && (actionData as any).success) {
             setIsCreateModalOpen(false);
-            // @ts-ignore
+
             if (typeof toast !== 'undefined') toast.success("Success!");
         }
     }, [actionData]);
 
-    // @ts-ignore
-    const { me } = useOutletContext();
+
+    const { me } = useOutletContext<{ me: any, tenant: any }>();
     const isManager = me?.roles?.includes('owner') || me?.roles?.includes('admin') || me?.roles?.includes('instructor');
 
     return (

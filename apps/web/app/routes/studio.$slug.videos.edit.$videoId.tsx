@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-// @ts-ignore
+
 import { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
-// @ts-ignore
+
 import { useLoaderData, Form, useNavigate } from "react-router";
 import { apiRequest } from "~/utils/api";
 import { getAuth } from "@clerk/react-router/server";

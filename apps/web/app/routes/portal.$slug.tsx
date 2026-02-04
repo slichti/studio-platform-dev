@@ -1,4 +1,4 @@
-import { ActionFunctionArgs, LoaderFunctionArgs, redirect } from "react-router"; // @ts-ignore
+import { ActionFunctionArgs, LoaderFunctionArgs, redirect } from "react-router"; 
 import { Outlet, Link, useLoaderData, useLocation, useOutletContext, NavLink } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";

@@ -1,7 +1,7 @@
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment, useState } from 'react';
 import { X, User, Users } from 'lucide-react';
-// @ts-ignore
+
 import { useFetcher } from 'react-router';
 
 interface BookingModalProps {

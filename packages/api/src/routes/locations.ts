@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { locations } from '@studio/db/src/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { HonoContext } from '../types';
 
 const app = new Hono<HonoContext>();
@@ -62,7 +62,18 @@ app.delete('/:id', async (c) => {
     if (!tenant) return c.json({ error: 'Tenant context missing' }, 400);
     const id = c.req.param('id');
 
-    // TODO: Check if classes exist for this location before deleting
+    // Check if classes exist for this location before deleting
+
+    const { classes } = await import('@studio/db/src/schema');
+    const classCount = await db.select({ count: sql<number>`count(*)` })
+        .from(classes)
+        .where(and(eq(classes.locationId, id), eq(classes.tenantId, tenant.id)))
+        .get();
+
+    if (classCount && classCount.count > 0) {
+        return c.json({ error: "Cannot delete location with active classes. Please reassign or delete classes first." }, 409);
+    }
+
     await db.delete(locations).where(and(eq(locations.id, id), eq(locations.tenantId, tenant.id)));
 
     return c.json({ success: true });

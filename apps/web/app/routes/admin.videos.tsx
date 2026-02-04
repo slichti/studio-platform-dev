@@ -1,6 +1,6 @@
-// @ts-ignore
+
 import { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-// @ts-ignore
+
 import { useLoaderData, Form, useSubmit, Link, redirect, useSearchParams, useRevalidator } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";

@@ -1,6 +1,6 @@
-// @ts-ignore
-import { useLoaderData, useOutletContext, Form } from "react-router"; // @ts-ignore
-import type { LoaderFunctionArgs } from "react-router"; // @ts-ignore
+
+import { useLoaderData, useOutletContext, Form } from "react-router"; 
+import type { LoaderFunctionArgs } from "react-router"; 
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { User, Mail, Calendar, CreditCard, LogOut, Shield } from "lucide-react";

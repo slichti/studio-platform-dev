@@ -1,6 +1,6 @@
-// @ts-ignore
+
 import type { ActionFunctionArgs } from "react-router";
-// @ts-ignore
+
 import { Form, useNavigation, useActionData, Link } from "react-router";
 import { useAuth } from "@clerk/react-router";
 import { getAuth } from "@clerk/react-router/server";
@@ -134,8 +134,8 @@ export default function NewWaiverTemplate() {
                                         const data = await res.json();
 
                                         const input = document.getElementById('pdf-url-input') as HTMLInputElement;
-                                        // @ts-ignore
-                                        if (input) input.value = data.url;
+
+                                        if (input) input.value = (data as any).url;
                                         toast.success("PDF Uploaded successfully!");
                                     } catch (err: any) {
                                         toast.error("Upload failed: " + err.message);

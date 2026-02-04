@@ -1,6 +1,6 @@
-// @ts-ignore
+
 import type { MetaFunction } from "react-router";
-// @ts-ignore
+
 import { Link } from "react-router";
 import { ThemeToggle } from "~/components/ThemeToggle";
 import { Check, Minus, HelpCircle } from "lucide-react";

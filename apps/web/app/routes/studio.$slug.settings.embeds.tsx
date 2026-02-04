@@ -1,4 +1,4 @@
-// @ts-ignore
+
 import { useOutletContext, useParams } from "react-router";
 import { Link, Code, Copy, Check, ExternalLink } from "lucide-react";
 import { useState } from "react";

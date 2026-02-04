@@ -1,7 +1,7 @@
 
-// @ts-ignore
+
 import { useLoaderData, useFetcher } from "react-router";
-// @ts-ignore
+
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { useState } from "react";

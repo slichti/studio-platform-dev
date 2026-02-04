@@ -17,7 +17,7 @@ import {
     CheckCircle2,
     Loader2
 } from "lucide-react";
-// @ts-ignore
+
 import { loadStripeTerminal } from "@stripe/terminal-js";
 
 // Types

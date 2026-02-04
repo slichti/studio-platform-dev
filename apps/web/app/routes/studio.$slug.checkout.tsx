@@ -1,6 +1,6 @@
-// @ts-ignore
+
 import type { LoaderFunctionArgs } from "react-router";
-// @ts-ignore
+
 import { useLoaderData, useSearchParams, useNavigate } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { loadStripe } from "@stripe/stripe-js";

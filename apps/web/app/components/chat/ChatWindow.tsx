@@ -46,7 +46,8 @@ export function ChatWindow({ roomId, token, currentUser, wsUrl, tenantSlug, onCl
         // Wait, the API `chat.ts` uses `tenantMiddleware` which reads `Authorization` header.
         // WebSockets CANNOT send headers.
         // We need a ticket system OR we pass token in protocol/query.
-        // Let's pass it in query for now to unblock, but flagged as TODO.
+        // Note: We pass token in query param because browser WebSocket API does not support headers.
+
         // Actually, `chat.ts` is protected by `tenantMiddleware` on the route `/rooms/...`.
         // The `app.get` runs BEFORE `stub.fetch`. So the upgrade request IS an HTTP request that supports headers!
         // So we CAN send headers if we use a custom client, BUT browser `new WebSocket()` does NOT allow custom headers.

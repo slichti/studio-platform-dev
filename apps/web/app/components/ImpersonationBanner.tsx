@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Users, LogOut, ChevronDown, Check } from 'lucide-react';
 import { Menu } from '@headlessui/react';
 import { useClerk } from '@clerk/react-router';
-// @ts-ignore
+
 import { useSubmit } from "react-router";
 
 interface ImpersonationBannerProps {

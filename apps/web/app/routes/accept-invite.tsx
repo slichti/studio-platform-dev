@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-// @ts-ignore
+
 import { useNavigate, useSearchParams } from "react-router";
 import { useUser, SignedIn, SignedOut, RedirectToSignIn } from "@clerk/react-router";
 import { apiRequest } from "../utils/api";

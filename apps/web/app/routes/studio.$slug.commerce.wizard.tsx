@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-// @ts-ignore
+
 import { useOutletContext, useNavigate, Link } from "react-router";
 import { apiRequest } from "~/utils/api";
 import { toast } from "sonner";

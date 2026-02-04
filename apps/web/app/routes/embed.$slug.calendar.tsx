@@ -1,6 +1,6 @@
-// @ts-ignore
+
 import { useLoaderData, useOutletContext } from "react-router";
-// @ts-ignore
+
 import type { LoaderFunctionArgs } from "react-router";
 import { format } from "date-fns";
 import { ExternalLink, Calendar as CalendarIcon, MapPin, Video } from "lucide-react";

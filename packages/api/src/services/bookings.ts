@@ -100,7 +100,7 @@ export class BookingService {
             }).where(eq(bookings.id, next.id)).run();
 
             // Notify User
-            // TODO: Get Tenant/Member info and send email
+            // Notify User
             try {
                 // Fetch Member & Tenant to send email
                 const member = await this.db.query.tenantMembers.findFirst({

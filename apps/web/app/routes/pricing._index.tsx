@@ -1,6 +1,6 @@
-// @ts-ignore
+
 import type { MetaFunction } from "react-router";
-// @ts-ignore
+
 import { Link, useLoaderData } from "react-router";
 import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/react-router";
 import { ThemeToggle } from "~/components/ThemeToggle";

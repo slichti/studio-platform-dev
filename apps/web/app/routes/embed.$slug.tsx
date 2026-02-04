@@ -1,6 +1,6 @@
-// @ts-ignore
+
 import { Outlet, useLoaderData } from "react-router";
-// @ts-ignore
+
 import type { LoaderFunctionArgs } from "react-router";
 import { ThemeProvider } from "../components/ThemeProvider";
 

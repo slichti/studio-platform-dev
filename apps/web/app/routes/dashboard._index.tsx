@@ -1,4 +1,4 @@
-// @ts-ignore
+
 import { Link, useRouteLoaderData } from "react-router";
 import { Plus, Building2, ShieldCheck, Search } from "lucide-react";
 

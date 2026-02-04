@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-// @ts-ignore
+
 import { useFetcher } from 'react-router';
 import { apiRequest } from '~/utils/api';
 import { User, Calendar, Baby } from 'lucide-react';

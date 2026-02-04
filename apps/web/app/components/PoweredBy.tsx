@@ -1,4 +1,4 @@
-// @ts-ignore
+
 import { Link } from "react-router";
 
 interface PoweredByProps {

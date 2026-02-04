@@ -1,4 +1,4 @@
-// @ts-ignore
+
 import { type LoaderFunctionArgs } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 

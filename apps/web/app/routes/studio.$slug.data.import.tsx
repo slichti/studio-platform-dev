@@ -1,5 +1,5 @@
 import { useState } from "react";
-// @ts-ignore
+
 import { useOutletContext, Form } from "react-router";
 import { apiRequest } from "../utils/api";
 import { Upload, FileText, CheckCircle, AlertCircle } from "lucide-react";

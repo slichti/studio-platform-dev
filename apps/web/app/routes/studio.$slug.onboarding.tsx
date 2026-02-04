@@ -1,6 +1,6 @@
-// @ts-ignore
-import { useLoaderData, useOutletContext, Form, useNavigation, useSubmit, Link, useNavigate } from "react-router"; // @ts-ignore
-import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router"; // @ts-ignore
+
+import { useLoaderData, useOutletContext, Form, useNavigation, useSubmit, Link, useNavigate } from "react-router"; 
+import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router"; 
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";

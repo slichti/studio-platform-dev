@@ -1,6 +1,5 @@
-// @ts-ignore
-import { useLoaderData, useOutletContext, Link } from "react-router"; // @ts-ignore
-import type { LoaderFunctionArgs } from "react-router"; // @ts-ignore
+import { useLoaderData, useOutletContext, Link } from "react-router";
+import type { LoaderFunctionArgs } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
 import { Award, Target, Flame, Activity } from "lucide-react";

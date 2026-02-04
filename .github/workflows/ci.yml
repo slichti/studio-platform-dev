@@ -20,8 +20,8 @@ jobs:
       - run: npm run lint
         env:
           ESLINT_USE_FLAT_CONFIG: false
-      - run: npm run typecheck -- --filter=!mobile --filter=!web
-      - run: npm run test -- --filter=!web
+      - run: npm run typecheck -- --filter=!mobile
+      - run: npm run test
 
   deploy-api:
     needs: validate

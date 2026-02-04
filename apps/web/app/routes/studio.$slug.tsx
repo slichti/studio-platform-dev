@@ -1,5 +1,5 @@
 import { Outlet, useLoaderData, useParams, NavLink, redirect, Link, useSearchParams } from "react-router";
-// @ts-ignore
+
 import type { LoaderFunctionArgs } from "react-router";
 import { useState, useEffect } from "react"; // Added useState
 import { getAuth } from "@clerk/react-router/server";
@@ -65,7 +65,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
     // [SECURITY CRITICAL] ONLY allow bypass in Development/Test environments
     // This prevents production exploitation of the bypass cookie
-    // @ts-ignore
+
     const isDev = import.meta.env.DEV || process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
 
     if (isDev && cookie?.includes("__e2e_bypass_user_id=")) {
@@ -160,8 +160,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
 export default function StudioLayout() {
     const { slug } = useParams();
-    // @ts-ignore
-    const { tenant, me, features, activeMemberships, isPaused, token, isImpersonating } = useLoaderData<typeof loader>();
+
+    const { tenant, me, features, isPaused, token, isImpersonating } = useLoaderData<typeof loader>();
     const { user: clerkUser } = useUser();
     const featureSet = new Set(features);
 

@@ -1,6 +1,6 @@
-// @ts-ignore
+
 import type { AppLoadContext, EntryContext } from "react-router";
-// @ts-ignore
+
 import { ServerRouter } from "react-router-dom";
 import { isbot } from "isbot";
 import { renderToReadableStream } from "react-dom/server";

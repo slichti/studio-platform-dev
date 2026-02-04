@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-// @ts-ignore
+
 import { useParams } from "react-router";
 import {
     LiveKitRoom,

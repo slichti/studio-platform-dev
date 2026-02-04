@@ -1,6 +1,6 @@
-// @ts-ignore
+
 import { LoaderFunction, ActionFunction } from "react-router";
-// @ts-ignore
+
 import { useLoaderData, Form, useActionData, useNavigation } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { UserProfile } from "@clerk/react-router";

@@ -1,5 +1,5 @@
 import { useUser, useClerk } from "@clerk/react-router";
-// @ts-ignore
+
 import { NavLink, useLocation } from "react-router";
 import { useState, useEffect } from "react";
 import { ThemeToggle } from "./ThemeToggle";

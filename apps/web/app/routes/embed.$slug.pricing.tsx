@@ -1,7 +1,7 @@
 
-// @ts-ignore
+
 import { useLoaderData, useOutletContext } from "react-router";
-// @ts-ignore
+
 import type { LoaderFunctionArgs } from "react-router";
 import { Check, CreditCard, Sparkles, Tag, AlertCircle } from "lucide-react";
 

@@ -1,6 +1,6 @@
-// @ts-ignore
+
 import { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
-// @ts-ignore
+
 import { useLoaderData, useSubmit, Form, redirect } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
@@ -321,8 +321,8 @@ function CreateAutomationModal({ onClose, onSave, initialData }: { onClose: () =
     const handleAiGenerate = async () => {
         setAiGenerating(true);
         try {
-            // @ts-ignore
-            const token = await window.Clerk?.session?.getToken();
+
+            const token = await (window as any).Clerk?.session?.getToken();
             const slug = window.location.pathname.split('/')[2]; // Extract slug from URL
             const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/marketing/automations/ai/generate`, {
                 method: 'POST',

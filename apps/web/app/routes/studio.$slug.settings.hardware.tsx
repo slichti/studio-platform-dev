@@ -1,5 +1,5 @@
 
-// @ts-ignore
+
 import { useOutletContext } from "react-router";
 import { apiRequest } from "../utils/api";
 import { useState, useEffect } from "react";

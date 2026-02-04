@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-// @ts-ignore
+
 import { useOutletContext, useLoaderData, useRevalidator } from "react-router";
 import { apiRequest } from "../utils/api";
 import { getAuth } from "@clerk/react-router/server";

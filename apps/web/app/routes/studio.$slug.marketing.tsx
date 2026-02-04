@@ -1,6 +1,6 @@
-// @ts-ignore
+
 import { useLoaderData, useFetcher } from "react-router";
-// @ts-ignore
+
 import { LoaderFunction } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { useAuth } from "@clerk/react-router";

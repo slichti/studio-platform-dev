@@ -1,6 +1,6 @@
-// @ts-ignore
+
 import { useLoaderData } from "react-router";
-// @ts-ignore
+
 import { LoaderFunction } from "react-router";
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";

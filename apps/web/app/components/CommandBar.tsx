@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Search, User, Dumbbell, ShoppingCart, Loader2, X, Activity } from "lucide-react";
-// @ts-ignore
+
 import { useNavigate, useParams } from "react-router";
 import { apiRequest } from "~/utils/api";
 

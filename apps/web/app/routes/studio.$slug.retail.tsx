@@ -1,6 +1,6 @@
-// @ts-ignore
+
 import { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
-// @ts-ignore
+
 import { useLoaderData, useSubmit, Form, redirect, useRevalidator, useFetcher } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
@@ -30,7 +30,7 @@ export const action = async (args: ActionFunctionArgs) => {
     const { getToken } = await getAuth(args);
     const { slug } = args.params;
     const token = await getToken();
-    // @ts-ignore - types mismatch sometimes
+
     const formData = await args.request.formData();
     const intent = formData.get("intent");
     const tenantSlug = slug || '';
@@ -343,7 +343,7 @@ function ProductModal({ product, onClose, onSave }: { product?: any, onClose: ()
     const [imageUrl, setImageUrl] = useState(product?.imageUrl || "");
     const [isActive, setIsActive] = useState(product?.isActive !== false);
 
-    // @ts-ignore
+
     const fetcher = useFetcher();
     const isUploading = fetcher.state !== "idle";
 

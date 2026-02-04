@@ -8,7 +8,7 @@ import { apiRequest } from "../utils/api";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { LogoutButton } from "../components/LogoutButton";
 
-// @ts-ignore
+
 import Fuse from "fuse.js";
 import { docsIndex } from "../utils/docsIndex";
 import { useNavigate } from "react-router";
