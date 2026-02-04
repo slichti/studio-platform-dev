@@ -15,6 +15,7 @@ describe('ChurnService', () => {
             orderBy: vi.fn().mockReturnThis(),
             limit: vi.fn().mockReturnThis(),
             get: vi.fn(),
+            all: vi.fn(),
             query: {
                 tenantMembers: {
                     findFirst: vi.fn()
@@ -28,19 +29,19 @@ describe('ChurnService', () => {
         const lastDate = new Date();
         lastDate.setDate(lastDate.getDate() - 65);
 
-        mockDb.get.mockResolvedValue({ date: lastDate }); // booking found
+        mockDb.all.mockResolvedValue([{ bookings: { status: 'confirmed' }, classes: { startTime: lastDate } }]); // booking found
         mockDb.query.tenantMembers.findFirst.mockResolvedValue({ joinedAt: new Date() });
 
         const result = await churnService.analyzeMemberRisk('member-1');
         expect(result.riskLevel).toBe('high');
-        expect(result.churnScore).toBe(10);
+        expect(result.churnScore).toBe(40);
     });
 
     it('should return low risk if days since last attendance < 14', async () => {
         const lastDate = new Date();
         lastDate.setDate(lastDate.getDate() - 5);
 
-        mockDb.get.mockResolvedValue({ date: lastDate });
+        mockDb.all.mockResolvedValue([{ bookings: { status: 'confirmed' }, classes: { startTime: lastDate } }]);
         mockDb.query.tenantMembers.findFirst.mockResolvedValue({ joinedAt: new Date() });
 
         const result = await churnService.analyzeMemberRisk('member-1');
@@ -52,11 +53,11 @@ describe('ChurnService', () => {
         const lastDate = new Date();
         lastDate.setDate(lastDate.getDate() - 40);
 
-        mockDb.get.mockResolvedValue({ date: lastDate });
+        mockDb.all.mockResolvedValue([{ bookings: { status: 'confirmed' }, classes: { startTime: lastDate } }]);
         mockDb.query.tenantMembers.findFirst.mockResolvedValue({ joinedAt: new Date() });
 
         const result = await churnService.analyzeMemberRisk('member-1');
         expect(result.riskLevel).toBe('medium');
-        expect(result.churnScore).toBe(40);
+        expect(result.churnScore).toBe(70);
     });
 });

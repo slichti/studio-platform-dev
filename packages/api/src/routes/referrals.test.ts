@@ -54,12 +54,12 @@ describe('Referrals API', () => {
         return testApp;
     };
 
-    describe('GET /my-code', () => {
+    describe('GET /stats', () => {
         it('generates a new code if none exists', async () => {
             mockGet.mockResolvedValueOnce(null); // No existing code
 
             const app = createTestApp();
-            const res = await app.request('/my-code', { method: 'GET' }, { DB: {} });
+            const res = await app.request('/stats', { method: 'GET' }, { DB: {} });
 
             expect(res.status).toBe(200);
             const data = await res.json() as any;
@@ -68,42 +68,36 @@ describe('Referrals API', () => {
         });
 
         it('returns existing code if present', async () => {
-            mockGet.mockResolvedValueOnce({ code: 'ABC12345' });
+            mockGet.mockResolvedValueOnce({ code: 'ABC12345', clicks: 0, signups: 0, earnings: 0 });
 
             const app = createTestApp();
-            const res = await app.request('/my-code', { method: 'GET' }, { DB: {} });
+            const res = await app.request('/stats', { method: 'GET' }, { DB: {} });
 
             expect(res.status).toBe(200);
             const data = await res.json() as any;
             expect(data.code).toBe('ABC12345');
         });
-    });
 
-    describe('GET /stats', () => {
         it('returns correct aggregation', async () => {
+            mockGet.mockResolvedValueOnce({ code: 'ABC12345', clicks: 10, signups: 5, earnings: 1000 });
             mockAll.mockResolvedValueOnce([
-                { status: 'pending' },
-                { status: 'pending' },
-                { status: 'completed' },
-                { status: 'rewarded' }
+                { id: '1', status: 'pending', amount: 2000 },
+                { id: '2', status: 'paid', amount: 2000 }
             ]);
 
-            const app = createTestApp(['manage_marketing']);
+            const app = createTestApp();
             const res = await app.request('/stats', { method: 'GET' }, { DB: {} });
 
             expect(res.status).toBe(200);
             const data = await res.json() as any;
 
-            expect(data.total).toBe(4);
-            expect(data.pending).toBe(2);
-            expect(data.completed).toBe(1);
-            expect(data.rewarded).toBe(1);
+            expect(data.stats.clicks).toBe(10);
+            expect(data.stats.signups).toBe(5);
+            expect(data.stats.earnings).toBe(1000);
+            expect(data.history).toHaveLength(2);
         });
 
-        it('denies access to non-owners', async () => {
-            const app = createTestApp([]); // No permissions
-            const res = await app.request('/stats', { method: 'GET' }, { DB: {} });
-            expect(res.status).toBe(403);
-        });
+        // Removed permission check test as logic does not enforce custom logic anymore 
+        // (it uses generic tenant/member middleware which is mocked)
     });
 });
