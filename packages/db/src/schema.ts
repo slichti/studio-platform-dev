@@ -773,6 +773,7 @@ export const substitutions = sqliteTable('substitutions', {
 export const products = sqliteTable('products', {
     id: text('id').primaryKey(),
     tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    supplierId: text('supplier_id').references(() => suppliers.id),
     name: text('name').notNull(),
     description: text('description'),
     category: text('category'), // e.g. "Equipement", "Apparel", "Food"
@@ -789,6 +790,71 @@ export const products = sqliteTable('products', {
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     tenantIdx: index('product_tenant_idx').on(table.tenantId),
+    supplierIdx: index('product_supplier_idx').on(table.supplierId),
+}));
+
+export const suppliers = sqliteTable('suppliers', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    name: text('name').notNull(),
+    contactName: text('contact_name'),
+    email: text('email'),
+    phone: text('phone'),
+    address: text('address'),
+    website: text('website'),
+    notes: text('notes'),
+    isActive: integer('is_active', { mode: 'boolean' }).default(true).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('supplier_tenant_idx').on(table.tenantId),
+}));
+
+export const inventoryAdjustments = sqliteTable('inventory_adjustments', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    productId: text('product_id').notNull().references(() => products.id),
+    staffId: text('staff_id').references(() => tenantMembers.id),
+    delta: integer('delta').notNull(), // positive for restock, negative for deduction
+    reason: text('reason', { enum: ['restock', 'correction', 'damage', 'loss', 'sale', 'return', 'po_received'] }).notNull(),
+    notes: text('notes'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    productIdx: index('inv_adj_product_idx').on(table.productId),
+    tenantIdx: index('inv_adj_tenant_idx').on(table.tenantId),
+}));
+
+export const purchaseOrders = sqliteTable('purchase_orders', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    supplierId: text('supplier_id').notNull().references(() => suppliers.id),
+    staffId: text('staff_id').references(() => tenantMembers.id),
+    poNumber: text('po_number').notNull(),
+    status: text('status', { enum: ['draft', 'sent', 'partially_received', 'received', 'cancelled'] }).default('draft').notNull(),
+    totalAmount: integer('total_amount').default(0).notNull(),
+    currency: text('currency').default('usd'),
+    notes: text('notes'),
+    sentAt: integer('sent_at', { mode: 'timestamp' }),
+    receivedAt: integer('received_at', { mode: 'timestamp' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('po_tenant_idx').on(table.tenantId),
+    supplierIdx: index('po_supplier_idx').on(table.supplierId),
+}));
+
+export const purchaseOrderItems = sqliteTable('purchase_order_items', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    purchaseOrderId: text('purchase_order_id').notNull().references(() => purchaseOrders.id, { onDelete: 'cascade' }),
+    productId: text('product_id').notNull().references(() => products.id),
+    quantityOrdered: integer('quantity_ordered').notNull(),
+    quantityReceived: integer('quantity_received').default(0).notNull(),
+    unitCost: integer('unit_cost').notNull(), // in cents
+    totalCost: integer('total_cost').notNull(),
+}, (table) => ({
+    poIdx: index('po_item_po_idx').on(table.purchaseOrderId),
+    productIdx: index('po_item_product_idx').on(table.productId),
 }));
 
 export const posOrders = sqliteTable('pos_orders', {
@@ -1390,7 +1456,68 @@ export const productsRelations = relations(products, ({ one, many }) => ({
         fields: [products.tenantId],
         references: [tenants.id],
     }),
+    supplier: one(suppliers, {
+        fields: [products.supplierId],
+        references: [suppliers.id],
+    }),
     orderItems: many(posOrderItems),
+    adjustments: many(inventoryAdjustments),
+    poItems: many(purchaseOrderItems),
+}));
+
+export const suppliersRelations = relations(suppliers, ({ one, many }) => ({
+    tenant: one(tenants, {
+        fields: [suppliers.tenantId],
+        references: [tenants.id],
+    }),
+    products: many(products),
+    purchaseOrders: many(purchaseOrders),
+}));
+
+export const inventoryAdjustmentsRelations = relations(inventoryAdjustments, ({ one }) => ({
+    tenant: one(tenants, {
+        fields: [inventoryAdjustments.tenantId],
+        references: [tenants.id],
+    }),
+    product: one(products, {
+        fields: [inventoryAdjustments.productId],
+        references: [products.id],
+    }),
+    staff: one(tenantMembers, {
+        fields: [inventoryAdjustments.staffId],
+        references: [tenantMembers.id],
+    }),
+}));
+
+export const purchaseOrdersRelations = relations(purchaseOrders, ({ one, many }) => ({
+    tenant: one(tenants, {
+        fields: [purchaseOrders.tenantId],
+        references: [tenants.id],
+    }),
+    supplier: one(suppliers, {
+        fields: [purchaseOrders.supplierId],
+        references: [suppliers.id],
+    }),
+    staff: one(tenantMembers, {
+        fields: [purchaseOrders.staffId],
+        references: [tenantMembers.id],
+    }),
+    items: many(purchaseOrderItems),
+}));
+
+export const purchaseOrderItemsRelations = relations(purchaseOrderItems, ({ one }) => ({
+    tenant: one(tenants, {
+        fields: [purchaseOrderItems.tenantId],
+        references: [tenants.id],
+    }),
+    purchaseOrder: one(purchaseOrders, {
+        fields: [purchaseOrderItems.purchaseOrderId],
+        references: [purchaseOrders.id],
+    }),
+    product: one(products, {
+        fields: [purchaseOrderItems.productId],
+        references: [products.id],
+    }),
 }));
 
 export const posOrdersRelations = relations(posOrders, ({ one, many }) => ({

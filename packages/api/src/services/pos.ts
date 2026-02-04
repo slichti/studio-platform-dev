@@ -17,6 +17,8 @@ import { AutomationsService } from './automations';
 import { EmailService } from './email';
 import { SmsService } from './sms';
 import { UsageService } from './pricing';
+import { InventoryService } from './inventory';
+import { AuditService } from './audit';
 
 interface CartItem {
     productId: string;
@@ -258,9 +260,16 @@ export class PosService {
             await this.db.insert(posOrderItems).values(item).run();
         }
 
-        // 3. Stock Deduction
+        // 3. Stock Deduction (Audit Logged)
+        const inventory = new InventoryService(this.db, this.tenantId);
         for (const item of items) {
-            await this.db.run(sql`UPDATE products SET stock_quantity = stock_quantity - ${item.quantity} WHERE id = ${item.productId} AND tenant_id = ${this.tenantId}`);
+            await inventory.adjustStock(
+                item.productId,
+                -item.quantity,
+                'sale',
+                `POS Sale: ${orderId}`,
+                staffId
+            );
         }
 
         // 4. Async Side Effects (Webhooks & Automations)

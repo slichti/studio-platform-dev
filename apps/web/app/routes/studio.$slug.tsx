@@ -265,7 +265,10 @@ export default function StudioLayout() {
                     <SidebarGroup title="Commerce">
                         {(featureSet.has('pos')) && !isStudentView && (
                             <>
-                                <NavItem to={`/studio/${slug}/pos`} icon={<ShoppingCart size={18} />}>POS & Retail</NavItem>
+                                <NavItem to={`/studio/${slug}/pos`} end icon={<ShoppingCart size={18} />}>POS & Retail</NavItem>
+                                {featureSet.has('inventory') && (
+                                    <NavItem to={`/studio/${slug}/inventory`} icon={<Package size={18} />}>Inventory</NavItem>
+                                )}
                             </>
                         )}
                         <NavItem to={`/studio/${slug}/memberships`} icon={<CreditCard size={18} />}>Memberships</NavItem>

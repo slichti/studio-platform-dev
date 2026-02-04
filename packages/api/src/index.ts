@@ -66,6 +66,7 @@ import tagsRoutes from './routes/tags'; // [NEW] Tags
 import { AppError } from './utils/errors';
 import customFieldRoutes from './routes/custom-fields'; // [NEW] Custom Fields
 import auditLogRoutes from './routes/audit-logs'; // [NEW] Audit Logs
+import inventory from './routes/inventory'; // [NEW] Inventory
 import docRoutes from './routes/docs'; // [NEW] Docs
 import referrals from './routes/referrals'; // [NEW] Referrals
 
@@ -202,7 +203,10 @@ const studioPaths = [
   '/video-management', '/video-management/*',
   '/bookings', '/bookings/*',
   '/aggregators', '/aggregators/*',
-  '/webhooks', '/webhooks/*'
+  '/webhooks', '/webhooks/*',
+  '/inventory', '/inventory/*',
+  '/inventory/suppliers', '/inventory/suppliers/*',
+  '/inventory/purchase-orders', '/inventory/purchase-orders/*'
 ];
 
 const authenticatedPaths = [
@@ -228,7 +232,8 @@ const authenticatedPaths = [
   '/video-management', '/video-management/*',
   '/bookings', '/bookings/*',
   '/diagnostics', '/diagnostics/*',  // Security: Require auth for diagnostics
-  '/webhooks/stripe', '/webhooks/zoom', '/webhooks/clerk' // Specific ones that need some level of auth or signature
+  '/webhooks/stripe', '/webhooks/zoom', '/webhooks/clerk', // Specific ones that need some level of auth or signature
+  '/inventory', '/inventory/*'
 ];
 
 const publicStudioPaths = [
@@ -410,7 +415,7 @@ studioApp.post('/features', async (c) => {
 
   const { featureKey, enabled } = await c.req.json();
   // Allowlist of self-service features
-  const ALLOWED_FEATURES = ['sms', 'webhooks', 'kiosk', 'classpass', 'gympass', 'progress_tracking'];
+  const ALLOWED_FEATURES = ['sms', 'webhooks', 'kiosk', 'classpass', 'gympass', 'progress_tracking', 'inventory'];
 
   if (!ALLOWED_FEATURES.includes(featureKey)) {
     return c.json({ error: "Feature not available for self-service" }, 400);
@@ -523,6 +528,7 @@ app.route('/classes', classRoutes);
 app.route('/commerce', commerce);
 app.route('/gift-cards', giftCards);
 app.route('/tasks', tasks);
+app.route('/inventory', inventory); // [NEW] Mount
 app.route('/reports/custom', reportsCustom);
 app.route('/refunds', refunds);
 app.route('/challenges', challenges);
