@@ -22,7 +22,9 @@ export type Permission =
     | 'manage_community'
     | 'view_commerce'
     | 'manage_commerce'
-    | 'view_pos';
+    | 'view_pos'
+    | 'view_progress'
+    | 'manage_progress';
 
 export const RolePermissions: Record<string, Permission[]> = {
     owner: [ // All permissions + administrative
@@ -39,7 +41,8 @@ export const RolePermissions: Record<string, Permission[]> = {
         'manage_content',
         'manage_leads',
         'manage_community',
-        'view_commerce', 'manage_commerce'
+        'view_commerce', 'manage_commerce',
+        'view_progress', 'manage_progress'
     ],
     admin: [ // Operations Manager
         'view_tenant',
@@ -54,14 +57,16 @@ export const RolePermissions: Record<string, Permission[]> = {
         'manage_content',
         'manage_leads',
         'manage_community',
-        'view_commerce', 'manage_commerce'
+        'view_commerce', 'manage_commerce',
+        'view_progress', 'manage_progress'
     ],
     instructor: [ // Staff
         'view_members',
         'manage_classes', 'view_classes',
         'check_in_students',
         'manage_pos', 'view_pos', 'manage_inventory',
-        'manage_content'
+        'manage_content',
+        'view_progress'
     ],
     student: [
         // Students typically have 'view_classes' via public API but internal RBAC usually restricts 'manage'

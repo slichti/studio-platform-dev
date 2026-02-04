@@ -162,6 +162,10 @@ flowchart TB
         AUTHMW --> ROUTES[Route Handlers]
     end
 
+    subgraph "Service Layer"
+        SERVICES[Business Logic Services]
+    end
+
     ROUTES --> AUTH
     ROUTES --> USERS
     ROUTES --> CLASSES
@@ -172,6 +176,9 @@ flowchart TB
     ROUTES --> CHAT
     ROUTES --> WEBHOOKS
     ROUTES --> PROGRESS
+
+    AUTH & USERS & CLASSES & MEMBERS & COMMERCE & APPOINTMENTS & VIDEO & CHAT & WEBHOOKS & PROGRESS --> SERVICES
+    SERVICES --> DB[(D1 Database)]
 ```
 
 ## Technology Stack
