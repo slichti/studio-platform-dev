@@ -13,6 +13,8 @@ interface TenantStats {
     owners: number;
     instructors: number;
     subscribers: number;
+    totalStudents?: number;
+    activeSubscribers?: number;
 }
 
 interface Tenant {
@@ -1384,10 +1386,17 @@ export default function AdminTenants() {
                                                 <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">Inst</span>
                                                 <span className="text-sm font-bold text-zinc-700">{t.stats?.instructors || 0}</span>
                                             </div>
-                                            <div className="flex flex-col items-center" title="Subscribers">
+                                            <div className="flex flex-col items-center" title="Total Students (Active Subscribers)">
                                                 <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">Cust</span>
                                                 <PrivacyBlur revealed={showFinancials} placeholder="***">
-                                                    <span className="text-sm font-bold text-blue-600">{t.stats?.subscribers || 0}</span>
+                                                    <div className="flex items-baseline gap-1">
+                                                        <span className="text-sm font-bold text-blue-600">{t.stats?.totalStudents || t.stats?.subscribers || 0}</span>
+                                                        {t.stats?.activeSubscribers !== undefined && (
+                                                            <span className="text-[10px] text-zinc-500 font-medium whitespace-nowrap">
+                                                                ({t.stats.activeSubscribers} active)
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </PrivacyBlur>
                                             </div>
                                         </div>

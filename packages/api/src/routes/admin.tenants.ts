@@ -13,21 +13,33 @@ app.get('/', async (c) => {
     if (!isPlatformAdmin) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
 
-    const [all, owners, instructors, subs, feats] = await Promise.all([
+    const [all, owners, instructors, studentRoles, subs, feats] = await Promise.all([
         db.select().from(tenants).all(),
         db.select({ tenantId: tenantMembers.tenantId, c: count(tenantMembers.id) }).from(tenantMembers).innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId)).where(eq(tenantRoles.role, 'owner')).groupBy(tenantMembers.tenantId).all(),
         db.select({ tenantId: tenantMembers.tenantId, c: count(tenantMembers.id) }).from(tenantMembers).innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId)).where(eq(tenantRoles.role, 'instructor')).groupBy(tenantMembers.tenantId).all(),
+        db.select({ tenantId: tenantMembers.tenantId, c: count(tenantMembers.id) }).from(tenantMembers).innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId)).where(eq(tenantRoles.role, 'student')).groupBy(tenantMembers.tenantId).all(),
         db.select({ tenantId: subscriptions.tenantId, c: count(subscriptions.id) }).from(subscriptions).where(eq(subscriptions.status, 'active')).groupBy(subscriptions.tenantId).all(),
         db.select().from(tenantFeatures).all()
     ]);
 
     const ownerMap = new Map(owners.map(o => [o.tenantId, o.c]));
     const instMap = new Map(instructors.map(i => [i.tenantId, i.c]));
+    const studentMap = new Map(studentRoles.map(s => [s.tenantId, s.c]));
     const subMap = new Map(subs.map(s => [s.tenantId, s.c]));
     const featMap = new Map();
     feats.forEach(f => { if (!featMap.has(f.tenantId)) featMap.set(f.tenantId, {}); featMap.get(f.tenantId)[f.featureKey] = { enabled: f.enabled, source: f.source }; });
 
-    return c.json(all.map(t => ({ ...t, features: featMap.get(t.id) || {}, stats: { owners: ownerMap.get(t.id) || 0, instructors: instMap.get(t.id) || 0, subscribers: subMap.get(t.id) || 0 } })));
+    return c.json(all.map(t => ({
+        ...t,
+        features: featMap.get(t.id) || {},
+        stats: {
+            owners: ownerMap.get(t.id) || 0,
+            instructors: instMap.get(t.id) || 0,
+            subscribers: subMap.get(t.id) || 0,
+            totalStudents: studentMap.get(t.id) || 0,
+            activeSubscribers: subMap.get(t.id) || 0
+        }
+    })));
 });
 
 // POST /
