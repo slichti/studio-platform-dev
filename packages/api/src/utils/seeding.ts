@@ -19,19 +19,23 @@ export interface SeedOptions {
     features?: FeatureKey[];
 }
 
+import { getTableConfig } from 'drizzle-orm/sqlite-core';
+
 /**
  * Helper to chunk batch inserts to stay within D1 parameter limits (100 bound variables).
  */
 async function batchInsert(db: any, table: any, values: any[]) {
     if (values.length === 0) return;
 
-    // Count actual parameters: sum of keys in first object.
-    const columnsPerRow = Object.keys(values[0]).length;
+    // Count actual parameters: Drizzle includes columns with defaults in multi-row inserts.
+    // We use getTableConfig to get the true column count of the table.
+    const tableConfig = getTableConfig(table);
+    const columnsPerRow = tableConfig.columns.length;
 
     // Use a safety buffer of 90 instead of 100
     const CHUNK_SIZE = Math.max(1, Math.floor(90 / columnsPerRow));
 
-    console.log(`[batchInsert] Table: ${table.name || 'unknown'}, Rows: ${values.length}, Cols/Row: ${columnsPerRow}, ChunkSize: ${CHUNK_SIZE}`);
+    console.log(`[batchInsert] Table: ${tableConfig.name}, Rows: ${values.length}, Cols/Row: ${columnsPerRow}, ChunkSize: ${CHUNK_SIZE}`);
 
     for (let i = 0; i < values.length; i += CHUNK_SIZE) {
         const chunk = values.slice(i, i + CHUNK_SIZE);
