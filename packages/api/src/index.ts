@@ -256,6 +256,20 @@ authenticatedPaths.forEach(path => {
 // then, establish studio context and member status (Tenant)
 studioPaths.forEach(path => app.use(path, tenantMiddleware));
 
+// [HARDENING] Stricter limits for Public Schedules (Mitigate scraping)
+const publicSchedulePaths = ['/classes', '/classes/*', '/public/tenant/:slug', '/public/classes/*'];
+publicSchedulePaths.forEach(path => {
+  // 60 requests per minute for public schedule browsing
+  app.use(path, rateLimitMiddleware({ limit: 60, window: 60, keyPrefix: 'public-schedule' }));
+  // Add caching for public schedules (1 minute edge cache)
+  app.use(path, async (c, next) => {
+    await next();
+    if (c.res.status === 200 && c.req.method === 'GET') {
+      c.header('Cache-Control', 'public, max-age=60, s-maxage=60, stale-while-revalidate=30');
+    }
+  });
+});
+
 // [NEW] Resource-Intensive Route Overrides (Higher Costs)
 const expensivePaths = [
   '/reports/export',

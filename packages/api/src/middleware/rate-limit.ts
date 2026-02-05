@@ -70,7 +70,21 @@ export const rateLimitMiddleware = (options: RateLimitOptions = {}) => {
             return;
         }
 
-        const doId = c.env.RATE_LIMITER.idFromName('global');
+        // Sharding Strategy:
+        // 1. If tenant is present, shard by tenant ID (isolates tenants)
+        // 2. Otherwise shard into 32 buckets for anonymous traffic to distribute load
+        let shardKey = 'global';
+        if (tenant?.id) {
+            shardKey = `tenant:${tenant.id}`;
+        } else {
+            // Use a chunk of the key's hash for sharding (32 buckets)
+            const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key));
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const bucket = hashArray[0] % 32;
+            shardKey = `anon-shard-${bucket}`;
+        }
+
+        const doId = c.env.RATE_LIMITER.idFromName(shardKey);
         const stub = c.env.RATE_LIMITER.get(doId);
 
         try {
