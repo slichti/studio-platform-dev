@@ -134,10 +134,16 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
         const uniqueEmails = [...new Set(allEmails)];
 
         // 2a. Upsert Users
+        const firstNames = ['James', 'Mary', 'Robert', 'Patricia', 'John', 'Jennifer', 'Michael', 'Linda', 'Elizabeth', 'William'];
+        const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez'];
+
         const userValues = uniqueEmails.map(email => ({
             id: 'user_' + crypto.randomUUID(),
             email: email,
-            profile: { firstName: faker.person.firstName(), lastName: faker.person.lastName() },
+            profile: {
+                firstName: firstNames[Math.floor(Math.random() * firstNames.length)],
+                lastName: lastNames[Math.floor(Math.random() * lastNames.length)]
+            },
             role: 'user', // Global role
             createdAt: now
         }));
