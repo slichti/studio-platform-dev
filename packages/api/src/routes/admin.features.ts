@@ -10,10 +10,11 @@ type Bindings = {
 
 const app = new Hono<{ Bindings: Bindings }>();
 
-// GET /admin/tenants/:id/features
-app.get('/tenants/:id/features', async (c) => {
+// GET /
+app.get('/', async (c) => {
     const db = createDb(c.env.DB);
     const tenantId = c.req.param('id');
+    if (!tenantId) return c.json({ error: 'Missing tenantId' }, 400);
 
     const features = await db.select().from(tenantFeatures).where(eq(tenantFeatures.tenantId, tenantId)).all();
 
@@ -25,10 +26,11 @@ app.get('/tenants/:id/features', async (c) => {
     return c.json({ features: result });
 });
 
-// POST /admin/tenants/:id/features
-app.post('/tenants/:id/features', async (c) => {
+// POST /
+app.post('/', async (c) => {
     const db = createDb(c.env.DB);
     const tenantId = c.req.param('id');
+    if (!tenantId) return c.json({ error: 'Missing tenantId' }, 400);
     const { featureKey, enabled, source } = await c.req.json();
 
     if (!featureKey) return c.json({ error: 'Missing featureKey' }, 400);

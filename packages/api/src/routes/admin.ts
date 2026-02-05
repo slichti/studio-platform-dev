@@ -50,6 +50,13 @@ app.use('*', async (c, next) => {
 
 // Mounted Routes
 app.route('/users', usersRouter);
+
+// Tenant-specific nested routes
+app.route('/tenants/:id/billing', billingRouter);
+app.route('/tenants/:id/stats', statsRouter);
+app.route('/tenants/:id/features', tenantFeaturesRouter);
+
+// Base routers (for global actions or base tenant management)
 app.route('/tenants', tenantsRouter);
 app.route('/billing', billingRouter);
 app.route('/media', mediaRouter);
@@ -60,7 +67,6 @@ app.route('/config', configRouter);
 app.route('/platform/config', configRouter); // Alias for frontend compatibility (/admin/platform/config)
 app.route('/coupons', couponsRouter);
 app.route('/automations', automationsRouter);
-app.route('/', tenantFeaturesRouter); // Preserves /admin/tenants/:id/features
 
 // GET /logs - Recent Audit Logs (Global view)
 app.get('/logs', async (c) => {

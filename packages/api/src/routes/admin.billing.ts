@@ -54,10 +54,11 @@ app.get('/preview', async (c) => {
     }
 });
 
-// GET /tenants/:id/details - Get Stripe Sync'd Details
-app.get('/tenants/:id/details', async (c) => {
+// GET /details - Get Stripe Sync'd Details
+app.get('/details', async (c) => {
     const db = createDb(c.env.DB);
     const tenantId = c.req.param('id');
+    if (!tenantId) return c.json({ error: 'Missing tenantId' }, 400);
     const tenant = await db.query.tenants.findFirst({
         where: eq(tenants.id, tenantId)
     });
@@ -65,10 +66,21 @@ app.get('/tenants/:id/details', async (c) => {
     return c.json({ stripeAccountId: tenant.stripeAccountId, tier: tenant.tier });
 });
 
-// POST /tenants/:id/waive - Waive current usage
-app.post('/tenants/:id/waive', async (c) => {
+// GET /history - Billing history/invoices
+app.get('/history', async (c) => {
+    // Return empty list/mock for now to satisfy UI
+    return c.json({
+        invoices: [
+            { id: 'inv_mock1', date: new Date().toISOString(), amount: 2900, status: 'paid', description: 'Monthly Subscription' }
+        ]
+    });
+});
+
+// POST /waive - Waive current usage
+app.post('/waive', async (c) => {
     const db = createDb(c.env.DB);
     const tenantId = c.req.param('id');
+    if (!tenantId) return c.json({ error: 'Missing tenantId' }, 400);
     const auth = c.get('auth');
 
     const tenant = await db.query.tenants.findFirst({
@@ -88,10 +100,11 @@ app.post('/tenants/:id/waive', async (c) => {
     return c.json({ success: true });
 });
 
-// PATCH /tenants/:id/subscription - Admin Update Subscription
-app.patch('/tenants/:id/subscription', async (c) => {
+// PATCH /subscription - Admin Update Subscription
+app.patch('/subscription', async (c) => {
     const db = createDb(c.env.DB);
     const tenantId = c.req.param('id');
+    if (!tenantId) return c.json({ error: 'Missing tenantId' }, 400);
     const { status, trialDays } = await c.req.json();
 
     const updateData: any = {};

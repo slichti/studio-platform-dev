@@ -4,7 +4,8 @@ import { eq, inArray, sql } from 'drizzle-orm';
 import {
     tenants, users, tenantMembers, tenantRoles, locations,
     membershipPlans, classSeries, classes, bookings,
-    products, posOrders, posOrderItems, tenantFeatures
+    products, posOrders, posOrderItems, tenantFeatures,
+    platformConfig
 } from '@studio/db/src/schema';
 import { FeatureKey } from './features';
 import { getTableConfig } from 'drizzle-orm/sqlite-core';
@@ -100,9 +101,20 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
                 tenantId: tenantId,
                 featureKey: featureKey,
                 enabled: true,
-                source: 'manual'
+                source: 'manual' as const,
+                updatedAt: now
             }));
-            await batchInsert(tx, tenantFeatures, featureValues);
+            await batchInsert(tx, tenantFeatures, featureValues, true);
+
+            // 1c. Also enable globally in platformConfig for UI visibility
+            const platformConfigValues = options.features.map(f => ({
+                key: `feature_${f}`,
+                enabled: true,
+                value: 'true',
+                description: `Enabled via seeding for ${f}`,
+                updatedAt: now
+            }));
+            await batchInsert(tx, platformConfig, platformConfigValues, true);
         }
 
         // 2 & 6 & 8. Create All Users (Owners, Instructors, Students)

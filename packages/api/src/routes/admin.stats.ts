@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { emailLogs, smsLogs, tenants, marketingAutomations, auditLogs, users } from '@studio/db/src/schema';
-import { eq, sql, desc, count, gt } from 'drizzle-orm';
+import { emailLogs, smsLogs, tenants, marketingAutomations, auditLogs, users, tenantMembers, tenantRoles } from '@studio/db/src/schema';
+import { eq, sql, desc, count, gt, and } from 'drizzle-orm';
 import type { HonoContext } from '../types';
 
 const app = new Hono<HonoContext>();
@@ -164,6 +164,47 @@ app.get('/sms', async (c) => {
         .all();
 
     return c.json({ totalSent, byTenant, recentLogs });
+});
+
+// GET / - Tenant-specific stats
+app.get('/', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+    if (!tenantId) return c.json({ error: 'Missing tenantId' }, 400);
+
+    const [owners, instructors, students, emailCount, smsCount] = await Promise.all([
+        db.select({ count: count() })
+            .from(tenantMembers)
+            .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
+            .where(and(eq(tenantMembers.tenantId, tenantId), eq(tenantRoles.role, 'owner')))
+            .get(),
+        db.select({ count: count() })
+            .from(tenantMembers)
+            .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
+            .where(and(eq(tenantMembers.tenantId, tenantId), eq(tenantRoles.role, 'instructor')))
+            .get(),
+        db.select({ count: count() })
+            .from(tenantMembers)
+            .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
+            .where(and(eq(tenantMembers.tenantId, tenantId), eq(tenantRoles.role, 'student')))
+            .get(),
+        db.select({ count: count() })
+            .from(emailLogs)
+            .where(eq(emailLogs.tenantId, tenantId))
+            .get(),
+        db.select({ count: count() })
+            .from(smsLogs)
+            .where(eq(smsLogs.tenantId, tenantId))
+            .get()
+    ]);
+
+    return c.json({
+        owners: owners?.count || 0,
+        instructors: instructors?.count || 0,
+        subscribers: students?.count || 0,
+        emailsSent: emailCount?.count || 0,
+        smsSent: smsCount?.count || 0
+    });
 });
 
 export default app;

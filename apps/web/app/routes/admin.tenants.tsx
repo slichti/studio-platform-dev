@@ -1,7 +1,7 @@
 import { Link, useLoaderData, useNavigate } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest, API_URL } from "../utils/api";
-import { useState, Fragment } from "react";
+import { useState, Fragment, useEffect } from "react";
 import { useAuth } from "@clerk/react-router";
 import { Modal } from "../components/Modal";
 import { ErrorDialog, ConfirmationDialog, SuccessDialog } from "../components/Dialogs";
@@ -218,10 +218,14 @@ export default function AdminTenants() {
     const [statusFilter, setStatusFilter] = useState('all');
     const [tierFilter, setTierFilter] = useState('all');
 
-    const [showFinancials, setShowFinancials] = useState(() => {
-        if (typeof window !== 'undefined') return localStorage.getItem('admin_show_financials') === 'true';
-        return false;
-    });
+    const [showFinancials, setShowFinancials] = useState(false);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const stored = localStorage.getItem('admin_show_financials');
+            if (stored === 'true') setShowFinancials(true);
+        }
+    }, []);
 
     // Zoom Config State
     const [zoomModalOpen, setZoomModalOpen] = useState(false);
