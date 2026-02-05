@@ -1,13 +1,13 @@
 
 import { faker } from '@faker-js/faker';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import {
     tenants, users, tenantMembers, tenantRoles, locations,
     membershipPlans, classSeries, classes, bookings,
     products, posOrders, posOrderItems, tenantFeatures
 } from '@studio/db/src/schema';
 import { FeatureKey } from './features';
-
+import { getTableConfig } from 'drizzle-orm/sqlite-core';
 
 export interface SeedOptions {
     tenantName?: string;
@@ -19,12 +19,11 @@ export interface SeedOptions {
     features?: FeatureKey[];
 }
 
-import { getTableConfig } from 'drizzle-orm/sqlite-core';
 
 /**
  * Helper to chunk batch inserts to stay within D1 parameter limits (100 bound variables).
  */
-async function batchInsert(db: any, table: any, values: any[]) {
+async function batchInsert(db: any, table: any, values: any[], onConflict: boolean = true) {
     if (values.length === 0) return;
 
     // Count actual parameters: Drizzle includes columns with defaults in multi-row inserts.
@@ -35,11 +34,16 @@ async function batchInsert(db: any, table: any, values: any[]) {
     // Use a safety buffer of 90 instead of 100
     const CHUNK_SIZE = Math.max(1, Math.floor(90 / columnsPerRow));
 
-    console.log(`[batchInsert] Table: ${tableConfig.name}, Rows: ${values.length}, Cols/Row: ${columnsPerRow}, ChunkSize: ${CHUNK_SIZE}`);
+    console.log(`[batchInsert] Table: ${tableConfig.name}, Rows: ${values.length}, Cols/Row: ${columnsPerRow}, ChunkSize: ${CHUNK_SIZE}, onConflict: ${onConflict}`);
 
     for (let i = 0; i < values.length; i += CHUNK_SIZE) {
         const chunk = values.slice(i, i + CHUNK_SIZE);
-        await db.insert(table).values(chunk).onConflictDoNothing().run();
+        const query = db.insert(table).values(chunk);
+        if (onConflict) {
+            await query.onConflictDoNothing().run();
+        } else {
+            await query.run();
+        }
     }
 }
 
@@ -58,15 +62,13 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
 
     const now = new Date();
 
-    // db.transaction is causing "Failed query: begin params:" on D1 (which doesn't support BEGIN statement)
-    // Running sequentially without transaction for now.
     const runSeed = async (tx: any) => {
         // 1. Create Tenant
         let tenant = await tx.select().from(tenants).where(eq(tenants.slug, tenantSlug)).get();
         if (!tenant) {
             console.log("Creating tenant...");
             tenant = (await tx.insert(tenants).values({
-                id: 'tenant_' + faker.string.uuid(),
+                id: 'tenant_' + crypto.randomUUID(),
                 slug: tenantSlug,
                 name: tenantName,
                 status: 'active',
@@ -85,7 +87,7 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
         if (options.features && options.features.length > 0) {
             console.log(`   Enabling features: ${options.features.join(', ')}`);
             const featureValues = options.features.map(featureKey => ({
-                id: 'feat_' + faker.string.uuid(),
+                id: 'feat_' + crypto.randomUUID(),
                 tenantId: tenantId,
                 featureKey: featureKey,
                 enabled: true,
@@ -106,7 +108,7 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
 
         // 2a. Upsert Users
         const userValues = uniqueEmails.map(email => ({
-            id: 'user_' + faker.string.uuid(),
+            id: 'user_' + crypto.randomUUID(),
             email: email,
             profile: { firstName: faker.person.firstName(), lastName: faker.person.lastName() },
             role: 'user', // Global role
@@ -130,7 +132,7 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
         for (const email of ownerEmails) {
             const user = userMap.get(email);
             if (!user) continue;
-            const memberId = 'member_' + faker.string.uuid();
+            const memberId = 'member_' + crypto.randomUUID();
             memberValues.push({
                 id: memberId,
                 tenantId: tenantId,
@@ -139,14 +141,14 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
                 profile: { bio: "Owner" },
                 joinedAt: now
             });
-            roleValues.push({ id: 'role_' + faker.string.uuid(), memberId, role: 'owner', createdAt: now });
+            roleValues.push({ id: 'role_' + crypto.randomUUID(), memberId, role: 'owner', createdAt: now });
         }
 
         // Instructors
         for (const email of instructorEmails) {
             const user = userMap.get(email);
             if (!user) continue;
-            const memberId = 'member_' + faker.string.uuid();
+            const memberId = 'member_' + crypto.randomUUID();
             const member = {
                 id: memberId,
                 tenantId: tenantId,
@@ -157,14 +159,14 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
             };
             memberValues.push(member);
             instructors.push(member);
-            roleValues.push({ id: 'role_' + faker.string.uuid(), memberId, role: 'instructor', createdAt: now });
+            roleValues.push({ id: 'role_' + crypto.randomUUID(), memberId, role: 'instructor', createdAt: now });
         }
 
         // Students
         for (const email of studentEmails) {
             const user = userMap.get(email);
             if (!user) continue;
-            const memberId = 'member_' + faker.string.uuid();
+            const memberId = 'member_' + crypto.randomUUID();
             const member = {
                 id: memberId,
                 tenantId: tenantId,
@@ -174,7 +176,7 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
             };
             memberValues.push(member);
             students.push(member);
-            roleValues.push({ id: 'role_' + faker.string.uuid(), memberId, role: 'student', createdAt: now });
+            roleValues.push({ id: 'role_' + crypto.randomUUID(), memberId, role: 'student', createdAt: now });
         }
 
         // Batch Insert Members & Roles
@@ -186,7 +188,7 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
         if (!location) {
             console.log("Creating main location...");
             location = (await tx.insert(locations).values({
-                id: 'loc_' + faker.string.uuid(),
+                id: 'loc_' + crypto.randomUUID(),
                 tenantId: tenantId,
                 name: "Main Studio",
                 address: "123 Yoga Lane",
@@ -205,7 +207,7 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
         ];
 
         const planValues = plans.map(p => ({
-            id: 'plan_' + faker.string.uuid(),
+            id: 'plan_' + crypto.randomUUID(),
             tenantId: tenantId,
             name: p.name,
             price: p.price,
@@ -229,7 +231,7 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
 
                 const title = faker.helpers.arrayElement(classTypes);
                 const instructor = faker.helpers.arrayElement(instructors);
-                const classId = 'class_' + faker.string.uuid();
+                const classId = 'class_' + crypto.randomUUID();
 
                 const cls = {
                     id: classId,
@@ -249,20 +251,18 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
         }
 
         if (classValues.length > 0) {
-            await batchInsert(tx, classes, classValues);
+            await batchInsert(tx, classes, classValues, false);
         }
 
         // 9. Create Bookings (Randomly)
         console.log("Creating bookings...");
         const bookingValues: any[] = [];
 
-        // We use the just-created classes. If we needed historical classes we'd query, 
-        // but for seeding new ID layout, this is fine.
         for (const cls of classesList) {
             const attendees = faker.helpers.arrayElements(students, faker.number.int({ min: 0, max: Math.min(3, students.length) }));
             for (const student of attendees) {
                 bookingValues.push({
-                    id: 'booking_' + faker.string.uuid(),
+                    id: 'booking_' + crypto.randomUUID(),
                     classId: cls.id,
                     memberId: student.id,
                     status: 'confirmed',
@@ -280,7 +280,7 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
         console.log("Creating retail products...");
         const productValues = [
             {
-                id: 'prod_' + faker.string.uuid(),
+                id: 'prod_' + crypto.randomUUID(),
                 tenantId: tenantId,
                 name: "Yoga Mat",
                 price: 8000,
@@ -289,7 +289,7 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
                 createdAt: now
             },
             {
-                id: 'prod_' + faker.string.uuid(),
+                id: 'prod_' + crypto.randomUUID(),
                 tenantId: tenantId,
                 name: "Water Bottle",
                 price: 2500,
