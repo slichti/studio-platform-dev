@@ -136,6 +136,8 @@ export default function AdminTenants() {
     const [deleteLoading, setDeleteLoading] = useState(false);
 
     // Archive State
+    const [archiveId, setArchiveId] = useState<string | null>(null);
+    const [archiveInput, setArchiveInput] = useState("");
     const [archiveLoading, setArchiveLoading] = useState(false);
 
     // Notify State
@@ -670,14 +672,21 @@ export default function AdminTenants() {
         }
     };
 
-    const handleArchive = async (tenantId: string) => {
-        if (!confirm("Are you sure you want to archive this tenant?")) return;
+    const handleArchive = (tenantId: string) => {
+        setArchiveId(tenantId);
+        setArchiveInput("");
+    };
+
+    const handleArchiveConfirm = async () => {
+        if (!archiveId || archiveInput !== 'ARCHIVE') return;
         setArchiveLoading(true);
         try {
             const token = await getToken();
-            const res: any = await apiRequest(`/admin/tenants/${tenantId}/lifecycle/archive`, token, { method: 'POST' });
+            const res: any = await apiRequest(`/admin/tenants/${archiveId}/lifecycle/archive`, token, { method: 'POST' });
             if (res.error) throw new Error(res.error);
-            setSuccessDialog({ isOpen: true, message: "Tenant archived successfully.", shouldRefresh: true });
+
+            // Immediate reload as requested, skipping SuccessDialog
+            window.location.reload();
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message || "Archive failed" });
         } finally {
@@ -1003,6 +1012,38 @@ export default function AdminTenants() {
                 confirmText="Restore"
             />
 
+
+            <Modal isOpen={!!archiveId} onClose={() => { setArchiveId(null); setArchiveInput(""); }} title="Archive Tenant">
+                <div className="space-y-4">
+                    <div className="p-4 bg-red-50 dark:bg-red-950/30 text-red-800 dark:text-red-200 rounded-lg text-sm border border-red-100 dark:border-red-900/50 flex gap-3">
+                        <AlertTriangle className="shrink-0 mt-0.5" size={16} />
+                        <div>
+                            <strong>Warning:</strong> This will disable all access for the tenant. Data will be retained but the studio will be offline.
+                        </div>
+                    </div>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                        To confirm, please type <strong>ARCHIVE</strong> below:
+                    </p>
+                    <input
+                        type="text"
+                        className="w-full border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-red-500 outline-none"
+                        placeholder="Type ARCHIVE"
+                        value={archiveInput}
+                        onChange={(e) => setArchiveInput(e.target.value)}
+                    />
+                    <div className="flex justify-end gap-2 pt-2">
+                        <button onClick={() => { setArchiveInput(""); setArchiveId(null); }} className="px-3 py-2 text-zinc-600 dark:text-zinc-400 text-sm">Cancel</button>
+                        <button
+                            onClick={handleArchiveConfirm}
+                            disabled={archiveInput !== 'ARCHIVE' || archiveLoading}
+                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium disabled:opacity-50 flex items-center gap-2"
+                        >
+                            {archiveLoading && <Activity className="animate-spin" size={14} />}
+                            Archive Tenant
+                        </button>
+                    </div>
+                </div>
+            </Modal>
 
             <Modal isOpen={deleteModalOpen} onClose={() => { setDeleteModalOpen(false); setTenantToDelete(null); setDeleteInput(""); }} title="Delete Tenant">
                 <div className="space-y-4">
