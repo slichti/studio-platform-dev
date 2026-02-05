@@ -19,6 +19,18 @@ export interface SeedOptions {
     features?: FeatureKey[];
 }
 
+/**
+ * Helper to chunk batch inserts to stay within D1 parameter limits (100 bound variables).
+ */
+async function batchInsert(db: any, table: any, values: any[], columnsPerRow: number = 8) {
+    if (values.length === 0) return;
+    const CHUNK_SIZE = Math.floor(100 / columnsPerRow);
+    for (let i = 0; i < values.length; i += CHUNK_SIZE) {
+        const chunk = values.slice(i, i + CHUNK_SIZE);
+        await db.insert(table).values(chunk).onConflictDoNothing().run();
+    }
+}
+
 export async function seedTenant(db: any, options: SeedOptions = {}) {
     const tenantName = options.tenantName || "Test Studio";
     const tenantSlug = options.tenantSlug || "test-studio";
@@ -67,7 +79,7 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
                 enabled: true,
                 source: 'manual'
             }));
-            await tx.insert(tenantFeatures).values(featureValues).onConflictDoNothing();
+            await batchInsert(tx, tenantFeatures, featureValues, 5);
         }
 
         // 2 & 6 & 8. Create All Users (Owners, Instructors, Students)
@@ -89,10 +101,8 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
             createdAt: now
         }));
 
-        // Insert ignoring duplicates (D1 doesn't support returning on ignore well in all drivers, so we fetch after)
-        if (userValues.length > 0) {
-            await tx.insert(users).values(userValues).onConflictDoNothing();
-        }
+        // Insert ignoring duplicates
+        await batchInsert(tx, users, userValues, 8);
 
         // 2b. Fetch all users to get IDs
         const existingUsers = await tx.select().from(users).where(inArray(users.email, uniqueEmails));
@@ -156,10 +166,8 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
         }
 
         // Batch Insert Members & Roles
-        if (memberValues.length > 0) {
-            await tx.insert(tenantMembers).values(memberValues).onConflictDoNothing();
-            await tx.insert(tenantRoles).values(roleValues).onConflictDoNothing();
-        }
+        await batchInsert(tx, tenantMembers, memberValues, 8);
+        await batchInsert(tx, tenantRoles, roleValues, 5);
 
         // 4. Create Locations
         let location = await tx.select().from(locations).where(eq(locations.tenantId, tenantId)).get();
@@ -193,7 +201,7 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
             active: true,
             createdAt: now
         }));
-        await tx.insert(membershipPlans).values(planValues).onConflictDoNothing();
+        await batchInsert(tx, membershipPlans, planValues, 7);
 
         // 7. Create Classes (Schedule)
         console.log("Creating schedule...");
@@ -229,7 +237,7 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
         }
 
         if (classValues.length > 0) {
-            await tx.insert(classes).values(classValues);
+            await batchInsert(tx, classes, classValues, 10);
         }
 
         // 9. Create Bookings (Randomly)
@@ -253,7 +261,7 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
         }
 
         if (bookingValues.length > 0) {
-            await tx.insert(bookings).values(bookingValues).onConflictDoNothing();
+            await batchInsert(tx, bookings, bookingValues, 6);
         }
 
         // 10. Retail Products
@@ -278,7 +286,7 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
                 createdAt: now
             }
         ];
-        await tx.insert(products).values(productValues).onConflictDoNothing();
+        await batchInsert(tx, products, productValues, 7);
 
         return tenant;
     };
