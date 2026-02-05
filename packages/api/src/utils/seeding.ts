@@ -5,7 +5,7 @@ import {
     tenants, users, tenantMembers, tenantRoles, locations,
     membershipPlans, classSeries, classes, bookings,
     products, posOrders, posOrderItems, tenantFeatures,
-    platformConfig
+    platformConfig, subscriptions
 } from '@studio/db/src/schema';
 import { FeatureKey } from './features';
 import { getTableConfig } from 'drizzle-orm/sqlite-core';
@@ -237,6 +237,19 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
             createdAt: now
         }));
         await batchInsert(tx, membershipPlans, planValues);
+
+        // 6. Create Student Subscriptions (to show up in CUST count)
+        console.log("Creating student subscriptions...");
+        const subscriptionValues = students.map(student => ({
+            id: 'sub_' + crypto.randomUUID(),
+            userId: student.userId,
+            tenantId: tenantId,
+            memberId: student.id,
+            planId: planValues[0].id, // Default to Unlimited Month
+            status: 'active' as const,
+            createdAt: now
+        }));
+        await batchInsert(tx, subscriptions, subscriptionValues);
 
         // 7. Create Classes (Schedule)
         console.log("Creating schedule...");
