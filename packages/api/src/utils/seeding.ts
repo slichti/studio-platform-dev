@@ -57,8 +57,8 @@ async function batchInsert(db: any, table: any, values: any[], onConflict: boole
 }
 
 export async function seedTenant(db: any, options: SeedOptions = {}) {
-    const tenantName = options.tenantName || "Test Studio";
-    const tenantSlug = options.tenantSlug || "test-studio";
+    const tenantName = options.tenantName || (faker.company.name() + " Studio");
+    const tenantSlug = options.tenantSlug || faker.helpers.slugify(tenantName).toLowerCase().replace(/[^a-z0-9-]/g, '');
 
     // Limits
     const OWNER_COUNT = Math.max(1, options.ownerCount || 1);
