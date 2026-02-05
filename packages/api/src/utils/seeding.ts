@@ -1,5 +1,5 @@
 
-import { faker } from '@faker-js/faker';
+
 import { eq, inArray, sql } from 'drizzle-orm';
 import {
     tenants, users, tenantMembers, tenantRoles, locations,
@@ -58,8 +58,14 @@ async function batchInsert(db: any, table: any, values: any[], onConflict: boole
 }
 
 export async function seedTenant(db: any, options: SeedOptions = {}) {
-    const tenantName = options.tenantName || (faker.company.name() + " Studio");
-    const tenantSlug = options.tenantSlug || faker.helpers.slugify(tenantName).toLowerCase().replace(/[^a-z0-9-]/g, '');
+    const randomName = () => {
+        const adjectives = ['Spark', 'Flow', 'Spirit', 'Vital', 'Zen', 'Inner', 'Radiant', 'Core'];
+        const nouns = ['Studio', 'Collective', 'Space', 'Center', 'Sanctuary', 'Gym', 'Hub'];
+        return `${adjectives[Math.floor(Math.random() * adjectives.length)]} ${nouns[Math.floor(Math.random() * nouns.length)]} ${Math.floor(Math.random() * 1000)}`;
+    };
+
+    const tenantName = options.tenantName || randomName();
+    const tenantSlug = options.tenantSlug || tenantName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
 
     // Limits
     const OWNER_COUNT = Math.max(1, options.ownerCount || 1);
@@ -263,8 +269,8 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
                 date.setDate(date.getDate() + d);
                 date.setHours(9, 0, 0, 0); // 9 AM class
 
-                const title = faker.helpers.arrayElement(classTypes);
-                const instructor = faker.helpers.arrayElement(instructors);
+                const title = classTypes[Math.floor(Math.random() * classTypes.length)];
+                const instructor = instructors[Math.floor(Math.random() * instructors.length)];
                 const classId = 'class_' + crypto.randomUUID();
 
                 const cls = {
@@ -293,7 +299,8 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
         const bookingValues: any[] = [];
 
         for (const cls of classesList) {
-            const attendees = faker.helpers.arrayElements(students, faker.number.int({ min: 0, max: Math.min(3, students.length) }));
+            const count = Math.min(3, students.length);
+            const attendees = students.sort(() => 0.5 - Math.random()).slice(0, Math.floor(Math.random() * (count + 1)));
             for (const student of attendees) {
                 bookingValues.push({
                     id: 'booking_' + crypto.randomUUID(),
