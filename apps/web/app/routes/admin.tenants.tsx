@@ -378,7 +378,11 @@ export default function AdminTenants() {
                 setTenants([...tenants, res]); // res returns the new tenant
                 setIsCreateOpen(false);
                 setFormData({ name: "", slug: "", ownerEmail: "", plan: "basic" });
-                setSuccessDialog({ isOpen: true, message: `Tenant ${res.name} (${res.slug}) has been provisioned successfully.` });
+                setSuccessDialog({
+                    isOpen: true,
+                    message: `Tenant ${res.name} (${res.slug}) has been provisioned successfully.`,
+                    shouldRefresh: true
+                });
             }
         } catch (e: any) {
             console.error(e);
