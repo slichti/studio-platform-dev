@@ -461,7 +461,7 @@ export default function AdminVideos() {
 
             {/* Upload Modal (Action) */}
             {isUploadOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
                     <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200 border border-zinc-200 dark:border-zinc-800">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Upload Video</h2>
@@ -555,7 +555,7 @@ export default function AdminVideos() {
 
             {/* Preview Modal */}
             {previewVideo && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
                     <div className="bg-black rounded-xl shadow-2xl max-w-4xl w-full overflow-hidden flex flex-col max-h-[90vh]">
                         <div className="p-4 flex justify-between items-center border-b border-zinc-800">
                             <h2 className="text-lg font-bold text-white max-w-2xl truncate">{previewVideo.title}</h2>
@@ -597,7 +597,7 @@ export default function AdminVideos() {
 
             {/* Share Modal */}
             {shareVideo && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
                     <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl max-w-sm w-full p-6 animate-in fade-in zoom-in duration-200 border border-zinc-200 dark:border-zinc-800">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Share Video</h2>

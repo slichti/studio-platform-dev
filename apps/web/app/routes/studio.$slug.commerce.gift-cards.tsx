@@ -432,7 +432,7 @@ export default function GiftCardsPage() {
             )}
             {/* Link Modal */}
             {showLinkModal && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in overflow-y-auto">
                     <div className="bg-white dark:bg-zinc-900 rounded-3xl p-8 max-w-md w-full shadow-2xl scale-100 animate-in zoom-in-95">
                         <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-2">Link Gift Card</h2>
                         <p className="text-zinc-500 mb-6">Enter the code from your gift card email to add it to your wallet.</p>
@@ -469,7 +469,7 @@ export default function GiftCardsPage() {
 
             {/* Issue Modal (Admin) */}
             {showIssueModal && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in overflow-y-auto">
                     <div className="bg-white dark:bg-zinc-900 rounded-3xl p-8 max-w-md w-full shadow-2xl scale-100 animate-in zoom-in-95">
                         <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-2">Issue Gift Card</h2>
                         <p className="text-zinc-500 mb-6">Create a new gift card manually.</p>

@@ -381,7 +381,7 @@ function ProductModal({ product, onClose, onSave }: { product?: any, onClose: ()
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
             <div className="bg-white rounded-xl shadow-xl max-w-lg w-full animate-in fade-in zoom-in duration-200">
                 <div className="p-4 border-b border-zinc-200 flex justify-between items-center">
                     <h2 className="text-lg font-bold">{product ? "Edit Product" : "New Product"}</h2>
@@ -449,7 +449,7 @@ function ImportModal({ onClose, onImport }: { onClose: () => void, onImport: (js
     const [json, setJson] = useState("");
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
             <div className="bg-white rounded-xl shadow-xl max-w-lg w-full animate-in fade-in zoom-in duration-200">
                 <div className="p-4 border-b border-zinc-200 flex justify-between items-center">
                     <h2 className="text-lg font-bold">Import Products</h2>

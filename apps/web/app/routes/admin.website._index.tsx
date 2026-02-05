@@ -12,7 +12,7 @@ function SitePreviewModal({ isOpen, onClose, url }: { isOpen: boolean, onClose: 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 md:p-8 animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 md:p-8 animate-in fade-in duration-200 overflow-y-auto">
             <div className="bg-white dark:bg-zinc-900 rounded-2xl w-full h-full flex flex-col shadow-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
                     <div className="flex items-center gap-3">
@@ -177,7 +177,7 @@ export default function AdminWebsite() {
 
             {/* Create Modal */}
             {creating && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
                     <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 w-full max-w-md shadow-xl">
                         <h2 className="text-lg font-semibold mb-4 dark:text-zinc-100">Create New Platform Page</h2>
                         <div className="space-y-4">

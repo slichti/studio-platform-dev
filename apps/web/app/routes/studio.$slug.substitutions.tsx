@@ -138,7 +138,7 @@ export default function SubstitutionsPage() {
 
             {/* Create Modal */}
             {isCreateOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
                     <div className="bg-white dark:bg-zinc-900 rounded-xl max-w-md w-full p-6 shadow-2xl border border-zinc-200 dark:border-zinc-800">
                         <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">Request Coverage</h3>
 
