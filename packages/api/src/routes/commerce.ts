@@ -309,7 +309,7 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
 
         if (amountToPay === 0) {
             const { FulfillmentService } = await import('../services/fulfillment');
-            const fulfillment = new FulfillmentService(db, c.env.RESEND_API_KEY);
+            const fulfillment = new FulfillmentService(db, c.env.RESEND_API_KEY, c.env);
             const mockId = `direct_${crypto.randomUUID()}`;
             if (pack) {
                 await fulfillment.fulfillPackPurchase({ packId: pack.id, tenantId: tenant.id, memberId: c.get('member')?.id, userId: auth.userId, couponId: appliedCouponId }, mockId, 0);

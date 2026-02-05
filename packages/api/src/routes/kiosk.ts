@@ -1,7 +1,8 @@
 
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantMembers, users, bookings, classes, tenantFeatures } from '@studio/db/src/schema'; // Ensure correct import
+import { tenants, tenantMembers, users, bookings, classes, tenantFeatures, progressMetricDefinitions } from '@studio/db/src/schema'; // Ensure correct import
+import { BookingService } from '../services/bookings';
 import { eq, and, like, desc, gte } from 'drizzle-orm';
 import { sign, verify } from 'hono/jwt';
 import type { Bindings, Variables } from '../types';
@@ -171,38 +172,14 @@ protectedApp.post('/checkin/:bookingId', async (c) => {
     const bookingId = c.req.param('bookingId');
     const db = createDb(c.env.DB);
 
-    // Verify Booking belongs to Tenant
-    const booking = await db.select().from(bookings)
-        .innerJoin(classes, eq(bookings.classId, classes.id)) // Join class to verify tenant
-        .where(eq(bookings.id, bookingId))
-        .get();
+    const service = new BookingService(db, c.env);
 
-    if (!booking) return c.json({ error: "Booking not found" }, 404);
-    if (booking.classes.tenantId !== tenantId) return c.json({ error: "Unauthorized" }, 403);
-
-    // Check In
-    await db.update(bookings).set({
-        checkedInAt: new Date(),
-        // optional: updatedBy: 'kiosk' if we tracked that
-    }).where(eq(bookings.id, bookingId)).run();
-
-    // Auto-Log Progress
-    c.executionCtx.waitUntil((async () => {
-        try {
-            const { ProgressService } = await import('../services/progress');
-            const { progressMetricDefinitions } = await import('@studio/db/src/schema');
-            const ps = new ProgressService(db, tenantId);
-            const metric = await db.select().from(progressMetricDefinitions)
-                .where(and(eq(progressMetricDefinitions.tenantId, tenantId), eq(progressMetricDefinitions.name, 'Classes Attended')))
-                .get();
-
-            if (metric) {
-                await ps.logEntry({ memberId: booking.bookings.memberId, metricDefinitionId: metric.id, value: 1, source: 'auto', metadata: { bookingId: booking.bookings.id, kiosk: true }, recordedAt: new Date() });
-            }
-        } catch (e) { console.error("Kiosk Progress Log Error", e); }
-    })());
-
-    return c.json({ success: true, timestamp: new Date() });
+    try {
+        await service.checkIn(bookingId, true);
+        return c.json({ success: true, timestamp: new Date() });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
 });
 
 // Mount Protected

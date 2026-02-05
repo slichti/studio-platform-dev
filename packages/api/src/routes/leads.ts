@@ -3,6 +3,7 @@ import { createDb } from '../db';
 import { leads, tasks } from '@studio/db/src/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import { HonoContext } from '../types';
+import { EmailService } from '../services/email';
 
 const app = new Hono<HonoContext>();
 
@@ -41,6 +42,57 @@ app.post('/', async (c) => {
             description: `Auto-lead: ${email}`, status: 'todo', priority: 'medium',
             dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), relatedLeadId: id,
         }).run();
+
+        // 3. Trigger Automation (lead_captured)
+        if (c.env.RESEND_API_KEY) {
+            c.executionCtx.waitUntil((async () => {
+                try {
+                    const { UsageService } = await import('../services/pricing');
+                    const usageService = new UsageService(db, tenant.id);
+
+                    const emailConfig = {
+                        branding: tenant.branding as any,
+                        settings: tenant.settings as any
+                    };
+
+                    const emailService = new EmailService(
+                        c.env.RESEND_API_KEY as string,
+                        emailConfig,
+                        undefined,
+                        undefined,
+                        false,
+                        db,
+                        tenant.id
+                    );
+
+                    const { SmsService } = await import('../services/sms');
+                    const smsService = new SmsService(
+                        tenant.twilioCredentials as any,
+                        c.env,
+                        usageService,
+                        db,
+                        tenant.id
+                    );
+
+                    const { AutomationsService } = await import('../services/automations');
+                    const autoService = new AutomationsService(db, tenant.id, emailService, smsService);
+
+                    await autoService.dispatchTrigger('lead_captured', {
+                        userId: '', // Lead is not a User yet
+                        email: email,
+                        firstName: firstName,
+                        lastName: lastName,
+                        phone: phone,
+                        data: {
+                            source: source,
+                            notes: notes
+                        }
+                    });
+                } catch (e) {
+                    console.error("[Leads Route] Automation Error", e);
+                }
+            })());
+        }
 
         return c.json({ success: true, id }, 201);
     } catch (e: any) {

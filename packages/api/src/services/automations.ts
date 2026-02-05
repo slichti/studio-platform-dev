@@ -1,6 +1,6 @@
 import { createDb } from '../db';
 import { eq, and, lt, gt, gte, lte, or, isNull, sql } from 'drizzle-orm';
-import { marketingAutomations, automationLogs, subscriptions, tenantMembers, users, tenants, coupons, bookings, posOrders, classes, locations } from '@studio/db/src/schema'; // Added bookings, posOrders, locations
+import { marketingAutomations, automationLogs, subscriptions, tenantMembers, users, tenants, coupons, bookings, posOrders, classes, locations, waiverSignatures } from '@studio/db/src/schema'; // Added bookings, posOrders, locations, waiverSignatures
 import { EmailService } from './email';
 import { SmsService } from './sms'; // Active
 import { tenantRoles } from '@studio/db/src/schema';
@@ -79,6 +79,12 @@ export class AutomationsService {
                 case 'trial_ending':
                 case 'subscription_renewing':
                     await this.processSubscriptionTiming(auto, now);
+                    break;
+                case 'waiver_missing_reminder':
+                    await this.processWaiverMissing(auto, now);
+                    break;
+                case 'attendance_streak_at_risk':
+                    await this.processAttendanceStreakAtRisk(auto, now);
                     break;
                 default:
                     if (auto.timingType === 'before') {
@@ -182,6 +188,110 @@ export class AutomationsService {
                         email: c.email,
                         firstName: (c.profile as any)?.firstName
                     });
+                }
+            }
+        }
+    }
+
+    private async processWaiverMissing(auto: any, now: Date) {
+        const hoursThreshold = auto.timingValue || 24;
+        const cutoffDate = new Date(now.getTime() - (hoursThreshold * 60 * 60 * 1000));
+
+        // Find members who joined at least X hours ago
+        const newMembers = await this.db.select({
+            id: tenantMembers.id,
+            userId: tenantMembers.userId,
+            email: users.email,
+            profile: users.profile,
+            joinedAt: tenantMembers.joinedAt
+        })
+            .from(tenantMembers)
+            .innerJoin(users, eq(tenantMembers.userId, users.id))
+            .where(and(
+                eq(tenantMembers.tenantId, this.tenantId),
+                eq(tenantMembers.status, 'active'),
+                lte(tenantMembers.joinedAt, cutoffDate)
+            )).all();
+
+        for (const m of newMembers) {
+            // Check if they signed ANY waiver
+            const signature = await this.db.query.waiverSignatures.findFirst({
+                where: eq(waiverSignatures.memberId, m.id)
+            });
+
+            if (!signature) {
+                await this.executeAutomation(auto, {
+                    userId: m.userId,
+                    email: m.email,
+                    firstName: (m.profile as any)?.firstName
+                });
+            }
+        }
+    }
+
+    private async processAttendanceStreakAtRisk(auto: any, now: Date) {
+        // Trigger: Student has a streak but hasn't booked anything recently
+        const recentDays = 14;
+        const streakThreshold = 3;
+        const inactivityThreshold = auto.timingValue || 5;
+
+        const cutoffRecent = new Date(now.getTime() - (recentDays * 24 * 60 * 60 * 1000));
+        const cutoffInactivity = new Date(now.getTime() - (inactivityThreshold * 24 * 60 * 60 * 1000));
+
+        // Find members with recent attendance
+        const activeMembers = await this.db.select({
+            id: tenantMembers.id,
+            userId: tenantMembers.userId,
+            email: users.email,
+            profile: users.profile
+        })
+            .from(tenantMembers)
+            .innerJoin(users, eq(tenantMembers.userId, users.id))
+            .where(and(
+                eq(tenantMembers.tenantId, this.tenantId),
+                eq(tenantMembers.status, 'active')
+            )).all();
+
+        for (const m of activeMembers) {
+            // Count recent attendances
+            const attendances = await this.db.select({ count: sql<number>`count(*)` })
+                .from(bookings)
+                .where(and(
+                    eq(bookings.memberId, m.id),
+                    eq(bookings.status, 'confirmed'),
+                    gte(bookings.checkedInAt, cutoffRecent)
+                )).get();
+
+            if ((attendances?.count || 0) >= streakThreshold) {
+                // Check if they have ANY future bookings
+                const futureBooking = await this.db.query.bookings.findFirst({
+                    where: and(
+                        eq(bookings.memberId, m.id),
+                        eq(bookings.status, 'confirmed'),
+                        gt(bookings.createdAt, now) // Proxy for class start time if not easily available
+                    )
+                });
+
+                if (!futureBooking) {
+                    // Check their last attendance
+                    const lastAttendance = await this.db.query.bookings.findFirst({
+                        where: and(
+                            eq(bookings.memberId, m.id),
+                            eq(bookings.status, 'confirmed')
+                        ),
+                        orderBy: (bookings: any, { desc }: any) => [desc(bookings.checkedInAt)]
+                    });
+
+                    if (lastAttendance?.checkedInAt) {
+                        const lastDate = new Date(lastAttendance.checkedInAt);
+                        if (lastDate < cutoffInactivity) {
+                            await this.executeAutomation(auto, {
+                                userId: m.userId,
+                                email: m.email,
+                                firstName: (m.profile as any)?.firstName
+                            });
+                        }
+                    }
                 }
             }
         }

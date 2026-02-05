@@ -1,5 +1,5 @@
-import { eq, and, sql, asc } from 'drizzle-orm';
-import { bookings, tenantMembers, classes, tenants } from '@studio/db/src/schema';
+import { eq, and, sql, asc, isNotNull } from 'drizzle-orm';
+import { bookings, tenantMembers, classes, tenants, progressMetricDefinitions, tenantRoles } from '@studio/db/src/schema'; // Added progressMetricDefinitions, tenantRoles
 import { EmailService } from './email';
 
 export class BookingService {
@@ -224,6 +224,134 @@ export class BookingService {
             // Attempt Charge (Placeholder)
             const chargeDescription = `No Show [${classInfo?.title || 'Class'}]`;
             console.log(`[Mock Charge] Charging ${settings.noShowFeeAmount} to member ${booking.memberId} for ${chargeDescription}`);
+        }
+    }
+
+    async checkIn(bookingId: string, checkedIn: boolean) {
+        // 1. Get Booking & Tenant Context
+        const booking = await this.db.query.bookings.findFirst({
+            where: eq(bookings.id, bookingId),
+            with: {
+                member: {
+                    with: {
+                        user: true,
+                        tenant: true
+                    }
+                },
+                class: true
+            }
+        });
+
+        if (!booking) throw new Error("Booking not found");
+
+        // 2. Update Status
+        await this.db.update(bookings)
+            .set({ checkedInAt: checkedIn ? new Date() : null })
+            .where(eq(bookings.id, bookingId))
+            .run();
+
+        // 3. Automated Logic (Progress & Marketing)
+        if (checkedIn) {
+            const member = booking.member;
+            const tenant = member.tenant;
+            const tenantId = tenant.id;
+
+            // a. Log Progress
+            try {
+                const { ProgressService } = await import('./progress');
+                const ps = new ProgressService(this.db, tenantId);
+                const metric = await this.db.query.progressMetricDefinitions.findFirst({
+                    where: and(eq(progressMetricDefinitions.tenantId, tenantId), eq(progressMetricDefinitions.name, 'Classes Attended'))
+                });
+                if (metric) {
+                    await ps.logEntry({
+                        memberId: booking.memberId,
+                        metricDefinitionId: metric.id,
+                        value: 1,
+                        source: 'auto',
+                        metadata: { bookingId: booking.id },
+                        recordedAt: new Date()
+                    });
+                }
+            } catch (e) {
+                console.error("[BookingService] Progress Log Error", e);
+            }
+
+            // b. Marketing Automations
+            if (this.env.RESEND_API_KEY && member.user) {
+                try {
+                    const { UsageService } = await import('./pricing');
+                    const usageService = new UsageService(this.db, tenantId);
+
+                    const emailConfig = {
+                        branding: tenant.branding as any,
+                        settings: tenant.settings as any
+                    };
+
+                    const emailService = new EmailService(
+                        this.env.RESEND_API_KEY as string,
+                        emailConfig,
+                        undefined,
+                        undefined,
+                        false,
+                        this.db,
+                        tenantId
+                    );
+
+                    const { SmsService } = await import('./sms');
+                    const smsService = new SmsService(
+                        tenant.twilioCredentials as any,
+                        this.env,
+                        usageService,
+                        this.db,
+                        tenantId
+                    );
+
+                    const { AutomationsService } = await import('./automations');
+                    const autoService = new AutomationsService(this.db, tenantId, emailService, smsService);
+
+                    // Milestone Check: How many classes has this student attended?
+                    const attendanceCount = await this.db.select({ count: sql<number>`count(*)` })
+                        .from(bookings)
+                        .where(and(
+                            eq(bookings.memberId, member.id),
+                            isNotNull(bookings.checkedInAt)
+                        ))
+                        .get();
+
+                    const count = attendanceCount.count || 0;
+
+                    // Trigger: first_class_attended
+                    if (count === 1) {
+                        await autoService.dispatchTrigger('first_class_attended', {
+                            userId: member.user.id,
+                            email: member.user.email,
+                            firstName: (member.user.profile as any)?.firstName,
+                            data: {
+                                classTitle: booking.class.title,
+                                classId: booking.classId
+                            }
+                        });
+                    }
+
+                    // Trigger: milestone_reached
+                    const milestones = [10, 25, 50, 100, 250, 500];
+                    if (milestones.includes(count)) {
+                        await autoService.dispatchTrigger('milestone_reached', {
+                            userId: member.user.id,
+                            email: member.user.email,
+                            firstName: (member.user.profile as any)?.firstName,
+                            data: {
+                                classCount: count,
+                                milestone: count
+                            }
+                        });
+                    }
+
+                } catch (e) {
+                    console.error("[BookingService] Automation Error", e);
+                }
+            }
         }
     }
 }

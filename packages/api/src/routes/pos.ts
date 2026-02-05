@@ -99,10 +99,20 @@ app.post('/orders', async (c) => {
                     with: { user: true }
                 });
                 if (member && member.user) {
-                    c.executionCtx.waitUntil(autoService.dispatchTrigger('product_purchase', {
-                        userId: member.userId, email: member.user.email, firstName: (member.user.profile as any)?.firstName || 'Friend',
-                        data: { amount: totalAmount, orderId: result.orderId, items }
-                    }));
+                    c.executionCtx.waitUntil((async () => {
+                        await autoService.dispatchTrigger('product_purchase', {
+                            userId: member.userId, email: member.user.email, firstName: (member.user.profile as any)?.firstName || 'Friend',
+                            data: { amount: totalAmount, orderId: result.orderId, items }
+                        });
+
+                        // [NEW] Trigger: high_retail_spend
+                        if (totalAmount >= 10000) { // $100 in cents
+                            await autoService.dispatchTrigger('high_retail_spend', {
+                                userId: member.userId, email: member.user.email, firstName: (member.user.profile as any)?.firstName || 'Friend',
+                                data: { amount: totalAmount, orderId: result.orderId }
+                            });
+                        }
+                    })());
                 }
             }
         } catch (e) { console.error(e); }

@@ -1,15 +1,13 @@
 
-import { classes, users, classPackDefinitions, purchasedPacks, giftCards, giftCardTransactions, tenantMembers, tenants, couponRedemptions } from '@studio/db/src/schema'; // Ensure these are exported from schema
+import { classes, users, classPackDefinitions, purchasedPacks, giftCards, giftCardTransactions, tenantMembers, tenants, couponRedemptions, referralRewards, referralCodes } from '@studio/db/src/schema'; // Ensure these are exported from schema
 import { eq, and, sql } from 'drizzle-orm';
 import { EmailService } from './email';
 
 export class FulfillmentService {
-    private db: any;
-    private resendApiKey?: string;
+    private env?: any;
 
-    constructor(db: any, resendApiKey?: string) {
-        this.db = db;
-        this.resendApiKey = resendApiKey;
+    constructor(private db: any, private resendApiKey?: string, env?: any) {
+        this.env = env;
     }
 
     async fulfillPackPurchase(metadata: any, paymentId: string, amount: number) {
@@ -47,6 +45,75 @@ export class FulfillmentService {
                     orderId: paymentId,
                     redeemedAt: new Date()
                 }).run();
+            }
+
+            // [NEW] Referral Check: Does this user have a pending referral for this tenant?
+            if (metadata.userId && metadata.userId !== 'guest') {
+                try {
+                    const pendingReferral = await this.db.query.referralRewards.findFirst({
+                        where: and(
+                            eq(referralRewards.referredUserId, metadata.userId),
+                            eq(referralRewards.tenantId, metadata.tenantId),
+                            eq(referralRewards.status, 'pending')
+                        )
+                    });
+
+                    if (pendingReferral) {
+                        // Update Referral to Success
+                        await this.db.update(referralRewards)
+                            .set({ status: 'success', completedAt: new Date() })
+                            .where(eq(referralRewards.id, pendingReferral.id))
+                            .run();
+
+                        // Trigger Automation: referral_conversion_success
+                        if (this.env?.RESEND_API_KEY || this.resendApiKey) {
+                            const tenant = await this.db.select().from(tenants).where(eq(tenants.id, metadata.tenantId)).get();
+                            if (tenant) {
+                                const { UsageService } = await import('./pricing');
+                                const usageService = new UsageService(this.db, metadata.tenantId);
+
+                                const { EmailService } = await import('./email');
+                                const emailService = new EmailService(
+                                    (this.env?.RESEND_API_KEY || this.resendApiKey) as string,
+                                    { branding: tenant.branding, settings: tenant.settings },
+                                    { slug: tenant.slug },
+                                    usageService
+                                );
+
+                                const { SmsService } = await import('./sms');
+                                const smsService = new SmsService(
+                                    tenant.twilioCredentials as any,
+                                    this.env,
+                                    usageService,
+                                    this.db,
+                                    metadata.tenantId
+                                );
+
+                                const { AutomationsService } = await import('./automations');
+                                const autoService = new AutomationsService(this.db, metadata.tenantId, emailService, smsService);
+
+                                // Fetch Referrer Info
+                                const referrer = await this.db.query.users.findFirst({
+                                    where: eq(users.id, pendingReferral.referrerUserId)
+                                });
+
+                                if (referrer) {
+                                    await autoService.dispatchTrigger('referral_conversion_success', {
+                                        userId: referrer.id,
+                                        email: referrer.email,
+                                        firstName: (referrer.profile as any)?.firstName || 'Friend',
+                                        data: {
+                                            referredFirstName: metadata.recipientName || 'Your friend', // metadata might not have it if they just signed up
+                                            rewardAmount: pendingReferral.amount
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error("[FulfillmentService] Referral Check Error", e);
+                }
             }
         }
     }

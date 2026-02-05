@@ -197,7 +197,7 @@ export class StripeWebhookHandler {
         console.log(`[Stripe] Checkout Completed: ${session.id} (Metadata: ${JSON.stringify(logMetadata)})`);
 
         if (metadata && metadata.tenantId) {
-            const fulfillment = new FulfillmentService(this.db, this.env.RESEND_API_KEY);
+            const fulfillment = new FulfillmentService(this.db, this.env.RESEND_API_KEY, this.env);
 
             // 1. Pack Purchase
             if (metadata.packId) {

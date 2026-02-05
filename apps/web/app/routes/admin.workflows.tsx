@@ -13,7 +13,13 @@ import {
     Plus,
     Pencil,
     Trash2,
-    Clock
+    Clock,
+    Activity,
+    Trophy,
+    DollarSign,
+    Gift,
+    FileWarning,
+    Flame
 } from "lucide-react";
 // Import only existing components
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription, DialogClose } from "../components/ui/dialog";
@@ -137,6 +143,13 @@ export default function AdminWorkflows() {
             case 'new_student': return <UserPlus className="text-emerald-500" />;
             case 'absent': return <CalendarClock className="text-amber-500" />;
             case 'trial_ending': return <AlertCircle className="text-indigo-500" />;
+            case 'first_class_attended': return <Activity className="text-blue-500" />;
+            case 'milestone_reached': return <Trophy className="text-yellow-500" />;
+            case 'lead_captured': return <UserPlus className="text-emerald-500" />;
+            case 'high_retail_spend': return <DollarSign className="text-green-600" />;
+            case 'referral_conversion_success': return <Gift className="text-purple-500" />;
+            case 'waiver_missing_reminder': return <FileWarning className="text-red-500" />;
+            case 'attendance_streak_at_risk': return <Flame className="text-orange-500" />;
             default: return <Clock className="text-blue-500" />;
         }
     };
@@ -183,6 +196,13 @@ export default function AdminWorkflows() {
                                 <option value="birthday">Birthday</option>
                                 <option value="absent">Student Absent (Re-engage)</option>
                                 <option value="trial_ending">Trial Ending</option>
+                                <option value="first_class_attended">First Class Attended</option>
+                                <option value="milestone_reached">Milestone Reached</option>
+                                <option value="lead_captured">Lead Captured</option>
+                                <option value="high_retail_spend">High Retail Spend</option>
+                                <option value="referral_conversion_success">Referral Successful</option>
+                                <option value="waiver_missing_reminder">Waiver Missing Reminder</option>
+                                <option value="attendance_streak_at_risk">Attendance Streak At Risk</option>
                             </select>
                         </div>
                     </div>
@@ -366,6 +386,13 @@ function WorkflowForm({ initialData, onSubmit }: WorkflowFormProps) {
                         <option value="birthday">Birthday</option>
                         <option value="absent">Student Absent (Re-engage)</option>
                         <option value="trial_ending">Trial Ending Soon</option>
+                        <option value="first_class_attended">First Class Attended</option>
+                        <option value="milestone_reached">Milestone Reached</option>
+                        <option value="lead_captured">Lead Captured</option>
+                        <option value="high_retail_spend">High Retail Spend (>$100)</option>
+                        <option value="referral_conversion_success">Referral Successful</option>
+                        <option value="waiver_missing_reminder">Waiver Missing Reminder</option>
+                        <option value="attendance_streak_at_risk">Attendance Streak At Risk</option>
                     </Select>
                 </div>
                 <div className="space-y-2">
