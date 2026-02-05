@@ -41,11 +41,17 @@ async function batchInsert(db: any, table: any, values: any[], onConflict: boole
 
         console.log(`   --> Batch ${batchNum}/${totalBatches} (${chunk.length} rows, ${chunk.length * columnsPerRow} total params)`);
 
-        const query = db.insert(table).values(chunk);
-        if (onConflict) {
-            await query.onConflictDoNothing().run();
-        } else {
-            await query.run();
+        try {
+            const query = db.insert(table).values(chunk);
+            if (onConflict) {
+                await query.onConflictDoNothing().run();
+            } else {
+                await query.run();
+            }
+        } catch (e: any) {
+            console.error(`[batchInsert ERROR] Failed in Batch ${batchNum} for table '${tableConfig.name}':`, e.message);
+            // Re-throw with more context
+            throw new Error(`Batch insert failed for '${tableConfig.name}': ${e.message}`);
         }
     }
 }
@@ -254,7 +260,7 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
         }
 
         if (classValues.length > 0) {
-            await batchInsert(tx, classes, classValues, false);
+            await batchInsert(tx, classes, classValues, true); // Changed to true for re-run resilience
         }
 
         // 9. Create Bookings (Randomly)
