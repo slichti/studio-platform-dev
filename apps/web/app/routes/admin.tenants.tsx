@@ -136,8 +136,6 @@ export default function AdminTenants() {
     const [deleteLoading, setDeleteLoading] = useState(false);
 
     // Archive State
-    const [archiveId, setArchiveId] = useState<string | null>(null);
-    const [archiveInput, setArchiveInput] = useState("");
     const [archiveLoading, setArchiveLoading] = useState(false);
 
     // Notify State
@@ -146,8 +144,6 @@ export default function AdminTenants() {
     const [notifyMessage, setNotifyMessage] = useState("");
     const [notifySubject, setNotifySubject] = useState("");
 
-    // Archive State
-    // (Already declared above, removing duplicates)
 
     // Edit Tenant State (Owner Email)
     const [editModalOpen, setEditModalOpen] = useState(false);
@@ -674,24 +670,18 @@ export default function AdminTenants() {
         }
     };
 
-    const handleArchive = (tenantId: string) => {
-        setArchiveId(tenantId);
-        setArchiveInput("");
-    };
-
-    const confirmArchive = async () => {
-        if (!archiveId || archiveInput !== 'ARCHIVE') return;
-
+    const handleArchive = async (tenantId: string) => {
+        if (!confirm("Are you sure you want to archive this tenant?")) return;
+        setArchiveLoading(true);
         try {
             const token = await getToken();
-            const res: any = await apiRequest(`/admin/tenants/${archiveId}/lifecycle/archive`, token, { method: 'POST' });
+            const res: any = await apiRequest(`/admin/tenants/${tenantId}/lifecycle/archive`, token, { method: 'POST' });
             if (res.error) throw new Error(res.error);
-            setTenants(tenants.map((t: any) => t.id === archiveId ? { ...t, status: 'archived', studentAccessDisabled: true } : t));
-            setSuccessDialog({ isOpen: true, message: "Tenant archived successfully." });
+            setSuccessDialog({ isOpen: true, message: "Tenant archived successfully.", shouldRefresh: true });
         } catch (e: any) {
-            setErrorDialog({ isOpen: true, message: e.message });
+            setErrorDialog({ isOpen: true, message: e.message || "Archive failed" });
         } finally {
-            setArchiveId(null);
+            setArchiveLoading(false);
         }
     };
 
@@ -884,28 +874,6 @@ export default function AdminTenants() {
         }
     };
 
-    const handleArchiveConfirm = async () => {
-        if (!archiveId) return;
-        setArchiveLoading(true);
-        try {
-            const token = await getToken();
-            await apiRequest(`/admin/tenants/${archiveId}/status`, token, {
-                method: 'PUT',
-                body: JSON.stringify({ status: 'archived' })
-            });
-
-            // Refresh list or update local state
-            const updated = await apiRequest("/admin/tenants", token);
-            setTenants(updated);
-            setSuccessDialog({ isOpen: true, message: "Tenant archived successfully." });
-            setArchiveId(null);
-            setArchiveInput("");
-        } catch (e: any) {
-            setErrorDialog({ isOpen: true, message: e.message || "Archive failed" });
-        } finally {
-            setArchiveLoading(false);
-        }
-    };
 
     const handleEditTenant = async (tenant: any) => {
         setLoading(true);
@@ -1035,37 +1003,6 @@ export default function AdminTenants() {
                 confirmText="Restore"
             />
 
-            <Modal isOpen={!!archiveId} onClose={() => setArchiveId(null)} title="Archive Tenant">
-                <div className="space-y-4">
-                    <div className="p-4 bg-red-50 dark:bg-red-950/30 text-red-800 dark:text-red-200 rounded-lg text-sm border border-red-100 dark:border-red-900/50 flex gap-3">
-                        <AlertTriangle className="shrink-0 mt-0.5" size={16} />
-                        <div>
-                            <strong>Warning:</strong> This will disable all access for the tenant. Data will be retained but the studio will be offline.
-                        </div>
-                    </div>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                        To confirm, please type <strong>ARCHIVE</strong> below:
-                    </p>
-                    <input
-                        type="text"
-                        className="w-full border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-red-500 outline-none"
-                        placeholder="Type ARCHIVE"
-                        value={archiveInput}
-                        onChange={(e) => setArchiveInput(e.target.value)}
-                    />
-                    <div className="flex justify-end gap-2 pt-2">
-                        <button onClick={() => { setArchiveInput(""); setArchiveId(null); }} className="px-3 py-2 text-zinc-600 dark:text-zinc-400 text-sm">Cancel</button>
-                        <button
-                            onClick={handleArchiveConfirm}
-                            disabled={archiveInput !== 'ARCHIVE' || archiveLoading}
-                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium disabled:opacity-50 flex items-center gap-2"
-                        >
-                            {archiveLoading && <Activity className="animate-spin" size={14} />}
-                            Archive Tenant
-                        </button>
-                    </div>
-                </div>
-            </Modal>
 
             <Modal isOpen={deleteModalOpen} onClose={() => { setDeleteModalOpen(false); setTenantToDelete(null); setDeleteInput(""); }} title="Delete Tenant">
                 <div className="space-y-4">
