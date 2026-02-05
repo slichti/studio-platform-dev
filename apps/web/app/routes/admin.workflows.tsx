@@ -389,7 +389,7 @@ function WorkflowForm({ initialData, onSubmit }: WorkflowFormProps) {
                         <option value="first_class_attended">First Class Attended</option>
                         <option value="milestone_reached">Milestone Reached</option>
                         <option value="lead_captured">Lead Captured</option>
-                        <option value="high_retail_spend">High Retail Spend (>$100)</option>
+                        <option value="high_retail_spend">High Retail Spend (&gt;$100)</option>
                         <option value="referral_conversion_success">Referral Successful</option>
                         <option value="waiver_missing_reminder">Waiver Missing Reminder</option>
                         <option value="attendance_streak_at_risk">Attendance Streak At Risk</option>
