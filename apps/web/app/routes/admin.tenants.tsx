@@ -118,7 +118,7 @@ export default function AdminTenants() {
 
     // Dialog State
     const [errorDialog, setErrorDialog] = useState<{ isOpen: boolean, message: string }>({ isOpen: false, message: "" });
-    const [successDialog, setSuccessDialog] = useState<{ isOpen: boolean, message: string }>({ isOpen: false, message: "" });
+    const [successDialog, setSuccessDialog] = useState<{ isOpen: boolean, message: string, shouldRefresh?: boolean }>({ isOpen: false, message: "", shouldRefresh: false });
 
     // Action Confirmation States
     const [tierChange, setTierChange] = useState<{ id: string, tier: string } | null>(null);
@@ -836,7 +836,11 @@ export default function AdminTenants() {
             // Refresh list
             const updated = await apiRequest("/admin/tenants", token);
             setTenants(updated);
-            setSuccessDialog({ isOpen: true, message: `Test Tenant "${res.tenant?.name}" created successfully!` });
+            setSuccessDialog({
+                isOpen: true,
+                message: `Test Tenant "${res.tenant?.name || seedOptions.tenantName || 'New Tenant'}" created successfully!`,
+                shouldRefresh: true
+            });
             setSeedModalOpen(false);
             // Reset options
             setSeedOptions({
@@ -945,14 +949,28 @@ export default function AdminTenants() {
                 title="Error"
                 message={errorDialog.message}
             />
-            <Modal isOpen={successDialog.isOpen} onClose={() => setSuccessDialog({ ...successDialog, isOpen: false })} title="Success">
+            <Modal
+                isOpen={successDialog.isOpen}
+                onClose={() => {
+                    setSuccessDialog({ ...successDialog, isOpen: false });
+                    if (successDialog.shouldRefresh) {
+                        window.location.reload();
+                    }
+                }}
+                title="Success"
+            >
                 <div className="space-y-4">
                     <p className="text-sm text-zinc-600 dark:text-zinc-400">
                         {successDialog.message}
                     </p>
                     <div className="flex justify-end">
                         <button
-                            onClick={() => setSuccessDialog({ ...successDialog, isOpen: false })}
+                            onClick={() => {
+                                setSuccessDialog({ ...successDialog, isOpen: false });
+                                if (successDialog.shouldRefresh) {
+                                    window.location.reload();
+                                }
+                            }}
                             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
                         >
                             Dismiss
