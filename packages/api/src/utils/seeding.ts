@@ -139,7 +139,7 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
                 profile: { bio: "Owner" },
                 joinedAt: now
             });
-            roleValues.push({ memberId, role: 'owner', createdAt: now });
+            roleValues.push({ id: 'role_' + faker.string.uuid(), memberId, role: 'owner', createdAt: now });
         }
 
         // Instructors
@@ -157,7 +157,7 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
             };
             memberValues.push(member);
             instructors.push(member);
-            roleValues.push({ memberId, role: 'instructor', createdAt: now });
+            roleValues.push({ id: 'role_' + faker.string.uuid(), memberId, role: 'instructor', createdAt: now });
         }
 
         // Students
@@ -174,7 +174,7 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
             };
             memberValues.push(member);
             students.push(member);
-            roleValues.push({ memberId, role: 'student', createdAt: now });
+            roleValues.push({ id: 'role_' + faker.string.uuid(), memberId, role: 'student', createdAt: now });
         }
 
         // Batch Insert Members & Roles
