@@ -21,23 +21,26 @@ export interface SeedOptions {
 
 
 /**
- * Helper to chunk batch inserts to stay within D1 parameter limits (100 bound variables).
+ * Helper to chunk batch inserts to stay within D1 parameter limits.
  */
 async function batchInsert(db: any, table: any, values: any[], onConflict: boolean = true) {
     if (values.length === 0) return;
 
-    // Count actual parameters: Drizzle includes columns with defaults in multi-row inserts.
-    // We use getTableConfig to get the true column count of the table.
     const tableConfig = getTableConfig(table);
     const columnsPerRow = tableConfig.columns.length;
 
-    // Use a safety buffer of 90 instead of 100
-    const CHUNK_SIZE = Math.max(1, Math.floor(90 / columnsPerRow));
+    // Even more conservative buffer: 70 parameters instead of 90/100
+    const CHUNK_SIZE = Math.max(1, Math.floor(70 / columnsPerRow));
 
     console.log(`[batchInsert] Table: ${tableConfig.name}, Rows: ${values.length}, Cols/Row: ${columnsPerRow}, ChunkSize: ${CHUNK_SIZE}, onConflict: ${onConflict}`);
 
+    const totalBatches = Math.ceil(values.length / CHUNK_SIZE);
     for (let i = 0; i < values.length; i += CHUNK_SIZE) {
+        const batchNum = Math.floor(i / CHUNK_SIZE) + 1;
         const chunk = values.slice(i, i + CHUNK_SIZE);
+
+        console.log(`   --> Batch ${batchNum}/${totalBatches} (${chunk.length} rows, ${chunk.length * columnsPerRow} total params)`);
+
         const query = db.insert(table).values(chunk);
         if (onConflict) {
             await query.onConflictDoNothing().run();
