@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantMembers, tenantRoles, subscriptions, tenantFeatures, websitePages, auditLogs, users, emailLogs, locations, classes, bookings, products, posOrders, marketingAutomations, marketingCampaigns, waiverTemplates, waiverSignatures, studentNotes, uploads, usageLogs, appointmentServices, availabilities, appointments, payrollConfig, payouts, payrollItems, automationLogs, smsLogs, pushLogs, membershipPlans, classPackDefinitions, purchasedPacks, coupons, couponRedemptions, smsConfig, substitutions, suppliers, inventoryAdjustments, purchaseOrders, purchaseOrderItems, referralCodes, referralRewards, posOrderItems, giftCards, giftCardTransactions, leads, challenges, userChallenges, progressMetricDefinitions, memberProgressEntries, videos, waitlist, subRequests, videoShares, videoCollections, videoCollectionItems, brandingAssets, referrals, memberTags, membersToTags, customFieldDefinitions, customFieldValues, communityPosts, communityComments, communityLikes, reviews, tasks, refunds, webhookEndpoints, webhookLogs, websiteSettings, chatRooms, chatMessages, customReports, scheduledReports, faqs, memberCustomRoles, classSeries, customRoles } from '@studio/db/src/schema';
-import { eq, sql, desc, count, and, inArray } from 'drizzle-orm';
+import { tenants, tenantMembers, tenantRoles, subscriptions, tenantFeatures, websitePages, auditLogs, users, userRelationships, emailLogs, locations, classes, bookings, products, posOrders, marketingAutomations, marketingCampaigns, waiverTemplates, waiverSignatures, studentNotes, uploads, usageLogs, appointmentServices, availabilities, appointments, payrollConfig, payouts, payrollItems, automationLogs, smsLogs, pushLogs, membershipPlans, classPackDefinitions, purchasedPacks, coupons, couponRedemptions, smsConfig, substitutions, suppliers, inventoryAdjustments, purchaseOrders, purchaseOrderItems, referralCodes, referralRewards, posOrderItems, giftCards, giftCardTransactions, leads, challenges, userChallenges, progressMetricDefinitions, memberProgressEntries, videos, waitlist, subRequests, videoShares, videoCollections, videoCollectionItems, brandingAssets, referrals, memberTags, membersToTags, customFieldDefinitions, customFieldValues, communityPosts, communityComments, communityLikes, reviews, tasks, refunds, webhookEndpoints, webhookLogs, websiteSettings, chatRooms, chatMessages, customReports, scheduledReports, faqs, memberCustomRoles, classSeries, customRoles } from '@studio/db/src/schema';
+import { eq, sql, desc, count, and, inArray, or, ne } from 'drizzle-orm';
 import { AuditService } from '../services/audit';
 import { HonoContext } from '../types';
 
@@ -234,7 +234,71 @@ app.delete('/:id', async (c) => {
         await db.delete(customRoles).where(eq(customRoles.tenantId, tid)).run().catch(() => { });
         await db.delete(membershipPlans).where(eq(membershipPlans.tenantId, tid)).run().catch(() => { });
         await db.delete(classPackDefinitions).where(eq(classPackDefinitions.tenantId, tid)).run().catch(() => { });
+
+        // 12. Collect user IDs BEFORE deleting tenantMembers
+        // Find users who were members of this tenant
+        const tenantUserIds = await db
+            .select({ userId: tenantMembers.userId })
+            .from(tenantMembers)
+            .where(eq(tenantMembers.tenantId, tid))
+            .all();
+
+        const userIdsToCheck = tenantUserIds.map(r => r.userId);
+
+        // Now delete tenantMembers
         await db.delete(tenantMembers).where(eq(tenantMembers.tenantId, tid)).run().catch(() => { });
+
+        // 13. Cleanup orphaned global users
+        // Delete users who are NOT platform admins AND have NO remaining tenant memberships
+        if (userIdsToCheck.length > 0) {
+            // Get users who have memberships in OTHER tenants (after we deleted this tenant's memberships)
+            const usersWithOtherMemberships = await db
+                .selectDistinct({ userId: tenantMembers.userId })
+                .from(tenantMembers)
+                .where(inArray(tenantMembers.userId, userIdsToCheck))
+                .all();
+
+            const userIdsToKeep = new Set(usersWithOtherMemberships.map(r => r.userId));
+
+            // Get platform admins
+            const platformAdmins = await db
+                .select({ id: users.id })
+                .from(users)
+                .where(
+                    and(
+                        inArray(users.id, userIdsToCheck),
+                        or(
+                            eq(users.isPlatformAdmin, true),
+                            inArray(users.role, ['admin', 'owner'])
+                        )
+                    )
+                )
+                .all();
+
+            platformAdmins.forEach(admin => userIdsToKeep.add(admin.id));
+
+            // Users to delete = all users from this tenant MINUS users to keep
+            const usersToDelete = userIdsToCheck.filter(id => !userIdsToKeep.has(id));
+
+            if (usersToDelete.length > 0) {
+                // Delete user relationships first
+                await db.delete(userRelationships)
+                    .where(or(
+                        inArray(userRelationships.parentUserId, usersToDelete),
+                        inArray(userRelationships.childUserId, usersToDelete)
+                    ))
+                    .run()
+                    .catch(() => { });
+
+                // Delete the orphaned users
+                await db.delete(users)
+                    .where(inArray(users.id, usersToDelete))
+                    .run()
+                    .catch(() => { });
+
+                console.log(`Cleaned up ${usersToDelete.length} orphaned users`);
+            }
+        }
 
         // R2 Cleanup
         c.executionCtx.waitUntil((async () => {
