@@ -181,18 +181,15 @@ app.post('/restore/tenant/:id', async (c) => {
             tables: {
                 members: backupData.members.length,
                 classes: backupData.classes.length,
-                bookings: backupData.bookings.length,
                 orders: backupData.orders.length,
-                classTypes: backupData.classTypes.length,
-                facilities: backupData.facilities.length,
+                locations: backupData.locations.length,
                 membershipPlans: backupData.membershipPlans.length,
                 classPacks: backupData.classPacks.length,
                 purchasedPacks: backupData.purchasedPacks.length,
                 subscriptions: backupData.subscriptions.length,
-                waitlists: backupData.waitlists.length,
+                waitlist: backupData.waitlist.length,
                 giftCards: backupData.giftCards.length,
-                automations: backupData.automations.length,
-                attendance: backupData.attendance.length
+                automations: backupData.automations.length
             }
         };
 
