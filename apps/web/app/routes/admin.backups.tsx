@@ -1,9 +1,9 @@
 import { useLoaderData, useNavigate } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
+import { useAuth } from "@clerk/react-router";
 import { apiRequest, API_URL } from "../utils/api";
-import { useState, Fragment, useEffect } from "react";
+import { useState, Fragment } from "react";
 import { Dialog, Transition, Tab, Menu } from "@headlessui/react";
-import toast from "react-hot-toast";
 
 interface Backup {
     key: string;
@@ -32,7 +32,14 @@ interface RestoreHistory {
     durationMs: number;
 }
 
-export async function loader(args: any) {
+interface LoaderData {
+    backups: any[];
+    r2Summary: { system: number; tenant: number };
+    tenants: TenantWithBackup[];
+    history: RestoreHistory[];
+}
+
+export async function loader(args: any): Promise<LoaderData> {
     const { getToken } = await getAuth(args);
     const token = await getToken();
 
@@ -49,11 +56,9 @@ export async function loader(args: any) {
             })
         ]);
 
-        const [backupsData, tenantsData, historyData] = await Promise.all([
-            backupsRes.json(),
-            tenantsRes.json(),
-            historyRes.json()
-        ]);
+        const backupsData = await backupsRes.json() as any;
+        const tenantsData = await tenantsRes.json() as any;
+        const historyData = await historyRes.json() as any;
 
         return {
             backups: backupsData.backups || [],
@@ -68,10 +73,13 @@ export async function loader(args: any) {
 }
 
 export default function AdminBackups() {
-    const { backups, r2Summary, tenants, history } = useLoaderData<typeof loader>();
+    const data = useLoaderData<typeof loader>() as LoaderData;
+    const { backups, r2Summary, tenants, history } = data;
     const navigate = useNavigate();
+    const { getToken } = useAuth();
 
     const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [restoreModalOpen, setRestoreModalOpen] = useState(false);
     const [selectedTenant, setSelectedTenant] = useState<TenantWithBackup | null>(null);
     const [selectedBackup, setSelectedBackup] = useState<string>("");
@@ -88,23 +96,23 @@ export default function AdminBackups() {
         return new Date(dateStr).toLocaleString();
     };
 
+    const showMessage = (type: 'success' | 'error', text: string) => {
+        setMessage({ type, text });
+        setTimeout(() => setMessage(null), 5000);
+    };
+
     const triggerBackup = async (type: 'system' | 'all-tenants' | 'tenant', tenantId?: string) => {
         setLoading(true);
         try {
-            const res = await apiRequest('/admin/backups/trigger', {
+            const token = await getToken();
+            await apiRequest('/admin/backups/trigger', token, {
                 method: 'POST',
                 body: JSON.stringify({ type, tenantId })
             });
-
-            if (res.ok) {
-                toast.success(`Backup triggered successfully!`);
-                navigate('.', { replace: true }); // Refresh
-            } else {
-                const data = await res.json();
-                toast.error(data.error || 'Backup failed');
-            }
+            showMessage('success', 'Backup triggered successfully!');
+            navigate('.', { replace: true });
         } catch (error: any) {
-            toast.error(error.message);
+            showMessage('error', error.message || 'Backup failed');
         } finally {
             setLoading(false);
         }
@@ -114,13 +122,10 @@ export default function AdminBackups() {
         setSelectedTenant(tenant);
         setRestoreModalOpen(true);
 
-        // Fetch backups for this tenant
         try {
-            const res = await apiRequest(`/admin/backups/tenants/${tenant.id}`);
-            if (res.ok) {
-                const data = await res.json();
-                setTenantBackups(data.backups || []);
-            }
+            const token = await getToken();
+            const data: any = await apiRequest(`/admin/backups/tenants/${tenant.id}`, token);
+            setTenantBackups(data.backups || []);
         } catch (error) {
             console.error('Failed to load tenant backups:', error);
         }
@@ -130,15 +135,14 @@ export default function AdminBackups() {
         if (!selectedTenant || !selectedBackup) return;
 
         try {
-            const res = await apiRequest(`/admin/backups/restore/tenant/${selectedTenant.id}`, {
+            const token = await getToken();
+            const data: any = await apiRequest(`/admin/backups/restore/tenant/${selectedTenant.id}`, token, {
                 method: 'POST',
                 body: JSON.stringify({ backupKey: selectedBackup, dryRun: true })
             });
-
-            const data = await res.json();
             setRestorePreview(data);
         } catch (error: any) {
-            toast.error(error.message);
+            showMessage('error', error.message);
         }
     };
 
@@ -155,7 +159,8 @@ export default function AdminBackups() {
 
         setLoading(true);
         try {
-            const res = await apiRequest(`/admin/backups/restore/tenant/${selectedTenant.id}`, {
+            const token = await getToken();
+            const data: any = await apiRequest(`/admin/backups/restore/tenant/${selectedTenant.id}`, token, {
                 method: 'POST',
                 body: JSON.stringify({
                     backupKey: selectedBackup,
@@ -163,18 +168,11 @@ export default function AdminBackups() {
                     confirmToken: 'CONFIRM_RESTORE'
                 })
             });
-
-            if (res.ok) {
-                const data = await res.json();
-                toast.success(`Restore completed! ${data.recordsRestored} records restored.`);
-                setRestoreModalOpen(false);
-                navigate('.', { replace: true });
-            } else {
-                const data = await res.json();
-                toast.error(data.error || 'Restore failed');
-            }
+            showMessage('success', `Restore completed! ${data.recordsRestored} records restored.`);
+            setRestoreModalOpen(false);
+            navigate('.', { replace: true });
         } catch (error: any) {
-            toast.error(error.message);
+            showMessage('error', error.message || 'Restore failed');
         } finally {
             setLoading(false);
         }
@@ -182,6 +180,14 @@ export default function AdminBackups() {
 
     return (
         <div className="max-w-7xl mx-auto px-4 py-8">
+            {/* Toast Message */}
+            {message && (
+                <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg ${message.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                    }`}>
+                    {message.text}
+                </div>
+            )}
+
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div>
