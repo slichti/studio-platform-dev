@@ -70,6 +70,7 @@ export default function AdminLayout() {
     const navItems = [
         { label: "Activity Logs", href: "/admin/logs", icon: "📋" },
         { label: "Architecture", href: "/admin/architecture", icon: "🏗️" },
+        { label: "Backups", href: "/admin/backups", icon: "💾" },
         { label: "Chat System", href: "/admin/chat", icon: "💬" },
         { label: "Communications", href: "/admin/comms", icon: "📡" },
         { label: "Coupons", href: "/admin/coupons", icon: "🎟️" },
