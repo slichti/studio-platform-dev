@@ -705,7 +705,9 @@ export default function AdminTenants() {
             const res: any = await apiRequest(`/admin/tenants/${restoreId}/lifecycle/restore`, token, { method: 'POST' });
             if (res.error) throw new Error(res.error);
             setTenants(tenants.map((t: any) => t.id === restoreId ? { ...t, status: 'active', studentAccessDisabled: false } : t));
-            setSuccessDialog({ isOpen: true, message: "Tenant restored successfully." });
+
+            // Immediate reload as requested, skipping SuccessDialog
+            window.location.reload();
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message });
         } finally {
@@ -872,10 +874,9 @@ export default function AdminTenants() {
             if (res.error) throw new Error(res.error);
 
             setTenants(tenants.filter((t: any) => t.id !== tenantToDelete));
-            setSuccessDialog({ isOpen: true, message: "Tenant deleted successfully." });
-            setDeleteModalOpen(false);
-            setTenantToDelete(null);
-            setDeleteInput("");
+
+            // Immediate reload as requested, skipping SuccessDialog
+            window.location.reload();
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message || "Deletion failed" });
         } finally {
