@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantMembers, tenantRoles, subscriptions, tenantFeatures, websitePages, auditLogs, users, emailLogs, locations, classes, bookings, products, posOrders, marketingAutomations, marketingCampaigns, waiverTemplates, waiverSignatures, studentNotes, uploads } from '@studio/db/src/schema'; // Removed purchases
+import { tenants, tenantMembers, tenantRoles, subscriptions, tenantFeatures, websitePages, auditLogs, users, emailLogs, locations, classes, bookings, products, posOrders, marketingAutomations, marketingCampaigns, waiverTemplates, waiverSignatures, studentNotes, uploads, usageLogs, appointmentServices, availabilities, appointments, payrollConfig, payouts, payrollItems, automationLogs, smsLogs, pushLogs, membershipPlans, classPackDefinitions, purchasedPacks, coupons, couponRedemptions, smsConfig, substitutions, suppliers, inventoryAdjustments, purchaseOrders, purchaseOrderItems, referralCodes, referralRewards, posOrderItems, giftCards, giftCardTransactions, leads, challenges, userChallenges, progressMetricDefinitions, memberProgressEntries, videos, waitlist, subRequests, videoShares, videoCollections, videoCollectionItems, brandingAssets, referrals, memberTags, membersToTags, customFieldDefinitions, customFieldValues, communityPosts, communityComments, communityLikes, reviews, tasks, refunds, webhookEndpoints, webhookLogs, websiteSettings, chatRooms, chatMessages, customReports, scheduledReports, faqs, memberCustomRoles, classSeries, customRoles } from '@studio/db/src/schema';
 import { eq, sql, desc, count, and, inArray } from 'drizzle-orm';
 import { AuditService } from '../services/audit';
 import { HonoContext } from '../types';
@@ -134,41 +134,109 @@ app.delete('/:id', async (c) => {
     if (!t) return c.json({ error: "Not found" }, 404);
 
     try {
-        // Manual Cascade Delete (Reverse Dependency Order)
+        // --- MANUAL CASCADE DELETE (Reverse Dependency Order) ---
 
-        // 1. Leaf nodes (Logs, Signatures, Redemptions)
+        // 1. Logs, Analytics & Security
+        await db.delete(auditLogs).where(eq(auditLogs.tenantId, tid)).run().catch(() => { });
+        await db.delete(emailLogs).where(eq(emailLogs.tenantId, tid)).run().catch(() => { });
+        await db.delete(smsLogs).where(eq(smsLogs.tenantId, tid)).run().catch(() => { });
+        await db.delete(pushLogs).where(eq(pushLogs.tenantId, tid)).run().catch(() => { });
+        await db.delete(usageLogs).where(eq(usageLogs.tenantId, tid)).run().catch(() => { });
+        await db.delete(automationLogs).where(eq(automationLogs.tenantId, tid)).run().catch(() => { });
+        await db.delete(webhookLogs).where(eq(webhookLogs.tenantId, tid)).run().catch(() => { });
+
+        // 2. Social, Reviews & Community
+        await db.delete(communityLikes).where(inArray(communityLikes.postId, db.select({ id: communityPosts.id }).from(communityPosts).where(eq(communityPosts.tenantId, tid)))).run().catch(() => { });
+        await db.delete(communityComments).where(inArray(communityComments.postId, db.select({ id: communityPosts.id }).from(communityPosts).where(eq(communityPosts.tenantId, tid)))).run().catch(() => { });
+        await db.delete(communityPosts).where(eq(communityPosts.tenantId, tid)).run().catch(() => { });
+        await db.delete(reviews).where(eq(reviews.tenantId, tid)).run().catch(() => { });
+
+        // 3. CRM & Marketing
+        await db.delete(tasks).where(eq(tasks.tenantId, tid)).run().catch(() => { });
+        await db.delete(studentNotes).where(eq(studentNotes.tenantId, tid)).run().catch(() => { });
+        await db.delete(leads).where(eq(leads.tenantId, tid)).run().catch(() => { });
+        await db.delete(referralRewards).where(eq(referralRewards.tenantId, tid)).run().catch(() => { });
+        await db.delete(referralCodes).where(eq(referralCodes.tenantId, tid)).run().catch(() => { });
+        await db.delete(referrals).where(eq(referrals.tenantId, tid)).run().catch(() => { });
+        await db.delete(marketingAutomations).where(eq(marketingAutomations.tenantId, tid)).run().catch(() => { });
+        await db.delete(marketingCampaigns).where(eq(marketingCampaigns.tenantId, tid)).run().catch(() => { });
+
+        // 4. Loyalty & Progress
+        await db.delete(userChallenges).where(eq(userChallenges.tenantId, tid)).run().catch(() => { });
+        await db.delete(challenges).where(eq(challenges.tenantId, tid)).run().catch(() => { });
+        await db.delete(memberProgressEntries).where(eq(memberProgressEntries.tenantId, tid)).run().catch(() => { });
+        await db.delete(progressMetricDefinitions).where(eq(progressMetricDefinitions.tenantId, tid)).run().catch(() => { });
+
+        // 5. Commerce, Billing & Payroll
+        await db.delete(refunds).where(eq(refunds.tenantId, tid)).run().catch(() => { });
+        await db.delete(payrollItems).where(inArray(payrollItems.payoutId, db.select({ id: payouts.id }).from(payouts).where(eq(payouts.tenantId, tid)))).run().catch(() => { });
+        await db.delete(payouts).where(eq(payouts.tenantId, tid)).run().catch(() => { });
+        await db.delete(payrollConfig).where(eq(payrollConfig.tenantId, tid)).run().catch(() => { });
+        await db.delete(giftCardTransactions).where(inArray(giftCardTransactions.giftCardId, db.select({ id: giftCards.id }).from(giftCards).where(eq(giftCards.tenantId, tid)))).run().catch(() => { });
+        await db.delete(giftCards).where(eq(giftCards.tenantId, tid)).run().catch(() => { });
+        await db.delete(couponRedemptions).where(eq(couponRedemptions.tenantId, tid)).run().catch(() => { });
+        await db.delete(coupons).where(eq(coupons.tenantId, tid)).run().catch(() => { });
+        await db.delete(purchasedPacks).where(eq(purchasedPacks.tenantId, tid)).run().catch(() => { });
+        await db.delete(subscriptions).where(eq(subscriptions.tenantId, tid)).run().catch(() => { });
+
+        // 6. Retail & Inventory
+        await db.delete(posOrderItems).where(inArray(posOrderItems.orderId, db.select({ id: posOrders.id }).from(posOrders).where(eq(posOrders.tenantId, tid)))).run().catch(() => { });
+        await db.delete(posOrders).where(eq(posOrders.tenantId, tid)).run().catch(() => { });
+        await db.delete(purchaseOrderItems).where(inArray(purchaseOrderItems.purchaseOrderId, db.select({ id: purchaseOrders.id }).from(purchaseOrders).where(eq(purchaseOrders.tenantId, tid)))).run().catch(() => { });
+        await db.delete(purchaseOrders).where(eq(purchaseOrders.tenantId, tid)).run().catch(() => { });
+        await db.delete(inventoryAdjustments).where(eq(inventoryAdjustments.tenantId, tid)).run().catch(() => { });
+        await db.delete(products).where(eq(products.tenantId, tid)).run().catch(() => { });
+        await db.delete(suppliers).where(eq(suppliers.tenantId, tid)).run().catch(() => { });
+
+        // 7. Scheduling & Bookings
+        await db.delete(waitlist).where(eq(waitlist.tenantId, tid)).run().catch(() => { });
+        await db.delete(subRequests).where(eq(subRequests.tenantId, tid)).run().catch(() => { });
+        await db.delete(bookings).where(inArray(bookings.classId, db.select({ id: classes.id }).from(classes).where(eq(classes.tenantId, tid)))).run().catch(() => { });
+        await db.delete(substitutions).where(eq(substitutions.tenantId, tid)).run().catch(() => { });
+        await db.delete(classes).where(eq(classes.tenantId, tid)).run().catch(() => { });
+        await db.delete(classSeries).where(eq(classSeries.tenantId, tid)).run().catch(() => { });
+        await db.delete(appointments).where(eq(appointments.tenantId, tid)).run().catch(() => { });
+        await db.delete(availabilities).where(eq(availabilities.tenantId, tid)).run().catch(() => { });
+        await db.delete(appointmentServices).where(eq(appointmentServices.tenantId, tid)).run().catch(() => { });
+
+        // 8. VOD & Assets
+        await db.delete(videoCollectionItems).where(inArray(videoCollectionItems.collectionId, db.select({ id: videoCollections.id }).from(videoCollections).where(eq(videoCollections.tenantId, tid)))).run().catch(() => { });
+        await db.delete(videoCollections).where(eq(videoCollections.tenantId, tid)).run().catch(() => { });
+        await db.delete(videoShares).where(eq(videoShares.tenantId, tid)).run().catch(() => { });
+        await db.delete(videos).where(eq(videos.tenantId, tid)).run().catch(() => { });
+        await db.delete(brandingAssets).where(eq(brandingAssets.tenantId, tid)).run().catch(() => { });
+        await db.delete(uploads).where(eq(uploads.tenantId, tid)).run().catch(() => { });
+
+        // 9. Config, Pages & Website
+        await db.delete(websitePages).where(eq(websitePages.tenantId, tid)).run().catch(() => { });
+        await db.delete(websiteSettings).where(eq(websiteSettings.tenantId, tid)).run().catch(() => { });
+        await db.delete(customFieldValues).where(eq(customFieldValues.tenantId, tid)).run().catch(() => { });
+        await db.delete(customFieldDefinitions).where(eq(customFieldDefinitions.tenantId, tid)).run().catch(() => { });
+        await db.delete(customReports).where(eq(customReports.tenantId, tid)).run().catch(() => { });
+        await db.delete(scheduledReports).where(eq(scheduledReports.tenantId, tid)).run().catch(() => { });
+        await db.delete(faqs).where(eq(faqs.tenantId, tid)).run().catch(() => { });
+        await db.delete(smsConfig).where(eq(smsConfig.tenantId, tid)).run().catch(() => { });
+        await db.delete(webhookEndpoints).where(eq(webhookEndpoints.tenantId, tid)).run().catch(() => { });
         await db.delete(waiverSignatures).where(inArray(waiverSignatures.memberId, db.select({ id: tenantMembers.id }).from(tenantMembers).where(eq(tenantMembers.tenantId, tid)))).run().catch(() => { });
-        // Note: Not checking every single table (like couponRedemptions) to save complexity, but covering major ones.
+        await db.delete(waiverTemplates).where(eq(waiverTemplates.tenantId, tid)).run().catch(() => { });
+        await db.delete(locations).where(eq(locations.tenantId, tid)).run().catch(() => { });
+        await db.delete(tenantFeatures).where(eq(tenantFeatures.tenantId, tid)).run().catch(() => { });
 
-        // 2. High Volume / Operational Data
-        await db.delete(bookings).where(inArray(bookings.classId, db.select({ id: classes.id }).from(classes).where(eq(classes.tenantId, tid)))).run();
-        await db.delete(classes).where(eq(classes.tenantId, tid)).run();
-        // await db.delete(classSeries).where(eq(classSeries.tenantId, tid)).run(); // if exists in imports
+        // 10. Communication (Chat)
+        await db.delete(chatMessages).where(inArray(chatMessages.roomId, db.select({ id: chatRooms.id }).from(chatRooms).where(eq(chatRooms.tenantId, tid)))).run().catch(() => { });
+        await db.delete(chatRooms).where(eq(chatRooms.tenantId, tid)).run().catch(() => { });
 
-        await db.delete(posOrders).where(eq(posOrders.tenantId, tid)).run();
+        // 11. Members & Roles (The core links)
+        await db.delete(membersToTags).where(inArray(membersToTags.memberId, db.select({ id: tenantMembers.id }).from(tenantMembers).where(eq(tenantMembers.tenantId, tid)))).run().catch(() => { });
+        await db.delete(memberTags).where(eq(memberTags.tenantId, tid)).run().catch(() => { });
+        await db.delete(tenantRoles).where(inArray(tenantRoles.memberId, db.select({ id: tenantMembers.id }).from(tenantMembers).where(eq(tenantMembers.tenantId, tid)))).run().catch(() => { });
+        await db.delete(memberCustomRoles).where(inArray(memberCustomRoles.memberId, db.select({ id: tenantMembers.id }).from(tenantMembers).where(eq(tenantMembers.tenantId, tid)))).run().catch(() => { });
+        await db.delete(customRoles).where(eq(customRoles.tenantId, tid)).run().catch(() => { });
+        await db.delete(membershipPlans).where(eq(membershipPlans.tenantId, tid)).run().catch(() => { });
+        await db.delete(classPackDefinitions).where(eq(classPackDefinitions.tenantId, tid)).run().catch(() => { });
+        await db.delete(tenantMembers).where(eq(tenantMembers.tenantId, tid)).run().catch(() => { });
 
-        // 3. Marketing
-        await db.delete(marketingAutomations).where(eq(marketingAutomations.tenantId, tid)).run();
-        await db.delete(marketingCampaigns).where(eq(marketingCampaigns.tenantId, tid)).run();
-
-        // 4. Products & Plans
-        await db.delete(products).where(eq(products.tenantId, tid)).run();
-        await db.delete(subscriptions).where(eq(subscriptions.tenantId, tid)).run();
-
-        // 5. Tenant Users/Members
-        // Roles first
-        await db.delete(tenantRoles).where(inArray(tenantRoles.memberId, db.select({ id: tenantMembers.id }).from(tenantMembers).where(eq(tenantMembers.tenantId, tid)))).run();
-        await db.delete(tenantMembers).where(eq(tenantMembers.tenantId, tid)).run();
-
-        // 6. Tenant Features & Config
-        await db.delete(tenantFeatures).where(eq(tenantFeatures.tenantId, tid)).run();
-        await db.delete(websitePages).where(eq(websitePages.tenantId, tid)).run();
-        await db.delete(locations).where(eq(locations.tenantId, tid)).run();
-        await db.delete(waiverTemplates).where(eq(waiverTemplates.tenantId, tid)).run();
-
-        // 7. Files & Storage
-        await db.delete(uploads).where(eq(uploads.tenantId, tid)).run();
-
+        // R2 Cleanup
         c.executionCtx.waitUntil((async () => {
             try {
                 const { StorageService } = await import('../services/storage');
@@ -181,7 +249,7 @@ app.delete('/:id', async (c) => {
             }
         })());
 
-        // 8. Finally: The Tenant
+        // 12. Finally: The Tenant
         await db.delete(tenants).where(eq(tenants.id, tid)).run();
 
         const audit = new AuditService(db);
@@ -192,6 +260,7 @@ app.delete('/:id', async (c) => {
             details: { name: t.name, slug: t.slug },
             ipAddress: c.req.header('CF-Connecting-IP')
         });
+
         return c.json({ success: true });
     } catch (e: any) {
         console.error("Delete failed", e);
