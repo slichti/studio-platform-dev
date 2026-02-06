@@ -9,9 +9,23 @@ import { EmailService } from './services/email';
 import { NotificationService } from './services/notifications';
 import { NudgeService } from './services/nudges';
 import { ChurnService } from './services/churn';
+import { backupDatabase } from '../scripts/backup-database';
 
 export const scheduled = async (event: any, env: any, ctx: any) => {
     console.log("Cron trigger fired:", event.cron);
+
+    // Handle daily backup at 2 AM UTC
+    if (event.cron === '0 2 * * *') {
+        console.log('🔄 Starting daily database backup...');
+        try {
+            await backupDatabase(env, false); // false = remote database
+            console.log('✅ Daily backup completed successfully');
+        } catch (error: any) {
+            console.error('❌ Daily backup failed:', error.message);
+            // TODO: Send alert to monitoring service
+        }
+        return; // Exit early, don't run other cron logic
+    }
 
     const db = createDb(env.DB);
     const bookingService = new BookingService(db, env);

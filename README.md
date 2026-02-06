@@ -35,6 +35,13 @@ The modern, all-in-one platform for dance, yoga, and fitness studios.
     npm run deploy -w web
     ```
 
+## Disaster Recovery
+
+The platform includes automated daily database backups:
+- **Schedule:** Daily at 2 AM UTC
+- **Storage:** Cloudflare R2 (90-day retention)
+- **Recovery:** See [docs/disaster-recovery.md](docs/disaster-recovery.md)
+
 ## Architecture
 
 See [docs/architecture.md](docs/architecture.md) for detailed system architecture.

@@ -4,7 +4,10 @@ compatibility_flags = ["nodejs_compat"]
 main = "src/index.ts"
 
 [triggers]
-crons = ["*/15 * * * *"]
+crons = [
+  "*/15 * * * *",  # Every 15 minutes (existing tasks)
+  "0 2 * * *"      # Daily at 2 AM UTC (database backup)
+]
 
 [vars]
 ENVIRONMENT = "dev"

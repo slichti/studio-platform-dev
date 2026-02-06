@@ -39,11 +39,16 @@ graph TD
 ## Core Workflows
 
 ### 0. Automations (Cron Triggers)
-The system uses Cloudflare Cron Triggers (`*/15 * * * *`) to handle time-sensitive tasks:
+The system uses Cloudflare Cron Triggers to handle time-sensitive tasks:
+
+**Schedule: Every 15 minutes** (`*/15 * * * *`)
 - **No-Show Marking**: Automatically marks bookings as "No Show" if not checked in after class ends.
 - **Low Enrollment Cancellation**: Cancels classes with insufficient students X hours before start.
 - **Waitlist Promotion**: (Event-driven & Scheduled) Promotes users when spots open.
 - **Scheduled Reports**: Sends daily/weekly/monthly reports to admins.
+
+**Schedule: Daily at 2 AM UTC** (`0 2 * * *`)
+- **Database Backup**: Exports entire D1 database to R2 storage with 90-day retention. See [`docs/disaster-recovery.md`](file:///Users/slichti/GitHub/studio-platform-dev/docs/disaster-recovery.md) for recovery procedures.
 
 ### 1. Member Invitation & Onboarding
 User Roles:

@@ -351,4 +351,52 @@ app.post('/seed', async (c) => {
     }
 });
 
+// POST /admin/tenants/:id/export - Export complete tenant data (GDPR Compliance)
+app.post('/:id/export', async (c) => {
+    // Strict Platform Admin Check
+    const isPlatformAdmin = c.get('auth')?.claims?.isPlatformAdmin === true;
+    if (!isPlatformAdmin) return c.json({ error: 'Unauthorized - Platform admin only' }, 403);
+
+    const tenantId = c.req.param('id');
+    const db = createDb(c.env.DB);
+
+    try {
+        console.log(`📥 Exporting data for tenant: ${tenantId}`);
+
+        // Fetch tenant
+        const tenant = await db.select().from(tenants).where(eq(tenants.id, tenantId)).get();
+        if (!tenant) {
+            return c.json({ error: 'Tenant not found' }, 404);
+        }
+
+        // Export all tenant-related data
+        const exportData = {
+            metadata: {
+                exportedAt: new Date().toISOString(),
+                tenantId,
+                tenantName: tenant.name,
+                version: '1.0'
+            },
+            tenant,
+            members: await db.select().from(tenantMembers).where(eq(tenantMembers.tenantId, tenantId)).all(),
+            classes: await db.select().from(classes).where(eq(classes.tenantId, tenantId)).all(),
+            bookings: await db.select().from(bookings)
+                .innerJoin(classes, eq(bookings.classId, classes.id))
+                .where(eq(classes.tenantId, tenantId))
+                .all(),
+            // Add all other tenant-related tables as needed
+        };
+
+        const filename = `tenant-${tenant.slug}-export-${Date.now()}.json`;
+
+        c.header('Content-Type', 'application/json');
+        c.header('Content-Disposition', `attachment; filename="${filename}"`);
+
+        return c.json(exportData);
+    } catch (e: any) {
+        console.error('Export failed', e);
+        return c.json({ error: 'Failed to export tenant data: ' + e.message }, 500);
+    }
+});
+
 export default app;
