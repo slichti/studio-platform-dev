@@ -1977,3 +1977,40 @@ export const customFieldValuesRelations = relations(customFieldValues, ({ one })
         references: [customFieldDefinitions.id],
     }),
 }));
+
+// --- Backup Metadata ---
+export const backupMetadata = sqliteTable('backup_metadata', {
+    id: text('id').primaryKey(),
+    type: text('type', { enum: ['system', 'tenant'] }).notNull(),
+    tenantId: text('tenant_id'), // Only for tenant backups
+    backupDate: integer('backup_date', { mode: 'timestamp' }).notNull(),
+    fileSize: integer('file_size').notNull(), // bytes
+    r2Key: text('r2_key').notNull(),
+    status: text('status', { enum: ['success', 'failed', 'in_progress'] }).notNull(),
+    recordCount: integer('record_count'), // For tenant backups
+    errorMessage: text('error_message'), // If failed
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    typeIdx: index('backup_type_idx').on(table.type, table.backupDate),
+    tenantIdx: index('backup_tenant_idx').on(table.tenantId, table.backupDate),
+}));
+
+// --- Restore History (Audit) ---
+export const restoreHistory = sqliteTable('restore_history', {
+    id: text('id').primaryKey(),
+    type: text('type', { enum: ['system', 'tenant'] }).notNull(),
+    tenantId: text('tenant_id'), // Only for tenant restores
+    backupKey: text('backup_key').notNull(), // R2 key of backup used
+    backupDate: integer('backup_date', { mode: 'timestamp' }).notNull(),
+    restoredBy: text('restored_by').notNull(), // User ID
+    restoredAt: integer('restored_at', { mode: 'timestamp' }).notNull(),
+    status: text('status', { enum: ['success', 'failed', 'in_progress'] }).notNull(),
+    recordsRestored: integer('records_restored'),
+    durationMs: integer('duration_ms'),
+    details: text('details', { mode: 'json' }), // { preSnapshot: '...', tables: [...] }
+    errorMessage: text('error_message'),
+}, (table) => ({
+    typeIdx: index('restore_type_idx').on(table.type, table.restoredAt),
+    tenantIdx: index('restore_tenant_idx').on(table.tenantId),
+    restoredByIdx: index('restore_user_idx').on(table.restoredBy),
+}));
