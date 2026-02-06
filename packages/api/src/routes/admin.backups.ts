@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { createDb } from '../db';
 import { tenants, tenantMembers, classes, bookings, posOrders, backupMetadata, restoreHistory } from '@studio/db/src/schema';
 import { eq, desc, and } from 'drizzle-orm';
-import { backupDatabase } from '../../scripts/backup-database';
+import { createSystemBackup } from '../../scripts/backup-system';
 import { backupTenant, backupAllTenants, listTenantBackups, downloadTenantBackup, exportTenantData } from '../../scripts/backup-tenants';
 
 const app = new Hono<{ Bindings: any; Variables: any }>();
@@ -123,8 +123,8 @@ app.post('/trigger', async (c) => {
     try {
         if (type === 'system') {
             console.log(`Manual system backup triggered by ${userId}`);
-            await backupDatabase(c.env, false);
-            return c.json({ success: true, message: 'System backup completed' });
+            const result = await createSystemBackup(c.env);
+            return c.json({ success: true, message: 'System backup completed', ...result });
         } else if (type === 'tenant' && tenantId) {
             console.log(`Manual tenant backup triggered for ${tenantId} by ${userId}`);
             const result = await backupTenant(c.env, tenantId);

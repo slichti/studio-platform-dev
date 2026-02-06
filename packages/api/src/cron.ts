@@ -9,7 +9,7 @@ import { EmailService } from './services/email';
 import { NotificationService } from './services/notifications';
 import { NudgeService } from './services/nudges';
 import { ChurnService } from './services/churn';
-import { backupDatabase } from '../scripts/backup-database';
+import { createSystemBackup } from '../scripts/backup-system';
 import { backupAllTenants } from '../scripts/backup-tenants';
 
 export const scheduled = async (event: any, env: any, ctx: any) => {
@@ -21,7 +21,7 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
 
         // 1. Full database backup
         try {
-            await backupDatabase(env, false); // false = remote database
+            await createSystemBackup(env);
             console.log('✅ System backup completed');
         } catch (error: any) {
             console.error('❌ System backup failed:', error.message);
