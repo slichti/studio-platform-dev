@@ -71,7 +71,7 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                 body: JSON.stringify({
                     title: formData.name,
                     description: formData.description,
-                    instructorId: formData.instructorId,
+                    instructorId: formData.instructorId || undefined,
                     locationId: formData.locationId || undefined,
                     startTime: new Date(formData.startTime).toISOString(),
                     durationMinutes: Number(formData.durationMinutes),
@@ -153,12 +153,11 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                         <label htmlFor="instructor" className="block text-sm font-medium text-zinc-700 mb-1">Instructor</label>
                         <select
                             id="instructor"
-                            required
                             className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                             value={formData.instructorId}
                             onChange={(e) => setFormData({ ...formData, instructorId: e.target.value })}
                         >
-                            <option value="">Select Instructor</option>
+                            <option value="">TBA (No Instructor)</option>
                             {instructors.map((inst: any) => (
                                 <option key={inst.id} value={inst.id}>
                                     {inst.user?.profile?.firstName} {inst.user?.profile?.lastName}
@@ -320,7 +319,7 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
 
                 {/* Payroll Configuration */}
                 <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-lg space-y-4">
-                    <h3 className="text-sm font-semibold text-zinc-900 border-b border-zinc-200 pb-2">Investigator Payroll (Smart Pricing)</h3>
+                    <h3 className="text-sm font-semibold text-zinc-900 border-b border-zinc-200 pb-2">Instructor Payroll (Smart Pricing)</h3>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-medium text-zinc-700 mb-1">Payroll Model</label>
