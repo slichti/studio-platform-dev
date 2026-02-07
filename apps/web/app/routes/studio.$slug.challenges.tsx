@@ -58,14 +58,13 @@ export const action = async (args: ActionFunctionArgs) => {
 
         const data = {
             title: formData.get("title"),
-            description: formData.get("description"),
+            description: formData.get("description") || null,
             type: formData.get("type"),
             targetValue: parseInt(formData.get("targetValue") as string || "10"),
             frequency: parseInt(formData.get("frequency") as string || "1"),
             period: formData.get("period") || "week",
             rewardType,
-            rewardValue,
-            rewardPoints: parseInt(formData.get("rewardPoints") as string || "100"),
+            rewardValue: JSON.stringify(rewardValue),
             startDate: formData.get("startDate") || new Date().toISOString().split('T')[0],
             endDate: formData.get("endDate")
         };
@@ -188,7 +187,7 @@ export default function ChallengesPrograms() {
                                                 <div className="flex items-center justify-between">
                                                     <h3 className="font-bold text-zinc-900 dark:text-zinc-100">{challenge.title}</h3>
                                                     <span className="px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-xs font-medium flex items-center gap-1">
-                                                        <Star size={12} /> {challenge.rewardPoints} pts
+                                                        <Star size={12} /> {challenge.rewardType === 'badge' ? 'Badge' : challenge.rewardType === 'coupon' ? 'Coupon' : 'Credit'}
                                                     </span>
                                                 </div>
                                                 <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">{challenge.description}</p>
@@ -373,10 +372,6 @@ export default function ChallengesPrograms() {
                                         <option value="coupon">Discount Coupon</option>
                                         <option value="retail_credit">Retail Credit</option>
                                     </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Reward Points</label>
-                                    <input name="rewardPoints" type="number" defaultValue="100" min="0" className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
                                 </div>
                             </div>
 
