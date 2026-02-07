@@ -22,8 +22,8 @@ export default function StudioReports() {
     const [showSchedules, setShowSchedules] = useState(false);
 
     // Hooks
-    const { data: revenueData, isLoading: loadingRevenue } = useRevenue(tenant.slug, dateRange);
-    const { data: attendanceData, isLoading: loadingAttendance } = useAttendance(tenant.slug, dateRange);
+    const { data: revenueData, isLoading: loadingRevenue, isError: revenueError, error: revenueErrorData } = useRevenue(tenant.slug, dateRange);
+    const { data: attendanceData, isLoading: loadingAttendance, isError: attendanceError, error: attendanceErrorData } = useAttendance(tenant.slug, dateRange);
     const { data: retentionData } = useRetention(tenant.slug);
     const { data: schedules = [] } = useReportSchedules(tenant.slug);
     const { createMutation: createSchedule, deleteMutation: deleteSchedule } = useReportScheduleMutations(tenant.slug);
@@ -88,6 +88,24 @@ export default function StudioReports() {
 
     if (loadingRevenue || loadingAttendance) {
         return <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-zinc-400" /></div>;
+    }
+
+    if (revenueError || attendanceError) {
+        const errorMessage = (revenueErrorData as any)?.message || (attendanceErrorData as any)?.message || "Failed to load reports data";
+        return (
+            <div className="p-8 max-w-7xl mx-auto">
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+                    <h2 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">Error Loading Reports</h2>
+                    <p className="text-red-600 dark:text-red-300">{errorMessage}</p>
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="mt-4 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                    >
+                        Retry
+                    </button>
+                </div>
+            </div>
+        );
     }
 
     return (
