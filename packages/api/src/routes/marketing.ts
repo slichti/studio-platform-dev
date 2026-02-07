@@ -89,4 +89,121 @@ marketing.post('/sync-members', async (c) => {
     return c.json({ success: true, message: 'Sync started' });
 });
 
+// ============================================================
+// AUTOMATIONS ROUTES (tenant-specific)
+// ============================================================
+import { marketingAutomations } from '@studio/db/src/schema';
+import { desc } from 'drizzle-orm';
+
+// GET /automations - List automations for this tenant
+marketing.get('/automations', async (c) => {
+    const can = c.get('can');
+    if (!can('manage_marketing' as Permission)) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
+
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+
+    try {
+        const automations = await db.select()
+            .from(marketingAutomations)
+            .where(eq(marketingAutomations.tenantId, tenant.id))
+            .orderBy(desc(marketingAutomations.createdAt))
+            .all();
+
+        return c.json(automations);
+    } catch (e: any) {
+        console.error('Failed to fetch automations:', e);
+        return c.json({ error: e.message }, 500);
+    }
+});
+
+// POST /automations - Create a new automation for this tenant
+marketing.post('/automations', async (c) => {
+    const can = c.get('can');
+    if (!can('manage_marketing' as Permission)) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
+
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+    const body = await c.req.json();
+
+    try {
+        const id = crypto.randomUUID();
+        await db.insert(marketingAutomations).values({
+            id,
+            tenantId: tenant.id,
+            triggerEvent: body.triggerEvent,
+            subject: body.subject,
+            content: body.content,
+            timingType: body.timingType || 'immediate',
+            timingValue: body.timingValue || 0,
+            isEnabled: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        }).run();
+
+        return c.json({ id, success: true }, 201);
+    } catch (e: any) {
+        console.error('Failed to create automation:', e);
+        return c.json({ error: e.message }, 400);
+    }
+});
+
+// PATCH /automations/:id - Update automation
+marketing.patch('/automations/:id', async (c) => {
+    const can = c.get('can');
+    if (!can('manage_marketing' as Permission)) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
+
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+    const id = c.req.param('id');
+    const body = await c.req.json();
+
+    try {
+        const updateData: any = { updatedAt: new Date() };
+        if (body.isEnabled !== undefined) updateData.isEnabled = body.isEnabled;
+        if (body.subject) updateData.subject = body.subject;
+        if (body.content) updateData.content = body.content;
+        if (body.timingType) updateData.timingType = body.timingType;
+        if (body.timingValue !== undefined) updateData.timingValue = body.timingValue;
+
+        await db.update(marketingAutomations)
+            .set(updateData)
+            .where(eq(marketingAutomations.id, id))
+            .run();
+
+        return c.json({ success: true });
+    } catch (e: any) {
+        console.error('Failed to update automation:', e);
+        return c.json({ error: e.message }, 400);
+    }
+});
+
+// DELETE /automations/:id - Delete automation
+marketing.delete('/automations/:id', async (c) => {
+    const can = c.get('can');
+    if (!can('manage_marketing' as Permission)) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
+
+    const db = createDb(c.env.DB);
+    const id = c.req.param('id');
+
+    try {
+        await db.delete(marketingAutomations)
+            .where(eq(marketingAutomations.id, id))
+            .run();
+
+        return c.json({ success: true });
+    } catch (e: any) {
+        console.error('Failed to delete automation:', e);
+        return c.json({ error: e.message }, 400);
+    }
+});
+
 export default marketing;

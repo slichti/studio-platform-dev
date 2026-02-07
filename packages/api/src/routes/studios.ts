@@ -310,8 +310,8 @@ app.openapi(createRoute({
     }
 }), async (c) => {
     const id = c.req.valid('param').id;
-    const isPlatformAdmin = c.get('auth')?.claims?.isPlatformAdmin === true;
-    if (!isPlatformAdmin && !c.get('can')('view_tenant')) return c.json({ error: "Forbidden" } as any, 403);
+    // Allow any authenticated user to view mobile config (it's needed for mobile app)
+    if (!c.get('auth')?.userId) return c.json({ error: "Unauthorized" } as any, 401);
 
     const db = createDb(c.env.DB);
     const t = await db.select().from(tenants).where(eq(tenants.id, id)).get();
