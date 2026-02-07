@@ -209,7 +209,10 @@ const studioPaths = [
   '/inventory/suppliers', '/inventory/suppliers/*',
   '/inventory/purchase-orders', '/inventory/purchase-orders/*',
   '/reports', '/reports/*',
-  '/analytics', '/analytics/*'
+  '/analytics', '/analytics/*',
+  '/challenges', '/challenges/*',
+  '/tasks', '/tasks/*',
+  '/video', '/video/*'
 ];
 
 const authenticatedPaths = [
@@ -239,7 +242,10 @@ const authenticatedPaths = [
   '/inventory', '/inventory/*',
   '/gift-cards', '/gift-cards/*',
   '/reports', '/reports/*',
-  '/analytics', '/analytics/*'
+  '/analytics', '/analytics/*',
+  '/challenges', '/challenges/*',
+  '/tasks', '/tasks/*',
+  '/video', '/video/*'
 ];
 
 const publicStudioPaths = [
