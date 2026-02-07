@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { useLoaderData, useOutletContext, Form } from "react-router";
-import type { MetaFunction } from "react-router";
+import { useOutletContext } from "react-router";
 import { apiRequest } from "~/utils/api";
 import {
     BarChart3, Calendar, Filter, Download, Save,
-    ChevronDown, Plus, Trash2, RefreshCw, Layers, DollarSign, Users, UserPlus
+    RefreshCw, Layers, DollarSign, Users, UserPlus
 } from "lucide-react";
 import { MetricCard } from "~/components/charts/MetricCard";
 import {
@@ -13,23 +12,13 @@ import {
 } from "recharts";
 import { format, subDays } from "date-fns";
 
-export const meta: MetaFunction = () => {
-    return [{ title: "Custom Reports | Studio Platform" }];
-};
+// Ensure context matches Layout
+import { DateRange } from "~/hooks/useAnalytics";
 
-interface OutletContext {
-    tenant: any;
-    me: any;
-}
+export default function AnalyticsCustom() {
+    const { tenant } = useOutletContext<{ tenant: any, dateRange: DateRange, shouldBlur: boolean }>();
 
-export default function CustomReportsPage() {
-    const { me, tenant } = useOutletContext<OutletContext>();
-    const token = null; // In client-side logic we rely on cookie auth mostly for loaders, but here we might need apiRequest
-
-    // Note: apiRequest handles token automatically via Clerk/Cookie if configured, or we pass it? 
-    // Usually standard pattern here is straightforward fetch or loader.
-    // We'll use local state for the builder.
-
+    // Local state for builder
     const [isLoading, setIsLoading] = useState(false);
     const [reportData, setReportData] = useState<any>(null);
     const [savedReports, setSavedReports] = useState<any[]>([]);
@@ -86,6 +75,7 @@ export default function CustomReportsPage() {
 
     const loadSavedReports = async () => {
         try {
+            // Note: Reuse existing endpoint
             const res = await apiRequest('/reports/custom', null, {
                 headers: { 'X-Tenant-Slug': tenant?.slug }
             });
@@ -117,7 +107,6 @@ export default function CustomReportsPage() {
             setReportData(res);
         } catch (e) {
             console.error("Query failed", e);
-            // toast.error("Failed to run report");
         } finally {
             setIsLoading(false);
         }
@@ -142,19 +131,16 @@ export default function CustomReportsPage() {
     };
 
     return (
-        <div className="p-8 max-w-7xl mx-auto animate-in fade-in duration-500">
+        <div className="animate-in fade-in duration-500">
             <div className="flex items-center justify-between mb-8">
                 <div>
-                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                        <BarChart3 className="text-blue-600" />
+                    <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
+                        <BarChart3 className="text-blue-600" size={20} />
                         Custom Report Builder
-                    </h1>
-                    <p className="text-zinc-500 dark:text-zinc-400 mt-1">
+                    </h2>
+                    <p className="text-zinc-500 dark:text-zinc-400 text-sm">
                         Design ad-hoc queries and analyze studio performance.
                     </p>
-                </div>
-                <div className="flex gap-2">
-                    {/* Load Report Dropdown could go here */}
                 </div>
             </div>
 
@@ -162,7 +148,7 @@ export default function CustomReportsPage() {
                 {/* CONFIGURATION PANEL */}
                 <div className="lg:col-span-1 space-y-6">
                     <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
-                        <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
+                        <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2 text-sm">
                             <Layers size={16} /> Metrics
                         </h3>
                         <div className="space-y-2">
@@ -184,7 +170,7 @@ export default function CustomReportsPage() {
                     </div>
 
                     <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
-                        <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
+                        <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2 text-sm">
                             <Filter size={16} /> Dimensions
                         </h3>
                         <div className="space-y-2">
@@ -206,8 +192,8 @@ export default function CustomReportsPage() {
                     </div>
 
                     <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
-                        <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
-                            <Calendar size={16} /> Date Range
+                        <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2 text-sm">
+                            <Calendar size={16} /> Date Range (Custom)
                         </h3>
                         <div className="space-y-3">
                             <div>
@@ -251,7 +237,6 @@ export default function CustomReportsPage() {
                                                 setMetrics(c.metrics || []);
                                                 setDimensions(c.dimensions || []);
                                                 if (c.dateRange) setDateRange(c.dateRange);
-                                                // Trigger run automatically? Maybe better to let user click run.
                                             }}
                                             className="text-zinc-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:underline text-left block w-full truncate"
                                         >

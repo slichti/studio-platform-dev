@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/react-router";
+import { useMemo } from "react";
 import { apiRequest } from "~/utils/api";
 
 // --- Types ---
@@ -31,24 +32,16 @@ function getDateRangeParams(range: DateRange, customStart?: string, customEnd?: 
 
 export function useRevenue(slug: string, range: DateRange, customStart?: string, customEnd?: string) {
     const { getToken } = useAuth();
-    const { startDate, endDate } = getDateRangeParams(range, customStart, customEnd);
+    const { startDate, endDate } = useMemo(() => getDateRangeParams(range, customStart, customEnd), [range, customStart, customEnd]);
 
     return useQuery({
         queryKey: ['analytics', 'revenue', slug, range, startDate, endDate],
         queryFn: async () => {
-            console.log(`[useRevenue] Fetching for ${slug}`);
-            try {
-                const token = await getToken();
-                console.log(`[useRevenue] Got token: ${!!token}`);
-                const res = await apiRequest(`/reports/revenue?startDate=${startDate}&endDate=${endDate}`, token, {
-                    headers: { 'X-Tenant-Slug': slug }
-                });
-                console.log(`[useRevenue] Success`);
-                return res;
-            } catch (e) {
-                console.error(`[useRevenue] Error`, e);
-                throw e;
-            }
+            const token = await getToken();
+            const res = await apiRequest(`/reports/revenue?startDate=${startDate}&endDate=${endDate}`, token, {
+                headers: { 'X-Tenant-Slug': slug }
+            });
+            return res;
         },
         enabled: !!slug,
         retry: 1
@@ -57,24 +50,16 @@ export function useRevenue(slug: string, range: DateRange, customStart?: string,
 
 export function useAttendance(slug: string, range: DateRange, customStart?: string, customEnd?: string) {
     const { getToken } = useAuth();
-    const { startDate, endDate } = getDateRangeParams(range, customStart, customEnd);
+    const { startDate, endDate } = useMemo(() => getDateRangeParams(range, customStart, customEnd), [range, customStart, customEnd]);
 
     return useQuery({
         queryKey: ['analytics', 'attendance', slug, range, startDate, endDate],
         queryFn: async () => {
-            console.log(`[useAttendance] Fetching for ${slug}`);
-            try {
-                const token = await getToken();
-                console.log(`[useAttendance] Got token: ${!!token}`);
-                const res = await apiRequest(`/reports/attendance?startDate=${startDate}&endDate=${endDate}`, token, {
-                    headers: { 'X-Tenant-Slug': slug }
-                });
-                console.log(`[useAttendance] Success`);
-                return res;
-            } catch (e) {
-                console.error(`[useAttendance] Error`, e);
-                throw e;
-            }
+            const token = await getToken();
+            const res = await apiRequest(`/reports/attendance?startDate=${startDate}&endDate=${endDate}`, token, {
+                headers: { 'X-Tenant-Slug': slug }
+            });
+            return res;
         },
         enabled: !!slug,
         retry: 1

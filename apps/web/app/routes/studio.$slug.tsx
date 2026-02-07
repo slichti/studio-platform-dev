@@ -11,6 +11,7 @@ import {
     Calendar,
     User,
     Users,
+    TrendingUp,
     Settings,
     CreditCard,
     Dumbbell,
@@ -347,7 +348,10 @@ export default function StudioLayout() {
                             </SidebarGroup>
 
                             <SidebarGroup title="Analytics">
-                                <NavItem to={`/studio/${slug}/reports`} icon={<BarChart3 size={18} />}>Reports</NavItem>
+                                <NavItem to={`/studio/${slug}/analytics/financials`} icon={<DollarSign size={18} />}>Financials</NavItem>
+                                <NavItem to={`/studio/${slug}/analytics/attendance`} icon={<BarChart3 size={18} />}>Attendance</NavItem>
+                                <NavItem to={`/studio/${slug}/analytics/projections`} icon={<TrendingUp size={18} />}>Projections</NavItem>
+                                <NavItem to={`/studio/${slug}/analytics/reports`} icon={<Mail size={18} />}>Scheduled Reports</NavItem>
                             </SidebarGroup>
                         </>
                     )}
