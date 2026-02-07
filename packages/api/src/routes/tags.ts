@@ -1,10 +1,11 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
+import { createRoute, z } from '@hono/zod-openapi';
+import { createOpenAPIApp } from '../lib/openapi';
 import { createDb } from '../db';
 import { memberTags } from '@studio/db/src/schema';
 import { eq, and } from 'drizzle-orm';
 import { Bindings, Variables } from '../types';
 
-const app = new OpenAPIHono<{ Bindings: Bindings, Variables: Variables }>();
+const app = createOpenAPIApp();
 
 // Schemas
 const TagSchema = z.object({
@@ -36,14 +37,24 @@ const listTagsRoute = createRoute({
             },
             description: 'List all tags',
         },
+        500: {
+            description: 'Internal Server Error',
+        },
     },
 });
 
 app.openapi(listTagsRoute, async (c) => {
-    const tenant = c.get('tenant');
-    const db = createDb(c.env.DB);
-    const tags = await db.select().from(memberTags).where(eq(memberTags.tenantId, tenant.id)).all();
-    return c.json(tags);
+    try {
+        const tenant = c.get('tenant');
+        if (!tenant) throw new Error('Tenant context missing');
+
+        const db = createDb(c.env.DB);
+        const tags = await db.select().from(memberTags).where(eq(memberTags.tenantId, tenant.id)).all();
+        return c.json(tags);
+    } catch (e: any) {
+        console.error('List Tags Error:', e);
+        return c.json({ error: e.message } as any, 500);
+    }
 });
 
 const createTagRoute = createRoute({
@@ -67,26 +78,36 @@ const createTagRoute = createRoute({
             },
             description: 'Create a tag',
         },
+        500: {
+            description: 'Internal Server Error',
+        },
     },
 });
 
 app.openapi(createTagRoute, async (c) => {
-    const tenant = c.get('tenant');
-    const db = createDb(c.env.DB);
-    const { name, color, description } = c.req.valid('json');
+    try {
+        const tenant = c.get('tenant');
+        if (!tenant) throw new Error('Tenant context missing');
 
-    const id = crypto.randomUUID();
-    await db.insert(memberTags).values({
-        id,
-        tenantId: tenant.id,
-        name,
-        color: color || null,
-        description: description || null
-    }).run();
+        const db = createDb(c.env.DB);
+        const { name, color, description } = c.req.valid('json');
 
-    const tag = await db.select().from(memberTags).where(eq(memberTags.id, id)).get();
-    if (!tag) throw new Error('Failed to create tag');
-    return c.json(tag);
+        const id = crypto.randomUUID();
+        await db.insert(memberTags).values({
+            id,
+            tenantId: tenant.id,
+            name,
+            color: color || null,
+            description: description || null
+        }).run();
+
+        const tag = await db.select().from(memberTags).where(eq(memberTags.id, id)).get();
+        if (!tag) throw new Error('Failed to create tag');
+        return c.json(tag);
+    } catch (e: any) {
+        console.error('Create Tag Error:', e);
+        return c.json({ error: e.message } as any, 500);
+    }
 });
 
 const updateTagRoute = createRoute({
@@ -116,27 +137,37 @@ const updateTagRoute = createRoute({
         404: {
             description: 'Tag not found',
         },
+        500: {
+            description: 'Internal Server Error',
+        },
     },
 });
 
 app.openapi(updateTagRoute, async (c) => {
-    const tenant = c.get('tenant');
-    const db = createDb(c.env.DB);
-    const { id } = c.req.valid('param');
-    const { name, color, description } = c.req.valid('json');
+    try {
+        const tenant = c.get('tenant');
+        if (!tenant) throw new Error('Tenant context missing');
 
-    await db.update(memberTags)
-        .set({
-            name,
-            color: color || null,
-            description: description || null
-        })
-        .where(and(eq(memberTags.id, id), eq(memberTags.tenantId, tenant.id)))
-        .run();
+        const db = createDb(c.env.DB);
+        const { id } = c.req.valid('param');
+        const { name, color, description } = c.req.valid('json');
 
-    const tag = await db.select().from(memberTags).where(eq(memberTags.id, id)).get();
-    if (!tag) return c.json({ error: 'Tag not found' } as any, 404);
-    return c.json(tag);
+        await db.update(memberTags)
+            .set({
+                name,
+                color: color || null,
+                description: description || null
+            })
+            .where(and(eq(memberTags.id, id), eq(memberTags.tenantId, tenant.id)))
+            .run();
+
+        const tag = await db.select().from(memberTags).where(eq(memberTags.id, id)).get();
+        if (!tag) return c.json({ error: 'Tag not found' } as any, 404);
+        return c.json(tag);
+    } catch (e: any) {
+        console.error('Update Tag Error:', e);
+        return c.json({ error: e.message } as any, 500);
+    }
 });
 
 const deleteTagRoute = createRoute({
@@ -156,19 +187,29 @@ const deleteTagRoute = createRoute({
             },
             description: 'Delete a tag',
         },
+        500: {
+            description: 'Internal Server Error',
+        },
     },
 });
 
 app.openapi(deleteTagRoute, async (c) => {
-    const tenant = c.get('tenant');
-    const db = createDb(c.env.DB);
-    const { id } = c.req.valid('param');
+    try {
+        const tenant = c.get('tenant');
+        if (!tenant) throw new Error('Tenant context missing');
 
-    await db.delete(memberTags)
-        .where(and(eq(memberTags.id, id), eq(memberTags.tenantId, tenant.id)))
-        .run();
+        const db = createDb(c.env.DB);
+        const { id } = c.req.valid('param');
 
-    return c.json({ success: true });
+        await db.delete(memberTags)
+            .where(and(eq(memberTags.id, id), eq(memberTags.tenantId, tenant.id)))
+            .run();
+
+        return c.json({ success: true });
+    } catch (e: any) {
+        console.error('Delete Tag Error:', e);
+        return c.json({ error: e.message } as any, 500);
+    }
 });
 
 export default app;

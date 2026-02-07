@@ -46,16 +46,28 @@ app.openapi(createRoute({
             description: 'List of field definitions',
             content: { 'application/json': { schema: CustomFieldListSchema } }
         },
-        403: { description: 'Unauthorized' }
+        403: { description: 'Unauthorized' },
+        500: { description: 'Internal Server Error' }
     }
 }), async (c) => {
-    if (!c.get('can')('view_settings')) return c.json({ error: 'Unauthorized' }, 403);
+    try {
+        if (!c.get('can')('view_settings')) return c.json({ error: 'Unauthorized' }, 403);
 
-    const tenant = c.get('tenant');
-    const rawDefs = (tenant.customFieldDefinitions as any) || [];
-    // Ensure all fields have IDs and normalized structure
-    const defs = rawDefs.map(normalizeField);
-    return c.json(defs);
+        const tenant = c.get('tenant');
+        if (!tenant) throw new Error('Tenant context missing');
+
+        // Defensive check for customFieldDefinitions
+        const rawDefs = Array.isArray(tenant.customFieldDefinitions)
+            ? tenant.customFieldDefinitions
+            : [];
+
+        // Ensure all fields have IDs and normalized structure
+        const defs = rawDefs.map(normalizeField);
+        return c.json(defs);
+    } catch (e: any) {
+        console.error('List Custom Fields Error:', e);
+        return c.json({ error: e.message } as any, 500);
+    }
 });
 
 // POST / - Create New Field
@@ -76,31 +88,39 @@ app.openapi(createRoute({
             description: 'Created field definition',
             content: { 'application/json': { schema: CustomFieldDefSchema } }
         },
-        403: { description: 'Unauthorized' }
+        403: { description: 'Unauthorized' },
+        500: { description: 'Internal Server Error' }
     }
 }), async (c) => {
-    if (!c.get('can')('manage_settings')) return c.json({ error: 'Unauthorized' }, 403);
+    try {
+        if (!c.get('can')('manage_settings')) return c.json({ error: 'Unauthorized' }, 403);
 
-    const db = createDb(c.env.DB);
-    const tenant = c.get('tenant');
-    const body = c.req.valid('json');
+        const db = createDb(c.env.DB);
+        const tenant = c.get('tenant');
+        if (!tenant) throw new Error('Tenant context missing');
 
-    const newField = normalizeField(body);
-    const currentFields = ((tenant.customFieldDefinitions as any) || []).map(normalizeField);
+        const body = c.req.valid('json');
 
-    // Check for duplicate keys
-    if (currentFields.some((f: any) => f.key === newField.key)) {
-        return c.json({ error: 'Field with this key already exists' } as any, 400);
+        const newField = normalizeField(body);
+        const currentFields = (Array.isArray(tenant.customFieldDefinitions) ? tenant.customFieldDefinitions : []).map(normalizeField);
+
+        // Check for duplicate keys
+        if (currentFields.some((f: any) => f.key === newField.key)) {
+            return c.json({ error: 'Field with this key already exists' } as any, 400);
+        }
+
+        const updatedFields = [...currentFields, newField];
+
+        await db.update(tenants)
+            .set({ customFieldDefinitions: updatedFields })
+            .where(eq(tenants.id, tenant.id))
+            .run();
+
+        return c.json(newField);
+    } catch (e: any) {
+        console.error('Create Custom Field Error:', e);
+        return c.json({ error: e.message } as any, 500);
     }
-
-    const updatedFields = [...currentFields, newField];
-
-    await db.update(tenants)
-        .set({ customFieldDefinitions: updatedFields })
-        .where(eq(tenants.id, tenant.id))
-        .run();
-
-    return c.json(newField);
 });
 
 // PUT /:id - Update Field
@@ -123,32 +143,40 @@ app.openapi(createRoute({
             content: { 'application/json': { schema: CustomFieldDefSchema } }
         },
         404: { description: 'Field not found' },
-        403: { description: 'Unauthorized' }
+        403: { description: 'Unauthorized' },
+        500: { description: 'Internal Server Error' }
     }
 }), async (c) => {
-    if (!c.get('can')('manage_settings')) return c.json({ error: 'Unauthorized' }, 403);
+    try {
+        if (!c.get('can')('manage_settings')) return c.json({ error: 'Unauthorized' }, 403);
 
-    const db = createDb(c.env.DB);
-    const tenant = c.get('tenant');
-    const { id } = c.req.valid('param');
-    const body = c.req.valid('json');
+        const db = createDb(c.env.DB);
+        const tenant = c.get('tenant');
+        if (!tenant) throw new Error('Tenant context missing');
 
-    const currentFields = ((tenant.customFieldDefinitions as any) || []).map(normalizeField);
-    const fieldIndex = currentFields.findIndex((f: any) => f.id === id);
+        const { id } = c.req.valid('param');
+        const body = c.req.valid('json');
 
-    if (fieldIndex === -1) {
-        return c.json({ error: 'Field not found' } as any, 404);
+        const currentFields = (Array.isArray(tenant.customFieldDefinitions) ? tenant.customFieldDefinitions : []).map(normalizeField);
+        const fieldIndex = currentFields.findIndex((f: any) => f.id === id);
+
+        if (fieldIndex === -1) {
+            return c.json({ error: 'Field not found' } as any, 404);
+        }
+
+        const updatedField = { ...currentFields[fieldIndex], ...body, id }; // Ensure ID doesn't change
+        currentFields[fieldIndex] = updatedField;
+
+        await db.update(tenants)
+            .set({ customFieldDefinitions: currentFields })
+            .where(eq(tenants.id, tenant.id))
+            .run();
+
+        return c.json(updatedField);
+    } catch (e: any) {
+        console.error('Update Custom Field Error:', e);
+        return c.json({ error: e.message } as any, 500);
     }
-
-    const updatedField = { ...currentFields[fieldIndex], ...body, id }; // Ensure ID doesn't change
-    currentFields[fieldIndex] = updatedField;
-
-    await db.update(tenants)
-        .set({ customFieldDefinitions: currentFields })
-        .where(eq(tenants.id, tenant.id))
-        .run();
-
-    return c.json(updatedField);
 });
 
 // DELETE /:id - Delete Field
@@ -165,24 +193,32 @@ app.openapi(createRoute({
             description: 'Field deleted',
             content: { 'application/json': { schema: z.object({ success: z.boolean() }) } }
         },
-        403: { description: 'Unauthorized' }
+        403: { description: 'Unauthorized' },
+        500: { description: 'Internal Server Error' }
     }
 }), async (c) => {
-    if (!c.get('can')('manage_settings')) return c.json({ error: 'Unauthorized' }, 403);
+    try {
+        if (!c.get('can')('manage_settings')) return c.json({ error: 'Unauthorized' }, 403);
 
-    const db = createDb(c.env.DB);
-    const tenant = c.get('tenant');
-    const { id } = c.req.valid('param');
+        const db = createDb(c.env.DB);
+        const tenant = c.get('tenant');
+        if (!tenant) throw new Error('Tenant context missing');
 
-    const currentFields = ((tenant.customFieldDefinitions as any) || []).map(normalizeField);
-    const filteredFields = currentFields.filter((f: any) => f.id !== id);
+        const { id } = c.req.valid('param');
 
-    await db.update(tenants)
-        .set({ customFieldDefinitions: filteredFields })
-        .where(eq(tenants.id, tenant.id))
-        .run();
+        const currentFields = (Array.isArray(tenant.customFieldDefinitions) ? tenant.customFieldDefinitions : []).map(normalizeField);
+        const filteredFields = currentFields.filter((f: any) => f.id !== id);
 
-    return c.json({ success: true });
+        await db.update(tenants)
+            .set({ customFieldDefinitions: filteredFields })
+            .where(eq(tenants.id, tenant.id))
+            .run();
+
+        return c.json({ success: true });
+    } catch (e: any) {
+        console.error('Delete Custom Field Error:', e);
+        return c.json({ error: e.message } as any, 500);
+    }
 });
 
 export default app;
