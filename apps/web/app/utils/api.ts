@@ -19,7 +19,12 @@ export const API_URL = (() => {
         }
     }
 
-    // 3. Fallback to Localhost
+    // 3. Server-side Production Fallback (Cloudflare Pages Functions)
+    if (import.meta.env.PROD) {
+        return PROD_API_URL;
+    }
+
+    // 4. Fallback to Localhost (Dev)
     return DEFAULT_API_URL;
 })();
 
