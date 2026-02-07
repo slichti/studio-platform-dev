@@ -14,8 +14,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
     // Fetch both tags and custom fields
     const [tags, customFields] = await Promise.all([
-        apiRequest<any[]>("/tags", token, { headers: { 'X-Tenant-Slug': slug } }),
-        apiRequest<any[]>("/custom-fields", token, { headers: { 'X-Tenant-Slug': slug } })
+        apiRequest<any[]>("/tenant/tags", token, { headers: { 'X-Tenant-Slug': slug } }),
+        apiRequest<any[]>("/tenant/custom-fields", token, { headers: { 'X-Tenant-Slug': slug } })
     ]);
 
     return { tags, customFields, token };
@@ -50,14 +50,14 @@ export default function TagsAndFieldsSettings() {
     const handleSaveTag = async () => {
         try {
             if (editingTag) {
-                await apiRequest(`/tags/${editingTag.id}`, token, {
+                await apiRequest(`/tenant/tags/${editingTag.id}`, token, {
                     method: "PUT",
                     headers: { 'X-Tenant-Slug': slug! },
                     body: JSON.stringify(newTag)
                 });
                 toast.success("Tag updated");
             } else {
-                await apiRequest("/tags", token, {
+                await apiRequest("/tenant/tags", token, {
                     method: "POST",
                     headers: { 'X-Tenant-Slug': slug! },
                     body: JSON.stringify(newTag)
@@ -76,7 +76,7 @@ export default function TagsAndFieldsSettings() {
     const handleDeleteTag = async () => {
         if (!deleteTagId) return;
         try {
-            await apiRequest(`/tags/${deleteTagId}`, token, {
+            await apiRequest(`/tenant/tags/${deleteTagId}`, token, {
                 method: "DELETE",
                 headers: { 'X-Tenant-Slug': slug! }
             });
@@ -96,7 +96,7 @@ export default function TagsAndFieldsSettings() {
             if (!newField.key) newField.key = newField.label.toLowerCase().replace(/\s+/g, '_');
 
             if (editingField) {
-                await apiRequest(`/custom-fields/${editingField.id}`, token, {
+                await apiRequest(`/tenant/custom-fields/${editingField.id}`, token, {
                     method: "PUT",
                     headers: { 'X-Tenant-Slug': slug! },
                     body: JSON.stringify({
@@ -107,7 +107,7 @@ export default function TagsAndFieldsSettings() {
                 });
                 toast.success("Field updated");
             } else {
-                await apiRequest("/custom-fields", token, {
+                await apiRequest("/tenant/custom-fields", token, {
                     method: "POST",
                     headers: { 'X-Tenant-Slug': slug! },
                     body: JSON.stringify(newField)
@@ -126,7 +126,7 @@ export default function TagsAndFieldsSettings() {
     const handleDeleteField = async () => {
         if (!deleteFieldId) return;
         try {
-            await apiRequest(`/custom-fields/${deleteFieldId}`, token, {
+            await apiRequest(`/tenant/custom-fields/${deleteFieldId}`, token, {
                 method: "DELETE",
                 headers: { 'X-Tenant-Slug': slug! }
             });

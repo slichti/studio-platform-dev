@@ -40,7 +40,7 @@ export default function ProgressSettingsPage() {
     const loadMetrics = async () => {
         try {
             const token = await (window as any).Clerk?.session?.getToken();
-            const data = await apiRequest(`/progress/metrics`, token, {
+            const data = await apiRequest(`/tenant/progress/metrics`, token, {
                 headers: { 'X-Tenant-Slug': slug || '' }
             });
             setMetrics(data.sort((a: any, b: any) => (a.displayOrder || 0) - (b.displayOrder || 0)));
@@ -57,7 +57,7 @@ export default function ProgressSettingsPage() {
         setMetrics(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
         try {
             const token = await (window as any).Clerk?.session?.getToken();
-            await apiRequest(`/progress/metrics/${id}`, token, {
+            await apiRequest(`/tenant/progress/metrics/${id}`, token, {
                 method: 'PUT',
                 headers: { 'X-Tenant-Slug': slug || '' },
                 body: JSON.stringify(updates)
@@ -73,7 +73,7 @@ export default function ProgressSettingsPage() {
         if (!deleteId) return;
         try {
             const token = await (window as any).Clerk?.session?.getToken();
-            await apiRequest(`/progress/metrics/${deleteId}`, token, {
+            await apiRequest(`/tenant/progress/metrics/${deleteId}`, token, {
                 method: 'DELETE',
                 headers: { 'X-Tenant-Slug': slug || '' }
             });
@@ -197,7 +197,7 @@ function AddMetricDialog({ open, onOpenChange, onSuccess, slug }: any) {
 
         try {
             const token = await (window as any).Clerk?.session?.getToken();
-            const res = await apiRequest(`/progress/metrics`, token, {
+            const res = await apiRequest(`/tenant/progress/metrics`, token, {
                 method: 'POST',
                 headers: { 'X-Tenant-Slug': slug || '' },
                 body: JSON.stringify(body)

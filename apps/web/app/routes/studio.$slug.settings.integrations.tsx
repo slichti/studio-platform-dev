@@ -309,12 +309,12 @@ export default function IntegrationsPage() {
                                 const studioType = new FormData(e.currentTarget).get("studioType") as string;
                                 try {
                                     const token = await (window as any).Clerk?.session?.getToken();
-                                    await apiRequest(`/progress/settings`, token, {
+                                    await apiRequest(`/tenant/progress/settings`, token, {
                                         method: 'PUT',
                                         headers: { 'X-Tenant-Slug': slug || '' },
                                         body: JSON.stringify({ studioType })
                                     });
-                                    await apiRequest(`/progress/seed-defaults`, token, {
+                                    await apiRequest(`/tenant/progress/seed-defaults`, token, {
                                         method: 'POST',
                                         headers: { 'X-Tenant-Slug': slug || '' },
                                         body: JSON.stringify({ studioType })

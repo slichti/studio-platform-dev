@@ -30,7 +30,7 @@ export default function ProgressPage() {
     const loadStats = async () => {
         try {
             const token = await (window as any).Clerk?.session?.getToken();
-            const data = await apiRequest(`/progress/my-stats`, token, {
+            const data = await apiRequest(`/tenant/progress/my-stats`, token, {
                 headers: { 'X-Tenant-Slug': slug || '' }
             });
             setStats(data);

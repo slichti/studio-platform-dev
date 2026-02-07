@@ -22,7 +22,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
     if (searchParams.get('action')) query.set('action', searchParams.get('action')!);
     if (searchParams.get('actorId')) query.set('actorId', searchParams.get('actorId')!);
 
-    const logs = await apiRequest<any[]>(`/audit-logs?${query.toString()}`, token).catch(() => []);
+    const logs = await apiRequest<any[]>(`/tenant/audit-logs?${query.toString()}`, token).catch(() => []);
 
     return { logs, token };
 };
