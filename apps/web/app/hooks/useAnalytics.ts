@@ -114,10 +114,9 @@ export function useReportSchedules(slug: string) {
         queryKey: ['reports', 'schedules', slug],
         queryFn: async () => {
             const token = await getToken();
-            const res = await apiRequest('/reports/schedules', token); // API likely infers tenant from token or needs header? 
-            // The original code in studio.$slug.reports.tsx used just apiRequest('/reports/schedules', token) 
-            // but usually we need X-Tenant-Slug unless the backend infers it from user context.
-            // Safe to add header.
+            const res = await apiRequest('/reports/schedules', token, {
+                headers: { 'X-Tenant-Slug': slug }
+            });
             return res;
         },
         enabled: !!slug
