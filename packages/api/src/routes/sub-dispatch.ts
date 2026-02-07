@@ -42,6 +42,11 @@ app.post('/classes/:classId/request', async (c) => {
         return c.json({ error: 'Unauthorized' }, 403);
     }
 
+    // Can't request sub for class with no instructor
+    if (!classData.instructorId) {
+        return c.json({ error: 'Class has no instructor assigned' }, 400);
+    }
+
     const { message } = await c.req.json();
     const existing = await db.select().from(subRequests).where(and(eq(subRequests.classId, classData.id), eq(subRequests.status, 'open'))).get();
     if (existing) return c.json({ error: 'Already exists' }, 400);

@@ -224,7 +224,7 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
                     await notifService.sendSMS(
                         cls.instructor.user.phone || '',
                         `Class Cancelled: ${cls.title} on ${cls.startTime.toLocaleString()} (Low Enrollment).`,
-                        { memberId: cls.instructorId, eventType: 'class_cancellation_instructor' }
+                        { memberId: cls.instructorId || undefined, eventType: 'class_cancellation_instructor' }
                     );
                 }
 

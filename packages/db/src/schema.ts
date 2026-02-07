@@ -288,7 +288,7 @@ export const classSeries = sqliteTable('class_series', {
 export const classes = sqliteTable('classes', {
     id: text('id').primaryKey(),
     tenantId: text('tenant_id').notNull().references(() => tenants.id),
-    instructorId: text('instructor_id').notNull().references(() => tenantMembers.id), // Reference Member, not User
+    instructorId: text('instructor_id').references(() => tenantMembers.id), // Nullable - instructor may be TBA
     locationId: text('location_id').references(() => locations.id),
     seriesId: text('series_id').references(() => classSeries.id), // Link to parent series
     title: text('title').notNull(),

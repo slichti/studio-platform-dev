@@ -42,7 +42,7 @@ const CreateClassSchema = z.object({
     capacity: z.number().int().optional(),
     price: z.number().min(0).optional(),
     memberPrice: z.number().min(0).optional(),
-    instructorId: z.string(),
+    instructorId: z.string().optional(),
     locationId: z.string().optional(),
     zoomEnabled: z.boolean().optional(),
     allowCredits: z.boolean().optional(),
@@ -182,7 +182,7 @@ app.openapi(createRoute({
     const [nc] = await db.insert(classes).values({
         id,
         tenantId: tenant.id,
-        instructorId,
+        instructorId: instructorId || null,
         locationId,
         title,
         description: body.description,

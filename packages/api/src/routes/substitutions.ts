@@ -41,6 +41,11 @@ app.post('/request', async (c) => {
         return c.json({ error: "Unauthorized" }, 403);
     }
 
+    // Can't request sub for class with no instructor
+    if (!cls.instructorId) {
+        return c.json({ error: "Class has no instructor assigned" }, 400);
+    }
+
     const subId = crypto.randomUUID();
     await db.insert(substitutions).values({ id: subId, tenantId: tenant!.id, classId, requestingInstructorId: cls.instructorId, status: 'pending', notes }).run();
 
