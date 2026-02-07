@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "~/utils/api";
 
 interface Member {
     id: string;
@@ -14,11 +15,9 @@ export function useMembers(tenantSlug: string) {
         queryKey: ['members', tenantSlug],
         queryFn: async (): Promise<Member[]> => {
             const token = await (window as any).Clerk?.session?.getToken();
-            const res = await fetch(`${(window as any).ENV.VITE_API_URL}/members?slug=${tenantSlug}`, {
-                headers: { Authorization: `Bearer ${token}` }
+            const data = await apiRequest<{ members: Member[] }>(`/members?slug=${tenantSlug}`, token, {
+                headers: { 'X-Tenant-Slug': tenantSlug }
             });
-            if (!res.ok) throw new Error('Failed to fetch members');
-            const data = await res.json() as { members: Member[] };
             return data.members;
         },
         enabled: !!tenantSlug

@@ -234,13 +234,13 @@ const authenticatedPaths = [
   '/bookings', '/bookings/*',
   '/diagnostics', '/diagnostics/*',  // Security: Require auth for diagnostics
   '/webhooks/stripe', '/webhooks/zoom', '/webhooks/clerk', // Specific ones that need some level of auth or signature
-  '/inventory', '/inventory/*'
+  '/inventory', '/inventory/*',
+  '/gift-cards', '/gift-cards/*'
 ];
 
 const publicStudioPaths = [
   '/classes', '/classes/*',
-  '/commerce', '/commerce/*',
-  '/gift-cards', '/gift-cards/*'
+  '/commerce', '/commerce/*'
 ];
 
 // 3. Apply Middleware
