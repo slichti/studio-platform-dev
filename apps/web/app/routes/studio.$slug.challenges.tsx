@@ -1,11 +1,12 @@
 
 import { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 
-import { useLoaderData, useSubmit, Form, redirect, useRevalidator } from "react-router";
+import { useLoaderData, useSubmit, Form, redirect, useRevalidator, useOutletContext, useActionData } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
-import { useState } from "react";
-import { Trophy, Target, Users, Calendar, ChevronRight, Plus, Star, Medal, Flame, TrendingUp, Check, Clock } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Trophy, Target, Users, Calendar, ChevronRight, Plus, Star, Medal, Flame, TrendingUp, Check, Clock, X, Gift } from "lucide-react";
+import { toast } from "sonner";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken, userId } = await getAuth(args);
@@ -44,6 +45,41 @@ export const action = async (args: ActionFunctionArgs) => {
             method: 'POST',
             headers: { 'X-Tenant-Slug': slug }
         });
+        return { success: true };
+    }
+
+    if (intent === 'create') {
+        const rewardType = formData.get("rewardType");
+        let rewardValue = {};
+
+        if (rewardType === 'retail_credit') {
+            rewardValue = { creditAmount: parseInt(formData.get("creditAmount") as string || "0") };
+        }
+
+        const data = {
+            title: formData.get("title"),
+            description: formData.get("description"),
+            type: formData.get("type"),
+            targetValue: parseInt(formData.get("targetValue") as string || "10"),
+            frequency: parseInt(formData.get("frequency") as string || "1"),
+            period: formData.get("period") || "week",
+            rewardType,
+            rewardValue,
+            rewardPoints: parseInt(formData.get("rewardPoints") as string || "100"),
+            startDate: formData.get("startDate") || new Date().toISOString().split('T')[0],
+            endDate: formData.get("endDate")
+        };
+
+        try {
+            await apiRequest('/challenges', token, {
+                method: 'POST',
+                headers: { 'X-Tenant-Slug': slug! },
+                body: JSON.stringify(data)
+            });
+            return { success: true, created: true };
+        } catch (e: any) {
+            return { error: e.message || "Failed to create challenge" };
+        }
     }
 
     return { success: true };
@@ -51,9 +87,15 @@ export const action = async (args: ActionFunctionArgs) => {
 
 export default function ChallengesPrograms() {
     const { challenges, myProgress, leaderboard } = useLoaderData<typeof loader>();
+    const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const [isCreating, setIsCreating] = useState(false);
     const [tab, setTab] = useState<'active' | 'leaderboard' | 'past'>('active');
+    const [challengeType, setChallengeType] = useState('count');
+    const [rewardType, setRewardType] = useState('badge');
+
+    const { me } = useOutletContext<{ me: any; tenant: any }>() || {};
+    const isManager = me?.roles?.includes('owner') || me?.roles?.includes('admin') || me?.roles?.includes('instructor');
 
     const activeChallenges = challenges.filter((c: any) => c.status === 'active');
     const pastChallenges = challenges.filter((c: any) => c.status !== 'active');
@@ -64,8 +106,18 @@ export default function ChallengesPrograms() {
 
     const formatDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
+    useEffect(() => {
+        if (actionData && (actionData as any).created) {
+            setIsCreating(false);
+            toast.success("Challenge created!");
+        }
+        if (actionData && (actionData as any).error) {
+            toast.error((actionData as any).error);
+        }
+    }, [actionData]);
+
     return (
-        <div className="flex flex-col h-full bg-zinc-50">
+        <div className="flex flex-col h-full bg-zinc-50 dark:bg-zinc-950">
             {/* Header */}
             <header className="bg-gradient-to-r from-amber-500 to-orange-600 px-6 py-6 text-white">
                 <div className="flex items-center justify-between">
@@ -77,6 +129,15 @@ export default function ChallengesPrograms() {
                         </div>
                     </div>
 
+                    {isManager && (
+                        <button
+                            onClick={() => setIsCreating(true)}
+                            className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg font-medium transition-colors"
+                        >
+                            <Plus size={18} />
+                            Create Challenge
+                        </button>
+                    )}
                 </div>
 
                 {/* Tabs */}
@@ -100,9 +161,17 @@ export default function ChallengesPrograms() {
                 {tab === 'active' && (
                     <div className="space-y-4">
                         {activeChallenges.length === 0 ? (
-                            <div className="text-center py-12 text-zinc-500">
+                            <div className="text-center py-12 text-zinc-500 dark:text-zinc-400">
                                 <Target size={48} className="mx-auto mb-4 opacity-50" />
                                 <p>No active challenges</p>
+                                {isManager && (
+                                    <button
+                                        onClick={() => setIsCreating(true)}
+                                        className="mt-4 text-amber-600 hover:text-amber-700 font-medium"
+                                    >
+                                        Create one now
+                                    </button>
+                                )}
                             </div>
                         ) : (
                             activeChallenges.map((challenge: any) => {
@@ -110,21 +179,21 @@ export default function ChallengesPrograms() {
                                 const progressPercent = progress ? Math.min(100, (progress.currentValue / challenge.goal) * 100) : 0;
 
                                 return (
-                                    <div key={challenge.id} className="bg-white rounded-xl border border-zinc-200 p-5 hover:shadow-md transition">
+                                    <div key={challenge.id} className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 hover:shadow-md transition">
                                         <div className="flex items-start gap-4">
-                                            <div className="p-3 bg-amber-100 rounded-xl">
-                                                <Trophy size={24} className="text-amber-600" />
+                                            <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-xl">
+                                                <Trophy size={24} className="text-amber-600 dark:text-amber-400" />
                                             </div>
                                             <div className="flex-1">
                                                 <div className="flex items-center justify-between">
-                                                    <h3 className="font-bold text-zinc-900">{challenge.title}</h3>
-                                                    <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium flex items-center gap-1">
+                                                    <h3 className="font-bold text-zinc-900 dark:text-zinc-100">{challenge.title}</h3>
+                                                    <span className="px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-xs font-medium flex items-center gap-1">
                                                         <Star size={12} /> {challenge.rewardPoints} pts
                                                     </span>
                                                 </div>
-                                                <p className="text-sm text-zinc-500 mt-1">{challenge.description}</p>
+                                                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">{challenge.description}</p>
 
-                                                <div className="mt-3 flex items-center gap-4 text-xs text-zinc-500">
+                                                <div className="mt-3 flex items-center gap-4 text-xs text-zinc-500 dark:text-zinc-400">
                                                     <span className="flex items-center gap-1"><Calendar size={12} /> {formatDate(challenge.startDate)} - {formatDate(challenge.endDate)}</span>
                                                     <span className="flex items-center gap-1"><Target size={12} /> Goal: {challenge.goal}</span>
                                                 </div>
@@ -133,10 +202,10 @@ export default function ChallengesPrograms() {
                                                 {progress ? (
                                                     <div className="mt-4">
                                                         <div className="flex justify-between text-xs mb-1">
-                                                            <span className="font-medium text-zinc-700">{progress.currentValue} / {challenge.goal}</span>
+                                                            <span className="font-medium text-zinc-700 dark:text-zinc-300">{progress.currentValue} / {challenge.goal}</span>
                                                             <span className="text-amber-600">{Math.round(progressPercent)}%</span>
                                                         </div>
-                                                        <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
+                                                        <div className="h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
                                                             <div
                                                                 className={`h-full transition-all ${progress.completed ? 'bg-green-500' : 'bg-amber-500'}`}
                                                                 style={{ width: `${progressPercent}%` }}
@@ -166,22 +235,22 @@ export default function ChallengesPrograms() {
 
                 {/* Leaderboard */}
                 {tab === 'leaderboard' && (
-                    <div className="bg-white rounded-xl border border-zinc-200">
-                        <div className="p-4 border-b border-zinc-100">
-                            <h2 className="font-bold text-zinc-900 flex items-center gap-2"><Medal size={18} /> Top Challengers</h2>
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                        <div className="p-4 border-b border-zinc-100 dark:border-zinc-800">
+                            <h2 className="font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2"><Medal size={18} /> Top Challengers</h2>
                         </div>
-                        <div className="divide-y divide-zinc-100">
+                        <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                             {leaderboard.length === 0 ? (
-                                <p className="p-8 text-center text-zinc-500">No leaderboard data</p>
+                                <p className="p-8 text-center text-zinc-500 dark:text-zinc-400">No leaderboard data</p>
                             ) : (
                                 leaderboard.slice(0, 10).map((entry: any, i: number) => (
                                     <div key={i} className="p-4 flex items-center gap-4">
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${i === 0 ? 'bg-amber-400 text-white' : i === 1 ? 'bg-zinc-300 text-zinc-700' : i === 2 ? 'bg-amber-600 text-white' : 'bg-zinc-100 text-zinc-500'}`}>
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${i === 0 ? 'bg-amber-400 text-white' : i === 1 ? 'bg-zinc-300 text-zinc-700' : i === 2 ? 'bg-amber-600 text-white' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500'}`}>
                                             {i + 1}
                                         </div>
                                         <div className="flex-1">
-                                            <div className="font-medium text-zinc-900">{entry.user?.profile?.firstName || entry.user?.email}</div>
-                                            <div className="text-xs text-zinc-500">{entry.completedCount} challenges completed</div>
+                                            <div className="font-medium text-zinc-900 dark:text-zinc-100">{entry.user?.profile?.firstName || entry.user?.email}</div>
+                                            <div className="text-xs text-zinc-500 dark:text-zinc-400">{entry.completedCount} challenges completed</div>
                                         </div>
                                         <div className="text-lg font-bold text-amber-600">{entry.totalPoints} pts</div>
                                     </div>
@@ -195,14 +264,14 @@ export default function ChallengesPrograms() {
                 {tab === 'past' && (
                     <div className="space-y-4">
                         {pastChallenges.length === 0 ? (
-                            <p className="text-center py-12 text-zinc-500">No past challenges</p>
+                            <p className="text-center py-12 text-zinc-500 dark:text-zinc-400">No past challenges</p>
                         ) : (
                             pastChallenges.map((challenge: any) => (
-                                <div key={challenge.id} className="bg-white rounded-xl border border-zinc-200 p-4 opacity-75">
+                                <div key={challenge.id} className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 opacity-75">
                                     <div className="flex items-center gap-3">
                                         <Trophy size={20} className="text-zinc-400" />
                                         <div>
-                                            <h3 className="font-medium text-zinc-700">{challenge.title}</h3>
+                                            <h3 className="font-medium text-zinc-700 dark:text-zinc-300">{challenge.title}</h3>
                                             <p className="text-xs text-zinc-500">{formatDate(challenge.endDate)}</p>
                                         </div>
                                     </div>
@@ -212,6 +281,136 @@ export default function ChallengesPrograms() {
                     </div>
                 )}
             </div>
+
+            {/* Create Challenge Modal */}
+            {isCreating && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                        <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center sticky top-0 bg-white dark:bg-zinc-900">
+                            <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Create Challenge</h2>
+                            <button onClick={() => setIsCreating(false)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        <Form method="post" className="p-6 space-y-5">
+                            <input type="hidden" name="intent" value="create" />
+
+                            <div>
+                                <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Challenge Title</label>
+                                <input
+                                    name="title"
+                                    required
+                                    className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-amber-500 outline-none"
+                                    placeholder="e.g. Summer Fitness Challenge"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Description</label>
+                                <textarea
+                                    name="description"
+                                    rows={3}
+                                    className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-amber-500 outline-none resize-none"
+                                    placeholder="Describe what members need to do..."
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Goal Type</label>
+                                    <select
+                                        name="type"
+                                        value={challengeType}
+                                        onChange={(e) => setChallengeType(e.target.value)}
+                                        className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100"
+                                    >
+                                        <option value="count">Total Classes</option>
+                                        <option value="minutes">Total Minutes</option>
+                                        <option value="streak">Attendance Streak</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">
+                                        {challengeType === 'streak' ? 'Streak Days' : 'Target Value'}
+                                    </label>
+                                    <input
+                                        name="targetValue"
+                                        type="number"
+                                        defaultValue="10"
+                                        min="1"
+                                        className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100"
+                                    />
+                                </div>
+                            </div>
+
+                            {challengeType === 'streak' && (
+                                <div className="grid grid-cols-2 gap-4 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Classes per</label>
+                                        <input name="frequency" type="number" defaultValue="3" min="1" className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Period</label>
+                                        <select name="period" className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+                                            <option value="week">Week</option>
+                                            <option value="month">Month</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Reward Type</label>
+                                    <select
+                                        name="rewardType"
+                                        value={rewardType}
+                                        onChange={(e) => setRewardType(e.target.value)}
+                                        className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100"
+                                    >
+                                        <option value="badge">Digital Badge</option>
+                                        <option value="coupon">Discount Coupon</option>
+                                        <option value="retail_credit">Retail Credit</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Reward Points</label>
+                                    <input name="rewardPoints" type="number" defaultValue="100" min="0" className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                                </div>
+                            </div>
+
+                            {rewardType === 'retail_credit' && (
+                                <div>
+                                    <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Credit Amount ($)</label>
+                                    <input name="creditAmount" type="number" min="1" className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" placeholder="e.g. 25" />
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Start Date</label>
+                                    <input name="startDate" type="date" defaultValue={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">End Date</label>
+                                    <input name="endDate" type="date" required className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                                </div>
+                            </div>
+
+                            <div className="pt-4 flex justify-end gap-3 border-t border-zinc-100 dark:border-zinc-800">
+                                <button type="button" onClick={() => setIsCreating(false)} className="px-4 py-2 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg font-medium">
+                                    Cancel
+                                </button>
+                                <button type="submit" className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 font-medium flex items-center gap-2">
+                                    <Plus size={16} />
+                                    Create Challenge
+                                </button>
+                            </div>
+                        </Form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
