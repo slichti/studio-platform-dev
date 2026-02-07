@@ -8,7 +8,7 @@ const app = new Hono<HonoContext>();
 
 app.get('/plans', async (c) => {
     const db = createDb(c.env.DB);
-    return c.json(await db.select().from(membershipPlans).where(eq(membershipPlans.tenantId, c.get('tenant')!.id)));
+    return c.json(await db.select().from(membershipPlans).where(and(eq(membershipPlans.tenantId, c.get('tenant')!.id), eq(membershipPlans.active, true))));
 });
 
 app.post('/plans', async (c) => {

@@ -94,7 +94,8 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
             });
 
             if (res.error) {
-                setError(res.error);
+                const errMsg = typeof res.error === 'string' ? res.error : (res.error.message || res.error.error || JSON.stringify(res.error));
+                setError(errMsg);
             } else {
                 onSuccess(res.class || res);
                 onClose();
