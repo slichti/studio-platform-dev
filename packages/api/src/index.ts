@@ -207,7 +207,9 @@ const studioPaths = [
   '/webhooks', '/webhooks/*',
   '/inventory', '/inventory/*',
   '/inventory/suppliers', '/inventory/suppliers/*',
-  '/inventory/purchase-orders', '/inventory/purchase-orders/*'
+  '/inventory/purchase-orders', '/inventory/purchase-orders/*',
+  '/reports', '/reports/*',
+  '/analytics', '/analytics/*'
 ];
 
 const authenticatedPaths = [
@@ -235,7 +237,9 @@ const authenticatedPaths = [
   '/diagnostics', '/diagnostics/*',  // Security: Require auth for diagnostics
   '/webhooks/stripe', '/webhooks/zoom', '/webhooks/clerk', // Specific ones that need some level of auth or signature
   '/inventory', '/inventory/*',
-  '/gift-cards', '/gift-cards/*'
+  '/gift-cards', '/gift-cards/*',
+  '/reports', '/reports/*',
+  '/analytics', '/analytics/*'
 ];
 
 const publicStudioPaths = [
