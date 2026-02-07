@@ -28,6 +28,16 @@ export default function StudioReports() {
     const { data: schedules = [] } = useReportSchedules(tenant.slug);
     const { createMutation: createSchedule, deleteMutation: deleteSchedule } = useReportScheduleMutations(tenant.slug);
 
+    useEffect(() => {
+        console.log('[StudioReports] Mounted', {
+            slug: tenant.slug,
+            loadingRevenue,
+            loadingAttendance,
+            revenueError,
+            attendanceError
+        });
+    }, [tenant.slug, loadingRevenue, loadingAttendance, revenueError, attendanceError]);
+
     // Schedule Form
     const [isCreatingSchedule, setIsCreatingSchedule] = useState(false);
     const [newSchedule, setNewSchedule] = useState({ reportType: 'revenue', frequency: 'weekly', recipients: '' });
