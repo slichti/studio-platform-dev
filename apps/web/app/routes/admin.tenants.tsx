@@ -342,8 +342,15 @@ export default function AdminTenants() {
         let filtered = [...tenants];
 
         // Apply Filters
-        if (statusFilter !== 'all') {
-            filtered = filtered.filter((t: any) => (t.status || 'active') === statusFilter);
+        if (statusFilter === 'system') {
+            filtered = filtered.filter((t: any) => t.slug === 'platform');
+        } else {
+            // Default: Hide platform tenant unless explicitly asked for via System filter
+            filtered = filtered.filter((t: any) => t.slug !== 'platform');
+
+            if (statusFilter !== 'all') {
+                filtered = filtered.filter((t: any) => (t.status || 'active') === statusFilter);
+            }
         }
         if (tierFilter !== 'all') {
             filtered = filtered.filter((t: any) => (t.tier || 'basic') === tierFilter);
@@ -1231,6 +1238,7 @@ export default function AdminTenants() {
                             <option value="paused">Paused</option>
                             <option value="suspended">Suspended</option>
                             <option value="archived">Archived</option>
+                            <option value="system">System</option>
                         </select>
                         <select
                             className="text-sm border border-zinc-300 dark:border-zinc-700 rounded-md px-2 py-1 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-blue-500"
