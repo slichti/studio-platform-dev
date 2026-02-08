@@ -540,7 +540,7 @@ export const marketingAutomations = sqliteTable('marketing_automations', {
     audienceFilter: text('audience_filter', { mode: 'json' }), // { ageMin: 18, ageMax: 65, tags: ['vip'] }
 
     subject: text('subject').notNull(),
-    content: text('content').notNull(), // HTML or Text
+    content: text('content'), // HTML or Text (nullable for simple triggers)
 
     isEnabled: integer('is_enabled', { mode: 'boolean' }).default(false).notNull(),
     metadata: text('metadata', { mode: 'json' }), // Extra UI config
@@ -552,8 +552,8 @@ export const marketingAutomations = sqliteTable('marketing_automations', {
     // Legacy/Convenience (keep for migration or map to timingType='delay')
     delayHours: integer('delay_hours').default(0),
 
-    channels: text('channels', { mode: 'json' }).default(sql`('["email"]')`), // ['email', 'sms']
-    recipients: text('recipients', { mode: 'json' }).default(sql`('["student"]')`), // ['student', 'owner']
+    channels: text('channels', { mode: 'json' }).default(sql`'["email"]'`), // ['email', 'sms']
+    recipients: text('recipients', { mode: 'json' }).default(sql`'["student"]'`), // ['student', 'owner']
     couponConfig: text('coupon_config', { mode: 'json' }), // { type: 'percent', value: 20, validityDays: 7 }
 
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
