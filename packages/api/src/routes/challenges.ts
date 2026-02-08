@@ -16,7 +16,18 @@ app.get('/', async (c) => {
     const db = createDb(c.env.DB);
     const t = c.get('tenant')!;
     if (!['growth', 'scale'].includes(t.tier)) return c.json({ error: 'Disabled' }, 403);
-    return c.json(await db.select().from(challenges).where(and(eq(challenges.tenantId, t.id), eq(challenges.active, true))).orderBy(desc(challenges.createdAt)));
+    const results = await db.select().from(challenges).where(and(eq(challenges.tenantId, t.id), eq(challenges.active, true))).orderBy(desc(challenges.createdAt));
+
+    const now = new Date();
+    const mapped = results.map(ch => ({
+        ...ch,
+        status: !ch.active ? 'inactive' : (
+            (ch.startDate && new Date(ch.startDate) > now) ? 'upcoming' :
+                (ch.endDate && new Date(ch.endDate) < now) ? 'past' :
+                    'active'
+        )
+    }));
+    return c.json(mapped);
 });
 
 app.post('/', async (c) => {
