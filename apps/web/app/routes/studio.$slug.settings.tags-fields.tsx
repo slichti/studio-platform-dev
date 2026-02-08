@@ -8,21 +8,40 @@ import { toast } from "sonner";
 import { ConfirmationDialog } from "~/components/Dialogs";
 
 export const loader = async (args: LoaderFunctionArgs) => {
-    const { getToken } = await getAuth(args);
-    const token = await getToken();
-    const { slug } = args.params;
+    try {
+        const { getToken } = await getAuth(args);
+        const token = await getToken();
+        const { slug } = args.params;
 
-    // Fetch both tags and custom fields
-    const [tags, customFields] = await Promise.all([
-        apiRequest<any[]>("/tenant/tags", token, { headers: { 'X-Tenant-Slug': slug } }),
-        apiRequest<any[]>("/tenant/custom-fields", token, { headers: { 'X-Tenant-Slug': slug } })
-    ]);
+        if (!slug) throw new Error("Tenant slug missing");
 
-    return { tags, customFields, token };
+        // Fetch both tags and custom fields
+        const [tags, customFields] = await Promise.all([
+            apiRequest<any[]>("/tenant/tags", token, { headers: { 'X-Tenant-Slug': slug } }),
+            apiRequest<any[]>("/tenant/custom-fields", token, { headers: { 'X-Tenant-Slug': slug } })
+        ]);
+
+        return { tags, customFields, token, error: null };
+    } catch (e: any) {
+        console.error("Tags Loader Error:", e);
+        // Return empty data + error to prevent page crash
+        return {
+            tags: [],
+            customFields: [],
+            token: null,
+            error: e.message || "Failed to load tags data"
+        };
+    }
 };
 
 export default function TagsAndFieldsSettings() {
-    const { tags, customFields, token } = useLoaderData<typeof loader>();
+    const { tags, customFields, token, error } = useLoaderData<typeof loader>();
+
+    // Show error if loader failed
+    if (error) {
+        toast.error(error);
+    }
+
     const { revalidate } = useRevalidator();
     const { slug } = useParams();
     const [activeTab, setActiveTab] = useState<'tags' | 'fields'>('tags');
