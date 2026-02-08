@@ -1634,6 +1634,27 @@ export default function AdminTenants() {
 
                                                 </div>
 
+                                                {/* Testing & Access */}
+                                                <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 mt-4 mb-6">
+                                                    <h4 className="text-[10px] uppercase text-zinc-500 font-bold mb-3">Testing & Access</h4>
+                                                    <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                                                        <a
+                                                            href={`/?__studio=${t.slug}`}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium bg-blue-50 border border-blue-200 px-3 py-2 rounded-md transition-colors w-fit"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            <Globe size={16} />
+                                                            Open Public Site
+                                                        </a>
+                                                        <span className="text-xs text-zinc-500 flex items-center gap-1.5">
+                                                            <span className="bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-1.5 py-0.5 rounded text-[10px] font-mono">?__studio={t.slug}</span>
+                                                            <span className="italic">Use Incognito window to view as guest.</span>
+                                                        </span>
+                                                    </div>
+                                                </div>
+
                                                 {/* Lifecycle & Data Export */}
                                                 <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 mt-4 mb-6">
                                                     <div className="flex items-center justify-between mb-4">
