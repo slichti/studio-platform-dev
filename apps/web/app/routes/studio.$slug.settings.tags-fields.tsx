@@ -8,10 +8,10 @@ import { toast } from "sonner";
 import { ConfirmationDialog } from "~/components/Dialogs";
 
 export const loader = async (args: LoaderFunctionArgs) => {
+    const { slug } = args.params;
     try {
         const { getToken } = await getAuth(args);
         const token = await getToken();
-        const { slug } = args.params;
 
         if (!slug) throw new Error("Tenant slug missing");
 
@@ -29,7 +29,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
             tags: [],
             customFields: [],
             token: null,
-            error: e.message || "Failed to load tags data"
+            error: `[${slug}] ${e.message || "Failed to load tags data"}`
         };
     }
 };

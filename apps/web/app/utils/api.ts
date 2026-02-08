@@ -71,7 +71,10 @@ export async function apiRequest<T = any>(path: string, token: string | null | u
         headers.set("x-request-id", crypto.randomUUID());
     }
 
-    const res = await fetch(`${url}${path}`, {
+    const fullUrl = `${url}${path}`;
+    console.log(`[API] ${options.method || 'GET'} ${fullUrl}`, { headers: Object.fromEntries(headers.entries()) });
+
+    const res = await fetch(fullUrl, {
         ...options,
         headers
     });
