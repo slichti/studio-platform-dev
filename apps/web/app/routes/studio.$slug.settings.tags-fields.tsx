@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useRevalidator, useParams } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
@@ -37,10 +37,12 @@ export const loader = async (args: LoaderFunctionArgs) => {
 export default function TagsAndFieldsSettings() {
     const { tags, customFields, token, error } = useLoaderData<typeof loader>();
 
-    // Show error if loader failed
-    if (error) {
-        toast.error(error);
-    }
+    // Show error toast only once when error changes (not on every render)
+    useEffect(() => {
+        if (error) {
+            toast.error(error);
+        }
+    }, [error]);
 
     const { revalidate } = useRevalidator();
     const { slug } = useParams();
