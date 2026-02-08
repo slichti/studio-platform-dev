@@ -220,7 +220,8 @@ const studioPaths = [
   '/analytics', '/analytics/*',
   '/challenges', '/challenges/*',
   '/tasks', '/tasks/*',
-  '/video', '/video/*'
+  '/video', '/video/*',
+  '/chat', '/chat/*'
 ];
 
 const authenticatedPaths = [
@@ -253,7 +254,8 @@ const authenticatedPaths = [
   '/analytics', '/analytics/*',
   '/challenges', '/challenges/*',
   '/tasks', '/tasks/*',
-  '/video', '/video/*'
+  '/video', '/video/*',
+  '/chat', '/chat/*'
 ];
 
 const publicStudioPaths = [
