@@ -227,7 +227,7 @@ export class BookingService {
         }
     }
 
-    async checkIn(bookingId: string, checkedIn: boolean) {
+    async checkIn(bookingId: string, checkedIn: boolean, tenantId?: string) {
         // 1. Get Booking & Tenant Context
         const booking = await this.db.query.bookings.findFirst({
             where: eq(bookings.id, bookingId),
@@ -243,6 +243,11 @@ export class BookingService {
         });
 
         if (!booking) throw new Error("Booking not found");
+
+        // [SECURITY] Enforce Booking Ownership
+        if (tenantId && booking.member.tenantId !== tenantId) {
+            throw new Error("Unauthorized access to booking");
+        }
 
         // 2. Update Status
         await this.db.update(bookings)

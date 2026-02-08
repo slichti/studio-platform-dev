@@ -175,7 +175,7 @@ protectedApp.post('/checkin/:bookingId', async (c) => {
     const service = new BookingService(db, c.env);
 
     try {
-        await service.checkIn(bookingId, true);
+        await service.checkIn(bookingId, true, tenantId);
         return c.json({ success: true, timestamp: new Date() });
     } catch (e: any) {
         return c.json({ error: e.message }, 500);

@@ -14,6 +14,12 @@ import {
 } from '@studio/db/src/schema'; // Ensure correct imports
 import { and, between, eq, sql, desc, count, gte, lte, inArray } from 'drizzle-orm';
 
+
+const escapeHtml = (unsafe: string) => {
+    if (!unsafe) return '';
+    return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+};
+
 export class ReportService {
     constructor(private db: DrizzleD1Database<any>, private tenantId: string) { }
 
@@ -636,7 +642,7 @@ export class ReportService {
                 <p style="color: #6B7280; font-size: 14px;">Period: ${start.toLocaleDateString()} - ${end.toLocaleDateString()}</p>
                 <ul style="color: #374151; font-size: 14px; padding-left: 20px;">
                     <li>Check-ins: ${data.totalCheckins} (${((data.totalCheckins / (data.totalBookings || 1)) * 100).toFixed(0)}%)</li>
-                    <li>Top Class: ${data.topClasses[0]?.title || 'N/A'} (${data.topClasses[0]?.attendees || 0} attendees)</li>
+                    <li>Top Class: ${escapeHtml(data.topClasses[0]?.title || 'N/A')} (${data.topClasses[0]?.attendees || 0} attendees)</li>
                 </ul>
             `;
         } else if (reportType === 'journal') {

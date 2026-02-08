@@ -64,7 +64,9 @@ app.patch('/:id/bookings/:bookingId/check-in', async (c) => {
     const service = new BookingService(db, c.env);
 
     try {
-        await service.checkIn(c.req.param('bookingId'), !!checkedIn);
+        const tenant = c.get('tenant');
+        if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+        await service.checkIn(c.req.param('bookingId'), !!checkedIn, tenant.id);
         return c.json({ success: true });
     } catch (e: any) {
         return c.json({ error: e.message }, 500);
@@ -81,8 +83,11 @@ app.post('/:id/bulk-check-in', async (c) => {
     const service = new BookingService(db, c.env);
 
     try {
+        const tenant = c.get('tenant');
+        if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+
         for (const bid of bookingIds) {
-            await service.checkIn(bid, !!checkedIn);
+            await service.checkIn(bid, !!checkedIn, tenant.id);
         }
         return c.json({ success: true, count: bookingIds.length });
     } catch (e: any) {
