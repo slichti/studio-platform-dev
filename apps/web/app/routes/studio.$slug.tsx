@@ -209,7 +209,7 @@ export default function StudioLayout() {
     const [showQuickStart, setShowQuickStart] = useState(() => {
         const isOwnerOrAdmin = me?.roles?.includes('owner') || me?.roles?.includes('admin');
         const isCompleted = tenant.settings?.onboardingCompleted;
-        return isOwnerOrAdmin && !isCompleted;
+        return isOwnerOrAdmin && !isCompleted && slug !== 'platform';
     });
 
     return (
