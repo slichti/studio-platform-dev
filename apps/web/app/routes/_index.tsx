@@ -22,7 +22,9 @@ export const meta: MetaFunction = ({ data }: any) => {
 };
 
 export async function loader({ request }: LoaderFunctionArgs) {
-    const subdomain = getSubdomain(request);
+    const url = new URL(request.url);
+    const studioOverride = url.searchParams.get("__studio");
+    const subdomain = getSubdomain(request) || studioOverride;
 
     if (subdomain) {
         // Fetch the 'home' page for this studio
