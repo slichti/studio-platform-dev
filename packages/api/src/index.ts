@@ -142,6 +142,14 @@ app.onError((err: any, c) => {
   }, 500);
 });
 
+app.notFound((c) => {
+  return c.json({
+    error: "Global App 404",
+    path: c.req.path,
+    method: c.req.method
+  }, 404);
+});
+
 app.get('/', (c) => {
   return c.text('Health Check: OK')
 })
@@ -297,6 +305,15 @@ expensivePaths.forEach(path => {
 // 4. Infrastructure/Common Studio Logic
 // 4. Infrastructure/Common Studio Logic
 const studioApp = createOpenAPIApp()
+
+studioApp.notFound((c) => {
+  return c.json({
+    error: "Studio App 404",
+    path: c.req.path,
+    method: c.req.method,
+    tenant: c.get('tenant')?.slug
+  }, 404);
+});
 
 // 5. Setup Feature Route sub-apps (will be mounted in next step)
 // 5. Setup Feature Route sub-apps (will be mounted in next step)
