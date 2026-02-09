@@ -61,6 +61,26 @@ const server = http.createServer((req, res) => {
         bookings.push('class_member_e2e_1');
         res.writeHead(201);
         res.end(JSON.stringify({ success: true, bookingId: 'new_booking_id' }));
+    } else if (req.url.includes('/check-slug')) {
+        res.end(JSON.stringify({ valid: true }));
+    } else if (req.url.includes('/public/plans')) {
+        res.end(JSON.stringify([
+            { id: 'plan_launch', name: 'Launch', slug: 'launch', prices: { monthly: 4900, annual: 47000 }, trialDays: 14 }
+        ]));
+    } else if (req.url.includes('/onboarding/studio')) {
+        res.end(JSON.stringify({ tenant: { slug: 'new-studio', name: 'New Studio' } }));
+    } else if (req.url.includes('/tenant/settings')) {
+        res.end(JSON.stringify({ success: true }));
+    } else if (req.url.includes('/locations')) {
+        res.end(JSON.stringify({ id: 'loc_1', name: 'Main Studio' }));
+    } else if (req.url.includes('/analytics')) {
+        res.end(JSON.stringify({
+            summary: { activeMembers: 150, revenue: 1250000, bookings: 450 },
+            trends: [
+                { date: '2026-01-01', value: 100 },
+                { date: '2026-02-01', value: 150 }
+            ]
+        }));
     } else {
         res.end(JSON.stringify([]));
     }

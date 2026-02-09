@@ -13,7 +13,7 @@ import {
 } from "react-router";
 import { useEffect } from "react";
 import { ClerkProvider } from "@clerk/react-router";
-import { rootAuthLoader } from "@clerk/react-router/server";
+import { rootAuthLoader } from "./utils/auth-wrapper.server";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/query-client";
@@ -76,7 +76,11 @@ export default function App() {
     }, []);
 
     return (
-        <ClerkProvider loaderData={loaderData} signUpFallbackRedirectUrl="/" signInFallbackRedirectUrl="/dashboard">
+        <ClerkProvider
+            loaderData={loaderData}
+            signUpFallbackRedirectUrl="/"
+            signInFallbackRedirectUrl="/dashboard"
+        >
             <QueryClientProvider client={queryClient}>
                 <ThemeProvider defaultTheme="light" storageKey="studio-theme">
                     <html lang="en" suppressHydrationWarning>
@@ -112,7 +116,8 @@ export default function App() {
                         `}} />
                         </head>
                         <body className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 font-sans antialiased selection:bg-blue-100 dark:selection:bg-blue-900" suppressHydrationWarning>
-                            <Outlet />
+                            {/* E2E Bypass Injection: If server-side says it's bypassed, we can force-render here or rely on loaders */}
+                            <Outlet context={loaderData} />
                             <Toaster position="top-right" richColors />
                             <ScrollRestoration />
                             <Scripts />

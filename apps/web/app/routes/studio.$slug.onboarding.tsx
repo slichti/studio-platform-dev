@@ -1,8 +1,8 @@
 
-import { useLoaderData, useOutletContext, Form, useNavigation, useSubmit, Link, useNavigate } from "react-router"; 
-import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router"; 
-import { getAuth } from "@clerk/react-router/server";
-import { apiRequest } from "~/utils/api";
+import { useLoaderData, useOutletContext, Form, useNavigation, useSubmit, Link, useNavigate } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect, useFetcher, useActionData } from "react-router";
+import { getAuth } from "../utils/auth-wrapper.server";
+import { apiRequest } from "../utils/api";
 import { useState } from "react";
 import { CheckCircle2, MapPin, Calendar, Palette, ArrowRight, Loader2, Upload, Users, Plus, X } from "lucide-react";
 import { cn } from "~/utils/cn";

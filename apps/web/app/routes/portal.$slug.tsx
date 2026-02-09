@@ -1,6 +1,6 @@
-import { ActionFunctionArgs, LoaderFunctionArgs, redirect } from "react-router";
+import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "react-router";
 import { Outlet, Link, useLoaderData, useLocation, useOutletContext, NavLink } from "react-router";
-import { getAuth } from "@clerk/react-router/server";
+import { getAuth } from "../utils/auth-wrapper.server";
 import { apiRequest } from "~/utils/api";
 // Removed unused Layout imports
 import { Home, Calendar, User, LogOut, Ticket, Award, Menu, X } from "lucide-react";

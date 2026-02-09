@@ -1,5 +1,5 @@
-import { type LoaderFunctionArgs, redirect, Outlet, NavLink, useLoaderData } from "react-router";
-import { getAuth } from "@clerk/react-router/server";
+import { Link, type LoaderFunctionArgs, redirect, Outlet, NavLink, useLoaderData } from "react-router";
+import { getAuth } from "../utils/auth-wrapper.server";
 import { useUser } from "@clerk/react-router";
 import { LogoutButton } from "../components/LogoutButton";
 import { ThemeToggle } from "../components/ThemeToggle";

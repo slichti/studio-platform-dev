@@ -1,8 +1,6 @@
 
-import type { LoaderFunctionArgs } from "react-router";
-
-import { useLoaderData, useSearchParams, useNavigate } from "react-router";
-import { getAuth } from "@clerk/react-router/server";
+import { useLoaderData, useSearchParams, useNavigate, type LoaderFunctionArgs } from "react-router";
+import { getAuth } from "../utils/auth-wrapper.server";
 import { loadStripe } from "@stripe/stripe-js";
 import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe-js";
 import { apiRequest } from "../utils/api";

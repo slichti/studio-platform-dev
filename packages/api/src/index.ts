@@ -5,6 +5,7 @@ import { eq, and, count, sum, gte, like, or } from 'drizzle-orm';
 import { UsageService } from './services/pricing';
 import { StripeService } from './services/stripe';
 import { ExportService } from './services/export';
+import { LoggerService } from './services/logger';
 import { authMiddleware } from './middleware/auth';
 import { optionalAuthMiddleware } from './middleware/optionalAuth';
 import { tenantMiddleware } from './middleware/tenant';
