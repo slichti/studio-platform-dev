@@ -3,15 +3,16 @@ import { Mail, Plus, Trash2, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 
-import { useReportSchedules, useReportScheduleMutations } from "~/hooks/useAnalytics";
+import { useReportSchedules, useReportScheduleMutations, useCustomReports } from "~/hooks/useAnalytics";
 
 export default function AnalyticsReports() {
     const { tenant } = useOutletContext<{ tenant: any }>();
     const { data: schedules = [] } = useReportSchedules(tenant.slug);
+    const { data: customReports = [] } = useCustomReports(tenant.slug);
     const { createMutation: createSchedule, deleteMutation: deleteSchedule } = useReportScheduleMutations(tenant.slug);
 
     const [isCreatingSchedule, setIsCreatingSchedule] = useState(false);
-    const [newSchedule, setNewSchedule] = useState({ reportType: 'revenue', frequency: 'weekly', recipients: '' });
+    const [newSchedule, setNewSchedule] = useState({ reportType: 'revenue', frequency: 'weekly', recipients: '', customReportId: '' });
 
     const handleCreateSchedule = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -20,7 +21,7 @@ export default function AnalyticsReports() {
             const recipients = newSchedule.recipients.split(',').map(r => r.trim()).filter(r => !!r);
             await createSchedule.mutateAsync({ ...newSchedule, recipients });
             toast.success("Schedule created");
-            setNewSchedule({ reportType: 'revenue', frequency: 'weekly', recipients: '' });
+            setNewSchedule({ reportType: 'revenue', frequency: 'weekly', recipients: '', customReportId: '' });
         } catch (e: any) {
             toast.error(e.message);
         } finally {
@@ -54,6 +55,7 @@ export default function AnalyticsReports() {
                                         <option value="revenue">Revenue</option>
                                         <option value="attendance">Attendance</option>
                                         <option value="journal">Journal</option>
+                                        <option value="custom">Custom Report</option>
                                     </select>
                                 </div>
                                 <div>
@@ -69,6 +71,23 @@ export default function AnalyticsReports() {
                                     </select>
                                 </div>
                             </div>
+
+                            {newSchedule.reportType === 'custom' && (
+                                <div>
+                                    <label className="block text-xs font-medium text-zinc-500 mb-1">Select Saved Report</label>
+                                    <select
+                                        value={newSchedule.customReportId}
+                                        onChange={e => setNewSchedule({ ...newSchedule, customReportId: e.target.value })}
+                                        className="w-full text-sm border rounded-md p-2 dark:bg-zinc-800"
+                                        required
+                                    >
+                                        <option value="">-- Choose a report --</option>
+                                        {customReports.map((r: any) => (
+                                            <option key={r.id} value={r.id}>{r.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                             <div>
                                 <label className="block text-xs font-medium text-zinc-500 mb-1">Recipients (comma separated)</label>
                                 <input

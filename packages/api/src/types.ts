@@ -2,6 +2,7 @@
 
 import { tenants, tenantMembers, users } from '@studio/db/src/schema'; // Ensure consistent import
 import { EmailService } from './services/email';
+import { LoggerService } from './services/logger';
 
 export interface Bindings {
     DB: D1Database;
@@ -49,6 +50,7 @@ export interface Variables {
     emailApiKey?: string;
     email: EmailService;
     twilioCredentials?: { accountSid: string; authToken: string; fromNumber: string };
+    logger: LoggerService;
 }
 
 export interface StudioVariables extends Variables {

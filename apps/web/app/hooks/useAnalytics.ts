@@ -159,3 +159,18 @@ export function useReportScheduleMutations(slug: string) {
 
     return { createMutation, deleteMutation };
 }
+
+export function useCustomReports(slug: string) {
+    const { getToken } = useAuth();
+    return useQuery({
+        queryKey: ['reports', 'custom', slug],
+        queryFn: async () => {
+            const token = await getToken();
+            const res = await apiRequest('/reports/custom', token, {
+                headers: { 'X-Tenant-Slug': slug }
+            });
+            return res.reports || [];
+        },
+        enabled: !!slug
+    });
+}

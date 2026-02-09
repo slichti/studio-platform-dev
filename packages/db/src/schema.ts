@@ -1898,9 +1898,10 @@ export const customReports = sqliteTable('custom_reports', {
 export const scheduledReports = sqliteTable('scheduled_reports', {
     id: text('id').primaryKey(),
     tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
-    reportType: text('report_type', { enum: ['revenue', 'attendance', 'journal'] }).notNull(),
+    reportType: text('report_type', { enum: ['revenue', 'attendance', 'journal', 'custom'] }).notNull(),
     frequency: text('frequency', { enum: ['daily', 'weekly', 'monthly'] }).notNull(),
     recipients: text('recipients', { mode: 'json' }).notNull(), // Array of emails
+    customReportId: text('custom_report_id').references(() => customReports.id),
     lastSent: integer('last_sent', { mode: 'timestamp' }),
     nextRun: integer('next_run', { mode: 'timestamp' }).notNull(),
     status: text('status', { enum: ['active', 'paused'] }).default('active').notNull(),

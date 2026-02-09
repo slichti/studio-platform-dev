@@ -52,4 +52,32 @@ describe('ReportService Security', () => {
         expect(html).toContain('&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;');
         expect(html).not.toContain('<script>');
     });
+
+    it('should calculate active_members metric as a daily snapshot', async () => {
+        const start = new Date('2024-01-01');
+        const end = new Date('2024-01-03');
+
+        // Mock select for active_members
+        mockAll.mockResolvedValueOnce([
+            { id: 'm1', joinedAt: new Date('2023-12-01') },
+            { id: 'm2', joinedAt: new Date('2024-01-02') }
+        ]);
+
+        const result = await service.query({
+            metrics: ['active_members'],
+            dimensions: ['date'],
+            filters: { startDate: start, endDate: end }
+        });
+
+        expect(mockAll).toHaveBeenCalled();
+        expect(result.summary.active_members).toBe(2);
+        expect(result.chartData).toHaveLength(3); // Jan 1, 2, 3
+
+        // Jan 1: only m1 was joined
+        expect(result.chartData[0].active_members).toBe(1);
+        // Jan 2: m1 and m2 joined
+        expect(result.chartData[1].active_members).toBe(2);
+        // Jan 3: m1 and m2 joined
+        expect(result.chartData[2].active_members).toBe(2);
+    });
 });

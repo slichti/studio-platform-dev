@@ -160,8 +160,9 @@ app.post('/schedules', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
-    const { reportType, frequency, recipients } = await c.req.json();
+    const { reportType, frequency, recipients, customReportId } = await c.req.json();
     if (!reportType || !frequency || !recipients) return c.json({ error: "Missing fields" }, 400);
+    if (reportType === 'custom' && !customReportId) return c.json({ error: "Custom report selection required" }, 400);
 
     const now = new Date();
     let nextRun = new Date();
@@ -171,7 +172,7 @@ app.post('/schedules', async (c) => {
 
     const newSchedule = {
         id: crypto.randomUUID(), tenantId: tenant.id, reportType, frequency,
-        recipients, nextRun, status: 'active'
+        recipients, customReportId, nextRun, status: 'active'
     };
 
     await db.insert(scheduledReports).values(newSchedule as any).run();

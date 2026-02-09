@@ -104,6 +104,7 @@ export default function ProfileScreen() {
 
                 {/* Logout */}
                 <TouchableOpacity
+                    testID="sign-out-mem-btn"
                     onPress={() => signOut()}
                     className="flex-row items-center justify-center p-4 mt-auto mb-8 bg-red-50 rounded-xl"
                 >

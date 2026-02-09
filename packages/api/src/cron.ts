@@ -334,7 +334,7 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
         });
 
         try {
-            const summaryHtml = await reportService.generateEmailSummary(report.reportType as any);
+            const summaryHtml = await reportService.generateEmailSummary(report.reportType as any, report.customReportId || undefined);
             const recipients = report.recipients as string[];
 
             for (const recipient of recipients) {

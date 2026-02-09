@@ -98,9 +98,35 @@ app.use('*', sentryMiddleware()); // [NEW] Sentry error tracking
 app.use('*', rateLimitMiddleware({ limit: 300, window: 60 })); // [NEW] Global Rate Limit: 300 req/min
 app.use('*', logger((str, ...rest) => {
   // Custom logger wrapper could go here, but Hono logger is simple.
-  // For now we rely on the header being set by traceMiddleware for standard logs
-  console.log(str, ...rest);
+  console.log(str);
 }));
+
+app.onError((err, c) => {
+  const logger = c.get('logger');
+  const traceId = c.get('traceId');
+
+  if (logger) {
+    logger.error(`Unhandled error: ${err.message}`, { error: err });
+  } else {
+    LoggerService.staticLog('error', `Unhandled error (pre-context): ${err.message}`, { error: err, traceId });
+  }
+
+  // Handle known app errors
+  if (err instanceof AppError) {
+    return c.json({
+      error: err.message,
+      code: err.code,
+      requestId: traceId
+    }, err.statusCode as any);
+  }
+
+  // Fallback for unexpected errors
+  return c.json({
+    error: 'Internal Server Error',
+    requestId: traceId
+  }, 500);
+});
+
 app.use('*', cors({
   origin: (origin) => {
     if (!origin) return 'https://studio-platform-web.pages.dev';

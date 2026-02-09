@@ -63,6 +63,7 @@ export default function HomeScreen() {
             )}
           </View>
           <TouchableOpacity
+            testID="header-sign-out-btn"
             onPress={() => signOut()}
             className="bg-zinc-100 p-2 rounded-full"
           >

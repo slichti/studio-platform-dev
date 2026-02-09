@@ -28,6 +28,7 @@ export default function AnalyticsCustom() {
         { id: 'revenue', label: 'Revenue' },
         { id: 'attendance', label: 'Attendance' },
         { id: 'new_signups', label: 'New Signups' },
+        { id: 'active_members', label: 'Active Members' },
     ];
     const [metrics, setMetrics] = useState<string[]>(['revenue']);
     const [dimensions, setDimensions] = useState<string[]>(['date']);
@@ -118,7 +119,7 @@ export default function AnalyticsCustom() {
                 method: 'POST',
                 body: JSON.stringify({
                     name,
-                    config: { metrics, dimensions, dateRange, filters },
+                    config: { metrics, dimensions, dateRange, filters, chartType },
                     isPublic: false
                 }),
                 headers: { 'X-Tenant-Slug': tenant?.slug }
@@ -237,6 +238,7 @@ export default function AnalyticsCustom() {
                                                 setMetrics(c.metrics || []);
                                                 setDimensions(c.dimensions || []);
                                                 if (c.dateRange) setDateRange(c.dateRange);
+                                                if (c.chartType) setChartType(c.chartType);
                                             }}
                                             className="text-zinc-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:underline text-left block w-full truncate"
                                         >
@@ -279,6 +281,13 @@ export default function AnalyticsCustom() {
                                         title="New Signups"
                                         value={reportData.summary?.new_signups || 0}
                                         icon={<UserPlus size={20} className="text-amber-500" />}
+                                    />
+                                )}
+                                {metrics.includes('active_members') && (
+                                    <MetricCard
+                                        title="Active Members"
+                                        value={reportData.summary?.active_members || 0}
+                                        icon={<Users size={20} className="text-zinc-500" />}
                                     />
                                 )}
                             </div>
@@ -327,6 +336,7 @@ export default function AnalyticsCustom() {
                                             {metrics.includes('revenue') && <Bar dataKey="revenue" fill="#2563eb" radius={[4, 4, 0, 0]} name="Revenue ($)" />}
                                             {metrics.includes('attendance') && <Bar dataKey="attendance" fill="#059669" radius={[4, 4, 0, 0]} name="Attendance" />}
                                             {metrics.includes('new_signups') && <Bar dataKey="new_signups" fill="#F59E0B" radius={[4, 4, 0, 0]} name="New Signups" />}
+                                            {metrics.includes('active_members') && <Bar dataKey="active_members" fill="#71717a" radius={[4, 4, 0, 0]} name="Active Members" />}
                                         </BarChart>
                                     ) : (
                                         <LineChart data={reportData.chartData}>
@@ -351,6 +361,7 @@ export default function AnalyticsCustom() {
                                             {metrics.includes('revenue') && <Line type="monotone" dataKey="revenue" stroke="#2563eb" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} name="Revenue ($)" />}
                                             {metrics.includes('attendance') && <Line type="monotone" dataKey="attendance" stroke="#059669" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} name="Attendance" />}
                                             {metrics.includes('new_signups') && <Line type="monotone" dataKey="new_signups" stroke="#F59E0B" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} name="New Signups" />}
+                                            {metrics.includes('active_members') && <Line type="monotone" dataKey="active_members" stroke="#71717a" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} name="Active Members" />}
                                         </LineChart>
                                     )}
                                 </ResponsiveContainer>
@@ -375,6 +386,7 @@ export default function AnalyticsCustom() {
                                                 {metrics.includes('revenue') && <th className="px-6 py-3 font-medium">Revenue</th>}
                                                 {metrics.includes('attendance') && <th className="px-6 py-3 font-medium">Attendance</th>}
                                                 {metrics.includes('new_signups') && <th className="px-6 py-3 font-medium">New Signups</th>}
+                                                {metrics.includes('active_members') && <th className="px-6 py-3 font-medium">Active Members</th>}
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -384,6 +396,7 @@ export default function AnalyticsCustom() {
                                                     {metrics.includes('revenue') && <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400">${row.revenue?.toFixed(2)}</td>}
                                                     {metrics.includes('attendance') && <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400">{row.attendance}</td>}
                                                     {metrics.includes('new_signups') && <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400">{row.new_signups}</td>}
+                                                    {metrics.includes('active_members') && <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400">{row.active_members}</td>}
                                                 </tr>
                                             ))}
                                         </tbody>

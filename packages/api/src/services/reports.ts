@@ -10,7 +10,9 @@ import {
     users,
     waiverSignatures,
     waiverTemplates,
-    classPackDefinitions
+    classPackDefinitions,
+    customReports,
+    scheduledReports
 } from '@studio/db/src/schema'; // Ensure correct imports
 import { and, between, eq, sql, desc, count, gte, lte, inArray } from 'drizzle-orm';
 
@@ -520,20 +522,58 @@ export class ReportService {
                     dataMap.set(key, (dataMap.get(key) || 0) + 1);
                 });
 
-                // Merge
+                // Initialize chartData if needed
                 if (!result.chartData.length) {
                     const cursor = new Date(filters.startDate);
                     while (cursor <= filters.endDate) {
                         const key = cursor.toISOString().split('T')[0];
-                        result.chartData.push({ name: key, new_signups: 0 });
+                        result.chartData.push({ name: key });
                         cursor.setDate(cursor.getDate() + 1);
                     }
                 }
 
                 result.chartData = result.chartData.map((d: any) => ({
                     ...d,
-                    new_signups: (dataMap.get(d.name) || 0)
+                    new_signups: dataMap.get(d.name) || 0
                 }));
+            }
+        }
+
+        // ACTIVE MEMBERS METRIC (Snapshot / Cumulative)
+        if (metrics.includes('active_members')) {
+            const members = await this.db.select({
+                id: tenantMembers.id,
+                joinedAt: tenantMembers.joinedAt
+            })
+                .from(tenantMembers)
+                .where(and(
+                    eq(tenantMembers.tenantId, this.tenantId),
+                    lte(tenantMembers.joinedAt, filters.endDate),
+                    eq(tenantMembers.status, 'active')
+                ))
+                .all();
+
+            result.summary.active_members = members.length;
+
+            if (groupByDay) {
+                // Initialize chartData if needed
+                if (!result.chartData.length) {
+                    const cursor = new Date(filters.startDate);
+                    while (cursor <= filters.endDate) {
+                        const key = cursor.toISOString().split('T')[0];
+                        result.chartData.push({ name: key });
+                        cursor.setDate(cursor.getDate() + 1);
+                    }
+                }
+
+                result.chartData = result.chartData.map((d: any) => {
+                    const dateLimit = new Date(d.name).getTime();
+                    const count = members.filter(m => new Date(m.joinedAt || '').getTime() <= dateLimit).length;
+                    return {
+                        ...d,
+                        active_members: count
+                    };
+                });
             }
         }
 
@@ -617,7 +657,7 @@ export class ReportService {
         };
     }
 
-    async generateEmailSummary(reportType: 'revenue' | 'attendance' | 'journal') {
+    async generateEmailSummary(reportType: 'revenue' | 'attendance' | 'journal' | 'custom', customReportId?: string) {
         const end = new Date();
         const start = new Date();
         start.setDate(end.getDate() - 7); // Default to last 7 days for summary
@@ -657,6 +697,31 @@ export class ReportService {
                      <p style="margin: 5px 0 0 0; font-size: 14px;"><strong>Total Credits:</strong> $${credits.toFixed(2)}</p>
                 </div>
                 <p style="font-size: 12px; color: #9CA3AF; margin-top: 10px;">Login to the platform to download the full CSV export.</p>
+            `;
+        } else if (reportType === 'custom' && customReportId) {
+            const report = await this.db.select().from(customReports).where(and(eq(customReports.id, customReportId), eq(customReports.tenantId, this.tenantId))).get();
+            if (!report) return `<p>Custom report not found.</p>`;
+
+            const config = report.config as any;
+            const queryResult = await this.query({
+                metrics: config.metrics,
+                dimensions: config.dimensions,
+                filters: {
+                    startDate: start,
+                    endDate: end,
+                }
+            });
+
+            const metricsList = config.metrics.map((m: string) => `<li>${m.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}: ${queryResult.summary[m] || 0}</li>`).join('');
+
+            return `
+                <h2 style="color: #111827;">Custom Report: ${escapeHtml(report.name)}</h2>
+                <p style="color: #6B7280; font-size: 14px;">Period: ${start.toLocaleDateString()} - ${end.toLocaleDateString()}</p>
+                <div style="background: #F9FAFB; padding: 15px; border-radius: 8px;">
+                    <ul style="color: #374151; font-size: 14px; padding-left: 20px; margin: 0;">
+                        ${metricsList}
+                    </ul>
+                </div>
             `;
         }
         return `<p>Report summary generated.</p>`;

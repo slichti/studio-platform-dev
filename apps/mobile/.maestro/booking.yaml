@@ -1,0 +1,18 @@
+appId: com.studio.mobile
+---
+- clearState
+- openApp
+- tapOn: "Email"
+- inputText: "member@test.com"
+- tapOn: "Password"
+- inputText: "password123"
+- tapOn: "Sign In"
+- assertVisible: "Upcoming Classes"
+- tapOn:
+    id: "class-card-0" # Assuming testIDs are added or using text
+- assertVisible: "Book Now"
+- tapOn: "Book Now"
+- assertVisible: "Booking Confirmed"
+- tapOn: "Close"
+- assertNotVisible: "Book Now"
+- assertVisible: "Cancel Booking"
