@@ -9,6 +9,7 @@ export default defineConfig({
         alias: {
             '@studio/db/src': path.resolve(__dirname, '../db/src'),
             '@studio/db': path.resolve(__dirname, '../db'),
+            '@studio/emails': path.resolve(__dirname, '../emails/src/index.ts'),
         },
     },
 });
