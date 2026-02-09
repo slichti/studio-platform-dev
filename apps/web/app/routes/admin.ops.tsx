@@ -8,6 +8,30 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
+interface DiagnosticsData {
+    status: string;
+    latency: {
+        database_read_ms: number;
+        database_query_ms: number;
+    };
+    worker: {
+        memory_used_mb: number;
+        colo: string;
+        city: string;
+        country: string;
+        region: string;
+    };
+    integrations: Record<string, boolean>;
+    clientErrors: Array<{
+        id: string;
+        details: {
+            message: string;
+            url: string;
+        };
+        createdAt: string;
+    }>;
+}
+
 export const loader = async (args: LoaderFunctionArgs) => {
     const { userId, getToken } = await getAuth(args);
     if (!userId) throw new Response("Unauthorized", { status: 401 });
@@ -28,10 +52,10 @@ export const loader = async (args: LoaderFunctionArgs) => {
             throw new Error(`API Error: ${res.status}`);
         }
 
-        const data = await res.json();
-        return { data, error: null, environment: env.ENVIRONMENT || 'production' };
+        const data = await res.json() as DiagnosticsData;
+        return { data, error: null, environment: (env.ENVIRONMENT || 'production') as string };
     } catch (error: any) {
-        return { data: null, error: error.message, environment: env.ENVIRONMENT || 'production' };
+        return { data: null as DiagnosticsData | null, error: error.message as string | null, environment: (env.ENVIRONMENT || 'production') as string };
     }
 };
 
@@ -229,7 +253,7 @@ export default function AdminOps() {
                                 </div>
                             )}
                         </div>
-                        {data?.clientErrors?.length > 0 && (
+                        {((data?.clientErrors?.length ?? 0) > 0) && (
                             <div className="p-4 border-t border-zinc-100 dark:border-zinc-800 text-center">
                                 <button className="text-xs font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-widest">
                                     View Full Logs
