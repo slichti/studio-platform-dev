@@ -1,4 +1,4 @@
-import { ActionFunctionArgs, LoaderFunctionArgs, redirect } from "react-router"; 
+import { ActionFunctionArgs, LoaderFunctionArgs, redirect } from "react-router";
 import { Outlet, Link, useLoaderData, useLocation, useOutletContext, NavLink } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
@@ -8,13 +8,36 @@ import { useState } from "react";
 import { cn } from "~/utils/cn";
 
 export const loader = async (args: LoaderFunctionArgs) => {
-    const { getToken, userId } = await getAuth(args);
-    const token = await getToken();
-    const { slug } = args.params;
+    // [E2E BYPASS] Allow impersonation/bypass for testing
+    let userId: string | null = null;
+    let token: string | null = null;
+    let getToken: (() => Promise<string | null>) | null = null;
+
+    const cookie = args.request.headers.get("Cookie");
+    const isDev = import.meta.env.DEV || process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+
+    if (isDev && cookie?.includes("__e2e_bypass_user_id=")) {
+        const match = cookie.match(/__e2e_bypass_user_id=([^;]+)/);
+        if (match) {
+            userId = match[1];
+            token = userId;
+            console.warn(`[SECURITY WARNING] E2E Bypass Active for User: ${userId}`);
+        }
+    }
+
+    // Only call getAuth if we didn't bypass
+    if (!userId) {
+        const authResult = await getAuth(args);
+        userId = authResult.userId;
+        getToken = authResult.getToken;
+    }
 
     if (!userId) {
         return redirect(`/sign-in?redirect_url=${new URL(args.request.url).pathname}`);
     }
+
+    if (!token && getToken) token = await getToken();
+    const { slug } = args.params;
 
     try {
         // Fetch Tenant & Member Info
