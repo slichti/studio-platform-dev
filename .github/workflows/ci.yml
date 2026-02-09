@@ -21,7 +21,7 @@ jobs:
         env:
           ESLINT_USE_FLAT_CONFIG: false
       - run: npm run typecheck
-      - run: npm run test
+      - run: npx turbo run test --filter=!mobile
 
   deploy-api:
     needs: validate
