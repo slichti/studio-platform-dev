@@ -53,18 +53,24 @@ export class StripeService {
     async createCheckoutSession(
         connectedAccountId: string,
         params: {
-            title: string;
-            amount: number; // cents
+            title?: string;
+            amount?: number; // cents
             currency: string;
             successUrl: string;
             cancelUrl: string;
             metadata: Record<string, string>;
             customerEmail?: string;
+            customer?: string;
+            lineItems?: Stripe.Checkout.SessionCreateParams.LineItem[];
+            mode?: 'payment' | 'subscription';
+            applicationFeeAmount?: number;
+            applicationFeePercent?: number;
+            automaticTax?: boolean;
         }
     ) {
         const { client, options } = this.getClient(connectedAccountId);
 
-        return client.checkout.sessions.create({
+        const sessionParams: any = {
             payment_method_types: ['card', 'us_bank_account'],
             payment_method_options: {
                 us_bank_account: {
@@ -73,7 +79,38 @@ export class StripeService {
                     },
                 },
             },
-            line_items: [{
+            mode: params.mode || 'payment',
+            success_url: params.successUrl,
+            cancel_url: params.cancelUrl,
+            metadata: params.metadata,
+        };
+
+        if (params.customer) {
+            sessionParams.customer = params.customer;
+        } else if (params.customerEmail) {
+            sessionParams.customer_email = params.customerEmail;
+        }
+
+        if (params.automaticTax) {
+            sessionParams.automatic_tax = { enabled: true };
+        }
+
+        if (params.mode === 'subscription' && params.applicationFeePercent) {
+            sessionParams.subscription_data = {
+                application_fee_percent: params.applicationFeePercent
+            };
+        }
+
+        if (params.mode !== 'subscription' && params.applicationFeeAmount) {
+            sessionParams.payment_intent_data = {
+                application_fee_amount: params.applicationFeeAmount
+            };
+        }
+
+        if (params.lineItems && params.lineItems.length > 0) {
+            sessionParams.line_items = params.lineItems;
+        } else if (params.amount && params.title) {
+            sessionParams.line_items = [{
                 price_data: {
                     currency: params.currency,
                     product_data: {
@@ -82,13 +119,12 @@ export class StripeService {
                     unit_amount: params.amount,
                 },
                 quantity: 1,
-            }],
-            mode: 'payment',
-            success_url: params.successUrl,
-            cancel_url: params.cancelUrl,
-            metadata: params.metadata,
-            customer_email: params.customerEmail,
-        }, options);
+            }];
+        } else {
+            throw new Error("Either lineItems or (amount + title) must be provided");
+        }
+
+        return client.checkout.sessions.create(sessionParams, options);
     }
 
     /**

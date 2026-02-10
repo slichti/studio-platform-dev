@@ -265,7 +265,7 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
         if (!!(auth as any).isImpersonating) return c.json({ error: 'Payments cannot be processed while impersonating.' }, 403);
 
         const body = await c.req.json();
-        const { packId, planId, couponCode, giftCardCode, giftCardAmount, recipientEmail, recipientName, senderName, message } = body;
+        const { packId, planId, couponCode, giftCardCode, giftCardAmount, recipientEmail, recipientName, senderName, message, platform } = body;
         if (!packId && !giftCardAmount && !planId) return c.json({ error: "Product ID required" }, 400);
 
         let finalAmount = 0, basePrice = 0, discountAmount = 0, pack = null, plan = null, stripeMode: 'payment' | 'subscription' = 'payment';
@@ -318,6 +318,12 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
                 await fulfillment.fulfillGiftCardPurchase({ type: 'gift_card_purchase', tenantId: tenant.id, userId: auth.userId, recipientEmail, recipientName, senderName, message, amount: parseInt(giftCardAmount) }, mockId, parseInt(giftCardAmount));
             }
             if (appliedGiftCardId && creditApplied > 0) await fulfillment.redeemGiftCard(appliedGiftCardId, creditApplied, mockId);
+
+            if (platform === 'mobile') {
+                // For mobile, we want to return a success URL or status so the app can handle it
+                // But since there's no checkout session, we can just return success: true
+                return c.json({ complete: true, paymentNotRequired: true });
+            }
             return c.json({ complete: true, returnUrl: `${new URL(c.req.url).origin}/studio/${tenant.slug}/return?session_id=${mockId}` });
         }
 
@@ -351,28 +357,53 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
                 quantity: 1
             });
         }
+        // Fee on top is only for embedded usually, but let's keep it consistent or remove it for hosted if we want.
+        // For hosted, usually fees are absorbed or added differently. 
+        // We'll keep the logic same for now.
         if (stripeFee > 0) lineItems.push({ price_data: { currency: tenant.currency || 'usd', product_data: { name: 'Processing Fee', tax_code: 'txcd_00000000' }, unit_amount: stripeFee }, quantity: 1 });
 
         const { PricingService } = await import('../services/pricing');
         const tier = PricingService.getTierConfig(tenant.tier);
         const appFeeDecimal = tier.applicationFeePercent;
 
-        const session = await stripeService.createEmbeddedCheckoutSession(tenant.stripeAccountId!, {
-            currency: tenant.currency || 'usd',
-            returnUrl: `${new URL(c.req.url).origin}/studio/${tenant.slug}/return?session_id={CHECKOUT_SESSION_ID}`,
-            customerEmail, customer: stripeCustomerId || undefined, lineItems, mode: stripeMode, automaticTax: true,
-            applicationFeeAmount: stripeMode !== 'subscription' && appFeeDecimal > 0 ? Math.round(amountWithFee * appFeeDecimal) : undefined,
-            applicationFeePercent: stripeMode === 'subscription' && appFeeDecimal > 0 ? appFeeDecimal * 100 : undefined,
-            metadata: {
-                type: pack ? 'pack_purchase' : (plan ? 'membership_purchase' : 'gift_card_purchase'),
-                packId: pack?.id || '', planId: plan?.id || '', tenantId: tenant.id, userId: auth.userId || 'guest',
-                couponId: appliedCouponId || '', recipientEmail, recipientName, senderName, message,
-                productName: pack ? pack.name : (plan ? plan.name : 'Gift Card'), totalCharge: String(amountWithFee),
-                usedGiftCardId: appliedGiftCardId || ''
-            }
-        });
+        const metadata = {
+            type: pack ? 'pack_purchase' : (plan ? 'membership_purchase' : 'gift_card_purchase'),
+            packId: pack?.id || '', planId: plan?.id || '', tenantId: tenant.id, userId: auth.userId || 'guest',
+            couponId: appliedCouponId || '', recipientEmail, recipientName, senderName, message,
+            productName: pack ? pack.name : (plan ? plan.name : 'Gift Card'), totalCharge: String(amountWithFee),
+            usedGiftCardId: appliedGiftCardId || ''
+        };
 
-        return c.json({ clientSecret: session.client_secret });
+        if (platform === 'mobile') {
+            // Use Hosted Checkout for Mobile
+            const session = await stripeService.createCheckoutSession(tenant.stripeAccountId!, {
+                currency: tenant.currency || 'usd',
+                successUrl: `studio-mobile://checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+                cancelUrl: `studio-mobile://checkout/cancel`,
+                customerEmail,
+                customer: stripeCustomerId || undefined,
+                lineItems,
+                mode: stripeMode,
+                automaticTax: true,
+                applicationFeeAmount: stripeMode !== 'subscription' && appFeeDecimal > 0 ? Math.round(amountWithFee * appFeeDecimal) : undefined,
+                applicationFeePercent: stripeMode === 'subscription' && appFeeDecimal > 0 ? appFeeDecimal * 100 : undefined,
+                metadata: metadata
+            });
+
+            return c.json({ url: session.url });
+        } else {
+            // Embedded (Web)
+            const session = await stripeService.createEmbeddedCheckoutSession(tenant.stripeAccountId!, {
+                currency: tenant.currency || 'usd',
+                returnUrl: `${new URL(c.req.url).origin}/studio/${tenant.slug}/return?session_id={CHECKOUT_SESSION_ID}`,
+                customerEmail, customer: stripeCustomerId || undefined, lineItems, mode: stripeMode, automaticTax: true,
+                applicationFeeAmount: stripeMode !== 'subscription' && appFeeDecimal > 0 ? Math.round(amountWithFee * appFeeDecimal) : undefined,
+                applicationFeePercent: stripeMode === 'subscription' && appFeeDecimal > 0 ? appFeeDecimal * 100 : undefined,
+                metadata: metadata
+            });
+
+            return c.json({ clientSecret: session.client_secret });
+        }
     } catch (e: any) {
         return c.json({ error: e.message }, 500);
     }

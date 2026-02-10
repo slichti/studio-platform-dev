@@ -1,4 +1,4 @@
-
+import Constants from 'expo-constants';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { AuthStore } from '../lib/auth';
 import * as SecureStore from 'expo-secure-store';
@@ -78,6 +78,13 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
                 setSlugState(storedSlug);
                 // In a real app we might verify if it's still valid or just fetch info
                 await loadTheme(storedSlug);
+            } else {
+                // Fallback to config (for single-tenant builds)
+                const configSlug = Constants.expoConfig?.extra?.tenantSlug;
+                if (configSlug) {
+                    setSlugState(configSlug);
+                    await loadTheme(configSlug);
+                }
             }
         } catch (e) {
             console.error('Failed to load tenant', e);

@@ -127,6 +127,17 @@ export default function ClassDetailScreen() {
 
             <View className="p-6 border-t border-zinc-100 safe-bottom">
                 <View className="flex-row gap-4">
+                    {classData.location && (
+                        <TouchableOpacity
+                            onPress={() => {
+                                const query = encodeURIComponent(`${classData.location.name}, ${classData.location.address || ''}`);
+                                Linking.openURL(`http://maps.apple.com/?q=${query}`);
+                            }}
+                            className="flex-1 py-4 rounded-xl items-center justify-center bg-zinc-100 mr-2"
+                        >
+                            <Ionicons name="map-outline" size={24} color="black" />
+                        </TouchableOpacity>
+                    )}
                     {isBooked && (
                         <TouchableOpacity
                             onPress={() => {
@@ -135,7 +146,7 @@ export default function ClassDetailScreen() {
                                 const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(classData.title)}&dates=${start}/${end}&details=${encodeURIComponent(classData.description || "")}&location=${encodeURIComponent(classData.location?.name || "Studio")}`;
                                 Linking.openURL(url);
                             }}
-                            className="flex-1 py-4 rounded-xl items-center justify-center bg-zinc-100"
+                            className="flex-1 py-4 rounded-xl items-center justify-center bg-zinc-100 mr-2"
                         >
                             <Ionicons name="calendar-outline" size={24} color="black" />
                         </TouchableOpacity>

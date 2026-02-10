@@ -35,7 +35,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         version: "1.0.0",
         orientation: "portrait",
         icon: mobileConfig.iconUrl || "./assets/images/icon.png",
-        scheme: "mobile",
+        scheme: "studio-mobile",
         userInterfaceStyle: "automatic",
         newArchEnabled: true,
         splash: {
