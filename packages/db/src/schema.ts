@@ -158,6 +158,22 @@ export const tenantMembers = sqliteTable('tenant_members', {
     engagementIdx: index('member_engagement_idx').on(table.engagementScore),
 }));
 
+// --- Invitations ---
+export const tenantInvitations = sqliteTable('tenant_invitations', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    email: text('email').notNull(),
+    role: text('role', { enum: ['owner', 'admin', 'instructor', 'student'] }).default('student').notNull(),
+    token: text('token').notNull().unique(),
+    expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+    acceptedAt: integer('accepted_at', { mode: 'timestamp' }),
+    invitedBy: text('invited_by').notNull(), // User ID
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantEmailIdx: index('invitation_tenant_email_idx').on(table.tenantId, table.email),
+    tokenIdx: uniqueIndex('invitation_token_idx').on(table.token),
+}));
+
 
 
 // --- Tenant Roles ---

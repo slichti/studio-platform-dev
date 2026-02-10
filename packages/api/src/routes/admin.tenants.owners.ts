@@ -1,8 +1,9 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { users, tenantMembers, tenantRoles, tenants } from '@studio/db/src/schema'; // Updated path
+import { users, tenantMembers, tenantRoles, tenants, tenantInvitations } from '@studio/db/src/schema'; // Updated path
 import { eq, and } from 'drizzle-orm';
 import { HonoContext } from '../types';
+import { EmailService } from '../services/email';
 
 const app = new Hono<HonoContext>();
 
@@ -54,9 +55,61 @@ app.post('/:id/owners', async (c) => {
 
     // 1. Find User by Email
     const user = await db.select().from(users).where(eq(users.email, email)).get();
+
+    // IF USER DOES NOT EXIST -> CREATE INVITATION
     if (!user) {
-        // TODO: Invite flow. For now, require existing user.
-        return c.json({ error: "User not found. Please create a user account first." }, 404);
+        // Check for existing invitation
+        const existingInvite = await db.select().from(tenantInvitations).where(and(
+            eq(tenantInvitations.tenantId, tenantId),
+            eq(tenantInvitations.email, email),
+            eq(tenantInvitations.role, 'owner')
+        )).get();
+
+        if (existingInvite) {
+            return c.json({ message: "Invitation already sent", inviteId: existingInvite.id });
+        }
+
+        const auth = c.get('auth');
+        if (!auth?.userId) return c.json({ error: "Unauthorized" }, 401);
+
+        const token = crypto.randomUUID();
+        const inviteId = crypto.randomUUID();
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
+
+        await db.insert(tenantInvitations).values({
+            id: inviteId,
+            tenantId,
+            email,
+            role: 'owner',
+            token,
+            expiresAt,
+            invitedBy: auth.userId,
+            createdAt: new Date()
+        }).run();
+
+        // Send Email
+        const tenant = await db.select().from(tenants).where(eq(tenants.id, tenantId)).get();
+        const inviter = await db.select().from(users).where(eq(users.id, auth.userId)).get();
+
+        if (tenant && inviter) {
+            const emailService = new EmailService(c.env.RESEND_API_KEY!);
+            // @ts-ignore
+            const pagesUrl = c.env.PAGES_URL || 'https://studio-platform-dev.pages.dev';
+            const inviteUrl = `${pagesUrl}/invite?token=${token}`; // Assuming frontend route
+            // Use API URL for now if frontend route not ready, but usually frontend handles token.
+            // We'll point to a generic invite handler on the frontend.
+
+            const inviterName = inviter.profile ? `${(inviter.profile as any).firstName} ${(inviter.profile as any).lastName}` : 'An administrator';
+
+            await emailService.sendOwnerInvitation(email, {
+                url: inviteUrl,
+                studioName: tenant.name,
+                inviterName
+            });
+        }
+
+        return c.json({ message: "Invitation sent", inviteId });
     }
 
     // 2. Check if Member exists

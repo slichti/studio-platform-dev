@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useOutletContext, useParams, useNavigate } from "react-router";
 import { Search, CheckCircle, XCircle, User, Calendar, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 export default function KioskMode() {
     const { tenant } = useOutletContext<any>();
@@ -128,7 +129,9 @@ export default function KioskMode() {
                                     <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
                                         <Calendar className="h-4 w-4" />
                                         {member.nextBooking.className}
-                                        {/* TODO: Format Time */}
+                                        <span className="text-zinc-400 font-normal">
+                                            • {format(new Date(member.nextBooking.startTime), 'h:mm a')}
+                                        </span>
                                     </div>
                                 ) : (
                                     <div className="text-zinc-400 text-sm">No bookings today</div>

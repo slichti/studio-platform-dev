@@ -410,6 +410,16 @@ export class EmailService {
         `);
     }
 
+    async sendOwnerInvitation(to: string, data: { url: string; studioName: string; inviterName: string }) {
+        const subject = `Invitation to join ${data.studioName} as an Owner`;
+        return this.sendGenericEmail(to, subject, `
+            <h1>You've been invited!</h1>
+            <p>${data.inviterName} has invited you to join <strong>${data.studioName}</strong> as an owner.</p>
+            <p><a href="${data.url}">Click here to accept the invitation</a></p>
+            <p>This link will expire in 7 days.</p>
+        `);
+    }
+
     async retryEmail(logId: string): Promise<{ success: boolean; error?: string }> {
         console.warn(`[Legacy] retryEmail called for ${logId}.`);
         return { success: true };

@@ -46,6 +46,7 @@ import challenges from './routes/challenges';
 import jobs from './routes/jobs';
 import video from './routes/video';
 import kioskRoutes from './routes/kiosk'; // [NEW] Kiosk
+import invitesRouter from './routes/invites'; // [NEW] RBAC
 import rolesRoutes from './routes/roles'; // [NEW] RBAC
 import videoManagement from './routes/video-management';
 import tenantIntegrations from './routes/tenant-integrations';
@@ -640,6 +641,7 @@ studioApp.route('/audit-logs', auditLogRoutes);
 
 import tenantDomainRouter from './routes/tenant.domain';
 
+studioApp.route('/invites', invitesRouter);
 studioApp.route('/webhooks', tenantWebhooksRouter);
 studioApp.route('/domain', tenantDomainRouter); // [NEW] Domain Management
 

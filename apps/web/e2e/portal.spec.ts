@@ -12,5 +12,22 @@ test.describe('Student Portal', () => {
         await expect(page).toHaveURL(/.*sign-in/);
     });
 
-    // TODO: Add authenticated tests once we have a bypass mechanism
+    test('should allow access to authenticated user (bypass)', async ({ context }) => {
+        // Set bypass cookie
+        await context.addCookies([{
+            name: '__e2e_bypass_user_id',
+            value: 'user_student_fixed_id',
+            domain: 'localhost',
+            path: '/'
+        }]);
+
+        const page = await context.newPage();
+        await page.goto('/portal/test-studio');
+
+        // Should NOT redirect to sign-in
+        await expect(page).not.toHaveURL(/.*sign-in/);
+
+        // Should show dashboard content
+        await expect(page.getByText('Welcome back, Sam!')).toBeVisible();
+    });
 });

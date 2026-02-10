@@ -51,3 +51,9 @@ export async function apiRequest(path: string, options: RequestInit = {}) {
         throw e;
     }
 }
+
+export const api = {
+    getDiscoveryItems: async (query: string) => {
+        return apiRequest(`/studios?q=${encodeURIComponent(query)}`);
+    }
+};

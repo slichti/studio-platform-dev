@@ -5,18 +5,10 @@ import { Stack, useRouter } from 'expo-router';
 import { Search, MapPin, ArrowRight } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // We'll need a platform API helper or use fetch directly since apiRequest is tenant-scoped usually
-import { API_URL } from '../../lib/api';
+import { API_URL, api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 
-// TODO: Move to lib/api.ts
-const platformRequest = async (path: string, token?: string) => {
-    const headers: any = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-
-    const res = await fetch(`${API_URL}${path}`, { headers });
-    if (!res.ok) throw new Error("Failed to fetch");
-    return res.json();
-};
+// Removed platformRequest. Using api.ts
 
 export default function DiscoveryScreen() {
     const insets = useSafeAreaInsets();
@@ -32,8 +24,7 @@ export default function DiscoveryScreen() {
         setLoading(true);
         setHasSearched(true);
         try {
-            // Public endpoint, no auth strictly needed but good to allow if we filter by user location later
-            const data = await platformRequest(`/studios?q=${encodeURIComponent(query)}`);
+            const data = await api.getDiscoveryItems(query);
             setResults(data);
         } catch (e) {
             console.error(e);
