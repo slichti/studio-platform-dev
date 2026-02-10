@@ -12,11 +12,35 @@ export default defineConfig({
     define: {
         "process.env": {},
     },
+    ssr: {
+        external: [
+            "mermaid",
+            "recharts",
+            "@livekit/components-react",
+            "@livekit/components-styles",
+            "@puckeditor/core",
+            "@sentry/react",
+            "lucide-react",
+            "date-fns"
+        ],
+    },
     // ... build config ...
     build: {
+        minify: true,
         chunkSizeWarningLimit: 1000,
         rollupOptions: {
+            external: [
+                "mermaid",
+                "recharts",
+                "@livekit/components-react",
+                "@livekit/components-styles",
+                "@puckeditor/core",
+                "@sentry/react",
+                "lucide-react",
+                "date-fns"
+            ],
             output: {
+                inlineDynamicImports: false,
                 manualChunks: (id) => {
                     if (id.includes('node_modules')) {
                         if (id.includes('livekit')) return 'vendor-livekit';

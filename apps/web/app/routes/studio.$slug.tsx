@@ -45,14 +45,16 @@ import {
     Shield,
     Activity
 } from "lucide-react";
+const CommandBar = lazy(() => import("../components/CommandBar").then(m => ({ default: m.CommandBar })));
+const ChatWidget = lazy(() => import("../components/chat/ChatWidget").then(m => ({ default: m.ChatWidget })));
+const QuickStartModal = lazy(() => import("../components/onboarding/QuickStartModal").then(m => ({ default: m.QuickStartModal })));
+const ImpersonationBanner = lazy(() => import("../components/ImpersonationBanner").then(m => ({ default: m.ImpersonationBanner })));
+
 import { ThemeToggle } from "../components/ThemeToggle";
-import { CommandBar } from "../components/CommandBar";
 import { SidebarGroup } from "../components/SidebarGroup";
-import { ComponentProps } from "react";
 import { useClerk, useUser } from "@clerk/react-router";
-import { ImpersonationBanner } from "../components/ImpersonationBanner";
-import { ChatWidget } from "../components/chat/ChatWidget";
-import { QuickStartModal } from "../components/onboarding/QuickStartModal";
+import { lazy, Suspense } from "react";
+import { ClientOnly } from "~/components/ClientOnly";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { params, request } = args;
@@ -216,12 +218,16 @@ export default function StudioLayout() {
         <div className="flex h-screen bg-zinc-50 dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100 transition-colors duration-300">
             {/* Quick Start Wizard */}
             {!isStudentView && showQuickStart && (
-                <QuickStartModal
-                    isOpen={showQuickStart}
-                    onClose={() => setShowQuickStart(false)}
-                    tenant={tenant}
-                    token={token || ''}
-                />
+                <Suspense fallback={null}>
+                    <ClientOnly>
+                        <QuickStartModal
+                            isOpen={showQuickStart}
+                            onClose={() => setShowQuickStart(false)}
+                            tenant={tenant}
+                            token={token || ''}
+                        />
+                    </ClientOnly>
+                </Suspense>
             )}
 
             {/* Sidebar */}
@@ -399,11 +405,15 @@ export default function StudioLayout() {
 
                 {/* Impersonation Banner */}
                 {isImpersonating && (
-                    <ImpersonationBanner
-                        tenantName={tenant.name}
-                        userName={`${me.firstName} ${me.lastName}`}
-                        currentRole={me.roles && me.roles.length > 0 ? me.roles[0] : 'student'}
-                    />
+                    <Suspense fallback={null}>
+                        <ClientOnly>
+                            <ImpersonationBanner
+                                tenantName={tenant.name}
+                                userName={`${me.firstName} ${me.lastName}`}
+                                currentRole={me.roles && me.roles.length > 0 ? me.roles[0] : 'student'}
+                            />
+                        </ClientOnly>
+                    </Suspense>
                 )}
 
                 {/* Student View Banner */}
@@ -449,6 +459,12 @@ export default function StudioLayout() {
                             <kbd className="ml-2 px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-700 rounded font-sans opacity-50">⌘K</kbd>
                         </button>
 
+                        <Suspense fallback={null}>
+                            <ClientOnly>
+                                <CommandBar token={token || ''} isPlatformAdmin={(me as any)?.user?.isPlatformAdmin} />
+                            </ClientOnly>
+                        </Suspense>
+
                         <Link
                             to="/documentation"
                             title="Documentation"
@@ -457,7 +473,9 @@ export default function StudioLayout() {
                             <CircleHelp size={20} />
                         </Link>
 
-                        <ThemeToggle />
+                        <ClientOnly>
+                            <ThemeToggle />
+                        </ClientOnly>
 
                         <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-800 mx-2" />
 
@@ -501,9 +519,6 @@ export default function StudioLayout() {
                 <div className="flex-1 overflow-auto">
                     <Outlet context={{ tenant, me, features: featureSet, roles: effectiveRoles, isStudentView, token }} />
                 </div>
-                {!isStudentView && (
-                    <CommandBar token={token || ''} isPlatformAdmin={(me as any)?.user?.isPlatformAdmin} />
-                )}
 
                 {/* Tenant Google Analytics */}
                 {(tenant.googleCredentials as any)?.measurementId && (
@@ -519,17 +534,21 @@ export default function StudioLayout() {
                     </>
                 )}
             </main>
-            <ChatWidget
-                roomId={`support-${me.id}`}
-                tenantId={isStudentView ? (slug || "") : "platform"}
-                userId={me.id}
-                userName={`${me.firstName} ${me.lastName}`}
-                enabled={!isStudentView && (tenant.settings?.chatEnabled !== false) && featureSet.has('chat')}
-                chatConfig={isStudentView ? tenant.settings?.chatConfig : undefined}
-                apiUrl={API_URL}
-                token={token || undefined}
-                brandColor={tenant.branding?.primaryColor || '#2563EB'}
-            />
+            <Suspense fallback={null}>
+                <ClientOnly>
+                    <ChatWidget
+                        roomId={`support-${me.id}`}
+                        tenantId={isStudentView ? (slug || "") : "platform"}
+                        userId={me.id}
+                        userName={`${me.firstName} ${me.lastName}`}
+                        enabled={!isStudentView && (tenant.settings?.chatEnabled !== false) && featureSet.has('chat')}
+                        chatConfig={isStudentView ? tenant.settings?.chatConfig : undefined}
+                        apiUrl={API_URL}
+                        token={token || undefined}
+                        brandColor={tenant.branding?.primaryColor || '#2563EB'}
+                    />
+                </ClientOnly>
+            </Suspense>
         </div >
     );
 }

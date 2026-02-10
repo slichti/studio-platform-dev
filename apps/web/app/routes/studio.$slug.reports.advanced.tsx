@@ -1,6 +1,6 @@
 import { useOutletContext, useParams } from "react-router";
 import { useLTV, useRetention, useUtilization } from "~/hooks/useAnalytics";
-import { ResponsiveContainer, PieChart, Pie, Tooltip } from 'recharts';
+import { useEffect, useState } from 'react';
 import { RetentionChart } from "~/components/charts/RetentionChart";
 import { UtilizationHeatmap } from "~/components/charts/UtilizationHeatmap";
 import { Loader2 } from "lucide-react";
@@ -9,6 +9,11 @@ export default function AdvancedReports() {
     const { slug } = useParams();
     const { tenant } = useOutletContext<any>();
     const currency = tenant?.currency?.toUpperCase() || 'USD';
+    const [Recharts, setRecharts] = useState<any>(null);
+
+    useEffect(() => {
+        import('recharts').then(mod => setRecharts(mod));
+    }, []);
 
     if (!slug) return <div>Invalid slug</div>;
 
@@ -16,9 +21,11 @@ export default function AdvancedReports() {
     const { data: retention } = useRetention(slug);
     const { data: utilization } = useUtilization(slug);
 
-    if (!ltv || !retention || !utilization) {
+    if (!ltv || !retention || !utilization || !Recharts) {
         return <div className="p-12 flex justify-center"><Loader2 className="animate-spin text-zinc-400" /></div>;
     }
+
+    const { ResponsiveContainer, PieChart, Pie, Tooltip } = Recharts;
 
     const ltvDetails = [
         { name: 'Class Packs', value: ltv?.sources?.packs || 0, fill: '#4F46E5' },

@@ -1,28 +1,28 @@
 import { useEffect, useState } from "react";
-
 import { useParams } from "react-router";
-import {
-    LiveKitRoom,
-    VideoConference,
-    GridLayout,
-    ParticipantTile,
-} from "@livekit/components-react";
-import "@livekit/components-styles";
 import { useAuth } from "@clerk/react-router";
 import { apiRequest } from "~/utils/api";
+import { ClientOnly } from "~/components/ClientOnly";
+
+// Import types only if possible, but for simplicity we'll just use dynamic imports or let ClientOnly handle the mounting
+// Actually, to fully exclude from server bundle, we need to move the imports inside the component or use a sub-component.
 
 export default function LiveClassPage() {
     const { classId } = useParams();
     const [token, setToken] = useState("");
     const { getToken } = useAuth();
+    const [LiveKit, setLiveKit] = useState<any>(null);
 
     useEffect(() => {
+        // Dynamically import LiveKit components only on the client
+        import("@livekit/components-react").then(mod => {
+            setLiveKit(mod);
+            // Also need styles
+            import("@livekit/components-styles");
+        });
+
         const fetchToken = async () => {
             try {
-                // In a real app, 'isInstructor' should be derived from the user's role on the server
-                // or passed securely. For MVP, we default strictly to student, 
-                // but the API is responsible for checking roles.
-                // Here we request a token.
                 const authToken = await getToken();
                 const response = await apiRequest("/video/token", authToken, {
                     method: "POST",
@@ -38,9 +38,9 @@ export default function LiveClassPage() {
         };
 
         if (classId) fetchToken();
-    }, [classId]);
+    }, [classId, getToken]);
 
-    if (!token) {
+    if (!token || !LiveKit) {
         return (
             <div className="flex items-center justify-center h-screen bg-zinc-900 text-white">
                 <p>Loading Studio...</p>
@@ -48,18 +48,20 @@ export default function LiveClassPage() {
         );
     }
 
+    const { LiveKitRoom, VideoConference } = LiveKit;
+
     return (
-        <LiveKitRoom
-            video={true}
-            audio={true}
-            token={token}
-            // Use environment variable for LiveKit URL, exposing it via Vite/Remix logic would be necessary
-            // For now, placeholder or hardcoded dev URL or fetch from API
-            serverUrl={import.meta.env.VITE_LIVEKIT_URL || "wss://your-project.livekit.cloud"}
-            data-lk-theme="default"
-            style={{ height: "100vh" }}
-        >
-            <VideoConference />
-        </LiveKitRoom>
+        <ClientOnly>
+            <LiveKitRoom
+                video={true}
+                audio={true}
+                token={token}
+                serverUrl={import.meta.env.VITE_LIVEKIT_URL || "wss://your-project.livekit.cloud"}
+                data-lk-theme="default"
+                style={{ height: "100vh" }}
+            >
+                <VideoConference />
+            </LiveKitRoom>
+        </ClientOnly>
     );
 }

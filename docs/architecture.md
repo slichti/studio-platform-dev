@@ -196,6 +196,18 @@ flowchart TB
 | **Video Calls** | Zoom API |
 | **Real-time** | Cloudflare Durable Objects (WebSockets) |
 
+## Performance & Optimization
+
+### Server Bundle Optimization
+To adhere to the Cloudflare Worker 1MB bundle size limit, the application employs aggressive code splitting and lazy loading:
+*   **Route Lazy Loading**: Major routes (`Settings`, `Admin`, `Marketing`) are wrapped in `React.lazy` and `Suspense`, ensuring they are not bundled into the main server entry point.
+*   **Dynamic Imports**: Heavy libraries (e.g., `mermaid`, `recharts`, `livekit-client`) are imported dynamically only when needed on the client side (`ClientOnly` components).
+*   **Separation of Concerns**: UI logic is extracted into separate components to facilitate isolation and independent bundling.
+
+### Mobile Optimization
+*   **Universal App**: Single binary architecture reduces build complexity and store review times.
+*   **Over-the-Air Updates**: Uses Expo Updates (where compliant) for rapid critical bug fixes.
+
 ## Mobile App Strategy (Platform Model)
 Instead of white-labeled binaries for each tenant, the system uses a **Single Platform App**:
 *   **Universal Binary**: One app in App Store / Play Store.

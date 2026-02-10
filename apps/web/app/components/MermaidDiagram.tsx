@@ -1,6 +1,5 @@
-
 import { useEffect, useRef, useState } from "react";
-import mermaid from "mermaid";
+// Removed top-level mermaid import to reduce server bundle size
 import { Maximize2, Minimize2 } from "lucide-react";
 import { useTheme } from "./ThemeProvider";
 
@@ -17,35 +16,39 @@ export function MermaidDiagram({ chart, title }: MermaidDiagramProps) {
     const { theme } = useTheme();
 
     useEffect(() => {
-        // Map 'system' to actual preference if needed, or rely on base
-        const mermaidTheme = theme === 'dark' ? 'dark' : 'neutral';
+        const initMermaid = async () => {
+            const { default: mermaid } = await import("mermaid");
+            // Map 'system' to actual preference if needed, or rely on base
+            const mermaidTheme = theme === 'dark' ? 'dark' : 'neutral';
 
-        mermaid.initialize({
-            startOnLoad: false,
-            // Use specific themes for better contrast
-            theme: mermaidTheme,
-            themeVariables: {
-                fontFamily: "Inter, sans-serif",
-                // Ensure good contrast for text in both modes
-                primaryTextColor: theme === 'dark' ? '#f4f4f5' : '#18181b',
-                lineColor: theme === 'dark' ? '#a1a1aa' : '#52525b',
-                secondaryColor: theme === 'dark' ? '#27272a' : '#f4f4f5',
-                tertiaryColor: theme === 'dark' ? '#18181b' : '#ffffff',
-                // Sequence Diagram Specifics
-                actorBkg: theme === 'dark' ? '#27272a' : '#ffffff', // Dark boxes in dark mode
-                actorBorder: theme === 'dark' ? '#52525b' : '#000000',
-                actorTextColor: theme === 'dark' ? '#f4f4f5' : '#000000',
-                signalColor: theme === 'dark' ? '#f4f4f5' : '#18181b',
-                signalTextColor: theme === 'dark' ? '#f4f4f5' : '#18181b',
-                labelBoxBkgColor: theme === 'dark' ? '#27272a' : '#f4f4f5',
-                labelBoxBorderColor: theme === 'dark' ? '#52525b' : '#000000',
-                labelTextColor: theme === 'dark' ? '#f4f4f5' : '#000000',
-                loopTextColor: theme === 'dark' ? '#f4f4f5' : '#000000',
-                noteBkgColor: theme === 'dark' ? '#fef08a' : '#fff9c4', // Keep yellow-ish but adjusted
-                noteTextColor: '#000000', // Notes usually black text
-            },
-            securityLevel: "loose",
-        });
+            mermaid.initialize({
+                startOnLoad: false,
+                // Use specific themes for better contrast
+                theme: mermaidTheme,
+                themeVariables: {
+                    fontFamily: "Inter, sans-serif",
+                    // Ensure good contrast for text in both modes
+                    primaryTextColor: theme === 'dark' ? '#f4f4f5' : '#18181b',
+                    lineColor: theme === 'dark' ? '#a1a1aa' : '#52525b',
+                    secondaryColor: theme === 'dark' ? '#27272a' : '#f4f4f5',
+                    tertiaryColor: theme === 'dark' ? '#18181b' : '#ffffff',
+                    // Sequence Diagram Specifics
+                    actorBkg: theme === 'dark' ? '#27272a' : '#ffffff', // Dark boxes in dark mode
+                    actorBorder: theme === 'dark' ? '#52525b' : '#000000',
+                    actorTextColor: theme === 'dark' ? '#f4f4f5' : '#000000',
+                    signalColor: theme === 'dark' ? '#f4f4f5' : '#18181b',
+                    signalTextColor: theme === 'dark' ? '#f4f4f5' : '#18181b',
+                    labelBoxBkgColor: theme === 'dark' ? '#27272a' : '#f4f4f5',
+                    labelBoxBorderColor: theme === 'dark' ? '#52525b' : '#000000',
+                    labelTextColor: theme === 'dark' ? '#f4f4f5' : '#000000',
+                    loopTextColor: theme === 'dark' ? '#f4f4f5' : '#000000',
+                    noteBkgColor: theme === 'dark' ? '#fef08a' : '#fff9c4', // Keep yellow-ish but adjusted
+                    noteTextColor: '#000000', // Notes usually black text
+                },
+                securityLevel: "loose",
+            });
+        };
+        initMermaid();
     }, [theme]);
 
     useEffect(() => {
@@ -56,6 +59,7 @@ export function MermaidDiagram({ chart, title }: MermaidDiagramProps) {
                 const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
                 if (ref.current) ref.current.innerHTML = "";
 
+                const { default: mermaid } = await import("mermaid");
                 const { svg } = await mermaid.render(id, chart);
                 setSvg(svg);
                 setError(null);

@@ -1,11 +1,13 @@
 import { useEffect } from "react";
-import mermaid from "mermaid";
+// Removed top-level mermaid import to reduce server bundle size
 import { Mail, MessageSquare, Award, UserPlus } from "lucide-react";
 
 export default function CRMDocs() {
     useEffect(() => {
-        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
-        mermaid.contentLoaded();
+        import("mermaid").then((mermaid) => {
+            mermaid.default.initialize({ startOnLoad: true, theme: 'neutral' });
+            mermaid.default.contentLoaded();
+        });
     }, []);
 
     return (
