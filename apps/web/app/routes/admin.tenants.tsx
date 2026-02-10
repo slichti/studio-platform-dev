@@ -5,9 +5,10 @@ import { useState, Fragment, useEffect } from "react";
 import { useAuth } from "@clerk/react-router";
 import { Modal } from "../components/Modal";
 import { ErrorDialog, ConfirmationDialog, SuccessDialog } from "../components/Dialogs";
-import { ChevronDown, ChevronRight, Activity, CreditCard, Video, Monitor, ShoppingCart, Mail, Settings, AlertTriangle, Smartphone, Globe, MessagesSquare, MessageSquare, LogIn, Bell } from "lucide-react";
+import { ChevronDown, ChevronRight, Activity, CreditCard, Video, Monitor, ShoppingCart, Mail, Settings, AlertTriangle, Smartphone, Globe, MessagesSquare, MessageSquare, LogIn, Bell, Users } from "lucide-react";
 import { PrivacyBlur } from "../components/PrivacyBlur";
 import { DataExportModal } from "../components/DataExportModal";
+import { ManageOwnersModal } from "../components/ManageOwnersModal";
 
 interface TenantStats {
     owners: number;
@@ -151,6 +152,10 @@ export default function AdminTenants() {
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [tenantToEdit, setTenantToEdit] = useState<{ id: string, name: string, ownerEmail: string } | null>(null);
     const [editEmail, setEditEmail] = useState("");
+
+    // Manage Owners State
+    const [ownersModalOpen, setOwnersModalOpen] = useState(false);
+    const [selectedTenantForOwners, setSelectedTenantForOwners] = useState<{ id: string, name: string } | null>(null);
 
     const { getToken } = useAuth();
     const navigate = useNavigate();
@@ -1086,6 +1091,13 @@ export default function AdminTenants() {
                 </div>
             </Modal>
 
+            <ManageOwnersModal
+                isOpen={ownersModalOpen}
+                onClose={() => { setOwnersModalOpen(false); setSelectedTenantForOwners(null); }}
+                tenantId={selectedTenantForOwners?.id || null}
+                tenantName={selectedTenantForOwners?.name || ''}
+            />
+
             <Modal isOpen={seedModalOpen} onClose={() => setSeedModalOpen(false)} title="Seed Test Tenant">
                 <div className="space-y-4">
                     <p className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -1429,6 +1441,13 @@ export default function AdminTenants() {
                                                 title="Log in as Owner"
                                             >
                                                 <LogIn size={16} />
+                                            </button>
+                                            <button
+                                                className="text-zinc-400 hover:text-zinc-600 transition-colors"
+                                                onClick={(e) => { e.stopPropagation(); setSelectedTenantForOwners({ id: t.id, name: t.name }); setOwnersModalOpen(true); }}
+                                                title="Manage Owners"
+                                            >
+                                                <Users size={16} />
                                             </button>
                                             <button
                                                 className="text-zinc-400 hover:text-blue-600 transition-colors"

@@ -73,6 +73,7 @@ import referrals from './routes/referrals'; // [NEW] Referrals
 import tenantWebhooksRouter from './routes/tenant.webhooks';
 import progressRoutes from './routes/progress';
 import adminBackups from './routes/admin.backups'; // [NEW] Backup Management
+import adminOwners from './routes/admin.tenants.owners'; // [NEW] Ownership Management
 
 import { createOpenAPIApp } from './lib/openapi';
 import { Bindings, Variables, StudioVariables } from './types';
@@ -617,6 +618,7 @@ app.route('/admin/stats', adminStats); // [NEW] Mount
 app.route('/admin/mobile', adminMobile); // [NEW] Backed Admin Mobile
 app.route('/admin/search', adminSearch); // [NEW] Global Search
 app.route('/admin/backups', adminBackups); // [NEW] Backup Management
+app.route('/admin/tenants', adminOwners); // [NEW] Ownership Management
 app.route('/onboarding', onboarding);
 app.route('/import', dataImport);
 app.route('/webhooks', webhookRoutes);
