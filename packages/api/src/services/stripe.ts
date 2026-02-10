@@ -298,11 +298,26 @@ export class StripeService {
     /**
      * Get Subscription Details
      */
+    /**
+     * Get Subscription Details
+     */
     async getSubscription(subscriptionId: string, connectedAccountId?: string) {
         const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
         // Expand latest_invoice to get payment_intent
         return client.subscriptions.retrieve(subscriptionId, {
             expand: ['items.data.price.product', 'latest_invoice.payment_intent']
+        }, options);
+    }
+
+    /**
+     * List Active Subscriptions for a Customer
+     */
+    async listActiveSubscriptions(customerId: string, connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        return client.subscriptions.list({
+            customer: customerId,
+            status: 'active',
+            limit: 100
         }, options);
     }
 

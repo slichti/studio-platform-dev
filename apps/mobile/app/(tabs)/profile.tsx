@@ -1,4 +1,4 @@
-import { View, Text, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, SafeAreaView, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useState, useEffect } from 'react';
 import { apiRequest } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
@@ -106,10 +106,40 @@ export default function ProfileScreen() {
                 <TouchableOpacity
                     testID="sign-out-mem-btn"
                     onPress={() => signOut()}
-                    className="flex-row items-center justify-center p-4 mt-auto mb-8 bg-red-50 rounded-xl"
+                    className="flex-row items-center justify-center p-4 mt-auto mb-4 bg-zinc-100 rounded-xl"
                 >
-                    <LogOut size={20} color={"#ef4444" as any} className="mr-2" />
-                    <Text className="font-bold text-red-600">Sign Out</Text>
+                    <LogOut size={20} color={"#18181b" as any} className="mr-2" />
+                    <Text className="font-bold text-zinc-900">Sign Out</Text>
+                </TouchableOpacity>
+
+                {/* Delete Account */}
+                <TouchableOpacity
+                    onPress={() => {
+                        Alert.alert(
+                            "Delete Account",
+                            "Are you sure you want to delete your account? This action is permanent and cannot be undone.",
+                            [
+                                { text: "Cancel", style: "cancel" },
+                                {
+                                    text: "Delete",
+                                    style: "destructive",
+                                    onPress: async () => {
+                                        setLoading(true);
+                                        try {
+                                            await apiRequest('/users/me', { method: 'DELETE' });
+                                            await signOut();
+                                        } catch (e: any) {
+                                            Alert.alert("Error", e.message || "Failed to delete account");
+                                            setLoading(false);
+                                        }
+                                    }
+                                }
+                            ]
+                        );
+                    }}
+                    className="flex-row items-center justify-center p-4 mb-8 bg-red-50 rounded-xl"
+                >
+                    <Text className="font-bold text-red-600">Delete Account</Text>
                 </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>

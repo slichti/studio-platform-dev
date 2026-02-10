@@ -304,17 +304,40 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
     } // End of auth check
 
     // 4. Lifecycle Checks (Apply to ALL requests, public or private)
+    // 4. Lifecycle Checks (Apply to ALL requests, public or private)
+
+    // A. Archives
     if (tenant.status === 'archived' && !isPlatformAdmin) {
         // Archived tenants are offline. Only Platform Admins can access (e.g. to restore).
         return c.json({ error: "This studio has been archived." }, 403);
     }
 
+    // B. Subscription Enforcement
+    // We allow Owners/Admins to access even if canceled/past_due (to pay bills or export data).
+    // Everyone else (students, public, anon) is blocked.
+    const isOwnerOrAdmin = roles.includes('owner') || roles.includes('admin') || isPlatformAdmin;
+    const isSubscriptionActive = ['active', 'trialing'].includes(tenant.subscriptionStatus);
+
+    if (!isSubscriptionActive && !isOwnerOrAdmin) {
+        if (tenant.subscriptionStatus === 'canceled') {
+            return c.json({ error: "This studio's subscription is inactive." }, 403);
+        }
+
+        if (tenant.subscriptionStatus === 'past_due') {
+            const now = new Date();
+            // If grace period is missing or passed, block access
+            if (!tenant.gracePeriodEndsAt || new Date(tenant.gracePeriodEndsAt) < now) {
+                return c.json({ error: "This studio's subscription is past due." }, 403);
+            }
+        }
+    }
+
+    // C. Manual Disable (Panic Switch)
     if (tenant.studentAccessDisabled && !isPlatformAdmin) {
         // "Student Access Disabled" means the public facing site is down.
         // Owners/Admins (authenticated) can still access.
         // Unauthenticated users (public) should be blocked.
-        const hasPrivilegedRole = roles.some(r => ['owner', 'instructor', 'admin'].includes(r));
-        if (!hasPrivilegedRole) {
+        if (!isOwnerOrAdmin) {
             return c.json({ error: "Student access is currently disabled for this studio." }, 403);
         }
     }
