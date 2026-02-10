@@ -1682,6 +1682,34 @@ export default function AdminTenants() {
                                                     </div>
                                                 </div>
 
+                                                {/* Ownership & Access */}
+                                                <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 mt-4 mb-6">
+                                                    <h4 className="text-[10px] uppercase text-zinc-500 font-bold mb-3">Ownership & Access</h4>
+                                                    <div className="flex flex-wrap items-center gap-3">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); setSelectedTenantForOwners({ id: t.id, name: t.name }); setOwnersModalOpen(true); }}
+                                                            className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 font-medium bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                                                        >
+                                                            <Users size={16} />
+                                                            Manage Owners
+                                                        </button>
+                                                        <button
+                                                            className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 font-medium bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                                                            onClick={(e) => { e.stopPropagation(); handleImpersonate({ id: t.id, name: t.name }); }}
+                                                        >
+                                                            <LogIn size={16} />
+                                                            Log in as Owner
+                                                        </button>
+                                                        <button
+                                                            className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 font-medium bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                                                            onClick={(e) => { e.stopPropagation(); openNotifyModal(t.id); }}
+                                                        >
+                                                            <Bell size={16} />
+                                                            Send Notification
+                                                        </button>
+                                                    </div>
+                                                </div>
+
                                                 {/* Lifecycle & Data Export */}
                                                 <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 mt-4 mb-6">
                                                     <div className="flex items-center justify-between mb-4">
