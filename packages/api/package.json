@@ -8,7 +8,7 @@
         "test:watch": "vitest",
         "test:integration": "vitest --config vitest.config.integration.ts",
         "load-test": "k6 run k6/browse.js",
-        "type-check": "tsc --noEmit"
+        "typecheck": "tsc --noEmit"
     },
     "dependencies": {
         "@clerk/backend": "^2.29.0",
