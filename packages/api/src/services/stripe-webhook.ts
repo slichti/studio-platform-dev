@@ -15,7 +15,7 @@ import { Bindings } from '../types';
 // Local Bindings removed in favor of shared types
 
 export class StripeWebhookHandler {
-    private db: ReturnType<typeof createDb>;
+    protected db: ReturnType<typeof createDb>;
 
     constructor(private env: Bindings) {
         this.db = createDb(env.DB);

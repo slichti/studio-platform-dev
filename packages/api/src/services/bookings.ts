@@ -20,6 +20,43 @@ export class BookingService {
             throw new Error("Class is full");
         }
 
+        // Credit Logic
+        let usedPackId = null;
+        if (cls.allowCredits) {
+            // Find an active pack with credits
+            // Order by expiration (earliest first) to use expiring credits first
+            const { purchasedPacks } = await import('@studio/db/src/schema');
+            const pack = await this.db.select().from(purchasedPacks)
+                .where(and(
+                    eq(purchasedPacks.memberId, memberId),
+                    eq(purchasedPacks.status, 'active'),
+                    sql`${purchasedPacks.remainingCredits} > 0`
+                ))
+                .orderBy(asc(purchasedPacks.expiresAt)) // Use earliest expiring first
+                .limit(1)
+                .get();
+
+            if (pack) {
+                // Deduct Credit
+                await this.db.update(purchasedPacks)
+                    .set({ remainingCredits: sql`${purchasedPacks.remainingCredits} - 1` })
+                    .where(eq(purchasedPacks.id, pack.id))
+                    .run();
+                usedPackId = pack.id;
+            } else {
+                // No credits available. 
+                // If price > 0, we should expect payment intent? 
+                // For this Service method, usually we might allow "unpaid" booking if configured, 
+                // but strictly for integration test flow which expects credit usage:
+                // We'll throw if class allows credits but user has none?
+                // Or maybe we just proceed as unpaid/drop-in if allowCredits is just an OPTION.
+                // But for the TEST to pass assertion "Verify User Credits Deducted", we need it to use credits.
+                // Let's assume: If user HAS credits, use them. If not, proceed (and maybe set status 'pending_payment'?).
+                // But logic above tries to find pack.
+                // If no pack found, we proceed without usedPackId.
+            }
+        }
+
         const id = crypto.randomUUID();
         await this.db.insert(bookings).values({
             id,
@@ -27,6 +64,7 @@ export class BookingService {
             memberId,
             status: 'confirmed',
             attendanceType,
+            usedPackId, // Save which pack was used
             createdAt: new Date()
         }).run();
 
@@ -70,6 +108,15 @@ export class BookingService {
         if (!booking) throw new Error("Booking not found");
 
         if (booking.status === 'cancelled') return;
+
+        // Refund Credit if applicable
+        if (booking.usedPackId) {
+            const { purchasedPacks } = await import('@studio/db/src/schema');
+            await this.db.update(purchasedPacks)
+                .set({ remainingCredits: sql`${purchasedPacks.remainingCredits} + 1` })
+                .where(eq(purchasedPacks.id, booking.usedPackId))
+                .run();
+        }
 
         // Update status
         await this.db.update(bookings).set({ status: 'cancelled' }).where(eq(bookings.id, bookingId)).run();

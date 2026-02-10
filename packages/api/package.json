@@ -7,7 +7,8 @@
         "test": "vitest run",
         "test:watch": "vitest",
         "test:integration": "vitest --config vitest.config.integration.ts",
-        "typecheck": "tsc --noEmit"
+        "load-test": "k6 run k6/browse.js",
+        "type-check": "tsc --noEmit"
     },
     "dependencies": {
         "@clerk/backend": "^2.29.0",
@@ -34,8 +35,11 @@
     "devDependencies": {
         "@cloudflare/vitest-pool-workers": "^0.12.1",
         "@cloudflare/workers-types": "^4.20251231.0",
+        "@types/better-sqlite3": "^7.6.13",
         "@types/papaparse": "^5.5.2",
         "@types/uuid": "^10.0.0",
+        "better-sqlite3": "^12.6.2",
+        "k6": "^0.0.0",
         "typescript": "^5.9.3",
         "vitest": "^3.2.4",
         "wrangler": "^4.62.0"

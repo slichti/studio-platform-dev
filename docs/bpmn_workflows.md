@@ -42,7 +42,9 @@ flowchart TD
     PAYMENT -->|Paid| PMETHOD{Payment Method}
     
     PMETHOD -->|Credit Card| STRIPE[Stripe Checkout]
-    PMETHOD -->|Class Pack| DEDUCT[Deduct Credit]
+    PMETHOD -->|Class Pack| CHECK_PACK{Has Credits?}
+    CHECK_PACK -->|Yes| DEDUCT[Deduct Credit]
+    CHECK_PACK -->|No| PMETHOD
     PMETHOD -->|Gift Card| REDEEM[Apply Gift Card]
     
     STRIPE --> BOOK

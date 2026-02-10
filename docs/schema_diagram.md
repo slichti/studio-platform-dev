@@ -89,6 +89,7 @@ erDiagram
         string member_id FK
         enum status
         enum payment_method
+        string used_pack_id FK
     }
 
     tenants ||--o{ locations : "has"
@@ -97,6 +98,7 @@ erDiagram
     classes ||--o{ bookings : "has"
     tenant_members ||--o{ bookings : "attends"
     tenant_members ||--o{ classes : "instructs"
+    purchased_packs ||--o{ bookings : "funds"
 
     %% Commerce & POS
     products {
@@ -160,7 +162,9 @@ erDiagram
         string tenant_id FK
         string member_id FK
         string pack_definition_id FK
+        integer initial_credits
         integer remaining_credits
+        integer member_price
     }
 
     tenants ||--o{ class_pack_definitions : "defines"
