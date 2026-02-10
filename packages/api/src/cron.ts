@@ -10,6 +10,7 @@ import { NotificationService } from './services/notifications';
 import { NudgeService } from './services/nudges';
 import { ChurnService } from './services/churn';
 import { PushService } from './services/push';
+import { MonitoringService } from './services/monitoring';
 import { createSystemBackup } from '../scripts/backup-system';
 import { backupAllTenants } from '../scripts/backup-tenants';
 
@@ -19,6 +20,7 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
     // Handle daily backup at 2 AM UTC
     if (event.cron === '0 2 * * *') {
         console.log('🔄 Starting daily backups...');
+        const monitoring = new MonitoringService(env);
 
         // 1. Full database backup
         try {
@@ -26,15 +28,19 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
             console.log('✅ System backup completed');
         } catch (error: any) {
             console.error('❌ System backup failed:', error.message);
-            // TODO: Send alert to monitoring service
+            await monitoring.alert('System Backup Failed', error.message, { error });
         }
 
         // 2. Per-tenant backups
         try {
             const result = await backupAllTenants(env);
             console.log(`✅ Tenant backups: ${result.success} succeeded, ${result.failed} failed`);
+            if (result.failed > 0) {
+                await monitoring.alert('Tenant Backups Completed with Errors', `${result.failed} tenants failed to backup.`, result);
+            }
         } catch (error: any) {
             console.error('❌ Tenant backups failed:', error.message);
+            await monitoring.alert('Tenant Backups Critical Failure', error.message, { error });
         }
 
         return; // Exit early, don't run other cron logic

@@ -638,7 +638,10 @@ studioApp.route('/tags', tagsRoutes);
 studioApp.route('/custom-fields', customFieldRoutes);
 studioApp.route('/audit-logs', auditLogRoutes);
 
+import tenantDomainRouter from './routes/tenant.domain';
+
 studioApp.route('/webhooks', tenantWebhooksRouter);
+studioApp.route('/domain', tenantDomainRouter); // [NEW] Domain Management
 
 studioApp.route('/progress', progressRoutes); // [NEW] Progress Tracking
 
