@@ -74,8 +74,11 @@ app.post('/', async (c) => {
                         tenant.id
                     );
 
+                    const { PushService } = await import('../services/push');
+                    const pushService = new PushService(db, tenant.id);
+
                     const { AutomationsService } = await import('../services/automations');
-                    const autoService = new AutomationsService(db, tenant.id, emailService, smsService);
+                    const autoService = new AutomationsService(db, tenant.id, emailService, smsService, pushService);
 
                     await autoService.dispatchTrigger('lead_captured', {
                         userId: '', // Lead is not a User yet

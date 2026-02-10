@@ -9,6 +9,7 @@ import { EmailService } from './services/email';
 import { NotificationService } from './services/notifications';
 import { NudgeService } from './services/nudges';
 import { ChurnService } from './services/churn';
+import { PushService } from './services/push';
 import { createSystemBackup } from '../scripts/backup-system';
 import { backupAllTenants } from '../scripts/backup-tenants';
 
@@ -280,7 +281,8 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
             branding: tenant.branding as any,
             settings: tenant.settings as any
         });
-        const autoService = new AutomationsService(db, tenant.id, emailService);
+        const pushService = new PushService(db, tenant.id);
+        const autoService = new AutomationsService(db, tenant.id, emailService, undefined, pushService);
 
         try {
             await autoService.processTimeBasedAutomations();

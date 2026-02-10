@@ -155,7 +155,9 @@ app.openapi(createMemberRoute, async (c) => {
             await es.syncContact(email, firstName, lastName);
             const { AutomationsService } = await import('../services/automations');
             const { SmsService } = await import('../services/sms');
-            const as = new AutomationsService(db, tenant.id, es, new SmsService(tenant.twilioCredentials as any, c.env, us, db, tenant.id));
+            const { PushService } = await import('../services/push');
+            const ps = new PushService(db, tenant.id);
+            const as = new AutomationsService(db, tenant.id, es, new SmsService(tenant.twilioCredentials as any, c.env, us, db, tenant.id), ps);
             await as.dispatchTrigger('new_student', { userId: u!.id, email: u!.email, firstName, data: { memberId: mid } });
         } catch (e) { console.error(e); }
     })());

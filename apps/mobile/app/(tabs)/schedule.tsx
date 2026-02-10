@@ -1,4 +1,4 @@
-import { View, Text, SafeAreaView, SectionList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, SafeAreaView, SectionList, TouchableOpacity, RefreshControl, ActivityIndicator, ScrollView } from 'react-native';
 import { useState, useEffect, useCallback } from 'react';
 import { apiRequest } from '../../lib/api';
 import { useRouter } from 'expo-router';
@@ -23,6 +23,12 @@ export default function ScheduleScreen() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
+    // Filters
+    const [selectedInstructor, setSelectedInstructor] = useState<string | null>(null);
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+    const [instructors, setInstructors] = useState<string[]>([]);
+    const [categories, setCategories] = useState<string[]>([]);
+
     const fetchSchedule = useCallback(async () => {
         try {
             const start = new Date();
@@ -32,6 +38,19 @@ export default function ScheduleScreen() {
             const query = `?startDate=${start.toISOString()}&endDate=${end.toISOString()}&includeArchived=false`;
             const data = await apiRequest(`/classes${query}`);
             setClasses(data);
+
+            // Extract unique instructors and categories
+            const insts = new Set<string>();
+            const cats = new Set<string>();
+            data.forEach((c: any) => {
+                const name = c.instructor?.user?.profile ? `${c.instructor.user.profile.firstName} ${c.instructor.user.profile.lastName}` : 'Staff';
+                insts.add(name);
+                if (c.category) cats.add(c.category);
+                else cats.add('General');
+            });
+            setInstructors(Array.from(insts));
+            setCategories(Array.from(cats));
+
         } catch (e) {
             console.error(e);
         } finally {
@@ -49,7 +68,14 @@ export default function ScheduleScreen() {
         fetchSchedule();
     };
 
-    const groupedData = classes.reduce((acc: any, curr) => {
+    const filteredClasses = classes.filter(c => {
+        const name = c.instructor?.user?.profile ? `${c.instructor.user.profile.firstName} ${c.instructor.user.profile.lastName}` : 'Staff';
+        const matchesInstructor = !selectedInstructor || name === selectedInstructor;
+        const matchesCategory = !selectedCategory || (c as any).category === selectedCategory || (selectedCategory === 'General' && !(c as any).category);
+        return matchesInstructor && matchesCategory;
+    });
+
+    const groupedData = filteredClasses.reduce((acc: any, curr) => {
         const date = new Date(curr.startTime);
         const day = date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
         if (!acc[day]) acc[day] = [];
@@ -102,9 +128,51 @@ export default function ScheduleScreen() {
 
     return (
         <SafeAreaView className="flex-1 bg-white">
-            <View className="px-6 pt-4 pb-4 border-b border-zinc-100 bg-white">
+            <View className="px-6 pt-4 pb-4 bg-white">
                 <Text className="text-2xl font-bold text-zinc-900">Schedule</Text>
             </View>
+
+            {/* Filters */}
+            <View className="mb-2">
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="px-6 pb-2">
+                    {/* Category Filter */}
+                    <TouchableOpacity
+                        onPress={() => setSelectedCategory(null)}
+                        className={`mr-2 px-4 py-2 rounded-full border ${!selectedCategory ? 'bg-black border-black' : 'bg-white border-zinc-200'}`}
+                    >
+                        <Text className={`text-xs font-bold ${!selectedCategory ? 'text-white' : 'text-zinc-600'}`}>All</Text>
+                    </TouchableOpacity>
+                    {categories.map(cat => (
+                        <TouchableOpacity
+                            key={cat}
+                            onPress={() => setSelectedCategory(cat)}
+                            className={`mr-2 px-4 py-2 rounded-full border ${selectedCategory === cat ? 'bg-black border-black' : 'bg-white border-zinc-200'}`}
+                        >
+                            <Text className={`text-xs font-bold ${selectedCategory === cat ? 'text-white' : 'text-zinc-600'}`}>{cat}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="px-6 pb-4">
+                    {/* Instructor Filter */}
+                    <TouchableOpacity
+                        onPress={() => setSelectedInstructor(null)}
+                        className={`mr-2 px-4 py-2 rounded-full border ${!selectedInstructor ? 'bg-zinc-800 border-zinc-800' : 'bg-zinc-50 border-zinc-100'}`}
+                    >
+                        <Text className={`text-xs font-bold ${!selectedInstructor ? 'text-white' : 'text-zinc-500'}`}>Any Instructor</Text>
+                    </TouchableOpacity>
+                    {instructors.map(name => (
+                        <TouchableOpacity
+                            key={name}
+                            onPress={() => setSelectedInstructor(name)}
+                            className={`mr-2 px-4 py-2 rounded-full border ${selectedInstructor === name ? 'bg-zinc-800 border-zinc-800' : 'bg-zinc-50 border-zinc-100'}`}
+                        >
+                            <Text className={`text-xs font-bold ${selectedInstructor === name ? 'text-white' : 'text-zinc-500'}`}>{name}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+            </View>
+
+            <View className="h-[1px] bg-zinc-100 w-full" />
             {loading ? (
                 <View className="flex-1 justify-center items-center">
                     <ActivityIndicator color="black" />

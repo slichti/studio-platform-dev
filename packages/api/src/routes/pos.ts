@@ -7,6 +7,7 @@ import { AutomationsService } from '../services/automations';
 import { EmailService } from '../services/email';
 import { SmsService } from '../services/sms';
 import { UsageService } from '../services/pricing';
+import { PushService } from '../services/push';
 import { users, tenantMembers } from '@studio/db/src/schema'; // Added tenantMembers to imports
 import { eq } from 'drizzle-orm';
 import { AppError, UnauthorizedError, NotFoundError, BadRequestError } from '../utils/errors';
@@ -91,7 +92,8 @@ app.post('/orders', async (c) => {
 
             const emailService = new EmailService(resendKey, { branding: tenant.branding as any, settings: tenant.settings as any }, { slug: tenant.slug }, usageService, isByok);
             const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
-            const autoService = new AutomationsService(db, tenant.id, emailService, smsService);
+            const pushService = new PushService(db, tenant.id);
+            const autoService = new AutomationsService(db, tenant.id, emailService, smsService, pushService);
 
             if (memberId) {
                 const member = await db.query.tenantMembers.findFirst({

@@ -9,6 +9,7 @@ import { SmsService } from './sms';
 import { UsageService } from './pricing';
 import { DunningService } from './dunning';
 import { FulfillmentService } from './fulfillment';
+import { PushService } from './push';
 import { WebhookService } from './webhooks';
 import { Bindings } from '../types';
 
@@ -243,22 +244,7 @@ export class StripeWebhookHandler {
             try {
                 const tenant = await this.db.query.tenants.findFirst({ where: eq(schema.tenants.id, metadata.tenantId) });
                 if (tenant) {
-                    const usageService = new UsageService(this.db, tenant.id);
-                    const resendKey = (tenant.resendCredentials as any)?.apiKey || this.env.RESEND_API_KEY;
-                    // ... (rest of service init)
-                    const isByok = !!(tenant.resendCredentials as any)?.apiKey;
-                    const emailService = new EmailService(
-                        resendKey,
-                        { branding: tenant.branding as any, settings: tenant.settings as any },
-                        { slug: tenant.slug },
-                        usageService,
-                        isByok,
-                        this.db,
-                        tenant.id
-                    );
-                    // Use 'as any' for partial mocks or strict types if available
-                    const smsService = new SmsService(tenant.twilioCredentials as any, { ...this.env, DB: this.env.DB } as any, usageService, this.db, tenant.id);
-                    const autoService = new AutomationsService(this.db, tenant.id, emailService, smsService);
+                    const { autoService } = await this.getTenantServices(tenant);
 
                     let userId = null;
                     const stripeCustomerId = session.customer as string;
@@ -546,7 +532,8 @@ export class StripeWebhookHandler {
             tenant.id
         );
         const smsService = new SmsService(tenant.twilioCredentials as any, { ...this.env, DB: this.env.DB } as any, usageService, this.db, tenant.id);
-        const autoService = new AutomationsService(this.db, tenant.id, emailService, smsService);
-        return { usageService, emailService, smsService, autoService };
+        const pushService = new PushService(this.db, tenant.id);
+        const autoService = new AutomationsService(this.db, tenant.id, emailService, smsService, pushService);
+        return { usageService, emailService, smsService, pushService, autoService };
     }
 }

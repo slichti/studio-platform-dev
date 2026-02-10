@@ -89,11 +89,13 @@ app.post('/clerk', async (c) => {
                 const { EmailService } = await import('../services/email');
                 const { AutomationsService } = await import('../services/automations');
                 const { SmsService } = await import('../services/sms');
+                const { PushService } = await import('../services/push');
                 const { UsageService } = await import('../services/pricing');
                 for (const m of mems) {
                     const us = new UsageService(db, m.tenantId);
                     const es = new EmailService((m.tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY!, { branding: m.tenant.branding as any, settings: m.tenant.settings as any }, { slug: m.tenant.slug }, us, !!(m.tenant.resendCredentials as any)?.apiKey, db, m.tenantId);
-                    const as = new AutomationsService(db, m.tenantId, es, new SmsService(m.tenant.twilioCredentials as any, c.env, us, db, m.tenantId));
+                    const ps = new PushService(db, m.tenantId);
+                    const as = new AutomationsService(db, m.tenantId, es, new SmsService(m.tenant.twilioCredentials as any, c.env, us, db, m.tenantId), ps);
                     await as.dispatchTrigger('contact_updated', { userId: id, email, firstName: first_name, lastName: last_name, data: { memberId: m.id } });
                 }
             })());

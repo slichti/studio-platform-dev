@@ -3,6 +3,7 @@ import { eq, and, lt, gt, gte, lte, or, isNull, sql } from 'drizzle-orm';
 import { marketingAutomations, automationLogs, subscriptions, tenantMembers, users, tenants, coupons, bookings, posOrders, classes, locations, waiverSignatures } from '@studio/db/src/schema'; // Added bookings, posOrders, locations, waiverSignatures
 import { EmailService } from './email';
 import { SmsService } from './sms'; // Active
+import { PushService } from './push';
 import { tenantRoles } from '@studio/db/src/schema';
 import { UsageService } from './pricing';
 
@@ -11,12 +12,14 @@ export class AutomationsService {
     private tenantId: string;
     private emailService: EmailService;
     private smsService: SmsService | undefined;
+    private pushService: PushService | undefined;
 
-    constructor(db: any, tenantId: string, emailService: EmailService, smsService?: SmsService) {
+    constructor(db: any, tenantId: string, emailService: EmailService, smsService?: SmsService, pushService?: PushService) {
         this.db = db;
         this.tenantId = tenantId;
         this.emailService = emailService;
         this.smsService = smsService;
+        this.pushService = pushService;
     }
 
     /**
@@ -687,6 +690,30 @@ export class AutomationsService {
                     subject = this.processTemplate(subject, extendedContext, couponCode);
 
                     await this.emailService.sendGenericEmail(context.email, subject, content, true);
+                }
+            }
+
+            if (channels.includes('push') && this.pushService) {
+                // Fetch user push token if not in context
+                let pushToken = context.data?.pushToken;
+                if (!pushToken) {
+                    const user = await this.db.query.users.findFirst({ where: eq(users.id, context.userId) });
+                    pushToken = user?.pushToken;
+                }
+
+                if (pushToken) {
+                    let body = automation.content;
+                    let subject = automation.subject;
+                    body = this.processTemplate(body, extendedContext, couponCode);
+                    subject = this.processTemplate(subject, extendedContext, couponCode);
+
+                    // Strip HTML if generic push doesn't support it
+                    const textBody = body.replace(/<[^>]*>/g, '');
+
+                    await this.pushService.sendPush(pushToken, subject, textBody, {
+                        ...context.data,
+                        automationId: automation.id
+                    });
                 }
             }
 

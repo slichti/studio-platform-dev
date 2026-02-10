@@ -89,8 +89,11 @@ export class FulfillmentService {
                                     metadata.tenantId
                                 );
 
+                                const { PushService } = await import('./push');
+                                const pushService = new PushService(this.db, metadata.tenantId);
+
                                 const { AutomationsService } = await import('./automations');
-                                const autoService = new AutomationsService(this.db, metadata.tenantId, emailService, smsService);
+                                const autoService = new AutomationsService(this.db, metadata.tenantId, emailService, smsService, pushService);
 
                                 // Fetch Referrer Info
                                 const referrer = await this.db.query.users.findFirst({

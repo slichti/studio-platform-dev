@@ -117,8 +117,8 @@ export default function ClassDetailScreen() {
                     </View>
                 </View>
 
-                <Text className="text-zinc-800 leading-6 mb-8 text-lg">
-                    {classData.description || "Join us for an energizing session focusing on strength, flexibility, and mindfulness."}
+                <Text className="text-zinc-600 leading-7 mb-8 text-base">
+                    {classData.description || "Join us for an energizing session focusing on strength, flexibility, and mindfulness. This class is designed for all levels, combining movement with intentional breathing to leave you feeling refreshed and balanced."}
                 </Text>
 
                 {/* Additional Info items like Location could go here */}
@@ -154,13 +154,13 @@ export default function ClassDetailScreen() {
                     <TouchableOpacity
                         onPress={handleBook}
                         disabled={isBooked || processing}
-                        className={`flex-1 py-4 rounded-xl items-center flex-row justify-center ${isBooked ? 'bg-green-600' : 'bg-black'}`}
+                        className={`flex-[3] py-4 rounded-2xl items-center flex-row justify-center shadow-sm ${isBooked ? 'bg-zinc-100' : 'bg-black'} ${processing ? 'opacity-70' : ''}`}
                     >
                         {processing ? (
-                            <ActivityIndicator color="white" />
+                            <ActivityIndicator color={isBooked ? "black" : "white"} />
                         ) : (
-                            <Text className="text-white font-bold text-lg">
-                                {isBooked ? (classData.userBookingStatus === 'waitlisted' ? 'Waitlisted' : 'Booked') : 'Book Class'}
+                            <Text className={`font-bold text-lg ${isBooked ? 'text-zinc-400' : 'text-white'}`}>
+                                {isBooked ? (classData.userBookingStatus === 'waitlisted' ? 'Waitlisted' : 'Booked') : 'Book Now'}
                             </Text>
                         )}
                     </TouchableOpacity>

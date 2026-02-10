@@ -19,6 +19,7 @@ import { SmsService } from './sms';
 import { UsageService } from './pricing';
 import { InventoryService } from './inventory';
 import { AuditService } from './audit';
+import { PushService } from './push';
 
 interface CartItem {
     productId: string;
@@ -334,7 +335,8 @@ export class PosService {
         );
 
         const smsService = new SmsService(tenantContext?.twilioCredentials as any, this.env, usageService, this.db, this.tenantId);
-        const autoService = new AutomationsService(this.db, this.tenantId, emailService, smsService);
+        const pushService = new PushService(this.db, this.tenantId);
+        const autoService = new AutomationsService(this.db, this.tenantId, emailService, smsService, pushService);
 
         await autoService.dispatchTrigger('order_completed', {
             ...userContext,

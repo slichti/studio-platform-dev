@@ -68,6 +68,9 @@ export class BookingService {
             createdAt: new Date()
         }).run();
 
+        // Trigger Automation
+        this.dispatchAutomation('class_booked', id);
+
         return { id, status: 'confirmed' };
     }
 
@@ -98,6 +101,9 @@ export class BookingService {
             waitlistPosition: nextPosition,
             createdAt: new Date()
         }).run();
+
+        // Trigger Automation
+        this.dispatchAutomation('waitlist_joined', id, { position: nextPosition });
 
         return { id, status: 'waitlisted', position: nextPosition };
     }
@@ -147,34 +153,7 @@ export class BookingService {
             }).where(eq(bookings.id, next.id)).run();
 
             // Notify User
-            // Notify User
-            try {
-                // Fetch Member & Tenant to send email
-                const member = await this.db.query.tenantMembers.findFirst({
-                    where: eq(tenantMembers.id, next.memberId),
-                    with: { user: true, tenant: true }
-                });
-
-                if (member?.user?.email && this.env.RESEND_API_KEY) {
-                    const emailService = new EmailService(
-                        this.env.RESEND_API_KEY,
-                        { branding: member.tenant.branding, settings: member.tenant.settings },
-                        undefined, undefined, false, this.db, member.tenantId
-                    );
-
-                    const cls = await this.db.select().from(classes).where(eq(classes.id, classId)).get();
-
-                    await emailService.sendGenericEmail(
-                        member.user.email,
-                        "You've made it off the waitlist!",
-                        `<p>Good news! A spot opened up in <strong>${cls?.title || 'your class'}</strong> and you have been automatically added.</p>
-                         <p>See you there!</p>`
-                    );
-                }
-
-            } catch (e) {
-                console.error("[Waitlist] Failed to send promotion email", e);
-            }
+            this.dispatchAutomation('waitlist_promoted', next.id);
         }
     }
 
@@ -404,6 +383,71 @@ export class BookingService {
                     console.error("[BookingService] Automation Error", e);
                 }
             }
+        }
+    }
+
+    private async dispatchAutomation(trigger: string, bookingId: string, additionalData: any = {}) {
+        try {
+            const booking = await this.db.query.bookings.findFirst({
+                where: eq(bookings.id, bookingId),
+                with: {
+                    member: {
+                        with: {
+                            user: true,
+                            tenant: true
+                        }
+                    },
+                    class: true
+                }
+            });
+
+            if (!booking || !booking.member.user || !booking.member.tenant) return;
+
+            const { EmailService } = await import('./email');
+            const { SmsService } = await import('./sms');
+            const { PushService } = await import('./push');
+            const { AutomationsService } = await import('./automations');
+            const { UsageService } = await import('./pricing');
+
+            const tenant = booking.member.tenant;
+            const user = booking.member.user;
+
+            const emailService = new EmailService(
+                this.env.RESEND_API_KEY,
+                { branding: tenant.branding, settings: tenant.settings },
+                undefined, undefined, false, this.db, tenant.id
+            );
+
+            const usageService = new UsageService(this.db, tenant.id);
+            const smsService = new SmsService(
+                tenant.twilioCredentials as any,
+                this.env,
+                usageService,
+                this.db,
+                tenant.id
+            );
+
+            const pushService = new PushService(this.db, tenant.id);
+
+            const autoService = new AutomationsService(this.db, tenant.id, emailService, smsService, pushService);
+
+            await autoService.dispatchTrigger(trigger, {
+                userId: user.id,
+                email: user.email,
+                firstName: (user.profile as any)?.firstName,
+                lastName: (user.profile as any)?.lastName,
+                data: {
+                    classTitle: booking.class.title,
+                    classId: booking.classId,
+                    startTime: booking.class.startTime,
+                    bookingId: booking.id,
+                    status: booking.status,
+                    ...additionalData
+                }
+            });
+
+        } catch (e) {
+            console.error(`[BookingService] Automation Error (${trigger})`, e);
         }
     }
 }

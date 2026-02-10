@@ -2,11 +2,13 @@ import { View, Text, SafeAreaView, TouchableOpacity, ScrollView, Alert } from 'r
 import { useState, useEffect } from 'react';
 import { apiRequest } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
-import { LogOut, Settings, CreditCard, Bell } from 'lucide-react-native';
+import { LogOut, Settings, CreditCard, Bell, Users } from 'lucide-react-native';
 import StreakCard from '../../components/StreakCard';
+import { useRouter, Link } from 'expo-router';
 
 export default function ProfileScreen() {
     const { signOut } = useAuth();
+    const router = useRouter();
 
     const [myBookings, setMyBookings] = useState<any[]>([]);
     const [user, setUser] = useState<any>(null);
@@ -51,9 +53,10 @@ export default function ProfileScreen() {
     };
 
     const menuItems = [
-        { icon: CreditCard, label: 'Payment Methods' },
-        { icon: Bell, label: 'Notifications' },
-        { icon: Settings, label: 'App Settings' },
+        { icon: CreditCard, label: 'Payment Methods', href: '/(tabs)/shop' },
+        { icon: Bell, label: 'Notifications', href: '/settings/notifications' },
+        { icon: Users, label: 'Refer & Earn', href: '/(tabs)/referrals' },
+        { icon: Settings, label: 'App Settings', href: '/(tabs)/profile' }, // Fallback
     ];
 
     return (
@@ -92,13 +95,14 @@ export default function ProfileScreen() {
                     )}
                 </View>
 
-                {/* Menu */}
-                <View className="space-y-2 mb-8">
+                <View className="mb-8">
                     {menuItems.map((item, index) => (
-                        <TouchableOpacity key={index} className="flex-row items-center p-4 bg-white border border-zinc-100 rounded-xl">
-                            <item.icon size={20} color={"#18181b" as any} className="mr-3" />
-                            <Text className="flex-1 font-medium text-zinc-900">{item.label}</Text>
-                        </TouchableOpacity>
+                        <Link key={index} href={item.href as any} asChild>
+                            <TouchableOpacity className="flex-row items-center p-4 bg-white border border-zinc-100 rounded-xl mb-2">
+                                <item.icon size={20} color={"#18181b" as any} className="mr-3" />
+                                <Text className="flex-1 font-medium text-zinc-900">{item.label}</Text>
+                            </TouchableOpacity>
+                        </Link>
                     ))}
                 </View>
 
