@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 interface ClientOnlyProps {
-    children: React.ReactNode;
+    children: React.ReactNode | (() => React.ReactNode);
     fallback?: React.ReactNode;
 }
 
@@ -21,5 +21,5 @@ export function ClientOnly({ children, fallback = null }: ClientOnlyProps) {
         return <>{fallback}</>;
     }
 
-    return <>{children}</>;
+    return <>{typeof children === 'function' ? (children as () => React.ReactNode)() : children}</>;
 }
