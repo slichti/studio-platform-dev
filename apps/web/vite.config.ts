@@ -29,16 +29,7 @@ export default defineConfig({
         minify: true,
         chunkSizeWarningLimit: 1000,
         rollupOptions: {
-            external: [
-                "mermaid",
-                "recharts",
-                "@livekit/components-react",
-                "@livekit/components-styles",
-                "@puckeditor/core",
-                "@sentry/react",
-                "lucide-react",
-                "date-fns"
-            ],
+            external: [],
             output: {
                 inlineDynamicImports: false,
                 manualChunks: (id) => {
