@@ -9,12 +9,12 @@ export const cacheMiddleware = (options: { maxAge: number, staleWhileRevalidate?
         }
 
         // Check if Cache API is available (Cloudflare Workers)
-        if (typeof caches === 'undefined' || !caches.default) {
+        if (typeof caches === 'undefined' || !(caches as any).default) {
             await next();
             return;
         }
 
-        const cache = caches.default;
+        const cache = (caches as any).default;
         // Use full URL as key
         const url = new URL(c.req.url);
         const key = new Request(url.toString(), c.req.raw);
