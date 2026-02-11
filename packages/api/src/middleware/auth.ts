@@ -132,7 +132,7 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables, Bindi
 
         // 4. Update Audit / Activity Stats (Throttled)
         const userId = c.get('auth').userId;
-        if (userId) {
+        if (userId && (c.env as any).ENVIRONMENT !== 'test') {
             // Using waitUntil to not block response
             c.executionCtx.waitUntil((async () => {
                 try {
@@ -171,11 +171,27 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables, Bindi
 export const optionalAuthMiddleware = createMiddleware<{ Variables: AuthVariables, Bindings: Bindings }>(async (c, next) => {
     let token: string | undefined;
     const authHeader = c.req.header('Authorization');
+    const testAuth = c.req.header('TEST-AUTH');
+    const env = (c.env as any).ENVIRONMENT;
+
+    console.log(`[OptionalAuth DEBUG] Path: ${c.req.path}, ENV: ${env}, TEST-AUTH: ${testAuth ? 'PRESENT' : 'MISSING'}`);
 
     if (authHeader && authHeader.startsWith('Bearer ')) {
         token = authHeader.split(' ')[1];
     } else if (c.req.query('token')) {
         token = c.req.query('token');
+    }
+
+    // [TEST MOCKING] Allow header bypass in test environment
+    if (env === 'test' && testAuth) {
+        console.log(`[OptionalAuth DEBUG] Applying TEST-AUTH bypass for ${testAuth}`);
+        const mockUserId = testAuth;
+        c.set('auth', {
+            userId: mockUserId,
+            claims: { sub: mockUserId, role: 'mock' }
+        });
+        c.set('isImpersonating', false);
+        return await next();
     }
 
     // If no token, just proceed without setting auth

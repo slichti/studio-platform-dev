@@ -3,6 +3,7 @@ import { createDb } from '../db';
 import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings, tenants, marketingAutomations, emailLogs, coupons, automationLogs, purchasedPacks, waiverSignatures } from '@studio/db/src/schema';
 import { HonoContext } from '../types';
+import { quotaMiddleware } from '../middleware/quota';
 
 import { ErrorResponseSchema, SuccessResponseSchema } from '../lib/openapi';
 
@@ -114,7 +115,7 @@ const createMemberRoute = createRoute({
     }
 });
 
-app.openapi(createMemberRoute, async (c) => {
+app.openapi(createMemberRoute, quotaMiddleware('students'), async (c) => {
     if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant')!;
@@ -122,7 +123,6 @@ app.openapi(createMemberRoute, async (c) => {
 
     const { UsageService } = await import('../services/pricing');
     const us = new UsageService(db, tenant.id);
-    if (!(await us.checkLimit('students', tenant.tier || 'launch'))) return c.json({ error: "Limit reached", code: "LIMIT_REACHED" }, 403);
 
     let u = await db.query.users.findFirst({ where: eq(users.email, email) });
     if (!u) {

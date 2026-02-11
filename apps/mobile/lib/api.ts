@@ -55,5 +55,8 @@ export async function apiRequest(path: string, options: RequestInit = {}) {
 export const api = {
     getDiscoveryItems: async (query: string) => {
         return apiRequest(`/studios?q=${encodeURIComponent(query)}`);
+    },
+    joinStudio: async (slug: string) => {
+        return apiRequest(`/studios/${slug}/join`, { method: 'POST' });
     }
 };

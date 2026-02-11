@@ -1,5 +1,5 @@
 import { createDb } from '../db';
-import { eq, count, and, sql, sum } from 'drizzle-orm';
+import { eq, count, and, sql, sum, gte } from 'drizzle-orm';
 import { tenants, tenantMembers, classes, purchasedPacks, tenantRoles, uploads, locations, usageLogs } from '@studio/db/src/schema';
 import { Resend } from 'resend';
 
@@ -13,6 +13,7 @@ export const TIERS: Record<Tier, {
         students: number; // -1 for unlimited
         instructors: number;
         locations: number;
+        classesPerWeek: number;
         storageGB: number;
         sms: number;
         email: number;
@@ -28,6 +29,7 @@ export const TIERS: Record<Tier, {
             students: -1, // Unlimited students to reduce friction
             instructors: 5,
             locations: 1,
+            classesPerWeek: 5,
             storageGB: 5,
             sms: 0,
             email: 1000,
@@ -43,6 +45,7 @@ export const TIERS: Record<Tier, {
             students: -1,
             instructors: 15,
             locations: 3,
+            classesPerWeek: 50,
             storageGB: 50,
             sms: 1500,
             email: 10000,
@@ -58,6 +61,7 @@ export const TIERS: Record<Tier, {
             students: -1,
             instructors: -1,
             locations: -1,
+            classesPerWeek: -1,
             storageGB: 1000,
             sms: 5000,
             email: 50000,
@@ -87,6 +91,7 @@ export class PricingService {
                         students: -1,
                         instructors: -1,
                         locations: -1,
+                        classesPerWeek: -1,
                         storageGB: 1000,
                         sms: 5000,
                         email: 50000,
@@ -161,7 +166,23 @@ export class UsageService {
             ))
             .get();
 
-        // 4. SMS, Email, Streaming Usage (from tenants table)
+        // 4. Count Classes this week
+        const now = new Date();
+        const startOfWeek = new Date(now);
+        const day = startOfWeek.getDay();
+        const diff = startOfWeek.getDate() - (day === 0 ? 6 : day - 1); // Monday
+        startOfWeek.setDate(diff);
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        const classesThisWeek = await this.db.select({ count: count() })
+            .from(classes)
+            .where(and(
+                eq(classes.tenantId, this.tenantId),
+                gte(classes.startTime, startOfWeek)
+            ))
+            .get();
+
+        // 5. SMS, Email, Streaming Usage (from tenants table)
         const tenant = await this.db.select({
             smsUsage: tenants.smsUsage,
             emailUsage: tenants.emailUsage,
@@ -171,6 +192,7 @@ export class UsageService {
             emailLimit: tenants.emailLimit,
             streamingLimit: tenants.streamingLimit,
 
+            storageUsage: tenants.storageUsage,
             tier: tenants.tier
         }).from(tenants).where(eq(tenants.id, this.tenantId)).get();
 
@@ -182,6 +204,7 @@ export class UsageService {
             students: memberCount?.count || 0,
             instructors: instructorCount?.count || 0,
             locations: locationCount?.count || 0,
+            classesPerWeek: classesThisWeek?.count || 0,
 
             smsUsage: tenant?.smsUsage || 0,
             emailUsage: tenant?.emailUsage || 0,
@@ -247,7 +270,7 @@ export class UsageService {
             .run();
     }
 
-    async checkLimit(limitKey: 'students' | 'instructors' | 'locations' | 'smsUsage' | 'emailUsage' | 'streamingUsage' | 'storageGB', currentTier: string) {
+    async checkLimit(limitKey: 'students' | 'instructors' | 'locations' | 'classesPerWeek' | 'smsUsage' | 'emailUsage' | 'streamingUsage' | 'storageGB', currentTier: string) {
         const usage = await this.getUsage();
 
         // Handle Resource Usage (SMS, Email, Streaming)

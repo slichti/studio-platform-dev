@@ -4,6 +4,8 @@ import { locations } from '@studio/db/src/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { HonoContext } from '../types';
 
+import { quotaMiddleware } from '../middleware/quota';
+
 const app = new Hono<HonoContext>();
 
 // GET /: List locations
@@ -17,28 +19,15 @@ app.get('/', async (c) => {
 });
 
 // POST /: Create location
-app.post('/', async (c) => {
+app.post('/', quotaMiddleware('locations'), async (c) => {
     if (!c.get('can')('manage_tenant')) {
         return c.json({ error: 'Access Denied' }, 403);
     }
     const db = createDb(c.env.DB);
-    const tenant = c.get('tenant');
-    if (!tenant) return c.json({ error: 'Tenant context missing' }, 400);
+    const tenant = c.get('tenant')!;
     const { name, address, timezone } = await c.req.json();
 
     if (!name) return c.json({ error: "Name is required" }, 400);
-
-    // Limit Check
-    const { UsageService } = await import('../services/pricing');
-    const usageService = new UsageService(db, tenant.id);
-    const canAdd = await usageService.checkLimit('locations', tenant.tier || 'launch');
-
-    if (!canAdd) {
-        return c.json({
-            error: "Location limit reached for your plan",
-            code: "LIMIT_REACHED"
-        }, 403);
-    }
 
     const id = crypto.randomUUID();
     await db.insert(locations).values({

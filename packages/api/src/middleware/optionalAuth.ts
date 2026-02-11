@@ -11,11 +11,23 @@ type AuthVariables = {
 export const optionalAuthMiddleware = createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
     let token: string | undefined;
     const authHeader = c.req.header('Authorization');
+    const testAuth = c.req.header('TEST-AUTH');
+    const env = (c.env as any).ENVIRONMENT;
 
     if (authHeader && authHeader.startsWith('Bearer ')) {
         token = authHeader.split(' ')[1];
     } else if (c.req.query('token')) {
         token = c.req.query('token');
+    }
+
+    // [TEST MOCKING] Allow header bypass in test environment
+    if (env === 'test' && testAuth) {
+        const mockUserId = testAuth;
+        c.set('auth', {
+            userId: mockUserId,
+            claims: { sub: mockUserId, role: 'mock' }
+        });
+        return await next();
     }
 
     // If no token, just proceed
@@ -64,7 +76,7 @@ export const optionalAuthMiddleware = createMiddleware<{ Variables: AuthVariable
 
         // Stats update (Async)
         const userId = c.get('auth')?.userId;
-        if (userId) {
+        if (userId && (c.env as any).ENVIRONMENT !== 'test') {
             c.executionCtx.waitUntil((async () => {
                 try {
                     const { createDb } = await import('../db');

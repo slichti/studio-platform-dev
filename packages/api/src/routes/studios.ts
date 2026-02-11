@@ -1,8 +1,8 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { createOpenAPIApp } from '../lib/openapi';
-import { tenants, tenantMembers, tenantRoles } from '@studio/db/src/schema'; // users not used directly in modified code? Check usage.
+import { tenants, tenantMembers, tenantRoles, users } from '@studio/db/src/schema'; // users not used directly in modified code? Check usage.
 import { createDb } from '../db';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { sign, verify } from 'hono/jwt';
 import { StripeService } from '../services/stripe';
 import { EncryptionUtils } from '../utils/encryption';
@@ -345,6 +345,87 @@ app.openapi(createRoute({
 
     await db.update(tenants).set({ settings: { ...(t.settings as any || {}), mobileConfig: c.req.valid('json') } }).where(eq(tenants.id, id)).run();
     return c.json({ success: true });
+});
+
+// POST /:idOrSlug/join - Self-join a studio
+app.openapi(createRoute({
+    method: 'post',
+    path: '/{idOrSlug}/join',
+    tags: ['Studios'],
+    summary: 'Join a studio as a member',
+    request: {
+        params: z.object({ idOrSlug: z.string() })
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ success: z.boolean(), memberId: z.string() }) } }, description: 'Joined successfully' },
+        400: { description: 'Already a member or invalid' },
+        404: { description: 'Studio not found' },
+        402: { description: 'Quota reached' }
+    }
+}), async (c) => {
+    const auth = c.get('auth');
+    if (!auth?.userId) return c.json({ error: "Unauthorized" } as any, 401);
+
+    const db = createDb(c.env.DB);
+    const p = c.req.valid('param').idOrSlug;
+
+    // 1. Find Studio
+    let studio = await db.select().from(tenants).where(eq(tenants.id, p)).get();
+    if (!studio) studio = await db.select().from(tenants).where(eq(tenants.slug, p)).get();
+    if (!studio) return c.json({ error: 'Studio not found' } as any, 404);
+
+    // 2. Quota Check (Centralized logic)
+    const { UsageService } = await import('../services/pricing');
+    const us = new UsageService(db, studio.id);
+    const canJoin = await us.checkLimit('students', studio.tier || 'launch');
+    if (!canJoin) return c.json({ error: 'Studio member limit reached', code: 'QUOTA_EXCEEDED' } as any, 402);
+
+    // 3. Check existing membership
+    const existing = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, studio.id))
+    });
+    if (existing) return c.json({ success: true, memberId: existing.id, message: "Already a member" });
+
+    // 4. Join
+    const memberId = crypto.randomUUID();
+    const user = await db.query.users.findFirst({ where: eq(users.id, auth.userId) });
+
+    await db.insert(tenantMembers).values({
+        id: memberId,
+        tenantId: studio.id,
+        userId: auth.userId,
+        status: 'active',
+        joinedAt: new Date(),
+        profile: user?.profile || {}
+    }).run();
+
+    await db.insert(tenantRoles).values({
+        id: crypto.randomUUID(),
+        memberId,
+        role: 'student'
+    }).run();
+
+    // 5. Notify
+    c.executionCtx.waitUntil((async () => {
+        try {
+            const { AutomationsService } = await import('../services/automations');
+            const { EmailService } = await import('../services/email');
+            const { SmsService } = await import('../services/sms');
+            const { PushService } = await import('../services/push');
+
+            const es = new EmailService(c.env.RESEND_API_KEY, studio as any, { slug: studio.slug, name: studio.name }, us, false, db, studio.id);
+            const as = new AutomationsService(db, studio.id, es, new SmsService(studio.twilioCredentials as any, c.env, us, db, studio.id), new PushService(db, studio.id));
+
+            await as.dispatchTrigger('new_student', {
+                userId: auth.userId,
+                email: user?.email || '',
+                firstName: (user?.profile as any)?.firstName || 'User',
+                data: { memberId }
+            });
+        } catch (e) { console.error("Join notify error:", e); }
+    })());
+
+    return c.json({ success: true, memberId });
 });
 
 export default app;

@@ -33,7 +33,7 @@ export const traceMiddleware = createMiddleware<{ Bindings: HonoContext['Binding
     });
 
     // Fire-and-forget ping to Metrics DO if authenticated
-    if (auth?.userId && c.env.METRICS && (c.env as any).ENVIRONMENT !== 'dev') {
+    if (auth?.userId && c.env.METRICS && !['dev', 'test'].includes((c.env as any).ENVIRONMENT)) {
         try {
             const doId = c.env.METRICS.idFromName('global');
             const stub = c.env.METRICS.get(doId);

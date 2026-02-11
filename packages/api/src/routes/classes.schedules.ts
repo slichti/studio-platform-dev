@@ -8,6 +8,7 @@ import { EncryptionUtils } from '../utils/encryption';
 import { ZoomService } from '../services/zoom';
 import { ConflictService } from '../services/conflicts';
 import { cacheMiddleware } from '../middleware/cache';
+import { quotaMiddleware } from '../middleware/quota';
 
 const app = createOpenAPIApp<StudioVariables>();
 
@@ -154,12 +155,26 @@ app.openapi(createRoute({
         201: { content: { 'application/json': { schema: ClassSchema } }, description: 'Class created' },
         400: { description: 'Invalid input' },
         409: { description: 'Conflict' },
-        403: { description: 'Unauthorized' }
+        403: { description: 'Unauthorized' },
+        402: { description: 'Quota Exceeded' }
     }
 }), async (c) => {
     if (!c.get('can')('manage_classes')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
-    const tenant = c.get('tenant');
+    const tenant = c.get('tenant')!;
+
+    // Quota Enforcement
+    const { UsageService } = await import('../services/pricing');
+    const us = new UsageService(db, tenant.id);
+    const canCreate = await us.checkLimit('classesPerWeek', tenant.tier || 'launch');
+    if (!canCreate) {
+        return c.json({
+            error: `Quota Exceeded: Your plan limit for classes per week has been reached.`,
+            code: 'QUOTA_EXCEEDED',
+            tier: tenant.tier || 'launch'
+        }, 402);
+    }
+
     const body = c.req.valid('json');
     const { title, startTime, durationMinutes, instructorId, locationId, zoomEnabled } = body;
 

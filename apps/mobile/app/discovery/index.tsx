@@ -44,11 +44,13 @@ export default function DiscoveryScreen() {
                     text: "Join",
                     onPress: async () => {
                         try {
-                            // Join logic: Need endpoint POST /members (self-register)
-                            // or explicit Join endpoint.
-                            // For now, let's just navigate to their "public" slug view or mock it.
-                            Alert.alert("Coming Soon", "Joining logic to be implemented!");
-                        } catch (e) { Alert.alert("Failed to join"); }
+                            await api.joinStudio(studio.slug);
+                            Alert.alert("Success", `You have joined ${studio.name}!`, [
+                                { text: "OK", onPress: () => router.back() }
+                            ]);
+                        } catch (e: any) {
+                            Alert.alert("Error", e.message || "Failed to join");
+                        }
                     }
                 }
             ]
