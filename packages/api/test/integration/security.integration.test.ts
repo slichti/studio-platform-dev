@@ -56,7 +56,7 @@ describe('Security Regression Tests', () => {
             env.DB.prepare(`CREATE TABLE IF NOT EXISTS tenant_members (id TEXT PRIMARY KEY, tenant_id TEXT, user_id TEXT, status TEXT, profile TEXT, settings TEXT)`),
             env.DB.prepare(`CREATE TABLE IF NOT EXISTS tenant_roles (member_id TEXT, role TEXT)`),
             env.DB.prepare(`CREATE TABLE IF NOT EXISTS bookings (id TEXT PRIMARY KEY, member_id TEXT, class_id TEXT, status TEXT)`),
-            env.DB.prepare(`CREATE TABLE IF NOT EXISTS audit_logs (id TEXT PRIMARY KEY, action TEXT, actor_id TEXT, details TEXT, created_at INTEGER)`),
+            env.DB.prepare(`CREATE TABLE IF NOT EXISTS audit_logs (id TEXT PRIMARY KEY, action TEXT, actor_id TEXT, details TEXT, country TEXT, city TEXT, region TEXT, created_at INTEGER)`),
             env.DB.prepare(`CREATE TABLE IF NOT EXISTS conversions (id TEXT PRIMARY KEY, tenant_id TEXT, title TEXT)`), // Not used?
             env.DB.prepare(`CREATE TABLE IF NOT EXISTS classes (id TEXT PRIMARY KEY, tenant_id TEXT, title TEXT, included_plan_ids TEXT, zoom_enabled INTEGER, auto_cancel_enabled INTEGER)`),
             env.DB.prepare(`CREATE TABLE IF NOT EXISTS uploads (id TEXT PRIMARY KEY, tenant_id TEXT, file_key TEXT, uploaded_by TEXT, mime_type TEXT, tags TEXT)`),

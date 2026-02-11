@@ -16,7 +16,10 @@ describe('Diagnostics Integration', () => {
                     ip_address TEXT,
                     tenant_id TEXT,
                     actor_id TEXT,
-                    target_id TEXT
+                    target_id TEXT,
+                    country TEXT,
+                    city TEXT,
+                    region TEXT
                 )
             `),
             env.DB.prepare(`

@@ -95,7 +95,7 @@ describe('Booking Lifecycle Integration', () => {
         // 8. Audit Logs
         sqlite.exec(`CREATE TABLE audit_logs (
             id TEXT PRIMARY KEY, actor_id TEXT, tenant_id TEXT, action TEXT, target_id TEXT,
-            target_type TEXT, details TEXT, ip_address TEXT, created_at INTEGER
+            target_type TEXT, details TEXT, ip_address TEXT, country TEXT, city TEXT, region TEXT, created_at INTEGER
         )`);
 
         // 9. Progress Metrics (Required for checkIn logic)
@@ -106,8 +106,8 @@ describe('Booking Lifecycle Integration', () => {
         // 10. Referral Rewards
         sqlite.exec(`CREATE TABLE referral_rewards (
             id TEXT PRIMARY KEY, tenant_id TEXT, referrer_user_id TEXT, referred_user_id TEXT,
-            status TEXT DEFAULT 'pending', reward_type TEXT, amount INTEGER,
-            claimed_at INTEGER, created_at INTEGER
+            status TEXT DEFAULT 'pending', amount INTEGER,
+            currency TEXT DEFAULT 'usd', paid_at INTEGER, created_at INTEGER
         )`);
 
         // 11. Marketing Automations

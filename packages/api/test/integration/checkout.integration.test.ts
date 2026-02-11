@@ -69,6 +69,9 @@ const auditLogs = sqliteTable('audit_logs', {
     targetType: text('target_type'),
     details: text('details', { mode: 'json' }),
     ipAddress: text('ip_address'),
+    country: text('country'),
+    city: text('city'),
+    region: text('region'),
     createdAt: integer('created_at', { mode: 'timestamp' })
 });
 
@@ -166,7 +169,7 @@ describe('Checkout Flow (Integration)', () => {
                 status TEXT, payment_status TEXT, stripe_payment_id TEXT, expires_at INTEGER, created_at INTEGER
             )`);
             await db.run(sql`CREATE TABLE IF NOT EXISTS audit_logs (
-                id TEXT PRIMARY KEY, action TEXT, actor_id TEXT, tenant_id TEXT, target_id TEXT, target_type TEXT, details TEXT, ip_address TEXT, created_at INTEGER
+                id TEXT PRIMARY KEY, action TEXT, actor_id TEXT, tenant_id TEXT, target_id TEXT, target_type TEXT, details TEXT, ip_address TEXT, country TEXT, city TEXT, region TEXT, created_at INTEGER
             )`);
             await db.run(sql`CREATE TABLE IF NOT EXISTS gift_cards (
                 id TEXT PRIMARY KEY, tenant_id TEXT, code TEXT, initial_value INTEGER, current_balance INTEGER, 
