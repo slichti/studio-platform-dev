@@ -1,15 +1,55 @@
 
-import { Hono } from 'hono';
+import { createRoute, z } from '@hono/zod-openapi';
+import { createOpenAPIApp } from '../lib/openapi';
 import { createDb } from '../db';
-import { tenants, tenantMembers, users, bookings, classes, tenantFeatures, progressMetricDefinitions } from '@studio/db/src/schema'; // Ensure correct import
+import { tenants, tenantMembers, users, bookings, classes, tenantFeatures } from '@studio/db/src/schema';
 import { BookingService } from '../services/bookings';
-import { eq, and, like, desc, gte } from 'drizzle-orm';
+import { eq, and, like, desc, gte, sql, inArray, or } from 'drizzle-orm';
 import { sign, verify } from 'hono/jwt';
-import type { Bindings, Variables } from '../types';
+import type { Variables } from '../types';
 
-const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
+const app = createOpenAPIApp<Variables>();
 
-// Kiosk Auth Middleware
+// --- Schemas ---
+
+const KioskAuthSchema = z.object({
+    tenantSlug: z.string(),
+    pin: z.string()
+});
+
+const KioskAuthResponseSchema = z.object({
+    token: z.string(),
+    tenant: z.object({
+        id: z.string(),
+        name: z.string()
+    })
+});
+
+const KioskMemberSchema = z.object({
+    memberId: z.string(),
+    firstName: z.string().nullable(),
+    lastName: z.string().nullable(),
+    portraitUrl: z.string().nullable(),
+    email: z.string(),
+    nextBooking: z.object({
+        id: z.string(),
+        className: z.string(),
+        startTime: z.any(), // Date or string
+        status: z.string(),
+        checkedInAt: z.any().nullable()
+    }).nullable(),
+    hasBookingToday: z.boolean()
+});
+
+const KioskSearchResponseSchema = z.array(KioskMemberSchema);
+
+const CheckinResponseSchema = z.object({
+    success: z.boolean(),
+    timestamp: z.string()
+});
+
+// --- Middleware ---
+
 const kioskAuth = async (c: any, next: any) => {
     const authHeader = c.req.header('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -28,13 +68,33 @@ const kioskAuth = async (c: any, next: any) => {
     }
 };
 
+// --- Routes ---
+
 /**
  * POST /kiosk/auth
- * Authenticate using Kiosk PIN
- * Body: { tenantSlug: string, pin: string }
  */
-app.post('/auth', async (c) => {
-    const { tenantSlug, pin } = await c.req.json();
+app.openapi(createRoute({
+    method: 'post',
+    path: '/auth',
+    tags: ['Kiosk'],
+    summary: 'Authenticate Kiosk',
+    description: 'Exchange Tenant Slug and PIN for a long-lived Kiosk JWT.',
+    request: {
+        body: {
+            content: {
+                'application/json': { schema: KioskAuthSchema }
+            }
+        }
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: KioskAuthResponseSchema } }, description: 'Authenticated' },
+        400: { description: 'Bad Request' },
+        401: { description: 'Invalid PIN' },
+        403: { description: 'Kiosk mode disabled' },
+        404: { description: 'Studio not found' }
+    }
+}), async (c) => {
+    const { tenantSlug, pin } = c.req.valid('json');
     const db = createDb(c.env.DB);
 
     const tenant = await db.select().from(tenants).where(eq(tenants.slug, tenantSlug)).get();
@@ -58,8 +118,7 @@ app.post('/auth', async (c) => {
         return c.json({ error: "Invalid PIN" }, 401);
     }
 
-    // Generate Long-Lived Kiosk Token (e.g. 30 days)
-    // Kiosk is a trusted device on a wall.
+    // Generate Long-Lived Kiosk Token
     const token = await sign({
         kioskTenantId: tenant.id,
         role: 'kiosk',
@@ -69,38 +128,38 @@ app.post('/auth', async (c) => {
     return c.json({ token, tenant: { id: tenant.id, name: tenant.name } });
 });
 
+// --- Protected Routes ---
 
-// Protected Routes
-const protectedApp = new Hono<{ Bindings: Bindings, Variables: Variables & { kioskTenantId: string } }>();
-
+const protectedApp = createOpenAPIApp<Variables & { kioskTenantId: string }>();
 protectedApp.use('*', kioskAuth);
 
 /**
  * GET /kiosk/search?q=John
- * Search students for check-in
  */
-protectedApp.get('/search', async (c) => {
+protectedApp.openapi(createRoute({
+    method: 'get',
+    path: '/search',
+    tags: ['Kiosk'],
+    summary: 'Search Students',
+    request: {
+        query: z.object({
+            q: z.string().min(2)
+        })
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: KioskSearchResponseSchema } }, description: 'Search results' },
+        401: { description: 'Unauthorized' }
+    }
+}), async (c) => {
     const tenantId = c.get('kioskTenantId');
-    const query = c.req.query('q') || '';
-    if (query.length < 2) return c.json([]);
+    const query = c.req.valid('query').q;
+    // if (query.length < 2) return c.json([]); // Handled by Zod min(2) usually, but Zod throws 400.
 
     const db = createDb(c.env.DB);
 
-    // Join TenantMember -> User
-    // Use Drizzle Query to get easy data
-    // Note: This matches "firstName" or "email"
-    // Limitations: SQLite 'like' is case-insensitive depending on collation, assume lowercase
-
-    // We need to fetch relevant members
-    // This query might be expensive on standard SQLite without FTS. Keep result set small.
-    // Assuming simple `like` for now.
-
-    // NOTE: In Cloudflare D1, we might need a raw query to join easily if not using relations perfectly.
-    // Let's use `db.select` with joins.
-
     const results = await db.select({
         memberId: tenantMembers.id,
-        firstName: sql<string>`json_extract(${users.profile}, '$.firstName')`, // Extract from JSON
+        firstName: sql<string>`json_extract(${users.profile}, '$.firstName')`,
         lastName: sql<string>`json_extract(${users.profile}, '$.lastName')`,
         portraitUrl: sql<string>`json_extract(${users.profile}, '$.portraitUrl')`,
         email: users.email
@@ -109,7 +168,7 @@ protectedApp.get('/search', async (c) => {
         .innerJoin(users, eq(tenantMembers.userId, users.id))
         .where(and(
             eq(tenantMembers.tenantId, tenantId),
-            eq(tenantMembers.status, 'active'), // Only active members
+            eq(tenantMembers.status, 'active'),
             or(
                 like(users.email, `%${query}%`),
                 like(sql`json_extract(${users.profile}, '$.firstName')`, `%${query}%`),
@@ -119,11 +178,8 @@ protectedApp.get('/search', async (c) => {
         .limit(10)
         .all();
 
-    // Now check for *TODAY's* Booking for these people.
-    // We want to return if they can check in.
     const now = new Date();
     const startOfDay = new Date(now.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(now.setHours(23, 59, 59, 999));
 
     const memberIds = results.map(r => r.memberId);
 
@@ -141,18 +197,13 @@ protectedApp.get('/search', async (c) => {
         .innerJoin(classes, eq(bookings.classId, classes.id))
         .where(and(
             inArray(bookings.memberId, memberIds),
-            gte(classes.startTime, startOfDay),
-            // lte(classes.startTime, endOfDay) // SQLite comparison issues often. Just verifying GTE start of day.
-            // Actually we should filter by end of day too to only show Relevant Classes
-            // but let's just grab upcoming ones.
+            gte(classes.startTime, startOfDay)
         ))
         .orderBy(desc(classes.startTime))
         .all();
 
-    // Attach booking info to members
     const finalResults = results.map(m => {
         const memberBookings = fileteredBookings.filter(b => b.memberId === m.memberId);
-        // Find the "Best" booking (e.g. next starting class not checked in)
         const nextBooking = memberBookings.find(b => !b.checkedInAt);
         return {
             ...m,
@@ -167,25 +218,35 @@ protectedApp.get('/search', async (c) => {
 /**
  * POST /kiosk/checkin/:bookingId
  */
-protectedApp.post('/checkin/:bookingId', async (c) => {
+protectedApp.openapi(createRoute({
+    method: 'post',
+    path: '/checkin/{bookingId}',
+    tags: ['Kiosk'],
+    summary: 'Check-in Booking',
+    request: {
+        params: z.object({ bookingId: z.string() })
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: CheckinResponseSchema } }, description: 'Checked in' },
+        400: { description: 'Bad Request' },
+        401: { description: 'Unauthorized' },
+        500: { description: 'Internal Error' }
+    }
+}), async (c) => {
     const tenantId = c.get('kioskTenantId');
-    const bookingId = c.req.param('bookingId');
+    const bookingId = c.req.valid('param').bookingId;
     const db = createDb(c.env.DB);
 
     const service = new BookingService(db, c.env);
 
     try {
         await service.checkIn(bookingId, true, tenantId);
-        return c.json({ success: true, timestamp: new Date() });
+        return c.json({ success: true, timestamp: new Date().toISOString() });
     } catch (e: any) {
         return c.json({ error: e.message }, 500);
     }
 });
 
-// Mount Protected
 app.route('/', protectedApp);
 
 export default app;
-
-// Helpers
-import { sql, inArray, or } from 'drizzle-orm';
