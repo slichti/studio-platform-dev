@@ -164,35 +164,35 @@ export default function AdminArchitecture() {
                     {/* Connection Lines Layer */}
                     <ConnectorLayer />
 
-                    {/* Microservices */}
+                    {/* Application Modules */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-12 px-4">
                         <ServiceCard
-                            title="Core API"
-                            sub="apps/core-api"
+                            title="Core Platform"
+                            sub="packages/api/core"
                             icon={Shield}
                             color="emerald"
-                            items={['Identity', 'Tenants', 'Onboarding', 'Platform Admin', 'RBAC']}
+                            items={['Identity (Clerk)', 'Tenant Mgmt', 'RBAC', 'Rate Limiting', 'Onboarding']}
                         />
                         <ServiceCard
-                            title="Commerce API"
-                            sub="apps/commerce-api"
+                            title="Commerce Engine"
+                            sub="packages/api/commerce"
                             icon={CreditCard}
                             color="blue"
-                            items={['Billing', 'Subscriptions', 'Products', 'POS', 'Webhooks']}
+                            items={['Billing (Stripe)', 'Subscriptions', 'Products', 'POS', 'Gift Cards']}
                         />
                         <ServiceCard
-                            title="Studio API"
-                            sub="apps/studio-api"
+                            title="Studio Operations"
+                            sub="packages/api/studio"
                             icon={Calendar}
                             color="orange"
-                            items={['Classes', 'Bookings', 'Members', 'Waivers', 'Payroll', 'Progress Tracking']}
+                            items={['Classes', 'Bookings', 'Members', 'Waivers', 'Payroll', 'VOD']}
                         />
                     </div>
 
                     {/* External Vendors Layer */}
                     <div className="max-w-4xl mx-auto mb-8 relative">
                         <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white dark:bg-zinc-950 px-2 text-[10px] uppercase font-bold text-zinc-400 dark:text-zinc-600 tracking-widest z-10 transition-colors">External Integration</div>
-                        <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 bg-zinc-50/50 dark:bg-zinc-900/20 border-dashed flex justify-around items-center gap-4 transition-colors">
+                        <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 bg-zinc-50/50 dark:bg-zinc-900/20 border-dashed grid grid-cols-3 md:grid-cols-6 gap-4 transition-colors">
                             <div className="flex flex-col items-center gap-2 group">
                                 <div className="w-10 h-10 rounded-lg bg-[#635BFF]/10 border border-[#635BFF]/20 flex items-center justify-center text-[#635BFF] transition-all group-hover:bg-[#635BFF]/20">
                                     <CreditCard size={18} />
@@ -216,6 +216,18 @@ export default function AdminArchitecture() {
                                     <Smartphone size={18} />
                                 </div>
                                 <span className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">Twilio</span>
+                            </div>
+                            <div className="flex flex-col items-center gap-2 group">
+                                <div className="w-10 h-10 rounded-lg bg-[#6C47FF]/10 border border-[#6C47FF]/20 flex items-center justify-center text-[#6C47FF] transition-all group-hover:bg-[#6C47FF]/20">
+                                    <Shield size={18} />
+                                </div>
+                                <span className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">Clerk</span>
+                            </div>
+                            <div className="flex flex-col items-center gap-2 group">
+                                <div className="w-10 h-10 rounded-lg bg-zinc-900/5 dark:bg-white/10 border border-zinc-900/10 dark:border-white/20 flex items-center justify-center text-zinc-900 dark:text-white transition-all group-hover:bg-zinc-900/10 dark:group-hover:bg-white/20">
+                                    <Smartphone size={18} />
+                                </div>
+                                <span className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">Expo</span>
                             </div>
                         </div>
                     </div>
