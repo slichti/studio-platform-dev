@@ -640,6 +640,10 @@ export default function AdminTenantsPageComponent() {
                                                 <span className="text-sm font-bold">{t.stats?.owners || 0}</span>
                                             </div>
                                             <div className="flex flex-col items-center">
+                                                <span className="text-[10px] text-zinc-400 font-bold uppercase">Inst</span>
+                                                <span className="text-sm font-bold">{t.stats?.instructors || 0}</span>
+                                            </div>
+                                            <div className="flex flex-col items-center">
                                                 <span className="text-[10px] text-zinc-400 font-bold uppercase">Cust</span>
                                                 <PrivacyBlur revealed={showFinancials} placeholder="***">
                                                     <span className="text-sm font-bold text-blue-600">{t.stats?.totalStudents || 0}</span>
