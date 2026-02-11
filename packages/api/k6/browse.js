@@ -16,7 +16,20 @@ const BASE_URL = __ENV.BASE_URL || 'http://localhost:8787';
 const TENANT_SLUG = __ENV.TENANT_SLUG || 'garden-yoga'; // Using known active tenant
 
 export default function () {
-    const res = http.get(`${BASE_URL}/api/public/tenants/${TENANT_SLUG}/classes?from=2024-01-01&to=2024-12-31`);
+    const today = new Date();
+    const nextMonth = new Date(today);
+    nextMonth.setDate(today.getDate() + 30);
+
+    const from = today.toISOString().split('T')[0];
+    const to = nextMonth.toISOString().split('T')[0];
+
+    const params = {
+        headers: {
+            'X-Tenant-Slug': TENANT_SLUG,
+        },
+    };
+
+    const res = http.get(`${BASE_URL}/classes?from=${from}&to=${to}`, params);
 
     check(res, {
         'status is 200': (r) => r.status === 200,

@@ -113,11 +113,28 @@ app.get('/architecture', async (c) => {
         .where(gt(auditLogs.createdAt, oneDayAgo))
         .get();
 
-    const userRegions = [
-        { code: 'US', name: 'United States', count: 120 },
-        { code: 'EU', name: 'Europe', count: 45 },
-        { code: 'AS', name: 'Asia', count: 12 }
-    ];
+    const regionStats = await db.select({
+        code: sql<string>`json_extract(${users.lastLocation}, '$.country')`,
+        count: count(users.id)
+    })
+        .from(users)
+        .where(
+            and(
+                gt(users.lastActiveAt, oneDayAgo),
+                sql`json_extract(${users.lastLocation}, '$.country') IS NOT NULL`
+            )
+        )
+        .groupBy(sql`json_extract(${users.lastLocation}, '$.country')`)
+        .orderBy(desc(count(users.id)))
+        .limit(5)
+        .all();
+
+    const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+    const userRegions = regionStats.map(r => ({
+        code: r.code,
+        name: r.code ? regionNames.of(r.code) : 'Unknown',
+        count: r.count
+    }));
 
     return c.json({
         tenantCount: tenantCountRes?.count || 0,

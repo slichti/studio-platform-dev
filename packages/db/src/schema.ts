@@ -250,6 +250,9 @@ export const auditLogs = sqliteTable('audit_logs', {
     targetType: text('target_type'), // e.g., 'member', 'class', 'tenant'
     details: text('details', { mode: 'json' }),
     ipAddress: text('ip_address'),
+    country: text('country'), // ISO 3166-1 alpha-2 code
+    city: text('city'),
+    region: text('region'), // State/Province
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     tenantIdx: index('audit_tenant_idx').on(table.tenantId),

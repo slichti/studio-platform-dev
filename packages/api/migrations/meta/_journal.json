@@ -435,6 +435,13 @@
       "when": 1770765491729,
       "tag": "0061_milky_inhumans",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "6",
+      "when": 1770784809141,
+      "tag": "0062_tearful_shaman",
+      "breakpoints": true
     }
   ]
 }

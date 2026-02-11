@@ -10,8 +10,14 @@ export class AuditService {
         action: string;
         tenantId?: string;
         targetId?: string;
+        targetType?: string;
         details?: Record<string, any>;
         ipAddress?: string;
+        location?: {
+            country?: string;
+            city?: string;
+            region?: string;
+        };
     }) {
         try {
             await this.db.insert(auditLogs).values({
@@ -20,8 +26,12 @@ export class AuditService {
                 action: params.action,
                 tenantId: params.tenantId || null,
                 targetId: params.targetId,
+                targetType: params.targetType,
                 details: params.details,
                 ipAddress: params.ipAddress,
+                country: params.location?.country,
+                city: params.location?.city,
+                region: params.location?.region,
             });
         } catch (error) {
             console.error('Failed to write audit log:', error);
