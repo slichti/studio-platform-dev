@@ -5,6 +5,7 @@ export const STRIPE_TIER_MAPPING: Record<string, 'launch' | 'growth' | 'scale'> 
 };
 
 export const getTierFromPriceId = (priceId: string, env: any): 'launch' | 'growth' | 'scale' | null => {
+    if (!priceId) return null;
     if (priceId === env.STRIPE_PRICE_GROWTH) return 'growth';
     if (priceId === env.STRIPE_PRICE_SCALE) return 'scale';
     if (priceId === env.STRIPE_PRICE_BASIC) return 'launch'; // Assuming variable exists

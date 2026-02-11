@@ -1,1 +1,0 @@
-import{useQuery as s}from"@tanstack/react-query";import{a}from"./server-build-DYgJutU4.js";function n(e){return s({queryKey:["members",e],queryFn:async()=>{const r=await window.Clerk?.session?.getToken();return(await a(`/members?slug=${e}`,r,{headers:{"X-Tenant-Slug":e}})).members},enabled:!!e})}export{n as u};

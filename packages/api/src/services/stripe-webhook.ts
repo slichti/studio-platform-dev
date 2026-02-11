@@ -11,15 +11,18 @@ import { DunningService } from './dunning';
 import { FulfillmentService } from './fulfillment';
 import { PushService } from './push';
 import { WebhookService } from './webhooks';
+import { MonitoringService } from './monitoring';
 import { Bindings } from '../types';
 
 // Local Bindings removed in favor of shared types
 
 export class StripeWebhookHandler {
     protected db: ReturnType<typeof createDb>;
+    protected monitoring: MonitoringService;
 
     constructor(private env: Bindings) {
         this.db = createDb(env.DB);
+        this.monitoring = new MonitoringService(env);
     }
 
     async process(event: Stripe.Event) {
@@ -54,8 +57,9 @@ export class StripeWebhookHandler {
                     // console.log(`Unhandled Stripe event: ${event.type}`);
                     break;
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error(`Error processing Stripe event ${event.type}:`, error);
+            await this.monitoring.captureException(error, `Stripe Webhook: ${event.type}`);
             throw error; // Re-throw to ensure idempotency tracking knows it failed?
             // Actually, if we throw, we might retry loop if Stripe retries.
             // If we want to mark as failed/ignore, we should catch.
@@ -93,6 +97,12 @@ export class StripeWebhookHandler {
                 },
                 createdAt: new Date()
             }).run();
+
+            await this.monitoring.alert(
+                `Tenant Payment Failed: ${tenantSub.id}`,
+                `Tenant ${tenantSub.slug} failed to pay invoice ${invoice.id}. Attempt ${invoice.attempt_count}. Status: past_due.`,
+                { tenantId: tenantSub.id, invoiceId: invoice.id, amount: invoice.amount_due }
+            );
             return;
         }
 
@@ -240,7 +250,17 @@ export class StripeWebhookHandler {
                 createdAt: new Date()
             }).run();
 
-            // 4. Product Purchase (Automation)
+            // 4. Membership Purchase
+            if (metadata.type === 'membership_purchase') {
+                console.log(`[Stripe] Processing Membership Purchase: ${metadata.planId}`);
+                const subscriptionId = session.subscription as string;
+                const customerId = session.customer as string;
+                if (subscriptionId) {
+                    await fulfillment.fulfillMembershipPurchase(metadata, subscriptionId, customerId);
+                }
+            }
+
+            // 5. Product Purchase (Automation)
             try {
                 const tenant = await this.db.query.tenants.findFirst({ where: eq(schema.tenants.id, metadata.tenantId) });
                 if (tenant) {
@@ -513,6 +533,15 @@ export class StripeWebhookHandler {
                     details: { capability: capability.id, status: capability.status },
                     createdAt: new Date()
                 }).run();
+
+                if (capability.status !== 'active') {
+                    await this.monitoring.alert(
+                        `Stripe Capability Alert: ${tenant.slug}`,
+                        `Capability ${capability.id} is ${capability.status} for account ${capability.account}.`,
+                        { tenantId: tenant.id, capability: capability.id, status: capability.status }
+                    );
+                }
+
             }
         }
     }

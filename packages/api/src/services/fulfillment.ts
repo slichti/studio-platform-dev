@@ -1,5 +1,5 @@
 
-import { classes, users, classPackDefinitions, purchasedPacks, giftCards, giftCardTransactions, tenantMembers, tenants, couponRedemptions, referralRewards, referralCodes } from '@studio/db/src/schema'; // Ensure these are exported from schema
+import { classes, users, classPackDefinitions, purchasedPacks, giftCards, giftCardTransactions, tenantMembers, tenants, couponRedemptions, referralRewards, referralCodes, subscriptions, membershipPlans } from '@studio/db/src/schema'; // Ensure these are exported from schema
 import { eq, and, sql } from 'drizzle-orm';
 import { EmailService } from './email';
 
@@ -130,7 +130,7 @@ export class FulfillmentService {
 
             let buyerMemberId = null;
             if (metadata.userId && metadata.userId !== 'guest') {
-                const buyer = await this.db.select().from(tenantMembers)
+                const buyer = await this.db.select({ id: tenantMembers.id }).from(tenantMembers)
                     .where(and(eq(tenantMembers.userId, metadata.userId), eq(tenantMembers.tenantId, metadata.tenantId)))
                     .get();
                 if (buyer) buyerMemberId = buyer.id;
@@ -141,7 +141,7 @@ export class FulfillmentService {
             if (recipientEmail) {
                 const recipientUser = await this.db.select().from(users).where(eq(users.email, recipientEmail)).get();
                 if (recipientUser) {
-                    const recipientMember = await this.db.select().from(tenantMembers)
+                    const recipientMember = await this.db.select({ id: tenantMembers.id }).from(tenantMembers)
                         .where(and(eq(tenantMembers.userId, recipientUser.id), eq(tenantMembers.tenantId, metadata.tenantId)))
                         .get();
                     if (recipientMember) recipientMemberId = recipientMember.id;
@@ -222,6 +222,54 @@ export class FulfillmentService {
                 }
             }
         }
+    }
+
+    async fulfillMembershipPurchase(metadata: any, subscriptionId: string, customerId: string) {
+        if (metadata.type !== 'membership_purchase' || !metadata.planId) return;
+
+        const plan = await this.db.select().from(membershipPlans)
+            .where(and(eq(membershipPlans.id, metadata.planId), eq(membershipPlans.tenantId, metadata.tenantId)))
+            .get();
+
+        if (!plan) return;
+
+        let memberId = null;
+        if (metadata.userId && metadata.userId !== 'guest') {
+            const member = await this.db.select({ id: tenantMembers.id }).from(tenantMembers)
+                .where(and(eq(tenantMembers.userId, metadata.userId), eq(tenantMembers.tenantId, metadata.tenantId)))
+                .get();
+            if (member) memberId = member.id;
+        }
+
+        // Calculate period end based on interval
+        const periodEnd = new Date();
+        if (plan.interval === 'year') periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+        else if (plan.interval === 'week') periodEnd.setDate(periodEnd.getDate() + 7);
+        else periodEnd.setMonth(periodEnd.getMonth() + 1); // Default month
+
+        // Idempotency Check: Don't create if already exists
+        const existingSub = await this.db.select().from(subscriptions)
+            .where(and(eq(subscriptions.stripeSubscriptionId, subscriptionId), eq(subscriptions.tenantId, metadata.tenantId)))
+            .get();
+        if (existingSub) {
+            console.log(`[Fulfillment] Subscription ${subscriptionId} already exists. Skipping.`);
+            return;
+        }
+
+        const id = crypto.randomUUID();
+        await this.db.insert(subscriptions).values({
+            id,
+            tenantId: metadata.tenantId,
+            userId: metadata.userId,
+            memberId,
+            planId: plan.id,
+            status: 'active',
+            currentPeriodEnd: periodEnd,
+            stripeSubscriptionId: subscriptionId,
+            createdAt: new Date()
+        }).run();
+
+        // Audit Log? Handled by WebhookHandler
     }
 
     async redeemGiftCard(giftCardId: string, amount: number, referenceId: string) {
