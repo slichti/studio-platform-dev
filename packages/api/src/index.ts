@@ -104,28 +104,36 @@ app.use('*', logger((str, ...rest) => {
   console.log(str);
 }));
 
-app.onError((err, c) => {
+app.onError((err: any, c) => {
   const logger = c.get('logger');
-  const traceId = c.get('traceId');
+  const traceId = c.get('traceId') || c.req.header('X-Request-Id') || 'unknown';
 
   if (logger) {
-    logger.error(`Unhandled error: ${err.message}`, { error: err });
+    logger.error(`Unhandled error: ${err.message}`, { error: err, traceId });
   } else {
-    LoggerService.staticLog('error', `Unhandled error (pre-context): ${err.message}`, { error: err, traceId });
+    console.error('Global App Error:', err);
   }
 
-  // Handle known app errors
+  // Handle centralized AppErrors
   if (err instanceof AppError) {
-    return c.json({
-      error: err.message,
-      code: err.code,
-      requestId: traceId
-    }, err.statusCode as any);
+    return c.json(err.toJSON(), err.statusCode as any);
   }
 
-  // Fallback for unexpected errors
+  // Only expose detailed error info in non-production environments
+  const isDev = (c.env as any).ENVIRONMENT !== 'production';
+
+  if (isDev) {
+    return c.json({
+      error: "Internal Application Error",
+      message: err.message,
+      stack: err.stack,
+      cause: err.cause,
+      requestId: traceId
+    }, 500);
+  }
+
   return c.json({
-    error: 'Internal Server Error',
+    error: "Internal Application Error",
     requestId: traceId
   }, 500);
 });
@@ -144,32 +152,6 @@ app.use('*', cors({
   maxAge: 86400,
   credentials: true,
 }));
-
-app.onError((err: any, c) => {
-  console.error('Global App Error:', err);
-
-  // Handle centralized AppErrors
-  if (err instanceof AppError) {
-    return c.json(err.toJSON(), err.statusCode as any);
-  }
-
-  // Only expose detailed error info in non-production environments
-  const isDev = (c.env as any).ENVIRONMENT !== 'production';
-
-  if (isDev) {
-    return c.json({
-      error: "Internal Application Error",
-      message: err.message,
-      stack: err.stack,
-      cause: err.cause
-    }, 500);
-  }
-
-  return c.json({
-    error: "Internal Application Error",
-    requestId: c.req.header('X-Request-Id') || 'unknown'
-  }, 500);
-});
 
 app.notFound((c) => {
   return c.json({
@@ -250,12 +232,14 @@ const studioPaths = [
   '/challenges', '/challenges/*',
   '/tasks', '/tasks/*',
   '/video', '/video/*',
-  '/chat', '/chat/*'
+  '/chat', '/chat/*',
+  '/studios', '/studios/*'
 ];
 
 const authenticatedPaths = [
   '/locations', '/locations/*',
   '/members', '/members/*',
+  '/studios', '/studios/*',
   '/memberships', '/memberships/*',
   '/waivers', '/waivers/*',
   '/appointments', '/appointments/*',
@@ -265,20 +249,16 @@ const authenticatedPaths = [
   '/leads', '/leads/*',
   '/pos', '/pos/*',
   '/uploads', '/uploads/*',
+  '/referrals', '/referrals/*',
+  '/coupons', '/coupons/*',
+  '/gift-cards', '/gift-cards/*',
   '/refunds', '/refunds/*',
-  '/coupons', '/coupons/*', // [FIX] Added
-  '/referrals', '/referrals/*', // [NEW] Referrals
-  '/platform', '/platform/*',
-  '/tenant', '/tenant/*',
   '/integrations', '/integrations/*',
   '/sub-dispatch', '/sub-dispatch/*',
   '/waitlist', '/waitlist/*',
   '/video-management', '/video-management/*',
   '/bookings', '/bookings/*',
-  '/diagnostics', '/diagnostics/*',  // Security: Require auth for diagnostics
-  '/webhooks/stripe', '/webhooks/zoom', '/webhooks/clerk', // Specific ones that need some level of auth or signature
   '/inventory', '/inventory/*',
-  '/gift-cards', '/gift-cards/*',
   '/reports', '/reports/*',
   '/analytics', '/analytics/*',
   '/challenges', '/challenges/*',

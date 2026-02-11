@@ -297,4 +297,48 @@ app.post('/portrait', async (c) => {
     return c.json({ portraitUrl, imageId });
 });
 
+// GET /:key+ - Proxy to R2
+app.get('/*', async (c) => {
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context missing' }, 400);
+
+    const key = c.req.path.replace(/^\/uploads\//, '');
+    if (!key) return c.json({ error: 'Key required' }, 400);
+
+    // Security: Access Control
+    const db = createDb(c.env.DB);
+    const upload = await db.query.uploads.findFirst({
+        where: and(eq(uploads.tenantId, tenant.id), eq(uploads.fileKey, key))
+    });
+
+    if (!upload) return c.json({ error: 'Not found' }, 404);
+
+    // Basic visibility check: 
+    // If it's a waiver, restricted to Owner or the student who uploaded it (or global admins)
+    if (key.includes('/waivers/')) {
+        const auth = c.get('auth');
+        const roles = c.get('roles') || [];
+        const isPrivileged = roles.includes('owner') || roles.includes('admin');
+        const isOwnerOfFile = auth && upload.uploadedBy === auth.userId;
+
+        if (!isPrivileged && !isOwnerOfFile) {
+            return c.json({ error: 'Unauthorized: Access to this file is restricted' }, 403);
+        }
+    }
+
+    const object = await c.env.R2!.get(key);
+    if (!object) return c.json({ error: 'File not found in storage' }, 404);
+
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set('etag', object.httpEtag);
+
+    // Set content type if missing
+    if (!headers.has('content-type') && upload.mimeType) {
+        headers.set('content-type', upload.mimeType);
+    }
+
+    return c.body(object.body, 200, Object.fromEntries(headers));
+});
+
 export default app;

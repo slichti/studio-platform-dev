@@ -1,7 +1,8 @@
 
-import { describe, it, expect, beforeAll } from 'vitest';
-import { env } from 'cloudflare:test';
-import worker from '../../src/index';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { env, SELF } from 'cloudflare:test';
+import { drizzle } from 'drizzle-orm/d1';
+import * as schema from '@studio/db/src/schema';
 
 // Helper to minimize boilerplate
 const createRequest = (method: string, path: string, headers: Record<string, string> = {}, body?: any) => {
@@ -12,17 +13,8 @@ const createRequest = (method: string, path: string, headers: Record<string, str
     });
 };
 
-const fetchWithWaitUntil = async (req: Request, env: any) => {
-    const waitUntils: Promise<any>[] = [];
-    const res = await worker.fetch(req, env, {
-        waitUntil: (p: Promise<any>) => waitUntils.push(p),
-        passThroughOnException: () => { }
-    } as any);
-    await Promise.all(waitUntils);
-    return res;
-};
-
 describe('Security Regression Tests', () => {
+    let db: ReturnType<typeof drizzle<typeof schema>>;
 
     const TENANT_ID = 'tenant_123';
     const SLUG = 'security-studio';
@@ -32,144 +24,201 @@ describe('Security Regression Tests', () => {
     const BOOKING_ID = 'booking_b';
 
     beforeAll(async () => {
-        // [SETUP] Minimal Schema & Seed Data
+        db = drizzle(env.DB, { schema });
+
+        // Standardized Schema Init for Integration Tests
         await env.DB.batch([
-            // 1. Schema Init
-            env.DB.prepare(`DROP TABLE IF EXISTS tenants`),
-            env.DB.prepare(`DROP TABLE IF EXISTS users`),
+            env.DB.prepare(`DROP TABLE IF EXISTS audit_logs`),
             env.DB.prepare(`DROP TABLE IF EXISTS tenant_members`),
             env.DB.prepare(`DROP TABLE IF EXISTS tenant_roles`),
             env.DB.prepare(`DROP TABLE IF EXISTS bookings`),
-            env.DB.prepare(`DROP TABLE IF EXISTS audit_logs`),
-            env.DB.prepare(`DROP TABLE IF EXISTS classes`),
             env.DB.prepare(`DROP TABLE IF EXISTS uploads`),
+            env.DB.prepare(`DROP TABLE IF EXISTS classes`),
+            env.DB.prepare(`DROP TABLE IF EXISTS tenants`),
+            env.DB.prepare(`DROP TABLE IF EXISTS users`),
             env.DB.prepare(`DROP TABLE IF EXISTS tenant_features`),
+            env.DB.prepare(`DROP TABLE IF EXISTS custom_roles`),
+            env.DB.prepare(`DROP TABLE IF EXISTS member_custom_roles`),
 
-            env.DB.prepare(`CREATE TABLE IF NOT EXISTS tenants (
-                id TEXT PRIMARY KEY, slug TEXT, name TEXT, settings TEXT, status TEXT, 
-                branding TEXT, mobile_app_config TEXT, payment_provider TEXT, marketing_provider TEXT, currency TEXT,
-                stripe_credentials TEXT, resend_credentials TEXT, twilio_credentials TEXT, flodesk_credentials TEXT,
-                zoom_credentials TEXT, mailchimp_credentials TEXT, zapier_credentials TEXT, google_credentials TEXT,
-                slack_credentials TEXT, google_calendar_credentials TEXT
+            env.DB.prepare(`CREATE TABLE custom_roles (
+                id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL,
+                description TEXT, permissions TEXT NOT NULL, created_at INTEGER
             )`),
-            env.DB.prepare(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT, is_platform_admin INTEGER, last_active_at INTEGER, last_location TEXT, profile TEXT, role TEXT)`),
-            env.DB.prepare(`CREATE TABLE IF NOT EXISTS tenant_members (id TEXT PRIMARY KEY, tenant_id TEXT, user_id TEXT, status TEXT, profile TEXT, settings TEXT)`),
-            env.DB.prepare(`CREATE TABLE IF NOT EXISTS tenant_roles (member_id TEXT, role TEXT)`),
-            env.DB.prepare(`CREATE TABLE IF NOT EXISTS bookings (id TEXT PRIMARY KEY, member_id TEXT, class_id TEXT, status TEXT)`),
-            env.DB.prepare(`CREATE TABLE IF NOT EXISTS audit_logs (id TEXT PRIMARY KEY, action TEXT, actor_id TEXT, details TEXT, country TEXT, city TEXT, region TEXT, created_at INTEGER)`),
-            env.DB.prepare(`CREATE TABLE IF NOT EXISTS conversions (id TEXT PRIMARY KEY, tenant_id TEXT, title TEXT)`), // Not used?
-            env.DB.prepare(`CREATE TABLE IF NOT EXISTS classes (id TEXT PRIMARY KEY, tenant_id TEXT, title TEXT, included_plan_ids TEXT, zoom_enabled INTEGER, auto_cancel_enabled INTEGER)`),
-            env.DB.prepare(`CREATE TABLE IF NOT EXISTS uploads (id TEXT PRIMARY KEY, tenant_id TEXT, file_key TEXT, uploaded_by TEXT, mime_type TEXT, tags TEXT)`),
-            env.DB.prepare(`CREATE TABLE IF NOT EXISTS tenant_features (id TEXT PRIMARY KEY, tenant_id TEXT, feature_key TEXT, enabled INTEGER, source TEXT, updated_at INTEGER)`),
+            env.DB.prepare(`CREATE TABLE member_custom_roles (
+                member_id TEXT NOT NULL, custom_role_id TEXT NOT NULL,
+                assigned_at INTEGER, assigned_by TEXT,
+                PRIMARY KEY (member_id, custom_role_id)
+            )`),
 
+            env.DB.prepare(`CREATE TABLE tenants (
+                id TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE, name TEXT NOT NULL, custom_domain TEXT,
+                branding TEXT, mobile_app_config TEXT, settings TEXT, custom_field_definitions TEXT,
+                stripe_account_id TEXT, stripe_customer_id TEXT, stripe_subscription_id TEXT,
+                current_period_end INTEGER, marketing_provider TEXT DEFAULT 'system',
+                resend_credentials TEXT, twilio_credentials TEXT, flodesk_credentials TEXT,
+                currency TEXT DEFAULT 'usd', zoom_credentials TEXT, mailchimp_credentials TEXT,
+                zapier_credentials TEXT, google_credentials TEXT, slack_credentials TEXT,
+                google_calendar_credentials TEXT, resend_audience_id TEXT,
+                status TEXT NOT NULL DEFAULT 'active', tier TEXT NOT NULL DEFAULT 'launch',
+                subscription_status TEXT NOT NULL DEFAULT 'active', is_public INTEGER DEFAULT 0,
+                sms_usage INTEGER DEFAULT 0, email_usage INTEGER DEFAULT 0, streaming_usage INTEGER DEFAULT 0,
+                sms_limit INTEGER, email_limit INTEGER, streaming_limit INTEGER,
+                billing_exempt INTEGER NOT NULL DEFAULT 0, storage_usage INTEGER DEFAULT 0,
+                member_count INTEGER DEFAULT 0, instructor_count INTEGER DEFAULT 0,
+                last_billed_at INTEGER, archived_at INTEGER, grace_period_ends_at INTEGER,
+                student_access_disabled INTEGER DEFAULT 0, aggregator_config TEXT,
+                created_at INTEGER
+            )`),
+            env.DB.prepare(`CREATE TABLE tenant_features (
+                id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, feature_key TEXT NOT NULL,
+                enabled INTEGER DEFAULT 0, source TEXT DEFAULT 'manual', updated_at INTEGER
+            )`),
+            env.DB.prepare(`CREATE TABLE users (
+                id TEXT PRIMARY KEY, email TEXT NOT NULL, profile TEXT, 
+                is_platform_admin INTEGER DEFAULT 0, role TEXT NOT NULL DEFAULT 'user',
+                phone TEXT, dob INTEGER, address TEXT, is_minor INTEGER DEFAULT 0,
+                stripe_customer_id TEXT, stripe_account_id TEXT, mfa_enabled INTEGER DEFAULT 0,
+                push_token TEXT, last_active_at INTEGER, last_location TEXT, 
+                created_at INTEGER
+            )`),
+            env.DB.prepare(`CREATE TABLE tenant_members (
+                id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, user_id TEXT NOT NULL,
+                profile TEXT, settings TEXT, custom_fields TEXT, 
+                status TEXT NOT NULL DEFAULT 'active', joined_at INTEGER,
+                churn_score INTEGER, churn_status TEXT, last_churn_check INTEGER,
+                engagement_score INTEGER, last_engagement_calc INTEGER,
+                sms_consent INTEGER DEFAULT 0, sms_consent_at INTEGER, sms_opt_out_at INTEGER
+            )`),
+            env.DB.prepare(`CREATE TABLE tenant_roles (
+                id TEXT PRIMARY KEY, member_id TEXT NOT NULL, role TEXT NOT NULL,
+                custom_role_id TEXT, permissions TEXT, created_at INTEGER
+            )`),
+            env.DB.prepare(`CREATE TABLE classes (
+                id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, instructor_id TEXT,
+                location_id TEXT, series_id TEXT, title TEXT NOT NULL, description TEXT,
+                start_time INTEGER NOT NULL, duration_minutes INTEGER NOT NULL,
+                capacity INTEGER, waitlist_capacity INTEGER DEFAULT 10,
+                price INTEGER DEFAULT 0, member_price INTEGER, currency TEXT DEFAULT 'usd',
+                payroll_model TEXT, payroll_value INTEGER, type TEXT NOT NULL DEFAULT 'class',
+                allow_credits INTEGER DEFAULT 1, included_plan_ids TEXT, 
+                zoom_meeting_url TEXT, zoom_meeting_id TEXT, zoom_password TEXT, zoom_enabled INTEGER DEFAULT 0,
+                thumbnail_url TEXT, cloudflare_stream_id TEXT, recording_status TEXT,
+                video_provider TEXT NOT NULL DEFAULT 'offline', livekit_room_name TEXT, livekit_room_sid TEXT,
+                status TEXT NOT NULL DEFAULT 'active', min_students INTEGER DEFAULT 1,
+                auto_cancel_threshold INTEGER, auto_cancel_enabled INTEGER DEFAULT 0,
+                google_event_id TEXT, outlook_event_id TEXT,
+                created_at INTEGER
+            )`),
+            env.DB.prepare(`CREATE TABLE bookings (
+                id TEXT PRIMARY KEY, class_id TEXT NOT NULL, member_id TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'confirmed', attendance_type TEXT DEFAULT 'in_person',
+                waitlist_position INTEGER, created_at INTEGER
+            )`),
+            env.DB.prepare(`CREATE TABLE uploads (
+                id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, file_key TEXT NOT NULL,
+                file_url TEXT NOT NULL, size_bytes INTEGER NOT NULL, mime_type TEXT NOT NULL,
+                original_name TEXT, uploaded_by TEXT, title TEXT, description TEXT,
+                tags TEXT, created_at INTEGER
+            )`)
         ]);
 
-        // 2. Data Seeding
-        // Tenant
-        await env.DB.prepare(`INSERT INTO tenants (
-            id, slug, name, settings, status, branding, mobile_app_config, payment_provider, marketing_provider, currency,
-            stripe_credentials, resend_credentials, twilio_credentials, flodesk_credentials,
-            zoom_credentials, mailchimp_credentials, zapier_credentials, google_credentials,
-            slack_credentials, google_calendar_credentials
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
-            TENANT_ID, SLUG, 'Security Studio',
-            JSON.stringify({ enableStudentRegistration: true }), 'active',
-            '{}', '{}', 'connect', 'system', 'usd',
-            '{}', '{}', '{}', '{}',
-            '{}', '{}', '{}', '{}',
-            '{}', '{}'
-        ).run();
+        // Seeding
+        const tableInfo = await env.DB.prepare('PRAGMA table_info(tenants)').all();
+        console.log('TENANTS TABLE INFO:', tableInfo.results);
 
-        // Users & Members
         await env.DB.batch([
-            env.DB.prepare(`INSERT INTO users (id, email, is_platform_admin, role, profile) VALUES (?, ?, ?, ?, ?)`).bind(STUDENT_A_ID, 'student.a@test.com', 0, 'user', '{}'),
-            env.DB.prepare(`INSERT INTO users (id, email, is_platform_admin, role, profile) VALUES (?, ?, ?, ?, ?)`).bind(STUDENT_B_ID, 'student.b@test.com', 0, 'user', '{}'),
-            env.DB.prepare(`INSERT INTO users (id, email, is_platform_admin, role, profile) VALUES (?, ?, ?, ?, ?)`).bind(OWNER_ID, 'owner@test.com', 0, 'owner', '{}'),
+            env.DB.prepare(`INSERT INTO tenants (id, slug, name, settings, status) VALUES (?, ?, ?, ?, ?)`).bind(TENANT_ID, SLUG, 'Security Studio', JSON.stringify({ enableStudentRegistration: true }), 'active'),
+            env.DB.prepare(`INSERT INTO users (id, email, role) VALUES (?, ?, ?)`).bind(STUDENT_A_ID, 'student.a@test.com', 'user'),
+            env.DB.prepare(`INSERT INTO users (id, email, role) VALUES (?, ?, ?)`).bind(STUDENT_B_ID, 'student.b@test.com', 'user'),
+            env.DB.prepare(`INSERT INTO users (id, email, role) VALUES (?, ?, ?)`).bind(OWNER_ID, 'owner@test.com', 'owner'),
 
-            env.DB.prepare('INSERT INTO tenant_members (id, tenant_id, user_id, status, profile, settings) VALUES (?, ?, ?, ?, ?, ?)').bind('member_a', TENANT_ID, STUDENT_A_ID, 'active', '{}', '{}'),
-            env.DB.prepare('INSERT INTO tenant_members (id, tenant_id, user_id, status, profile, settings) VALUES (?, ?, ?, ?, ?, ?)').bind('member_b', TENANT_ID, STUDENT_B_ID, 'active', '{}', '{}'),
-            env.DB.prepare('INSERT INTO tenant_members (id, tenant_id, user_id, status, profile, settings) VALUES (?, ?, ?, ?, ?, ?)').bind('member_owner', TENANT_ID, OWNER_ID, 'active', '{}', '{}'),
+            env.DB.prepare('INSERT INTO tenant_members (id, tenant_id, user_id, status) VALUES (?, ?, ?, ?)').bind('member_a', TENANT_ID, STUDENT_A_ID, 'active'),
+            env.DB.prepare('INSERT INTO tenant_members (id, tenant_id, user_id, status) VALUES (?, ?, ?, ?)').bind('member_b', TENANT_ID, STUDENT_B_ID, 'active'),
+            env.DB.prepare('INSERT INTO tenant_members (id, tenant_id, user_id, status) VALUES (?, ?, ?, ?)').bind('member_owner', TENANT_ID, OWNER_ID, 'active'),
 
-            // Roles
-            env.DB.prepare(`INSERT INTO tenant_roles (member_id, role) VALUES (?, ?)`).bind('member_owner', 'owner'),
-            env.DB.prepare(`INSERT INTO tenant_roles (member_id, role) VALUES (?, ?)`).bind('member_a', 'student'),
-            env.DB.prepare(`INSERT INTO tenant_roles (member_id, role) VALUES (?, ?)`).bind('member_b', 'student'),
+            env.DB.prepare(`INSERT INTO tenant_roles (id, member_id, role) VALUES (?, ?, ?)`).bind('tr_owner', 'member_owner', 'owner'),
+            env.DB.prepare(`INSERT INTO tenant_roles (id, member_id, role) VALUES (?, ?, ?)`).bind('tr_a', 'member_a', 'student'),
+            env.DB.prepare(`INSERT INTO tenant_roles (id, member_id, role) VALUES (?, ?, ?)`).bind('tr_b', 'member_b', 'student'),
 
-            // Class
-            env.DB.prepare(`INSERT INTO classes (id, tenant_id, title, included_plan_ids, zoom_enabled, auto_cancel_enabled) VALUES (?, ?, ?, ?, ?, ?)`).bind('class_1', TENANT_ID, 'Security Class', '[]', 0, 0),
-
-            // Booking (Owned by Student B)
-            env.DB.prepare(`INSERT INTO bookings (id, member_id, class_id, status) VALUES (?, ?, ?, ?)`).bind(BOOKING_ID, 'mem_student_b', 'class_1', 'confirmed'),
-
-            // Upload (Owned by Student B) - Waiver
-            env.DB.prepare(`INSERT INTO uploads (id, tenant_id, file_key, uploaded_by, mime_type) VALUES (?, ?, ?, ?, ?)`).bind('upload_1', TENANT_ID, `tenants/${SLUG}/waivers/sensitive.pdf`, STUDENT_B_ID, 'application/pdf')
+            env.DB.prepare(`INSERT INTO classes (id, tenant_id, title, start_time, duration_minutes) VALUES (?, ?, ?, ?, ?)`).bind('class_1', TENANT_ID, 'Security Class', Date.now(), 60),
+            env.DB.prepare(`INSERT INTO bookings (id, class_id, member_id, status, attendance_type) VALUES (?, ?, ?, ?, ?)`).bind('booking_a', 'class_1', 'member_a', 'confirmed', 'in_person'),
+            env.DB.prepare(`INSERT INTO bookings (id, class_id, member_id, status, attendance_type) VALUES (?, ?, ?, ?, ?)`).bind('booking_b', 'class_1', 'member_b', 'confirmed', 'in_person'),
+            env.DB.prepare(`INSERT INTO uploads (id, tenant_id, file_key, file_url, size_bytes, mime_type, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind('upload_1', TENANT_ID, `tenants/${SLUG}/waivers/sensitive.pdf`, `https://cdn.test/sensitive.pdf`, 1024, 'application/pdf', STUDENT_B_ID)
         ]);
 
-        // Put file in R2
         await env.R2.put(`tenants/${SLUG}/waivers/sensitive.pdf`, 'SECRET CONTENT');
     });
 
-    it('Scenario 1: IDOR - Student A cannot cancel Student B booking', async () => {
-        const req = createRequest('DELETE', `/bookings/${BOOKING_ID}`, {
+    it('Scenario 1: IDOR - Student A cannot delete Student B booking', async () => {
+        const req = createRequest('DELETE', `/bookings/booking_b`, {
             'TEST-AUTH': STUDENT_A_ID,
-            'X-Tenant-Slug': SLUG
+            'X-Tenant-Id': TENANT_ID
         });
 
-        const res = await fetchWithWaitUntil(req, env);
-        expect(res.status).toBe(403); // Access Denied
+        const res = await SELF.fetch(req);
+        if (res.status === 500) console.log('Scenario 1 Error:', await res.json());
+        expect(res.status).toBe(403);
     });
 
-    it('Scenario 2: IDOR - Student B CAN cancel their own booking', async () => {
-        const req = createRequest('DELETE', `/bookings/${BOOKING_ID}`, {
-            'TEST-AUTH': STUDENT_B_ID,
-            'X-Tenant-Slug': SLUG
-        });
+    it('Scenario 2: IDOR - Student A cannot update Student B booking', async () => {
+        const req = createRequest('PATCH', `/bookings/booking_b`, {
+            'TEST-AUTH': STUDENT_A_ID,
+            'X-Tenant-Id': TENANT_ID
+        }, { attendanceType: 'virtual' });
 
-        const res = await fetchWithWaitUntil(req, env);
-        expect(res.status).toBe(200);
+        const res = await SELF.fetch(req);
+        if (res.status === 500) console.log('Scenario 2 Error:', await res.json());
+        expect(res.status).toBe(403);
     });
 
     it('Scenario 3: RBAC - Student cannot delete Studio Integrations', async () => {
         const req = createRequest('DELETE', `/studios/${TENANT_ID}/integrations/google`, {
             'TEST-AUTH': STUDENT_A_ID,
-            'X-Tenant-Slug': SLUG
+            'X-Tenant-Id': TENANT_ID
         });
 
-        const res = await fetchWithWaitUntil(req, env);
-        expect(res.status).toBe(403); // Owner Only
+        const res = await SELF.fetch(req);
+        if (res.status === 500) console.log('Scenario 3 Error:', await res.json());
+        expect(res.status).toBe(403);
+    });
+
+    it('Scenario 4: Valid Access - Student A CAN delete their own booking', async () => {
+        const req = createRequest('DELETE', `/bookings/booking_a`, {
+            'TEST-AUTH': STUDENT_A_ID,
+            'X-Tenant-Id': TENANT_ID
+        });
+
+        const res = await SELF.fetch(req);
+        if (res.status === 500) console.log('Scenario 4 Error:', await res.json());
+        expect(res.status).toBe(200);
     });
 
     it('Scenario 5: Upload Security - Access Control for Waivers', async () => {
         const KEY = `tenants/${SLUG}/waivers/sensitive.pdf`;
 
-        // Case A: Student A (Attacker) cannot access Student B's waiver
-        const resA = await fetchWithWaitUntil(
-            createRequest('GET', `/uploads/${KEY}`, { 'TEST-AUTH': STUDENT_A_ID, 'X-Tenant-Slug': SLUG }),
-            env
-        );
+        // Case A: Student A (NOT owner) CANNOT access
+        const reqA = createRequest('GET', `/uploads/${KEY}`, {
+            'TEST-AUTH': STUDENT_A_ID,
+            'X-Tenant-Id': TENANT_ID
+        });
+        const resA = await SELF.fetch(reqA);
+        await resA.text();
         expect(resA.status).toBe(403);
 
         // Case B: Student B (Owner of file) CAN access
-        const resB = await fetchWithWaitUntil(
-            createRequest('GET', `/uploads/${KEY}`, { 'TEST-AUTH': STUDENT_B_ID, 'X-Tenant-Slug': SLUG }),
-            env
-        );
+        const reqB = createRequest('GET', `/uploads/${KEY}`, {
+            'TEST-AUTH': STUDENT_B_ID,
+            'X-Tenant-Id': TENANT_ID
+        });
+        const resB = await SELF.fetch(reqB);
+        if (resB.status === 500) console.log('Scenario 5B Error:', await resB.json());
         expect(resB.status).toBe(200);
+        expect(await resB.text()).toBe('SECRET CONTENT');
 
         // Case C: Owner (Admin) CAN access
-        const resOwner = await fetchWithWaitUntil(
-            createRequest('GET', `/uploads/${KEY}`, { 'TEST-AUTH': OWNER_ID, 'X-Tenant-Slug': SLUG }),
-            env
-        );
+        const reqOwner = createRequest('GET', `/uploads/${KEY}`, { 'TEST-AUTH': OWNER_ID, 'X-Tenant-Id': TENANT_ID });
+        const resOwner = await SELF.fetch(reqOwner);
+        await resOwner.text();
         expect(resOwner.status).toBe(200);
-    });
-
-    it.skip('Scenario 4: Rate Limiting - Block excess requests', async () => {
-        // Skipped because RateLimiter DO is bypassed in test environment due to vitest storage issues
-        const diagReq = createRequest('GET', '/diagnostics', {
-            'TEST-AUTH': STUDENT_A_ID // Not Platform Admin
-        });
-        const diagRes = await fetchWithWaitUntil(diagReq, env);
-        expect(diagRes.status).toBe(403);
     });
 });

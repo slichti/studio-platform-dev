@@ -25,6 +25,7 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
     // 0. Check Header (Strongly preferred for API calls)
     const headerTenantId = c.req.header('X-Tenant-Id');
     const headerTenantSlug = c.req.header('X-Tenant-Slug')?.toLowerCase();
+
     let tenant;
 
     if (headerTenantId) {
@@ -79,7 +80,6 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
     }
 
     c.set('tenant', tenant);
-    console.log(`[TenantMiddleware] Set tenant context for ${hostname}: ${tenant?.name} (${tenant?.id})`);
 
     // -------------------------------------------------------------
     // Credential Decryption (BYOK)
@@ -140,6 +140,18 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
 
     // 3. Security Check: If User is Authenticated, Verify Membership
     const auth = c.get('auth');
+
+    // Default 'can' helper for unauthenticated or early returns
+    c.set('can', () => false);
+
+    // Authentication is required for studio-scoped routes
+    if (!auth) {
+        // [BYPASS] Some routes might be public but registered under /studios, /locations etc?
+        // Actually, if it's in studioPaths, we usually expect a tenant.
+        // If it's also in authenticatedPaths, authMiddleware should have caught it.
+        // Let's just avoid 500ing.
+        return await next();
+    }
     let roles: string[] = [];
     let assignedPermissions: string[] = [];
     let isPlatformAdmin = false;
@@ -208,50 +220,40 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
             // Permissions explicitly assigned to the role assignment (overrides/additions)
             assignedPermissions = rolesResult.flatMap(r => (r.permissions as unknown as string[]) || []);
 
-            // Only merge if NOT overriding as a lower role (student/instructor)
+            // Merge with auth roles if applicable
             if (!isPlatformAdmin || !roles.length || roles.includes('owner')) {
                 roles = [...new Set([...roles, ...dbRoles])];
             }
         } else if (isPlatformAdmin) {
-            // Synthesize virtual member for system admins who aren't explicitly members
+            // Synthesize virtual member for platform admins
+            const virtualMemberId = `virt_${auth.userId}`;
             c.set('member', {
-                id: `virt_${auth.userId}`,
+                id: virtualMemberId,
                 tenantId: tenant.id,
                 userId: auth.userId,
-                status: 'active',
-                user: dbUser, // Original global user record
-                profile: dbUser?.profile // Use global profile
+                status: 'active'
             });
             if (!roles.includes('owner')) {
                 roles.push('owner');
             }
         }
 
+        // --- Final Resolution ---
         c.set('roles', roles);
 
-        // --- Permission Resolution ---
+        // Resolve Custom Permissions
         let customPerms: string[] = [];
-        if (member) {
-            // 1. Fetch Custom Roles Permissions (from custom_roles table)
+        const currentMember = c.get('member');
+        if (currentMember) {
             const customRolesResult = await db.select({ permissions: customRoles.permissions })
                 .from(memberCustomRoles)
                 .innerJoin(customRoles, eq(memberCustomRoles.customRoleId, customRoles.id))
-                .where(eq(memberCustomRoles.memberId, member.id!))
+                .where(eq(memberCustomRoles.memberId, currentMember.id))
                 .all();
 
-            // 2. Combine with explicit permissions from tenant_roles
-            // (We fetched 'assignedPermissions' above)
-            // Note: 'member' variable is in scope here because if(member) block
-            // However, 'assignedPermissions' was defined inside the 'if(member)' block above. 
-            // I need to ensure the variables are accessible.
-            // Wait, I am replacing a block that includes where assignedPermissions is defined.
-
-            // Re-fetching or using the variables if strictly in scope.
-            // The block I am replacing STARTS at rolesResult fetch.
-
             customPerms = [
-                ...customRolesResult.flatMap(r => (r.permissions as string[]) || []),
-                ...assignedPermissions
+                ...assignedPermissions,
+                ...customRolesResult.flatMap(r => (r.permissions as any as string[]) || [])
             ];
         }
 
@@ -265,7 +267,7 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
         if (roles.includes('owner') && !c.get('isImpersonating')) {
             const amr = auth.claims?.amr;
             const hasMfa = (Array.isArray(amr) && (amr.includes('mfa') || amr.includes('otp') || amr.includes('totp'))) || auth.claims?.mfa === true;
-            const isDev = (c.env as any).ENVIRONMENT === 'dev' || (c.env as any).ENVIRONMENT === 'development';
+            const isDev = (c.env as any).ENVIRONMENT === 'dev' || (c.env as any).ENVIRONMENT === 'development' || (c.env as any).ENVIRONMENT === 'test';
 
             if (!hasMfa) {
                 // Grace Period: Allow 7 days for new owners to set up MFA

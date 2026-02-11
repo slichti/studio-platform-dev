@@ -22,5 +22,8 @@ export default defineWorkersConfig({
             '@studio/emails': join(__dirname, '../emails/src'),
         },
         include: ['**/*.integration.test.ts'],
+        setupFiles: ['./test/setup-integration.ts'],
+        fileParallelism: false,
+        maxWorkers: 1,
     },
 });
