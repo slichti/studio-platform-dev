@@ -1,1 +1,0 @@
-ALTER TABLE `tenants` ADD `billing_exempt` integer DEFAULT false NOT NULL;

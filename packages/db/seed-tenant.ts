@@ -72,6 +72,7 @@ async function main() {
         }).returning().get());
 
         await db.insert(tenantRoles).values({
+            id: 'role_' + faker.string.uuid(),
             memberId: ownerMember.id,
             role: 'owner'
         });
@@ -155,7 +156,7 @@ async function main() {
                 profile: { bio: "Yoga Teacher" }
             }).returning().get());
 
-            await db.insert(tenantRoles).values({ memberId: member.id, role: 'instructor' }).onConflictDoNothing();
+            await db.insert(tenantRoles).values({ id: 'role_' + faker.string.uuid(), memberId: member.id, role: 'instructor' }).onConflictDoNothing();
         }
         instructors.push(member);
     }
@@ -226,7 +227,7 @@ async function main() {
                 userId: user.id,
                 status: 'active'
             }).returning().get());
-            await db.insert(tenantRoles).values({ memberId: member.id, role: 'student' }).onConflictDoNothing();
+            await db.insert(tenantRoles).values({ id: 'role_' + faker.string.uuid(), memberId: member.id, role: 'student' }).onConflictDoNothing();
         }
         students.push(member);
     }

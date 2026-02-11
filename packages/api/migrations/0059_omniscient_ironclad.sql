@@ -1,1 +1,0 @@
-ALTER TABLE `marketing_automations` ADD `recipients` text DEFAULT ('["student"]');

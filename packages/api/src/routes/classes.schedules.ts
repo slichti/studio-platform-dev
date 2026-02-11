@@ -7,6 +7,7 @@ import { eq, sql, desc, and, gte, lte, inArray } from 'drizzle-orm';
 import { EncryptionUtils } from '../utils/encryption';
 import { ZoomService } from '../services/zoom';
 import { ConflictService } from '../services/conflicts';
+import { cacheMiddleware } from '../middleware/cache';
 
 const app = createOpenAPIApp<StudioVariables>();
 
@@ -56,6 +57,8 @@ const UpdateClassSchema = CreateClassSchema.partial();
 // Routes
 
 // GET /
+app.use('/', cacheMiddleware({ maxAge: 60, staleWhileRevalidate: 300 }));
+
 app.openapi(createRoute({
     method: 'get',
     path: '/',

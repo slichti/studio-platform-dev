@@ -10,6 +10,12 @@
         "functions-template/**/*.d.ts",
         "env.d.ts"
     ],
+    "exclude": [
+        "node_modules",
+        "functions",
+        "build",
+        ".wrangler"
+    ],
     "compilerOptions": {
         "lib": [
             "DOM",

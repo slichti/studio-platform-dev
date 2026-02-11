@@ -1,1 +1,0 @@
-ALTER TABLE `gift_cards` ADD `recipient_member_id` text REFERENCES tenant_members(id);

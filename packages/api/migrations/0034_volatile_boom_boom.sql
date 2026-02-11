@@ -1,1 +1,0 @@
-ALTER TABLE `classes` ADD `created_at` integer DEFAULT (strftime('%s', 'now'));

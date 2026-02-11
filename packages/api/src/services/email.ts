@@ -53,7 +53,24 @@ export class EmailService {
         db?: DrizzleD1Database<typeof schema>,
         tenantId?: string
     ) {
-        this.resend = new Resend(apiKey);
+        if (apiKey) {
+            this.resend = new Resend(apiKey);
+        } else {
+            console.warn("EmailService initialized without API key. Email sending will be mocked.");
+            this.resend = {
+                emails: {
+                    send: async (payload: any) => {
+                        console.log(`[Mock Email] Sending to ${payload.to}: ${payload.subject}`);
+                        return { data: { id: 'mock_id' }, error: null };
+                    }
+                },
+                contacts: {
+                    create: async () => ({ data: { id: 'mock_contact' }, error: null }),
+                    update: async () => ({ data: { id: 'mock_contact' }, error: null })
+                }
+            } as any;
+        }
+
         this.db = db;
         this.tenantId = tenantId;
         this.config = config;

@@ -13,7 +13,7 @@ export const options = {
 };
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8787';
-const TENANT_SLUG = __ENV.TENANT_SLUG || 'garden-yoga'; // Using known active tenant
+const TENANT_SLUG = __ENV.TENANT_SLUG || 'test-studio'; // Matches seeded tenant
 
 export default function () {
     const today = new Date();

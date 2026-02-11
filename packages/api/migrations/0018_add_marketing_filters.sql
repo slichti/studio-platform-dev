@@ -1,1 +1,0 @@
-ALTER TABLE `marketing_campaigns` ADD `filters` text;

@@ -155,6 +155,7 @@ export const tenantMembers = sqliteTable('tenant_members', {
     smsOptOutAt: integer('sms_opt_out_at', { mode: 'timestamp' }), // When user opted out (STOP)
 }, (table) => ({
     tenantUserIdx: index('tenant_user_idx').on(table.tenantId, table.userId),
+    userIdx: index('user_tenant_idx').on(table.userId, table.tenantId),
     engagementIdx: index('member_engagement_idx').on(table.engagementScore),
 }));
 
@@ -353,7 +354,7 @@ export const classes = sqliteTable('classes', {
 }, (table) => ({
     tenantTimeIdx: index('tenant_time_idx').on(table.tenantId, table.startTime),
     seriesIdx: index('series_idx').on(table.seriesId),
-    tenantStartIdx: index('class_tenant_start_idx').on(table.tenantId, table.startTime), // Optimize schedule queries
+    instructorIdx: index('class_instructor_idx').on(table.instructorId),
 }));
 
 // --- Student Notes (CRM) ---
@@ -419,6 +420,7 @@ export const bookings = sqliteTable('bookings', {
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     memberClassIdx: index('member_class_idx').on(table.memberId, table.classId),
+    memberStatusIdx: index('member_status_idx').on(table.memberId, table.status),
     waitlistIdx: index('booking_waitlist_idx').on(table.classId, table.waitlistPosition),
     classStatusIdx: index('booking_class_status_idx').on(table.classId, table.status), // Fast roster fetch
 }));

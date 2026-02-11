@@ -1,1 +1,0 @@
-ALTER TABLE `classes` ADD `status` text DEFAULT 'active' NOT NULL;
