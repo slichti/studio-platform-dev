@@ -413,7 +413,7 @@ app.openapi(createRoute({
             const { SmsService } = await import('../services/sms');
             const { PushService } = await import('../services/push');
 
-            const es = new EmailService(c.env.RESEND_API_KEY, studio as any, { slug: studio.slug, name: studio.name }, us, false, db, studio.id);
+            const es = new EmailService(c.env.RESEND_API_KEY!, studio as any, { slug: studio.slug, name: studio.name }, us, false, db, studio.id);
             const as = new AutomationsService(db, studio.id, es, new SmsService(studio.twilioCredentials as any, c.env, us, db, studio.id), new PushService(db, studio.id));
 
             await as.dispatchTrigger('new_student', {

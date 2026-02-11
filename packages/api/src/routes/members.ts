@@ -115,14 +115,22 @@ const createMemberRoute = createRoute({
     }
 });
 
-app.openapi(createMemberRoute, quotaMiddleware('students'), async (c) => {
+app.openapi(createMemberRoute, async (c) => {
     if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant')!;
-    const { email, firstName, lastName, role } = c.req.valid('json');
 
+    // Quota Check
     const { UsageService } = await import('../services/pricing');
     const us = new UsageService(db, tenant.id);
+    if (!(await us.checkLimit('students', tenant.tier || 'launch'))) {
+        return c.json({
+            error: `Quota Exceeded: Your plan limit for students has been reached.`,
+            code: 'QUOTA_EXCEEDED'
+        }, 402);
+    }
+
+    const { email, firstName, lastName, role } = c.req.valid('json');
 
     let u = await db.query.users.findFirst({ where: eq(users.email, email) });
     if (!u) {
