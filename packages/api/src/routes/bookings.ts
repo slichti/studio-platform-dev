@@ -4,6 +4,8 @@ import { bookings, classes, tenantMembers, users, tenants } from '@studio/db/src
 import { eq, and, sql } from 'drizzle-orm';
 import { checkAndPromoteWaitlist } from './waitlist';
 import { HonoContext } from '../types';
+import { BookingService } from '../services/bookings';
+import { ConflictService } from '../services/conflicts';
 
 const app = new Hono<HonoContext>();
 
@@ -109,7 +111,7 @@ app.delete('/:id', async (c) => {
         return c.json({ error: "Forbidden" }, 403);
     }
 
-    const service = new BookingService(db, c.env);
+    const service = new BookingService(db, c.env as any);
     await service.cancelBooking(bid);
     return c.json({ success: true });
 });

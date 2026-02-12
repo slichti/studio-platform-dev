@@ -13,7 +13,15 @@ export class ConflictService {
         const earliestStart = new Date(startTime.getTime() - 24 * 60 * 60 * 1000); // 24h look-back for safety
 
         // Manual overlap check because of sql mapping issues
-        const actualConflicts = classConflicts.filter(c => {
+        const classConflicts = await this.db.select().from(classes).where(and(
+            eq(classes.instructorId, instructorId),
+            excludeEventId ? ne(classes.id, excludeEventId) : undefined,
+            eq(classes.status, 'active'),
+            lt(classes.startTime, endTime),
+            gt(classes.startTime, earliestStart)
+        )).all();
+
+        const actualConflicts = classConflicts.filter((c: any) => {
             const classEnd = c.startTime.getTime() + c.durationMinutes * 60000;
             const targetEnd = startTime.getTime() + durationMinutes * 60000;
             return c.startTime.getTime() < targetEnd && classEnd > startTime.getTime();
@@ -27,14 +35,14 @@ export class ConflictService {
             lt(appointments.startTime, new Date(startTime.getTime() + durationMinutes * 60 * 1000))
         )).all();
 
-        const actualAppConflicts = appointmentConflicts.filter(a => {
+        const actualAppConflicts = appointmentConflicts.filter((a: any) => {
             return a.startTime.getTime() < (startTime.getTime() + durationMinutes * 60000) &&
                 a.endTime.getTime() > startTime.getTime();
         });
 
         return [
-            ...actualConflicts.map(c => ({ conflictEntity: 'class' as const, ...c })),
-            ...actualAppConflicts.map(a => ({ conflictEntity: 'appointment' as const, ...a }))
+            ...actualConflicts.map((c: any) => ({ conflictEntity: 'class' as const, ...c })),
+            ...actualAppConflicts.map((a: any) => ({ conflictEntity: 'appointment' as const, ...a }))
         ];
     }
 

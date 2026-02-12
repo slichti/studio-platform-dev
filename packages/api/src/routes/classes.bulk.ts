@@ -63,7 +63,7 @@ app.openapi(bulkCancelRoute, async (c) => {
         ))
         .run();
 
-    return c.json({ success: true, affected: result.meta.changes }, 200);
+    return c.json({ success: true, affected: (result.meta as any).changes }, 200);
 });
 
 // POST /bulk-update
@@ -110,7 +110,7 @@ app.openapi(bulkUpdateRoute, async (c) => {
         ))
         .all();
 
-    if (targetClasses.length === 0) return c.json({ success: true, affected: 0 });
+    if (targetClasses.length === 0) return c.json({ success: true, affected: 0 }, 200);
 
     const conflictService = new ConflictService(db);
 
@@ -153,7 +153,7 @@ app.openapi(bulkUpdateRoute, async (c) => {
         ))
         .run();
 
-    return c.json({ success: true, affected: result.meta.changes }, 200);
+    return c.json({ success: true, affected: (result.meta as any).changes }, 200);
 });
 
 export default app;
