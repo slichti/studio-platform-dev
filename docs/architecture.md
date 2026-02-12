@@ -231,6 +231,10 @@ To adhere to the Cloudflare Worker 1MB bundle size limit, the application employ
 *   **Dynamic Imports**: Heavy libraries (e.g., `mermaid`, `recharts`, `livekit-client`) are imported dynamically only when needed on the client side (`ClientOnly` components).
 *   **Separation of Concerns**: UI logic is extracted into separate components to facilitate isolation and independent bundling.
 
+### Perceived Performance & UX
+*   **Skeleton Loading**: The platform uses a centralized `SkeletonLoader` component to provide consistent visual feedback across the Dashboard, Analytics, and Student Portal during initial data hydration.
+*   **Pagination & Infinite Scroll**: To handle large datasets (e.g., hundreds of scheduled classes), list views implement `useInfiniteQuery` (Admin) or custom `useFetcher` patterns (Portal) to load data in chunks, significantly reducing initial payload size and Time-to-Interactive (TTI).
+
 ### Mobile Optimization
 *   **Universal App**: Single binary architecture reduces build complexity and store review times.
 *   **Over-the-Air Updates**: Uses Expo Updates (where compliant) for rapid critical bug fixes.

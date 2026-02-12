@@ -4,7 +4,7 @@ Based on a comprehensive audit of the 67 API route files and the database schema
 
 ## 1. Missing Analytics & Business Intelligence
 The current `analytics.ts` provides only utilization, retention, and LTV. Essential BI gaps include:
-- **[CRITICAL] Conflict Detection**: Currently, creating a class or claiming a substitution doesn't cross-check for room or instructor double-bookings.
+- **[DONE] Conflict Detection**: Integrated `ConflictService` to cross-check for room and instructor double-bookings during class transitions.
 - **[CRITICAL] Percentage Pay Models**: The payroll engine lacks logic for calculating pay as a percentage of *actual* class revenue (Net GMV), which is essential for many boutique studios.
 - **[CRITICAL] Partial Refund Reconciliation**: Missing logic to automatically reverse loyalty points or class credits when a Stripe refund is issued.
 - **[NEW] Churn Prediction**: Identifying "at-risk" members who haven't booked in 14+ days.
@@ -13,7 +13,7 @@ The current `analytics.ts` provides only utilization, retention, and LTV. Essent
 While `/members/bulk` exists, many other areas are missing efficient batch operations:
 - **[IMPROVE] Bulk Class Management**: Ability to bulk-cancel, bulk-move, or bulk-update instructors for a range of class instances.
 - **[NEW] Bulk Check-in**: A "Check-in All" endpoint for classes to reduce manual overhead.
-- **[NEW] Resource Conflict Detection**: API to check for room/instructor double-bookings before creating classes.
+- **[DONE] Resource Conflict Detection**: Implemented `ConflictService.checkRoomConflict` to prevent space overlaps.
 
 ## 3. Data Integrity & Schema Gaps
 - **[NEW] Tagging System**: Implement a generic `tags` table and associated API to allow studios to categorize members (e.g., "VIP", "Needs Waiver").

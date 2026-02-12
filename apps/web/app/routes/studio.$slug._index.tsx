@@ -40,13 +40,14 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
 import { lazy, Suspense } from "react";
 import { ClientOnly } from "~/components/ClientOnly";
+import { SkeletonLoader } from "~/components/ui/SkeletonLoader";
 
 const DashboardPage = lazy(() => import("../components/routes/DashboardPage"));
 
 export default function StudioDashboardIndex() {
     return (
-        <ClientOnly fallback={<div className="h-screen flex items-center justify-center">Loading Dashboard...</div>}>
-            <Suspense fallback={<div className="h-screen flex items-center justify-center">Loading Dashboard...</div>}>
+        <ClientOnly fallback={<div className="p-8"><SkeletonLoader type="card" count={3} /></div>}>
+            <Suspense fallback={<div className="p-8"><SkeletonLoader type="card" count={3} /></div>}>
                 <DashboardPage />
             </Suspense>
         </ClientOnly>

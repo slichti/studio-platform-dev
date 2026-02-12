@@ -33,6 +33,7 @@ The API is optimized for low-latency execution on Cloudflare Workers:
 *   **Query Batching**: Quota checks and usage increments use `db.batch()` to reduce round-trips.
 *   **Concurrency**: Average request duration under load (20 VUs) is **~16ms** with a **p(95) of ~37ms**.
 *   **Optimized Queries**: Conflict detection and activity lookups use index-friendly range filters and aggregations to avoid N+1 bottlenecks.
+*   **Chunked Fetching**: Mandatory `limit` and `offset` pagination on list endpoints to ensure consistent performance.
 
 ## Testing & Stability
 

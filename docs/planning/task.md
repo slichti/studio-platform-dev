@@ -40,4 +40,11 @@
 - [x] Upgrade Booking Flow & Calendar Integration <!-- id: 37 -->
 - [x] Add Profile Stats & Streak Dashboard <!-- id: 38 -->
 
-
+# [PHASE 5] Performance Optimization
+- [x] Implement Quota Check Batching (`UsageService`) <!-- id: 40 -->
+- [x] Optimize Resource Conflict Detection (`ConflictService`) <!-- id: 41 -->
+- [x] Eliminate N+1 queries in win-back automations <!-- id: 42 -->
+- [x] Implement Frontend Skeleton Loaders <!-- id: 43 -->
+- [x] Implement Infinite Scroll/Pagination (Admin & Portal) <!-- id: 44 -->
+- [x] Configure Lazy Loading & Code Splitting for heavy libraries <!-- id: 45 -->
+- [x] Verify sub-50ms latency via load testing <!-- id: 46 -->

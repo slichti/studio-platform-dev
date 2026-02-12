@@ -223,3 +223,5 @@ The platform is designed for high-concurrency edge execution:
 *   **Intelligent Batching**: Multi-query operations (like Quota checks) are batched via `D1.batch()` to minimize round-trip latency.
 *   **Database Indexing**: Performance-critical paths (activity tracking, scheduling) use specific indices on `startTime`, `checkedInAt`, and `memberId`.
 *   **Efficient Automations**: Mass-processing tasks (win-back automations) use aggregated lookups to avoid N+1 query patterns.
+*   **Perceived UX**: Integrated `SkeletonLoader` across all core routes to eliminate layout shift during data fetching.
+*   **Infinite Scrolling**: Class schedules and audit logs use chunked fetching to maintain sub-100ms interaction times regardless of data volume.

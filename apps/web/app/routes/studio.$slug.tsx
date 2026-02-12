@@ -55,6 +55,7 @@ import { SidebarGroup } from "../components/SidebarGroup";
 import { useClerk, useUser } from "@clerk/react-router";
 import { lazy, Suspense } from "react";
 import { ClientOnly } from "~/components/ClientOnly";
+import { SkeletonLoader } from "~/components/ui/SkeletonLoader";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { params, request } = args;

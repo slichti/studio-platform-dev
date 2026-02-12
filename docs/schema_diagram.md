@@ -240,6 +240,20 @@ erDiagram
     
     tenants ||--o{ marketing_automations : "configures"
 
+    automation_logs {
+        string id PK
+        string tenant_id FK
+        string automation_id FK
+        string user_id FK
+        string channel
+        timestamp triggered_at
+        json metadata
+    }
+
+    marketing_automations ||--o{ automation_logs : "generates"
+    tenants ||--o{ automation_logs : "tracks"
+    users ||--o{ automation_logs : "recorded for"
+
     %% Communication (Chat)
     chat_rooms {
         string id PK
@@ -348,4 +362,4 @@ The schema includes several performance-critical indexes to support edge scalabi
 - **bookings**: `(member_id, status, checked_in_at)` for efficient win-back automation lookups.
 - **bookings**: `(created_at)` for sorted history retrieval.
 - **classes**: `(tenant_id, start_time)` for efficient schedule and conflict detection lookups.
-```
+- **automation_logs**: `(automation_id, user_id, channel)` UNIQUE index for idempotency.
