@@ -241,6 +241,30 @@ export async function setupTestDb(d1: D1Database) {
             member_id TEXT NOT NULL, position INTEGER NOT NULL, 
             status TEXT DEFAULT 'waiting', notified_at INTEGER, 
             created_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )`),
+
+        d1.prepare(`CREATE TABLE appointment_services (
+            id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, title TEXT NOT NULL, 
+            description TEXT, duration_minutes INTEGER NOT NULL, 
+            price INTEGER DEFAULT 0, currency TEXT DEFAULT 'usd', 
+            is_active INTEGER DEFAULT 1, created_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )`),
+
+        d1.prepare(`CREATE TABLE appointments (
+            id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, service_id TEXT NOT NULL, 
+            instructor_id TEXT NOT NULL, member_id TEXT NOT NULL, 
+            start_time INTEGER NOT NULL, end_time INTEGER NOT NULL, 
+            status TEXT DEFAULT 'confirmed', location_id TEXT, notes TEXT, 
+            zoom_meeting_url TEXT, google_event_id TEXT, 
+            created_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )`),
+
+        d1.prepare(`CREATE TABLE progress_metric_definitions (
+            id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, 
+            category TEXT NOT NULL, unit TEXT NOT NULL, icon TEXT, 
+            aggregation TEXT DEFAULT 'sum', visible_to_students INTEGER DEFAULT 1, 
+            active INTEGER DEFAULT 1, display_order INTEGER DEFAULT 0, 
+            created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`)
     ]);
 

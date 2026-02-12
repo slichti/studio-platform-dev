@@ -386,6 +386,23 @@ export class BookingService {
         }
     }
 
+    async checkInAll(classId: string, checkedIn: boolean, tenantId: string) {
+        const list = await this.db.select({ id: bookings.id })
+            .from(bookings)
+            .innerJoin(tenantMembers, eq(bookings.memberId, tenantMembers.id))
+            .where(and(
+                eq(bookings.classId, classId),
+                eq(bookings.status, 'confirmed'),
+                eq(tenantMembers.tenantId, tenantId)
+            ))
+            .all();
+
+        for (const b of list) {
+            await this.checkIn(b.id, checkedIn, tenantId);
+        }
+        return list.length;
+    }
+
     private async dispatchAutomation(trigger: string, bookingId: string, additionalData: any = {}) {
         try {
             const booking = await this.db.query.bookings.findFirst({

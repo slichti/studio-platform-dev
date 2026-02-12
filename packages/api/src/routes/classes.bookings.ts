@@ -95,6 +95,23 @@ app.post('/:id/bulk-check-in', async (c) => {
     }
 });
 
+// POST /:id/check-in-all
+app.post('/:id/check-in-all', async (c) => {
+    if (!c.get('can')('manage_classes')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const { checkedIn } = await c.req.json();
+    const service = new BookingService(db, c.env);
+
+    try {
+        const tenant = c.get('tenant');
+        if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+        const count = await service.checkInAll(c.req.param('id'), !!checkedIn, tenant.id);
+        return c.json({ success: true, affected: count });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
 // POST /:id/bookings/:bookingId/cancel
 app.post('/:id/bookings/:bookingId/cancel', async (c) => {
     const db = createDb(c.env.DB);
