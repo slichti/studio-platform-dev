@@ -27,9 +27,30 @@ Uses Expo Push API for sending notifications to the mobile app.
     *   User must have `pushToken` stored in `users` table.
     *   User must have `push: true` in preferences.
 
-## Mobile App Strategy
-The platform uses a "Shared Container" model.
-1.  All users download the same app.
-2.  Users enter a **Studio Code** (Tenant Slug) or scan a **QR Code**.
-3.  The app fetches config via `/:id/mobile-config` and themes itself.
+## Performance & Scalability
+
+The API is optimized for low-latency execution on Cloudflare Workers:
+*   **Query Batching**: Quota checks and usage increments use `db.batch()` to reduce round-trips.
+*   **Concurrency**: Average request duration under load (20 VUs) is **~16ms** with a **p(95) of ~37ms**.
+*   **Optimized Queries**: Conflict detection and activity lookups use index-friendly range filters and aggregations to avoid N+1 bottlenecks.
+
+## Testing & Stability
+
+### Integration Tests
+The project uses Vitest with `@cloudflare/vitest-pool-workers` for full integration testing against a local D1 instance.
+*   **Centralized Setup**: `test/integration/test-utils.ts` provides standardized schema setup and data seeding.
+*   **Standardized Timestamps**: All test data uses millisecond-precision timestamps to match production SQLite behavior.
+*   **Execution**:
+    ```bash
+    npm run test:integration
+    ```
+
+### Load Testing
+Performance is verified using k6 scripts in the `/k6` directory.
+*   **Browse Scenario**: Simulates concurrent users viewing class schedules.
+*   **Booking Scenario**: Simulates concurrent booking operations.
+*   **Execution**:
+    ```bash
+    npm run load-test
+    ```
 

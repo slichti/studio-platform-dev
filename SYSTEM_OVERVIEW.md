@@ -217,3 +217,9 @@ sequenceDiagram
 *   **Studio Owner**: Full access to tenant data and settings. Validated via `tenantRoles`.
 *   **Instructor**: Limited management of classes, members, and bookings.
 *   **Student**: Restricted to own profile, bookings, and public data.
+
+### Performance & Scalability
+The platform is designed for high-concurrency edge execution:
+*   **Intelligent Batching**: Multi-query operations (like Quota checks) are batched via `D1.batch()` to minimize round-trip latency.
+*   **Database Indexing**: Performance-critical paths (activity tracking, scheduling) use specific indices on `startTime`, `checkedInAt`, and `memberId`.
+*   **Efficient Automations**: Mass-processing tasks (win-back automations) use aggregated lookups to avoid N+1 query patterns.

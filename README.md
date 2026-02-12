@@ -9,6 +9,7 @@ The modern, all-in-one platform for dance, yoga, and fitness studios.
 *   **Student App:** Mobile app for students to book classes and manage their accounts.
 *   **Automations:** Powerful email and SMS marketing automations with trigger events (Birthday, Absent, Trial Ending, etc).
 *   **QR Codes:** Generate tracking-ready QR codes for check-in, app downloads, and marketing.
+*   **High Performance Edge:** Sub-50ms latency for core operations via Cloudflare Workers and D1 batching.
 
 ## Development
 

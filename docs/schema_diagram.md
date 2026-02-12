@@ -340,4 +340,12 @@ erDiagram
     progress_metric_definitions ||--o{ member_progress_entries : "has"
     tenant_members ||--o{ member_progress_entries : "logs"
     tenants ||--o{ member_progress_entries : "contains"
+
+## Performance Indexes
+
+The schema includes several performance-critical indexes to support edge scalability:
+- **bookings**: `(tenant_id, start_time)` for schedule filtering.
+- **bookings**: `(member_id, status, checked_in_at)` for efficient win-back automation lookups.
+- **bookings**: `(created_at)` for sorted history retrieval.
+- **classes**: `(tenant_id, start_time)` for efficient schedule and conflict detection lookups.
 ```
