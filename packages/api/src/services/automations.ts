@@ -162,7 +162,7 @@ export class AutomationsService {
             )).all();
 
         // Step 2: Batch fetch latest activity for all candidates to avoid N+1
-        const memberIds = candidates.map(c => c.memberId);
+        const memberIds = candidates.map((c: any) => c.memberId);
         if (!memberIds.length) return;
 
         const lastActivities = await this.db.select({
@@ -180,7 +180,9 @@ export class AutomationsService {
             .groupBy(bookings.memberId)
             .all();
 
-        const activityMap = new Map(lastActivities.map(a => [a.memberId, a.lastActive]));
+        const activityMap = new Map<string, number>(
+            lastActivities.map((a: any) => [a.memberId, Number(a.lastActive)])
+        );
 
         for (const c of candidates) {
             const lastActiveTimestamp = activityMap.get(c.memberId);
