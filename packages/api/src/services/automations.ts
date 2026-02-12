@@ -1,5 +1,5 @@
 import { createDb } from '../db';
-import { eq, and, lt, gt, gte, lte, or, isNull, sql } from 'drizzle-orm';
+import { eq, and, lt, gt, gte, lte, or, isNull, sql, inArray } from 'drizzle-orm';
 import { marketingAutomations, automationLogs, subscriptions, tenantMembers, users, tenants, coupons, bookings, posOrders, classes, locations, waiverSignatures } from '@studio/db/src/schema'; // Added bookings, posOrders, locations, waiverSignatures
 import { EmailService } from './email';
 import { SmsService } from './sms'; // Active
@@ -161,24 +161,34 @@ export class AutomationsService {
                 lte(tenantMembers.joinedAt, cutoffDate)
             )).all();
 
+        // Step 2: Batch fetch latest activity for all candidates to avoid N+1
+        const memberIds = candidates.map(c => c.memberId);
+        if (!memberIds.length) return;
+
+        const lastActivities = await this.db.select({
+            memberId: bookings.memberId,
+            lastActive: sql<number>`MAX(CASE 
+                WHEN ${bookings.checkedInAt} IS NOT NULL THEN ${bookings.checkedInAt}
+                ELSE ${bookings.createdAt}
+            END)`
+        })
+            .from(bookings)
+            .where(and(
+                inArray(bookings.memberId, memberIds),
+                eq(bookings.status, 'confirmed')
+            ))
+            .groupBy(bookings.memberId)
+            .all();
+
+        const activityMap = new Map(lastActivities.map(a => [a.memberId, a.lastActive]));
+
         for (const c of candidates) {
-            // Find their LAST active participation (checked in or just confirmed booking)
-            const lastBooking = await this.db.query.bookings.findFirst({
-                where: and(
-                    eq(bookings.memberId, c.memberId),
-                    eq(bookings.status, 'confirmed')
-                ),
-                with: { class: true },
-                // Prioritize check-in time, then class start time
-                orderBy: [sql`${bookings.checkedInAt} desc`, sql`${bookings.createdAt} desc`],
-            });
+            const lastActiveTimestamp = activityMap.get(c.memberId);
+            if (!lastActiveTimestamp) continue;
 
-            if (!lastBooking) continue;
+            const lastActiveDate = new Date(lastActiveTimestamp);
 
-            // Determine last activity date: Prefer check-in, fallback to class start time
-            const lastActiveDate = lastBooking.checkedInAt ? new Date(lastBooking.checkedInAt) : (lastBooking.class?.startTime ? new Date(lastBooking.class.startTime) : null);
-
-            if (lastActiveDate && lastActiveDate < cutoffDate) {
+            if (lastActiveDate < cutoffDate) {
                 await this.executeAutomation(auto, {
                     userId: c.userId,
                     email: c.email,

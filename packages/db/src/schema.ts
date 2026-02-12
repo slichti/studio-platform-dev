@@ -423,6 +423,8 @@ export const bookings = sqliteTable('bookings', {
     memberStatusIdx: index('member_status_idx').on(table.memberId, table.status),
     waitlistIdx: index('booking_waitlist_idx').on(table.classId, table.waitlistPosition),
     classStatusIdx: index('booking_class_status_idx').on(table.classId, table.status), // Fast roster fetch
+    memberActiveIdx: index('booking_member_active_idx').on(table.memberId, table.status, table.checkedInAt), // Optimization for win-back logic
+    createdIdx: index('booking_created_idx').on(table.createdAt), // Fast sorting by creation time
 }));
 
 // --- Appointments (Private Sessions) ---

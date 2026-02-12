@@ -136,67 +136,63 @@ export class UsageService {
     }
 
     async getUsage() {
-        // 1. Count Students (Members with role 'student')
-        // Actually, schema has roles in separate table. 
-        // For simplicity, let's count all members as "Users" or specifically query roles.
-        // Let's count Total Active Members for now.
-        const memberCount = await this.db.select({ count: count() })
-            .from(tenantMembers)
-            .where(and(eq(tenantMembers.tenantId, this.tenantId), eq(tenantMembers.status, 'active')))
-            .get();
+        // Use db.batch for performance - reduces 5 round-trips to 1.
+        const [memberCountRes, locationCountRes, instructorCountRes, classesThisWeekRes, tenantRes] = await this.db.batch([
+            // 1. Count Students (Active Members)
+            this.db.select({ count: count() })
+                .from(tenantMembers)
+                .where(and(eq(tenantMembers.tenantId, this.tenantId), eq(tenantMembers.status, 'active'))),
 
-        // 2. Count Locations
-        // const { locations, tenantRoles } = await import('@studio/db/src/schema'); // Moved to top-level
-        const locationCount = await this.db.select({ count: count() })
-            .from(locations)
-            .where(eq(locations.tenantId, this.tenantId))
-            .get();
+            // 2. Count Locations
+            this.db.select({ count: count() })
+                .from(locations)
+                .where(eq(locations.tenantId, this.tenantId)),
 
-        // Count Instructors
-        // We need to join tenantMembers -> tenantRoles
-        // But simpler: just count tenantRoles where role='instructor' AND member belongs to tenant
-        // Since tenantRoles doesn't have tenantId, we join tenantMembers.
-        const instructorCount = await this.db.select({ count: count() })
-            .from(tenantRoles)
-            .innerJoin(tenantMembers, eq(tenantRoles.memberId, tenantMembers.id))
-            .where(and(
-                eq(tenantMembers.tenantId, this.tenantId),
-                eq(tenantRoles.role, 'instructor'),
-                eq(tenantMembers.status, 'active')
-            ))
-            .get();
+            // 3. Count Instructors
+            this.db.select({ count: count() })
+                .from(tenantRoles)
+                .innerJoin(tenantMembers, eq(tenantRoles.memberId, tenantMembers.id))
+                .where(and(
+                    eq(tenantMembers.tenantId, this.tenantId),
+                    eq(tenantRoles.role, 'instructor'),
+                    eq(tenantMembers.status, 'active')
+                )),
 
-        // 4. Count Classes this week
-        const now = new Date();
-        const startOfWeek = new Date(now);
-        const day = startOfWeek.getDay();
-        const diff = startOfWeek.getDate() - (day === 0 ? 6 : day - 1); // Monday
-        startOfWeek.setDate(diff);
-        startOfWeek.setHours(0, 0, 0, 0);
+            // 4. Count Classes this week
+            (() => {
+                const now = new Date();
+                const startOfWeek = new Date(now);
+                const day = startOfWeek.getDay();
+                const diff = startOfWeek.getDate() - (day === 0 ? 6 : day - 1); // Monday
+                startOfWeek.setDate(diff);
+                startOfWeek.setHours(0, 0, 0, 0);
+                return this.db.select({ count: count() })
+                    .from(classes)
+                    .where(and(
+                        eq(classes.tenantId, this.tenantId),
+                        gte(classes.startTime, startOfWeek)
+                    ));
+            })(),
 
-        const classesThisWeek = await this.db.select({ count: count() })
-            .from(classes)
-            .where(and(
-                eq(classes.tenantId, this.tenantId),
-                gte(classes.startTime, startOfWeek)
-            ))
-            .get();
+            // 5. SMS, Email, Streaming Usage (from tenants table)
+            this.db.select({
+                smsUsage: tenants.smsUsage,
+                emailUsage: tenants.emailUsage,
+                streamingUsage: tenants.streamingUsage,
+                smsLimit: tenants.smsLimit,
+                emailLimit: tenants.emailLimit,
+                streamingLimit: tenants.streamingLimit,
+                storageUsage: tenants.storageUsage,
+                tier: tenants.tier
+            }).from(tenants).where(eq(tenants.id, this.tenantId))
+        ]);
 
-        // 5. SMS, Email, Streaming Usage (from tenants table)
-        const tenant = await this.db.select({
-            smsUsage: tenants.smsUsage,
-            emailUsage: tenants.emailUsage,
-            streamingUsage: tenants.streamingUsage,
+        const memberCount = memberCountRes[0];
+        const locationCount = locationCountRes[0];
+        const instructorCount = instructorCountRes[0];
+        const classesThisWeek = classesThisWeekRes[0];
+        const tenant = tenantRes[0];
 
-            smsLimit: tenants.smsLimit,
-            emailLimit: tenants.emailLimit,
-            streamingLimit: tenants.streamingLimit,
-
-            storageUsage: tenants.storageUsage,
-            tier: tenants.tier
-        }).from(tenants).where(eq(tenants.id, this.tenantId)).get();
-
-        // 5. Storage (From DB Column, updated via Uploads)
         const storageBytes = tenant?.storageUsage || 0;
         const storageGB = storageBytes / (1024 * 1024 * 1024);
 
@@ -211,7 +207,6 @@ export class UsageService {
             streamingUsage: tenant?.streamingUsage || 0,
 
             tier: tenant?.tier || 'launch',
-            // Return effective limits (manual override vs tier default)
             smsLimit: tenant?.smsLimit ?? PricingService.getTierConfig(tenant?.tier).limits.sms,
             emailLimit: tenant?.emailLimit ?? PricingService.getTierConfig(tenant?.tier).limits.email,
             streamingLimit: tenant?.streamingLimit ?? PricingService.getTierConfig(tenant?.tier).limits.streamingMinutes,
@@ -322,27 +317,32 @@ export class UsageService {
         };
         const column = tenants[columnMap[service] as keyof typeof tenants];
 
-        // 1. Update Counter
+        // Combine update and log into a single round-trip
+        const batch: any[] = [];
+
         if (column) {
-            await this.db.update(tenants)
-                .set({ [columnMap[service]]: sql`${column} + ${amount}` })
-                .where(eq(tenants.id, this.tenantId))
-                .run();
+            batch.push(
+                this.db.update(tenants)
+                    .set({ [columnMap[service]]: sql`${column} + ${amount}` })
+                    .where(eq(tenants.id, this.tenantId))
+            );
         }
 
-        // 2. Log Event
-        try {
-            await this.db.insert(usageLogs).values({
+        batch.push(
+            this.db.insert(usageLogs).values({
                 id: crypto.randomUUID(),
                 tenantId: this.tenantId,
                 metric: service,
                 value: amount,
                 timestamp: new Date(),
                 meta: metadata ? JSON.stringify(metadata) : null
-            }).run();
+            })
+        );
+
+        try {
+            await this.db.batch(batch);
         } catch (e) {
-            console.error("Failed to insert usage_log", e);
-            // Don't fail the operation just because logging failed
+            console.error("Failed to execute usage batch", e);
         }
     }
 

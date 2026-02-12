@@ -1,6 +1,6 @@
 import { createDb } from '../db';
 import { classes, appointments } from '@studio/db/src/schema';
-import { and, eq, sql, ne } from 'drizzle-orm';
+import { and, eq, sql, ne, lt, gt } from 'drizzle-orm';
 
 export class ConflictService {
     constructor(private db: ReturnType<typeof createDb>) { }
@@ -10,14 +10,17 @@ export class ConflictService {
      */
     async checkInstructorConflict(instructorId: string, startTime: Date, durationMinutes: number, excludeEventId?: string) {
         const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
+        const earliestStart = new Date(startTime.getTime() - 24 * 60 * 60 * 1000); // 24h look-back for safety
 
         // Check Classes
         const classConflicts = await this.db.select().from(classes).where(and(
             eq(classes.instructorId, instructorId),
             excludeEventId ? ne(classes.id, excludeEventId) : undefined,
             eq(classes.status, 'active'),
-            // Overlap logic: (StartA < EndB) AND (EndA > StartB)
-            sql`${classes.startTime} < ${endTime}`,
+            // Indexed filters first
+            lt(classes.startTime, endTime),
+            gt(classes.startTime, earliestStart),
+            // Precise overlap logic
             sql`datetime(${classes.startTime} / 1000, '+' || ${classes.durationMinutes} || ' minutes') > datetime(${startTime.getTime() / 1000}, 'unixepoch')`
         )).all();
 
@@ -41,12 +44,16 @@ export class ConflictService {
      */
     async checkRoomConflict(locationId: string, startTime: Date, durationMinutes: number, excludeEventId?: string) {
         const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
+        const earliestStart = new Date(startTime.getTime() - 24 * 60 * 60 * 1000);
 
         const classConflicts = await this.db.select().from(classes).where(and(
             eq(classes.locationId, locationId),
             excludeEventId ? ne(classes.id, excludeEventId) : undefined,
             eq(classes.status, 'active'),
-            sql`${classes.startTime} < ${endTime}`,
+            // Indexed filters first
+            lt(classes.startTime, endTime),
+            gt(classes.startTime, earliestStart),
+            // Precise overlap logic
             sql`datetime(${classes.startTime} / 1000, '+' || ${classes.durationMinutes} || ' minutes') > datetime(${startTime.getTime() / 1000}, 'unixepoch')`
         )).all();
 

@@ -70,7 +70,9 @@ app.openapi(createRoute({
             start: z.string().optional(),
             end: z.string().optional(),
             instructorId: z.string().optional(),
-            locationId: z.string().optional()
+            locationId: z.string().optional(),
+            limit: z.coerce.number().int().positive().default(50).optional(),
+            offset: z.coerce.number().int().nonnegative().default(0).optional()
         })
     },
     responses: {
@@ -79,7 +81,7 @@ app.openapi(createRoute({
 }), async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const { start, end, instructorId, locationId } = c.req.valid('query');
+    const { start, end, instructorId, locationId, limit, offset } = c.req.valid('query');
 
     const conds = [eq(classes.tenantId, tenant.id)];
     if (start) conds.push(gte(classes.startTime, new Date(start)));
@@ -87,7 +89,13 @@ app.openapi(createRoute({
     if (instructorId) conds.push(eq(classes.instructorId, instructorId));
     if (locationId) conds.push(eq(classes.locationId, locationId));
 
-    const results = await db.query.classes.findMany({ where: and(...conds), with: { instructor: { with: { user: true } }, location: true }, orderBy: [desc(classes.startTime)] });
+    const results = await db.query.classes.findMany({
+        where: and(...conds),
+        with: { instructor: { with: { user: true } }, location: true },
+        orderBy: [desc(classes.startTime)],
+        limit: limit || 100, // Safety fallback
+        offset: offset || 0
+    });
     if (!results.length) return c.json([]);
 
     const classIds = results.map(r => r.id);
