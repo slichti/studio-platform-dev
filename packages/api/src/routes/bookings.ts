@@ -27,6 +27,9 @@ app.get('/:id', async (c) => {
         with: { class: true }
     });
     if (!b) return c.json({ error: "Not found" }, 404);
+    if ((b as any).class?.tenantId !== c.get('tenant')!.id) {
+        return c.json({ error: "Forbidden" }, 403);
+    }
 
     const auth = c.get('auth')!;
     const roles = c.get('roles') || [];

@@ -162,26 +162,23 @@ export class AutomationsService {
             )).all();
 
         for (const c of candidates) {
-            // Find their LAST confirmed booking time
-            // We use findFirst + orderBy desc to get the latest
+            // Find their LAST active participation (checked in or just confirmed booking)
             const lastBooking = await this.db.query.bookings.findFirst({
                 where: and(
                     eq(bookings.memberId, c.memberId),
-                    eq(bookings.status, 'confirmed'),
-                    // We only care about past classes to determine absence, not future bookings
-                    lt(bookings.createdAt, now) // using createdAt as proxy if startTime not indexed, but ideally startTime of class
+                    eq(bookings.status, 'confirmed')
                 ),
                 with: { class: true },
-                orderBy: (bookings: any, { desc }: any) => [desc(bookings.checkedInAt)],
+                // Prioritize check-in time, then class start time
+                orderBy: [sql`${bookings.checkedInAt} desc`, sql`${bookings.createdAt} desc`],
             });
 
-            // If they have NEVER booked, we might want to skip or treat as absent?
-            // "Absent" usually means "Stopped coming". If they never came, that's "New Member Nudge".
             if (!lastBooking) continue;
 
-            // Determine last activity date
-            const lastActive = (lastBooking as any).class?.startTime || (lastBooking.checkedInAt ? new Date(lastBooking.checkedInAt) : new Date(lastBooking.createdAt));
-            if (lastActive < cutoffDate) {
+            // Determine last activity date: Prefer check-in, fallback to class start time
+            const lastActiveDate = lastBooking.checkedInAt ? new Date(lastBooking.checkedInAt) : (lastBooking.class?.startTime ? new Date(lastBooking.class.startTime) : null);
+
+            if (lastActiveDate && lastActiveDate < cutoffDate) {
                 await this.executeAutomation(auto, {
                     userId: c.userId,
                     email: c.email,
@@ -379,22 +376,24 @@ export class AutomationsService {
                 }
             }
         } else if (auto.triggerEvent === 'class_booked') {
-            const newBookings = await this.db.select()
+            const newBookings = await this.db.select({
+                id: bookings.id,
+                classId: bookings.classId,
+                memberId: bookings.memberId,
+                createdAt: bookings.createdAt
+            })
                 .from(bookings)
+                .innerJoin(classes, eq(bookings.classId, classes.id))
                 .where(and(
+                    eq(classes.tenantId, this.tenantId),
                     eq(bookings.status, 'confirmed'),
                     gte(bookings.createdAt, windowStart),
                     lte(bookings.createdAt, targetTime)
                 )).all();
-            if (newBookings.length === 0) {
-                const someBookings = await this.db.select().from(bookings).limit(5).all();
-                if (someBookings.length > 0) {
-                }
-            }
 
             for (const b of newBookings) {
                 const cls = await this.db.query.classes.findFirst({
-                    where: and(eq(classes.id, b.classId), eq(classes.tenantId, this.tenantId)),
+                    where: eq(classes.id, b.classId),
                     with: { series: true }
                 });
                 if (!cls) continue;
