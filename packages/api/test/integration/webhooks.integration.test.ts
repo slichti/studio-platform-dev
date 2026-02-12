@@ -1,58 +1,86 @@
-
-import { describe, it, expect, vi } from 'vitest';
-import { env } from 'cloudflare:test';
-import app from '../../src/index';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { env, SELF } from 'cloudflare:test';
+import * as schema from '@studio/db/src/schema';
+import { setupTestDb } from './test-utils';
 
 describe('Webhook Integration', () => {
-    // Setup a mock tenant & endpoint
     const TENANT_ID = 'test_tenant_webhooks';
     const ENDPOINT_ID = 'ep_123';
     const SECRET = 'sec_123';
 
+    let db: any;
+
+    beforeAll(async () => {
+        db = await setupTestDb(env.DB);
+    });
+
     it('should be able to trigger a test webhook', async () => {
+        const ADMIN_ID = 'user_admin';
         // 1. Seed DB
-        await env.DB.prepare(`INSERT INTO tenants (id, slug, name) VALUES (?, 'webhook-test', 'Webhook Test')`)
-            .bind(TENANT_ID)
-            .run();
+        await db.insert(schema.tenants).values({
+            id: TENANT_ID,
+            slug: 'webhook-test',
+            name: 'Webhook Test'
+        }).run();
+
+        // Seed Admin User
+        await db.insert(schema.users).values({
+            id: ADMIN_ID,
+            email: 'admin@test.com'
+        }).run();
+
+        const MEMBER_ID = 'm_admin';
+        await db.insert(schema.tenantMembers).values({
+            id: MEMBER_ID,
+            tenantId: TENANT_ID,
+            userId: ADMIN_ID,
+            status: 'active'
+        }).run();
+
+        await db.insert(schema.tenantRoles).values({
+            id: 'r_admin',
+            memberId: MEMBER_ID,
+            role: 'owner'
+        }).run();
 
         // Enable feature
-        await env.DB.prepare(`INSERT INTO tenant_features (id, tenant_id, feature_key, enabled) VALUES ('f_1', ?, 'webhooks', 1)`)
-            .bind(TENANT_ID)
-            .run();
+        await db.insert(schema.tenantFeatures).values({
+            id: 'f_webhooks',
+            tenantId: TENANT_ID,
+            featureKey: 'webhooks',
+            enabled: true
+        }).run();
 
         // Create Endpoint
-        await env.DB.prepare(`
-            INSERT INTO webhook_endpoints (id, tenant_id, url, secret, events, is_active, created_at) 
-            VALUES (?, ?, 'https://example.com/webhook', ?, '["student.created"]', 1, ?)
-        `)
-            .bind(ENDPOINT_ID, TENANT_ID, SECRET, new Date().toISOString())
-            .run();
+        await db.insert(schema.webhookEndpoints).values({
+            id: ENDPOINT_ID,
+            tenantId: TENANT_ID,
+            url: 'https://example.com/webhook',
+            secret: SECRET,
+            events: ['student.created'],
+            isActive: true,
+            createdAt: new Date()
+        }).run();
 
         // Mock global fetch for the outgoing request
-        const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(new Response('OK', { status: 200 }));
+        vi.spyOn(global, 'fetch').mockResolvedValue(new Response('OK', { status: 200 }));
 
-        // 2. Make Request to test API
-        // We need to bypass Auth or mock it.
-        // Hono middleware uses `c.env.DB` etc.
-        // For simple integration, we can try to call the handler directly or mock the auth middleware.
-        // HOWEVER, since we have full app integration, let's try to mock the context 'can' and 'tenant'.
-
-        // Actually, our app uses `authMiddleware`. We'd need a valid token or mock.
-        // Strategy: We will mock `c.get` by mocking the middleware if possible, or just test the service logic if we extracted it.
-        // Since we are testing the route, we need to bypass auth.
-
-        // For this task, let's just test that the endpoint exists and DB querying works, 
-        // as mocking full Auth middleware in this setup might be complex without a helper.
-        // But we CAN test the public parts or check if 403 is returned correctly.
-
-        const req = new Request(`http://localhost/webhooks/${ENDPOINT_ID}/test`, {
+        const req = new Request(`http://localhost/tenant/webhooks/test`, {
             method: 'POST',
-            body: JSON.stringify({ eventType: 'test.ping', payload: {} })
+            body: JSON.stringify({ eventType: 'test.ping', payload: { foo: 'bar' } }),
+            headers: {
+                'X-Tenant-Id': TENANT_ID,
+                'TEST-AUTH': ADMIN_ID,
+                'Content-Type': 'application/json'
+            }
         });
 
-        const res = await app.fetch(req, env);
-
-        // Expect 403 because we didn't provide auth headers and didn't mock middleware
-        expect(res.status).toBe(403);
+        const res = await SELF.fetch(req);
+        if (res.status !== 200) {
+            throw new Error(`Webhook test failed: ${res.status} - ${await res.text()}`);
+        }
+        expect(res.status).toBe(200);
+        const data: any = await res.json();
+        expect(data.success).toBe(true);
     });
 });

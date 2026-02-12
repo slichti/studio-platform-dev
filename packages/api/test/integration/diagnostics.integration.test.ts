@@ -1,58 +1,40 @@
+import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
-import { env } from 'cloudflare:test';
-import worker from '../../src/index';
+import * as schema from '@studio/db/src/schema';
+import { setupTestDb } from './test-utils';
 
 describe('Diagnostics Integration', () => {
+    let db: any;
+    const ADMIN_ID = 'platform_admin';
 
     beforeAll(async () => {
-        // Manually apply minimal schema using batch() to avoid exec() tooling bugs
-        await env.DB.batch([
-            env.DB.prepare(`
-                CREATE TABLE IF NOT EXISTS audit_logs (
-                    id TEXT PRIMARY KEY, 
-                    action TEXT, 
-                    created_at INTEGER, 
-                    details TEXT, 
-                    ip_address TEXT,
-                    tenant_id TEXT,
-                    actor_id TEXT,
-                    target_id TEXT,
-                    country TEXT,
-                    city TEXT,
-                    region TEXT
-                )
-            `),
-            env.DB.prepare(`
-                CREATE TABLE IF NOT EXISTS tenants (
-                    id TEXT PRIMARY KEY,
-                    status TEXT
-                )
-            `)
-        ]);
+        db = await setupTestDb(env.DB);
+
+        // Seed Platform Admin
+        await db.insert(schema.users).values({
+            id: ADMIN_ID,
+            email: 'admin@studio.com',
+            isPlatformAdmin: 1,
+            role: 'user'
+        }).run();
     });
 
     it('should return 200 OK and database status', async () => {
-        const req = new Request('http://localhost/diagnostics', {
+        const response = await SELF.fetch('https://api.studio.local/diagnostics', {
             method: 'GET',
             headers: {
-                'TEST-AUTH': 'platform_admin' // Mocks authentication
+                'TEST-AUTH': ADMIN_ID
             }
         });
 
-        // Use the worker's fetch handler with the integration environment
-        const waitUntils: Promise<any>[] = [];
-        const response = await worker.fetch(req, env, {
-            waitUntil: (p: Promise<any>) => waitUntils.push(p),
-            passThroughOnException: () => { }
-        } as any);
-
-        await Promise.all(waitUntils);
+        if (response.status !== 200) {
+            console.log('Diagnostics Error:', await response.clone().text());
+        }
 
         expect(response.status).toBe(200);
 
         const data: any = await response.json();
         expect(data.status).toBe('ok');
         expect(data.latency).toBeDefined();
-        // Since it's a real D1 (empty or not), it should pass or fail gracefully
     });
 });

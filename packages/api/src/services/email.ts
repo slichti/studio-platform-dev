@@ -317,7 +317,10 @@ export class EmailService {
 
     // Legacy support for plain HTML generic emails
     async sendGenericEmail(to: string, subject: string, html: string, isNotification = false) {
-        if (!await this.checkAndTrackUsage()) return;
+        if (!await this.checkAndTrackUsage()) {
+            await this.logEmail(to, subject, 'generic_email', { html }, 'failed', 'Usage limit reached');
+            return;
+        }
         try {
             await this.resend.emails.send({
                 ...this.getEmailOptions(),
@@ -326,8 +329,10 @@ export class EmailService {
                 html
             });
             await this.incrementUsage();
+            await this.logEmail(to, subject, 'generic_email', { html }, 'sent');
         } catch (e: any) {
             console.error("Generic email failed", e);
+            await this.logEmail(to, subject, 'generic_email', { html }, 'failed', e.message);
             throw e;
         }
     }

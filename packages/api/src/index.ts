@@ -248,6 +248,7 @@ const authenticatedPaths = [
   '/substitutions', '/substitutions/*',
   '/leads', '/leads/*',
   '/pos', '/pos/*',
+  '/tenant', '/tenant/*',
   '/uploads', '/uploads/*',
   '/referrals', '/referrals/*',
   '/coupons', '/coupons/*',
@@ -588,7 +589,7 @@ app.route('/jobs', jobs);
 app.route('/video', video);
 app.route('/video-management', videoManagement);
 
-app.route('/tenant', studioApp);
+
 studioApp.route('/roles', rolesRoutes); // [NEW] RBAC Management
 
 app.route('/users', userRoutes);
@@ -626,6 +627,8 @@ studioApp.route('/webhooks', tenantWebhooksRouter);
 studioApp.route('/domain', tenantDomainRouter); // [NEW] Domain Management
 
 studioApp.route('/progress', progressRoutes); // [NEW] Progress Tracking
+
+app.route('/tenant', studioApp);
 
 import { scheduled } from './cron';
 

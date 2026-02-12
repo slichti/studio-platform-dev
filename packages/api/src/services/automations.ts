@@ -171,6 +171,7 @@ export class AutomationsService {
                     // We only care about past classes to determine absence, not future bookings
                     lt(bookings.createdAt, now) // using createdAt as proxy if startTime not indexed, but ideally startTime of class
                 ),
+                with: { class: true },
                 orderBy: (bookings: any, { desc }: any) => [desc(bookings.checkedInAt)],
             });
 
@@ -178,20 +179,14 @@ export class AutomationsService {
             // "Absent" usually means "Stopped coming". If they never came, that's "New Member Nudge".
             if (!lastBooking) continue;
 
-            // If last check-in was recorded
-            if (lastBooking.checkedInAt) {
-                const lastDate = new Date(lastBooking.checkedInAt);
-                if (lastDate < cutoffDate) {
-                    // Double check we haven't sent this automations RECENTLY (e.g. within last 30 days)
-                    // executeAutomation handles "any log exists", so we might want to relax that check for "Absent"
-                    // to allow re-sending every X months.
-
-                    await this.executeAutomation(auto, {
-                        userId: c.userId,
-                        email: c.email,
-                        firstName: (c.profile as any)?.firstName
-                    });
-                }
+            // Determine last activity date
+            const lastActive = (lastBooking as any).class?.startTime || (lastBooking.checkedInAt ? new Date(lastBooking.checkedInAt) : new Date(lastBooking.createdAt));
+            if (lastActive < cutoffDate) {
+                await this.executeAutomation(auto, {
+                    userId: c.userId,
+                    email: c.email,
+                    firstName: (c.profile as any)?.firstName
+                });
             }
         }
     }
@@ -391,6 +386,11 @@ export class AutomationsService {
                     gte(bookings.createdAt, windowStart),
                     lte(bookings.createdAt, targetTime)
                 )).all();
+            if (newBookings.length === 0) {
+                const someBookings = await this.db.select().from(bookings).limit(5).all();
+                if (someBookings.length > 0) {
+                }
+            }
 
             for (const b of newBookings) {
                 const cls = await this.db.query.classes.findFirst({
@@ -662,7 +662,6 @@ export class AutomationsService {
             }
         }
 
-        // 3. Send
         try {
             if (channels.includes('email') && context.email) {
                 if (automation.templateId) {
