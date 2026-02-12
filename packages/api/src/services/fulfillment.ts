@@ -59,10 +59,16 @@ export class FulfillmentService {
                     });
 
                     if (pendingReferral) {
-                        // Update Referral to Success
+                        // Update Referral to Success/Paid
                         await this.db.update(referralRewards)
-                            .set({ status: 'success', completedAt: new Date() })
+                            .set({ status: 'paid', paidAt: new Date() })
                             .where(eq(referralRewards.id, pendingReferral.id))
+                            .run();
+
+                        // Accumulate earnings on the code
+                        await this.db.update(referralCodes)
+                            .set({ earnings: sql`${referralCodes.earnings} + ${pendingReferral.amount}` })
+                            .where(and(eq(referralCodes.tenantId, metadata.tenantId), eq(referralCodes.userId, pendingReferral.referrerUserId)))
                             .run();
 
                         // Trigger Automation: referral_conversion_success

@@ -24,7 +24,8 @@ export type Permission =
     | 'manage_commerce'
     | 'view_pos'
     | 'view_progress'
-    | 'manage_progress';
+    | 'manage_progress'
+    | 'manage_payroll';
 
 export const RolePermissions: Record<string, Permission[]> = {
     owner: [ // All permissions + administrative
@@ -42,7 +43,8 @@ export const RolePermissions: Record<string, Permission[]> = {
         'manage_leads',
         'manage_community',
         'view_commerce', 'manage_commerce',
-        'view_progress', 'manage_progress'
+        'view_progress', 'manage_progress',
+        'manage_payroll'
     ],
     admin: [ // Operations Manager
         'view_tenant',
@@ -58,7 +60,8 @@ export const RolePermissions: Record<string, Permission[]> = {
         'manage_leads',
         'manage_community',
         'view_commerce', 'manage_commerce',
-        'view_progress', 'manage_progress'
+        'view_progress', 'manage_progress',
+        'manage_payroll'
     ],
     instructor: [ // Staff
         'view_members',

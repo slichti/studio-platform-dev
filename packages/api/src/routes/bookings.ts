@@ -95,17 +95,22 @@ app.post('/', async (c) => {
 // DELETE /:id
 app.delete('/:id', async (c) => {
     const db = createDb(c.env.DB);
-    const b = await db.select().from(bookings).where(eq(bookings.id, c.req.param('id'))).get();
+    const bid = c.req.param('id');
+    const auth = c.get('auth')!;
+    const tenant = c.get('tenant')!;
+
+    const b = await db.query.bookings.findFirst({
+        where: eq(bookings.id, bid),
+        with: { member: true }
+    });
     if (!b) return c.json({ error: "Not found" }, 404);
 
-    const auth = c.get('auth')!;
-    const member = await db.select().from(tenantMembers).where(and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, c.get('tenant')!.id))).get();
-    if (!member) return c.json({ error: "Unauthorized" }, 401);
+    if (b.member.userId !== auth.userId && !c.get('can')('manage_classes')) {
+        return c.json({ error: "Forbidden" }, 403);
+    }
 
-    if (b.memberId !== member.id && !c.get('can')('manage_classes')) return c.json({ error: "Forbidden" }, 403);
-
-    await db.delete(bookings).where(eq(bookings.id, b.id)).run();
-    c.executionCtx.waitUntil(checkAndPromoteWaitlist(b.classId, c.get('tenant')!.id, c.env));
+    const service = new BookingService(db, c.env);
+    await service.cancelBooking(bid);
     return c.json({ success: true });
 });
 

@@ -101,7 +101,9 @@ export async function setupTestDb(d1: D1Database) {
             payment_method TEXT, used_pack_id TEXT, external_source TEXT, external_id TEXT, 
             created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
+    ]);
 
+    await d1.batch([
         d1.prepare(`CREATE TABLE membership_plans (
             id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, description TEXT, 
             price INTEGER DEFAULT 0, currency TEXT DEFAULT 'usd', interval TEXT DEFAULT 'month', 
@@ -145,11 +147,20 @@ export async function setupTestDb(d1: D1Database) {
             metadata TEXT, completed_at INTEGER, created_at INTEGER DEFAULT (strftime('%s', 'now')), 
             updated_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
+    ]);
+
+    await d1.batch([
+        d1.prepare(`CREATE TABLE referral_codes (
+            id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, user_id TEXT NOT NULL, 
+            member_id TEXT, code TEXT NOT NULL, clicks INTEGER DEFAULT 0, 
+            signups INTEGER DEFAULT 0, earnings INTEGER DEFAULT 0, 
+            created_at INTEGER DEFAULT (strftime('%s', 'now')), active INTEGER DEFAULT 1
+        )`),
 
         d1.prepare(`CREATE TABLE referral_rewards (
             id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, referrer_user_id TEXT NOT NULL, 
             referred_user_id TEXT NOT NULL, status TEXT DEFAULT 'pending', amount INTEGER NOT NULL, 
-            currency TEXT DEFAULT 'usd', paid_at INTEGER, created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+            currency TEXT DEFAULT 'usd', paid_at INTEGER, created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
 
         d1.prepare(`CREATE TABLE gift_cards (
@@ -206,7 +217,9 @@ export async function setupTestDb(d1: D1Database) {
             enabled INTEGER DEFAULT 0, source TEXT DEFAULT 'manual', 
             updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
         )`),
+    ]);
 
+    await d1.batch([
         d1.prepare(`CREATE TABLE custom_roles (
             id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, 
             description TEXT, permissions TEXT NOT NULL, 
@@ -264,6 +277,28 @@ export async function setupTestDb(d1: D1Database) {
             category TEXT NOT NULL, unit TEXT NOT NULL, icon TEXT, 
             aggregation TEXT DEFAULT 'sum', visible_to_students INTEGER DEFAULT 1, 
             active INTEGER DEFAULT 1, display_order INTEGER DEFAULT 0, 
+            created_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )`),
+
+        d1.prepare(`CREATE TABLE payroll_config (
+            id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, member_id TEXT, 
+            user_id TEXT NOT NULL, pay_model TEXT NOT NULL, rate INTEGER NOT NULL, 
+            payout_basis TEXT DEFAULT 'net', created_at INTEGER DEFAULT (strftime('%s', 'now')), 
+            updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )`),
+
+        d1.prepare(`CREATE TABLE payouts (
+            id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, instructor_id TEXT NOT NULL, 
+            amount INTEGER NOT NULL, currency TEXT DEFAULT 'usd', 
+            period_start INTEGER NOT NULL, period_end INTEGER NOT NULL, 
+            status TEXT DEFAULT 'processing', paid_at INTEGER, 
+            stripe_transfer_id TEXT, notes TEXT, 
+            created_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )`),
+
+        d1.prepare(`CREATE TABLE payroll_items (
+            id TEXT PRIMARY KEY, payout_id TEXT NOT NULL, type TEXT NOT NULL, 
+            reference_id TEXT NOT NULL, amount INTEGER NOT NULL, details TEXT, 
             created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`)
     ]);

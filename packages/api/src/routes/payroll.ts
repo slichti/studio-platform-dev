@@ -97,22 +97,25 @@ app.post('/generate', async (c) => {
                 amount = config.rate;
                 details = `Flat rate per class`;
             } else if (config.payModel === 'hourly') {
-                const hours = cls.durationMinutes / 60;
-                amount = Math.round(config.rate * hours);
-                details = `${hours.toFixed(2)} hours @ $${(config.rate / 100).toFixed(2)}/hr`;
+                amount = Math.round((config.rate * cls.durationMinutes) / 60);
+                details = `${cls.durationMinutes} mins @ $${(config.rate / 100).toFixed(2)}/hr`;
             } else if (config.payModel === 'percentage') {
                 const classBookings = await db.query.bookings.findMany({
                     where: and(eq(bookings.classId, cls.id), eq(bookings.status, 'confirmed')),
                     with: { usedPack: true }
                 });
-                let revenue = 0;
+                let totalRevenueCents = 0;
                 for (const b of classBookings) {
-                    if (b.paymentMethod === 'drop_in') revenue += (cls.price || 0);
-                    else if (b.paymentMethod === 'credit' && b.usedPack) revenue += Math.round((b.usedPack.price || 0) / (b.usedPack.initialCredits || 1));
+                    if (b.paymentMethod === 'drop_in') totalRevenueCents += (cls.price || 0);
+                    else if (b.paymentMethod === 'credit' && b.usedPack) {
+                        totalRevenueCents += (b.usedPack.price || 0) / (b.usedPack.initialCredits || 1);
+                    }
                 }
+                const revenue = Math.round(totalRevenueCents);
                 let basisAmount = revenue, basisLabel = "Gross Revenue";
                 if (config.payoutBasis === 'net') {
-                    const estimatedFees = Math.round(revenue * 0.029) + (classBookings.filter(b => b.paymentMethod === 'drop_in').length * 30);
+                    // Floor fees to be conservative for the platform
+                    const estimatedFees = Math.floor(revenue * 0.029) + (classBookings.filter(b => b.paymentMethod === 'drop_in').length * 30);
                     basisAmount = Math.max(0, revenue - estimatedFees);
                     basisLabel = "Net Revenue (Est.)";
                 }
@@ -140,9 +143,8 @@ app.post('/generate', async (c) => {
                 amount = config.rate;
                 details = `Flat rate per appointment`;
             } else if (config.payModel === 'hourly') {
-                const hours = durationMinutes / 60;
-                amount = Math.round(config.rate * hours);
-                details = `${hours.toFixed(2)} hours @ $${(config.rate / 100).toFixed(2)}/hr`;
+                amount = Math.round((config.rate * durationMinutes) / 60);
+                details = `${durationMinutes} mins @ $${(config.rate / 100).toFixed(2)}/hr`;
             } else if (config.payModel === 'percentage') {
                 const revenue = apt.servicePrice || 0;
                 amount = Math.round(revenue * (config.rate / 10000));

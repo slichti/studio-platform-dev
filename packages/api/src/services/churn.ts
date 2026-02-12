@@ -27,11 +27,18 @@ export class ChurnService {
      */
     async analyzeMemberRisk(memberId: string): Promise<ChurnAnalysisResult> {
         const now = new Date();
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
-        // 1. Fetch Member & Basic Data
+        // 1. Fetch Member, User, and Active Subscriptions
         const member = await this.db.query.tenantMembers.findFirst({
             where: and(eq(tenantMembers.id, memberId), eq(tenantMembers.tenantId, this.tenantId)),
-            with: { user: true }
+            with: {
+                user: true,
+                memberships: {
+                    where: eq(schema.subscriptions.status, 'active')
+                }
+            }
         });
 
         if (!member) throw new Error("Member not found");
@@ -43,18 +50,12 @@ export class ChurnService {
             .where(and(
                 eq(bookings.memberId, memberId),
                 eq(classes.tenantId, this.tenantId),
-                gt(classes.startTime, new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000))
+                gt(classes.startTime, sixtyDaysAgo)
             ))
             .orderBy(desc(classes.startTime))
             .all();
 
         // 3. Analyze Attendance
-        // Note: bookings result from join has { bookings: ..., classes: ... } structure depending on select() args?
-        // select() with no args implies selection from both tables if they collide? 
-        // Drizzle .select() joins return { table1: ..., table2: ... } if fields collide or generic select.
-        // Let's assume standard behavior: we need to access fields correctly. 
-        // Actually, db.select().from(bookings).innerJoin(...) returns { bookings: ..., classes: ... } objects for each row.
-
         const confirmedBookings = recentBookings.filter(b => b.bookings.status === 'confirmed');
         const lastBooking = confirmedBookings[0]; // Most recent confirmed
 
@@ -63,7 +64,14 @@ export class ChurnService {
         const referenceDate = lastDate || joinedDate;
         const daysSince = Math.floor((now.getTime() - referenceDate.getTime()) / (1000 * 60 * 60 * 24));
 
-        // 4. Analyze Cancellations
+        // 4. Analyze Frequency Slope (Last 30 vs Preceding 30)
+        const period1Count = confirmedBookings.filter(b => new Date(b.classes.startTime) > thirtyDaysAgo).length;
+        const period2Count = confirmedBookings.filter(b => {
+            const date = new Date(b.classes.startTime);
+            return date <= thirtyDaysAgo && date > sixtyDaysAgo;
+        }).length;
+
+        // 5. Analyze Cancellations
         const cancelledBookings = recentBookings.filter(b => b.bookings.status === 'cancelled');
         const cancellationRate = recentBookings.length > 0 ? (cancelledBookings.length / recentBookings.length) : 0;
 
@@ -80,15 +88,42 @@ export class ChurnService {
             score -= 10;
         }
 
-        // Factor B: Cancellations (High cancellation rate is a sign of disengagement or scheduling friction)
+        // Factor B: Cancellations (High cancellation rate is a sign of disengagement)
         if (cancellationRate > 0.5 && recentBookings.length > 2) {
             score -= 20;
         }
 
         // Factor C: New Member Ghosting
         if (!lastDate && daysSince > 10) {
-            // Joined > 10 days ago but never attended
             score -= 40;
+        }
+
+        // Factor D: Frequency Slope (Significant drop-off)
+        if (period2Count >= 4 && period1Count <= 1) {
+            // Used to come once a week, now almost never
+            score -= 25;
+        } else if (period2Count > period1Count * 2 && period2Count > 2) {
+            // General decline
+            score -= 15;
+        }
+
+        // Factor E: Membership Expiry & Payment Issues
+        const activeSub = member.memberships?.[0];
+        if (activeSub) {
+            // Payment Failure (Dunning)
+            if (activeSub.dunningState && ['warning2', 'warning3', 'failed'].includes(activeSub.dunningState)) {
+                score -= 40;
+            } else if (activeSub.dunningState === 'warning1') {
+                score -= 15;
+            }
+
+            // Upcoming Expiry (Risk if not auto-renewing or specific conditions met)
+            if (activeSub.currentPeriodEnd) {
+                const daysUntilExpiry = Math.floor((activeSub.currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                if (daysUntilExpiry >= 0 && daysUntilExpiry < 7) {
+                    score -= 10; // Slight nudge risk
+                }
+            }
         }
 
         // Normalize
