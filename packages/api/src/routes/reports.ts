@@ -5,8 +5,13 @@ import { scheduledReports } from '@studio/db/src/schema';
 import { eq, and } from 'drizzle-orm';
 import { HonoContext } from '../types';
 import churnRouter from './reports.churn';
+import scheduledRouter from './reports.scheduled';
 
 const app = new Hono<HonoContext>();
+
+// Mount sub-routes
+app.route('/churn', churnRouter);
+app.route('/scheduled', scheduledRouter);
 
 // GET /revenue
 app.get('/revenue', async (c) => {

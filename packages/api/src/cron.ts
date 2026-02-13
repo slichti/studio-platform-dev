@@ -66,6 +66,25 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
             await monitoring.alert('Log Pruning Failed', error.message, { error });
         }
 
+        // 4. Execute Scheduled Reports
+        try {
+            console.log('📊 Executing scheduled reports...');
+            const response = await fetch(`${env.API_URL || 'http://localhost:8788'}/reports/scheduled/execute`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                console.log(`✅ Scheduled reports: Executed ${result.executed} reports`);
+            } else {
+                console.error('❌ Scheduled reports execution failed:', await response.text());
+            }
+        } catch (error: any) {
+            console.error('❌ Scheduled reports execution failed:', error.message);
+            await monitoring.alert('Scheduled Reports Failed', error.message, { error });
+        }
+
         return; // Exit early, don't run other cron logic
     }
 
