@@ -316,7 +316,7 @@ export class EmailService {
     }
 
     // Legacy support for plain HTML generic emails
-    async sendGenericEmail(to: string, subject: string, html: string, isNotification = false) {
+    async sendGenericEmail(to: string, subject: string, html: string, isNotification = false, attachments?: any[]) {
         if (!await this.checkAndTrackUsage()) {
             await this.logEmail(to, subject, 'generic_email', { html }, 'failed', 'Usage limit reached');
             return;
@@ -326,7 +326,8 @@ export class EmailService {
                 ...this.getEmailOptions(),
                 ...this.getRecipients(to, isNotification ? 'notification' : 'transactional'),
                 subject,
-                html
+                html,
+                attachments
             });
             await this.incrementUsage();
             await this.logEmail(to, subject, 'generic_email', { html }, 'sent');

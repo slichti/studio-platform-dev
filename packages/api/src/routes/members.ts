@@ -54,6 +54,7 @@ const listMembersRoute = createRoute({
     request: {
         query: z.object({
             q: z.string().optional().openapi({ description: 'Search query' }),
+            role: z.string().optional().openapi({ description: 'Filter by role' }),
             limit: z.coerce.number().int().positive().default(50).optional(),
             offset: z.coerce.number().int().nonnegative().default(0).optional()
         })
@@ -74,19 +75,13 @@ app.openapi(listMembersRoute, async (c) => {
     if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant')!;
-    const { q, limit = 50, offset = 0 } = c.req.valid('query');
+    const { q, role, limit = 50, offset = 0 } = c.req.valid('query');
 
     const conds = [eq(tenantMembers.tenantId, tenant.id)];
-
-    // SQLite JSON search is messy, but we can search users table which is joined
-    // For MVP, if q is provided, we might still need some filtering OR use SQL like
-    // Join users to search email/profile
-
     let whereClause = and(...conds);
 
     if (q) {
         const searchPattern = `%${q.toLowerCase()}%`;
-        // Search email OR firstName/lastName in profile JSON
         whereClause = and(
             whereClause,
             or(
@@ -97,35 +92,59 @@ app.openapi(listMembersRoute, async (c) => {
         );
     }
 
-    const { membersList, totalCount } = await db.transaction(async (tx: any) => {
-        const list = await tx.select({
-            member: tenantMembers,
-            user: users
-        })
-            .from(tenantMembers)
-            .innerJoin(users, eq(tenantMembers.userId, users.id))
-            .where(whereClause)
+    const query = db.select({
+        member: tenantMembers,
+        user: users
+    })
+        .from(tenantMembers)
+        .innerJoin(users, eq(tenantMembers.userId, users.id));
+
+    const countQuery = db.select({ count: sql<number>`count(*)` })
+        .from(tenantMembers)
+        .innerJoin(users, eq(tenantMembers.userId, users.id));
+
+    let finalWhere = whereClause;
+    let finalQuery = query;
+    let finalCountQuery = countQuery;
+
+    if (role) {
+        finalQuery = finalQuery.innerJoin(tenantRoles, eq(tenantRoles.memberId, tenantMembers.id));
+        finalCountQuery = finalCountQuery.innerJoin(tenantRoles, eq(tenantRoles.memberId, tenantMembers.id));
+        finalWhere = and(finalWhere, eq(tenantRoles.role, role as any));
+    }
+
+    const [list, countRes] = await Promise.all([
+        finalQuery
+            .where(finalWhere)
             .orderBy(desc(tenantMembers.joinedAt))
             .limit(limit)
             .offset(offset)
-            .all();
+            .all(),
+        finalCountQuery
+            .where(finalWhere)
+            .get()
+    ]);
 
-        const countRes = await tx.select({ count: sql<number>`count(*)` })
-            .from(tenantMembers)
-            .innerJoin(users, eq(tenantMembers.userId, users.id))
-            .where(whereClause)
-            .get();
+    const membersList = list;
+    const totalCount = Number((countRes as any)?.count || 0);
 
-        return { membersList: list, totalCount: Number(countRes?.count || 0) };
-    });
+    // Fetch roles for all members in the list
+    const memberIds = membersList.map(m => m.member.id);
+    const allRoles = memberIds.length > 0
+        ? await db.select().from(tenantRoles).where(inArray(tenantRoles.memberId, memberIds)).all()
+        : [];
 
     const result = membersList
         .filter((row: any) => !row.user.isPlatformAdmin)
-        .map((row: any) => ({
-            ...row.member,
-            user: row.user,
-            joinedAt: row.member.joinedAt ? new Date(row.member.joinedAt).toISOString() : undefined
-        }));
+        .map((row: any) => {
+            const memberRoles = allRoles.filter(r => r.memberId === row.member.id).map(r => ({ role: r.role }));
+            return {
+                ...row.member,
+                user: row.user,
+                roles: memberRoles,
+                joinedAt: row.member.joinedAt ? new Date(row.member.joinedAt).toISOString() : undefined
+            };
+        });
 
     return c.json({
         members: result,

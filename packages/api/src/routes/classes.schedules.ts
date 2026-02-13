@@ -2,8 +2,9 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { createOpenAPIApp } from '../lib/openapi';
 import { StudioVariables } from '../types';
 import { createDb } from '../db';
-import { classes, bookings } from '@studio/db/src/schema';
+import { classes, bookings, classSeries } from '@studio/db/src/schema';
 import { eq, sql, desc, and, gte, lte, inArray } from 'drizzle-orm';
+import { RRule } from 'rrule';
 import { EncryptionUtils } from '../utils/encryption';
 import { ZoomService } from '../services/zoom';
 import { ConflictService } from '../services/conflicts';
@@ -39,18 +40,28 @@ const ClassSchema = z.object({
 const CreateClassSchema = z.object({
     title: z.string(),
     description: z.string().optional(),
-    startTime: z.string().datetime(),
-    durationMinutes: z.number().int().positive(),
-    capacity: z.number().int().optional(),
-    price: z.number().min(0).optional(),
-    memberPrice: z.number().min(0).optional(),
+    startTime: z.coerce.date(),
+    durationMinutes: z.coerce.number().int().positive(),
+    capacity: z.coerce.number().int().optional(),
+    price: z.coerce.number().min(0).optional(),
+    memberPrice: z.coerce.number().min(0).optional(),
     instructorId: z.string().optional(),
     locationId: z.string().optional(),
     zoomEnabled: z.boolean().optional(),
+    createZoomMeeting: z.boolean().optional(), // Match frontend
     allowCredits: z.boolean().optional(),
     includedPlanIds: z.array(z.string()).optional(),
     payrollModel: z.enum(['flat', 'percentage', 'hourly']).optional(),
-    payrollValue: z.number().optional()
+    payrollValue: z.number().optional(),
+
+    // Recurring Logic
+    isRecurring: z.boolean().optional().default(false),
+    recurrenceRule: z.string().optional(),
+    recurrenceEnd: z.coerce.date().optional(), // Coerce for flexibility
+    minStudents: z.number().int().optional(),
+    autoCancelThreshold: z.number().int().optional(),
+    autoCancelEnabled: z.boolean().optional(),
+    type: z.enum(['class', 'workshop', 'event', 'appointment']).optional().default('class')
 });
 
 const UpdateClassSchema = CreateClassSchema.partial();
@@ -184,7 +195,7 @@ app.openapi(createRoute({
     }
 
     const body = c.req.valid('json');
-    const { title, startTime, durationMinutes, instructorId, locationId, zoomEnabled } = body;
+    const { title, startTime, durationMinutes, instructorId, locationId, zoomEnabled, createZoomMeeting, isRecurring, recurrenceRule, recurrenceEnd } = body;
 
     const cs = new ConflictService(db);
     const start = new Date(startTime);
@@ -193,44 +204,117 @@ app.openapi(createRoute({
     if (instructorId && (await cs.checkInstructorConflict(instructorId, start, dur)).length) return c.json({ error: "Instructor conflict" }, 409);
     if (locationId && (await cs.checkRoomConflict(locationId, start, dur)).length) return c.json({ error: "Location conflict" }, 409);
 
-    const id = crypto.randomUUID();
     let zm = { id: null, url: null, pwd: null };
-    if (zoomEnabled) {
-        try {
-            const zs = await ZoomService.getForTenant(tenant, c.env, new EncryptionUtils(c.env.ENCRYPTION_SECRET as string));
-            if (zs) {
-                const m: any = await zs.createMeeting(title, start, dur);
-                zm = { id: m.id?.toString(), url: m.join_url, pwd: m.password };
-            }
-        } catch (e) { console.error(e); }
+    const shouldCreateZoom = createZoomMeeting || zoomEnabled;
+
+    const createMeeting = async (mTitle: string, mStart: Date) => {
+        if (shouldCreateZoom) {
+            try {
+                const zs = await ZoomService.getForTenant(tenant, c.env, new EncryptionUtils(c.env.ENCRYPTION_SECRET as string));
+                if (zs) {
+                    const m: any = await zs.createMeeting(mTitle, mStart, dur);
+                    return { id: m.id?.toString(), url: m.join_url, pwd: m.password };
+                }
+            } catch (e) { console.error(e); }
+        }
+        return { id: null, url: null, pwd: null };
+    };
+
+    if (isRecurring && recurrenceRule) {
+        const seriesId = crypto.randomUUID();
+        await db.insert(classSeries).values({
+            id: seriesId,
+            tenantId: tenant.id,
+            instructorId: instructorId!,
+            locationId: locationId || null,
+            title,
+            description: body.description,
+            durationMinutes: dur,
+            price: body.price || 0,
+            recurrenceRule,
+            validFrom: start,
+            validUntil: recurrenceEnd ? new Date(recurrenceEnd) : null,
+            createdAt: new Date()
+        }).run();
+
+        const ruleStrings = recurrenceRule.split(';');
+        const options = RRule.parseString(recurrenceRule);
+        options.dtstart = start;
+        if (recurrenceEnd) options.until = new Date(recurrenceEnd);
+
+        const rule = new RRule(options);
+        const occurrences = rule.all();
+
+        const insertedClasses = [];
+        for (const occ of occurrences) {
+            const id = crypto.randomUUID();
+            const meeting = await createMeeting(title, occ);
+
+            const [nc] = await db.insert(classes).values({
+                id,
+                tenantId: tenant.id,
+                instructorId: instructorId || null,
+                locationId,
+                seriesId,
+                title,
+                description: body.description,
+                startTime: occ,
+                durationMinutes: dur,
+                capacity: body.capacity || null,
+                price: body.price || 0,
+                memberPrice: body.memberPrice || null,
+                type: body.type as any,
+                minStudents: body.minStudents || 1,
+                autoCancelThreshold: body.autoCancelThreshold || null,
+                autoCancelEnabled: !!body.autoCancelEnabled,
+                allowCredits: body.allowCredits !== false,
+                includedPlanIds: body.includedPlanIds || [],
+                zoomEnabled: !!zoomEnabled,
+                zoomMeetingId: meeting.id,
+                zoomMeetingUrl: meeting.url,
+                zoomPassword: meeting.pwd,
+                status: 'active',
+                payrollModel: body.payrollModel || null,
+                payrollValue: body.payrollValue || null,
+                createdAt: new Date()
+            }).returning();
+            insertedClasses.push(nc);
+        }
+        return c.json({ seriesId, classes: insertedClasses.length }, 201);
+    } else {
+        const id = crypto.randomUUID();
+        const meeting = await createMeeting(title, start);
+
+        const [nc] = await db.insert(classes).values({
+            id,
+            tenantId: tenant.id,
+            instructorId: instructorId || null,
+            locationId,
+            title,
+            description: body.description,
+            startTime: start,
+            durationMinutes: dur,
+            capacity: body.capacity || null,
+            price: body.price || 0,
+            memberPrice: body.memberPrice || null,
+            type: body.type as any,
+            minStudents: body.minStudents || 1,
+            autoCancelThreshold: body.autoCancelThreshold || null,
+            autoCancelEnabled: !!body.autoCancelEnabled,
+            allowCredits: body.allowCredits !== false,
+            includedPlanIds: body.includedPlanIds || [],
+            zoomEnabled: !!zoomEnabled,
+            zoomMeetingId: meeting.id,
+            zoomMeetingUrl: meeting.url,
+            zoomPassword: meeting.pwd,
+            status: 'active',
+            payrollModel: body.payrollModel || null,
+            payrollValue: body.payrollValue || null,
+            createdAt: new Date()
+        }).returning();
+
+        return c.json({ ...nc, startTime: nc.startTime.toISOString() }, 201);
     }
-
-    const [nc] = await db.insert(classes).values({
-        id,
-        tenantId: tenant.id,
-        instructorId: instructorId || null,
-        locationId,
-        title,
-        description: body.description,
-        startTime: start,
-        durationMinutes: dur,
-        capacity: body.capacity || null,
-        price: body.price || 0,
-        memberPrice: body.memberPrice || null,
-        type: 'class',
-        allowCredits: body.allowCredits !== false,
-        includedPlanIds: body.includedPlanIds || [],
-        zoomEnabled: !!zoomEnabled,
-        zoomMeetingId: zm.id,
-        zoomMeetingUrl: zm.url,
-        zoomPassword: zm.pwd,
-        status: 'active',
-        payrollModel: body.payrollModel || null,
-        payrollValue: body.payrollValue || null,
-        createdAt: new Date()
-    }).returning();
-
-    return c.json({ ...nc, startTime: nc.startTime.toISOString() }, 201);
 });
 
 // PATCH /:id

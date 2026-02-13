@@ -381,11 +381,29 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
         const emailService = new EmailService(env.RESEND_API_KEY, {
             branding: report.tenant.branding as any,
             settings: report.tenant.settings as any
-        });
+        }, { name: report.tenant.name });
+
+        const { PdfService } = await import('./services/pdf');
+        const pdfService = new PdfService(report.tenant.name, report.tenant.branding as any);
 
         try {
-            const summaryHtml = await reportService.generateEmailSummary(report.reportType as any, report.customReportId || undefined);
+            const end = new Date();
+            const start = new Date();
+            start.setDate(end.getDate() - 7); // Default to last 7 days
+
+            const reportData = await reportService.getReportData(report.reportType as any, start, end, report.customReportId || undefined);
+            const summaryHtml = await reportService.generateEmailSummary(report.reportType as any, reportData, report.customReportId || undefined);
+
+            const pdfBuffer = await pdfService.generateReportPdf(report.reportType as any, reportData, {
+                start: start.toISOString(),
+                end: end.toISOString()
+            });
+
             const recipients = report.recipients as string[];
+            const attachment = {
+                filename: `${report.reportType}_report_${end.toISOString().split('T')[0]}.pdf`,
+                content: Buffer.from(pdfBuffer)
+            };
 
             for (const recipient of recipients) {
                 await emailService.sendGenericEmail(
@@ -396,10 +414,13 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
                         <p>Hello,</p>
                         <p>This is your scheduled <strong>${report.reportType}</strong> report for <strong>${report.tenant.name}</strong>.</p>
                         ${summaryHtml}
+                        <p>The full report is attached as a PDF.</p>
                         <hr style="margin: 20px 0; border: 0; border-top: 1px solid #E5E7EB;" />
                         <p style="font-size: 12px; color: #9CA3AF;">You received this because you are subscribed to scheduled reports for ${report.tenant.name}.</p>
                     </div>
-                    `
+                    `,
+                    false,
+                    [attachment]
                 );
             }
 

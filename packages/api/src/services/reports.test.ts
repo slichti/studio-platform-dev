@@ -46,7 +46,8 @@ describe('ReportService Security', () => {
         // 4. dailyData
         mockAll.mockResolvedValueOnce([]);
 
-        const html = await service.generateEmailSummary('attendance');
+        const data = await service.getReportData('attendance', new Date(), new Date());
+        const html = await service.generateEmailSummary('attendance', data);
 
         // Assert
         expect(html).toContain('&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;');

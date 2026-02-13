@@ -676,13 +676,12 @@ export class ReportService {
         };
     }
 
-    async generateEmailSummary(reportType: 'revenue' | 'attendance' | 'journal' | 'custom', customReportId?: string) {
+    async generateEmailSummary(reportType: 'revenue' | 'attendance' | 'journal' | 'custom', data: any, customReportId?: string) {
         const end = new Date();
         const start = new Date();
         start.setDate(end.getDate() - 7); // Default to last 7 days for summary
 
         if (reportType === 'revenue') {
-            const data = await this.getRevenue(start, end);
             return `
                 <h2 style="color: #111827;">Revenue Summary</h2>
                 <p style="font-size: 24px; font-weight: bold; color: #059669;">$${(data.grossVolume / 100).toFixed(2)}</p>
@@ -694,7 +693,6 @@ export class ReportService {
                 </ul>
             `;
         } else if (reportType === 'attendance') {
-            const data = await this.getAttendance(start, end);
             return `
                 <h2 style="color: #111827;">Attendance Summary</h2>
                 <p style="font-size: 24px; font-weight: bold; color: #2563EB;">${data.totalBookings} Bookings</p>
@@ -705,9 +703,8 @@ export class ReportService {
                 </ul>
             `;
         } else if (reportType === 'journal') {
-            const data = await this.getJournal(start, end, 'json', 'USD') as any[];
-            const debits = data.reduce((sum, item) => sum + (item.debit || 0), 0);
-            const credits = data.reduce((sum, item) => sum + (item.credit || 0), 0);
+            const debits = data.reduce((sum: number, item: any) => sum + (item.debit || 0), 0);
+            const credits = data.reduce((sum: number, item: any) => sum + (item.credit || 0), 0);
             return `
                 <h2 style="color: #111827;">Accounting Journal Summary</h2>
                 <p style="color: #6B7280; font-size: 14px;">Period: ${start.toLocaleDateString()} - ${end.toLocaleDateString()}</p>
@@ -718,23 +715,11 @@ export class ReportService {
                 <p style="font-size: 12px; color: #9CA3AF; margin-top: 10px;">Login to the platform to download the full CSV export.</p>
             `;
         } else if (reportType === 'custom' && customReportId) {
-            const report = await this.db.select().from(customReports).where(and(eq(customReports.id, customReportId), eq(customReports.tenantId, this.tenantId))).get();
-            if (!report) return `<p>Custom report not found.</p>`;
-
-            const config = report.config as any;
-            const queryResult = await this.query({
-                metrics: config.metrics,
-                dimensions: config.dimensions,
-                filters: {
-                    startDate: start,
-                    endDate: end,
-                }
-            });
-
-            const metricsList = config.metrics.map((m: string) => `<li>${m.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}: ${queryResult.summary[m] || 0}</li>`).join('');
+            // Fetch report name if needed, but for summary we can just use metrics from data.summary
+            const metricsList = Object.entries(data.summary).map(([m, val]: [string, any]) => `<li>${m.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}: ${val || 0}</li>`).join('');
 
             return `
-                <h2 style="color: #111827;">Custom Report: ${escapeHtml(report.name)}</h2>
+                <h2 style="color: #111827;">Custom Report Summary</h2>
                 <p style="color: #6B7280; font-size: 14px;">Period: ${start.toLocaleDateString()} - ${end.toLocaleDateString()}</p>
                 <div style="background: #F9FAFB; padding: 15px; border-radius: 8px;">
                     <ul style="color: #374151; font-size: 14px; padding-left: 20px; margin: 0;">
@@ -750,5 +735,25 @@ export class ReportService {
         const { ChurnService } = await import('./churn');
         const churnService = new ChurnService(this.db, this.tenantId);
         return await churnService.getAtRiskMembers(threshold);
+    }
+
+    async getReportData(reportType: 'revenue' | 'attendance' | 'journal' | 'custom', start: Date, end: Date, customReportId?: string) {
+        if (reportType === 'revenue') {
+            return await this.getRevenue(start, end);
+        } else if (reportType === 'attendance') {
+            return await this.getAttendance(start, end);
+        } else if (reportType === 'journal') {
+            return await this.getJournal(start, end, 'json', 'USD');
+        } else if (reportType === 'custom' && customReportId) {
+            const report = await this.db.select().from(customReports).where(and(eq(customReports.id, customReportId), eq(customReports.tenantId, this.tenantId))).get();
+            if (!report) throw new Error('Custom report not found');
+            const config = report.config as any;
+            return await this.query({
+                metrics: config.metrics,
+                dimensions: config.dimensions,
+                filters: { startDate: start, endDate: end }
+            });
+        }
+        throw new Error(`Unsupported report type: ${reportType}`);
     }
 }
