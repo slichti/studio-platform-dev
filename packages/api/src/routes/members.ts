@@ -1,6 +1,6 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { createDb } from '../db';
-import { eq, and, desc, sql, inArray } from 'drizzle-orm';
+import { eq, and, or, desc, sql, inArray } from 'drizzle-orm';
 import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings, tenants, marketingAutomations, emailLogs, coupons, automationLogs, purchasedPacks, waiverSignatures } from '@studio/db/src/schema';
 import { HonoContext } from '../types';
 import { quotaMiddleware } from '../middleware/quota';
@@ -33,7 +33,10 @@ const MemberSchema = z.object({
 }).openapi('Member');
 
 const MemberListResponse = z.object({
-    members: z.array(MemberSchema)
+    members: z.array(MemberSchema),
+    total: z.number(),
+    limit: z.number(),
+    offset: z.number()
 });
 
 const SettingsSchema = z.record(z.string(), z.any()).openapi('MemberSettings');
@@ -50,7 +53,9 @@ const listMembersRoute = createRoute({
     summary: 'List all members',
     request: {
         query: z.object({
-            q: z.string().optional().openapi({ description: 'Search query' })
+            q: z.string().optional().openapi({ description: 'Search query' }),
+            limit: z.coerce.number().int().positive().default(50).optional(),
+            offset: z.coerce.number().int().nonnegative().default(0).optional()
         })
     },
     responses: {
@@ -69,19 +74,65 @@ app.openapi(listMembersRoute, async (c) => {
     if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant')!;
-    const q = c.req.valid('query').q?.toLowerCase();
+    const { q, limit = 50, offset = 0 } = c.req.valid('query');
 
-    let list = await db.query.tenantMembers.findMany({ where: eq(tenantMembers.tenantId, tenant.id), with: { roles: true, user: true }, orderBy: [desc(tenantMembers.joinedAt)] });
+    const conds = [eq(tenantMembers.tenantId, tenant.id)];
 
-    // Manual search filtering
-    if (q) list = list.filter((m: any) => `${m.user.email} ${(m.user.profile as any)?.firstName} ${(m.user.profile as any)?.lastName}`.toLowerCase().includes(q));
+    // SQLite JSON search is messy, but we can search users table which is joined
+    // For MVP, if q is provided, we might still need some filtering OR use SQL like
+    // Join users to search email/profile
 
-    const result = list.filter((m: any) => !m.user.isPlatformAdmin).map((m: any) => ({
-        ...m,
-        joinedAt: m.joinedAt ? new Date(m.joinedAt).toISOString() : undefined
-    }));
+    let whereClause = and(...conds);
 
-    return c.json({ members: result }, 200);
+    if (q) {
+        const searchPattern = `%${q.toLowerCase()}%`;
+        // Search email OR firstName/lastName in profile JSON
+        whereClause = and(
+            whereClause,
+            or(
+                sql`lower(${users.email}) LIKE ${searchPattern}`,
+                sql`lower(json_extract(${users.profile}, '$.firstName')) LIKE ${searchPattern}`,
+                sql`lower(json_extract(${users.profile}, '$.lastName')) LIKE ${searchPattern}`
+            )
+        );
+    }
+
+    const { membersList, totalCount } = await db.transaction(async (tx: any) => {
+        const list = await tx.select({
+            member: tenantMembers,
+            user: users
+        })
+            .from(tenantMembers)
+            .innerJoin(users, eq(tenantMembers.userId, users.id))
+            .where(whereClause)
+            .orderBy(desc(tenantMembers.joinedAt))
+            .limit(limit)
+            .offset(offset)
+            .all();
+
+        const countRes = await tx.select({ count: sql<number>`count(*)` })
+            .from(tenantMembers)
+            .innerJoin(users, eq(tenantMembers.userId, users.id))
+            .where(whereClause)
+            .get();
+
+        return { membersList: list, totalCount: Number(countRes?.count || 0) };
+    });
+
+    const result = membersList
+        .filter((row: any) => !row.user.isPlatformAdmin)
+        .map((row: any) => ({
+            ...row.member,
+            user: row.user,
+            joinedAt: row.member.joinedAt ? new Date(row.member.joinedAt).toISOString() : undefined
+        }));
+
+    return c.json({
+        members: result,
+        total: totalCount,
+        limit,
+        offset
+    }, 200);
 });
 
 // POST /members

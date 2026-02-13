@@ -124,7 +124,7 @@ export class AutomationsService {
         const todayMonth = now.getMonth();
         const todayDate = now.getDate();
 
-        for (const m of members) {
+        for (const m of members as any[]) {
             if (!m.dob) continue;
             const dob = new Date(m.dob);
             if (dob.getMonth() === todayMonth && dob.getDate() === todayDate) {
@@ -184,7 +184,7 @@ export class AutomationsService {
             lastActivities.map((a: any) => [a.memberId, Number(a.lastActive)])
         );
 
-        for (const c of candidates) {
+        for (const c of candidates as any[]) {
             const lastActiveTimestamp = activityMap.get(c.memberId);
             if (!lastActiveTimestamp) continue;
 
@@ -220,13 +220,18 @@ export class AutomationsService {
                 lte(tenantMembers.joinedAt, cutoffDate)
             )).all();
 
-        for (const m of newMembers) {
-            // Check if they signed ANY waiver
-            const signature = await this.db.query.waiverSignatures.findFirst({
-                where: eq(waiverSignatures.memberId, m.id)
-            });
+        const memberIds = newMembers.map((m: any) => m.id);
+        if (memberIds.length === 0) return;
 
-            if (!signature) {
+        const signatures = await this.db.select({ memberId: waiverSignatures.memberId })
+            .from(waiverSignatures)
+            .where(inArray(waiverSignatures.memberId, memberIds))
+            .all();
+
+        const signedMap = new Set(signatures.map((s: any) => s.memberId));
+
+        for (const m of newMembers as any[]) {
+            if (!signedMap.has(m.id)) {
                 await this.executeAutomation(auto, {
                     userId: m.userId,
                     email: m.email,
@@ -257,48 +262,76 @@ export class AutomationsService {
             .where(and(
                 eq(tenantMembers.tenantId, this.tenantId),
                 eq(tenantMembers.status, 'active')
-            )).all();
+            )).all() as any[];
 
-        for (const m of activeMembers) {
-            // Count recent attendances
-            const attendances = await this.db.select({ count: sql<number>`count(*)` })
-                .from(bookings)
-                .where(and(
-                    eq(bookings.memberId, m.id),
-                    eq(bookings.status, 'confirmed'),
-                    gte(bookings.checkedInAt, cutoffRecent)
-                )).get();
+        const memberIds = activeMembers.map((m: any) => m.id);
+        if (memberIds.length === 0) return;
 
-            if ((attendances?.count || 0) >= streakThreshold) {
-                // Check if they have ANY future bookings
-                const futureBooking = await this.db.query.bookings.findFirst({
-                    where: and(
-                        eq(bookings.memberId, m.id),
-                        eq(bookings.status, 'confirmed'),
-                        gt(bookings.createdAt, now) // Proxy for class start time if not easily available
-                    )
-                });
+        // 1. Batch count recent attendances
+        const recentCounts = await this.db.select({
+            memberId: bookings.memberId,
+            count: sql<number>`count(*)`
+        })
+            .from(bookings)
+            .where(and(
+                inArray(bookings.memberId, memberIds),
+                eq(bookings.status, 'confirmed'),
+                gte(bookings.checkedInAt, cutoffRecent)
+            ))
+            .groupBy(bookings.memberId)
+            .all();
 
-                if (!futureBooking) {
-                    // Check their last attendance
-                    const lastAttendance = await this.db.query.bookings.findFirst({
-                        where: and(
-                            eq(bookings.memberId, m.id),
-                            eq(bookings.status, 'confirmed')
-                        ),
-                        orderBy: (bookings: any, { desc }: any) => [desc(bookings.checkedInAt)]
+        const countMap = new Map(recentCounts.map((r: any) => [r.memberId, Number(r.count)]));
+        const membersWithStreak = activeMembers.filter((m: any) => (Number(countMap.get(m.id)) || 0) >= streakThreshold);
+        if (membersWithStreak.length === 0) return;
+
+        const streakMemberIds = membersWithStreak.map((m: any) => m.id as string);
+
+        // 2. Batch check for future bookings
+        const futureCounts = await this.db.select({
+            memberId: bookings.memberId,
+            count: sql<number>`count(*)`
+        })
+            .from(bookings)
+            .where(and(
+                inArray(bookings.memberId, streakMemberIds),
+                eq(bookings.status, 'confirmed'),
+                gt(bookings.createdAt, now)
+            ))
+            .groupBy(bookings.memberId)
+            .all();
+
+        const futureMap = new Set(futureCounts.map((f: any) => f.memberId));
+        const membersToNotify = membersWithStreak.filter((m: any) => !futureMap.has(m.id));
+        if (membersToNotify.length === 0) return;
+
+        const notifyIds = membersToNotify.map((m: any) => m.id);
+
+        // 3. Batch fetch last attendance
+        const lastAttendances = await this.db.select({
+            memberId: bookings.memberId,
+            lastCheckedInAt: sql<number>`MAX(${bookings.checkedInAt})`
+        })
+            .from(bookings)
+            .where(and(
+                inArray(bookings.memberId, notifyIds),
+                eq(bookings.status, 'confirmed')
+            ))
+            .groupBy(bookings.memberId)
+            .all();
+
+        const lastAttendanceMap = new Map(lastAttendances.map((a: any) => [a.memberId, Number(a.lastCheckedInAt)]));
+
+        for (const m of membersToNotify as any[]) {
+            const lastCheckedInAt = lastAttendanceMap.get(m.id);
+            if (lastCheckedInAt !== undefined) {
+                const lastDate = new Date(Number(lastCheckedInAt));
+                if (lastDate < cutoffInactivity) {
+                    await this.executeAutomation(auto, {
+                        userId: m.userId,
+                        email: m.email,
+                        firstName: (m.profile as any)?.firstName
                     });
-
-                    if (lastAttendance?.checkedInAt) {
-                        const lastDate = new Date(lastAttendance.checkedInAt);
-                        if (lastDate < cutoffInactivity) {
-                            await this.executeAutomation(auto, {
-                                userId: m.userId,
-                                email: m.email,
-                                firstName: (m.profile as any)?.firstName
-                            });
-                        }
-                    }
                 }
             }
         }
@@ -318,29 +351,30 @@ export class AutomationsService {
             .where(and(
                 eq(subscriptions.tenantId, this.tenantId),
                 or(eq(subscriptions.status, 'active'), eq(subscriptions.status, 'trialing'))
-            )).all();
+            )).all() as any[];
 
-        for (const sub of activeSubs) {
-            if (!sub.currentPeriodEnd) continue;
+        const validSubs = activeSubs.filter((sub: any) => {
+            if (!sub.currentPeriodEnd) return false;
             const end = new Date(sub.currentPeriodEnd);
-
-            // If end is within the next hour of our target? 
-            // Broad Check: end > now AND end < targetWindowStart + 1 hour? 
-            // We want to trigger when we are EXACTLY X hours before.
-            // Let's use a window of [X, X+1] hours before.
             const diffHours = (end.getTime() - now.getTime()) / (1000 * 60 * 60);
+            return diffHours >= hoursBuffer && diffHours < (hoursBuffer + 1);
+        });
 
-            if (diffHours >= hoursBuffer && diffHours < (hoursBuffer + 1)) {
-                // Fetch User
-                const user = await this.db.query.users.findFirst({ where: eq(users.id, sub.userId) });
-                if (user) {
-                    await this.executeAutomation(auto, {
-                        userId: user.id,
-                        email: user.email,
-                        firstName: (user.profile as any)?.firstName,
-                        data: { planId: sub.planId }
-                    });
-                }
+        if (validSubs.length === 0) return;
+
+        const userIds = validSubs.map((s: any) => s.userId as string);
+        const usersList = await this.db.select().from(users).where(inArray(users.id, userIds)).all();
+        const userMap = new Map((usersList as any[]).map((u: any) => [u.id, u]));
+
+        for (const sub of validSubs as any[]) {
+            const user = userMap.get(sub.userId);
+            if (user) {
+                await this.executeAutomation(auto, {
+                    userId: user.id,
+                    email: user.email,
+                    firstName: (user.profile as any)?.firstName,
+                    data: { planId: sub.planId }
+                });
             }
         }
     }
@@ -362,9 +396,20 @@ export class AutomationsService {
                     lte(tenantMembers.joinedAt, targetTime)
                 )).all();
 
-            for (const m of members) {
-                const user = await this.db.query.users.findFirst({ where: eq(users.id, m.userId) });
-                if (user) candidates.push({ userId: user.id, email: user.email, firstName: (user.profile as any)?.firstName });
+            if (members.length === 0) return;
+            const userIds = members.map((m: any) => m.userId);
+            const usersList = await this.db.select().from(users).where(inArray(users.id, userIds as string[])).all();
+            const userMap = new Map((usersList as any[]).map((u: any) => [u.id, u]));
+
+            for (const m of members as any[]) {
+                const user = userMap.get(m.userId);
+                if (user) {
+                    candidates.push({
+                        userId: user.id,
+                        email: user.email,
+                        firstName: (user.profile as any)?.firstName
+                    });
+                }
             }
 
         } else if (auto.triggerEvent === 'subscription_created') {
@@ -374,10 +419,15 @@ export class AutomationsService {
                     eq(subscriptions.tenantId, this.tenantId),
                     gte(subscriptions.createdAt, windowStart),
                     lte(subscriptions.createdAt, targetTime)
-                )).all();
+                )).all() as any[];
 
-            for (const s of subs) {
-                const user = await this.db.query.users.findFirst({ where: eq(users.id, s.userId) });
+            if (subs.length === 0) return;
+            const userIds = subs.map((s: any) => s.userId as string);
+            const usersList = await this.db.select().from(users).where(inArray(users.id, userIds)).all();
+            const userMap = new Map((usersList as any[]).map((u: any) => [u.id, u]));
+
+            for (const s of subs as any[]) {
+                const user = userMap.get(s.userId);
                 if (user) {
                     candidates.push({
                         userId: user.id,
@@ -403,18 +453,26 @@ export class AutomationsService {
                     lte(bookings.createdAt, targetTime)
                 )).all();
 
-            for (const b of newBookings) {
-                const cls = await this.db.query.classes.findFirst({
-                    where: eq(classes.id, b.classId),
-                    with: { series: true }
-                });
-                if (!cls) continue;
+            if (newBookings.length === 0) return;
+            const classIds = Array.from(new Set(newBookings.map((b: any) => b.classId)));
+            const memberIds = Array.from(new Set(newBookings.map((b: any) => b.memberId)));
 
-                const member = await this.db.query.tenantMembers.findFirst({
-                    where: eq(tenantMembers.id, b.memberId),
-                    with: { user: true }
-                });
-                if (!member || !member.user) continue;
+            const classesList = await this.db.query.classes.findMany({
+                where: inArray(classes.id, classIds as string[]),
+                with: { series: true }
+            });
+            const classMap = new Map((classesList as any[]).map(c => [c.id, c]));
+
+            const membersList = await this.db.query.tenantMembers.findMany({
+                where: inArray(tenantMembers.id, memberIds as string[]),
+                with: { user: true }
+            });
+            const memberMap = new Map((membersList as any[]).map(m => [m.id, m]));
+
+            for (const b of newBookings as any[]) {
+                const cls = classMap.get(b.classId);
+                const member = memberMap.get(b.memberId);
+                if (!cls || !member || !member.user) continue;
 
                 candidates.push({
                     userId: member.user.id,
@@ -430,7 +488,7 @@ export class AutomationsService {
         }
 
         // Execute
-        for (const c of candidates) {
+        for (const c of candidates as any[]) {
             await this.executeAutomation(auto, {
                 userId: c.userId,
                 email: c.email,
@@ -473,34 +531,43 @@ export class AutomationsService {
                     gt(classes.startTime, targetTime),
                     lt(classes.startTime, windowEnd),
                     eq(classes.status, 'active')
+                )).all() as any[];
+
+            if (upcomingClasses.length === 0) return;
+            const classIds = upcomingClasses.map((c: any) => c.id);
+
+            // Fetch all participants for these classes in one go
+            const participants = await this.db.select().from(bookings)
+                .where(and(
+                    inArray(bookings.classId, classIds as string[]),
+                    eq(bookings.status, 'confirmed')
                 )).all();
 
-            for (const cls of upcomingClasses) {
-                // Get participants
-                const participants = await this.db.select().from(bookings)
-                    .where(and(
-                        eq(bookings.classId, cls.id),
-                        eq(bookings.status, 'confirmed')
-                    )).all();
+            if (participants.length === 0) return;
+            const memberIds = Array.from(new Set(participants.map((p: any) => p.memberId as string)));
 
-                for (const b of participants) {
-                    const member = await this.db.query.tenantMembers.findFirst({
-                        where: eq(tenantMembers.id, b.memberId),
-                        with: { user: true }
-                    });
-                    if (!member || !member.user) continue;
+            const membersList = await this.db.query.tenantMembers.findMany({
+                where: inArray(tenantMembers.id, memberIds as string[]),
+                with: { user: true }
+            });
+            const memberMap = new Map((membersList as any[]).map(m => [m.id, m]));
+            const classMap = new Map((upcomingClasses as any[]).map(c => [c.id, c]));
 
-                    await this.executeAutomation(auto, {
-                        userId: member.user.id,
-                        email: member.user.email,
-                        firstName: (member.user.profile as any)?.firstName,
-                        data: {
-                            classTitle: cls.title,
-                            startTime: cls.startTime,
-                            bookingId: b.id
-                        }
-                    });
-                }
+            for (const b of participants as any[]) {
+                const cls = classMap.get(b.classId);
+                const member = memberMap.get(b.memberId);
+                if (!cls || !member || !member.user) continue;
+
+                await this.executeAutomation(auto, {
+                    userId: member.user.id,
+                    email: member.user.email,
+                    firstName: (member.user.profile as any)?.firstName,
+                    data: {
+                        classTitle: cls.title,
+                        startTime: cls.startTime,
+                        bookingId: b.id
+                    }
+                });
             }
         }
     }

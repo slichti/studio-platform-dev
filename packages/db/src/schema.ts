@@ -81,6 +81,7 @@ export const uploads = sqliteTable('uploads', {
     tenantIdx: index('upload_tenant_idx').on(table.tenantId),
 }));
 
+
 // --- Tenant Features (Entitlements) ---
 export const tenantFeatures = sqliteTable('tenant_features', {
     id: text('id').primaryKey(),
@@ -354,7 +355,8 @@ export const classes = sqliteTable('classes', {
 }, (table) => ({
     tenantTimeIdx: index('tenant_time_idx').on(table.tenantId, table.startTime),
     seriesIdx: index('series_idx').on(table.seriesId),
-    instructorIdx: index('class_instructor_idx').on(table.instructorId),
+    instructorIdx: index('class_instructor_idx').on(table.instructorId, table.startTime),
+    locationTimeIdx: index('class_location_time_idx').on(table.locationId, table.startTime),
 }));
 
 // --- Student Notes (CRM) ---
@@ -475,6 +477,7 @@ export const appointments = sqliteTable('appointments', {
 }, (table) => ({
     tenantTimeIdx: index('apt_tenant_time_idx').on(table.tenantId, table.startTime),
     instructorTimeIdx: index('apt_instructor_time_idx').on(table.instructorId, table.startTime),
+    locationTimeIdx: index('apt_location_time_idx').on(table.locationId, table.startTime),
     memberIdx: index('apt_member_idx').on(table.memberId),
 }));
 
@@ -597,6 +600,7 @@ export const automationLogs = sqliteTable('automation_logs', {
     uniqueLog: uniqueIndex('automation_log_unique_idx').on(table.automationId, table.userId, table.channel), // Prevent duplicate send of SAME automation to SAME user
     tenantIdx: index('automation_log_tenant_idx').on(table.tenantId),
 }));
+
 
 export const emailLogs = sqliteTable('email_logs', {
     id: text('id').primaryKey(),
@@ -1218,52 +1222,57 @@ export const referrals = sqliteTable('referrals', {
     referrerIdx: index('referral_referrer_idx').on(table.referrerId),
 }));
 
-// --- Tagging System ---
-export const memberTags = sqliteTable('member_tags', {
+// --- Tagging System (Phase 9) ---
+export const tags = sqliteTable('tags', {
     id: text('id').primaryKey(),
     tenantId: text('tenant_id').notNull().references(() => tenants.id),
     name: text('name').notNull(),
-    color: text('color'),
+    color: text('color').default('#6366f1'),
     description: text('description'),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
-    tenantIdx: index('member_tag_tenant_idx').on(table.tenantId),
+    tenantIdx: index('tag_tenant_idx').on(table.tenantId),
+    uniqueName: uniqueIndex('tag_unique_name_idx').on(table.tenantId, table.name),
 }));
 
-export const membersToTags = sqliteTable('members_to_tags', {
-    memberId: text('member_id').notNull().references(() => tenantMembers.id, { onDelete: 'cascade' }),
-    tagId: text('tag_id').notNull().references(() => memberTags.id, { onDelete: 'cascade' }),
+export const tagAssignments = sqliteTable('tag_assignments', {
+    id: text('id').primaryKey(),
+    tagId: text('tag_id').notNull().references(() => tags.id),
+    targetId: text('target_id').notNull(), // polymorphic target
+    targetType: text('target_type').default('member').notNull(), // 'member', 'lead'
+    assignedAt: integer('assigned_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
-    pk: primaryKey({ columns: [table.memberId, table.tagId] }),
+    targetIdx: index('tag_assign_target_idx').on(table.targetId, table.targetType),
+    tagIdx: index('tag_assign_tag_idx').on(table.tagId),
 }));
 
-// --- Custom Fields ---
+// --- Custom Fields (Phase 9) ---
 export const customFieldDefinitions = sqliteTable('custom_field_definitions', {
     id: text('id').primaryKey(),
     tenantId: text('tenant_id').notNull().references(() => tenants.id),
-    entityType: text('entity_type', { enum: ['member', 'class', 'lead'] }).notNull(),
+    targetType: text('target_type').default('member').notNull(),
     key: text('key').notNull(),
     label: text('label').notNull(),
     fieldType: text('field_type', { enum: ['text', 'number', 'boolean', 'date', 'select'] }).notNull(),
-    options: text('options', { mode: 'json' }), // For 'select' type
+    options: text('options', { mode: 'json' }),
     isRequired: integer('is_required', { mode: 'boolean' }).default(false).notNull(),
     isActive: integer('is_active', { mode: 'boolean' }).default(true).notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
-    tenantEntityIdx: index('cf_def_tenant_entity_idx').on(table.tenantId, table.entityType),
-    uniqueKey: uniqueIndex('cf_def_unique_key_idx').on(table.tenantId, table.entityType, table.key),
+    tenantTargetIdx: index('cf_def_tenant_target_idx').on(table.tenantId, table.targetType),
+    uniqueKey: uniqueIndex('cf_def_unique_key_idx').on(table.tenantId, table.targetType, table.key),
 }));
 
 export const customFieldValues = sqliteTable('custom_field_values', {
     id: text('id').primaryKey(),
     tenantId: text('tenant_id').notNull().references(() => tenants.id),
     definitionId: text('definition_id').notNull().references(() => customFieldDefinitions.id),
-    entityId: text('entity_id').notNull(), // memberId, classId, or leadId
-    value: text('value'), // Stored as string, cast at runtime
+    targetId: text('target_id').notNull(),
+    value: text('value'),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
-    entityIdx: index('cf_val_entity_idx').on(table.entityId),
-    uniqueVal: uniqueIndex('cf_val_unique_idx').on(table.entityId, table.definitionId),
+    targetIdx: index('cf_val_target_idx').on(table.targetId),
+    uniqueVal: uniqueIndex('cf_val_unique_idx').on(table.targetId, table.definitionId),
 }));
 
 // --- Community Feed ---
@@ -1337,7 +1346,7 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
     classPackDefinitions: many(classPackDefinitions),
     leads: many(leads),
     tasks: many(tasks),
-    memberTags: many(memberTags),
+    memberTags: many(tags),
     customFieldDefinitions: many(customFieldDefinitions),
 }));
 
@@ -1355,7 +1364,7 @@ export const tenantMembersRelations = relations(tenantMembers, ({ one, many }) =
     memberships: many(subscriptions), // Alias subscriptions as memberships
     purchasedPacks: many(purchasedPacks),
     waiverSignatures: many(waiverSignatures),
-    tags: many(membersToTags),
+    tags: many(tagAssignments),
 }));
 
 export const tenantRolesRelations = relations(tenantRoles, ({ one }) => ({
@@ -1964,22 +1973,18 @@ export const faqsRelations = relations(faqs, ({ one }) => ({
     }),
 }));
 
-export const memberTagsRelations = relations(memberTags, ({ one, many }) => ({
+export const tagsRelations = relations(tags, ({ one, many }) => ({
     tenant: one(tenants, {
-        fields: [memberTags.tenantId],
+        fields: [tags.tenantId],
         references: [tenants.id],
     }),
-    members: many(membersToTags),
+    assignments: many(tagAssignments),
 }));
 
-export const membersToTagsRelations = relations(membersToTags, ({ one }) => ({
-    member: one(tenantMembers, {
-        fields: [membersToTags.memberId],
-        references: [tenantMembers.id],
-    }),
-    tag: one(memberTags, {
-        fields: [membersToTags.tagId],
-        references: [memberTags.id],
+export const tagAssignmentsRelations = relations(tagAssignments, ({ one }) => ({
+    tag: one(tags, {
+        fields: [tagAssignments.tagId],
+        references: [tags.id],
     }),
 }));
 

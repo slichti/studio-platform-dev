@@ -1,7 +1,7 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { createOpenAPIApp } from '../lib/openapi';
 import { createDb } from '../db';
-import { memberTags } from '@studio/db/src/schema';
+import { tags, tagAssignments } from '@studio/db/src/schema';
 import { eq, and } from 'drizzle-orm';
 import { Bindings, Variables } from '../types';
 
@@ -49,8 +49,8 @@ app.openapi(listTagsRoute, async (c) => {
         if (!tenant) throw new Error('Tenant context missing');
 
         const db = createDb(c.env.DB);
-        const tags = await db.select().from(memberTags).where(eq(memberTags.tenantId, tenant.id)).all();
-        return c.json(tags);
+        const returnedTags = await db.select().from(tags).where(eq(tags.tenantId, tenant.id)).all();
+        return c.json(returnedTags);
     } catch (e: any) {
         console.error('List Tags Error:', e);
         return c.json({ error: e.message } as any, 500);
@@ -93,7 +93,7 @@ app.openapi(createTagRoute, async (c) => {
         const { name, color, description } = c.req.valid('json');
 
         const id = crypto.randomUUID();
-        await db.insert(memberTags).values({
+        await db.insert(tags).values({
             id,
             tenantId: tenant.id,
             name,
@@ -101,7 +101,7 @@ app.openapi(createTagRoute, async (c) => {
             description: description || null
         }).run();
 
-        const tag = await db.select().from(memberTags).where(eq(memberTags.id, id)).get();
+        const tag = await db.select().from(tags).where(eq(tags.id, id)).get();
         if (!tag) throw new Error('Failed to create tag');
         return c.json(tag);
     } catch (e: any) {
@@ -152,16 +152,16 @@ app.openapi(updateTagRoute, async (c) => {
         const { id } = c.req.valid('param');
         const { name, color, description } = c.req.valid('json');
 
-        await db.update(memberTags)
+        await db.update(tags)
             .set({
                 name,
                 color: color || null,
                 description: description || null
             })
-            .where(and(eq(memberTags.id, id), eq(memberTags.tenantId, tenant.id)))
+            .where(and(eq(tags.id, id), eq(tags.tenantId, tenant.id)))
             .run();
 
-        const tag = await db.select().from(memberTags).where(eq(memberTags.id, id)).get();
+        const tag = await db.select().from(tags).where(eq(tags.id, id)).get();
         if (!tag) return c.json({ error: 'Tag not found' } as any, 404);
         return c.json(tag);
     } catch (e: any) {
@@ -201,8 +201,8 @@ app.openapi(deleteTagRoute, async (c) => {
         const db = createDb(c.env.DB);
         const { id } = c.req.valid('param');
 
-        await db.delete(memberTags)
-            .where(and(eq(memberTags.id, id), eq(memberTags.tenantId, tenant.id)))
+        await db.delete(tags)
+            .where(and(eq(tags.id, id), eq(tags.tenantId, tenant.id)))
             .run();
 
         return c.json({ success: true });
@@ -210,6 +210,145 @@ app.openapi(deleteTagRoute, async (c) => {
         console.error('Delete Tag Error:', e);
         return c.json({ error: e.message } as any, 500);
     }
+});
+
+// Assignments
+const assignTagRoute = createRoute({
+    method: 'post',
+    path: '/assign',
+    tags: ['Tags'],
+    summary: 'Assign a tag to an entity',
+    request: {
+        body: {
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        tagId: z.string(),
+                        targetId: z.string(),
+                        targetType: z.enum(['member', 'lead']).default('member'),
+                    }),
+                },
+            },
+        },
+    },
+    responses: {
+        200: {
+            content: {
+                'application/json': {
+                    schema: z.object({ success: z.boolean() }),
+                },
+            },
+            description: 'Tag assigned',
+        },
+        500: { description: 'Internal Server Error' },
+    },
+});
+
+app.openapi(assignTagRoute, async (c) => {
+    try {
+        const db = createDb(c.env.DB);
+        const { tagId, targetId, targetType } = c.req.valid('json');
+
+        await db.insert(tagAssignments).values({
+            id: crypto.randomUUID(),
+            tagId,
+            targetId,
+            targetType,
+        }).run();
+
+        return c.json({ success: true });
+    } catch (e: any) {
+        return c.json({ error: e.message } as any, 500);
+    }
+});
+
+const unassignTagRoute = createRoute({
+    method: 'post',
+    path: '/unassign',
+    tags: ['Tags'],
+    summary: 'Unassign a tag from an entity',
+    request: {
+        body: {
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        tagId: z.string(),
+                        targetId: z.string(),
+                        targetType: z.enum(['member', 'lead']).default('member'),
+                    }),
+                },
+            },
+        },
+    },
+    responses: {
+        200: {
+            content: {
+                'application/json': {
+                    schema: z.object({ success: z.boolean() }),
+                },
+            },
+            description: 'Tag unassigned',
+        },
+        500: { description: 'Internal Server Error' },
+    },
+});
+
+app.openapi(unassignTagRoute, async (c) => {
+    try {
+        const db = createDb(c.env.DB);
+        const { tagId, targetId, targetType } = c.req.valid('json');
+
+        await db.delete(tagAssignments)
+            .where(and(
+                eq(tagAssignments.tagId, tagId),
+                eq(tagAssignments.targetId, targetId),
+                eq(tagAssignments.targetType, targetType)
+            ))
+            .run();
+
+        return c.json({ success: true });
+    } catch (e: any) {
+        return c.json({ error: e.message } as any, 500);
+    }
+});
+
+const listAssignmentsRoute = createRoute({
+    method: 'get',
+    path: '/assignments/:targetId',
+    tags: ['Tags'],
+    summary: 'List tags assigned to an entity',
+    request: {
+        params: z.object({ targetId: z.string() }),
+    },
+    responses: {
+        200: {
+            content: {
+                'application/json': {
+                    schema: z.array(TagSchema),
+                },
+            },
+            description: 'List of tags',
+        },
+    },
+});
+
+app.openapi(listAssignmentsRoute, async (c) => {
+    const db = createDb(c.env.DB);
+    const { targetId } = c.req.valid('param');
+
+    const result = await db.select({
+        id: tags.id,
+        tenantId: tags.tenantId,
+        name: tags.name,
+        color: tags.color,
+        description: tags.description,
+    })
+        .from(tags)
+        .innerJoin(tagAssignments, eq(tags.id, tagAssignments.tagId))
+        .where(eq(tagAssignments.targetId, targetId))
+        .all();
+
+    return c.json(result);
 });
 
 export default app;
