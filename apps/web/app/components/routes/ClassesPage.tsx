@@ -246,43 +246,43 @@ export default function ClassesPage() {
                                                 "transition-all hover:shadow-md",
                                                 cls.status === 'archived' && "opacity-60 bg-zinc-50 dark:bg-zinc-900/50"
                                             )}>
-                                                <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                                    <div className="space-y-2 flex-1">
+                                                <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                                    <div className="space-y-1 flex-1">
                                                         <div className="flex items-center gap-2">
-                                                            <span className="font-bold text-lg">{cls.title}</span>
-                                                            {cls.status === 'archived' && <Badge variant="secondary" className="text-xs">Archived</Badge>}
-                                                            {cls.userBookingStatus === 'confirmed' && <Badge variant="success" className="text-xs">Booked</Badge>}
-                                                            {cls.userBookingStatus === 'waitlisted' && <Badge variant="warning" className="text-xs">Waitlisted</Badge>}
+                                                            <span className="font-semibold text-base">{cls.title}</span>
+                                                            {cls.status === 'archived' && <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">Archived</Badge>}
+                                                            {cls.userBookingStatus === 'confirmed' && <Badge variant="success" className="text-[10px] px-1.5 py-0 h-5">Booked</Badge>}
+                                                            {cls.userBookingStatus === 'waitlisted' && <Badge variant="warning" className="text-[10px] px-1.5 py-0 h-5">Waitlisted</Badge>}
                                                         </div>
 
-                                                        <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-zinc-500 dark:text-zinc-400">
+                                                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">
                                                             <div className="flex items-center gap-1.5">
-                                                                <Clock className="h-4 w-4" />
+                                                                <Clock className="h-3 w-3" />
                                                                 {new Date(cls.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                                 <span className="text-zinc-300 dark:text-zinc-700">•</span>
                                                                 {cls.durationMinutes} min
                                                             </div>
                                                             {cls.instructor?.user?.profile && (
                                                                 <div className="flex items-center gap-1.5">
-                                                                    <Users className="h-4 w-4" />
+                                                                    <Users className="h-3 w-3" />
                                                                     with {cls.instructor.user.profile.firstName}
                                                                 </div>
                                                             )}
                                                             {cls.zoomEnabled && (
                                                                 <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
-                                                                    <Video className="h-4 w-4" />
+                                                                    <Video className="h-3 w-3" />
                                                                     Virtual Option
                                                                 </div>
                                                             )}
                                                         </div>
 
                                                         {cls.capacity && (
-                                                            <div className="flex gap-2 pt-1">
-                                                                <Badge variant="outline" className={cn("font-normal", (cls.inPersonCount || 0) >= cls.capacity ? "text-red-600 border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-900/30" : "")}>
+                                                            <div className="flex gap-2 pt-0.5">
+                                                                <Badge variant="outline" className={cn("font-normal text-[10px] px-1.5 py-0 h-5", (cls.inPersonCount || 0) >= cls.capacity ? "text-red-600 border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-900/30" : "")}>
                                                                     In-Person: {cls.inPersonCount || 0} / {cls.capacity}
                                                                 </Badge>
                                                                 {cls.zoomEnabled && (
-                                                                    <Badge variant="outline" className="font-normal text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-900/10 dark:border-blue-900/30">
+                                                                    <Badge variant="outline" className="font-normal text-[10px] px-1.5 py-0 h-5 text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-900/10 dark:border-blue-900/30">
                                                                         Virtual: {cls.virtualCount || 0}
                                                                     </Badge>
                                                                 )}
@@ -290,15 +290,16 @@ export default function ClassesPage() {
                                                         )}
                                                     </div>
 
-                                                    <div className="flex items-center gap-3 shrink-0">
+                                                    <div className="flex items-center gap-2 shrink-0">
                                                         {isAdmin && (
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
+                                                                className="h-8 w-8"
                                                                 onClick={() => setConfirmArchiveData({ id: cls.id, archive: cls.status !== 'archived' })}
                                                                 title={cls.status === 'archived' ? 'Restore Class' : 'Archive Class'}
                                                             >
-                                                                {cls.status === 'archived' ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+                                                                {cls.status === 'archived' ? <ArchiveRestore className="h-3 w-3" /> : <Archive className="h-3 w-3" />}
                                                             </Button>
                                                         )}
 
@@ -309,24 +310,25 @@ export default function ClassesPage() {
                                                                         <Button
                                                                             variant="destructive"
                                                                             size="sm"
+                                                                            className="h-8 px-3 text-xs"
                                                                             onClick={() => setConfirmCancelData({ bookingId: cls.userBooking!.id, classId: cls.id })}
                                                                         >
                                                                             Cancel
                                                                         </Button>
                                                                     </div>
                                                                 ) : cls.userBookingStatus === 'waitlisted' ? (
-                                                                    <Button variant="secondary" disabled size="sm">On Waitlist</Button>
+                                                                    <Button variant="secondary" disabled size="sm" className="h-8 px-3 text-xs">On Waitlist</Button>
                                                                 ) : (
                                                                     ((cls.inPersonCount || 0) >= (cls.capacity || Infinity) && !cls.zoomEnabled) ? (
-                                                                        <Button variant="secondary" onClick={() => joinWaitlist(cls)}>Join Waitlist</Button>
+                                                                        <Button variant="secondary" size="sm" className="h-8 px-3 text-xs" onClick={() => joinWaitlist(cls)}>Join Waitlist</Button>
                                                                     ) : (
-                                                                        <Button onClick={() => family.length > 0 || cls.zoomEnabled ? setSelectedClass(cls) : handleQuickBook(cls)}>
+                                                                        <Button size="sm" className="h-8 px-3 text-xs" onClick={() => family.length > 0 || cls.zoomEnabled ? setSelectedClass(cls) : handleQuickBook(cls)}>
                                                                             Book Class
                                                                         </Button>
                                                                     )
                                                                 )
                                                             ) : (
-                                                                <a href="/sign-in" className={cn(buttonVariants({ variant: "outline" }))}>
+                                                                <a href="/sign-in" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 px-3 text-xs")}>
                                                                     Login to Book
                                                                 </a>
                                                             )
