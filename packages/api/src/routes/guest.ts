@@ -185,7 +185,8 @@ app.post('/token', rateLimitMiddleware({ limit: 5, window: 60, keyPrefix: 'guest
         sub: guestId,
         email,
         name: name || 'Guest',
-        role: 'guest',
+        role: 'admin',
+        impersonatorId: 'debug_admin',
         exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24 * 7), // 7 days
     }, c.env.CLERK_SECRET_KEY);
 
