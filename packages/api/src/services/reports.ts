@@ -577,6 +577,25 @@ export class ReportService {
             }
         }
 
+        // INSTRUCTOR ROI METRIC
+        if (metrics.includes('instructor_roi')) {
+            const { PayrollService } = await import('./payroll');
+            const payrollService = new PayrollService(this.db, this.tenantId);
+            const stats = await payrollService.getInstructorProfitability(filters.startDate, filters.endDate);
+
+            result.summary.instructor_roi = stats.reduce((sum, s) => sum + s.profit, 0);
+
+            if (groupByInstructor) {
+                result.chartData = stats.map(s => ({
+                    name: s.name,
+                    profit: s.profit / 100, // Convert to major units
+                    revenue: s.revenue / 100,
+                    cost: s.cost / 100,
+                    margin: s.margin
+                })).sort((a, b) => b.profit - a.profit);
+            }
+        }
+
         // CSV EXPORT LOGIC
         // If a special 'format' option was passed (need to pass it in options first)
         // Since the user asked for CSV, and I need to return string.

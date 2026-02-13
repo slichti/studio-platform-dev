@@ -68,6 +68,23 @@ app.post('/config', async (c) => {
     return c.json({ success: true });
 });
 
+// GET /profitability - Instructor ROI Report
+app.get('/profitability', async (c) => {
+    if (!c.get('can')('view_reports')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const start = c.req.query('startDate') ? new Date(c.req.query('startDate')!) : new Date(new Date().setDate(new Date().getDate() - 30));
+    const end = c.req.query('endDate') ? new Date(c.req.query('endDate')!) : new Date();
+
+    const { PayrollService } = await import('../services/payroll');
+    const service = new PayrollService(db, tenant.id);
+    const stats = await service.getInstructorProfitability(start, end);
+
+    return c.json({ stats });
+});
+
 // POST /generate
 app.post('/generate', async (c) => {
     if (!c.get('can')('manage_payroll')) return c.json({ error: 'Unauthorized' }, 403);
@@ -80,102 +97,53 @@ app.post('/generate', async (c) => {
 
     const start = new Date(startDate);
     const end = new Date(endDate);
-    const configs = await db.select().from(payrollConfig).where(eq(payrollConfig.tenantId, tenant.id)).all();
-    const results = [];
 
-    for (const config of configs) {
-        let totalDue = 0;
-        const items: any[] = [];
-
-        const instructorClasses = await db.select()
-            .from(classes)
-            .where(and(eq(classes.instructorId, config.memberId!), between(classes.startTime, start, end), eq(classes.status, 'active'))).all();
-
-        for (const cls of instructorClasses) {
-            let amount = 0, details = "";
-            if (config.payModel === 'flat') {
-                amount = config.rate;
-                details = `Flat rate per class`;
-            } else if (config.payModel === 'hourly') {
-                amount = Math.round((config.rate * cls.durationMinutes) / 60);
-                details = `${cls.durationMinutes} mins @ $${(config.rate / 100).toFixed(2)}/hr`;
-            } else if (config.payModel === 'percentage') {
-                const classBookings = await db.query.bookings.findMany({
-                    where: and(eq(bookings.classId, cls.id), eq(bookings.status, 'confirmed')),
-                    with: { usedPack: true }
-                });
-                let totalRevenueCents = 0;
-                for (const b of classBookings) {
-                    if (b.paymentMethod === 'drop_in') totalRevenueCents += (cls.price || 0);
-                    else if (b.paymentMethod === 'credit' && b.usedPack) {
-                        totalRevenueCents += (b.usedPack.price || 0) / (b.usedPack.initialCredits || 1);
-                    }
-                }
-                const revenue = Math.round(totalRevenueCents);
-                let basisAmount = revenue, basisLabel = "Gross Revenue";
-                if (config.payoutBasis === 'net') {
-                    // Floor fees to be conservative for the platform
-                    const estimatedFees = Math.floor(revenue * 0.029) + (classBookings.filter(b => b.paymentMethod === 'drop_in').length * 30);
-                    basisAmount = Math.max(0, revenue - estimatedFees);
-                    basisLabel = "Net Revenue (Est.)";
-                }
-                amount = Math.round(basisAmount * (config.rate / 10000));
-                details = `${(config.rate / 100)}% of $${(basisAmount / 100).toFixed(2)} (${basisLabel})`;
-            }
-            if (amount > 0) {
-                totalDue += amount;
-                items.push({ type: 'class', referenceId: cls.id, title: cls.title, date: cls.startTime, amount, details });
-            }
-        }
-
-        const instructorAppointments = await db.select({
-            id: appointments.id, startTime: appointments.startTime, endTime: appointments.endTime,
-            servicePrice: appointmentServices.price, serviceTitle: appointmentServices.title
-        })
-            .from(appointments)
-            .innerJoin(appointmentServices, eq(appointments.serviceId, appointmentServices.id))
-            .where(and(eq(appointments.instructorId, config.memberId!), between(appointments.startTime, start, end), eq(appointments.status, 'completed'))).all();
-
-        for (const apt of instructorAppointments) {
-            let amount = 0, details = "";
-            const durationMinutes = (apt.endTime.getTime() - apt.startTime.getTime()) / (1000 * 60);
-            if (config.payModel === 'flat') {
-                amount = config.rate;
-                details = `Flat rate per appointment`;
-            } else if (config.payModel === 'hourly') {
-                amount = Math.round((config.rate * durationMinutes) / 60);
-                details = `${durationMinutes} mins @ $${(config.rate / 100).toFixed(2)}/hr`;
-            } else if (config.payModel === 'percentage') {
-                const revenue = apt.servicePrice || 0;
-                amount = Math.round(revenue * (config.rate / 10000));
-                details = `${(config.rate / 100)}% of $${(revenue / 100).toFixed(2)} service price`;
-            }
-            if (amount > 0) {
-                totalDue += amount;
-                items.push({ type: 'appointment', referenceId: apt.id, title: apt.serviceTitle, date: apt.startTime, amount, details });
-            }
-        }
-
-        if (totalDue > 0) results.push({ instructorId: config.memberId, amount: totalDue, itemCount: items.length, items });
-    }
+    const { PayrollService } = await import('../services/payroll');
+    const service = new PayrollService(db, tenant.id);
+    const results = await service.generatePayoutData(start, end);
 
     if (commit) {
-        for (const res of results) {
-            const payoutId = crypto.randomUUID();
-            await db.insert(payouts).values({
-                id: payoutId, tenantId: tenant.id, instructorId: res.instructorId!, amount: res.amount,
-                periodStart: start, periodEnd: end, status: 'processing', createdAt: new Date()
-            }).run();
-            for (const item of res.items) {
-                await db.insert(payrollItems).values({
-                    id: crypto.randomUUID(), payoutId, type: item.type, referenceId: item.referenceId,
-                    amount: item.amount, details: JSON.stringify({ note: item.details, title: item.title, date: item.date })
-                }).run();
-            }
-        }
+        await service.commitPayouts(results, start, end);
         return c.json({ success: true, count: results.length });
     }
     return c.json({ preview: results });
+});
+
+// POST /payouts/bulk-approve
+app.post('/payouts/bulk-approve', async (c) => {
+    if (!c.get('can')('manage_payroll')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const { ids } = await c.req.json();
+    if (!ids || !Array.isArray(ids)) return c.json({ error: "IDs array required" }, 400);
+
+    const { PayrollService } = await import('../services/payroll');
+    const service = new PayrollService(db, tenant.id);
+    await service.bulkApprove(ids);
+
+    return c.json({ success: true });
+});
+
+// GET /history/export - CSV
+app.get('/history/export', async (c) => {
+    if (!c.get('can')('manage_payroll')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const start = c.req.query('startDate') ? new Date(c.req.query('startDate')!) : new Date(new Date().setDate(new Date().getDate() - 90));
+    const end = c.req.query('endDate') ? new Date(c.req.query('endDate')!) : new Date();
+
+    const { PayrollService } = await import('../services/payroll');
+    const service = new PayrollService(db, tenant.id);
+    const csv = await service.generateExportCsv(start, end);
+
+    return c.body(csv, 200, {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': `attachment; filename=payroll_history_${new Date().toISOString().split('T')[0]}.csv`
+    });
 });
 
 // GET /history
