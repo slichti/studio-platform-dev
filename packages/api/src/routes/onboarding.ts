@@ -44,6 +44,39 @@ app.get('/check-slug', async (c) => {
     return c.json({ valid: !existing });
 });
 
+app.get('/debug-member', async (c) => {
+    const auth = c.get('auth');
+    if (!auth) return c.json({ error: "No auth context" }, 401);
+
+    const db = createDb(c.env.DB);
+    const tenantSlug = c.req.query('slug');
+
+    const result: any = { auth };
+
+    if (tenantSlug) {
+        const tenant = await db.query.tenants.findFirst({ where: eq(tenants.slug, tenantSlug) });
+        result.tenant = tenant;
+        if (tenant) {
+            const member = await db.query.tenantMembers.findFirst({
+                where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id))
+            });
+            result.member = member;
+            if (member) {
+                const roles = await db.query.tenantRoles.findMany({ where: eq(tenantRoles.memberId, member.id) });
+                result.roles = roles;
+            }
+        }
+    } else {
+        const allMemberships = await db.query.tenantMembers.findMany({
+            where: eq(tenantMembers.userId, auth.userId),
+            with: { tenant: true }
+        });
+        result.allMemberships = allMemberships;
+    }
+
+    return c.json(result);
+});
+
 // POST /studio - Create new tenant & cleanup user
 app.post('/studio', rateLimitMiddleware({ limit: 5, window: 300, keyPrefix: 'onboarding' }), async (c) => {
     const auth = c.get('auth');
@@ -348,11 +381,22 @@ app.post('/quick-start', rateLimitMiddleware({ limit: 10, window: 60, keyPrefix:
         const db = createDb(c.env.DB);
 
         // Verify Ownership
+        console.log(`[QUICK-START DEBUG] Checking membership for user=${auth.userId}, tenant=${tenantId}`);
         const member = await db.query.tenantMembers.findFirst({
             where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenantId))
         });
 
-        if (!member) return c.json({ error: "Not a member" }, 403);
+        if (!member) {
+            console.log(`[QUICK-START DEBUG] Membership NOT FOUND for user=${auth.userId}, tenant=${tenantId}`);
+            // Check if user is member of ANY tenant to debug ID format
+            const otherMember = await db.query.tenantMembers.findFirst({ where: eq(tenantMembers.userId, auth.userId) });
+            if (otherMember) {
+                console.log(`[QUICK-START DEBUG] User is member of OTHER tenant: ${otherMember.tenantId}`);
+            } else {
+                console.log(`[QUICK-START DEBUG] User is NOT a member of ANY tenant in DB.`);
+            }
+            return c.json({ error: "Not a member", debug: { userId: auth.userId, tenantId } }, 403);
+        }
 
         // Check Role
         const role = await db.select().from(tenantRoles).where(eq(tenantRoles.memberId, member.id)).get();

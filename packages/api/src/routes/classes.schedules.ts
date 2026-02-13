@@ -37,7 +37,7 @@ const ClassSchema = z.object({
     location: z.any().optional()
 }).openapi('Class');
 
-const CreateClassSchema = z.object({
+export const CreateClassSchema = z.object({
     title: z.string(),
     description: z.string().optional(),
     startTime: z.coerce.date(),
@@ -47,20 +47,20 @@ const CreateClassSchema = z.object({
     memberPrice: z.coerce.number().min(0).optional(),
     instructorId: z.string().optional(),
     locationId: z.string().optional(),
-    zoomEnabled: z.boolean().optional(),
-    createZoomMeeting: z.boolean().optional(), // Match frontend
-    allowCredits: z.boolean().optional(),
+    zoomEnabled: z.coerce.boolean().optional(),
+    createZoomMeeting: z.coerce.boolean().optional(), // Match frontend
+    allowCredits: z.coerce.boolean().optional(),
     includedPlanIds: z.array(z.string()).optional(),
     payrollModel: z.enum(['flat', 'percentage', 'hourly']).optional(),
     payrollValue: z.number().optional(),
 
     // Recurring Logic
-    isRecurring: z.boolean().optional().default(false),
+    isRecurring: z.coerce.boolean().optional().default(false),
     recurrenceRule: z.string().optional(),
     recurrenceEnd: z.coerce.date().optional(), // Coerce for flexibility
-    minStudents: z.number().int().optional(),
-    autoCancelThreshold: z.number().int().optional(),
-    autoCancelEnabled: z.boolean().optional(),
+    minStudents: z.coerce.number().int().optional(),
+    autoCancelThreshold: z.coerce.number().int().optional(),
+    autoCancelEnabled: z.coerce.boolean().optional(),
     type: z.enum(['class', 'workshop', 'event', 'appointment']).optional().default('class')
 });
 
@@ -172,12 +172,20 @@ app.openapi(createRoute({
     },
     responses: {
         201: { content: { 'application/json': { schema: ClassSchema } }, description: 'Class created' },
-        400: { description: 'Invalid input' },
+        400: { content: { 'application/json': { schema: z.object({ error: z.string(), details: z.any() }) } }, description: 'Invalid input' },
         409: { description: 'Conflict' },
         403: { description: 'Unauthorized' },
         402: { description: 'Quota Exceeded' }
     }
 }), async (c) => {
+    // [DIAGNOSTIC] Log Zod errors
+    const reqBody = await c.req.json().catch(() => ({}));
+    const parseResult = CreateClassSchema.safeParse(reqBody);
+    if (!parseResult.success) {
+        console.error(`[CLASSES API 400] Validation failed:`, parseResult.error.format());
+        return c.json({ error: 'Invalid input', details: parseResult.error.format(), received: reqBody }, 400);
+    }
+
     if (!c.get('can')('manage_classes')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant')!;
