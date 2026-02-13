@@ -301,4 +301,33 @@ app.get('/debug-db-schema', async (c) => {
     return c.json(info);
 });
 
+app.post('/debug-recurrence', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = 'f53eb254-f0fb-4da7-a5ac-d32d2c0b4bac'; // premier-yoga
+    const seriesId = crypto.randomUUID();
+    const start = new Date();
+    const recurrenceRule = 'FREQ=DAILY;UNTIL=20261024T000000Z';
+    const recurrenceEnd = new Date('2026-10-24T00:00:00.000Z');
+
+    try {
+        const result = await db.insert(classSeries).values({
+            id: seriesId,
+            tenantId,
+            instructorId: null,
+            locationId: null,
+            title: 'Debug Recurrence',
+            description: 'Debug Description',
+            durationMinutes: 60,
+            price: 0,
+            recurrenceRule,
+            validFrom: start,
+            validUntil: recurrenceEnd,
+            createdAt: new Date()
+        }).run();
+        return c.json({ success: true, result });
+    } catch (e: any) {
+        return c.json({ success: false, error: e.message, stack: e.stack }, 500);
+    }
+});
+
 export default app;
