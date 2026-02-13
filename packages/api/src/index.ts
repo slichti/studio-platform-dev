@@ -120,7 +120,7 @@ app.onError((err: any, c) => {
   }
 
   // Only expose detailed error info in non-production environments
-  const isDev = (c.env as any).ENVIRONMENT !== 'production';
+  const isDev = true; // (c.env as any).ENVIRONMENT !== 'production'; // DEBUG FORCE TRUE
 
   if (isDev) {
     return c.json({
