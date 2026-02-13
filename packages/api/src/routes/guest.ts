@@ -303,8 +303,8 @@ app.get('/debug-db-schema', async (c) => {
 
 app.get('/debug-db-schema-v2', async (c) => {
     const db = createDb(c.env.DB);
-    const info = await c.env.DB.prepare('PRAGMA table_info(classes)').all();
-    return c.json(info);
+    const tenant = await c.env.DB.prepare('SELECT * FROM tenants LIMIT 1').first();
+    return c.json(tenant);
 });
 
 import { RRule } from 'rrule';
