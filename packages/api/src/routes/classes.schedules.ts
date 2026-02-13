@@ -44,15 +44,15 @@ export const CreateClassSchema = z.object({
     durationMinutes: z.coerce.number().int().positive(),
     capacity: z.coerce.number().int().optional(),
     price: z.coerce.number().min(0).optional(),
-    memberPrice: z.coerce.number().min(0).optional(),
-    instructorId: z.string().optional(),
+    memberPrice: z.coerce.number().min(0).nullable().optional(),
+    instructorId: z.string().nullable().optional(),
     locationId: z.string().optional(),
     zoomEnabled: z.coerce.boolean().optional(),
     createZoomMeeting: z.coerce.boolean().optional(), // Match frontend
     allowCredits: z.coerce.boolean().optional(),
     includedPlanIds: z.array(z.string()).optional(),
-    payrollModel: z.enum(['flat', 'percentage', 'hourly']).optional(),
-    payrollValue: z.number().optional(),
+    payrollModel: z.enum(['flat', 'percentage', 'hourly']).nullable().optional(),
+    payrollValue: z.number().nullable().optional(),
 
     // Recurring Logic
     isRecurring: z.coerce.boolean().optional().default(false),

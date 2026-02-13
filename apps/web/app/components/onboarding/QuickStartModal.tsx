@@ -127,8 +127,8 @@ export function QuickStartModal({ isOpen, onClose, tenant, token }: QuickStartMo
 
                     <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-4 text-left">
                         <div className="text-xs font-medium text-zinc-500 uppercase mb-1">Your Public Page</div>
-                        <a href={`/studio/${slug}/public`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all font-mono text-sm">
-                            {window.location.origin}/studio/{slug}/public
+                        <a href={`/portal/${slug}/classes`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all font-mono text-sm">
+                            {window.location.origin}/portal/{slug}/classes
                         </a>
                     </div>
 

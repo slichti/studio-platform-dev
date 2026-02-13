@@ -51,6 +51,7 @@ export interface Variables {
     email: EmailService;
     twilioCredentials?: { accountSid: string; authToken: string; fromNumber: string };
     logger: LoggerService;
+    isPlatformAdmin?: boolean; // recognize platform admin status broadly
 }
 
 export interface StudioVariables extends Variables {

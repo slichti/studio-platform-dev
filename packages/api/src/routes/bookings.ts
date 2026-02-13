@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { bookings, classes, tenantMembers, users, tenants } from '@studio/db/src/schema';
+import { bookings, classes, tenantMembers, users, tenants, tenantRoles } from '@studio/db/src/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { checkAndPromoteWaitlist } from './waitlist';
 import { HonoContext } from '../types';
@@ -58,8 +58,33 @@ app.post('/', async (c) => {
     let targetId = memberId;
     if (!targetId) {
         const m = await db.select().from(tenantMembers).where(and(eq(tenantMembers.userId, c.get('auth')!.userId), eq(tenantMembers.tenantId, tenant.id))).get();
-        if (!m) return c.json({ error: "Member not found" }, 403);
-        targetId = m.id;
+
+        if (!m && c.get('isPlatformAdmin')) {
+            // Auto-create a member record for platform admins to allow the DB constraints to pass
+            const newMemberId = crypto.randomUUID();
+            await db.insert(tenantMembers).values({
+                id: newMemberId,
+                tenantId: tenant.id,
+                userId: c.get('auth')!.userId,
+                status: 'active',
+                joinedAt: new Date()
+            }).run();
+
+            // Also insert the role record
+            await db.insert(tenantRoles).values({
+                id: crypto.randomUUID(),
+                memberId: newMemberId,
+                role: 'owner',
+                createdAt: new Date()
+            }).run();
+
+            targetId = newMemberId;
+            console.log(`[DEBUG] POST /bookings - Auto-created member ${newMemberId} and owner role for platform admin`);
+        } else if (!m) {
+            return c.json({ error: "Member not found" }, 403);
+        } else {
+            targetId = m.id;
+        }
     }
 
     const cl = await db.select().from(classes).where(and(eq(classes.id, classId), eq(classes.tenantId, tenant.id))).get();
