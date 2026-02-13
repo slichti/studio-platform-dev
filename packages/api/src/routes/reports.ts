@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { ReportService } from '../services/reports';
-import { scheduledReports } from '@studio/db/src/schema';
-import { eq, and } from 'drizzle-orm';
+import { scheduledReports, locations, classes, bookings } from '@studio/db/src/schema';
+import { eq, and, sql, count } from 'drizzle-orm';
 import { HonoContext } from '../types';
 import churnRouter from './reports.churn';
 import scheduledRouter from './reports.scheduled';
@@ -12,6 +12,49 @@ const app = new Hono<HonoContext>();
 // Mount sub-routes
 app.route('/churn', churnRouter);
 app.route('/scheduled', scheduledRouter);
+
+// GET /locations - Cross-location comparison
+app.get('/locations', async (c) => {
+    if (!c.get('can')('view_reports')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    // Get all locations for this tenant
+    const allLocations = await db.select().from(locations)
+        .where(eq(locations.tenantId, tenant.id))
+        .all();
+
+    // Get stats for each location
+    const locationStats = await Promise.all(allLocations.map(async (location) => {
+        const activeClasses = await db.select({ count: count() })
+            .from(classes)
+            .where(and(
+                eq(classes.locationId, location.id),
+                eq(classes.status, 'active')
+            ))
+            .get();
+
+        const totalBookings = await db.select({ count: count() })
+            .from(bookings)
+            .innerJoin(classes, eq(bookings.classId, classes.id))
+            .where(and(
+                eq(classes.locationId, location.id),
+                eq(bookings.status, 'confirmed')
+            ))
+            .get();
+
+        return {
+            locationId: location.id,
+            locationName: location.name,
+            activeClasses: activeClasses?.count || 0,
+            totalBookings: totalBookings?.count || 0,
+            isPrimary: location.isPrimary,
+        };
+    }));
+
+    return c.json({ locations: locationStats });
+});
 
 // GET /revenue
 app.get('/revenue', async (c) => {
