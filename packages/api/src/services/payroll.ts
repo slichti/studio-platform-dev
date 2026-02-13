@@ -1,4 +1,5 @@
 import { DrizzleD1Database } from 'drizzle-orm/d1';
+import * as schema from '@studio/db/src/schema';
 import {
     payrollConfig,
     payouts,
@@ -7,7 +8,8 @@ import {
     bookings,
     appointments,
     appointmentServices,
-    tenantMembers
+    tenantMembers,
+    users
 } from '@studio/db/src/schema';
 import { and, eq, between, sql, inArray } from 'drizzle-orm';
 
@@ -28,7 +30,7 @@ export interface PayoutResult {
 }
 
 export class PayrollService {
-    constructor(private db: DrizzleD1Database<any>, private tenantId: string) { }
+    constructor(private db: DrizzleD1Database<typeof schema>, private tenantId: string) { }
 
     async generatePayoutData(start: Date, end: Date): Promise<PayoutResult[]> {
         const configs = await this.db.select().from(payrollConfig).where(eq(payrollConfig.tenantId, this.tenantId)).all();
@@ -107,7 +109,7 @@ export class PayrollService {
             const revenue = Math.round(totalRevenueCents);
             let basisAmount = revenue, basisLabel = "Gross Revenue";
             if (config.payoutBasis === 'net') {
-                const estimatedFees = Math.floor(revenue * 0.029) + (classBookings.filter(b => b.paymentMethod === 'drop_in').length * 30);
+                const estimatedFees = Math.floor(revenue * 0.029) + (classBookings.filter((b: any) => b.paymentMethod === 'drop_in').length * 30);
                 basisAmount = Math.max(0, revenue - estimatedFees);
                 basisLabel = "Net Revenue (Est.)";
             }
