@@ -240,46 +240,55 @@ export default function ClassesPage() {
                                             {date}
                                         </h3>
                                     </div>
-                                    <div className="grid grid-cols-1 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                                         {events.map((cls) => (
                                             <Card key={cls.id} className={cn(
-                                                "transition-all hover:shadow-md",
+                                                "transition-all hover:shadow-md flex flex-col h-full",
                                                 cls.status === 'archived' && "opacity-60 bg-zinc-50 dark:bg-zinc-900/50"
                                             )}>
-                                                <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                                    <div className="space-y-1 flex-1">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="font-semibold text-base">{cls.title}</span>
-                                                            {cls.status === 'archived' && <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">Archived</Badge>}
-                                                            {cls.userBookingStatus === 'confirmed' && <Badge variant="success" className="text-[10px] px-1.5 py-0 h-5">Booked</Badge>}
-                                                            {cls.userBookingStatus === 'waitlisted' && <Badge variant="warning" className="text-[10px] px-1.5 py-0 h-5">Waitlisted</Badge>}
+                                                <CardContent className="p-3 flex flex-col h-full gap-3">
+                                                    <div className="space-y-1.5 flex-1">
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <span className="font-semibold text-sm line-clamp-2 leading-tight">{cls.title}</span>
+                                                            {/* Status Badge */}
+                                                            {(cls.status === 'archived' || cls.userBookingStatus) && (
+                                                                <div className="shrink-0">
+                                                                    {cls.status === 'archived' && <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">Archived</Badge>}
+                                                                    {cls.userBookingStatus === 'confirmed' && <Badge variant="success" className="text-[10px] px-1.5 py-0 h-5">Booked</Badge>}
+                                                                    {cls.userBookingStatus === 'waitlisted' && <Badge variant="warning" className="text-[10px] px-1.5 py-0 h-5">Waitlisted</Badge>}
+                                                                </div>
+                                                            )}
                                                         </div>
 
-                                                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                                        {/* Metadata */}
+                                                        <div className="space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
                                                             <div className="flex items-center gap-1.5">
-                                                                <Clock className="h-3 w-3" />
-                                                                {new Date(cls.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                                <span className="text-zinc-300 dark:text-zinc-700">•</span>
-                                                                {cls.durationMinutes} min
+                                                                <Clock className="h-3 w-3 shrink-0" />
+                                                                <span>
+                                                                    {new Date(cls.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                    <span className="text-zinc-300 dark:text-zinc-700 mx-1">•</span>
+                                                                    {cls.durationMinutes} min
+                                                                </span>
                                                             </div>
                                                             {cls.instructor?.user?.profile && (
                                                                 <div className="flex items-center gap-1.5">
-                                                                    <Users className="h-3 w-3" />
-                                                                    with {cls.instructor.user.profile.firstName}
+                                                                    <Users className="h-3 w-3 shrink-0" />
+                                                                    <span className="truncate">w/ {cls.instructor.user.profile.firstName}</span>
                                                                 </div>
                                                             )}
                                                             {cls.zoomEnabled && (
                                                                 <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
-                                                                    <Video className="h-3 w-3" />
-                                                                    Virtual Option
+                                                                    <Video className="h-3 w-3 shrink-0" />
+                                                                    <span>Virtual Option</span>
                                                                 </div>
                                                             )}
                                                         </div>
 
+                                                        {/* Capacity */}
                                                         {cls.capacity && (
-                                                            <div className="flex gap-2 pt-0.5">
+                                                            <div className="flex flex-wrap gap-1 pt-1">
                                                                 <Badge variant="outline" className={cn("font-normal text-[10px] px-1.5 py-0 h-5", (cls.inPersonCount || 0) >= cls.capacity ? "text-red-600 border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-900/30" : "")}>
-                                                                    In-Person: {cls.inPersonCount || 0} / {cls.capacity}
+                                                                    {cls.inPersonCount || 0} / {cls.capacity}
                                                                 </Badge>
                                                                 {cls.zoomEnabled && (
                                                                     <Badge variant="outline" className="font-normal text-[10px] px-1.5 py-0 h-5 text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-900/10 dark:border-blue-900/30">
@@ -290,49 +299,52 @@ export default function ClassesPage() {
                                                         )}
                                                     </div>
 
-                                                    <div className="flex items-center gap-2 shrink-0">
-                                                        {isAdmin && (
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-8 w-8"
-                                                                onClick={() => setConfirmArchiveData({ id: cls.id, archive: cls.status !== 'archived' })}
-                                                                title={cls.status === 'archived' ? 'Restore Class' : 'Archive Class'}
-                                                            >
-                                                                {cls.status === 'archived' ? <ArchiveRestore className="h-3 w-3" /> : <Archive className="h-3 w-3" />}
-                                                            </Button>
-                                                        )}
+                                                    {/* Actions - Pushed to bottom */}
+                                                    <div className="pt-2 mt-auto w-full">
+                                                        <div className="flex items-center gap-2 w-full">
+                                                            {isAdmin && (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-7 w-7 shrink-0"
+                                                                    onClick={() => setConfirmArchiveData({ id: cls.id, archive: cls.status !== 'archived' })}
+                                                                    title={cls.status === 'archived' ? 'Restore Class' : 'Archive Class'}
+                                                                >
+                                                                    {cls.status === 'archived' ? <ArchiveRestore className="h-3 w-3" /> : <Archive className="h-3 w-3" />}
+                                                                </Button>
+                                                            )}
 
-                                                        {cls.status !== 'archived' && (
-                                                            me ? (
-                                                                cls.userBookingStatus === 'confirmed' ? (
-                                                                    <div className="flex flex-col items-end gap-2">
-                                                                        <Button
-                                                                            variant="destructive"
-                                                                            size="sm"
-                                                                            className="h-8 px-3 text-xs"
-                                                                            onClick={() => setConfirmCancelData({ bookingId: cls.userBooking!.id, classId: cls.id })}
-                                                                        >
-                                                                            Cancel
-                                                                        </Button>
-                                                                    </div>
-                                                                ) : cls.userBookingStatus === 'waitlisted' ? (
-                                                                    <Button variant="secondary" disabled size="sm" className="h-8 px-3 text-xs">On Waitlist</Button>
-                                                                ) : (
-                                                                    ((cls.inPersonCount || 0) >= (cls.capacity || Infinity) && !cls.zoomEnabled) ? (
-                                                                        <Button variant="secondary" size="sm" className="h-8 px-3 text-xs" onClick={() => joinWaitlist(cls)}>Join Waitlist</Button>
+                                                            <div className="flex-1">
+                                                                {cls.status !== 'archived' && (
+                                                                    me ? (
+                                                                        cls.userBookingStatus === 'confirmed' ? (
+                                                                            <Button
+                                                                                variant="destructive"
+                                                                                size="sm"
+                                                                                className="h-7 w-full text-xs"
+                                                                                onClick={() => setConfirmCancelData({ bookingId: cls.userBooking!.id, classId: cls.id })}
+                                                                            >
+                                                                                Cancel
+                                                                            </Button>
+                                                                        ) : cls.userBookingStatus === 'waitlisted' ? (
+                                                                            <Button variant="secondary" disabled size="sm" className="h-7 w-full text-xs">Waitlisted</Button>
+                                                                        ) : (
+                                                                            ((cls.inPersonCount || 0) >= (cls.capacity || Infinity) && !cls.zoomEnabled) ? (
+                                                                                <Button variant="secondary" size="sm" className="h-7 w-full text-xs" onClick={() => joinWaitlist(cls)}>Join Waitlist</Button>
+                                                                            ) : (
+                                                                                <Button size="sm" className="h-7 w-full text-xs" onClick={() => family.length > 0 || cls.zoomEnabled ? setSelectedClass(cls) : handleQuickBook(cls)}>
+                                                                                    Book
+                                                                                </Button>
+                                                                            )
+                                                                        )
                                                                     ) : (
-                                                                        <Button size="sm" className="h-8 px-3 text-xs" onClick={() => family.length > 0 || cls.zoomEnabled ? setSelectedClass(cls) : handleQuickBook(cls)}>
-                                                                            Book Class
-                                                                        </Button>
+                                                                        <a href="/sign-in" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-7 w-full text-xs")}>
+                                                                            Login
+                                                                        </a>
                                                                     )
-                                                                )
-                                                            ) : (
-                                                                <a href="/sign-in" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 px-3 text-xs")}>
-                                                                    Login to Book
-                                                                </a>
-                                                            )
-                                                        )}
+                                                                )}
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </CardContent>
                                             </Card>
