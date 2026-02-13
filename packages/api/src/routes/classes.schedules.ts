@@ -180,7 +180,6 @@ app.openapi(createRoute({
 }), async (c) => {
     // [DIAGNOSTIC] Log Zod errors
     const reqBody = await c.req.json().catch(() => ({}));
-    console.log('[DEBUG] Raw Request Body:', JSON.stringify(reqBody, null, 2));
     const parseResult = CreateClassSchema.safeParse(reqBody);
     if (!parseResult.success) {
         console.error(`[CLASSES API 400] Validation failed:`, parseResult.error.format());
