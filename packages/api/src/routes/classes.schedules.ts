@@ -3,7 +3,7 @@ import { createOpenAPIApp } from '../lib/openapi';
 import { StudioVariables } from '../types';
 import { createDb } from '../db';
 import { classes, bookings, classSeries } from '@studio/db/src/schema';
-import { eq, sql, desc, and, gte, lte, inArray } from 'drizzle-orm';
+import { eq, sql, desc, asc, and, gte, lte, inArray } from 'drizzle-orm';
 import { RRule } from 'rrule';
 import { EncryptionUtils } from '../utils/encryption';
 import { ZoomService } from '../services/zoom';
@@ -103,7 +103,7 @@ app.openapi(createRoute({
     const results = await db.query.classes.findMany({
         where: and(...conds),
         with: { instructor: { with: { user: true } }, location: true },
-        orderBy: [desc(classes.startTime)],
+        orderBy: [asc(classes.startTime)],
         limit: limit || 100, // Safety fallback
         offset: offset || 0
     });
