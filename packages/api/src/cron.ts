@@ -75,7 +75,7 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
             });
 
             if (response.ok) {
-                const result = await response.json();
+                const result = await response.json() as { success: boolean; executed: number };
                 console.log(`✅ Scheduled reports: Executed ${result.executed} reports`);
             } else {
                 console.error('❌ Scheduled reports execution failed:', await response.text());

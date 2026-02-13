@@ -94,28 +94,6 @@ export const rooms = sqliteTable('rooms', {
     roomIdx: index('room_tenant_idx').on(table.tenantId),
 }));
 
-// --- Locations (Multi-Location Support) ---
-export const locations = sqliteTable('locations', {
-    id: text('id').primaryKey(),
-    tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
-    name: text('name').notNull(),
-    address: text('address'),
-    city: text('city'),
-    state: text('state'),
-    zipCode: text('zip_code'),
-    country: text('country').default('US'),
-    timezone: text('timezone').default('America/New_York').notNull(),
-    isPrimary: integer('is_primary', { mode: 'boolean' }).default(false).notNull(),
-    settings: text('settings', { mode: 'json' }), // Location-specific overrides
-    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
-    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
-}, (table) => ({
-    tenantIdx: index('location_tenant_idx').on(table.tenantId),
-}));
-
-// --- Classes ---
-// Placeholder for classes table, which would typically come after locations and rooms.
-
 // --- Tenant Features (Entitlements) ---
 export const tenantFeatures = sqliteTable('tenant_features', {
     id: text('id').primaryKey(),

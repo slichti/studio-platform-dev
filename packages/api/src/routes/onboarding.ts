@@ -385,9 +385,11 @@ app.post('/quick-start', rateLimitMiddleware({ limit: 10, window: 60, keyPrefix:
                 id: locationId,
                 tenantId,
                 name: 'Main Studio',
-                timezone: timezone || 'UTC',
+                address: '',
+                timezone: 'America/New_York',
                 isPrimary: true,
-                isActive: true
+                settings: {},
+                createdAt: new Date(),
             }).run();
         } else {
             locationId = existingLoc.id;
