@@ -52,6 +52,10 @@ app.get('/debug-member', async (c) => {
     const tenantSlug = c.req.query('slug');
 
     const result: any = { auth };
+    const dbUser = await db.query.users.findFirst({ where: eq(users.id, auth.userId) });
+    const validAdminRoles = ['owner', 'admin', 'system_admin', 'platform_admin'];
+    const isPlatformAdmin = dbUser?.isPlatformAdmin === true || (!!dbUser?.role && validAdminRoles.includes(dbUser.role));
+    result.isPlatformAdmin = isPlatformAdmin;
 
     if (tenantSlug) {
         const tenant = await db.query.tenants.findFirst({ where: eq(tenants.slug, tenantSlug) });
@@ -380,13 +384,18 @@ app.post('/quick-start', rateLimitMiddleware({ limit: 10, window: 60, keyPrefix:
 
         const db = createDb(c.env.DB);
 
-        // Verify Ownership
-        console.log(`[QUICK-START DEBUG] Checking membership for user=${auth.userId}, tenant=${tenantId}`);
+        // [SEC] Platform Admin Bypass
+        const dbUser = await db.query.users.findFirst({ where: eq(users.id, auth.userId) });
+        const validAdminRoles = ['owner', 'admin', 'system_admin', 'platform_admin'];
+        const isPlatformAdmin = dbUser?.isPlatformAdmin === true || (!!dbUser?.role && validAdminRoles.includes(dbUser.role));
+
+        // Verify Ownership (Skip if Platform Admin)
+        console.log(`[QUICK-START DEBUG] Checking membership for user=${auth.userId}, tenant=${tenantId}, isPlatformAdmin=${isPlatformAdmin}`);
         const member = await db.query.tenantMembers.findFirst({
             where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenantId))
         });
 
-        if (!member) {
+        if (!member && !isPlatformAdmin) {
             console.log(`[QUICK-START DEBUG] Membership NOT FOUND for user=${auth.userId}, tenant=${tenantId}`);
             // Check if user is member of ANY tenant to debug ID format
             const otherMember = await db.query.tenantMembers.findFirst({ where: eq(tenantMembers.userId, auth.userId) });
@@ -398,9 +407,11 @@ app.post('/quick-start', rateLimitMiddleware({ limit: 10, window: 60, keyPrefix:
             return c.json({ error: "Not a member", debug: { userId: auth.userId, tenantId } }, 403);
         }
 
-        // Check Role
-        const role = await db.select().from(tenantRoles).where(eq(tenantRoles.memberId, member.id)).get();
-        if (role?.role !== 'owner') return c.json({ error: "Must be owner" }, 403);
+        // Check Role (Skip if Platform Admin)
+        if (!isPlatformAdmin) {
+            const role = await db.select().from(tenantRoles).where(eq(tenantRoles.memberId, member!.id)).get();
+            if (role?.role !== 'owner') return c.json({ error: "Must be owner" }, 403);
+        }
 
         // 1. Update Tenant Settings (Branding, Name, Timezone indirectly via Location)
         const currentTenant = await db.select().from(tenants).where(eq(tenants.id, tenantId)).get();
@@ -447,35 +458,46 @@ app.post('/quick-start', rateLimitMiddleware({ limit: 10, window: 60, keyPrefix:
             const seriesId = crypto.randomUUID();
             const start = new Date(startTime);
 
-            // Create Series
-            await db.insert(classSeries).values({
-                id: seriesId,
-                tenantId,
-                instructorId: member.id,
-                locationId: locationId,
-                title: title || 'My First Class',
-                durationMinutes: duration || 60,
-                price: 0,
-                currency: currency || 'usd',
-                recurrenceRule: '', // One-off
-                validFrom: start,
-                createdAt: new Date()
-            }).run();
+            // [FIX] Fallback for instructorId if member is null (Platform Admin bypass case)
+            let instructorId = member?.id;
+            if (!instructorId) {
+                const firstMember = await db.query.tenantMembers.findFirst({ where: eq(tenantMembers.tenantId, tenantId) });
+                instructorId = firstMember?.id;
+            }
 
-            // Create Instance
-            await db.insert(classes).values({
-                id: crypto.randomUUID(),
-                tenantId,
-                instructorId: member.id,
-                locationId: locationId,
-                seriesId: seriesId,
-                title: title || 'My First Class',
-                startTime: start,
-                durationMinutes: duration || 60,
-                status: 'active',
-                capacity: 20, // Default
-                createdAt: new Date()
-            }).run();
+            if (instructorId) {
+                // Create Series
+                await db.insert(classSeries).values({
+                    id: seriesId,
+                    tenantId,
+                    instructorId: instructorId,
+                    locationId: locationId,
+                    title: title || 'My First Class',
+                    durationMinutes: duration || 60,
+                    price: 0,
+                    currency: currency || 'usd',
+                    recurrenceRule: '', // One-off
+                    validFrom: start,
+                    createdAt: new Date()
+                }).run();
+
+                // Create Instance
+                await db.insert(classes).values({
+                    id: crypto.randomUUID(),
+                    tenantId,
+                    instructorId: instructorId,
+                    locationId: locationId,
+                    seriesId: seriesId,
+                    title: title || 'My First Class',
+                    startTime: start,
+                    durationMinutes: duration || 60,
+                    status: 'active',
+                    capacity: 20, // Default
+                    createdAt: new Date()
+                }).run();
+            } else {
+                console.warn(`[QUICK-START] Skipping first class creation: No instructor/member found for tenant ${tenantId}`);
+            }
         }
 
         return c.json({ success: true, onboardingCompleted: true });
