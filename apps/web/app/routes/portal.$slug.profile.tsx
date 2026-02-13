@@ -1,9 +1,14 @@
 
-import { useLoaderData, useOutletContext, Form } from "react-router"; 
-import type { LoaderFunctionArgs } from "react-router"; 
+import { useLoaderData, useOutletContext, Form } from "react-router";
+import type { LoaderFunctionArgs } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
-import { User, Mail, Calendar, CreditCard, LogOut, Shield } from "lucide-react";
+import { User, Mail, Calendar, CreditCard, LogOut, Shield, TrendingUp, Award } from "lucide-react";
+import { ProgressRing } from "~/components/ui/ProgressRing";
+import { StreakBadge, MilestoneBadge } from "~/components/ui/StreakBadge";
+import { EmptyState } from "~/components/ui/EmptyState";
+import { useStudentProgress } from "~/hooks/useStudentProgress";
+import { useAuth } from "@clerk/react-router";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken } = await getAuth(args);
@@ -61,6 +66,75 @@ export default function StudentPortalProfile() {
                             Log Out
                         </button>
                     </Form>
+                </div>
+            </section>
+
+            {/* Progress Dashboard */}
+            <section>
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                        <TrendingUp size={20} />
+                        My Progress
+                    </h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    {/* Attendance Streak - Placeholder */}
+                    <div className="bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 p-6 rounded-xl border border-orange-200 dark:border-orange-800">
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-sm font-medium text-orange-900 dark:text-orange-100">Attendance Streak</span>
+                            <StreakBadge streak={7} showLabel={false} />
+                        </div>
+                        <div className="text-3xl font-bold text-orange-900 dark:text-orange-100">
+                            7 days
+                        </div>
+                        <p className="text-xs text-orange-700 dark:text-orange-300 mt-1">Keep it going! 🔥</p>
+                    </div>
+
+                    {/* Classes This Month */}
+                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                        <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                                <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">This Month</span>
+                                <div className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 mt-2">
+                                    12
+                                </div>
+                                <p className="text-xs text-zinc-500 mt-1">classes attended</p>
+                            </div>
+                            <ProgressRing
+                                progress={60}
+                                size={80}
+                                strokeWidth={6}
+                                showPercentage={false}
+                                label="12/20"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Pack Credits */}
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-xl border border-blue-200 dark:border-blue-800">
+                        <span className="text-sm font-medium text-blue-900 dark:text-blue-100">Pack Credits</span>
+                        <div className="text-3xl font-bold text-blue-900 dark:text-blue-100 mt-2">
+                            8
+                        </div>
+                        <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                            of 10 remaining
+                        </p>
+                    </div>
+                </div>
+
+                {/* Milestones */}
+                <div className="mb-6">
+                    <h4 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-3 flex items-center gap-2">
+                        <Award size={16} />
+                        Milestones
+                    </h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <MilestoneBadge milestone={10} label="Classes" achieved={true} />
+                        <MilestoneBadge milestone={25} label="Classes" achieved={false} />
+                        <MilestoneBadge milestone={50} label="Classes" achieved={false} />
+                        <MilestoneBadge milestone={100} label="Classes" achieved={false} />
+                    </div>
                 </div>
             </section>
 
