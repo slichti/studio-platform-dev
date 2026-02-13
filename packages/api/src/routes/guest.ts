@@ -301,6 +301,12 @@ app.get('/debug-db-schema', async (c) => {
     return c.json(info);
 });
 
+app.get('/debug-db-schema-v2', async (c) => {
+    const db = createDb(c.env.DB);
+    const info = await c.env.DB.prepare('PRAGMA table_info(classes)').all();
+    return c.json(info);
+});
+
 import { RRule } from 'rrule';
 
 // ... (existing imports)
