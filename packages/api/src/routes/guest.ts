@@ -294,18 +294,7 @@ app.post('/chat/start', rateLimitMiddleware({ limit: 3, window: 60, keyPrefix: '
         user: { id: user.id, email: body.email, name: body.name }
     });
 });
-// Debug Endpoint
-app.get('/debug-db-schema', async (c) => {
-    const db = createDb(c.env.DB);
-    const info = await c.env.DB.prepare('PRAGMA table_info(classes)').all();
-    return c.json(info);
-});
 
-app.get('/debug-db-schema-v2', async (c) => {
-    const db = createDb(c.env.DB);
-    const tenant = await c.env.DB.prepare('SELECT * FROM tenants LIMIT 1').first();
-    return c.json(tenant);
-});
 
 import { RRule } from 'rrule';
 
