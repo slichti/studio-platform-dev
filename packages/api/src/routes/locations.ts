@@ -68,4 +68,64 @@ app.delete('/:id', async (c) => {
     return c.json({ success: true });
 });
 
+// PATCH /:id : Update location
+app.patch('/:id', async (c) => {
+    if (!c.get('can')('manage_tenant')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context missing' }, 400);
+
+    const id = c.req.param('id');
+    const updates = await c.req.json();
+
+    await db.update(locations)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(and(eq(locations.id, id), eq(locations.tenantId, tenant.id)))
+        .run();
+
+    return c.json({ success: true });
+});
+
+// GET /:id/stats : Location-specific statistics
+app.get('/:id/stats', async (c) => {
+    if (!c.get('can')('view_reports')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context missing' }, 400);
+
+    const locationId = c.req.param('id');
+    const { classes, bookings } = await import('@studio/db/src/schema');
+
+    // Get class count
+    const classCount = await db.select({ count: sql<number>`count(*)` })
+        .from(classes)
+        .where(and(
+            eq(classes.locationId, locationId),
+            eq(classes.status, 'active')
+        ))
+        .get();
+
+    // Get total bookings
+    const bookingCount = await db.select({ count: sql<number>`count(*)` })
+        .from(bookings)
+        .innerJoin(classes, eq(bookings.classId, classes.id))
+        .where(and(
+            eq(classes.locationId, locationId),
+            eq(bookings.status, 'confirmed')
+        ))
+        .get();
+
+    return c.json({
+        locationId,
+        stats: {
+            activeClasses: classCount?.count || 0,
+            totalBookings: bookingCount?.count || 0,
+        }
+    });
+});
+
 export default app;
