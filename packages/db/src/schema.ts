@@ -304,7 +304,7 @@ export const locations = sqliteTable('locations', {
 export const classSeries = sqliteTable('class_series', {
     id: text('id').primaryKey(),
     tenantId: text('tenant_id').notNull().references(() => tenants.id),
-    instructorId: text('instructor_id').notNull().references(() => tenantMembers.id),
+    instructorId: text('instructor_id').references(() => tenantMembers.id), // Nullable - instructor may be TBA
     locationId: text('location_id').references(() => locations.id),
     title: text('title').notNull(),
     description: text('description'),

@@ -233,7 +233,7 @@ app.openapi(createRoute({
         await db.insert(classSeries).values({
             id: seriesId,
             tenantId: tenant.id,
-            instructorId: instructorId!,
+            instructorId: instructorId || null,
             locationId: locationId || null,
             title,
             description: body.description,
