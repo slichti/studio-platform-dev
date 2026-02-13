@@ -4,9 +4,10 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { useAuth } from "@clerk/react-router";
 
-import { useRevenue, DateRange } from "~/hooks/useAnalytics";
+import { useRevenue, useInstructorProfitability, DateRange } from "~/hooks/useAnalytics";
 import { MetricCard } from "~/components/charts/MetricCard";
 import { RevenueChart } from "~/components/charts/RevenueChart";
+import { InstructorRoiChart } from "~/components/charts/InstructorRoiChart";
 import { PrivacyBlur } from "~/components/PrivacyBlur";
 
 export default function AnalyticsFinancials() {
@@ -15,6 +16,7 @@ export default function AnalyticsFinancials() {
     const [exporting, setExporting] = useState(false);
 
     const { data: revenueData, isLoading, isError, error } = useRevenue(tenant.slug, dateRange);
+    const { data: roiData, isLoading: isLoadingRoi } = useInstructorProfitability(tenant.slug, dateRange);
 
     const handleExportJournal = async () => {
         setExporting(true);
@@ -142,6 +144,19 @@ export default function AnalyticsFinancials() {
                             )}
                         </div>
                     )}
+                </div>
+            </div>
+
+            <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative min-h-[400px] mt-8">
+                <h3 className="text-lg font-semibold mb-6 flex justify-between items-center">
+                    Instructor Profitability (ROI)
+                    <span className="text-xs font-normal text-zinc-500">Revenue vs. Payroll Cost</span>
+                </h3>
+                {shouldBlur && (
+                    <div className="absolute inset-0 z-10 backdrop-blur-md bg-white/30 dark:bg-black/30 flex items-center justify-center rounded-xl"></div>
+                )}
+                <div className="h-96 w-full">
+                    <InstructorRoiChart data={roiData} />
                 </div>
             </div>
         </div>

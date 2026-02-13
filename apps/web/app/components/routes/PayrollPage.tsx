@@ -3,7 +3,7 @@ import { useOutletContext, useParams } from "react-router";
 import { useState } from "react";
 import { apiRequest } from "~/utils/api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { Loader2, DollarSign, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, DollarSign, CheckCircle2, AlertCircle, Download } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -18,7 +18,8 @@ import { Input } from "~/components/ui/input";
 import { Select } from "~/components/ui/select";
 import { Card, CardContent } from "~/components/ui/Card";
 import { Badge } from "~/components/ui/Badge";
-import { usePayrollHistory, usePayrollConfig } from "~/hooks/usePayroll";
+import { usePayrollHistory, usePayrollConfig, useBulkApprovePayouts, useExportPayrollHistory } from "~/hooks/usePayroll";
+import { Checkbox } from "~/components/ui/checkbox";
 import { ComponentErrorBoundary } from "~/components/ErrorBoundary";
 
 export default function PayrollPage() {
@@ -176,6 +177,10 @@ function PayrollHistory({ slug }: { slug: string }) {
 
     const [itemToPay, setItemToPay] = useState<string | null>(null);
     const [processPaymentId, setProcessPaymentId] = useState<string | null>(null);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+    const bulkApproveMutation = useBulkApprovePayouts(slug);
+    const exportHistory = useExportPayrollHistory(slug);
 
     const approveMutation = useMutation({
         mutationFn: async (id: string) => {
@@ -213,14 +218,71 @@ function PayrollHistory({ slug }: { slug: string }) {
         onError: (e: any) => toast.error(e.message)
     });
 
+    const toggleSelect = (id: string) => {
+        const next = new Set(selectedIds);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        setSelectedIds(next);
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === history.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(history.map((h: any) => h.id)));
+        }
+    };
+
+    const handleBulkApprove = async () => {
+        if (selectedIds.size === 0) return;
+        try {
+            await bulkApproveMutation.mutateAsync(Array.from(selectedIds));
+            setSelectedIds(new Set());
+            toast.success(`Successfully approved ${selectedIds.size} payouts.`);
+        } catch (e: any) {
+            toast.error(e.message);
+        }
+    };
+
+    const handleExport = async () => {
+        try {
+            await exportHistory();
+            toast.success("Export started");
+        } catch (e: any) {
+            toast.error(e.message);
+        }
+    };
+
     if (isLoading) return <div>Loading history...</div>;
 
     return (
         <>
+            <div className="flex justify-between items-center mb-4">
+                <div className="flex gap-2">
+                    {selectedIds.size > 0 && (
+                        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-200">
+                            <span className="text-sm font-medium text-zinc-600 bg-zinc-100 px-3 py-1 rounded-full">{selectedIds.size} Selected</span>
+                            <Button size="sm" onClick={handleBulkApprove} disabled={bulkApproveMutation.isPending} className="bg-zinc-900 text-white">
+                                {bulkApproveMutation.isPending ? 'Approving...' : 'Bulk Mark Paid'}
+                            </Button>
+                        </div>
+                    )}
+                </div>
+                <Button variant="outline" size="sm" onClick={handleExport}>
+                    <Download size={14} className="mr-1" /> Export History (CSV)
+                </Button>
+            </div>
+
             <Card className="overflow-hidden border-zinc-200 dark:border-zinc-800">
                 <table className="w-full text-sm text-left">
                     <thead className="bg-zinc-50 dark:bg-zinc-800 text-zinc-500 font-medium border-b border-zinc-200 dark:border-zinc-800">
                         <tr>
+                            <th className="p-4 w-10">
+                                <Checkbox
+                                    checked={selectedIds.size === history.length && history.length > 0}
+                                    onCheckedChange={toggleSelectAll}
+                                />
+                            </th>
                             <th className="p-4">Period</th>
                             <th className="p-4">Instructor</th>
                             <th className="p-4">Amount</th>
@@ -230,7 +292,13 @@ function PayrollHistory({ slug }: { slug: string }) {
                     </thead>
                     <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                         {history.map((row: any) => (
-                            <tr key={row.id}>
+                            <tr key={row.id} className={selectedIds.has(row.id) ? 'bg-zinc-50/50 dark:bg-zinc-800/20' : ''}>
+                                <td className="p-4">
+                                    <Checkbox
+                                        checked={selectedIds.has(row.id)}
+                                        onCheckedChange={() => toggleSelect(row.id)}
+                                    />
+                                </td>
                                 <td className="p-4">
                                     {new Date(row.periodStart).toLocaleDateString()} - {new Date(row.periodEnd).toLocaleDateString()}
                                 </td>
@@ -265,7 +333,7 @@ function PayrollHistory({ slug }: { slug: string }) {
                                 </td>
                             </tr>
                         ))}
-                        {history.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-zinc-500">No history found.</td></tr>}
+                        {history.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-zinc-500">No history found.</td></tr>}
                     </tbody>
                 </table>
             </Card>

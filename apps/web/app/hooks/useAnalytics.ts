@@ -174,3 +174,21 @@ export function useCustomReports(slug: string) {
         enabled: !!slug
     });
 }
+
+export function useInstructorProfitability(slug: string, range: DateRange, customStart?: string, customEnd?: string) {
+    const { getToken } = useAuth();
+    const { startDate, endDate } = useMemo(() => getDateRangeParams(range, customStart, customEnd), [range, customStart, customEnd]);
+
+    return useQuery({
+        queryKey: ['analytics', 'instructor-profitability', slug, range, startDate, endDate],
+        queryFn: async () => {
+            const token = await getToken();
+            const res = await apiRequest(`/payroll/profitability?startDate=${startDate}&endDate=${endDate}`, token, {
+                headers: { 'X-Tenant-Slug': slug }
+            });
+            return res;
+        },
+        enabled: !!slug,
+        retry: 1
+    });
+}
