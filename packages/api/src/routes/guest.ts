@@ -296,84 +296,8 @@ app.post('/chat/start', rateLimitMiddleware({ limit: 3, window: 60, keyPrefix: '
 });
 
 
-import { RRule } from 'rrule';
 
-// ... (existing imports)
 
-// ...
 
-app.post('/debug-recurrence', async (c) => {
-    const db = createDb(c.env.DB);
-    const tenantId = 'f53eb254-f0fb-4da7-a5ac-d32d2c0b4bac'; // premier-yoga
-    const seriesId = crypto.randomUUID();
-    const start = new Date();
-    const recurrenceRule = 'FREQ=DAILY;UNTIL=20261024T000000Z';
-    const recurrenceEnd = new Date('2026-10-24T00:00:00.000Z');
-
-    try {
-        // 1. Insert Series
-        const seriesResult = await db.insert(classSeries).values({
-            id: seriesId,
-            tenantId,
-            instructorId: null,
-            locationId: null,
-            title: 'Debug Recurrence',
-            description: 'Debug Description',
-            durationMinutes: 60,
-            price: 0,
-            recurrenceRule,
-            validFrom: start,
-            validUntil: recurrenceEnd,
-            createdAt: new Date()
-        }).run();
-
-        // 2. Parse RRule
-        const options = RRule.parseString(recurrenceRule);
-        options.dtstart = start;
-        if (recurrenceEnd) options.until = recurrenceEnd;
-
-        const rule = new RRule(options);
-        const occurrences = rule.all();
-
-        // 3. Loop and Insert Classes
-        const insertedClasses = [];
-        for (const occ of occurrences) {
-            const id = crypto.randomUUID();
-            const [nc] = await db.insert(classes).values({
-                id,
-                tenantId,
-                instructorId: null,
-                locationId: null,
-                seriesId,
-                title: 'Debug Recurrence Class',
-                description: 'Debug Description',
-                startTime: occ,
-                durationMinutes: 60,
-                capacity: 20,
-                price: 0,
-                memberPrice: null,
-                type: 'class',
-                minStudents: 1,
-                autoCancelThreshold: null,
-                autoCancelEnabled: false,
-                allowCredits: true,
-                includedPlanIds: [],
-                zoomEnabled: false,
-                zoomMeetingId: null,
-                zoomMeetingUrl: null,
-                zoomPassword: null,
-                status: 'active',
-                payrollModel: null,
-                payrollValue: null,
-                createdAt: new Date()
-            }).returning();
-            insertedClasses.push(nc);
-        }
-
-        return c.json({ success: true, seriesResult, classesCount: insertedClasses.length });
-    } catch (e: any) {
-        return c.json({ success: false, error: e.message, stack: e.stack }, 500);
-    }
-});
 
 export default app;
