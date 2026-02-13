@@ -178,4 +178,80 @@ describe('Quota Integration Tests', () => {
         }
         expect(res.status).toBe(402);
     });
+
+    it('should correctly count classes only within the current week', async () => {
+        const tenantId = 't_class_quota_bug';
+        const ownerId = 'user_owner_bug';
+
+        await db.insert(schema.tenants).values({
+            id: tenantId,
+            slug: 'class-quota-bug',
+            name: 'Class Quota Bug',
+            tier: 'launch'
+        }).run();
+
+        await db.insert(schema.users).values({
+            id: ownerId,
+            email: 'ownerbug@test.com',
+            role: 'owner'
+        }).run();
+
+        await db.insert(schema.tenantMembers).values({
+            id: 'm_owner_bug',
+            tenantId: tenantId,
+            userId: ownerId,
+            status: 'active'
+        }).run();
+
+        await db.insert(schema.tenantRoles).values({
+            id: 'r_owner_bug',
+            memberId: 'm_owner_bug',
+            role: 'owner'
+        }).run();
+
+        // 1. Create 5 classes NEXT week (7 days from now)
+        const nextWeek = new Date();
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        const batch = [];
+        for (let i = 0; i < 5; i++) {
+            batch.push(db.insert(schema.classes).values({
+                id: `future_c_${i}`,
+                tenantId: tenantId,
+                title: `Future Class ${i}`,
+                startTime: nextWeek,
+                durationMinutes: 60,
+                status: 'active',
+                type: 'class'
+            }));
+        }
+        await Promise.all(batch);
+
+        // 2. Try to create 1 class THIS week (should be allowed if quota is per-week)
+        // If bug exists (unbounded count), it will see 5 future classes and block this one.
+        const now = new Date();
+        const req = new Request('http://localhost/classes', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Tenant-Id': tenantId,
+                'TEST-AUTH': ownerId
+            },
+            body: JSON.stringify({
+                title: 'Current Week Class',
+                startTime: now.toISOString(),
+                durationMinutes: 60
+            })
+        });
+
+        const res = await SELF.fetch(req);
+
+        // We expect it to SUCCEED (201) if logic is correct.
+        // But we expect it to FAIL (402) if logic is buggy.
+        // To confirm the BUG, we assert failure or success?
+        // Let's assert SUCCESS, so the test FAILS currently.
+        if (res.status === 402) {
+            console.log("Bug Reproduced: Quota Exceeded due to future classes");
+        }
+        expect(res.status).toBe(201);
+    });
 });

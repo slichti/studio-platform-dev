@@ -1,5 +1,5 @@
 import { createDb } from '../db';
-import { eq, count, and, sql, sum, gte } from 'drizzle-orm';
+import { eq, count, and, sql, sum, gte, lt } from 'drizzle-orm';
 import { tenants, tenantMembers, classes, purchasedPacks, tenantRoles, uploads, locations, usageLogs } from '@studio/db/src/schema';
 import { Resend } from 'resend';
 
@@ -166,11 +166,16 @@ export class UsageService {
                 const diff = startOfWeek.getDate() - (day === 0 ? 6 : day - 1); // Monday
                 startOfWeek.setDate(diff);
                 startOfWeek.setHours(0, 0, 0, 0);
+
+                const endOfWeek = new Date(startOfWeek);
+                endOfWeek.setDate(startOfWeek.getDate() + 7); // Next Monday 00:00
+
                 return this.db.select({ count: count() })
                     .from(classes)
                     .where(and(
                         eq(classes.tenantId, this.tenantId),
-                        gte(classes.startTime, startOfWeek)
+                        gte(classes.startTime, startOfWeek),
+                        lt(classes.startTime, endOfWeek) // Strictly less than next Monday
                     ));
             })(),
 
