@@ -46,7 +46,7 @@ export const CreateClassSchema = z.object({
     price: z.coerce.number().min(0).optional(),
     memberPrice: z.coerce.number().min(0).nullable().optional(),
     instructorId: z.string().nullable().optional(),
-    locationId: z.preprocess(val => val === null ? undefined : val, z.string().optional()),
+    locationId: z.union([z.string(), z.null()]).optional().transform(v => v || undefined),
     zoomEnabled: z.coerce.boolean().optional(),
     createZoomMeeting: z.coerce.boolean().optional(), // Match frontend
     allowCredits: z.coerce.boolean().optional(),
