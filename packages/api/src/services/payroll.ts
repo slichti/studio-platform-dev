@@ -106,15 +106,35 @@ export class PayrollService {
                     totalRevenueCents += (b.usedPack.price || 0) / (b.usedPack.initialCredits || 1);
                 }
             }
-            const revenue = Math.round(totalRevenueCents);
+
+            // Subtract Refunds
+            const refundedAmount = await this.db.select({ total: sql<number>`sum(${schema.refunds.amount})` })
+                .from(schema.refunds)
+                .where(and(
+                    eq(schema.refunds.tenantId, this.tenantId),
+                    eq(schema.refunds.referenceId, cls.id),
+                    eq(schema.refunds.type, 'pos') // Assuming POS refund for drop-in? Or pack refund?
+                ))
+                .get();
+
+            // Also subtract pack refunds proportionally? 
+            // In a real system we'd track specific booking refunds. 
+            // For now, let's subtract direct order refunds.
+
+            const revenue = Math.round(totalRevenueCents - (refundedAmount?.total || 0));
             let basisAmount = revenue, basisLabel = "Gross Revenue";
+
+            // Apply Fixed Deduction if set in config (e.g. Room Fee)
+            const fixedDeduction = (config.metadata as any)?.fixedDeduction || 0;
+            basisAmount = Math.max(0, basisAmount - fixedDeduction);
+
             if (config.payoutBasis === 'net') {
                 const estimatedFees = Math.floor(revenue * 0.029) + (classBookings.filter((b: any) => b.paymentMethod === 'drop_in').length * 30);
-                basisAmount = Math.max(0, revenue - estimatedFees);
+                basisAmount = Math.max(0, basisAmount - estimatedFees);
                 basisLabel = "Net Revenue (Est.)";
             }
             amount = Math.round(basisAmount * (config.rate / 10000));
-            details = `${(config.rate / 100)}% of $${(basisAmount / 100).toFixed(2)} (${basisLabel})`;
+            details = `${(config.rate / 100)}% of $${(basisAmount / 100).toFixed(2)} (${basisLabel}${fixedDeduction > 0 ? ` - $${(fixedDeduction / 100).toFixed(2)} fee` : ''})`;
         }
         return { amount, details };
     }

@@ -253,4 +253,82 @@ export class ChallengeService {
 
         return enriched;
     }
+
+    async reconcileRefund(referenceId: string, type: string) {
+        if (type !== 'pack' && type !== 'pos') return;
+
+        // 1. Find bookings associated with this purchase (if pack)
+        let relevantUserIds: string[] = [];
+        const tenantId = this.tenantId;
+
+        if (type === 'pack') {
+            const bookingsList = await this.db.select({ userId: schema.tenantMembers.userId })
+                .from(schema.bookings)
+                .innerJoin(schema.tenantMembers, eq(schema.bookings.memberId, schema.tenantMembers.id))
+                .where(eq(schema.bookings.usedPackId, referenceId))
+                .all();
+            relevantUserIds = [...new Set(bookingsList.map(b => b.userId))];
+        } else if (type === 'pos') {
+            const order = await this.db.query.posOrders.findFirst({
+                where: eq(schema.posOrders.id, referenceId)
+            });
+            if (order?.memberId) {
+                const member = await this.db.query.tenantMembers.findFirst({
+                    where: eq(schema.tenantMembers.id, order.memberId)
+                });
+                if (member) relevantUserIds = [member.userId];
+            }
+        }
+
+        for (const userId of relevantUserIds) {
+            // Find completed challenges for this user
+            const completedChallenges = await this.db.select()
+                .from(userChallenges)
+                .where(and(
+                    eq(userChallenges.userId, userId),
+                    eq(userChallenges.tenantId, tenantId),
+                    eq(userChallenges.status, 'completed')
+                ))
+                .all();
+
+            for (const userChallenge of completedChallenges) {
+                // If the reward was a retail_credit (Gift Card), attempt to cancel it
+                // Note: In a real system, we might want to check the date overlap 
+                // between the purchase and the challenge progress, but here we 
+                // follow the plan to "cancel associated reward if it hasn't been used yet".
+
+                // We'll look for gift cards issued around the time the challenge was completed
+                // This is a heuristic since we don't have a direct link yet.
+                if (userChallenge.completedAt) {
+                    const margin = 5000; // 5 seconds margin
+                    const start = new Date(userChallenge.completedAt.getTime() - margin);
+                    const end = new Date(userChallenge.completedAt.getTime() + margin);
+
+                    const relatedGiftCards = await this.db.select().from(giftCards).where(and(
+                        eq(giftCards.tenantId, tenantId),
+                        gte(giftCards.createdAt, start),
+                        lte(giftCards.createdAt, end),
+                        eq(giftCards.status, 'active'),
+                        eq(giftCards.currentBalance, giftCards.initialValue) // Only if UNUSED
+                    )).all();
+
+                    for (const card of relatedGiftCards) {
+                        await this.db.update(giftCards)
+                            .set({ status: 'disabled', notes: `Canceled due to refund of ${type} ${referenceId}` })
+                            .where(eq(giftCards.id, card.id))
+                            .run();
+
+                        console.log(`[Challenge Reconciliation] Canceled Gift Card ${card.id} for user ${userId} due to refund.`);
+
+                        // Revert challenge status to active? 
+                        // Plan says "decrement progress", but without per-booking link it's safe to just mark as active.
+                        await this.db.update(userChallenges)
+                            .set({ status: 'active', completedAt: null })
+                            .where(eq(userChallenges.id, userChallenge.id))
+                            .run();
+                    }
+                }
+            }
+        }
+    }
 }

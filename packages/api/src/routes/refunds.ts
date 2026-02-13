@@ -70,7 +70,35 @@ app.post('/', async (c) => {
 
         if (finalStatus === 'succeeded') {
             if (type === 'pos' && amount >= payAmt) await db.update(posOrders).set({ status: 'refunded' }).where(eq(posOrders.id, referenceId)).run();
-            else if (type === 'pack' && amount >= payAmt) await db.update(purchasedPacks).set({ remainingCredits: 0 }).where(eq(purchasedPacks.id, referenceId)).run();
+            else if (type === 'pack') {
+                const pack = await db.query.purchasedPacks.findFirst({ where: eq(purchasedPacks.id, referenceId) });
+                if (pack && pack.initialCredits) {
+                    // Proportional Credit Deduction
+                    const unitPrice = (pack.price || 0) / pack.initialCredits;
+                    const creditsToDeduct = Math.floor(amount / unitPrice);
+                    const newCredits = Math.max(0, (pack.remainingCredits || 0) - creditsToDeduct);
+
+                    await db.update(purchasedPacks)
+                        .set({
+                            remainingCredits: newCredits,
+                            status: newCredits === 0 ? 'refunded' : 'active'
+                        })
+                        .where(eq(purchasedPacks.id, referenceId))
+                        .run();
+                }
+            }
+
+            // [NEW] Advanced Reconciliation
+            try {
+                const { ChallengeService } = await import('../services/challenges');
+                await new ChallengeService(db, tenant.id).reconcileRefund(referenceId, type);
+
+                const { ReferralService } = await import('../services/referrals');
+                await new ReferralService(db as any, tenant.id).reconcileRefund(referenceId, type);
+            } catch (reconErr) {
+                console.error("[Refunds] Reconciliation Error:", reconErr);
+                // We don't fail the refund if reconciliation fails, but we log it.
+            }
         }
         return c.json({ success: true, refundId, status: finalStatus });
     } catch (e: any) {
