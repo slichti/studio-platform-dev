@@ -1,0 +1,13 @@
+ALTER TABLE classes ADD COLUMN video_provider TEXT DEFAULT 'offline' NOT NULL;
+ALTER TABLE classes ADD COLUMN zoom_meeting_url TEXT;
+ALTER TABLE classes ADD COLUMN zoom_meeting_id TEXT;
+ALTER TABLE classes ADD COLUMN zoom_password TEXT;
+ALTER TABLE classes ADD COLUMN zoom_enabled INTEGER DEFAULT 0;
+ALTER TABLE classes ADD COLUMN thumbnail_url TEXT;
+ALTER TABLE classes ADD COLUMN cloudflare_stream_id TEXT;
+ALTER TABLE classes ADD COLUMN recording_status TEXT;
+ALTER TABLE classes ADD COLUMN livekit_room_name TEXT;
+ALTER TABLE classes ADD COLUMN livekit_room_sid TEXT;
+ALTER TABLE classes ADD COLUMN min_students INTEGER DEFAULT 1;
+ALTER TABLE classes ADD COLUMN auto_cancel_threshold INTEGER;
+ALTER TABLE classes ADD COLUMN auto_cancel_enabled INTEGER DEFAULT 0;
