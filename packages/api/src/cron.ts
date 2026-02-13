@@ -43,6 +43,29 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
             await monitoring.alert('Tenant Backups Critical Failure', error.message, { error });
         }
 
+        // 3. Log Maintenance (Prune old audit and webhook logs)
+        try {
+            const db = createDb(env.DB);
+            const retentionDays = 90;
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+
+            const { auditLogs, webhookLogs } = await import('@studio/db/src/schema');
+
+            const deletedAuditLogs = await db.delete(auditLogs)
+                .where(lte(auditLogs.createdAt, cutoffDate))
+                .run();
+
+            const deletedWebhookLogs = await db.delete(webhookLogs)
+                .where(lte(webhookLogs.createdAt, cutoffDate))
+                .run();
+
+            console.log(`✅ Log pruning: Removed ${deletedAuditLogs.meta.changes || 0} audit logs and ${deletedWebhookLogs.meta.changes || 0} webhook logs older than ${retentionDays} days`);
+        } catch (error: any) {
+            console.error('❌ Log pruning failed:', error.message);
+            await monitoring.alert('Log Pruning Failed', error.message, { error });
+        }
+
         return; // Exit early, don't run other cron logic
     }
 
