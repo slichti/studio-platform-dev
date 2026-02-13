@@ -18,3 +18,5 @@ yarn-error.log*
 
 # Email build artifacts
 packages/emails/out/
+
+.token
