@@ -1,8 +1,9 @@
 import { Dialog, Transition } from '@headlessui/react';
-import { Fragment, useState } from 'react';
-import { X, User, Users } from 'lucide-react';
+import { Fragment, useState, useEffect } from 'react';
+import { X, User, Users, Check } from 'lucide-react';
 
 import { useFetcher } from 'react-router';
+import { Confetti } from './ui/Confetti';
 
 interface BookingModalProps {
     isOpen: boolean;
@@ -15,6 +16,24 @@ interface BookingModalProps {
 export function BookingModal({ isOpen, onClose, classEvent, family, member }: BookingModalProps) {
     const fetcher = useFetcher();
     const [attendanceType, setAttendanceType] = useState<'in_person' | 'zoom'>('in_person');
+    const [showSuccess, setShowSuccess] = useState(false);
+    const [showConfetti, setShowConfetti] = useState(false);
+
+    // Detect successful booking
+    useEffect(() => {
+        if (fetcher.state === 'idle' && fetcher.data && !showSuccess) {
+            setShowSuccess(true);
+            setShowConfetti(true);
+
+            // Auto-close after showing success
+            const timer = setTimeout(() => {
+                setShowSuccess(false);
+                onClose();
+            }, 2000);
+
+            return () => clearTimeout(timer);
+        }
+    }, [fetcher.state, fetcher.data, showSuccess, onClose]);
 
     if (!classEvent) return null;
 
@@ -46,7 +65,21 @@ export function BookingModal({ isOpen, onClose, classEvent, family, member }: Bo
                             leaveFrom="opacity-100 scale-100"
                             leaveTo="opacity-0 scale-95"
                         >
-                            <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white dark:bg-zinc-900 p-6 text-left align-middle shadow-xl transition-all border border-zinc-200 dark:border-zinc-800">
+                            <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white dark:bg-zinc-900 p-6 text-left align-middle shadow-xl transition-all border border-zinc-200 dark:border-zinc-800 relative">
+                                {/* Success Overlay */}
+                                {showSuccess && (
+                                    <div className="absolute inset-0 bg-green-500/95 dark:bg-green-600/95 flex flex-col items-center justify-center z-10 rounded-2xl">
+                                        <div className="bg-white dark:bg-zinc-900 rounded-full p-4 mb-4 animate-bounce">
+                                            <Check size={48} className="text-green-500" />
+                                        </div>
+                                        <h3 className="text-2xl font-bold text-white mb-2">Booked!</h3>
+                                        <p className="text-white/90">See you in class! 🎉</p>
+                                    </div>
+                                )}
+
+                                {/* Confetti */}
+                                <Confetti trigger={showConfetti} onComplete={() => setShowConfetti(false)} />
+
                                 <div className="flex justify-between items-start mb-4">
                                     <Dialog.Title as="h3" className="text-lg font-bold leading-6 text-zinc-900 dark:text-zinc-100">
                                         Book {classEvent.title}
