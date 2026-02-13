@@ -294,5 +294,11 @@ app.post('/chat/start', rateLimitMiddleware({ limit: 3, window: 60, keyPrefix: '
         user: { id: user.id, email: body.email, name: body.name }
     });
 });
+// Debug Endpoint
+app.get('/debug-db-schema', async (c) => {
+    const db = createDb(c.env.DB);
+    const info = await c.env.DB.prepare('PRAGMA table_info(class_series)').all();
+    return c.json(info);
+});
 
 export default app;
