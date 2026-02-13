@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { format, addDays, startOfDay, isSameDay } from "date-fns";
 import { cn } from "~/utils/cn";
 import { SkeletonLoader } from "~/components/ui/SkeletonLoader";
+import { NoClassesAvailableEmptyState } from "~/components/ui/EmptyState";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     // [E2E BYPASS] Allow impersonation/bypass for testing
