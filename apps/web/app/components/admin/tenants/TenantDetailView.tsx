@@ -36,6 +36,9 @@ interface TenantDetailViewProps {
         setRefundPaymentIntent: (id: string) => void;
         setRefundAmount: (amount: string) => void;
         setRefundModalOpen: (open: boolean) => void;
+        setDeleteModalOpen: (open: boolean) => void;
+        setTenantToDelete: (id: string | null) => void;
+        setDeleteInput: (input: string) => void;
     };
 }
 
@@ -255,9 +258,22 @@ export function TenantDetailView({
                     <div className="text-[10px] uppercase text-zinc-500 font-bold">Lifecycle & Data</div>
                     <div className="flex gap-2">
                         {t.status === 'archived' ? (
-                            <button onClick={(e) => { e.stopPropagation(); handlers.handleRestore(t.id) }} className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded hover:bg-emerald-200">
-                                Restore Tenant
-                            </button>
+                            <>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handlers.setTenantToDelete(t.id);
+                                        handlers.setDeleteInput("");
+                                        handlers.setDeleteModalOpen(true);
+                                    }}
+                                    className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded hover:bg-red-200"
+                                >
+                                    Delete Tenant
+                                </button>
+                                <button onClick={(e) => { e.stopPropagation(); handlers.handleRestore(t.id) }} className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded hover:bg-emerald-200">
+                                    Restore Tenant
+                                </button>
+                            </>
                         ) : (
                             <>
                                 <button
