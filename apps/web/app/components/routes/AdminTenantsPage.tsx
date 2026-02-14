@@ -199,7 +199,6 @@ export default function AdminTenantsPageComponent() {
             window.location.reload();
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message });
-        } finally {
             setArchiveLoading(false);
         }
     };
@@ -214,7 +213,6 @@ export default function AdminTenantsPageComponent() {
             window.location.reload();
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message });
-        } finally {
             setDeleteLoading(false);
         }
     };
