@@ -180,7 +180,11 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
                 userId: user.id,
                 status: 'active',
                 profile: { bio: "Owner" },
-                joinedAt: now
+                joinedAt: now,
+                churnScore: 100,
+                churnStatus: 'safe',
+                engagementScore: 50,
+                smsConsent: false
             });
             roleValues.push({ id: 'role_' + crypto.randomUUID(), memberId, role: 'owner', createdAt: now });
         }
@@ -196,7 +200,11 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
                 userId: user.id,
                 status: 'active',
                 profile: { bio: "Yoga Teacher" },
-                joinedAt: now
+                joinedAt: now,
+                churnScore: 100,
+                churnStatus: 'safe',
+                engagementScore: 50,
+                smsConsent: false
             };
             memberValues.push(member);
             instructors.push(member);
@@ -213,7 +221,11 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
                 tenantId: tenantId,
                 userId: user.id,
                 status: 'active',
-                joinedAt: now
+                joinedAt: now,
+                churnScore: 100,
+                churnStatus: 'safe',
+                engagementScore: 50,
+                smsConsent: false
             };
             memberValues.push(member);
             students.push(member);
