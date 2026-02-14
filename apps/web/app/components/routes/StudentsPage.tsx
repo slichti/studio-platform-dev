@@ -36,7 +36,7 @@ export default function StudentsPage() {
     const [isAddingMember, setIsAddingMember] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [editingMember, setEditingMember] = useState<any | null>(null);
-    const [pendingRoleChange, setPendingRoleChange] = useState<{ memberId: string, newRole: string } | null>(null);
+
 
     // FETCH DATA using useStudents hook
     const { data: members = [], isLoading, error } = useStudents(slug || '');
@@ -104,29 +104,7 @@ export default function StudentsPage() {
         }
     };
 
-    const confirmRoleChange = async () => {
-        if (!pendingRoleChange) return;
-        setIsSubmitting(true);
-        try {
-            const token = await getToken();
-            const res = await apiRequest(`/members/${pendingRoleChange.memberId}/role`, token, {
-                method: "PATCH",
-                headers: { 'X-Tenant-Slug': slug! },
-                body: JSON.stringify({ role: pendingRoleChange.newRole })
-            }) as any;
 
-            if (res.error) toast.error(res.error);
-            else {
-                toast.success("Role updated");
-                setPendingRoleChange(null);
-                queryClient.invalidateQueries({ queryKey: ['members', slug] });
-            }
-        } catch (e: any) {
-            toast.error(e.message);
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
 
     const toggleSelect = (id: string) => {
         const next = new Set(selectedIds);
@@ -351,44 +329,80 @@ export default function StudentsPage() {
                         <DialogDescription>Managing {editingMember?.user?.email}</DialogDescription>
                     </DialogHeader>
                     {editingMember && (
-                        <div className="space-y-6 py-4">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">Role</label>
-                                <Select
-                                    className="flex h-10 w-full items-center justify-between rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:placeholder:text-zinc-400 dark:focus:ring-zinc-300"
-                                    value={(Array.isArray(editingMember.roles) ? editingMember.roles : []).find((r: any) => r.role === 'owner' || r.role === 'instructor')?.role || 'student'}
-                                    onChange={(e: any) => setPendingRoleChange({ memberId: editingMember.id, newRole: e.target.value })}
-                                    disabled={!isOwner}
-                                >
-                                    <option value="student">Student</option>
-                                    <option value="instructor">Instructor</option>
-                                </Select>
-                            </div>
+                        <ManageMemberForm
+                            member={editingMember}
+                            isOwner={isOwner}
+                            onSave={async (role: string) => {
+                                setIsSubmitting(true);
+                                try {
+                                    const token = await getToken();
+                                    const res = await apiRequest(`/members/${editingMember.id}/role`, token, {
+                                        method: "PATCH",
+                                        headers: { 'X-Tenant-Slug': slug! },
+                                        body: JSON.stringify({ role })
+                                    }) as any;
 
-                            <div className="rounded-md border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-900/20">
-                                <div className="flex items-center justify-between">
-                                    <div className="space-y-1">
-                                        <p className="text-sm font-medium text-red-900 dark:text-red-200">Danger Zone</p>
-                                        <p className="text-xs text-red-700 dark:text-red-300">Remove this student from the studio.</p>
-                                    </div>
-                                    <Button variant="destructive" size="sm" onClick={confirmRemoveMember} disabled={isSubmitting || !isOwner}>
-                                        Remove
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
+                                    if (res.error) toast.error(res.error);
+                                    else {
+                                        toast.success("Role updated");
+                                        setEditingMember(null);
+                                        queryClient.invalidateQueries({ queryKey: ['members', slug] });
+                                    }
+                                } catch (e: any) {
+                                    toast.error(e.message);
+                                } finally {
+                                    setIsSubmitting(false);
+                                }
+                            }}
+                            onRemove={confirmRemoveMember}
+                            isSubmitting={isSubmitting}
+                            onCancel={() => setEditingMember(null)}
+                        />
                     )}
                 </DialogContent>
             </Dialog>
-
-            <ConfirmationDialog
-                isOpen={!!pendingRoleChange}
-                onClose={() => setPendingRoleChange(null)}
-                onConfirm={confirmRoleChange}
-                title="Change Role"
-                message={`Are you sure you want to change this user's role to ${pendingRoleChange?.newRole}?`}
-                confirmText="Change Role"
-            />
         </div>
     );
 }
+
+function ManageMemberForm({ member, isOwner, onSave, onRemove, isSubmitting, onCancel }: any) {
+    const currentRole = (Array.isArray(member.roles) ? member.roles : []).find((r: any) => r.role === 'owner' || r.role === 'instructor')?.role || 'student';
+    const [role, setRole] = useState(currentRole);
+
+    return (
+        <div className="space-y-6 py-4">
+            <div className="space-y-2">
+                <label className="text-sm font-medium">Role</label>
+                <Select
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:placeholder:text-zinc-400 dark:focus:ring-zinc-300"
+                    value={role}
+                    onChange={(e: any) => setRole(e.target.value)}
+                    disabled={!isOwner}
+                >
+                    <option value="student">Student</option>
+                    <option value="instructor">Instructor</option>
+                </Select>
+            </div>
+
+            <div className="rounded-md border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-900/20">
+                <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                        <p className="text-sm font-medium text-red-900 dark:text-red-200">Danger Zone</p>
+                        <p className="text-xs text-red-700 dark:text-red-300">Remove this student from the studio.</p>
+                    </div>
+                    <Button variant="destructive" size="sm" onClick={onRemove} disabled={isSubmitting || !isOwner}>
+                        Remove
+                    </Button>
+                </div>
+            </div>
+
+            <DialogFooter>
+                <Button variant="outline" onClick={onCancel}>Cancel</Button>
+                <Button onClick={() => onSave(role)} disabled={isSubmitting || !isOwner || role === currentRole}>
+                    Save Changes
+                </Button>
+            </DialogFooter>
+        </div>
+    );
+}
+

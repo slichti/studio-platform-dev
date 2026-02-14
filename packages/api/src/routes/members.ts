@@ -215,7 +215,7 @@ app.openapi(createMemberRoute, async (c) => {
 
     const mid = crypto.randomUUID();
     const token = !u.lastActiveAt ? crypto.randomUUID() : null;
-    await db.insert(tenantMembers).values({ id: mid, tenantId: tenant.id, userId: u.id, status: token ? 'inactive' : 'active', joinedAt: new Date(), profile: { firstName, lastName }, settings: token ? { invitationToken: token } : {} }).run();
+    await db.insert(tenantMembers).values({ id: mid, tenantId: tenant.id, userId: u.id, status: 'active', joinedAt: new Date(), profile: { firstName, lastName }, settings: token ? { invitationToken: token } : {} }).run();
 
     const assigned = (c.get('can')('manage_staff') && role === 'instructor') ? 'instructor' : 'student';
     if (assigned === 'instructor' && !(await us.checkLimit('instructors', tenant.tier || 'launch'))) {
