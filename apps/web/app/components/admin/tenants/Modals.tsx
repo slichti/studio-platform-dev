@@ -299,7 +299,7 @@ export function AdminTenantsModals({ state, handlers, FEATURES }: AdminTenantsMo
                                 <span>{state.seedOptions.ownerCount}</span>
                             </div>
                             <input
-                                type="range" min="1" max="5" step="1"
+                                type="range" min="1" max="20" step="1"
                                 className="w-full accent-blue-600 h-1.5 bg-zinc-200 rounded-lg appearance-none cursor-pointer dark:bg-zinc-700"
                                 value={state.seedOptions.ownerCount}
                                 onChange={(e) => handlers.setSeedOptions({ ...state.seedOptions, ownerCount: parseInt(e.target.value) })}
@@ -311,7 +311,7 @@ export function AdminTenantsModals({ state, handlers, FEATURES }: AdminTenantsMo
                                 <span>{state.seedOptions.instructorCount}</span>
                             </div>
                             <input
-                                type="range" min="0" max="10" step="1"
+                                type="range" min="0" max="100" step="1"
                                 className="w-full accent-blue-600 h-1.5 bg-zinc-200 rounded-lg appearance-none cursor-pointer dark:bg-zinc-700"
                                 value={state.seedOptions.instructorCount}
                                 onChange={(e) => handlers.setSeedOptions({ ...state.seedOptions, instructorCount: parseInt(e.target.value) })}
@@ -323,7 +323,7 @@ export function AdminTenantsModals({ state, handlers, FEATURES }: AdminTenantsMo
                                 <span>{state.seedOptions.studentCount}</span>
                             </div>
                             <input
-                                type="range" min="0" max="50" step="1"
+                                type="range" min="0" max="2000" step="10"
                                 className="w-full accent-blue-600 h-1.5 bg-zinc-200 rounded-lg appearance-none cursor-pointer dark:bg-zinc-700"
                                 value={state.seedOptions.studentCount}
                                 onChange={(e) => handlers.setSeedOptions({ ...state.seedOptions, studentCount: parseInt(e.target.value) })}
