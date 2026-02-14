@@ -81,6 +81,25 @@ export default function StudentsPage() {
         }
     };
 
+    const handleStatusUpdate = async (memberId: string, newStatus: string) => {
+        try {
+            const token = await getToken();
+            const res = await apiRequest(`/members/${memberId}/status`, token, {
+                method: "PATCH",
+                headers: { 'X-Tenant-Slug': slug! },
+                body: JSON.stringify({ status: newStatus })
+            }) as any;
+
+            if (res.error) toast.error(res.error);
+            else {
+                toast.success(`Status updated to ${newStatus}`);
+                queryClient.invalidateQueries({ queryKey: ['members', slug] });
+            }
+        } catch (e: any) {
+            toast.error(e.message);
+        }
+    };
+
     const confirmRemoveMember = async () => {
         if (!editingMember) return;
         setIsSubmitting(true);
@@ -249,9 +268,26 @@ export default function StudentsPage() {
                                             </Link>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant={member.status === 'active' ? 'success' : 'secondary'}>
-                                                {member.status}
-                                            </Badge>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <button className="focus:outline-none">
+                                                        <Badge
+                                                            variant={member.status === 'active' ? 'success' : 'secondary'}
+                                                            className="cursor-pointer hover:opacity-80 capitalize"
+                                                        >
+                                                            {member.status}
+                                                        </Badge>
+                                                    </button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="start">
+                                                    <DropdownMenuItem onClick={() => handleStatusUpdate(member.id, 'active')}>
+                                                        Set Active
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleStatusUpdate(member.id, 'inactive')}>
+                                                        Set Inactive
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </TableCell>
                                         <TableCell className="text-zinc-500 dark:text-zinc-400">
                                             {format(new Date(member.joinedAt || new Date()), 'MMM d, yyyy')}
