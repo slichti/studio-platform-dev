@@ -152,7 +152,14 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
         await batchInsert(tx, users, userValues);
 
         // 2b. Fetch all users to get IDs
-        const existingUsers = await tx.select().from(users).where(inArray(users.email, uniqueEmails));
+        // 2b. Fetch all users to get IDs (chunked to avoid SQLite limits)
+        const existingUsers: any[] = [];
+        const CHUNK_SIZE = 100; // Conservative chunk size for SELECT IN (...)
+        for (let i = 0; i < uniqueEmails.length; i += CHUNK_SIZE) {
+            const chunk = uniqueEmails.slice(i, i + CHUNK_SIZE);
+            const batch = await tx.select().from(users).where(inArray(users.email, chunk));
+            existingUsers.push(...batch);
+        }
         const userMap = new Map<string, any>(existingUsers.map((u: any) => [u.email, u]));
 
         // 2c. Prepare Members & Roles
