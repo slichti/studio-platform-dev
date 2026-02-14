@@ -231,7 +231,8 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
                 id: virtualMemberId,
                 tenantId: tenant.id,
                 userId: auth.userId,
-                status: 'active'
+                status: 'active',
+                user: dbUser // Attach the global user object so /me endpoint can see roles/isPlatformAdmin
             });
             if (!roles.includes('owner')) {
                 roles.push('owner');
