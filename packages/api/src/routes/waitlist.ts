@@ -4,10 +4,11 @@ import { eq, and, sql, desc, asc } from 'drizzle-orm';
 import { createDb } from '../db';
 import { waitlist, classes, bookings, users, tenants } from '@studio/db/src/schema'; // Ensure this path matches
 import { authMiddleware } from '../middleware/auth';
+import { HonoContext } from '../types';
 import { z } from 'zod';
 // import { zValidator } from '@hono/zod-validator';
 
-const app = new Hono();
+const app = new Hono<HonoContext>();
 
 // Middleware to ensure tenant context
 app.use('*', authMiddleware);
@@ -17,9 +18,8 @@ app.post('/:classId/join', async (c) => {
     const classId = c.req.param('classId');
     // @ts-ignore
     const tenant = c.get('tenant') as any;
-    // @ts-ignore
-    const user = c.get('user') as any;
-    const db = createDb(c.env as any);
+    const auth = c.get('auth') as any;
+    const db = createDb((c.env as any).DB);
 
     // 1. Check if class exists and is full
     const classData = await db.select().from(classes)
@@ -41,7 +41,7 @@ app.post('/:classId/join', async (c) => {
 
     // 2. Check if already on waitlist
     const existing = await db.select().from(waitlist)
-        .where(and(eq(waitlist.classId, classId), eq(waitlist.userId, user.id), eq(waitlist.status, 'pending')))
+        .where(and(eq(waitlist.classId, classId), eq(waitlist.userId, auth.userId), eq(waitlist.status, 'pending')))
         .get();
 
     if (existing) return c.json({ error: 'Already on waitlist' }, 400);
@@ -60,7 +60,7 @@ app.post('/:classId/join', async (c) => {
         id: crypto.randomUUID(),
         tenantId: tenant.id,
         classId,
-        userId: user.id,
+        userId: auth.userId,
         position: nextPosition,
         status: 'pending',
         createdAt: new Date(),

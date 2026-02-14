@@ -96,27 +96,15 @@ app.post('/', async (c) => {
     const count = (await db.select({ c: sql<number>`count(*)` }).from(bookings).where(and(eq(bookings.classId, classId), eq(bookings.status, 'confirmed'))).get())?.c || 0;
     if (!cl.zoomEnabled && cl.capacity && count >= cl.capacity) return c.json({ error: "Class is full" }, 400);
 
-    const id = crypto.randomUUID();
-    await db.insert(bookings).values({ id, classId, memberId: targetId, status: 'confirmed', attendanceType: attendanceType || 'in_person', createdAt: new Date() }).run();
-
-    c.executionCtx.waitUntil((async () => {
-        try {
-            const { EmailService } = await import('../services/email');
-            const { AutomationsService } = await import('../services/automations');
-            const { SmsService } = await import('../services/sms');
-            const { PushService } = await import('../services/push');
-            const { UsageService } = await import('../services/pricing');
-            const m = await db.query.tenantMembers.findFirst({ where: eq(tenantMembers.id, targetId), with: { user: true } });
-            if (m?.user) {
-                const us = new UsageService(db, tenant.id);
-                const es = new EmailService((tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY!, { branding: tenant.branding as any, settings: tenant.settings as any }, { slug: tenant.slug }, us, !!(tenant.resendCredentials as any)?.apiKey, db, tenant.id);
-                const ps = new PushService(db, tenant.id);
-                const as = new AutomationsService(db, tenant.id, es, new SmsService(tenant.twilioCredentials as any, c.env, us, db, tenant.id), ps);
-                await as.dispatchTrigger('class_booked', { userId: m.user.id, email: m.user.email, firstName: (m.user.profile as any)?.firstName, data: { classId, classTitle: cl.title, startTime: cl.startTime, bookingId: id } });
-            }
-        } catch (e) { console.error(e); }
-    })());
-    return c.json({ success: true, id });
+    try {
+        const { BookingService } = await import('../services/bookings');
+        const service = new BookingService(db, c.env);
+        const result = await service.createBooking(classId, targetId, attendanceType);
+        return c.json({ success: true, id: result.id });
+    } catch (e: any) {
+        console.error("Booking Error:", e);
+        return c.json({ error: e.message || "Booking failed" }, 400);
+    }
 });
 
 // DELETE /:id

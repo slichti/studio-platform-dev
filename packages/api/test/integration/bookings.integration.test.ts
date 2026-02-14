@@ -1,6 +1,6 @@
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import * as schema from '@studio/db/src/schema';
 import { setupTestDb } from './test-utils';
 
@@ -165,5 +165,197 @@ describe('Bookings API (Integration)', () => {
         const json2 = await res2.json() as any;
         expect(res2.status).toBe(400);
         expect(json2.error).toBe('Class is full');
+    });
+    it('should deduct credit from pack', async () => {
+        const CREDIT_CLASS_ID = 'credit_class';
+        const PACK_DEF_ID = 'pack_def';
+        const PURCHASE_ID = 'purchase_1';
+        const CREDIT_USER_ID = 'credit_user';
+        const CREDIT_MEMBER_ID = 'credit_member';
+
+        // 1. Create Class
+        const startTime = new Date();
+        startTime.setDate(startTime.getDate() + 3);
+
+        await db.insert(schema.classes).values({
+            id: CREDIT_CLASS_ID,
+            tenantId: TENANT_ID,
+            instructorId: INSTRUCTOR_ID,
+            title: 'Credit Class',
+            startTime: startTime,
+            durationMinutes: 60,
+            capacity: 10,
+            status: 'active',
+            allowCredits: true,
+            price: 2000 // $20 drop-in
+        }).run();
+
+        // 2. Create User & Member
+        await db.insert(schema.users).values({ id: CREDIT_USER_ID, email: 'credit@test.com', role: 'user' }).run();
+        await db.insert(schema.tenantMembers).values({ id: CREDIT_MEMBER_ID, tenantId: TENANT_ID, userId: CREDIT_USER_ID, status: 'active' }).run();
+
+        // 3. Create Pack Def & Purchase
+        await db.insert(schema.classPackDefinitions).values({
+            id: PACK_DEF_ID,
+            tenantId: TENANT_ID,
+            name: '10 Pack',
+            credits: 10,
+            price: 15000
+        }).run();
+
+        await db.insert(schema.purchasedPacks).values({
+            id: PURCHASE_ID,
+            tenantId: TENANT_ID,
+            memberId: CREDIT_MEMBER_ID,
+            packDefinitionId: PACK_DEF_ID,
+            initialCredits: 10,
+            remainingCredits: 10,
+            status: 'active'
+        }).run();
+
+        // 4. Book Class
+        const response = await SELF.fetch('https://api.studio.local/bookings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'TEST-AUTH': CREDIT_USER_ID, 'X-Tenant-Slug': 'integration-studio' },
+            body: JSON.stringify({ classId: CREDIT_CLASS_ID })
+        });
+
+        const json = await response.json() as any;
+        expect(response.status).toBe(200);
+        expect(json.success).toBe(true);
+        expect(json.id).toBeDefined();
+
+        // 5. Verify Credit Deducted
+        const pack = await db.select().from(schema.purchasedPacks).where(eq(schema.purchasedPacks.id, PURCHASE_ID)).get();
+        expect(pack).toBeDefined();
+        // @ts-ignore
+        expect(pack.remainingCredits).toBe(9);
+
+        // 6. Verify Booking Usage
+        const booking = await db.select().from(schema.bookings).where(eq(schema.bookings.id, json.id)).get();
+        // @ts-ignore
+        expect(booking.usedPackId).toBe(PURCHASE_ID);
+    });
+
+    it('should allow joining waitlist when full', async () => {
+        const WIFI_CLASS_ID = 'waitlist_class';
+        const WIFI_USER_ID = 'waitlist_user';
+        const WIFI_MEMBER_ID = 'waitlist_member';
+
+        // 1. Create Full Class
+        const startTime = new Date();
+        startTime.setDate(startTime.getDate() + 4);
+
+        await db.insert(schema.classes).values({
+            id: WIFI_CLASS_ID,
+            tenantId: TENANT_ID,
+            instructorId: INSTRUCTOR_ID,
+            title: 'Waitlist Class',
+            startTime: startTime,
+            durationMinutes: 60,
+            capacity: 1, // Only 1 spot
+            status: 'active',
+            waitlistCapacity: 5
+        }).run();
+
+        // Fill the spot
+        const BLOCKER_ID = 'blocker';
+        await db.insert(schema.tenantMembers).values({ id: BLOCKER_ID, tenantId: TENANT_ID, userId: 'blocker_u', status: 'active' }).run();
+        await db.insert(schema.bookings).values({ id: 'blocking_booking', classId: WIFI_CLASS_ID, memberId: BLOCKER_ID, status: 'confirmed', createdAt: new Date() }).run();
+
+        // 2. Create User
+        await db.insert(schema.users).values({ id: WIFI_USER_ID, email: 'wl@test.com', role: 'user' }).run();
+        await db.insert(schema.tenantMembers).values({ id: WIFI_MEMBER_ID, tenantId: TENANT_ID, userId: WIFI_USER_ID, status: 'active' }).run();
+
+        // 3. Try Book directly (Should Fail)
+        const res1 = await SELF.fetch('https://api.studio.local/bookings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'TEST-AUTH': WIFI_USER_ID, 'X-Tenant-Slug': 'integration-studio' },
+            body: JSON.stringify({ classId: WIFI_CLASS_ID })
+        });
+        expect(res1.status).toBe(400);
+
+        // 4. Join Waitlist
+        const res2 = await SELF.fetch(`https://api.studio.local/waitlist/${WIFI_CLASS_ID}/join`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'TEST-AUTH': WIFI_USER_ID, 'X-Tenant-Slug': 'integration-studio' }
+        });
+
+        const json2 = await res2.json() as any;
+        expect(res2.status).toBe(200);
+        expect(json2.success).toBe(true);
+        expect(json2.position).toBe(1);
+
+        // 5. Verify DB
+        const wl = await db.select().from(schema.waitlist).where(and(eq(schema.waitlist.classId, WIFI_CLASS_ID), eq(schema.waitlist.userId, WIFI_USER_ID))).get();
+        expect(wl).toBeDefined();
+        // @ts-ignore
+        expect(wl.status).toBe('pending');
+    });
+
+    it('should successfully check-in a booking', async () => {
+        // 1. Create Class
+        const CHECKIN_CLASS_ID = "checkin_class";
+        await db.insert(schema.classes).values({
+            id: CHECKIN_CLASS_ID,
+            tenantId: TENANT_ID,
+            title: "Check-in Class",
+            startTime: new Date(Date.now() + 86400000), // Tomorrow
+            durationMinutes: 60,
+            capacity: 10,
+            status: "active"
+        }).run();
+
+        // 2. Create User & Member (Booker)
+        const CHECKIN_USER_ID = "checkin_user";
+        const CHECKIN_MEMBER_ID = "checkin_member";
+        await db.insert(schema.users).values({ id: CHECKIN_USER_ID, email: "checkin@test.com", role: "user" }).run();
+        await db.insert(schema.tenantMembers).values({ id: CHECKIN_MEMBER_ID, tenantId: TENANT_ID, userId: CHECKIN_USER_ID, status: "active" }).run();
+
+        // 3. Create Booking
+        const BOOKING_ID = "checkin_booking";
+        await db.insert(schema.bookings).values({
+            id: BOOKING_ID,
+            classId: CHECKIN_CLASS_ID,
+            memberId: CHECKIN_MEMBER_ID,
+            status: 'confirmed',
+            attendanceType: 'in_person',
+            createdAt: new Date()
+        }).run();
+
+        // 4. Create Owner (for permissions)
+        const OWNER_USER_ID = "owner_user";
+        const OWNER_MEMBER_ID = "owner_member";
+        await db.insert(schema.users).values({ id: OWNER_USER_ID, email: "owner@test.com", role: "user" }).run();
+        await db.insert(schema.tenantMembers).values({ id: OWNER_MEMBER_ID, tenantId: TENANT_ID, userId: OWNER_USER_ID, status: "active" }).run();
+        await db.insert(schema.tenantRoles).values({
+            id: "owner_role",
+            memberId: OWNER_MEMBER_ID,
+            role: "owner"
+        }).run();
+
+        // 5. Perform Check-in (as Owner)
+        const res = await SELF.fetch(`https://api.studio.local/classes/${CHECKIN_CLASS_ID}/bookings/${BOOKING_ID}/check-in`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'TEST-AUTH': OWNER_USER_ID,
+                'X-Tenant-Slug': 'integration-studio'
+            },
+            body: JSON.stringify({ checkedIn: true })
+        });
+
+        if (res.status !== 200) {
+            console.log(await res.text());
+        }
+        expect(res.status).toBe(200);
+        const json = await res.json() as any;
+        expect(json.success).toBe(true);
+
+        // 6. Verify Database
+        const booking = await db.select().from(schema.bookings).where(eq(schema.bookings.id, BOOKING_ID)).get();
+        expect(booking).toBeDefined();
+        // @ts-ignore
+        expect(booking.checkedInAt).not.toBeNull();
     });
 });

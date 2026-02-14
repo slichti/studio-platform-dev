@@ -251,9 +251,10 @@ export async function setupTestDb(d1: D1Database) {
 
         d1.prepare(`CREATE TABLE waitlist (
             id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, class_id TEXT NOT NULL, 
-            member_id TEXT NOT NULL, position INTEGER NOT NULL, 
-            status TEXT DEFAULT 'waiting', notified_at INTEGER, 
-            created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            user_id TEXT NOT NULL, position INTEGER NOT NULL, 
+            status TEXT DEFAULT 'pending', offer_expires_at INTEGER, 
+            created_at INTEGER DEFAULT (strftime('%s', 'now')),
+            updated_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
 
         d1.prepare(`CREATE TABLE appointment_services (

@@ -517,7 +517,7 @@ studioApp.get('/me', (c) => {
     roles,
     user: {
       ...user,
-      isPlatformAdmin: user.isPlatformAdmin || false
+      isPlatformAdmin: user.isPlatformAdmin === true || (!!user.role && ['owner', 'admin', 'system_admin', 'platform_admin'].includes(user.role))
     }
   });
 });
