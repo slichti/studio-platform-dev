@@ -17,7 +17,7 @@ if (SENTRY_DSN) {
 
 // Emergency fix for stale Service Worker cache
 window.addEventListener("error", async (event) => {
-    if (event.message?.includes("SSR features") || event.message?.includes("Minified React error #299")) {
+    if (event.message?.includes("SSR features") || event.message?.includes("Minified React error #299") || event.message?.includes("Minified React error #418") || event.message?.includes("Hydration failed")) {
         console.error("Critical Hydration Error detected. Clearing cache and reloading...");
         if ('serviceWorker' in navigator) {
             const registrations = await navigator.serviceWorker.getRegistrations();
