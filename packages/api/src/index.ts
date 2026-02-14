@@ -264,13 +264,13 @@ const authenticatedPaths = [
   '/analytics', '/analytics/*',
   '/challenges', '/challenges/*',
   '/tasks', '/tasks/*',
-  '/video', '/video/*',
-  '/chat', '/chat/*'
+  '/video', '/video/*'
 ];
 
 const publicStudioPaths = [
   '/classes', '/classes/*',
-  '/commerce', '/commerce/*'
+  '/commerce', '/commerce/*',
+  '/chat', '/chat/*'
 ];
 
 // 3. Apply Middleware
