@@ -332,19 +332,40 @@ export default function StudentsPage() {
                         <ManageMemberForm
                             member={editingMember}
                             isOwner={isOwner}
-                            onSave={async (role: string) => {
+                            onSave={async (role: string, status: string) => {
                                 setIsSubmitting(true);
                                 try {
                                     const token = await getToken();
-                                    const res = await apiRequest(`/members/${editingMember.id}/role`, token, {
-                                        method: "PATCH",
-                                        headers: { 'X-Tenant-Slug': slug! },
-                                        body: JSON.stringify({ role })
-                                    }) as any;
+                                    const headers = { 'X-Tenant-Slug': slug! };
 
-                                    if (res.error) toast.error(res.error);
-                                    else {
-                                        toast.success("Role updated");
+                                    const promises = [];
+
+                                    // Update Role if changed
+                                    const currentRole = (Array.isArray(editingMember.roles) ? editingMember.roles : []).find((r: any) => r.role === 'owner' || r.role === 'instructor')?.role || 'student';
+                                    if (role !== currentRole) {
+                                        promises.push(apiRequest(`/members/${editingMember.id}/role`, token, {
+                                            method: "PATCH",
+                                            headers,
+                                            body: JSON.stringify({ role })
+                                        }));
+                                    }
+
+                                    // Update Status if changed
+                                    if (status !== editingMember.status) {
+                                        promises.push(apiRequest(`/members/${editingMember.id}/status`, token, {
+                                            method: "PATCH",
+                                            headers,
+                                            body: JSON.stringify({ status })
+                                        }));
+                                    }
+
+                                    const results = await Promise.all(promises);
+                                    const errors = results.filter((res: any) => res.error);
+
+                                    if (errors.length > 0) {
+                                        toast.error(errors[0].error);
+                                    } else {
+                                        toast.success("Member updated");
                                         setEditingMember(null);
                                         queryClient.invalidateQueries({ queryKey: ['members', slug] });
                                     }
@@ -368,20 +389,37 @@ export default function StudentsPage() {
 function ManageMemberForm({ member, isOwner, onSave, onRemove, isSubmitting, onCancel }: any) {
     const currentRole = (Array.isArray(member.roles) ? member.roles : []).find((r: any) => r.role === 'owner' || r.role === 'instructor')?.role || 'student';
     const [role, setRole] = useState(currentRole);
+    const [status, setStatus] = useState(member.status || 'active');
+
+    const hasChanges = role !== currentRole || status !== member.status;
 
     return (
         <div className="space-y-6 py-4">
-            <div className="space-y-2">
-                <label className="text-sm font-medium">Role</label>
-                <Select
-                    className="flex h-10 w-full items-center justify-between rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:placeholder:text-zinc-400 dark:focus:ring-zinc-300"
-                    value={role}
-                    onChange={(e: any) => setRole(e.target.value)}
-                    disabled={!isOwner}
-                >
-                    <option value="student">Student</option>
-                    <option value="instructor">Instructor</option>
-                </Select>
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">Role</label>
+                    <Select
+                        className="flex h-10 w-full items-center justify-between rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:placeholder:text-zinc-400 dark:focus:ring-zinc-300"
+                        value={role}
+                        onChange={(e: any) => setRole(e.target.value)}
+                        disabled={!isOwner}
+                    >
+                        <option value="student">Student</option>
+                        <option value="instructor">Instructor</option>
+                    </Select>
+                </div>
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">Status</label>
+                    <Select
+                        className="flex h-10 w-full items-center justify-between rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:placeholder:text-zinc-400 dark:focus:ring-zinc-300"
+                        value={status}
+                        onChange={(e: any) => setStatus(e.target.value)}
+                        disabled={!isOwner}
+                    >
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </Select>
+                </div>
             </div>
 
             <div className="rounded-md border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-900/20">
@@ -398,7 +436,7 @@ function ManageMemberForm({ member, isOwner, onSave, onRemove, isSubmitting, onC
 
             <DialogFooter>
                 <Button variant="outline" onClick={onCancel}>Cancel</Button>
-                <Button onClick={() => onSave(role)} disabled={isSubmitting || !isOwner || role === currentRole}>
+                <Button onClick={() => onSave(role, status)} disabled={isSubmitting || !isOwner || !hasChanges}>
                     Save Changes
                 </Button>
             </DialogFooter>
