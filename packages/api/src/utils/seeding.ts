@@ -30,8 +30,9 @@ async function batchInsert(db: any, table: any, values: any[], onConflict: boole
     const tableConfig = getTableConfig(table);
     const columnsPerRow = tableConfig.columns.length;
 
-    // Even more conservative buffer: 70 parameters instead of 90/100
-    const CHUNK_SIZE = Math.max(1, Math.floor(70 / columnsPerRow));
+    // Even more conservative buffer: 50 parameters instead of 70
+    // This handles tables with many columns better and avoids "too many SQL variables"
+    const CHUNK_SIZE = Math.max(1, Math.floor(50 / columnsPerRow));
 
     console.log(`[batchInsert] Table: ${tableConfig.name}, Rows: ${values.length}, Cols/Row: ${columnsPerRow}, ChunkSize: ${CHUNK_SIZE}, onConflict: ${onConflict}`);
 
