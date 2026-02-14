@@ -541,6 +541,8 @@ export default function AdminTenantsPageComponent() {
         handleImpersonate: (tenant: any) => { setTenantToImpersonate(tenant); setImpersonateModalOpen(true); },
         handleFeatureToggle,
         handleSeedConfirm,
+        handleArchiveConfirm,
+        handleDeleteTenant,
         setSelectedTenantForRefund,
         setImpersonateModalOpen,
         setTenantToImpersonate,
