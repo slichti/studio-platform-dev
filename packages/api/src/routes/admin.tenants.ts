@@ -251,50 +251,66 @@ app.delete('/:id', async (c) => {
         // 13. Cleanup orphaned global users
         // Delete users who are NOT platform admins AND have NO remaining tenant memberships
         if (userIdsToCheck.length > 0) {
-            // Get users who have memberships in OTHER tenants (after we deleted this tenant's memberships)
-            const usersWithOtherMemberships = await db
-                .selectDistinct({ userId: tenantMembers.userId })
-                .from(tenantMembers)
-                .where(inArray(tenantMembers.userId, userIdsToCheck))
-                .all();
+            const CHUNK_SIZE = 50; // Conservative chunk size for IN clauses
+            const usersWithOtherMemberships = new Set<string>();
+            const platformAdminIds = new Set<string>();
 
-            const userIdsToKeep = new Set(usersWithOtherMemberships.map(r => r.userId));
+            // Process checks in chunks
+            for (let i = 0; i < userIdsToCheck.length; i += CHUNK_SIZE) {
+                const chunk = userIdsToCheck.slice(i, i + CHUNK_SIZE);
 
-            // Get platform admins
-            const platformAdmins = await db
-                .select({ id: users.id })
-                .from(users)
-                .where(
-                    and(
-                        inArray(users.id, userIdsToCheck),
-                        or(
-                            eq(users.isPlatformAdmin, true),
-                            inArray(users.role, ['admin', 'owner'])
+                // Check other memberships
+                const otherMembers = await db
+                    .selectDistinct({ userId: tenantMembers.userId })
+                    .from(tenantMembers)
+                    .where(inArray(tenantMembers.userId, chunk))
+                    .all();
+                otherMembers.forEach(m => usersWithOtherMemberships.add(m.userId));
+
+                // Check platform admins
+                const admins = await db
+                    .select({ id: users.id })
+                    .from(users)
+                    .where(
+                        and(
+                            inArray(users.id, chunk),
+                            or(
+                                eq(users.isPlatformAdmin, true),
+                                inArray(users.role, ['admin', 'owner'])
+                            )
                         )
                     )
-                )
-                .all();
+                    .all();
+                admins.forEach(a => platformAdminIds.add(a.id));
+            }
 
-            platformAdmins.forEach(admin => userIdsToKeep.add(admin.id));
-
-            // Users to delete = all users from this tenant MINUS users to keep
-            const usersToDelete = userIdsToCheck.filter(id => !userIdsToKeep.has(id));
+            // Calculate users to delete
+            const usersToDelete = userIdsToCheck.filter(id =>
+                !usersWithOtherMemberships.has(id) && !platformAdminIds.has(id)
+            );
 
             if (usersToDelete.length > 0) {
-                // Delete user relationships first
-                await db.delete(userRelationships)
-                    .where(or(
-                        inArray(userRelationships.parentUserId, usersToDelete),
-                        inArray(userRelationships.childUserId, usersToDelete)
-                    ))
-                    .run()
-                    .catch(() => { });
+                console.log(`Deleting ${usersToDelete.length} orphaned users...`);
 
-                // Delete the orphaned users
-                await db.delete(users)
-                    .where(inArray(users.id, usersToDelete))
-                    .run()
-                    .catch(() => { });
+                // Delete in chunks
+                for (let i = 0; i < usersToDelete.length; i += CHUNK_SIZE) {
+                    const chunk = usersToDelete.slice(i, i + CHUNK_SIZE);
+
+                    // Delete relationships
+                    await db.delete(userRelationships)
+                        .where(or(
+                            inArray(userRelationships.parentUserId, chunk),
+                            inArray(userRelationships.childUserId, chunk)
+                        ))
+                        .run()
+                        .catch(() => { });
+
+                    // Delete users
+                    await db.delete(users)
+                        .where(inArray(users.id, chunk))
+                        .run()
+                        .catch(() => { });
+                }
 
                 console.log(`Cleaned up ${usersToDelete.length} orphaned users`);
             }
