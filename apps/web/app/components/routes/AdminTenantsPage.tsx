@@ -489,6 +489,7 @@ export default function AdminTenantsPageComponent() {
         setSeedModalOpen, setSeedOptions, setZoomModalOpen, setZoomData,
         setRefundPaymentIntent, setRefundAmount, setRefundReason, setExportModal,
         setNotifyModalOpen, setNotifySubject, setNotifyMessage, setRefundModalOpen,
+        setArchiveInput, setArchiveId, setDeleteModalOpen, setTenantToDelete, setDeleteInput,
         openZoomConfig: (id: string) => { setZoomTenantId(id); setZoomData({ accountId: '', clientId: '', clientSecret: '' }); setZoomModalOpen(true); },
         openNotifyModal: (id: string) => { setNotifyTenantId(id); setNotifySubject("System Notification"); setNotifyMessage(""); setNotifyModalOpen(true); },
         openRefundModal: (id: string) => { setSelectedTenantForRefund(id); setRefundAmount(''); setRefundPaymentIntent(''); setRefundModalOpen(true); },
