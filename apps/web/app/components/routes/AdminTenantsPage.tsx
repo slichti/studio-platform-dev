@@ -538,6 +538,7 @@ export default function AdminTenantsPageComponent() {
         handleRestore: (id: string) => { setRestoreId(id); confirmRestore(); },
         handleImpersonate: (tenant: any) => { setTenantToImpersonate(tenant); setImpersonateModalOpen(true); },
         handleFeatureToggle,
+        handleSeedConfirm,
         setSelectedTenantForRefund,
         setImpersonateModalOpen,
         setTenantToImpersonate,
