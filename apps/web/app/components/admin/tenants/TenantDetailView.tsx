@@ -259,6 +259,9 @@ export function TenantDetailView({
                     <div className="flex gap-2">
                         {t.status === 'archived' ? (
                             <>
+                                <button onClick={(e) => { e.stopPropagation(); handlers.handleRestore(t.id) }} className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded hover:bg-emerald-200">
+                                    Restore Tenant
+                                </button>
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
@@ -269,9 +272,6 @@ export function TenantDetailView({
                                     className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded hover:bg-red-200"
                                 >
                                     Delete Tenant
-                                </button>
-                                <button onClick={(e) => { e.stopPropagation(); handlers.handleRestore(t.id) }} className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded hover:bg-emerald-200">
-                                    Restore Tenant
                                 </button>
                             </>
                         ) : (

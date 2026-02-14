@@ -487,7 +487,7 @@ export default function AdminTenantsPageComponent() {
         setSeedModalOpen, setSeedOptions, setZoomModalOpen, setZoomData,
         setRefundPaymentIntent, setRefundAmount, setRefundReason, setExportModal,
         setNotifyModalOpen, setNotifySubject, setNotifyMessage, setRefundModalOpen,
-        setArchiveInput, setArchiveId, setDeleteModalOpen, setTenantToDelete, setDeleteInput,
+        setArchiveInput, setArchiveId, setDeleteModalOpen, setTenantToDelete, setDeleteInput, setRestoreId,
         openZoomConfig: (id: string) => { setZoomTenantId(id); setZoomData({ accountId: '', clientId: '', clientSecret: '' }); setZoomModalOpen(true); },
         openNotifyModal: (id: string) => { setNotifyTenantId(id); setNotifySubject("System Notification"); setNotifyMessage(""); setNotifyModalOpen(true); },
         openRefundModal: (id: string) => { setSelectedTenantForRefund(id); setRefundAmount(''); setRefundPaymentIntent(''); setRefundModalOpen(true); },
@@ -539,6 +539,7 @@ export default function AdminTenantsPageComponent() {
         handleImpersonate: (tenant: any) => { setTenantToImpersonate(tenant); setImpersonateModalOpen(true); },
         handleFeatureToggle,
         handleSeedConfirm,
+        confirmRestore, // Add confirmRestore to handlers to be accessible by Modals
         handleArchiveConfirm,
         handleDeleteTenant,
         setSelectedTenantForRefund,
