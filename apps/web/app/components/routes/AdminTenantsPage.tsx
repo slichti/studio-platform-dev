@@ -233,6 +233,7 @@ export default function AdminTenantsPageComponent() {
             if (res.error) throw new Error(res.error);
             const updated = await apiRequest("/admin/tenants", token);
             setTenants(updated);
+            setSeedModalOpen(false);
             setSuccessDialog({ isOpen: true, message: `Created ${res.tenant?.name}`, shouldRefresh: true });
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message });
