@@ -30,9 +30,9 @@ async function batchInsert(db: any, table: any, values: any[], onConflict: boole
     const tableConfig = getTableConfig(table);
     const columnsPerRow = tableConfig.columns.length;
 
-    // Even more conservative buffer: 50 parameters instead of 70
-    // This handles tables with many columns better and avoids "too many SQL variables"
-    const CHUNK_SIZE = Math.max(1, Math.floor(50 / columnsPerRow));
+    // Conservative buffer: 200 parameters.
+    // D1 supports more (32k), but subrequest/payload limits favor reasonable chunks.
+    const CHUNK_SIZE = Math.max(1, Math.floor(200 / columnsPerRow));
 
     console.log(`[batchInsert] Table: ${tableConfig.name}, Rows: ${values.length}, Cols/Row: ${columnsPerRow}, ChunkSize: ${CHUNK_SIZE}, onConflict: ${onConflict}`);
 
@@ -51,9 +51,9 @@ async function batchInsert(db: any, table: any, values: any[], onConflict: boole
                 await query.run();
             }
         } catch (e: any) {
-            console.error(`[batchInsert ERROR] Failed in Batch ${batchNum} for table '${tableConfig.name}':`, e.message);
+            console.error(`[batchInsert ERROR] Failed in Batch ${batchNum}/${totalBatches} for table '${tableConfig.name}':`, e.message);
             // Re-throw with more context
-            throw new Error(`Batch insert failed for '${tableConfig.name}': ${e.message}`);
+            throw new Error(`Batch insert failed for '${tableConfig.name}' (Batch ${batchNum}/${totalBatches}): ${e.message}`);
         }
     }
 }
