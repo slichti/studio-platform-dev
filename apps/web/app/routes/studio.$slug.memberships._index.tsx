@@ -120,7 +120,7 @@ export default function StudioMemberships() {
                     ) : (
                         plans.map((plan) => (
                             <Card key={plan.id} className="overflow-hidden group hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
-                                <div className="relative h-48 w-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
+                                <Link to={plan.id} className="block relative h-48 w-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
                                     {plan.imageUrl ? (
                                         <img src={plan.imageUrl} alt={plan.name} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                                     ) : (
@@ -136,10 +136,12 @@ export default function StudioMemberships() {
                                             </div>
                                         </div>
                                     )}
-                                </div>
+                                </Link>
                                 <CardContent className="p-6">
                                     <div className="flex justify-between items-start mb-2">
-                                        <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100">{plan.name}</h3>
+                                        <Link to={plan.id} className="hover:underline">
+                                            <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100">{plan.name}</h3>
+                                        </Link>
                                         {plan.vodEnabled && <Badge variant="secondary" className="text-xs">VOD Access</Badge>}
                                     </div>
                                     <div className="text-2xl font-bold mb-4 text-zinc-900 dark:text-zinc-100">
@@ -160,9 +162,6 @@ export default function StudioMemberships() {
                                             <Button variant="outline" className="w-full" onClick={() => setModalState({ type: 'edit', plan })}>
                                                 Edit Plan
                                             </Button>
-                                            <Link to={plan.id} className={cn(buttonVariants({ variant: "outline" }), "w-full")}>
-                                                View Details
-                                            </Link>
                                             <Button variant="ghost" className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setPlanToDelete(plan.id)}>
                                                 Delete Plan
                                             </Button>
