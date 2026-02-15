@@ -897,6 +897,17 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                         {"{{studioName}}"}
                                         <span className="opacity-0 group-hover:opacity-100 text-[10px] text-zinc-400">Drag</span>
                                     </div>
+                                    <div
+                                        draggable
+                                        onDragStart={(e) => {
+                                            e.dataTransfer.setData("text/plain", "{{studioAddress}}");
+                                            e.dataTransfer.effectAllowed = "copy";
+                                        }}
+                                        className="bg-zinc-50 border border-zinc-200 px-3 py-2 rounded-md cursor-grab hover:bg-white hover:border-blue-300 hover:shadow-sm transition-all text-xs font-mono text-zinc-600 flex items-center justify-between group active:cursor-grabbing mt-2"
+                                    >
+                                        {"{{studioAddress}}"}
+                                        <span className="opacity-0 group-hover:opacity-100 text-[10px] text-zinc-400">Drag</span>
+                                    </div>
 
                                     {(editForm.couponConfig as any).enabled && (
                                         <>

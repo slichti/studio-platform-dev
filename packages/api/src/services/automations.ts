@@ -820,7 +820,8 @@ export class AutomationsService {
             .replace(/\{{1,2}title\}{1,2}/gi, context.title || '')
             .replace(/\{{1,2}studioName\}{1,2}/gi, context.title || '') // Alias
             .replace(/\{{1,2}tenant\}{1,2}/gi, context.title || '') // Alias requested by user
-            .replace(/\{{1,2}address\}{1,2}/gi, context.address || '');
+            .replace(/\{{1,2}address\}{1,2}/gi, context.address || '')
+            .replace(/\{{1,2}studioAddress\}{1,2}/gi, context.address || '');
 
         // Coupon
         if (couponCode) {
