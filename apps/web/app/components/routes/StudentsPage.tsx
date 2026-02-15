@@ -37,19 +37,34 @@ export default function StudentsPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [editingMember, setEditingMember] = useState<any | null>(null);
 
+    const [roleFilter, setRoleFilter] = useState("all");
+    const [page, setPage] = useState(0);
+    const limit = 100;
 
-    // FETCH DATA using useStudents hook
-    const { data: members = [], isLoading, error } = useStudents(slug || '');
+    // FETCH DATA using useStudents hook with proper params
+    const { data, isLoading, error } = useStudents(slug || '', {
+        role: roleFilter,
+        status: statusFilter,
+        search: searchQuery,
+        limit,
+        offset: page * limit
+    }) as any;
 
-    // Filter Logic
-    const filteredMembers = members.filter((m: any) => {
-        const q = searchQuery.toLowerCase();
-        const name = `${m.profile?.firstName || ''} ${m.profile?.lastName || ''}`.toLowerCase();
-        const email = (m.user?.email || '').toLowerCase();
-        const matchesSearch = name.includes(q) || email.includes(q);
-        const matchesStatus = statusFilter === 'all' || m.status === statusFilter;
-        return matchesSearch && matchesStatus;
-    });
+    const members = data?.members || [];
+    const totalMembers = data?.total || 0;
+
+    // We no longer filter on client side as much, but we keep Search for instant feedback if desired, 
+    // though ideally search should be debounced and passed to API. 
+    // For now, API search is implemented in hook, so we rely on API data.
+    const filteredMembers = members;
+
+    // Stats Query - fetch totals separately if needed, or just use the current view's total if "All"
+    // For specific stats (Active, New), we might need dedicated endpoints or separate queries if we want them accurate globally
+    // For now, we'll show what we have or "N/A" if filtered, OR better:
+    // We can add a separate "stats" query hook later. For now, let's use the total from the "All" query.
+
+    // To get accurate global stats while filtering, we should ideally fetch stats separately.
+    // But to unblock the user's "50 vs 900" issue, showing "Total: {totalMembers}" when on "All" tab is a huge improvement.
 
     const handleAddMember = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -64,7 +79,8 @@ export default function StudentsPage() {
                 body: JSON.stringify({
                     email: formData.get('email'),
                     firstName: formData.get('firstName'),
-                    lastName: formData.get('lastName')
+                    lastName: formData.get('lastName'),
+                    role: formData.get('role') // Add role support to creation
                 })
             }) as any;
 
@@ -163,15 +179,16 @@ export default function StudentsPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardDescription>Total Students</CardDescription>
-                        <CardTitle className="text-3xl">{members.length}</CardTitle>
+                        <CardDescription>Total {roleFilter === 'all' ? 'Members' : roleFilter + 's'}</CardDescription>
+                        <CardTitle className="text-3xl">{totalMembers}</CardTitle>
                     </CardHeader>
                 </Card>
                 <Card>
                     <CardHeader className="pb-2">
                         <CardDescription>Active Memberships</CardDescription>
                         <CardTitle className="text-3xl">
-                            {members.filter((m: any) => m.status === 'active').length}
+                            {/* We don't have a global active count from API yet, so we show N/A or just list count for now */}
+                            {statusFilter === 'all' ? (roleFilter === 'all' ? '—' : '—') : filteredMembers.length}
                         </CardTitle>
                     </CardHeader>
                 </Card>
@@ -179,37 +196,58 @@ export default function StudentsPage() {
                     <CardHeader className="pb-2">
                         <CardDescription>New This Month</CardDescription>
                         <CardTitle className="text-3xl">
-                            {members.filter((m: any) => new Date(m.joinedAt) > new Date(new Date().setDate(1))).length}
+                            {/* Ideally handled by backend stats endpoint */}
+                            —
                         </CardTitle>
                     </CardHeader>
                 </Card>
             </div>
 
-            <div className="flex items-center gap-4">
-                <div className="relative flex-1 max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                    <Input
-                        placeholder="Search students..."
-                        className="pl-9"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                </div>
-                <div className="flex items-center bg-zinc-100 p-1 rounded-md dark:bg-zinc-800">
-                    {['all', 'active', 'inactive'].map((status) => (
+            <div className="flex flex-col gap-4">
+                {/* Role Tabs */}
+                <div className="flex border-b border-zinc-200 dark:border-zinc-800">
+                    {['all', 'owner', 'instructor', 'student'].map((role) => (
                         <button
-                            key={status}
-                            onClick={() => setStatusFilter(status)}
+                            key={role}
+                            onClick={() => { setRoleFilter(role); setPage(0); }}
                             className={cn(
-                                "px-3 py-1.5 text-sm font-medium rounded-sm capitalize transition-all",
-                                statusFilter === status
-                                    ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50"
-                                    : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+                                "px-4 py-2 text-sm font-medium border-b-2 transition-colors capitalize",
+                                roleFilter === role
+                                    ? "border-black text-black dark:border-white dark:text-white"
+                                    : "border-transparent text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
                             )}
                         >
-                            {status}
+                            {role === 'all' ? 'All People' : role + 's'}
                         </button>
                     ))}
+                </div>
+
+                <div className="flex items-center gap-4">
+                    <div className="relative flex-1 max-w-sm">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                        <Input
+                            placeholder="Search people..."
+                            className="pl-9"
+                            value={searchQuery}
+                            onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }}
+                        />
+                    </div>
+                    <div className="flex items-center bg-zinc-100 p-1 rounded-md dark:bg-zinc-800">
+                        {['all', 'active', 'inactive'].map((status) => (
+                            <button
+                                key={status}
+                                onClick={() => { setStatusFilter(status); setPage(0); }}
+                                className={cn(
+                                    "px-3 py-1.5 text-sm font-medium rounded-sm capitalize transition-all",
+                                    statusFilter === status
+                                        ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50"
+                                        : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+                                )}
+                            >
+                                {status}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
 

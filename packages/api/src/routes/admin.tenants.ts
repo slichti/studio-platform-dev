@@ -73,6 +73,61 @@ app.put('/:id/status', async (c) => {
     return c.json({ success: true, status });
 });
 
+// PATCH /:id/tier
+app.patch('/:id/tier', async (c) => {
+    const isPlatformAdmin = c.get('auth')?.claims?.isPlatformAdmin === true;
+    if (!isPlatformAdmin) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const { tier } = await c.req.json();
+    if (!['launch', 'growth', 'scale'].includes(tier)) return c.json({ error: 'Invalid tier' }, 400);
+
+    await db.update(tenants).set({ tier }).where(eq(tenants.id, c.req.param('id'))).run();
+
+    // Log audit
+    await db.insert(auditLogs).values({
+        id: crypto.randomUUID(),
+        action: 'update_tier',
+        actorId: c.get('auth')!.userId,
+        targetId: c.req.param('id'),
+        details: { tier },
+        ipAddress: c.req.header('CF-Connecting-IP')
+    }).run();
+
+    return c.json({ success: true, tier });
+});
+
+// PATCH /:id/quotas
+app.patch('/:id/quotas', async (c) => {
+    const isPlatformAdmin = c.get('auth')?.claims?.isPlatformAdmin === true;
+    if (!isPlatformAdmin) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const body = await c.req.json();
+
+    // Validate keys (basic security)
+    const allowedKeys = ['sms_limit', 'email_limit', 'storage_limit', 'student_limit', 'instructor_limit', 'location_limit'];
+    const invalidKeys = Object.keys(body).filter(k => !allowedKeys.includes(k));
+    if (invalidKeys.length > 0) return c.json({ error: 'Invalid keys: ' + invalidKeys.join(', ') }, 400);
+
+    // Fetch current settings or create empty object if null
+    const t = await db.select({ settings: tenants.settings }).from(tenants).where(eq(tenants.id, c.req.param('id'))).get();
+    if (!t) return c.json({ error: 'Not found' }, 404);
+
+    const currentSettings = (t.settings as any) || {};
+    const quotas = (currentSettings.quotas || {});
+
+    const newSettings = {
+        ...currentSettings,
+        quotas: {
+            ...quotas,
+            ...body
+        }
+    };
+
+    await db.update(tenants).set({ settings: newSettings }).where(eq(tenants.id, c.req.param('id'))).run();
+
+    return c.json({ success: true, settings: newSettings });
+});
+
 // POST /:id/lifecycle/archive
 app.post('/:id/lifecycle/archive', async (c) => {
     const isPlatformAdmin = c.get('auth')?.claims?.isPlatformAdmin === true;
