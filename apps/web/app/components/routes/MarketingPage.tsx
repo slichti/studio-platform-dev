@@ -674,216 +674,252 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                 isOpen={!!editingAuto}
                 onClose={() => setEditingAuto(null)}
                 title={`Edit Automation`}
-                maxWidth="max-w-2xl"
+                maxWidth="max-w-5xl"
             >
                 {editingAuto && (
-                    <form onSubmit={handleUpdateAutomation} className="flex flex-col h-full">
-                        <div className="flex-1 overflow-y-auto max-h-[70vh] pr-2 space-y-4">
-                            <div className="flex items-center justify-between bg-zinc-50 p-3 rounded-lg border border-zinc-200">
-                                <span className="text-sm font-medium text-zinc-900">Automation Status</span>
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={editForm.isEnabled}
-                                        onChange={e => setEditForm({ ...editForm, isEnabled: e.target.checked })}
-                                        className="sr-only peer"
-                                    />
-                                    <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                                    <span className="ml-3 text-sm font-medium text-zinc-700">{editForm.isEnabled ? 'Enabled' : 'Disabled'}</span>
-                                </label>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-medium text-zinc-500 mb-1">Trigger Event</label>
-                                    <select
-                                        value={editForm.triggerEvent}
-                                        onChange={e => setEditForm({ ...editForm, triggerEvent: e.target.value })}
-                                        className="w-full border border-zinc-300 rounded px-2 py-1.5 text-sm bg-white"
-                                    >
-                                        {Object.entries(triggerLabels).map(([key, label]: any) => (
-                                            <option key={key} value={key}>{label}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="space-y-2">
-                                    <div className="flex gap-2">
-                                        <div className="flex-1">
-                                            <label className="block text-xs font-medium text-zinc-500 mb-1">Timing Rule</label>
-                                            <select
-                                                value={editForm.timingType}
-                                                onChange={e => setEditForm({ ...editForm, timingType: e.target.value })}
-                                                className="w-full border border-zinc-300 rounded px-2 py-1.5 text-sm bg-white"
-                                            >
-                                                <option value="immediate">Immediately</option>
-                                                <option value="delay">Delay (Wait)</option>
-                                                <option value="before">Before Event</option>
-                                                <option value="after">After Event</option>
-                                            </select>
-                                        </div>
-                                        {editForm.timingType !== 'immediate' && (
-                                            <div className="w-20">
-                                                <label className="block text-xs font-medium text-zinc-500 mb-1">Hours</label>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    value={editForm.timingValue}
-                                                    onChange={e => setEditForm({ ...editForm, timingValue: parseInt(e.target.value) || 0 })}
-                                                    className="w-full border border-zinc-300 rounded px-2 py-1.5 text-sm bg-white"
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-medium text-zinc-500 mb-1">Trigger Conditions (JSON)</label>
-                                <textarea
-                                    value={editForm.triggerCondition}
-                                    onChange={e => setEditForm({ ...editForm, triggerCondition: e.target.value })}
-                                    className="w-full border border-zinc-300 rounded px-2 py-1 text-xs font-mono h-12 bg-zinc-50"
-                                    placeholder='{ "planId": "..." }'
-                                ></textarea>
-                            </div>
-
-
-                            <div className="flex flex-col gap-1">
-                                <label className="block text-xs font-medium text-zinc-500">Channels</label>
-                                <div className="flex gap-4 items-center">
-                                    <label className="flex items-center gap-2 text-sm bg-white border border-zinc-200 rounded px-3 py-1.5">
+                    <form onSubmit={handleUpdateAutomation} className="flex flex-col h-[80vh]">
+                        <div className="flex flex-1 gap-6 overflow-hidden min-h-0">
+                            {/* Left Column: Form Inputs (Scrollable) */}
+                            <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+                                <div className="flex items-center justify-between bg-zinc-50 p-3 rounded-lg border border-zinc-200">
+                                    <span className="text-sm font-medium text-zinc-900">Automation Status</span>
+                                    <label className="relative inline-flex items-center cursor-pointer">
                                         <input
                                             type="checkbox"
-                                            checked={(editForm.channels as string[]).includes('email')}
-                                            onChange={e => {
-                                                const current = editForm.channels as string[];
-                                                const next = e.target.checked
-                                                    ? [...current, 'email']
-                                                    : current.filter(c => c !== 'email');
-                                                setEditForm({ ...editForm, channels: next });
-                                            }}
-                                            className="rounded text-blue-600 focus:ring-blue-500"
+                                            checked={editForm.isEnabled}
+                                            onChange={e => setEditForm({ ...editForm, isEnabled: e.target.checked })}
+                                            className="sr-only peer"
                                         />
-                                        Email
+                                        <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                        <span className="ml-3 text-sm font-medium text-zinc-700">{editForm.isEnabled ? 'Enabled' : 'Disabled'}</span>
                                     </label>
-                                    <span className="text-xs text-zinc-400">SMS Coming Soon</span>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-medium text-zinc-500 mb-1">Trigger Event</label>
+                                        <select
+                                            value={editForm.triggerEvent}
+                                            onChange={e => setEditForm({ ...editForm, triggerEvent: e.target.value })}
+                                            className="w-full border border-zinc-300 rounded px-2 py-1.5 text-sm bg-white"
+                                        >
+                                            {Object.entries(triggerLabels).map(([key, label]: any) => (
+                                                <option key={key} value={key}>{label}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <div className="flex gap-2">
+                                            <div className="flex-1">
+                                                <label className="block text-xs font-medium text-zinc-500 mb-1">Timing Rule</label>
+                                                <select
+                                                    value={editForm.timingType}
+                                                    onChange={e => setEditForm({ ...editForm, timingType: e.target.value })}
+                                                    className="w-full border border-zinc-300 rounded px-2 py-1.5 text-sm bg-white"
+                                                >
+                                                    <option value="immediate">Immediately</option>
+                                                    <option value="delay">Delay (Wait)</option>
+                                                    <option value="before">Before Event</option>
+                                                    <option value="after">After Event</option>
+                                                </select>
+                                            </div>
+                                            {editForm.timingType !== 'immediate' && (
+                                                <div className="w-20">
+                                                    <label className="block text-xs font-medium text-zinc-500 mb-1">Hours</label>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        value={editForm.timingValue}
+                                                        onChange={e => setEditForm({ ...editForm, timingValue: parseInt(e.target.value) || 0 })}
+                                                        className="w-full border border-zinc-300 rounded px-2 py-1.5 text-sm bg-white"
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-medium text-zinc-500 mb-1">Trigger Conditions (JSON)</label>
+                                    <textarea
+                                        value={editForm.triggerCondition}
+                                        onChange={e => setEditForm({ ...editForm, triggerCondition: e.target.value })}
+                                        className="w-full border border-zinc-300 rounded px-2 py-1 text-xs font-mono h-12 bg-zinc-50"
+                                        placeholder='{ "planId": "..." }'
+                                    ></textarea>
+                                </div>
+
+
+                                <div className="flex flex-col gap-1">
+                                    <label className="block text-xs font-medium text-zinc-500">Channels</label>
+                                    <div className="flex gap-4 items-center">
+                                        <label className="flex items-center gap-2 text-sm bg-white border border-zinc-200 rounded px-3 py-1.5">
+                                            <input
+                                                type="checkbox"
+                                                checked={(editForm.channels as string[]).includes('email')}
+                                                onChange={e => {
+                                                    const current = editForm.channels as string[];
+                                                    const next = e.target.checked
+                                                        ? [...current, 'email']
+                                                        : current.filter(c => c !== 'email');
+                                                    setEditForm({ ...editForm, channels: next });
+                                                }}
+                                                className="rounded text-blue-600 focus:ring-blue-500"
+                                            />
+                                            Email
+                                        </label>
+                                        <span className="text-xs text-zinc-400">SMS Coming Soon</span>
+                                    </div>
+                                </div>
+
+                                <div className="bg-zinc-50 p-3 rounded-lg border border-zinc-200">
+                                    <label className="flex items-center gap-2 mb-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={(editForm.couponConfig as any).enabled}
+                                            onChange={e => setEditForm({
+                                                ...editForm,
+                                                couponConfig: { ...(editForm.couponConfig as any), enabled: e.target.checked }
+                                            })}
+                                            className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                                        />
+                                        <span className="text-sm font-medium text-zinc-900">Include Discount Coupon</span>
+                                    </label>
+
+                                    {(editForm.couponConfig as any).enabled && (
+                                        <div className="grid grid-cols-3 gap-2 animate-in fade-in slide-in-from-top-1">
+                                            <div>
+                                                <label className="block text-[10px] font-medium text-zinc-500 mb-1">Type</label>
+                                                <select
+                                                    value={(editForm.couponConfig as any).type}
+                                                    onChange={e => setEditForm({
+                                                        ...editForm,
+                                                        couponConfig: { ...(editForm.couponConfig as any), type: e.target.value }
+                                                    })}
+                                                    className="w-full border border-zinc-300 rounded px-2 py-1 text-xs"
+                                                >
+                                                    <option value="percent">Percent (%)</option>
+                                                    <option value="amount">Amount ($)</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-medium text-zinc-500 mb-1">Value</label>
+                                                <input
+                                                    type="number"
+                                                    value={(editForm.couponConfig as any).value}
+                                                    onChange={e => setEditForm({
+                                                        ...editForm,
+                                                        couponConfig: { ...(editForm.couponConfig as any), value: parseInt(e.target.value) || 0 }
+                                                    })}
+                                                    className="w-full border border-zinc-300 rounded px-2 py-1 text-xs"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-medium text-zinc-500 mb-1">Validity (Days)</label>
+                                                <input
+                                                    type="number"
+                                                    value={(editForm.couponConfig as any).validityDays}
+                                                    onChange={e => setEditForm({
+                                                        ...editForm,
+                                                        couponConfig: { ...(editForm.couponConfig as any), validityDays: parseInt(e.target.value) || 7 }
+                                                    })}
+                                                    className="w-full border border-zinc-300 rounded px-2 py-1 text-xs"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-medium text-zinc-500 mb-1">Subject Line</label>
+                                    <input
+                                        type="text"
+                                        value={editForm.subject}
+                                        onChange={e => setEditForm({ ...editForm, subject: e.target.value })}
+                                        className="w-full border border-zinc-300 rounded px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-zinc-500 mb-1">Content</label>
+                                    <RichTextEditor
+                                        value={editForm.content}
+                                        onChange={(html) => setEditForm({ ...editForm, content: html })}
+                                        placeholder="Write your automation content..."
+                                        className="min-h-[300px]"
+                                    />
                                 </div>
                             </div>
 
-                            <div className="bg-zinc-50 p-3 rounded-lg border border-zinc-200">
-                                <label className="flex items-center gap-2 mb-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={(editForm.couponConfig as any).enabled}
-                                        onChange={e => setEditForm({
-                                            ...editForm,
-                                            couponConfig: { ...(editForm.couponConfig as any), enabled: e.target.checked }
-                                        })}
-                                        className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
-                                    />
-                                    <span className="text-sm font-medium text-zinc-900">Include Discount Coupon</span>
-                                </label>
+                            {/* Right Column: Variables (Sticky/Static) */}
+                            <div className="w-64 shrink-0 border-l border-zinc-200 pl-6 flex flex-col">
+                                <h3 className="text-sm font-semibold text-zinc-900 mb-3 flex items-center gap-2">
+                                    <Sparkles className="h-4 w-4 text-amber-500" />
+                                    Variables
+                                </h3>
+                                <div className="text-xs text-zinc-500 mb-4 bg-blue-50 text-blue-800 p-3 rounded-lg border border-blue-100">
+                                    Drag these variables into the <strong>Subject Line</strong> or <strong>Content</strong> editor.
+                                </div>
 
-                                {(editForm.couponConfig as any).enabled && (
-                                    <div className="grid grid-cols-3 gap-2 animate-in fade-in slide-in-from-top-1">
-                                        <div>
-                                            <label className="block text-[10px] font-medium text-zinc-500 mb-1">Type</label>
-                                            <select
-                                                value={(editForm.couponConfig as any).type}
-                                                onChange={e => setEditForm({
-                                                    ...editForm,
-                                                    couponConfig: { ...(editForm.couponConfig as any), type: e.target.value }
-                                                })}
-                                                className="w-full border border-zinc-300 rounded px-2 py-1 text-xs"
-                                            >
-                                                <option value="percent">Percent (%)</option>
-                                                <option value="amount">Amount ($)</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-medium text-zinc-500 mb-1">Value</label>
-                                            <input
-                                                type="number"
-                                                value={(editForm.couponConfig as any).value}
-                                                onChange={e => setEditForm({
-                                                    ...editForm,
-                                                    couponConfig: { ...(editForm.couponConfig as any), value: parseInt(e.target.value) || 0 }
-                                                })}
-                                                className="w-full border border-zinc-300 rounded px-2 py-1 text-xs"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-medium text-zinc-500 mb-1">Validity (Days)</label>
-                                            <input
-                                                type="number"
-                                                value={(editForm.couponConfig as any).validityDays}
-                                                onChange={e => setEditForm({
-                                                    ...editForm,
-                                                    couponConfig: { ...(editForm.couponConfig as any), validityDays: parseInt(e.target.value) || 7 }
-                                                })}
-                                                className="w-full border border-zinc-300 rounded px-2 py-1 text-xs"
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-medium text-zinc-500 mb-1">Subject Line</label>
-                                <input
-                                    type="text"
-                                    value={editForm.subject}
-                                    onChange={e => setEditForm({ ...editForm, subject: e.target.value })}
-                                    className="w-full border border-zinc-300 rounded px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-zinc-500 mb-1">Content</label>
-                                <RichTextEditor
-                                    value={editForm.content}
-                                    onChange={(html) => setEditForm({ ...editForm, content: html })}
-                                    placeholder="Write your automation content..."
-                                    className="min-h-[200px]"
-                                />
-                                <div className="flex gap-2 mt-2 text-[10px] text-zinc-500 flex-wrap items-center select-none">
-                                    <span className="mr-1">Drag Variables:</span>
+                                <div className="space-y-2 overflow-y-auto flex-1">
+                                    <p className="text-[10px] uppercase font-bold text-zinc-400 mb-1">Student Info</p>
                                     {[
                                         "{{firstName}}",
                                         "{{lastName}}",
                                         "{{email}}",
-                                        "{{studioName}}",
-                                        "{{title}}",
-                                        "{{address}}"
+                                        "{{address}}",
+                                        "{{title}}"
                                     ].map(v => (
-                                        <code
+                                        <div
                                             key={v}
                                             draggable
                                             onDragStart={(e) => {
                                                 e.dataTransfer.setData("text/plain", v);
                                                 e.dataTransfer.effectAllowed = "copy";
                                             }}
-                                            className="bg-zinc-100 px-1.5 py-0.5 rounded cursor-grab hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 border border-transparent transition-colors active:cursor-grabbing"
+                                            className="bg-zinc-50 border border-zinc-200 px-3 py-2 rounded-md cursor-grab hover:bg-white hover:border-blue-300 hover:shadow-sm transition-all text-xs font-mono text-zinc-600 flex items-center justify-between group active:cursor-grabbing"
                                         >
                                             {v}
-                                        </code>
+                                            <span className="opacity-0 group-hover:opacity-100 text-[10px] text-zinc-400">Drag</span>
+                                        </div>
                                     ))}
+
+                                    <div className="my-4 border-t border-zinc-100"></div>
+
+                                    <p className="text-[10px] uppercase font-bold text-zinc-400 mb-1">Studio Info</p>
+                                    <div
+                                        draggable
+                                        onDragStart={(e) => {
+                                            e.dataTransfer.setData("text/plain", "{{studioName}}");
+                                            e.dataTransfer.effectAllowed = "copy";
+                                        }}
+                                        className="bg-zinc-50 border border-zinc-200 px-3 py-2 rounded-md cursor-grab hover:bg-white hover:border-blue-300 hover:shadow-sm transition-all text-xs font-mono text-zinc-600 flex items-center justify-between group active:cursor-grabbing"
+                                    >
+                                        {"{{studioName}}"}
+                                        <span className="opacity-0 group-hover:opacity-100 text-[10px] text-zinc-400">Drag</span>
+                                    </div>
+
                                     {(editForm.couponConfig as any).enabled && (
-                                        <code
-                                            draggable
-                                            onDragStart={(e) => {
-                                                e.dataTransfer.setData("text/plain", "{{coupon_code}}");
-                                                e.dataTransfer.effectAllowed = "copy";
-                                            }}
-                                            className="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded cursor-grab hover:bg-amber-200 border border-transparent transition-colors active:cursor-grabbing"
-                                        >
-                                            {"{{coupon_code}}"}
-                                        </code>
+                                        <>
+                                            <div className="my-4 border-t border-zinc-100"></div>
+                                            <p className="text-[10px] uppercase font-bold text-zinc-400 mb-1">Offers</p>
+                                            <div
+                                                draggable
+                                                onDragStart={(e) => {
+                                                    e.dataTransfer.setData("text/plain", "{{coupon_code}}");
+                                                    e.dataTransfer.effectAllowed = "copy";
+                                                }}
+                                                className="bg-amber-50 border border-amber-200 px-3 py-2 rounded-md cursor-grab hover:bg-white hover:border-amber-400 hover:shadow-sm transition-all text-xs font-mono text-amber-700 flex items-center justify-between group active:cursor-grabbing"
+                                            >
+                                                {"{{coupon_code}}"}
+                                                <span className="opacity-0 group-hover:opacity-100 text-[10px] text-amber-500">Drag</span>
+                                            </div>
+                                        </>
                                     )}
                                 </div>
                             </div>
                         </div>
 
-                        <div className="flex justify-end gap-2 pt-4 mt-2 border-t border-zinc-100">
+                        <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-zinc-100 shrink-0">
                             <button
                                 type="button"
                                 onClick={() => setEditingAuto(null)}
