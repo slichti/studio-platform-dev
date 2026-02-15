@@ -540,6 +540,8 @@ export default function AdminTenantsPageComponent() {
         handleFeatureToggle,
         handleSeedConfirm,
         confirmRestore, // Add confirmRestore to handlers to be accessible by Modals
+        confirmTierChange,
+        setTierChange,
         handleArchiveConfirm,
         handleDeleteTenant,
         setSelectedTenantForRefund,
@@ -623,7 +625,10 @@ export default function AdminTenantsPageComponent() {
                                 <tr className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer" onClick={() => toggleTenantExpand(t.id)}>
                                     <td className="pl-4">{expandedTenants.has(t.id) ? <ChevronDown size={16} /> : <ChevronRight size={16} />}</td>
                                     <td className="px-6 py-4">
-                                        <div className="font-medium">{t.name}</div>
+                                        <div className="font-medium flex items-center gap-2">
+                                            {t.name}
+                                            {t.isTest && <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">TEST</span>}
+                                        </div>
                                         <div className="text-zinc-500 text-xs font-mono">{t.slug}</div>
                                     </td>
                                     <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>

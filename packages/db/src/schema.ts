@@ -60,6 +60,9 @@ export const tenants = sqliteTable('tenants', {
     studentAccessDisabled: integer('student_access_disabled', { mode: 'boolean' }).default(false).notNull(),
     aggregatorConfig: text('aggregator_config', { mode: 'json' }), // { classpass: { partnerId: '...' }, gympass: { ... } }
 
+    // Test tenant marker (seeded via admin)
+    isTest: integer('is_test', { mode: 'boolean' }).default(false).notNull(),
+
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 

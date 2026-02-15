@@ -66,7 +66,9 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
     };
 
     const tenantName = options.tenantName || randomName();
-    const tenantSlug = options.tenantSlug || tenantName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    const rawSlug = options.tenantSlug || tenantName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    // Auto-prefix all seeded slugs with 'test-' to distinguish from production tenants
+    const tenantSlug = rawSlug.startsWith('test-') ? rawSlug : `test-${rawSlug}`;
 
     // Limits
     const OWNER_COUNT = Math.max(1, options.ownerCount || 1);
@@ -82,22 +84,23 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
     const runSeed = async (tx: any) => {
         // 1. Create Tenant
         let tenant = await tx.select().from(tenants).where(eq(tenants.slug, tenantSlug)).get();
-        if (!tenant) {
-            console.log("Creating tenant...");
-            tenant = (await tx.insert(tenants).values({
-                id: 'tenant_' + crypto.randomUUID(),
-                slug: tenantSlug,
-                name: tenantName,
-                status: 'active',
-                tier: TIER,
-                currency: 'usd',
-                settings: { enableStudentRegistration: true },
-                branding: { primaryColor: '#000000' },
-                createdAt: now
-            }).returning().get());
-        } else {
-            console.log("Tenant already exists.");
+        if (tenant) {
+            // Reject duplicate slug seeding
+            throw new Error(`A tenant with slug '${tenantSlug}' already exists. Choose a different name or slug.`);
         }
+        console.log("Creating tenant...");
+        tenant = (await tx.insert(tenants).values({
+            id: 'tenant_' + crypto.randomUUID(),
+            slug: tenantSlug,
+            name: tenantName,
+            status: 'active',
+            tier: TIER,
+            currency: 'usd',
+            isTest: true,
+            settings: { enableStudentRegistration: true },
+            branding: { primaryColor: '#000000' },
+            createdAt: now
+        }).returning().get());
         const tenantId = tenant.id;
 
         // 1b. Assign Features
