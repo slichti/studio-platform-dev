@@ -30,10 +30,10 @@ async function batchInsert(db: any, table: any, values: any[], onConflict: boole
     const tableConfig = getTableConfig(table);
     const columnsPerRow = tableConfig.columns.length;
 
-    // Conservative buffer: 50 parameters.
-    // D1 supports more, but we are seeing unexplained failures with ~200 params (12 rows).
-    // Reducing to ~3 rows per batch to maximize reliability.
-    const CHUNK_SIZE = Math.max(1, Math.floor(50 / columnsPerRow));
+    // Conservative buffer: 800 parameters.
+    // D1 supports up to 32k parameters. We use 800 (~50 rows) to balance payload size
+    // and reduce the total number of round-trips/queries to avoid Worker CPU time limits.
+    const CHUNK_SIZE = Math.max(1, Math.floor(800 / columnsPerRow));
 
     console.log(`[batchInsert] Table: ${tableConfig.name}, Rows: ${values.length}, Cols/Row: ${columnsPerRow}, ChunkSize: ${CHUNK_SIZE}, onConflict: ${onConflict}`);
 
