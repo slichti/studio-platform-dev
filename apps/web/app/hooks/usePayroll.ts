@@ -54,19 +54,20 @@ export function useBulkApprovePayouts(tenantSlug: string) {
     });
 }
 
+import { API_URL } from "~/utils/api";
+
 export function useExportPayrollHistory(tenantSlug: string) {
     const { getToken } = useAuth();
 
     return async (startDate?: string, endDate?: string) => {
         const token = await getToken();
-        let url = `/payroll/history/export`;
         const params = new URLSearchParams();
         if (startDate) params.append('startDate', startDate);
         if (endDate) params.append('endDate', endDate);
-        if (params.toString()) url += `?${params.toString()}`;
 
-        const baseUrl = (window as any).ENV.VITE_API_URL || '';
-        const response = await fetch(`${baseUrl}${url}`, {
+        const url = `${API_URL}/payroll/history/export?${params.toString()}`;
+
+        const response = await fetch(url, {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'X-Tenant-Slug': tenantSlug

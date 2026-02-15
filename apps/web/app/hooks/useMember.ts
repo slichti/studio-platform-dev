@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@clerk/react-router";
+import { apiRequest } from "../utils/api";
 
 export function useMember(tenantSlug: string, memberId: string) {
     const { getToken } = useAuth();
@@ -8,15 +9,9 @@ export function useMember(tenantSlug: string, memberId: string) {
         queryKey: ['member', tenantSlug, memberId],
         queryFn: async () => {
             const token = await getToken();
-            if (!token) throw new Error("No token");
-            const res = await fetch(`${(window as any).ENV.VITE_API_URL}/members/${memberId}`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'X-Tenant-Slug': tenantSlug
-                }
+            const data = await apiRequest<{ member: any }>(`/members/${memberId}`, token, {
+                headers: { 'X-Tenant-Slug': tenantSlug }
             });
-            const data = await res.json() as { member: any; error?: string };
-            if (data.error) throw new Error(data.error);
             return data.member;
         },
         enabled: !!tenantSlug && !!memberId
@@ -30,13 +25,9 @@ export function useMemberNotes(tenantSlug: string, memberId: string) {
         queryKey: ['member-notes', tenantSlug, memberId],
         queryFn: async () => {
             const token = await getToken();
-            const res = await fetch(`${(window as any).ENV.VITE_API_URL}/members/${memberId}/notes`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'X-Tenant-Slug': tenantSlug
-                }
+            const data = await apiRequest<{ notes: any[] }>(`/members/${memberId}/notes`, token, {
+                headers: { 'X-Tenant-Slug': tenantSlug }
             });
-            const data = await res.json() as { notes: any[] };
             return data.notes || [];
         },
         enabled: !!tenantSlug && !!memberId
@@ -50,13 +41,9 @@ export function useMemberCoupons(tenantSlug: string, memberId: string) {
         queryKey: ['member-coupons', tenantSlug, memberId],
         queryFn: async () => {
             const token = await getToken();
-            const res = await fetch(`${(window as any).ENV.VITE_API_URL}/members/${memberId}/coupons`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'X-Tenant-Slug': tenantSlug
-                }
+            const data = await apiRequest<{ coupons: any[] }>(`/members/${memberId}/coupons`, token, {
+                headers: { 'X-Tenant-Slug': tenantSlug }
             });
-            const data = await res.json() as { coupons: any[] };
             return data.coupons || [];
         },
         enabled: !!tenantSlug && !!memberId
