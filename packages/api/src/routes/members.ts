@@ -464,7 +464,8 @@ const getMemberNotesRoute = createRoute({
     },
     responses: {
         200: { content: { 'application/json': { schema: z.object({ notes: z.array(z.any()) }) } }, description: 'Notes' },
-        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' }
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' },
+        500: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Internal Server Error' }
     }
 });
 
@@ -490,9 +491,28 @@ const getMemberCouponsRoute = createRoute({
         params: z.object({ id: z.string() })
     },
     responses: {
-        200: { content: { 'application/json': { schema: z.object({ coupons: z.array(z.any()) }) } }, description: 'Coupons' },
+        200: {
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        coupons: z.array(z.object({
+                            id: z.string(),
+                            code: z.string(),
+                            type: z.enum(['percent', 'amount']),
+                            value: z.number(),
+                            active: z.boolean().nullable(),
+                            expiresAt: z.string().nullable().or(z.date().nullable()),
+                            redeemedAt: z.string().nullable().or(z.date().nullable()),
+                            orderId: z.string().nullable()
+                        }))
+                    })
+                }
+            },
+            description: 'Coupons'
+        },
         403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' },
-        404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Member not found' }
+        404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Member not found' },
+        500: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Internal Server Error' }
     }
 });
 
