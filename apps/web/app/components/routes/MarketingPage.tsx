@@ -92,38 +92,36 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
     }
 
     async function handleCreateAutomation() {
-        try {
-            const token = await getToken();
-            const res: any = await apiRequest("/marketing/automations", token, {
-                method: "POST",
-                headers: { 'X-Tenant-Slug': slug },
-                body: JSON.stringify({
-                    triggerEvent: 'new_student',
-                    subject: 'New Automation'
-                })
-            });
-            if (res.error) throw new Error(res.error);
-            setAutomations([...automations, res]);
-            setEditingAuto(res);
-            setEditForm({
-                subject: res.subject,
-                content: res.content,
-                isEnabled: res.isEnabled,
-                timingType: res.timingType || 'immediate',
-                timingValue: res.timingValue || 0,
-                triggerEvent: res.triggerEvent,
-                triggerCondition: JSON.stringify(res.triggerCondition || {}, null, 2),
-                channels: res.channels || ['email'],
-                couponConfig: res.couponConfig ? { ...res.couponConfig, enabled: true } : { enabled: false, type: 'percent', value: 20, validityDays: 7 }
-            });
-        } catch (e: any) {
-            showNotification("Failed to create: " + e.message, 'error');
-        }
+        const newAuto = {
+            id: null, // Temporary ID indicating new
+            subject: 'New Automation',
+            content: '',
+            isEnabled: false,
+            timingType: 'immediate',
+            timingValue: 0,
+            triggerEvent: 'new_student',
+            triggerCondition: {},
+            channels: ['email'],
+            couponConfig: { enabled: false, type: 'percent', value: 20, validityDays: 7 }
+        };
+        setEditingAuto(newAuto);
+        setEditForm({
+            subject: newAuto.subject,
+            content: newAuto.content,
+            isEnabled: newAuto.isEnabled,
+            timingType: newAuto.timingType,
+            timingValue: newAuto.timingValue,
+            triggerEvent: newAuto.triggerEvent,
+            triggerCondition: JSON.stringify(newAuto.triggerCondition, null, 2),
+            channels: newAuto.channels,
+            couponConfig: newAuto.couponConfig
+        });
     }
 
     async function handleUpdateAutomation(e: React.FormEvent) {
         e.preventDefault();
         if (!editingAuto) return;
+
         try {
             let parsedCondition = null;
             try {
@@ -139,17 +137,30 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                 triggerCondition: parsedCondition
             };
 
-            const res: any = await apiRequest(`/marketing/automations/${editingAuto.id}`, token, {
-                method: "PATCH",
-                headers: { 'X-Tenant-Slug': slug },
-                body: JSON.stringify(payload)
-            });
+            if (editingAuto.id) {
+                // UPDATE existing
+                const res: any = await apiRequest(`/marketing/automations/${editingAuto.id}`, token, {
+                    method: "PATCH",
+                    headers: { 'X-Tenant-Slug': slug },
+                    body: JSON.stringify(payload)
+                });
+                setAutomations(automations.map((a: any) => a.id === editingAuto.id ? res : a));
+                showNotification("Automation updated successfully");
+            } else {
+                // CREATE new
+                const res: any = await apiRequest("/marketing/automations", token, {
+                    method: "POST",
+                    headers: { 'X-Tenant-Slug': slug },
+                    body: JSON.stringify(payload)
+                });
+                if (res.error) throw new Error(res.error);
+                setAutomations([...automations, res]);
+                showNotification("Automation created successfully");
+            }
 
-            setAutomations(automations.map((a: any) => a.id === editingAuto.id ? res : a));
             setEditingAuto(null);
-            showNotification("Automation updated successfully");
         } catch (e: any) {
-            showNotification("Failed to update: " + e.message, 'error');
+            showNotification("Failed to save: " + e.message, 'error');
         }
     }
 

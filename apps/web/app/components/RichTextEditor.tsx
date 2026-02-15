@@ -5,7 +5,7 @@ import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Bold, Italic, List, Link as LinkIcon, Image as ImageIcon, Code, Type, Unlink } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 interface RichTextEditorProps {
     value: string;
@@ -122,24 +122,26 @@ const MenuBar = ({ editor }: { editor: any }) => {
 };
 
 export function RichTextEditor({ value, onChange, placeholder, className }: RichTextEditorProps) {
+    const extensions = useMemo(() => [
+        StarterKit,
+        Link.configure({
+            openOnClick: false,
+            HTMLAttributes: {
+                class: 'text-blue-600 underline',
+            },
+        }),
+        Image.configure({
+            HTMLAttributes: {
+                class: 'rounded-lg max-w-full my-4 border border-zinc-200',
+            },
+        }),
+        Placeholder.configure({
+            placeholder: placeholder || 'Write something...',
+        }),
+    ], [placeholder]);
+
     const editor = useEditor({
-        extensions: [
-            StarterKit,
-            Link.configure({
-                openOnClick: false,
-                HTMLAttributes: {
-                    class: 'text-blue-600 underline',
-                },
-            }),
-            Image.configure({
-                HTMLAttributes: {
-                    class: 'rounded-lg max-w-full my-4 border border-zinc-200',
-                },
-            }),
-            Placeholder.configure({
-                placeholder: placeholder || 'Write something...',
-            }),
-        ],
+        extensions,
         content: value,
         editorProps: {
             attributes: {
