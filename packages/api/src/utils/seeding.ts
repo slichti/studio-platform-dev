@@ -30,10 +30,9 @@ async function batchInsert(db: any, table: any, values: any[], onConflict: boole
     const tableConfig = getTableConfig(table);
     const columnsPerRow = tableConfig.columns.length;
 
-    // Conservative buffer: 800 parameters.
-    // D1 supports up to 32k parameters. We use 800 (~50 rows) to balance payload size
-    // and reduce the total number of round-trips/queries to avoid Worker CPU time limits.
-    const CHUNK_SIZE = Math.max(1, Math.floor(800 / columnsPerRow));
+    // D1 hard limit: 100 bound parameters per query.
+    // For a 16-column table, this means max 6 rows per batch.
+    const CHUNK_SIZE = Math.max(1, Math.floor(100 / columnsPerRow));
 
     console.log(`[batchInsert] Table: ${tableConfig.name}, Rows: ${values.length}, Cols/Row: ${columnsPerRow}, ChunkSize: ${CHUNK_SIZE}, onConflict: ${onConflict}`);
 
@@ -371,5 +370,44 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
         return tenant;
     };
 
-    return await runSeed(db);
+    // Run seeding with cleanup on failure
+    let createdTenantId: string | null = null;
+    try {
+        const result = await runSeed(db);
+        return result;
+    } catch (e: any) {
+        // If we created a tenant but something failed after, clean it up
+        // so we don't leave an orphan tenant with 0 data
+        console.error(`[seedTenant] Seeding failed, attempting cleanup...`);
+        try {
+            // Try to find and delete the partially-created tenant
+            const partialTenant = await db.select().from(tenants).where(eq(tenants.slug, tenantSlug)).get();
+            if (partialTenant) {
+                createdTenantId = partialTenant.id;
+                console.log(`[seedTenant] Cleaning up partial tenant ${createdTenantId}...`);
+
+                // Delete in dependency order (ignore errors for tables that may not have data yet)
+                const cleanupOps = [
+                    () => db.delete(bookings).where(sql`class_id IN (SELECT id FROM classes WHERE tenant_id = ${createdTenantId})`).run(),
+                    () => db.delete(classes).where(eq(classes.tenantId, createdTenantId!)).run(),
+                    () => db.delete(subscriptions).where(eq(subscriptions.tenantId, createdTenantId!)).run(),
+                    () => db.delete(tenantRoles).where(sql`member_id IN (SELECT id FROM tenant_members WHERE tenant_id = ${createdTenantId})`).run(),
+                    () => db.delete(tenantMembers).where(eq(tenantMembers.tenantId, createdTenantId!)).run(),
+                    () => db.delete(products).where(eq(products.tenantId, createdTenantId!)).run(),
+                    () => db.delete(membershipPlans).where(eq(membershipPlans.tenantId, createdTenantId!)).run(),
+                    () => db.delete(locations).where(eq(locations.tenantId, createdTenantId!)).run(),
+                    () => db.delete(tenantFeatures).where(eq(tenantFeatures.tenantId, createdTenantId!)).run(),
+                    () => db.delete(tenants).where(eq(tenants.id, createdTenantId!)).run(),
+                ];
+                for (const op of cleanupOps) {
+                    try { await op(); } catch { /* ignore cleanup errors */ }
+                }
+                console.log(`[seedTenant] Cleanup complete for ${createdTenantId}`);
+            }
+        } catch (cleanupErr) {
+            console.error(`[seedTenant] Cleanup also failed:`, cleanupErr);
+        }
+        // Re-throw the original error
+        throw e;
+    }
 }
