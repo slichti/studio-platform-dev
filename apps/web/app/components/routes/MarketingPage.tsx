@@ -92,6 +92,17 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
         }
     }
 
+    // Recommended Fields Mapping
+    const recommendedFields: Record<string, string[]> = {
+        'membership_started': ['planName', 'price'],
+        'subscription_canceled': ['planName'],
+        'class_milestone': ['milestone'],
+        'class_noshow': ['classTitle', 'instructorName'],
+        'credits_low': ['remainingCredits'],
+        'booking_cancelled': ['classTitle', 'instructorName'],
+        'new_student': ['source'],
+    };
+
     async function handleCreateAutomation() {
         const newAuto = {
             id: null, // Temporary ID indicating new
@@ -786,60 +797,83 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                             </p>
                                         )}
 
-                                        {editForm.conditions.map((condition, index) => (
-                                            <div key={index} className="flex gap-2 items-center">
-                                                <input
-                                                    type="text"
-                                                    placeholder="Field (e.g. planName)"
-                                                    value={condition.field}
-                                                    onChange={e => {
-                                                        const next = [...editForm.conditions];
-                                                        next[index].field = e.target.value;
-                                                        setEditForm({ ...editForm, conditions: next });
-                                                    }}
-                                                    className="flex-1 min-w-0 border border-zinc-300 rounded px-2 py-1.5 text-xs"
-                                                />
-                                                <select
-                                                    value={condition.operator}
-                                                    disabled
-                                                    className="w-20 border border-zinc-300 rounded px-2 py-1.5 text-xs bg-zinc-100 text-zinc-500"
-                                                >
-                                                    <option value="equals">Equals</option>
-                                                </select>
-                                                <input
-                                                    type="text"
-                                                    placeholder="Value (e.g. Gold)"
-                                                    value={condition.value}
-                                                    onChange={e => {
-                                                        const next = [...editForm.conditions];
-                                                        next[index].value = e.target.value;
-                                                        setEditForm({ ...editForm, conditions: next });
-                                                    }}
-                                                    className="flex-1 min-w-0 border border-zinc-300 rounded px-2 py-1.5 text-xs"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        const next = editForm.conditions.filter((_, i) => i !== index);
-                                                        setEditForm({ ...editForm, conditions: next });
-                                                    }}
-                                                    className="text-zinc-400 hover:text-red-500 p-1"
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </button>
-                                            </div>
-                                        ))}
+                                        {editForm.conditions.map((condition, index) => {
+                                            const suggestions = recommendedFields[editForm.triggerEvent] || [];
+                                            return (
+                                                <div key={index} className="flex gap-2 items-center">
+                                                    <div className="flex-1 min-w-0">
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Field (e.g. planName)"
+                                                            list={`suggestions-${index}`}
+                                                            value={condition.field}
+                                                            onChange={e => {
+                                                                const next = [...editForm.conditions];
+                                                                next[index].field = e.target.value;
+                                                                setEditForm({ ...editForm, conditions: next });
+                                                            }}
+                                                            className="w-full border border-zinc-300 rounded px-2 py-1.5 text-xs"
+                                                        />
+                                                        <datalist id={`suggestions-${index}`}>
+                                                            {suggestions.map(s => (
+                                                                <option key={s} value={s} />
+                                                            ))}
+                                                        </datalist>
+                                                    </div>
+
+                                                    <select
+                                                        value={condition.operator}
+                                                        disabled
+                                                        className="w-20 border border-zinc-300 rounded px-2 py-1.5 text-xs bg-zinc-100 text-zinc-500"
+                                                    >
+                                                        <option value="equals">Equals</option>
+                                                    </select>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Value (e.g. Gold)"
+                                                        value={condition.value}
+                                                        onChange={e => {
+                                                            const next = [...editForm.conditions];
+                                                            next[index].value = e.target.value;
+                                                            setEditForm({ ...editForm, conditions: next });
+                                                        }}
+                                                        className="flex-1 min-w-0 border border-zinc-300 rounded px-2 py-1.5 text-xs"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const next = editForm.conditions.filter((_, i) => i !== index);
+                                                            setEditForm({ ...editForm, conditions: next });
+                                                        }}
+                                                        className="text-zinc-400 hover:text-red-500 p-1"
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
 
                                         {/* Helper Text based on Trigger */}
                                         <div className="mt-2 text-[11px] text-zinc-500 bg-white p-2 rounded border border-zinc-100">
-                                            <span className="font-medium text-zinc-700 block mb-1">Common Filters for {triggerLabels[editForm.triggerEvent] || 'Selected Event'}:</span>
-                                            {editForm.triggerEvent === 'membership_started' && <code className="bg-zinc-100 px-1 rounded text-zinc-600">planName</code>}
-                                            {editForm.triggerEvent === 'subscription_canceled' && <code className="bg-zinc-100 px-1 rounded text-zinc-600">planName</code>}
-                                            {editForm.triggerEvent === 'class_milestone' && <code className="bg-zinc-100 px-1 rounded text-zinc-600">milestone</code>}
-                                            {editForm.triggerEvent === 'class_noshow' && <code className="bg-zinc-100 px-1 rounded text-zinc-600">classTitle</code>}
-                                            {editForm.triggerEvent === 'credits_low' && <code className="bg-zinc-100 px-1 rounded text-zinc-600">remainingCredits</code>}
-                                            {!['membership_started', 'subscription_canceled', 'class_milestone', 'class_noshow', 'credits_low'].includes(editForm.triggerEvent) && (
-                                                <span className="italic">No specific suggestions for this trigger.</span>
+                                            <span className="font-medium text-zinc-700 block mb-1">
+                                                <Sparkles className="inline w-3 h-3 mr-1 text-blue-500" />
+                                                Recommended Filters:
+                                            </span>
+                                            {(recommendedFields[editForm.triggerEvent] || []).length > 0 ? (
+                                                <div className="flex flex-wrap gap-1">
+                                                    {(recommendedFields[editForm.triggerEvent] || []).map(f => (
+                                                        <code key={f} className="bg-zinc-100 px-1.5 py-0.5 rounded text-zinc-600 border border-zinc-200 cursor-pointer hover:bg-zinc-200"
+                                                            onClick={() => setEditForm(prev => ({
+                                                                ...prev,
+                                                                conditions: [...prev.conditions, { field: f, operator: 'equals', value: '' }]
+                                                            }))}
+                                                        >
+                                                            {f}
+                                                        </code>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <span className="italic text-zinc-400">No specific suggestions for this trigger.</span>
                                             )}
                                         </div>
                                     </div>
