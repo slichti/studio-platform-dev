@@ -40,6 +40,41 @@ const Hero = ({ title, subtitle, ctaText, ctaLink, backgroundImage, alignment, o
     </section>
 );
 
+// Video Hero
+const VideoHero = ({ title, subtitle, ctaText, ctaLink, videoUrl, alignment, overlayOpacity, backgroundColor, textColor }: any) => (
+    <section
+        className={`relative py-32 px-8 ${alignment === 'left' ? 'text-left' : 'text-center'} overflow-hidden transition-colors`}
+        style={{
+            backgroundColor: backgroundColor || '#18181b',
+            color: textColor || '#ffffff'
+        }}
+    >
+        {videoUrl && (
+            <div className="absolute inset-0 z-0">
+                <video
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover opacity-50 transition-opacity duration-1000"
+                    style={{ opacity: overlayOpacity ?? 0.5 }}
+                >
+                    <source src={videoUrl} type="video/mp4" />
+                </video>
+            </div>
+        )}
+        <div className="relative z-10 max-w-5xl mx-auto">
+            <h1 className="text-5xl md:text-8xl font-black mb-8 tracking-tighter leading-none shadow-black/50 drop-shadow-lg">{title || "Experience the Energy"}</h1>
+            <p className="text-xl md:text-3xl opacity-90 mb-12 max-w-3xl mx-auto font-medium leading-relaxed drop-shadow-md">{subtitle || "Join us for a transformative session."}</p>
+            {ctaText && (
+                <a href={ctaLink || "#"} className="inline-block bg-white text-black px-12 py-5 rounded-full font-black text-lg hover:bg-zinc-200 transition-all shadow-2xl active:scale-95">
+                    {ctaText}
+                </a>
+            )}
+        </div>
+    </section>
+);
+
 // Columns Component
 const Columns = ({ distribution, backgroundColor, textColor, padding }: any) => {
     const cols = distribution === '1-1' ? 'md:grid-cols-2' : distribution === '1-1-1' ? 'md:grid-cols-3' : 'md:grid-cols-4';
@@ -164,66 +199,113 @@ const InstructorGrid = ({ title }: any) => (
     </section>
 );
 
-// Testimonials
-const Testimonials = ({ testimonials, backgroundColor, textColor }: any) => (
-    <section
-        className="py-24 px-8 transition-colors"
-        style={{ backgroundColor: backgroundColor || 'transparent', color: textColor || 'inherit' }}
-    >
-        <div className="max-w-5xl mx-auto">
-            <h2 className="text-5xl font-black text-center mb-16 tracking-tight italic">"What Our Students Say"</h2>
-            <div className="grid md:grid-cols-2 gap-12">
-                {(testimonials || [{ quote: "Amazing experience!", author: "Happy Student" }]).map((t: any, i: number) => (
-                    <blockquote key={i} className="bg-zinc-50 dark:bg-zinc-900 p-12 rounded-[2rem] relative overflow-hidden group">
-                        <div className="text-9xl absolute -top-10 -left-6 opacity-[0.03] select-none font-serif text-blue-600">“</div>
-                        <p className="text-2xl font-bold text-zinc-800 dark:text-zinc-100 mb-8 relative z-10 leading-relaxed italic group-hover:text-blue-600 transition-colors">"{t.quote}"</p>
-                        <footer className="text-blue-600 font-black uppercase tracking-[0.2em] text-sm flex items-center gap-4">
-                            <div className="h-0.5 w-8 bg-blue-600" /> {t.author}
-                        </footer>
-                    </blockquote>
-                ))}
-            </div>
-        </div>
-    </section>
-);
-
-// Testimonial Carousel
-// Uses CSS scroll snap for simplicity and performance
-const TestimonialCarousel = ({ testimonials, backgroundColor, textColor }: any) => (
-    <section
-        className="py-24 px-8 transition-colors overflow-hidden"
-        style={{ backgroundColor: backgroundColor || 'transparent', color: textColor || 'inherit' }}
-    >
-        <div className="max-w-7xl mx-auto">
-            <h2 className="text-5xl font-black text-center mb-16 tracking-tight italic">"Student Stories"</h2>
-
-            <div className="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-12 -mx-8 px-8 scrollbar-hide">
-                {(testimonials || [{ quote: "Incredible atmosphere!", author: "Member since 2024" }, { quote: "Best instructors in town.", author: "Jane D." }, { quote: "I love the community here.", author: "Mike T." }]).map((t: any, i: number) => (
-                    <div
-                        key={i}
-                        className="snap-center shrink-0 w-[85vw] md:w-[400px] bg-zinc-50 dark:bg-zinc-900 p-10 rounded-[2.5rem] relative flex flex-col justify-between border border-zinc-100 dark:border-zinc-800"
-                    >
-                        <div className="text-6xl text-blue-600 opacity-20 font-serif mb-4">“</div>
-                        <p className="text-xl font-bold text-zinc-800 dark:text-zinc-100 mb-8 italic leading-relaxed">
-                            {t.quote}
-                        </p>
-                        <div className="flex items-center gap-3 mt-auto">
-                            <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 font-bold text-sm">
-                                {t.author?.[0] || "?"}
-                            </div>
-                            <span className="font-bold text-sm uppercase tracking-wider text-zinc-500">{t.author}</span>
-                        </div>
+// Logo Cloud
+const LogoCloud = ({ title, logos, autoScroll, backgroundColor }: any) => (
+    <section className="py-20 px-8 transition-colors overflow-hidden" style={{ backgroundColor: backgroundColor || '#ffffff' }}>
+        <div className="max-w-7xl mx-auto text-center">
+            {title && <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-400 mb-12">{title}</h2>}
+            <div className={`flex flex-wrap justify-center items-center gap-12 md:gap-20 opacity-70 grayscale ${autoScroll ? 'animate-marquee whitespace-nowrap' : ''}`}>
+                {(logos || [{ name: "Partner 1" }, { name: "Partner 2" }, { name: "Partner 3" }, { name: "Partner 4" }]).map((logo: any, i: number) => (
+                    <div key={i} className="flex items-center gap-2 text-2xl font-black text-zinc-300">
+                        {logo.src ? <img src={logo.src} alt={logo.name} className="h-12 object-contain" /> : <div className="h-12 w-32 bg-zinc-100 rounded flex items-center justify-center text-xs">{logo.name || "LOGO"}</div>}
                     </div>
                 ))}
             </div>
-            <div className="flex justify-center gap-2 mt-4 opacity-30">
-                <div className="h-1 w-12 bg-current rounded-full" />
-                <div className="h-1 w-2 bg-current rounded-full" />
-                <div className="h-1 w-2 bg-current rounded-full" />
-            </div>
         </div>
     </section>
 );
+
+// Stats Counter
+const StatsCounter = ({ stats, backgroundColor, textColor }: any) => (
+    <section className="py-24 px-8" style={{ backgroundColor: backgroundColor || '#2563eb', color: textColor || '#ffffff' }}>
+        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
+            {(stats || [{ value: "500+", label: "Members" }, { value: "50+", label: "Classes" }, { value: "10", label: "Instructors" }, { value: "4.9", label: "Rating" }]).map((s: any, i: number) => (
+                <div key={i}>
+                    <div className="text-5xl md:text-7xl font-black mb-2 tracking-tighter">{s.value}</div>
+                    <div className="text-sm md:text-base font-bold uppercase tracking-widest opacity-80">{s.label}</div>
+                </div>
+            ))}
+        </div>
+    </section>
+);
+
+// Masonry Gallery
+const MasonryGallery = ({ images, backgroundColor }: any) => (
+    <section className="py-24 px-8" style={{ backgroundColor: backgroundColor || '#fafafa' }}>
+        <div className="max-w-7xl mx-auto columns-1 md:columns-2 lg:columns-3 gap-8 space-y-8">
+            {(images || [1, 2, 3, 4, 5, 6]).map((img: any, i: number) => (
+                <div key={i} className="break-inside-avoid rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all hover:scale-[1.02] duration-500">
+                    {img.src ? (
+                        <img src={img.src} alt={img.alt} className="w-full h-auto object-cover" />
+                    ) : (
+                        <div className={`w-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 font-bold uppercase tracking-widest`} style={{ height: `${200 + (i % 3) * 100}px` }}>
+                            Image {i + 1}
+                        </div>
+                    )}
+                </div>
+            ))}
+        </div>
+    </section>
+);
+
+// Testimonials
+const Testimonials = ({ testimonials, layout, backgroundColor, textColor }: any) => {
+    if (layout === 'carousel') {
+        return (
+            <section
+                className="py-24 px-8 transition-colors overflow-hidden"
+                style={{ backgroundColor: backgroundColor || 'transparent', color: textColor || 'inherit' }}
+            >
+                <div className="max-w-7xl mx-auto">
+                    <h2 className="text-5xl font-black text-center mb-16 tracking-tight italic">"Student Stories"</h2>
+                    <div className="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-12 -mx-8 px-8 scrollbar-hide">
+                        {(testimonials || [{ quote: "Incredible atmosphere!", author: "Member since 2024" }, { quote: "Best instructors in town.", author: "Jane D." }, { quote: "I love the community here.", author: "Mike T." }]).map((t: any, i: number) => (
+                            <div
+                                key={i}
+                                className="snap-center shrink-0 w-[85vw] md:w-[400px] bg-zinc-50 dark:bg-zinc-900 p-10 rounded-[2.5rem] relative flex flex-col justify-between border border-zinc-100 dark:border-zinc-800"
+                            >
+                                <div className="text-6xl text-blue-600 opacity-20 font-serif mb-4">“</div>
+                                <p className="text-xl font-bold text-zinc-800 dark:text-zinc-100 mb-8 italic leading-relaxed">
+                                    {t.quote}
+                                </p>
+                                <div className="flex items-center gap-3 mt-auto">
+                                    <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 font-bold text-sm">
+                                        {t.author?.[0] || "?"}
+                                    </div>
+                                    <span className="font-bold text-sm uppercase tracking-wider text-zinc-500">{t.author}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+        );
+    }
+
+    return (
+        <section
+            className="py-24 px-8 transition-colors"
+            style={{ backgroundColor: backgroundColor || 'transparent', color: textColor || 'inherit' }}
+        >
+            <div className="max-w-5xl mx-auto">
+                <h2 className="text-5xl font-black text-center mb-16 tracking-tight italic">"What Our Students Say"</h2>
+                <div className="grid md:grid-cols-2 gap-12">
+                    {(testimonials || [{ quote: "Amazing experience!", author: "Happy Student" }]).map((t: any, i: number) => (
+                        <blockquote key={i} className="bg-zinc-50 dark:bg-zinc-900 p-12 rounded-[2rem] relative overflow-hidden group">
+                            <div className="text-9xl absolute -top-10 -left-6 opacity-[0.03] select-none font-serif text-blue-600">“</div>
+                            <p className="text-2xl font-bold text-zinc-800 dark:text-zinc-100 mb-8 relative z-10 leading-relaxed italic group-hover:text-blue-600 transition-colors">"{t.quote}"</p>
+                            <footer className="text-blue-600 font-black uppercase tracking-[0.2em] text-sm flex items-center gap-4">
+                                <div className="h-0.5 w-8 bg-blue-600" /> {t.author}
+                            </footer>
+                        </blockquote>
+                    ))}
+                </div>
+            </div>
+        </section>
+    );
+};
+
+
 
 // Contact Form
 const ContactForm = ({ title, email, backgroundColor }: any) => (
@@ -554,39 +636,21 @@ export const puckConfig: Config = {
                         author: { type: "text" },
                     }
                 },
+                layout: { type: "select", options: [{ label: "Grid", value: "grid" }, { label: "Carousel", value: "carousel" }] },
                 backgroundColor: { type: "text" },
                 textColor: { type: "text" },
             },
             defaultProps: {
                 testimonials: [
                     { quote: "This studio changed my life!", author: "Happy Student" },
+                    { quote: "Instructors are top notch.", author: "Member" },
+                    { quote: "Love the community.", author: "Regular" },
                 ],
-            },
-            render: Testimonials,
-        },
-        TestimonialCarousel: {
-            label: "Testimonial Carousel",
-            fields: {
-                testimonials: {
-                    type: "array",
-                    arrayFields: {
-                        quote: { type: "textarea" },
-                        author: { type: "text" },
-                    }
-                },
-                backgroundColor: { type: "text" },
-                textColor: { type: "text" },
-            },
-            defaultProps: {
-                testimonials: [
-                    { quote: "An absolute game changer for my fitness.", author: "Sarah J." },
-                    { quote: "The community is so welcoming.", author: "David B." },
-                    { quote: "Expert guidance in every class.", author: "Emily R." },
-                ],
+                layout: "grid",
                 backgroundColor: "#ffffff",
                 textColor: "#000000"
             },
-            render: TestimonialCarousel,
+            render: Testimonials,
         },
         ContactForm: {
             label: "Contact Form",
@@ -653,6 +717,96 @@ export const puckConfig: Config = {
                 backgroundColor: "#fafafa"
             },
             render: PricingTable
+        },
+        VideoHero: {
+            label: "Video Hero",
+            fields: {
+                title: { type: "text" },
+                subtitle: { type: "textarea" },
+                ctaText: { type: "text", label: "Button Text" },
+                ctaLink: { type: "text", label: "Button Link" },
+                videoUrl: { type: "text", label: "Video URL (MP4)" },
+                alignment: { type: "select", options: [{ label: "Center", value: "center" }, { label: "Left", value: "left" }] },
+                overlayOpacity: { type: "number", label: "Overlay Opacity (0-1)" },
+                backgroundColor: { type: "text", label: "Background Color" },
+                textColor: { type: "text", label: "Text Color" },
+            },
+            defaultProps: {
+                title: "Experience the Energy",
+                subtitle: "Join us for a transformative session.",
+                ctaText: "Start Now",
+                videoUrl: "https://cdn.coverr.co/videos/coverr-yoga-practice-in-studio-5864/1080p.mp4",
+                alignment: "center",
+                overlayOpacity: 0.5,
+                backgroundColor: "#18181b",
+                textColor: "#ffffff"
+            },
+            render: VideoHero
+        },
+        LogoCloud: {
+            label: "Logo Cloud",
+            fields: {
+                title: { type: "text", label: "Section Title" },
+                logos: {
+                    type: "array",
+                    arrayFields: {
+                        name: { type: "text" },
+                        src: { type: "text", label: "Logo URL" }
+                    }
+                },
+                autoScroll: { type: "radio", options: [{ label: "Yes", value: true }, { label: "No", value: false }] },
+                backgroundColor: { type: "text" }
+            },
+            defaultProps: {
+                title: "TRUSTED BY",
+                logos: [{ name: "Partner 1" }, { name: "Partner 2" }, { name: "Partner 3" }, { name: "Partner 4" }],
+                autoScroll: true,
+                backgroundColor: "#ffffff"
+            },
+            render: LogoCloud
+        },
+        StatsCounter: {
+            label: "Stats Counter",
+            fields: {
+                stats: {
+                    type: "array",
+                    arrayFields: {
+                        value: { type: "text", label: "Value (e.g. 500+)" },
+                        label: { type: "text", label: "Label" }
+                    }
+                },
+                backgroundColor: { type: "text" },
+                textColor: { type: "text" }
+            },
+            defaultProps: {
+                stats: [
+                    { value: "500+", label: "Members" },
+                    { value: "50+", label: "Classes" },
+                    { value: "10", label: "Instructors" },
+                    { value: "4.9", label: "Rating" }
+                ],
+                backgroundColor: "#2563eb",
+                textColor: "#ffffff"
+            },
+            render: StatsCounter
+        },
+        MasonryGallery: {
+            label: "Masonry Gallery",
+            fields: {
+                images: {
+                    type: "array",
+                    arrayFields: {
+                        src: { type: "text", label: "Image URL" },
+                        alt: { type: "text", label: "Alt Text" }
+                    }
+                },
+                backgroundColor: { type: "text" }
+            },
+            defaultProps: {
+                images: [{}, {}, {}, {}, {}, {}],
+                backgroundColor: "#fafafa"
+            },
+            render: MasonryGallery
         },
         FAQBlock: {
             label: "FAQ Section",
