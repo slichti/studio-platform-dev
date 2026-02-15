@@ -2,7 +2,9 @@
 import { useAuth } from "@clerk/react-router";
 import { useState } from "react";
 import { useOutletContext } from "react-router";
-import { Send, Mail, CheckCircle, AlertTriangle, Sparkles, Pencil, X, Zap, Clock, Calendar, Plus, Trash2, Settings } from "lucide-react";
+import {
+    Mail, Plus, Trash2, Save, Send, Settings, Sparkles, Clock, AlertCircle, ChevronRight, Check, X, Pencil, Filter, ChevronDown, CheckCircle, AlertTriangle, Zap, Calendar
+} from "lucide-react";
 import { Modal } from "~/components/Modal";
 import { RichTextEditor } from "~/components/RichTextEditor";
 import { apiRequest } from "~/utils/api";
@@ -91,6 +93,8 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
             setSending(false);
         }
     }
+
+    const [openFieldDropdown, setOpenFieldDropdown] = useState<number | null>(null);
 
     // Recommended Fields Mapping
     const recommendedFields: Record<string, string[]> = {
@@ -799,35 +803,76 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
 
                                         {editForm.conditions.map((condition, index) => {
                                             const suggestions = recommendedFields[editForm.triggerEvent] || [];
+                                            const hasSuggestions = suggestions.length > 0;
+                                            const isOpen = openFieldDropdown === index;
+
                                             return (
-                                                <div key={index} className="flex gap-2 items-center">
-                                                    <div className="flex-1 min-w-0">
-                                                        <input
-                                                            type="text"
-                                                            placeholder="Field (e.g. planName)"
-                                                            list={`suggestions-${index}`}
-                                                            value={condition.field}
-                                                            onChange={e => {
-                                                                const next = [...editForm.conditions];
-                                                                next[index].field = e.target.value;
-                                                                setEditForm({ ...editForm, conditions: next });
-                                                            }}
-                                                            className="w-full border border-zinc-300 rounded px-2 py-1.5 text-xs"
-                                                        />
-                                                        <datalist id={`suggestions-${index}`}>
-                                                            {suggestions.map(s => (
-                                                                <option key={s} value={s} />
-                                                            ))}
-                                                        </datalist>
+                                                <div key={index} className="flex gap-2 items-center relative z-10">
+                                                    {/* Field Input (Combobox style) */}
+                                                    <div className="flex-1 min-w-0 relative">
+                                                        <div className="relative">
+                                                            <input
+                                                                type="text"
+                                                                placeholder={hasSuggestions ? "Select or type field..." : "Field (e.g. planName)"}
+                                                                value={condition.field}
+                                                                onChange={e => {
+                                                                    const next = [...editForm.conditions];
+                                                                    next[index].field = e.target.value;
+                                                                    setEditForm({ ...editForm, conditions: next });
+                                                                    if (hasSuggestions) setOpenFieldDropdown(index);
+                                                                }}
+                                                                onFocus={() => {
+                                                                    if (hasSuggestions) setOpenFieldDropdown(index);
+                                                                }}
+                                                                className="w-full border border-zinc-300 rounded px-2 py-1.5 text-xs pr-8"
+                                                            />
+                                                            {hasSuggestions && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setOpenFieldDropdown(isOpen ? null : index)}
+                                                                    className="absolute right-0 top-0 h-full px-2 text-zinc-400 hover:text-zinc-600 cursor-pointer"
+                                                                >
+                                                                    <ChevronDown className="h-4 w-4" />
+                                                                </button>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Custom Dropdown List */}
+                                                        {isOpen && hasSuggestions && (
+                                                            <>
+                                                                {/* Invisible backdrop to close on click outside */}
+                                                                <div
+                                                                    className="fixed inset-0 z-40"
+                                                                    onClick={() => setOpenFieldDropdown(null)}
+                                                                />
+                                                                <div className="absolute top-full left-0 w-full mt-1 bg-white border border-zinc-200 rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
+                                                                    {suggestions.map(s => (
+                                                                        <button
+                                                                            key={s}
+                                                                            type="button"
+                                                                            className="w-full text-left px-3 py-2 text-xs text-zinc-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                                                                            onClick={() => {
+                                                                                const next = [...editForm.conditions];
+                                                                                next[index].field = s;
+                                                                                setEditForm({ ...editForm, conditions: next });
+                                                                                setOpenFieldDropdown(null);
+                                                                            }}
+                                                                        >
+                                                                            {s}
+                                                                        </button>
+                                                                    ))}
+                                                                    <div className="border-t border-zinc-100 p-2 text-[10px] text-zinc-400 italic">
+                                                                        Or type a custom field above
+                                                                    </div>
+                                                                </div>
+                                                            </>
+                                                        )}
                                                     </div>
 
-                                                    <select
-                                                        value={condition.operator}
-                                                        disabled
-                                                        className="w-20 border border-zinc-300 rounded px-2 py-1.5 text-xs bg-zinc-100 text-zinc-500"
-                                                    >
-                                                        <option value="equals">Equals</option>
-                                                    </select>
+                                                    {/* Operator (Static Badge) */}
+                                                    <div className="w-20 border border-zinc-200 rounded px-2 py-1.5 text-xs bg-zinc-50 text-zinc-500 font-medium text-center cursor-not-allowed select-none">
+                                                        Equals
+                                                    </div>
                                                     <input
                                                         type="text"
                                                         placeholder="Value (e.g. Gold)"
