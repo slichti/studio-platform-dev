@@ -36,7 +36,7 @@ describe('Booking Lifecycle Integration', () => {
             sms_limit INTEGER, email_limit INTEGER, streaming_limit INTEGER, billing_exempt INTEGER DEFAULT 0,
             storage_usage INTEGER DEFAULT 0, member_count INTEGER DEFAULT 0, instructor_count INTEGER DEFAULT 0,
             last_billed_at INTEGER, archived_at INTEGER, grace_period_ends_at INTEGER, student_access_disabled INTEGER DEFAULT 0,
-            aggregator_config TEXT
+            aggregator_config TEXT, is_test INTEGER DEFAULT 0 NOT NULL
         )`);
 
         // 2. Users
