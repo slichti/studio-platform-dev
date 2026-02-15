@@ -127,6 +127,8 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
         if (!editingAuto) return;
 
         try {
+            const token = await getToken();
+
             // Convert visual conditions back to JSON object
             const conditionObject: any = {};
             editForm.conditions.forEach(c => {
