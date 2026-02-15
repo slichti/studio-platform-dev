@@ -48,7 +48,7 @@ export default function NewWaiverTemplate() {
                 <h2 className="text-2xl font-bold mb-2">Template Created!</h2>
                 <p className="text-zinc-600 mb-8">Your waiver template has been successfully saved.</p>
                 <div className="flex justify-center gap-4">
-                    <Link to="../waivers" className="px-4 py-2 bg-zinc-900 text-white rounded-md hover:bg-zinc-800 transition">
+                    <Link to=".." className="px-4 py-2 bg-zinc-900 text-white rounded-md hover:bg-zinc-800 transition">
                         Back to Waivers
                     </Link>
                 </div>
@@ -62,7 +62,7 @@ export default function NewWaiverTemplate() {
     return (
         <div className="max-w-4xl mx-auto py-8">
             <div className="mb-8">
-                <Link to="../waivers" className="flex items-center text-sm text-zinc-500 hover:text-zinc-900 mb-4 transition-colors">
+                <Link to=".." className="flex items-center text-sm text-zinc-500 hover:text-zinc-900 mb-4 transition-colors">
                     <ArrowLeft className="w-4 h-4 mr-1" />
                     Back to Waivers
                 </Link>

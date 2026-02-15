@@ -25,6 +25,7 @@ export type Subscription = {
         };
     };
     planName: string;
+    createdAt?: string; // ISO date string
 };
 
 export function usePlans(tenantSlug: string) {
@@ -44,14 +45,15 @@ export function usePlans(tenantSlug: string) {
     });
 }
 
-export function useSubscriptions(tenantSlug: string) {
+export function useSubscriptions(tenantSlug: string, planId?: string) {
     const { getToken } = useAuth();
 
     return useQuery({
-        queryKey: ['subscriptions', tenantSlug],
+        queryKey: ['subscriptions', tenantSlug, planId],
         queryFn: async () => {
             const token = await getToken();
-            const res = await apiRequest("/memberships/subscriptions", token, {
+            const queryParams = planId ? `?planId=${planId}` : '';
+            const res = await apiRequest(`/memberships/subscriptions${queryParams}`, token, {
                 headers: { 'X-Tenant-Slug': tenantSlug }
             });
             return (res || []) as Subscription[];

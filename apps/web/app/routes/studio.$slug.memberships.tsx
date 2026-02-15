@@ -1,11 +1,11 @@
-import { useParams, useOutletContext } from "react-router";
+import { useParams, useOutletContext, Link } from "react-router";
 import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, Edit, Trash2, Check, X, Loader2 } from "lucide-react";
 
-import { Button } from "~/components/ui/button";
+import { Button, buttonVariants } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/Card";
 import { Badge } from "~/components/ui/Badge";
 import { Input } from "~/components/ui/input";
@@ -160,6 +160,9 @@ export default function StudioMemberships() {
                                             <Button variant="outline" className="w-full" onClick={() => setModalState({ type: 'edit', plan })}>
                                                 Edit Plan
                                             </Button>
+                                            <Link to={plan.id} className={cn(buttonVariants({ variant: "outline" }), "w-full")}>
+                                                View Details
+                                            </Link>
                                             <Button variant="ghost" className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setPlanToDelete(plan.id)}>
                                                 Delete Plan
                                             </Button>
