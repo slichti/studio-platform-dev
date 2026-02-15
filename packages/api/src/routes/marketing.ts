@@ -138,6 +138,7 @@ marketing.post('/automations', async (c) => {
             triggerEvent: body.triggerEvent,
             subject: body.subject,
             content: body.content,
+            templateId: body.templateId,
             timingType: body.timingType || 'immediate',
             timingValue: body.timingValue || 0,
             isEnabled: true,
@@ -169,6 +170,7 @@ marketing.patch('/automations/:id', async (c) => {
         if (body.isEnabled !== undefined) updateData.isEnabled = body.isEnabled;
         if (body.subject) updateData.subject = body.subject;
         if (body.content) updateData.content = body.content;
+        if (body.templateId !== undefined) updateData.templateId = body.templateId;
         if (body.timingType) updateData.timingType = body.timingType;
         if (body.timingValue !== undefined) updateData.timingValue = body.timingValue;
 

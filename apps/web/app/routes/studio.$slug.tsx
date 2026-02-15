@@ -285,27 +285,30 @@ export default function StudioLayout() {
                         )}
                         <NavItem to={`/studio/${slug}/memberships`} icon={<CreditCard size={18} />}>Memberships</NavItem>
                         <NavItem to={`/studio/${slug}/commerce/packs`} icon={<Package size={18} />}>Class Packs</NavItem>
-
-                        {featureSet.has('pos') && (
-                            <>
-                                <NavItem to={`/studio/${slug}/commerce/coupons`} icon={<Ticket size={18} />}>
-                                    {isStudentView ? "My Coupons" : "Coupons"}
-                                </NavItem>
-                                <NavItem to={`/studio/${slug}/commerce/referrals`} icon={<Award size={18} />}>Refer & Earn</NavItem>
-                                <NavItem to={`/studio/${slug}/commerce/gift-cards`} icon={<Ticket size={18} />}>Gift Cards</NavItem>
-                            </>
-                        )}
+                        <NavItem to={`/studio/${slug}/commerce/gift-cards`} icon={<Ticket size={18} />}>Gift Cards</NavItem>
                     </SidebarGroup>
 
                     {/* HIDE CRM and Management when in Student View */}
                     {!isStudentView && (
                         <>
-                            <SidebarGroup title="CRM">
-                                <NavItem to={`/studio/${slug}/leads`} icon={<User size={18} />}>Leads</NavItem>
-                                <NavItem to={`/studio/${slug}/tasks`} icon={<ListTodo size={18} />}>Tasks</NavItem>
+
+                            <SidebarGroup title="Marketing">
                                 {(featureSet.has('marketing')) && (
                                     <NavItem to={`/studio/${slug}/marketing`} icon={<Mail size={18} />}>Email Automations</NavItem>
                                 )}
+                                {(featureSet.has('marketing') || featureSet.has('pos')) && (
+                                    <>
+                                        <NavItem to={`/studio/${slug}/commerce/coupons`} icon={<Ticket size={18} />}>
+                                            {isStudentView ? "My Coupons" : "Coupons"}
+                                        </NavItem>
+                                        <NavItem to={`/studio/${slug}/commerce/referrals`} icon={<Award size={18} />}>Refer & Earn</NavItem>
+                                    </>
+                                )}
+                            </SidebarGroup>
+
+                            <SidebarGroup title="CRM">
+                                <NavItem to={`/studio/${slug}/leads`} icon={<User size={18} />}>Leads</NavItem>
+                                <NavItem to={`/studio/${slug}/tasks`} icon={<ListTodo size={18} />}>Tasks</NavItem>
                                 {(featureSet.has('loyalty')) && (
                                     <NavItem to={`/studio/${slug}/loyalty`} icon={<Award size={18} />}>Loyalty</NavItem>
                                 )}

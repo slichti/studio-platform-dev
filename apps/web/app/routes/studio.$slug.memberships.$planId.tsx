@@ -121,7 +121,7 @@ export default function MembershipPlanDetailPage() {
                             <div className="space-y-4 pt-2 border-t border-zinc-100 dark:border-zinc-800">
                                 <div className="flex items-center gap-3 mb-4">
                                     <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Use custom domain URL</span>
-                                    <Switch />
+                                    <Switch checked={false} onCheckedChange={() => { }} />
                                 </div>
 
                                 <UrlRow label="Product URL" url={`https://${tenant?.customDomain || `${slug}.heymarvelous.com`}/product/${plan.id}`} />

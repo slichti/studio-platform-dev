@@ -13,6 +13,7 @@ export type Plan = {
     overlaySubtitle?: string;
     vodEnabled: boolean;
     updatedAt?: string;
+    active?: boolean;
 };
 
 export type Subscription = {
