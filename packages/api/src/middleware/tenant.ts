@@ -63,11 +63,22 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
 
     if (!tenant) {
         // 2. Check Subdomain
-        const parts = hostname.split('.');
         if (parts.length > 2) {
             const slug = parts[0];
             tenant = await db.query.tenants.findFirst({
                 where: eq(tenants.slug, slug),
+            });
+        }
+    }
+
+    if (!tenant) {
+        // 3. Check Path (Fallback for centrally served assets e.g. /uploads/tenants/:slug/...)
+        // This allows public access to assets without needing a custom domain or subdomain on the API
+        const match = url.pathname.match(/^\/uploads\/tenants\/([^/]+)\//);
+        if (match && match[1]) {
+            const pathSlug = match[1];
+            tenant = await db.query.tenants.findFirst({
+                where: eq(tenants.slug, pathSlug),
             });
         }
     }

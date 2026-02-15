@@ -5,7 +5,8 @@ import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Bold, Italic, List, Link as LinkIcon, Image as ImageIcon, Code, Type, Unlink } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { RichTextImageModal } from './RichTextImageModal';
 
 interface RichTextEditorProps {
     value: string;
@@ -14,17 +15,10 @@ interface RichTextEditorProps {
     className?: string;
 }
 
-const MenuBar = ({ editor }: { editor: any }) => {
+const MenuBar = ({ editor, onImageClick }: { editor: any, onImageClick: () => void }) => {
     if (!editor) {
         return null;
     }
-
-    const addImage = () => {
-        const url = window.prompt('Enter image URL');
-        if (url) {
-            editor.chain().focus().setImage({ src: url }).run();
-        }
-    };
 
     const setLink = () => {
         const previousUrl = editor.getAttributes('link').href;
@@ -111,9 +105,9 @@ const MenuBar = ({ editor }: { editor: any }) => {
             <div className="w-px h-6 bg-zinc-300 mx-1 self-center" />
             <button
                 type="button"
-                onClick={addImage}
+                onClick={onImageClick}
                 className="p-1.5 rounded hover:bg-zinc-200 text-zinc-500"
-                title="Add Image URL"
+                title="Insert Image"
             >
                 <ImageIcon className="w-4 h-4" />
             </button>
@@ -122,6 +116,8 @@ const MenuBar = ({ editor }: { editor: any }) => {
 };
 
 export function RichTextEditor({ value, onChange, placeholder, className }: RichTextEditorProps) {
+    const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+
     const extensions = useMemo(() => [
         StarterKit,
         Link.configure({
@@ -156,11 +152,6 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
     // Handle external updates
     useEffect(() => {
         if (editor && value !== editor.getHTML()) {
-            // Only update if content is different to avoid cursor jumps
-            // Use logical comparison or just simple check if it's very different?
-            // Tiptap handles this poorly if we just setContent every time.
-            // But if 'value' changes from outside (e.g. loaded from API), we need to update.
-            // Simple check:
             if (editor.getText() === '' && value) {
                 editor.commands.setContent(value);
             }
@@ -169,8 +160,15 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
 
     return (
         <div className={`border border-zinc-300 rounded-lg bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 ${className}`}>
-            <MenuBar editor={editor} />
+            <MenuBar editor={editor} onImageClick={() => setIsImageModalOpen(true)} />
             <EditorContent editor={editor} />
+            <RichTextImageModal
+                isOpen={isImageModalOpen}
+                onClose={() => setIsImageModalOpen(false)}
+                onSelect={(url) => {
+                    editor?.chain().focus().setImage({ src: url }).run();
+                }}
+            />
         </div>
     );
 }
