@@ -8,6 +8,7 @@ import { PrivacyBlur } from "../PrivacyBlur";
 import { TenantDetailView } from "../admin/tenants/TenantDetailView";
 import { AdminTenantsModals } from "../admin/tenants/Modals";
 import { FEATURES } from "../admin/tenants/constants";
+import { ClientOnly } from "../ClientOnly";
 
 export default function AdminTenantsPageComponent() {
     const { tenants: initialTenants, platformConfig } = useLoaderData<any>();
@@ -562,7 +563,9 @@ export default function AdminTenantsPageComponent() {
 
     return (
         <div className="dark:text-zinc-100 p-8">
-            <AdminTenantsModals state={state as any} handlers={handlers} FEATURES={FEATURES} />
+            <ClientOnly>
+                <AdminTenantsModals state={state as any} handlers={handlers} FEATURES={FEATURES} />
+            </ClientOnly>
 
             <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-4">

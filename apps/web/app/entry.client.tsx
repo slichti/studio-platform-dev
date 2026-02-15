@@ -18,7 +18,18 @@ if (SENTRY_DSN) {
 // Emergency fix for stale Service Worker cache
 window.addEventListener("error", async (event) => {
     if (event.message?.includes("SSR features") || event.message?.includes("Minified React error #299") || event.message?.includes("Minified React error #418") || event.message?.includes("Hydration failed")) {
+        const lastReload = sessionStorage.getItem('hydration_reload_ts');
+        const now = Date.now();
+
+        // Prevent infinite loops: only reload if we haven't done so in the last 10 seconds
+        if (lastReload && (now - parseInt(lastReload)) < 10000) {
+            console.error("Critical Hydration Error detected, but skipping reload to prevent loop.");
+            return;
+        }
+
         console.error("Critical Hydration Error detected. Clearing cache and reloading...");
+        sessionStorage.setItem('hydration_reload_ts', now.toString());
+
         if ('serviceWorker' in navigator) {
             const registrations = await navigator.serviceWorker.getRegistrations();
             for (const registration of registrations) {
