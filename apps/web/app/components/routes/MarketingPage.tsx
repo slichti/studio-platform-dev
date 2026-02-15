@@ -350,10 +350,23 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                         placeholder="Write your beautiful email content..."
                                         className="min-h-[300px]"
                                     />
-                                    <div className="flex justify-between items-start mt-1">
+                                    <div className="flex justify-between items-start mt-2">
                                         <p className="text-xs text-zinc-400">Rich text enabled. Use the toolbar to format.</p>
-                                        <div className="text-xs text-zinc-500 text-right">
-                                            Variables: <span className="font-mono bg-zinc-100 px-1 rounded">{"{{firstName}}"}</span> <span className="font-mono bg-zinc-100 px-1 rounded">{"{{studioName}}"}</span>
+                                        <div className="text-xs text-zinc-500 text-right flex gap-2 items-center select-none">
+                                            <span>Drag Variables:</span>
+                                            {["{{firstName}}", "{{studioName}}"].map(v => (
+                                                <span
+                                                    key={v}
+                                                    draggable
+                                                    onDragStart={(e) => {
+                                                        e.dataTransfer.setData("text/plain", v);
+                                                        e.dataTransfer.effectAllowed = "copy";
+                                                    }}
+                                                    className="font-mono bg-zinc-100 px-1.5 py-0.5 rounded cursor-grab hover:bg-blue-50 hover:text-blue-600 border border-transparent transition-colors active:cursor-grabbing"
+                                                >
+                                                    {v}
+                                                </span>
+                                            ))}
                                         </div>
                                     </div>
                                 </div>
@@ -832,14 +845,40 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                     placeholder="Write your automation content..."
                                     className="min-h-[200px]"
                                 />
-                                <div className="flex gap-2 mt-1 text-[10px] text-zinc-500 flex-wrap">
-                                    <span>Variables:</span>
-                                    <code className="bg-zinc-100 px-1 rounded">{"{{firstName}}"}</code>
-                                    <code className="bg-zinc-100 px-1 rounded">{"{{lastName}}"}</code>
-                                    <code className="bg-zinc-100 px-1 rounded">{"{{email}}"}</code>
-                                    <code className="bg-zinc-100 px-1 rounded">{"{{title}}"}</code>
-                                    <code className="bg-zinc-100 px-1 rounded">{"{{address}}"}</code>
-                                    {(editForm.couponConfig as any).enabled && <code className="bg-yellow-100 text-yellow-800 px-1 rounded">{"{{coupon_code}}"}</code>}
+                                <div className="flex gap-2 mt-2 text-[10px] text-zinc-500 flex-wrap items-center select-none">
+                                    <span className="mr-1">Drag Variables:</span>
+                                    {[
+                                        "{{firstName}}",
+                                        "{{lastName}}",
+                                        "{{email}}",
+                                        "{{studioName}}",
+                                        "{{title}}",
+                                        "{{address}}"
+                                    ].map(v => (
+                                        <code
+                                            key={v}
+                                            draggable
+                                            onDragStart={(e) => {
+                                                e.dataTransfer.setData("text/plain", v);
+                                                e.dataTransfer.effectAllowed = "copy";
+                                            }}
+                                            className="bg-zinc-100 px-1.5 py-0.5 rounded cursor-grab hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 border border-transparent transition-colors active:cursor-grabbing"
+                                        >
+                                            {v}
+                                        </code>
+                                    ))}
+                                    {(editForm.couponConfig as any).enabled && (
+                                        <code
+                                            draggable
+                                            onDragStart={(e) => {
+                                                e.dataTransfer.setData("text/plain", "{{coupon_code}}");
+                                                e.dataTransfer.effectAllowed = "copy";
+                                            }}
+                                            className="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded cursor-grab hover:bg-amber-200 border border-transparent transition-colors active:cursor-grabbing"
+                                        >
+                                            {"{{coupon_code}}"}
+                                        </code>
+                                    )}
                                 </div>
                             </div>
                         </div>
