@@ -14,14 +14,14 @@
         "format": "prettier --write \"**/*.{ts,tsx,md}\""
     },
     "devDependencies": {
-        "@cloudflare/workers-types": "^4.20260130.0",
+        "@cloudflare/workers-types": "^4.20260214.0",
         "@playwright/test": "^1.57.0",
         "@sentry/cloudflare": "^10.38.0",
         "@sentry/react": "^10.38.0",
         "prettier": "latest",
         "react-dom": "^19.2.4",
         "turbo": "^2.8.3",
-        "wrangler": "^4.64.0"
+        "wrangler": "^4.65.0"
     },
     "packageManager": "npm@11.7.0",
     "dependencies": {
