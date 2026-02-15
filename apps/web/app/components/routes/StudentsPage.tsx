@@ -1,6 +1,6 @@
 
 import { useParams, Link, useOutletContext } from "react-router";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Search, UserPlus, Filter, MoreHorizontal } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -40,6 +40,10 @@ export default function StudentsPage() {
 
     const [roleFilter, setRoleFilter] = useState("all");
     const limit = 50;
+
+    // Infinite Scroll Intersection Observer
+    const loadMoreRef = useRef<HTMLDivElement>(null);
+
     // FETCH DATA using useInfiniteMembers hook
     const {
         data,
@@ -60,6 +64,20 @@ export default function StudentsPage() {
 
     // We rely on the API for filtering, so filteredMembers is just the current list
     const filteredMembers = members;
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+                    fetchNextPage();
+                }
+            },
+            { threshold: 0.1, rootMargin: '100px' }
+        );
+
+        if (loadMoreRef.current) observer.observe(loadMoreRef.current);
+        return () => observer.disconnect();
+    }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
     // To get accurate global stats while filtering, we should ideally fetch stats separately.
     // But to unblock the user's "50 vs 900" issue, showing "Total: {totalMembers}" when on "All" tab is a huge improvement.
@@ -360,15 +378,14 @@ export default function StudentsPage() {
                     <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 text-center text-xs text-zinc-500">
                         Showing {filteredMembers.length} member{filteredMembers.length !== 1 && 's'}
                     </div>
+                        // ... (rest of render) ...
+
                     {hasNextPage && (
-                        <div className="p-4 border-t border-zinc-100 dark:border-zinc-800 flex justify-center">
-                            <Button
-                                variant="ghost"
-                                onClick={() => fetchNextPage()}
-                                disabled={isFetchingNextPage}
-                            >
-                                {isFetchingNextPage ? "Loading more..." : "Load More"}
-                            </Button>
+                        <div
+                            ref={loadMoreRef}
+                            className="p-4 border-t border-zinc-100 dark:border-zinc-800 flex justify-center text-sm text-zinc-500"
+                        >
+                            {isFetchingNextPage ? "Loading more..." : "Scroll to load more"}
                         </div>
                     )}
                 </Card>
