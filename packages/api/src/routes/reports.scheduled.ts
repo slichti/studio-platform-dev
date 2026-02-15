@@ -4,7 +4,7 @@ import { scheduledReports, tenants } from '@studio/db/src/schema';
 import { eq, and, lte } from 'drizzle-orm';
 import { HonoContext } from '../types';
 import { ReportService } from '../services/reports';
-import { EmailService } from '../services/email';
+import { EmailService, TenantEmailConfig } from '../services/email';
 
 const app = new Hono<HonoContext>();
 
@@ -148,7 +148,7 @@ app.post('/execute', async (c) => {
             }
 
             // Send Email
-            const emailService = new EmailService(c.env.RESEND_API_KEY, tenant.branding, { name: tenant.name, slug: tenant.slug }, undefined, false, db, tenant.id);
+            const emailService = new EmailService(c.env.RESEND_API_KEY || '', { branding: tenant.branding as TenantEmailConfig['branding'] }, { name: tenant.name, slug: tenant.slug }, undefined, false, db, tenant.id);
             const subject = `[${tenant.name}] ${report.reportType.charAt(0).toUpperCase() + report.reportType.slice(1)} Report`;
             const html = `
                 <h2>${report.reportType.charAt(0).toUpperCase() + report.reportType.slice(1)} Report</h2>
@@ -160,10 +160,10 @@ app.post('/execute', async (c) => {
             const attachments = csvContent ? [{ filename, content: Buffer.from(csvContent) }] : [];
 
             if (attachments.length > 0) {
-                for (const recipient of report.recipients as string[]) {
+                for (const recipient of (report.recipients as string[])) {
                     await emailService.sendGenericEmail(recipient, subject, html, true, attachments);
                 }
-                console.log(`[Scheduled Reports] ✅ Sent report ${report.id} to ${report.recipients.length} recipients`);
+                console.log(`[Scheduled Reports] ✅ Sent report ${report.id} to ${(report.recipients as string[]).length} recipients`);
             } else {
                 console.log(`[Scheduled Reports] ⚠️ No data for report ${report.id}, skipping email`);
             }
