@@ -24,6 +24,15 @@ import { usePacks } from "../../hooks/usePacks";
 import { apiRequest, API_URL } from "../../utils/api";
 import { ComponentErrorBoundary } from "../ErrorBoundary";
 
+const safeFormat = (date: any, fmt: string) => {
+    try {
+        if (!date) return 'N/A';
+        return format(new Date(date), fmt);
+    } catch (e) {
+        return 'Invalid Date';
+    }
+};
+
 export default function StudentProfilePageComponent() {
     const { slug, id: memberId } = useParams();
     const { isStudentView, tenant } = useOutletContext<any>() as any;
@@ -259,7 +268,7 @@ export default function StudentProfilePageComponent() {
                                 <Badge variant="outline" className="capitalize">{rolesStr}</Badge>
                             </div>
                             <div className="text-xs text-zinc-400 mt-1">
-                                Joined {format(new Date(member.joinedAt), "MMM d, yyyy")}
+                                Joined {safeFormat(member.joinedAt, "MMM d, yyyy")}
                             </div>
                         </div>
                     </div>
@@ -428,7 +437,7 @@ export default function StudentProfilePageComponent() {
                                                     <div className="text-sm text-zinc-500 mt-1">
                                                         Status: <span className="capitalize font-medium text-zinc-700 dark:text-zinc-300">{m.status}</span>
                                                         <span className="mx-2">•</span>
-                                                        Started {format(new Date(m.startDate), "MMM d, yyyy")}
+                                                        Started {safeFormat(m.startDate, "MMM d, yyyy")}
                                                     </div>
                                                 </div>
                                                 <Badge variant={m.status === 'active' ? 'success' : 'secondary'}>{m.status}</Badge>
@@ -447,12 +456,12 @@ export default function StudentProfilePageComponent() {
                                                 <div>
                                                     <h3 className="font-semibold">{pack.definition?.name || "Unknown Pack"}</h3>
                                                     <div className="text-sm text-zinc-500 mt-1 flex items-center gap-3">
-                                                        <span>Purchased {format(new Date(), "MMM d, yyyy")}</span>
+                                                        <span>Purchased {safeFormat(new Date(), "MMM d, yyyy")}</span>
                                                         {pack.expiresAt && (
                                                             <>
                                                                 <span>•</span>
                                                                 <span className={new Date(pack.expiresAt) < new Date() ? "text-red-600" : ""}>
-                                                                    Expires {format(new Date(pack.expiresAt), "MMM d, yyyy")}
+                                                                    Expires {safeFormat(pack.expiresAt, "MMM d, yyyy")}
                                                                 </span>
                                                             </>
                                                         )}
@@ -496,7 +505,7 @@ export default function StudentProfilePageComponent() {
                                                     <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
                                                         {coupon.type === 'percent' ? `${coupon.value}% Off` : `$${coupon.value} Off`}
                                                         <div className="text-xs text-zinc-400 mt-1">
-                                                            Expires: {format(new Date(coupon.expiresAt), "MMM d, yyyy")}
+                                                            Expires: {safeFormat(coupon.expiresAt, "MMM d, yyyy")}
                                                         </div>
                                                     </div>
                                                     {canReactivate && (
@@ -535,7 +544,7 @@ export default function StudentProfilePageComponent() {
                                         member.bookings?.map((booking: any) => (
                                             <tr key={booking.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
                                                 <td className="px-4 py-3 text-zinc-600 dark:text-zinc-300">
-                                                    {format(new Date(booking.class?.startTime || booking.createdAt), "MMM d, h:mm a")}
+                                                    {safeFormat(booking.class?.startTime || booking.createdAt, "MMM d, h:mm a")}
                                                 </td>
                                                 <td className="px-4 py-3 font-medium">
                                                     {booking.class?.title || "Unknown Class"}
@@ -577,7 +586,7 @@ export default function StudentProfilePageComponent() {
                                                 <User className="h-3 w-3" />
                                                 <span>{note.author?.user?.profile?.firstName || note.author?.user?.email || "Unknown Staff"}</span>
                                                 <span>•</span>
-                                                <span>{format(new Date(note.createdAt), "MMM d, yyyy h:mm a")}</span>
+                                                <span>{safeFormat(note.createdAt, "MMM d, yyyy h:mm a")}</span>
                                             </div>
                                         </Card>
                                     ))}

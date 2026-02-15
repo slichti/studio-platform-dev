@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { createDb } from '../db';
 import { eq, and, or, desc, sql, inArray } from 'drizzle-orm';
-import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings, tenants, marketingAutomations, emailLogs, coupons, automationLogs, purchasedPacks, waiverSignatures } from '@studio/db/src/schema';
+import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings, tenants, marketingAutomations, emailLogs, coupons, couponRedemptions, automationLogs, purchasedPacks, waiverSignatures } from '@studio/db/src/schema';
 import { HonoContext } from '../types';
 import { quotaMiddleware } from '../middleware/quota';
 
@@ -469,10 +469,68 @@ const getMemberNotesRoute = createRoute({
 });
 
 app.openapi(getMemberNotesRoute, async (c) => {
-    if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
-    const db = createDb(c.env.DB);
-    const list = await db.query.studentNotes.findMany({ where: eq(studentNotes.studentId, c.req.valid('param').id), orderBy: [desc(studentNotes.createdAt)], with: { author: { with: { user: true } } } });
-    return c.json({ notes: list as any[] }, 200);
+    try {
+        if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
+        const db = createDb(c.env.DB);
+        const list = await db.query.studentNotes.findMany({ where: eq(studentNotes.studentId, c.req.valid('param').id), orderBy: [desc(studentNotes.createdAt)], with: { author: { with: { user: true } } } });
+        return c.json({ notes: list as any[] }, 200);
+    } catch (e) {
+        console.error('[API] Error fetching member notes:', e);
+        return c.json({ error: 'Internal Server Error', details: (e as any).message }, 500);
+    }
+});
+
+// GET /members/:id/coupons
+const getMemberCouponsRoute = createRoute({
+    method: 'get',
+    path: '/{id}/coupons',
+    tags: ['Members'],
+    summary: 'Get member coupons',
+    request: {
+        params: z.object({ id: z.string() })
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ coupons: z.array(z.any()) }) } }, description: 'Coupons' },
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' },
+        404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Member not found' }
+    }
+});
+
+app.openapi(getMemberCouponsRoute, async (c) => {
+    try {
+        if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
+        const db = createDb(c.env.DB);
+        const mid = c.req.valid('param').id;
+
+        const member = await db.query.tenantMembers.findFirst({
+            where: and(eq(tenantMembers.id, mid), eq(tenantMembers.tenantId, c.get('tenant')!.id))
+        });
+
+        if (!member) return c.json({ error: 'Member not found' }, 404);
+
+        const list = await db.select({
+            redemption: couponRedemptions,
+            coupon: coupons
+        })
+            .from(couponRedemptions)
+            .innerJoin(coupons, eq(couponRedemptions.couponId, coupons.id))
+            .where(and(
+                eq(couponRedemptions.userId, member.userId),
+                eq(couponRedemptions.tenantId, c.get('tenant')!.id)
+            ))
+            .orderBy(desc(couponRedemptions.redeemedAt));
+
+        const result = list.map(item => ({
+            ...item.coupon,
+            redeemedAt: item.redemption.redeemedAt,
+            orderId: item.redemption.orderId
+        }));
+
+        return c.json({ coupons: result }, 200);
+    } catch (e) {
+        console.error('[API] Error fetching member coupons:', e);
+        return c.json({ error: 'Internal Server Error', details: (e as any).message }, 500);
+    }
 });
 
 // POST /members/:id/notes

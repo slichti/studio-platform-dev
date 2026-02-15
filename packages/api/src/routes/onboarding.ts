@@ -517,16 +517,23 @@ app.post('/quick-start/skip', rateLimitMiddleware({ limit: 10, window: 60, keyPr
 
     const db = createDb(c.env.DB);
 
+    // [SEC] Platform Admin Bypass
+    const dbUser = await db.query.users.findFirst({ where: eq(users.id, auth.userId) });
+    const validAdminRoles = ['owner', 'admin', 'system_admin', 'platform_admin'];
+    const isPlatformAdmin = dbUser?.isPlatformAdmin === true || (!!dbUser?.role && validAdminRoles.includes(dbUser.role));
+
     // Verify Ownership
     const member = await db.query.tenantMembers.findFirst({
         where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenantId))
     });
 
-    if (!member) return c.json({ error: "Not a member" }, 403);
+    if (!member && !isPlatformAdmin) return c.json({ error: "Not a member" }, 403);
 
     // Check Role
-    const role = await db.select().from(tenantRoles).where(eq(tenantRoles.memberId, member.id)).get();
-    if (role?.role !== 'owner' && role?.role !== 'admin') return c.json({ error: "Must be owner or admin" }, 403);
+    if (!isPlatformAdmin) {
+        const role = await db.select().from(tenantRoles).where(eq(tenantRoles.memberId, member!.id)).get();
+        if (role?.role !== 'owner' && role?.role !== 'admin') return c.json({ error: "Must be owner or admin" }, 403);
+    }
 
     const currentTenant = await db.select().from(tenants).where(eq(tenants.id, tenantId)).get();
     if (!currentTenant) return c.json({ error: "Tenant not found" }, 404);
