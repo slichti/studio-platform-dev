@@ -63,6 +63,7 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
 
     if (!tenant) {
         // 2. Check Subdomain
+        const parts = hostname.split('.');
         if (parts.length > 2) {
             const slug = parts[0];
             tenant = await db.query.tenants.findFirst({
