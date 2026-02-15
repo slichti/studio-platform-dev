@@ -36,6 +36,7 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
         timingValue: 0,
         triggerEvent: '',
         triggerCondition: '{}',
+        conditions: [] as { field: string, operator: string, value: string }[], // Visual builder state
         channels: ['email'],
         couponConfig: { enabled: false, type: 'percent', value: 20, validityDays: 7 }
     });
@@ -104,7 +105,9 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
             channels: ['email'],
             couponConfig: { enabled: false, type: 'percent', value: 20, validityDays: 7 }
         };
+
         setEditingAuto(newAuto);
+
         setEditForm({
             subject: newAuto.subject,
             content: newAuto.content,
@@ -113,6 +116,7 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
             timingValue: newAuto.timingValue,
             triggerEvent: newAuto.triggerEvent,
             triggerCondition: JSON.stringify(newAuto.triggerCondition, null, 2),
+            conditions: [],
             channels: newAuto.channels,
             couponConfig: newAuto.couponConfig
         });
@@ -123,18 +127,19 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
         if (!editingAuto) return;
 
         try {
-            let parsedCondition = null;
-            try {
-                parsedCondition = editForm.triggerCondition ? JSON.parse(editForm.triggerCondition) : null;
-            } catch (err) {
-                showNotification("Invalid JSON in Condition field", 'error');
-                return;
-            }
+            // Convert visual conditions back to JSON object
+            const conditionObject: any = {};
+            editForm.conditions.forEach(c => {
+                if (c.field && c.value) {
+                    // Try to parse numbers if value looks numeric
+                    const isNum = !isNaN(Number(c.value)) && c.value.trim() !== '';
+                    conditionObject[c.field] = isNum ? Number(c.value) : c.value;
+                }
+            });
 
-            const token = await getToken();
             const payload = {
                 ...editForm,
-                triggerCondition: parsedCondition
+                triggerCondition: conditionObject
             };
 
             if (editingAuto.id) {
@@ -224,7 +229,13 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
         'class_attended': 'Class Follow-up',
         'order_completed': 'Order Follow-up',
         'trial_ending': 'Trial Ending',
-        'subscription_renewing': 'Subscription Renewing'
+        'subscription_renewing': 'Subscription Renewing',
+        'booking_cancelled': 'Booking Cancelled',
+        'class_noshow': 'Class No-Show',
+        'subscription_canceled': 'Subscription Canceled',
+        'credits_low': 'Low Class Credits',
+        'class_milestone': 'Milestone Celebration',
+        'membership_started': 'Membership Started'
     };
 
     const getTimingLabel = (auto: any) => {
@@ -547,6 +558,18 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                                     timingValue: auto.timingValue || auto.delayHours || 0,
                                                     triggerEvent: auto.triggerEvent || auto.triggerType,
                                                     triggerCondition: JSON.stringify(auto.triggerCondition || {}, null, 2),
+                                                    // Parse for visual builder
+                                                    conditions: (() => {
+                                                        const parsed = auto.triggerCondition;
+                                                        if (parsed && typeof parsed === 'object') {
+                                                            return Object.entries(parsed).map(([key, val]) => ({
+                                                                field: key,
+                                                                operator: 'equals',
+                                                                value: String(val)
+                                                            }));
+                                                        }
+                                                        return [];
+                                                    })(),
                                                     channels: auto.channels || ['email'],
                                                     couponConfig: auto.couponConfig ? { ...auto.couponConfig, enabled: true } : { enabled: false, type: 'percent', value: 20, validityDays: 7 }
                                                 });
@@ -740,13 +763,84 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-medium text-zinc-500 mb-1">Trigger Conditions (JSON)</label>
-                                    <textarea
-                                        value={editForm.triggerCondition}
-                                        onChange={e => setEditForm({ ...editForm, triggerCondition: e.target.value })}
-                                        className="w-full border border-zinc-300 rounded px-2 py-1 text-xs font-mono h-12 bg-zinc-50"
-                                        placeholder='{ "planId": "..." }'
-                                    ></textarea>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="block text-xs font-medium text-zinc-500">Trigger Conditions (Filters)</label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setEditForm(prev => ({
+                                                ...prev,
+                                                conditions: [...prev.conditions, { field: '', operator: 'equals', value: '' }]
+                                            }))}
+                                            className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
+                                        >
+                                            <Plus className="h-3 w-3" /> Add Filter
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-2 bg-zinc-50 p-3 rounded-lg border border-zinc-200">
+                                        {editForm.conditions.length === 0 && (
+                                            <p className="text-xs text-zinc-400 italic text-center py-2">
+                                                No filters. Runs for all events.
+                                            </p>
+                                        )}
+
+                                        {editForm.conditions.map((condition, index) => (
+                                            <div key={index} className="flex gap-2 items-center">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Field (e.g. planName)"
+                                                    value={condition.field}
+                                                    onChange={e => {
+                                                        const next = [...editForm.conditions];
+                                                        next[index].field = e.target.value;
+                                                        setEditForm({ ...editForm, conditions: next });
+                                                    }}
+                                                    className="flex-1 min-w-0 border border-zinc-300 rounded px-2 py-1.5 text-xs"
+                                                />
+                                                <select
+                                                    value={condition.operator}
+                                                    disabled
+                                                    className="w-20 border border-zinc-300 rounded px-2 py-1.5 text-xs bg-zinc-100 text-zinc-500"
+                                                >
+                                                    <option value="equals">Equals</option>
+                                                </select>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Value (e.g. Gold)"
+                                                    value={condition.value}
+                                                    onChange={e => {
+                                                        const next = [...editForm.conditions];
+                                                        next[index].value = e.target.value;
+                                                        setEditForm({ ...editForm, conditions: next });
+                                                    }}
+                                                    className="flex-1 min-w-0 border border-zinc-300 rounded px-2 py-1.5 text-xs"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const next = editForm.conditions.filter((_, i) => i !== index);
+                                                        setEditForm({ ...editForm, conditions: next });
+                                                    }}
+                                                    className="text-zinc-400 hover:text-red-500 p-1"
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </button>
+                                            </div>
+                                        ))}
+
+                                        {/* Helper Text based on Trigger */}
+                                        <div className="mt-2 text-[11px] text-zinc-500 bg-white p-2 rounded border border-zinc-100">
+                                            <span className="font-medium text-zinc-700 block mb-1">Common Filters for {triggerLabels[editForm.triggerEvent] || 'Selected Event'}:</span>
+                                            {editForm.triggerEvent === 'membership_started' && <code className="bg-zinc-100 px-1 rounded text-zinc-600">planName</code>}
+                                            {editForm.triggerEvent === 'subscription_canceled' && <code className="bg-zinc-100 px-1 rounded text-zinc-600">planName</code>}
+                                            {editForm.triggerEvent === 'class_milestone' && <code className="bg-zinc-100 px-1 rounded text-zinc-600">milestone</code>}
+                                            {editForm.triggerEvent === 'class_noshow' && <code className="bg-zinc-100 px-1 rounded text-zinc-600">classTitle</code>}
+                                            {editForm.triggerEvent === 'credits_low' && <code className="bg-zinc-100 px-1 rounded text-zinc-600">remainingCredits</code>}
+                                            {!['membership_started', 'subscription_canceled', 'class_milestone', 'class_noshow', 'credits_low'].includes(editForm.triggerEvent) && (
+                                                <span className="italic">No specific suggestions for this trigger.</span>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
 
 

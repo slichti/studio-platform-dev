@@ -43,6 +43,13 @@ export class BookingService {
                     .where(eq(purchasedPacks.id, pack.id))
                     .run();
                 usedPackId = pack.id;
+
+                // Check Low Credits (Trigger if 2 or fewer left)
+                if (pack.remainingCredits - 1 <= 2) {
+                    // We need to postpone this dispatch until after booking is created so dispatchAutomation works
+                    // Or we just flag it. The dispatchAutomation uses bookingId. 
+                    // We will call it after booking creation.
+                }
             } else {
                 // No credits available. 
                 // If price > 0, we should expect payment intent? 
@@ -70,6 +77,15 @@ export class BookingService {
 
         // Trigger Automation
         this.dispatchAutomation('class_booked', id);
+
+        // Check for Low Credits (if a pack was used)
+        if (usedPackId) {
+            const { purchasedPacks } = await import('@studio/db/src/schema');
+            const updatedPack = await this.db.select().from(purchasedPacks).where(eq(purchasedPacks.id, usedPackId)).get();
+            if (updatedPack && updatedPack.remainingCredits <= 2) {
+                this.dispatchAutomation('credits_low', id, { remainingCredits: updatedPack.remainingCredits });
+            }
+        }
 
         return { id, status: 'confirmed' };
     }
@@ -131,6 +147,9 @@ export class BookingService {
         if (booking.status === 'confirmed') {
             await this.promoteNextInLine(booking.classId);
         }
+
+        // Trigger Automation
+        this.dispatchAutomation('booking_cancelled', bookingId);
     }
 
     // 5. Promote Logic
@@ -222,7 +241,7 @@ export class BookingService {
                 const autoService = new AutomationsService(this.db, member.tenantId, emailService, smsService);
 
                 // Dispatch Automation Trigger
-                await autoService.dispatchTrigger('class_missed', {
+                await autoService.dispatchTrigger('class_noshow', {
                     userId: member.user.id,
                     email: member.user.email,
                     firstName: (member.user.profile as any)?.firstName,
@@ -368,7 +387,7 @@ export class BookingService {
                     // Trigger: milestone_reached
                     const milestones = [10, 25, 50, 100, 250, 500];
                     if (milestones.includes(count)) {
-                        await autoService.dispatchTrigger('milestone_reached', {
+                        await autoService.dispatchTrigger('class_milestone', {
                             userId: member.user.id,
                             email: member.user.email,
                             firstName: (member.user.profile as any)?.firstName,

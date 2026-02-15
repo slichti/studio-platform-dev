@@ -2,6 +2,10 @@
 import { classes, users, classPackDefinitions, purchasedPacks, giftCards, giftCardTransactions, tenantMembers, tenants, couponRedemptions, referralRewards, referralCodes, subscriptions, membershipPlans } from '@studio/db/src/schema'; // Ensure these are exported from schema
 import { eq, and, sql } from 'drizzle-orm';
 import { EmailService } from './email';
+import { AutomationsService } from './automations';
+import { SmsService } from './sms';
+import { PushService } from './push';
+import { UsageService } from './pricing';
 
 export class FulfillmentService {
     private env?: any;
@@ -274,6 +278,57 @@ export class FulfillmentService {
             stripeSubscriptionId: subscriptionId,
             createdAt: new Date()
         }).run();
+
+        // Trigger Automation: membership_started
+        if (this.env?.RESEND_API_KEY || this.resendApiKey) {
+            try {
+                const tenant = await this.db.select().from(tenants).where(eq(tenants.id, metadata.tenantId)).get();
+                if (tenant) {
+                    const usageService = new UsageService(this.db, metadata.tenantId);
+
+                    const emailService = new EmailService(
+                        (this.env?.RESEND_API_KEY || this.resendApiKey) as string,
+                        { branding: tenant.branding, settings: tenant.settings },
+                        { slug: tenant.slug },
+                        usageService
+                    );
+
+                    const smsService = new SmsService(
+                        tenant.twilioCredentials as any,
+                        this.env,
+                        usageService,
+                        this.db,
+                        metadata.tenantId
+                    );
+
+                    const pushService = new PushService(this.db, metadata.tenantId);
+
+                    const autoService = new AutomationsService(this.db, metadata.tenantId, emailService, smsService, pushService);
+
+                    // Fetch User for details
+                    // metadata.userId is available
+                    let user = null;
+                    if (metadata.userId) {
+                        user = await this.db.query.users.findFirst({ where: eq(users.id, metadata.userId) });
+                    }
+
+                    if (user) {
+                        await autoService.dispatchTrigger('membership_started', {
+                            userId: user.id,
+                            email: user.email,
+                            firstName: (user.profile as any)?.firstName || 'Friend',
+                            data: {
+                                planId: plan.id,
+                                planName: plan.name,
+                                subscriptionId: id
+                            }
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error("[FulfillmentService] Membership Start Automation Error", e);
+            }
+        }
 
         // Audit Log? Handled by WebhookHandler
     }

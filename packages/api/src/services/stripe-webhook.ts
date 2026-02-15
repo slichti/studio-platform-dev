@@ -444,7 +444,7 @@ export class StripeWebhookHandler {
                     let user = await this.db.query.users.findFirst({ where: eq(schema.users.stripeCustomerId, stripeCustomerId) });
 
                     if (user) {
-                        await autoService.dispatchTrigger('subscription_terminated', {
+                        await autoService.dispatchTrigger('subscription_canceled', {
                             userId: user.id,
                             email: user.email,
                             firstName: (user.profile as any)?.firstName,
