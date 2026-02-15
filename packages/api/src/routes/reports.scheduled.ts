@@ -1,9 +1,10 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { scheduledReports } from '@studio/db/src/schema';
+import { scheduledReports, tenants } from '@studio/db/src/schema';
 import { eq, and, lte } from 'drizzle-orm';
 import { HonoContext } from '../types';
 import { ReportService } from '../services/reports';
+import { EmailService } from '../services/email';
 
 const app = new Hono<HonoContext>();
 
@@ -117,6 +118,13 @@ app.post('/execute', async (c) => {
 
     for (const report of dueReports) {
         try {
+            // Fetch Tenant Details for Email Config
+            const tenant = await db.select().from(tenants).where(eq(tenants.id, report.tenantId)).get();
+            if (!tenant) {
+                console.error(`[Scheduled Reports] Tenant not found for report ${report.id}`);
+                continue;
+            }
+
             const reportService = new ReportService(db, report.tenantId);
 
             // Generate report data based on type
@@ -128,17 +136,37 @@ app.post('/execute', async (c) => {
                 reportData = await reportService.getRevenue(startDate, endDate);
             } else if (report.reportType === 'attendance') {
                 reportData = await reportService.getAttendance(startDate, endDate);
+            } else if (report.reportType === 'custom' && report.customReportId) {
+                // TODO: Fetch custom report config and run
+                console.warn("[Scheduled Reports] Custom reports not yet fully supported in execution");
             }
 
             // Generate CSV
             let csvContent = '';
             if (reportData && 'chartData' in reportData) {
-                csvContent = reportService.generateCsv(reportData.chartData, ['name', 'value']);
+                csvContent = reportService.generateCsv(reportData.chartData, ['name', 'value']); // Simplified headers
             }
 
-            // TODO: Send email with CSV attachment
-            // This requires implementing email service with attachment support
-            console.log(`[Scheduled Reports] ✅ Generated report for ${report.reportType}, ${csvContent.length} bytes`);
+            // Send Email
+            const emailService = new EmailService(c.env.RESEND_API_KEY, tenant.branding, { name: tenant.name, slug: tenant.slug }, undefined, false, db, tenant.id);
+            const subject = `[${tenant.name}] ${report.reportType.charAt(0).toUpperCase() + report.reportType.slice(1)} Report`;
+            const html = `
+                <h2>${report.reportType.charAt(0).toUpperCase() + report.reportType.slice(1)} Report</h2>
+                <p>Attached is your scheduled report for the period <strong>${startDate.toLocaleDateString()}</strong> to <strong>${endDate.toLocaleDateString()}</strong>.</p>
+                <p>Frequency: ${report.frequency}</p>
+            `;
+
+            const filename = `${report.reportType}_${startDate.toISOString().split('T')[0]}.csv`;
+            const attachments = csvContent ? [{ filename, content: Buffer.from(csvContent) }] : [];
+
+            if (attachments.length > 0) {
+                for (const recipient of report.recipients as string[]) {
+                    await emailService.sendGenericEmail(recipient, subject, html, true, attachments);
+                }
+                console.log(`[Scheduled Reports] ✅ Sent report ${report.id} to ${report.recipients.length} recipients`);
+            } else {
+                console.log(`[Scheduled Reports] ⚠️ No data for report ${report.id}, skipping email`);
+            }
 
             // Update last sent and next run
             const nextRun = calculateNextRun(report.frequency);

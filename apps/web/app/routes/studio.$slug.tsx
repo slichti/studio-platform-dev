@@ -43,7 +43,8 @@ import {
     Trophy,
     History,
     Shield,
-    Activity
+    Activity,
+    Filter
 } from "lucide-react";
 const CommandBar = lazy(() => import("../components/CommandBar").then(m => ({ default: m.CommandBar })));
 const ChatWidget = lazy(() => import("../components/chat/ChatWidget").then(m => ({ default: m.ChatWidget })));
@@ -361,6 +362,7 @@ export default function StudioLayout() {
                                 <NavItem to={`/studio/${slug}/analytics/financials`} icon={<DollarSign size={18} />}>Financials</NavItem>
                                 <NavItem to={`/studio/${slug}/analytics/attendance`} icon={<BarChart3 size={18} />}>Attendance</NavItem>
                                 <NavItem to={`/studio/${slug}/analytics/projections`} icon={<TrendingUp size={18} />}>Projections</NavItem>
+                                <NavItem to={`/studio/${slug}/analytics/custom`} icon={<Filter size={18} />}>Custom Reports</NavItem>
                                 <NavItem to={`/studio/${slug}/analytics/reports`} icon={<Mail size={18} />}>Scheduled Reports</NavItem>
                             </SidebarGroup>
                         </>
