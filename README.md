@@ -18,33 +18,33 @@ The modern, all-in-one platform for dance, yoga, and fitness studios.
 ```mermaid
 flowchart TB
     subgraph "Client Layer"
-        WEB[Web App<br/>React Router + SSR]
-        MOBILE[Platform Mobile App<br/>Universal Binary (Expo)]
-        WIDGET[Booking Widget<br/>Embed]
+        WEB["Web App<br/>React Router + SSR"]
+        MOBILE["Platform Mobile App<br/>Universal Binary (Expo)"]
+        WIDGET["Booking Widget<br/>Embed"]
     end
 
     subgraph "Cloudflare Edge"
-        PAGES[Cloudflare Pages<br/>Frontend Hosting]
-        WORKERS[Cloudflare Workers<br/>API Backend]
-        DO[Durable Objects<br/>Real-time State]
-        D1[(D1 Database<br/>SQLite)]
-        R2[R2 Storage<br/>Images & Files]
-        STREAM[Cloudflare Stream<br/>Video VOD]
-        IMAGES[Cloudflare Images<br/>Image Processing]
+        PAGES["Cloudflare Pages<br/>Frontend Hosting"]
+        WORKERS["Cloudflare Workers<br/>API Backend"]
+        DO["Durable Objects<br/>Real-time State"]
+        D1[("D1 Database<br/>SQLite")]
+        R2["R2 Storage<br/>Images & Files"]
+        STREAM["Cloudflare Stream<br/>Video VOD"]
+        IMAGES["Cloudflare Images<br/>Image Processing"]
     end
 
     subgraph "Authentication"
-        CLERK[Clerk<br/>Auth Provider]
-        STORE[AuthStore<br/>Mobile Secure Store]
+        CLERK["Clerk<br/>Auth Provider"]
+        STORE["AuthStore<br/>Mobile Secure Store"]
     end
 
     subgraph "External Services"
-        STRIPE[Stripe<br/>Payments]
-        ZOOM[Zoom API<br/>Video Classes]
-        RESEND[Resend<br/>Email]
-        TWILIO[Twilio<br/>SMS]
-        SVIX[Svix<br/>Webhooks]
-        EXPO[Expo<br/>Push Notifications]
+        STRIPE["Stripe<br/>Payments"]
+        ZOOM["Zoom API<br/>Video Classes"]
+        RESEND["Resend<br/>Email"]
+        TWILIO["Twilio<br/>SMS"]
+        SVIX["Svix<br/>Webhooks"]
+        EXPO["Expo<br/>Push Notifications"]
     end
 
     WEB --> PAGES
@@ -62,7 +62,7 @@ flowchart TB
     subgraph "Automation Engine"
         AUTO[Automation Service]
         QUEUE[Task Queue]
-        CRON[Cron Triggers<br/>*/15 * * * *]
+        CRON["Cron Triggers<br/>*/15 * * * *"]
     end
     
     WORKERS --> AUTO
