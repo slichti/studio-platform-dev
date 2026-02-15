@@ -658,6 +658,7 @@ export const membershipPlans = sqliteTable('membership_plans', {
     vodEnabled: integer('vod_enabled', { mode: 'boolean' }).default(false), // Grant VOD access?
     active: integer('active', { mode: 'boolean' }).default(true),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 export const platformPlans = sqliteTable('platform_plans', {

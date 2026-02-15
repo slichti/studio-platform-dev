@@ -98,16 +98,14 @@ export default function StudioMemberships() {
 
             <ComponentErrorBoundary>
                 {/* Plans Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {isLoadingPlans ? (
-                        Array.from({ length: 3 }).map((_, i) => (
-                            <Card key={i} className="opacity-50">
-                                <div className="h-48 bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
-                                <CardContent className="p-6 space-y-4">
-                                    <div className="h-6 w-1/2 bg-zinc-100 dark:bg-zinc-800 animate-pulse rounded" />
-                                    <div className="h-4 w-full bg-zinc-100 dark:bg-zinc-800 animate-pulse rounded" />
-                                </CardContent>
-                            </Card>
+                        Array.from({ length: 4 }).map((_, i) => (
+                            <div key={i} className="space-y-3">
+                                <div className="aspect-[4/3] w-full bg-zinc-100 dark:bg-zinc-800 animate-pulse rounded-lg" />
+                                <div className="h-4 w-3/4 bg-zinc-100 dark:bg-zinc-800 animate-pulse rounded" />
+                                <div className="h-3 w-1/2 bg-zinc-100 dark:bg-zinc-800 animate-pulse rounded" />
+                            </div>
                         ))
                     ) : plans.length === 0 ? (
                         <div className="col-span-full text-center p-12 rounded-lg bg-white dark:bg-zinc-900 border border-dashed border-zinc-300 dark:border-zinc-700">
@@ -119,8 +117,8 @@ export default function StudioMemberships() {
                         </div>
                     ) : (
                         plans.map((plan) => (
-                            <Card key={plan.id} className="overflow-hidden group hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
-                                <Link to={plan.id} className="block relative h-48 w-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
+                            <div key={plan.id} className="group">
+                                <Link to={plan.id} className="block relative aspect-[4/3] w-full bg-zinc-200 dark:bg-zinc-800 rounded-lg overflow-hidden mb-3">
                                     {plan.imageUrl ? (
                                         <img src={plan.imageUrl} alt={plan.name} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                                     ) : (
@@ -128,47 +126,27 @@ export default function StudioMemberships() {
                                             No Image
                                         </div>
                                     )}
+                                    {/* Overlay */}
                                     {(plan.overlayTitle || plan.overlaySubtitle) && (
                                         <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-center text-center p-4">
-                                            <div className="bg-white/90 dark:bg-black/70 backdrop-blur-sm px-4 py-2 rounded-lg max-w-[90%]">
-                                                {plan.overlayTitle && <h3 className="font-bold text-lg text-zinc-900 dark:text-white uppercase tracking-wider">{plan.overlayTitle}</h3>}
-                                                {plan.overlaySubtitle && <p className="text-xs text-zinc-700 dark:text-zinc-300 mt-0.5">{plan.overlaySubtitle}</p>}
+                                            <div className="bg-white/90 dark:bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-md max-w-[90%] shadow-sm">
+                                                {plan.overlayTitle && <h3 className="font-serif text-lg text-zinc-900 dark:text-white leading-tight">{plan.overlayTitle}</h3>}
+                                                {plan.overlaySubtitle && <p className="text-[10px] text-zinc-700 dark:text-zinc-300 mt-0.5 uppercase tracking-wider">{plan.overlaySubtitle}</p>}
                                             </div>
                                         </div>
                                     )}
                                 </Link>
-                                <CardContent className="p-6">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <Link to={plan.id} className="hover:underline">
-                                            <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100">{plan.name}</h3>
-                                        </Link>
-                                        {plan.vodEnabled && <Badge variant="secondary" className="text-xs">VOD Access</Badge>}
-                                    </div>
-                                    <div className="text-2xl font-bold mb-4 text-zinc-900 dark:text-zinc-100">
-                                        ${(plan.price / 100).toFixed(2)}
-                                        <span className="text-sm font-normal text-zinc-500 dark:text-zinc-400">/{plan.interval}</span>
-                                    </div>
-                                    <p className="text-sm mb-6 min-h-[40px] text-zinc-500 dark:text-zinc-400 line-clamp-2">{plan.description || "No description provided."}</p>
 
-                                    {isStudentView ? (
-                                        <Button
-                                            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                                            onClick={() => window.location.href = `checkout?planId=${plan.id}`}
-                                        >
-                                            Subscribe Now
-                                        </Button>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            <Button variant="outline" className="w-full" onClick={() => setModalState({ type: 'edit', plan })}>
-                                                Edit Plan
-                                            </Button>
-                                            <Button variant="ghost" className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setPlanToDelete(plan.id)}>
-                                                Delete Plan
-                                            </Button>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
+                                <div className="space-y-1">
+                                    <Link to={plan.id} className="flex items-start gap-2 group-hover:underline">
+                                        <div className="mt-1.5 w-2 h-2 rounded-full bg-green-500 shrink-0" />
+                                        <h3 className="font-medium text-sm text-zinc-900 dark:text-zinc-100 leading-snug">{plan.name}</h3>
+                                    </Link>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 pl-4">
+                                        Updated {plan.updatedAt ? new Date(plan.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'recently'}
+                                    </p>
+                                </div>
+                            </div>
                         ))
                     )}
                 </div>
