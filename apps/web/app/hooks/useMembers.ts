@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "~/utils/api";
 
-interface Member {
+export interface Member {
     id: string;
     userId: string;
     profile: any;

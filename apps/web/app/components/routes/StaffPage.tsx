@@ -146,7 +146,7 @@ export default function StaffPage() {
                     <CardHeader className="pb-2">
                         <CardDescription>Instructors</CardDescription>
                         <CardTitle className="text-3xl">
-                            {staff?.filter(m => m.roles?.some((r: any) => r.role === 'instructor')).length || 0}
+                            {staff?.filter((m: any) => m.roles?.some((r: any) => r.role === 'instructor')).length || 0}
                         </CardTitle>
                     </CardHeader>
                 </Card>
@@ -154,7 +154,7 @@ export default function StaffPage() {
                     <CardHeader className="pb-2">
                         <CardDescription>Admins</CardDescription>
                         <CardTitle className="text-3xl">
-                            {staff?.filter(m => m.roles?.some((r: any) => ['admin', 'owner'].includes(r.role))).length || 0}
+                            {staff?.filter((m: any) => m.roles?.some((r: any) => ['admin', 'owner'].includes(r.role))).length || 0}
                         </CardTitle>
                     </CardHeader>
                 </Card>
