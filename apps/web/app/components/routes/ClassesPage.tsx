@@ -314,7 +314,15 @@ export default function ClassesPage() {
                                                                 </Button>
                                                             )}
 
-                                                            <div className="flex-1">
+                                                            <div className="flex-1 flex gap-2">
+                                                                {isAdmin && (
+                                                                    <a
+                                                                        href={`/studio/${slug}/classes/${cls.id}/roster`}
+                                                                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-7 px-2 text-xs")}
+                                                                    >
+                                                                        Manage
+                                                                    </a>
+                                                                )}
                                                                 {cls.status !== 'archived' && (
                                                                     me ? (
                                                                         cls.userBookingStatus === 'confirmed' ? (

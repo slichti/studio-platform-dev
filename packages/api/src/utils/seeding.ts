@@ -296,7 +296,8 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
             for (let d = 0; d < 7; d++) {
                 const date = new Date(now);
                 date.setDate(date.getDate() + d);
-                date.setHours(9, 0, 0, 0); // 9 AM class
+                // Set to 14:00 UTC (9:00 AM EST) to ensure visibility in standard calendar views
+                date.setUTCHours(14, 0, 0, 0);
 
                 const title = classTypes[Math.floor(Math.random() * classTypes.length)];
                 const instructor = instructors[Math.floor(Math.random() * instructors.length)];

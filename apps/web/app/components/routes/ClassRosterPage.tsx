@@ -1,5 +1,5 @@
 
-import { useLoaderData, Link, useParams, useFetcher } from "react-router";
+import { useLoaderData, Link, useParams, useFetcher, useRevalidator } from "react-router";
 import { useState, useEffect } from "react";
 import { Check, X, FileText, AlertTriangle, StickyNote, UserPlus, Search, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
@@ -38,6 +38,7 @@ export default function ClassRosterPageComponent() {
     const { bookings } = useLoaderData<{ bookings: Booking[] }>();
     const { slug, id } = useParams();
     const fetcher = useFetcher();
+    const revalidator = useRevalidator();
 
     const confirmedBookings = bookings.filter((b: Booking) => b.status === "confirmed");
     const waitlistBookings = bookings.filter((b: Booking) => b.status === "waitlisted");
@@ -149,15 +150,15 @@ export default function ClassRosterPageComponent() {
                 </div>
             )}
 
-            {addStudentOpen && <AddStudentModal classId={id!} slug={slug!} onClose={() => setAddStudentOpen(false)} />}
-            {notesOpen && selectedStudentId && <NotesModal memberId={selectedStudentId} studentName={selectedBooking?.user.profile?.fullName || selectedBooking?.user.email || 'Student'} onClose={() => setNotesOpen(false)} slug={slug!} />}
+            {addStudentOpen && <AddStudentModal classId={id!} slug={slug!} onClose={() => setAddStudentOpen(false)} revalidator={revalidator} />}
+            {notesOpen && selectedStudentId && <NotesModal memberId={selectedStudentId} studentName={selectedBooking?.user.profile?.fullName || selectedBooking?.user.email || 'Student'} onClose={() => setNotesOpen(false)} slug={slug!} revalidator={revalidator} />}
 
             <ConfirmDialog open={!!bookingToCancel} onOpenChange={(open) => !open && setBookingToCancel(null)} onConfirm={handleConfirmCancel} title="Cancel Booking" description="Are you sure you want to cancel this booking?" confirmText="Cancel" variant="destructive" />
         </div>
     );
 }
 
-function AddStudentModal({ classId, slug, onClose }: { classId: string, slug: string, onClose: () => void }) {
+function AddStudentModal({ classId, slug, onClose, revalidator }: { classId: string, slug: string, onClose: () => void, revalidator: any }) {
     const [query, setQuery] = useState("");
     const [members, setMembers] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
@@ -181,7 +182,8 @@ function AddStudentModal({ classId, slug, onClose }: { classId: string, slug: st
         try {
             const token = await (window as any).Clerk?.session?.getToken();
             await apiRequest(`/classes/${classId}/book`, token, { method: "POST", headers: { 'X-Tenant-Slug': slug }, body: JSON.stringify({ memberId }) });
-            onClose(); window.location.reload();
+            onClose();
+            revalidator.revalidate();
         } catch (e: any) { alert(e.message); }
         finally { setAddingId(null); }
     };
@@ -207,7 +209,7 @@ function AddStudentModal({ classId, slug, onClose }: { classId: string, slug: st
     );
 }
 
-function NotesModal({ memberId, studentName, onClose, slug }: { memberId: string, studentName: string, onClose: () => void, slug: string }) {
+function NotesModal({ memberId, studentName, onClose, slug, revalidator }: { memberId: string, studentName: string, onClose: () => void, slug: string, revalidator: any }) {
     const [notes, setNotes] = useState<Note[]>([]);
     const [loading, setLoading] = useState(true);
     const [newNote, setNewNote] = useState("");
@@ -227,7 +229,11 @@ function NotesModal({ memberId, studentName, onClose, slug }: { memberId: string
         try {
             const token = await (window as any).Clerk?.session?.getToken();
             await apiRequest(`/members/${memberId}/notes`, token, { method: "POST", headers: { 'X-Tenant-Slug': slug }, body: JSON.stringify({ note: newNote }) });
-            setNewNote(""); window.location.reload();
+            setNewNote("");
+            // Refresh notes list
+            const res = await apiRequest(`/members/${memberId}/notes`, token, { headers: { 'X-Tenant-Slug': slug } }) as any;
+            setNotes(res.notes || []);
+            revalidator.revalidate();
         } catch (e) { alert("Error adding note"); }
     };
 
