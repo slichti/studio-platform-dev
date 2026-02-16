@@ -1,5 +1,5 @@
 
-import { useSubmit, Link, Form, useOutletContext } from "react-router";
+import { useSubmit, Link, Form, useOutletContext, useParams } from "react-router";
 import { useState, useEffect } from "react";
 import { Settings, Save, MapPin, Plus, Trash2, CreditCard, ShoppingBag, Globe } from "lucide-react";
 import { toast } from "sonner";
@@ -9,6 +9,7 @@ import { apiRequest } from "~/utils/api";
 const API_URL = typeof window !== 'undefined' ? (window as any).ENV?.API_URL : '';
 
 export default function SettingsIndexComponent({ locations }: { locations: any[] }) {
+    const { slug } = useParams();
     const { tenant: initialTenant } = useOutletContext<any>();
     const [tenant, setTenant] = useState(initialTenant);
     const [name, setName] = useState(tenant.name);
@@ -203,7 +204,7 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                     const token = await (window as any).Clerk?.session?.getToken();
                                     await apiRequest(`/tenant/settings`, token, {
                                         method: "PATCH",
-                                        headers: { 'X-Tenant-Slug': tenant.slug },
+                                        headers: { 'X-Tenant-Slug': slug || tenant.slug || '' },
                                         body: JSON.stringify({ isPublic: checked })
                                     });
                                     window.location.reload();
@@ -249,7 +250,7 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                     const token = await (window as any).Clerk?.session?.getToken();
                                     await apiRequest(`/tenant/features`, token, {
                                         method: "POST",
-                                        headers: { 'X-Tenant-Slug': tenant.slug },
+                                        headers: { 'X-Tenant-Slug': slug || tenant.slug || '' },
                                         body: JSON.stringify({ featureKey: 'kiosk', enabled: checked })
                                     });
                                     window.location.reload();

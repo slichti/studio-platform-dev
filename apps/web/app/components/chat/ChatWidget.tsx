@@ -32,9 +32,10 @@ interface ChatWidgetProps {
     token?: string;
     chatConfig?: ChatOption[]; // Dynamic configuration
     brandColor?: string; // Tenant brand color
+    tenantSlug?: string;
 }
 
-export function ChatWidget({ roomId, tenantId, userId, userName, apiUrl = "", enabled = true, chatConfig, token, brandColor = '#2563EB' }: ChatWidgetProps) {
+export function ChatWidget({ roomId, tenantId, tenantSlug, userId, userName, apiUrl = "", enabled = true, chatConfig, token, brandColor = '#2563EB' }: ChatWidgetProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputValue, setInputValue] = useState("");
@@ -69,7 +70,14 @@ export function ChatWidget({ roomId, tenantId, userId, userName, apiUrl = "", en
         const wsProtocol = baseUrl.startsWith('https') ? 'wss://' : 'ws://';
         const wsHost = baseUrl.replace(/^http(s)?:\/\//, '');
 
-        let wsUrl = `${wsProtocol}${wsHost}/chat/rooms/${roomId}/websocket?roomId=${roomId}&tenantId=${tenantId}&userId=${effectiveUserId}&userName=${encodeURIComponent(effectiveUserName)}`;
+        let wsUrl = `${wsProtocol}${wsHost}/chat/rooms/${roomId}/websocket?roomId=${roomId}&userId=${effectiveUserId}&userName=${encodeURIComponent(effectiveUserName)}`;
+
+        if (tenantId && !tenantId.includes('-') && tenantId !== 'platform') { // Basic check for UUID vs Slug - flawed but helpful? No, just use props.
+            // Actually, the issue is that we need to support EITHER tenantId OR tenantSlug.
+        }
+
+        if (tenantId) wsUrl += `&tenantId=${tenantId}`;
+        if (tenantSlug) wsUrl += `&tenantSlug=${tenantSlug}`;
 
         if (token) {
             wsUrl += `&token=${token}`;

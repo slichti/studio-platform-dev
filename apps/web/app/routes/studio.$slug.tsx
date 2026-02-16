@@ -544,7 +544,8 @@ export default function StudioLayout() {
                 <ClientOnly>
                     <ChatWidget
                         roomId={`support-${me.id}`}
-                        tenantId={isStudentView ? (slug || "") : "platform"}
+                        tenantId={isStudentView ? tenant.id : undefined}
+                        tenantSlug={isStudentView ? undefined : "platform"}
                         userId={me.id}
                         userName={`${me.firstName} ${me.lastName}`}
                         enabled={!isStudentView && (tenant.settings?.chatEnabled !== false) && featureSet.has('chat')}
