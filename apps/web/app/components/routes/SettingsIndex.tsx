@@ -249,6 +249,7 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                     const token = await (window as any).Clerk?.session?.getToken();
                                     await apiRequest(`/tenant/features`, token, {
                                         method: "POST",
+                                        headers: { 'X-Tenant-Slug': tenant.slug },
                                         body: JSON.stringify({ featureKey: 'kiosk', enabled: checked })
                                     });
                                     window.location.reload();

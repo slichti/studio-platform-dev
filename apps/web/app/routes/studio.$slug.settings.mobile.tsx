@@ -15,7 +15,7 @@ export default function MobileSettings() {
     // Initial Fetch
     useEffect(() => {
         if (!token) return;
-        apiRequest(`/tenant/mobile-config`, token)
+        apiRequest(`/tenant/mobile-config`, token, { headers: { 'X-Tenant-Slug': tenant.slug } })
             .then(res => {
                 if (res.error) toast.error("Failed to load mobile settings");
                 else setConfig(res);
@@ -29,6 +29,7 @@ export default function MobileSettings() {
         try {
             const res = await apiRequest(`/tenant/mobile-config`, token, {
                 method: 'PUT',
+                headers: { 'X-Tenant-Slug': tenant.slug },
                 body: JSON.stringify(config)
             });
             if (res.error) throw new Error(res.error);
