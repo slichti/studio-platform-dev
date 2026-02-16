@@ -16,7 +16,7 @@ import { ComponentErrorBoundary } from "~/components/ErrorBoundary";
 import { Switch } from "~/components/ui/switch";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "~/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "~/components/ui/DropdownMenu";
 
 import { usePlans, useSubscriptions, type Plan } from "~/hooks/useMemberships";
 
@@ -60,8 +60,8 @@ export default function MembershipPlanDetailPage() {
                         </Link>
                         <div className="flex items-center gap-3">
                             <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">{plan.name}</h1>
-                            <Badge variant={plan.status !== 'archived' ? 'default' : 'secondary'} className={plan.status !== 'archived' ? 'bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400' : ''}>
-                                {plan.status === 'archived' ? 'Archived' : 'Active'}
+                            <Badge variant={plan.active !== false ? 'default' : 'secondary'} className={plan.active !== false ? 'bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400' : ''}>
+                                {plan.active === false ? 'Archived' : 'Active'}
                             </Badge>
                         </div>
                         <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl">
@@ -117,6 +117,7 @@ export default function MembershipPlanDetailPage() {
                                 </div>
                             </CardContent>
                         </Card>
+
 
                         {/* Promotion Card */}
                         <Card>
