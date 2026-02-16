@@ -74,7 +74,7 @@ app.get('/rooms/:id/messages', async (c) => {
 
 // POST /rooms/:id/websocket
 app.get('/rooms/:id/websocket', async (c) => {
-    if (c.req.header('Upgrade') !== 'websocket') return c.json({ error: 'WS expected' }, 426);
+    if (c.req.header('Upgrade')?.toLowerCase() !== 'websocket') return c.json({ error: 'WS expected' }, 426);
     const url = new URL(c.req.url);
     url.searchParams.set('roomId', c.req.param('id'));
     const tenant = c.get('tenant');
