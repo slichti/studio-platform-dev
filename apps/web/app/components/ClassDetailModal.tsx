@@ -228,17 +228,17 @@ export function ClassDetailModal({
                                         </div>
 
                                         {/* Zoom Section */}
-                                        {(classEvent.resource?.zoomEnabled || classEvent.resource?.zoomMeetingUrl) && (
+                                        {(classEvent.resource?.myBooking?.zoomMeetingUrl || classEvent.resource?.zoomEnabled || classEvent.resource?.zoomMeetingUrl) && (
                                             <div className="bg-blue-50 p-3 rounded-md text-sm border border-blue-100">
                                                 <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
                                                     <Video size={16} />
                                                     Virtual Class Access
                                                 </h4>
 
-                                                {classEvent.resource?.zoomMeetingUrl ? (
+                                                {(classEvent.resource?.myBooking?.zoomMeetingUrl || classEvent.resource?.zoomMeetingUrl) ? (
                                                     <div className="space-y-2">
                                                         <a
-                                                            href={classEvent.resource.zoomMeetingUrl}
+                                                            href={classEvent.resource?.myBooking?.zoomMeetingUrl || classEvent.resource.zoomMeetingUrl}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="block w-full text-center bg-blue-600 text-white py-2 rounded-md font-medium hover:bg-blue-700 transition"
@@ -246,16 +246,18 @@ export function ClassDetailModal({
                                                             Launch Zoom Meeting
                                                         </a>
 
-                                                        {classEvent.resource?.zoomMeetingId && (
+                                                        {(classEvent.resource?.myBooking?.zoomPassword || classEvent.resource?.zoomMeetingId) && (
                                                             <div className="text-xs text-blue-800 space-y-1 mt-2 pt-2 border-t border-blue-200">
-                                                                <div className="flex justify-between">
-                                                                    <span className="font-medium">Meeting ID:</span>
-                                                                    <span className="font-mono select-all">{classEvent.resource.zoomMeetingId}</span>
-                                                                </div>
-                                                                {classEvent.resource?.zoomPassword && (
+                                                                {classEvent.resource?.zoomMeetingId && (
+                                                                    <div className="flex justify-between">
+                                                                        <span className="font-medium">Meeting ID:</span>
+                                                                        <span className="font-mono select-all">{classEvent.resource.zoomMeetingId}</span>
+                                                                    </div>
+                                                                )}
+                                                                {(classEvent.resource?.myBooking?.zoomPassword || classEvent.resource?.zoomPassword) && (
                                                                     <div className="flex justify-between">
                                                                         <span className="font-medium">Passcode:</span>
-                                                                        <span className="font-mono select-all">{classEvent.resource.zoomPassword}</span>
+                                                                        <span className="font-mono select-all">{classEvent.resource?.myBooking?.zoomPassword || classEvent.resource?.zoomPassword}</span>
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -263,7 +265,7 @@ export function ClassDetailModal({
                                                     </div>
                                                 ) : (
                                                     <div className="text-blue-700 text-xs italic">
-                                                        Zoom link is being generated or not available.
+                                                        {classEvent.resource?.myBooking ? "Zoom link will be available here." : "Book this class to access the Zoom link."}
                                                     </div>
                                                 )}
                                             </div>

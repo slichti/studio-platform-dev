@@ -14,8 +14,8 @@ export default function ChallengesPage() {
     const [challengeType, setChallengeType] = useState('count');
     const [rewardType, setRewardType] = useState('badge');
 
-    const { me } = useOutletContext<{ me: any; tenant: any }>() || {};
-    const isManager = me?.roles?.includes('owner') || me?.roles?.includes('admin') || me?.roles?.includes('instructor');
+    const { me, isStudentView } = useOutletContext<{ me: any; tenant: any; isStudentView: boolean }>() || {};
+    const isManager = (me?.roles?.includes('owner') || me?.roles?.includes('admin') || me?.roles?.includes('instructor')) && !isStudentView;
 
     const activeChallenges = challenges.filter((c: any) => c.status === 'active');
     const pastChallenges = challenges.filter((c: any) => c.status !== 'active');

@@ -18,7 +18,20 @@ app.get('/my-upcoming', async (c) => {
     if (!member) return c.json({ error: "Member not found" }, 403);
 
     const list = await db.query.bookings.findMany({ where: eq(bookings.memberId, member.id), with: { class: { with: { instructor: { with: { user: true } } } } }, limit: 50, orderBy: [sql`${bookings.createdAt} desc`] });
-    return c.json(list.map(b => ({ id: b.id, status: b.status, waitlistPosition: b.waitlistPosition, class: { title: b.class.title, startTime: b.class.startTime, instructor: (b.class.instructor?.user?.profile as any)?.firstName || "Staff" } })).sort((a, b) => new Date(a.class.startTime).getTime() - new Date(b.class.startTime).getTime()));
+    return c.json(list.map(b => ({
+        id: b.id,
+        status: b.status,
+        waitlistPosition: b.waitlistPosition,
+        attendanceType: b.attendanceType,
+        class: {
+            id: b.class.id,
+            title: b.class.title,
+            startTime: b.class.startTime,
+            instructor: (b.class.instructor?.user?.profile as any)?.firstName || "Staff",
+            zoomMeetingUrl: b.class.zoomMeetingUrl,
+            zoomPassword: b.class.zoomPassword
+        }
+    })).sort((a, b) => new Date(a.class.startTime).getTime() - new Date(b.class.startTime).getTime()));
 });
 
 // GET /:id
@@ -141,8 +154,24 @@ app.patch('/:id', async (c) => {
 
     if (b.memberId !== member.id && !c.get('can')('manage_classes')) return c.json({ error: "Forbidden" }, 403);
 
-    const { attendanceType } = await c.req.json();
+    const { attendanceType, memberId } = await c.req.json();
+
+    // Check if switching TO Zoom from something else
+    const wasZoom = b.attendanceType === 'zoom';
+    const isZoom = attendanceType === 'zoom';
+
     await db.update(bookings).set({ attendanceType }).where(eq(bookings.id, b.id)).run();
+
+    // Trigger email if switching to Zoom
+    if (!wasZoom && isZoom) {
+        c.executionCtx.waitUntil((async () => {
+            const { BookingService } = await import('../services/bookings');
+            const service = new BookingService(db, c.env);
+            // We use 'class_booked' as it serves as the confirmation email which contains the link
+            await service.dispatchAutomation('class_booked', b.id);
+        })());
+    }
+
     return c.json({ success: true });
 });
 

@@ -422,7 +422,7 @@ export class BookingService {
         return list.length;
     }
 
-    private async dispatchAutomation(trigger: string, bookingId: string, additionalData: any = {}) {
+    public async dispatchAutomation(trigger: string, bookingId: string, additionalData: any = {}) {
         try {
             const booking = await this.db.query.bookings.findFirst({
                 where: eq(bookings.id, bookingId),
