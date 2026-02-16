@@ -162,7 +162,16 @@ app.notFound((c) => {
 });
 
 app.get('/', (c) => {
-  return c.text('Health Check: OK')
+  return c.json({
+    status: 'OK',
+    env: {
+      CLERK_SECRET_KEY: !!c.env.CLERK_SECRET_KEY,
+      ENCRYPTION_SECRET: !!c.env.ENCRYPTION_SECRET,
+      CLOUDFLARE_ACCOUNT_ID: !!c.env.CLOUDFLARE_ACCOUNT_ID,
+      CLOUDFLARE_API_TOKEN: !!c.env.CLOUDFLARE_API_TOKEN,
+      ENVIRONMENT: c.env.ENVIRONMENT
+    }
+  });
 })
 
 app.route('/public', publicRoutes); // [NEW] Mount public routes

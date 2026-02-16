@@ -199,7 +199,7 @@ app.patch('/images/:id', async (c) => {
     return c.json({ success: true });
 });
 
-// Logo Upload
+// Logo Upload (R2 Version)
 app.post('/logo', async (c) => {
     if (!c.get('can')('manage_tenant')) {
         return c.json({ error: 'Unauthorized' }, 403);
@@ -212,28 +212,18 @@ app.post('/logo', async (c) => {
     const file = body['file'] as File;
     if (!file) return c.json({ error: 'File required' }, 400);
 
-    const accountId = c.env.CLOUDFLARE_ACCOUNT_ID;
-    const token = c.env.CLOUDFLARE_API_TOKEN;
+    // Generate R2 Key
+    const extension = file.type.split('/')[1] || 'png';
+    const objectKey = `tenants/${tenant.slug}/branding/logo-${Date.now()}.${extension}`;
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('metadata', JSON.stringify({ type: 'logo', tenantId: tenant.id }));
-
-    const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/images/v1`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
+    // Upload to R2
+    await c.env.R2!.put(objectKey, await file.arrayBuffer(), {
+        httpMetadata: { contentType: file.type }
     });
 
-    if (!response.ok) {
-        const errText = await response.text();
-        console.error(`[Uploads] CLOUDFLARE ERROR: ${response.status} ${errText}`);
-        return c.json({ error: `Upload failed: ${errText}` }, 500);
-    }
-
-    const data = await response.json() as any;
-    const imageId = data.result?.id;
-    const logoUrl = `https://imagedelivery.net/${accountId}/${imageId}/logo`;
+    // Public URL (proxied via API)
+    // Note: In production you might want a custom domain for R2, but this proxy works for now.
+    const logoUrl = `${new URL(c.req.url).origin}/uploads/${objectKey}`;
 
     const currentBranding = (tenant.branding as any) || {};
     await db.update(tenants)
@@ -241,10 +231,10 @@ app.post('/logo', async (c) => {
         .where(eq(tenants.id, tenant.id))
         .run();
 
-    return c.json({ logoUrl, imageId });
+    return c.json({ logoUrl, imageId: objectKey });
 });
 
-// Portrait Upload
+// Portrait Upload (R2 Version)
 app.post('/portrait', async (c) => {
     const tenant = c.get('tenant');
     const member = c.get('member');
@@ -260,24 +250,16 @@ app.post('/portrait', async (c) => {
         return c.json({ error: 'Permission denied' }, 403);
     }
 
-    const accountId = c.env.CLOUDFLARE_ACCOUNT_ID;
-    const token = c.env.CLOUDFLARE_API_TOKEN;
+    // Generate R2 Key
+    const extension = file.type.split('/')[1] || 'jpg';
+    const objectKey = `tenants/${tenant.slug}/members/${targetMemberId}/portrait-${Date.now()}.${extension}`;
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('metadata', JSON.stringify({ type: 'portrait', memberId: targetMemberId }));
-
-    const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/images/v1`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
+    // Upload to R2
+    await c.env.R2!.put(objectKey, await file.arrayBuffer(), {
+        httpMetadata: { contentType: file.type }
     });
 
-    if (!response.ok) return c.json({ error: `Upload failed` }, 500);
-
-    const data = await response.json() as any;
-    const imageId = data.result?.id;
-    const portraitUrl = `https://imagedelivery.net/${accountId}/${imageId}/portrait`;
+    const portraitUrl = `${new URL(c.req.url).origin}/uploads/${objectKey}`;
 
     const db = createDb(c.env.DB);
     const targetMember = await db.select({ userId: tenantMembers.userId })
@@ -298,7 +280,7 @@ app.post('/portrait', async (c) => {
         .where(eq(users.id, targetMember.userId))
         .run();
 
-    return c.json({ portraitUrl, imageId });
+    return c.json({ portraitUrl, imageId: objectKey });
 });
 
 // GET /:key+ - Proxy to R2
@@ -306,7 +288,7 @@ app.get('/*', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: 'Tenant context missing' }, 400);
 
-    const key = c.req.path.replace(/^\/uploads\//, '');
+    const key = c.req.path.replace(/^\//, ''); // Strip leading slash to match R2 key
     if (!key) return c.json({ error: 'Key required' }, 400);
 
     // Security: Access Control
