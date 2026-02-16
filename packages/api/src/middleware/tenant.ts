@@ -38,11 +38,15 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
         tenant = await db.query.tenants.findFirst({
             where: eq(tenants.slug, headerTenantSlug),
         });
+        if (!tenant) console.log('[TenantMiddleware] Slug Header provided but not found:', headerTenantSlug);
     }
 
-    if (!tenant && c.req.header('Upgrade') === 'websocket') {
+    if (!tenant && c.req.header('Upgrade')?.toLowerCase() === 'websocket') {
         const queryTenantSlug = c.req.query('tenantSlug');
         const queryTenantId = c.req.query('tenantId');
+
+        console.log('[TenantMiddleware] WS Upgrade detected', { queryTenantSlug, queryTenantId });
+
         if (queryTenantSlug) {
             tenant = await db.query.tenants.findFirst({
                 where: eq(tenants.slug, queryTenantSlug),

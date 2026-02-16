@@ -77,7 +77,9 @@ app.get('/rooms/:id/websocket', async (c) => {
     if (c.req.header('Upgrade') !== 'websocket') return c.json({ error: 'WS expected' }, 426);
     const url = new URL(c.req.url);
     url.searchParams.set('roomId', c.req.param('id'));
-    url.searchParams.set('tenantId', c.get('tenant')!.id);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 404);
+    url.searchParams.set('tenantId', tenant.id);
     const auth = c.get('auth');
     const userId = auth ? auth.userId : c.req.query('userId');
     if (!userId) return c.json({ error: 'User ID required' }, 400);
