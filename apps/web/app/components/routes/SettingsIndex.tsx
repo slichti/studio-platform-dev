@@ -207,8 +207,8 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                         body: JSON.stringify({ isPublic: checked })
                                     });
                                     window.location.reload();
-                                } catch (err) {
-                                    toast.error("Failed to update marketplace setting");
+                                } catch (err: any) {
+                                    toast.error(err.message || "Failed to update marketplace setting");
                                 }
                             }}
                         />
@@ -247,13 +247,13 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                 const checked = e.target.checked;
                                 try {
                                     const token = await (window as any).Clerk?.session?.getToken();
-                                    await apiRequest(`/studios/${tenant.id}/features`, token, {
+                                    await apiRequest(`/tenant/features`, token, {
                                         method: "POST",
                                         body: JSON.stringify({ featureKey: 'kiosk', enabled: checked })
                                     });
                                     window.location.reload();
-                                } catch (err) {
-                                    toast.error("Failed to toggle Kiosk mode");
+                                } catch (err: any) {
+                                    toast.error(err.message || "Failed to toggle Kiosk mode");
                                 }
                             }}
                         />
