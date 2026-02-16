@@ -39,20 +39,27 @@ export class ChatRoom {
     constructor(state: DurableObjectState, env: any) {
         this.state = state;
         this.env = env;
+        try {
+            console.log('[ChatRoom] Constructor initiated');
 
-        // Restore any hibernated connections
-        this.state.getWebSockets().forEach((ws: WebSocket) => {
-            const meta = (ws as any).deserializeAttachment?.() as ConnectedUser | null;
-            if (meta) {
-                this.users.set(ws, meta);
-            }
-        });
+            // Restore any hibernated connections
+            this.state.getWebSockets().forEach((ws: WebSocket) => {
+                const meta = (ws as any).deserializeAttachment?.() as ConnectedUser | null;
+                if (meta) {
+                    this.users.set(ws, meta);
+                }
+            });
+            console.log(`[ChatRoom] Restored ${this.users.size} connections`);
+        } catch (e: any) {
+            console.error('[ChatRoom] Constructor Fatal Error:', e);
+        }
     }
 
     /**
      * HTTP request handler - upgrades to WebSocket
      */
     async fetch(request: Request): Promise<Response> {
+        console.log('[ChatRoom] Fetch received:', request.url);
         const url = new URL(request.url);
 
         // Handle internal broadcast API (from REST API)

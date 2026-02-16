@@ -86,7 +86,15 @@ app.get('/rooms/:id/websocket', async (c) => {
 
     url.searchParams.set('userId', userId);
     url.searchParams.set('role', c.get('member')?.roles[0]?.role || (auth ? 'student' : 'guest'));
-    return c.env.CHAT_ROOM!.get(c.env.CHAT_ROOM!.idFromString(c.req.param('id'))).fetch(url.toString(), c.req.raw);
+    try {
+        const doId = c.env.CHAT_ROOM!.idFromString(c.req.param('id'));
+        const stub = c.env.CHAT_ROOM!.get(doId);
+        console.log('[ChatRoute] Forwarding Upgrade to DO:', doId.toString());
+        return await stub.fetch(url.toString(), c.req.raw);
+    } catch (e: any) {
+        console.error('[ChatRoute] DO Interaction Failed:', e);
+        return c.json({ error: 'Chat Room Unavailable', details: e.message }, 500);
+    }
 });
 
 export default app;

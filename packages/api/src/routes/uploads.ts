@@ -225,7 +225,11 @@ app.post('/logo', async (c) => {
         body: formData
     });
 
-    if (!response.ok) return c.json({ error: `Upload failed` }, 500);
+    if (!response.ok) {
+        const errText = await response.text();
+        console.error(`[Uploads] CLOUDFLARE ERROR: ${response.status} ${errText}`);
+        return c.json({ error: `Upload failed: ${errText}` }, 500);
+    }
 
     const data = await response.json() as any;
     const imageId = data.result?.id;
