@@ -315,4 +315,24 @@ app.openapi(updateCredentialsRoute, async (c) => {
     return c.json({ success: true }, 200);
 });
 
+// DELETE /google
+const disconnectGoogleRoute = createRoute({
+    method: 'delete',
+    path: '/google',
+    tags: ['Integrations'],
+    summary: 'Disconnect Google Calendar',
+    responses: {
+        200: { content: { 'application/json': { schema: SuccessResponseSchema } }, description: 'Disconnected' },
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' }
+    }
+});
+
+app.openapi(disconnectGoogleRoute, async (c) => {
+    if (!c.get('can')('manage_tenant')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const t = c.get('tenant')!;
+    await db.update(schema.tenants).set({ googleCalendarCredentials: null }).where(eq(schema.tenants.id, t.id)).run();
+    return c.json({ success: true }, 200);
+});
+
 export default app;

@@ -22,11 +22,37 @@ export default function IntegrationsPage() {
     const updateIntegration = async (body: any) => {
         try {
             const token = await (window as any).Clerk?.session?.getToken();
-            await apiRequest(`/studios/${tenant.id}/integrations`, token, {
-                method: 'PUT',
-                headers: { 'X-Tenant-Slug': slug || '' },
-                body: JSON.stringify(body)
-            });
+
+            // Handle Credentials Updates (Twilio, Resend)
+            if (body.twilioAccountSid || body.resendApiKey) {
+                const payload: any = {};
+                if (body.twilioAccountSid) {
+                    payload.twilio = {
+                        accountSid: body.twilioAccountSid,
+                        authToken: body.twilioAuthToken,
+                        fromNumber: body.twilioFromNumber
+                    };
+                }
+                if (body.resendApiKey) {
+                    payload.resend = { apiKey: body.resendApiKey };
+                }
+
+                await apiRequest(`/integrations/credentials`, token, {
+                    method: 'PATCH',
+                    headers: { 'X-Tenant-Slug': slug || '' },
+                    body: JSON.stringify(payload)
+                });
+            }
+
+            // Handle Chat Setting
+            if (body.chatEnabled !== undefined) {
+                await apiRequest(`/tenant/settings`, token, {
+                    method: 'PATCH',
+                    headers: { 'X-Tenant-Slug': slug || '' },
+                    body: JSON.stringify({ settings: { chatEnabled: body.chatEnabled } })
+                });
+            }
+
             toast.success("Settings saved successfully.");
             window.location.reload();
         } catch (e: any) {
@@ -329,8 +355,9 @@ export default function IntegrationsPage() {
                 onConfirm={async () => {
                     try {
                         const token = (window as any).Clerk?.session?.getToken ? await (window as any).Clerk.session.getToken() : localStorage.getItem('token');
-                        await apiRequest(`/studios/${tenant.id}/integrations/google`, token, {
-                            method: 'DELETE'
+                        await apiRequest(`/integrations/google`, token, {
+                            method: 'DELETE',
+                            headers: { 'X-Tenant-Slug': slug || '' }
                         });
                         toast.success('Disconnected');
                         window.location.reload();

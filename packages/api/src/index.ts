@@ -622,9 +622,12 @@ studioApp.route('/audit-logs', auditLogRoutes);
 
 import tenantDomainRouter from './routes/tenant.domain';
 
+import tenantMobileRouter from './routes/tenant.mobile';
+
 studioApp.route('/invites', invitesRouter);
 studioApp.route('/webhooks', tenantWebhooksRouter);
 studioApp.route('/domain', tenantDomainRouter); // [NEW] Domain Management
+studioApp.route('/mobile-config', tenantMobileRouter); // [NEW] Mobile Config
 
 studioApp.route('/progress', progressRoutes); // [NEW] Progress Tracking
 

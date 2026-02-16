@@ -149,12 +149,14 @@ export default function ChatSettingsPage() {
         setSaving(true);
         try {
             const token = await (window as any).Clerk?.session?.getToken();
-            await apiRequest(`/studios/${tenant.id}/integrations`, token, {
-                method: 'PUT',
+            await apiRequest(`/tenant/settings`, token, {
+                method: 'PATCH',
                 headers: { 'X-Tenant-Slug': slug || '' },
                 body: JSON.stringify({
-                    chatEnabled: tenant.settings?.chatEnabled, // Keep existing toggle state
-                    chatConfig: config
+                    settings: {
+                        chatEnabled: tenant.settings?.chatEnabled, // Keep existing toggle state
+                        chatConfig: config
+                    }
                 })
             });
             toast.success("Chat configuration saved!");
