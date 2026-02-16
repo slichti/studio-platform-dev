@@ -509,6 +509,35 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                         />
                                     </div>
 
+                                    <div className="mb-2">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                                                checked={tenant.settings?.notificationSettings?.noShowEmail !== false}
+                                                onChange={async (e) => {
+                                                    const checked = e.target.checked;
+                                                    setTenant((prev: any) => ({
+                                                        ...prev,
+                                                        settings: {
+                                                            ...prev.settings,
+                                                            notificationSettings: { ...prev.settings?.notificationSettings, noShowEmail: checked }
+                                                        }
+                                                    }));
+                                                    const token = await (window as any).Clerk?.session?.getToken();
+                                                    await apiRequest(`/tenant/settings`, token, {
+                                                        method: "PATCH",
+                                                        headers: { 'X-Tenant-Slug': tenant.slug },
+                                                        body: JSON.stringify({ settings: { notificationSettings: { ...tenant.settings?.notificationSettings, noShowEmail: checked } } })
+                                                    });
+                                                    toast.success("Saved");
+                                                }}
+                                            />
+                                            <span className="text-sm text-zinc-700 dark:text-zinc-300">Send Email Alert</span>
+                                        </label>
+                                        <p className="text-xs text-zinc-500 dark:text-zinc-400 ml-6 mt-1">Notify student via Email when charged/marked.</p>
+                                    </div>
+
                                     <div>
                                         <label className="flex items-center gap-2 cursor-pointer">
                                             <input
@@ -535,6 +564,7 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                             />
                                             <span className="text-sm text-zinc-700 dark:text-zinc-300">Send SMS Alert</span>
                                         </label>
+                                        <p className="text-xs text-zinc-500 dark:text-zinc-400 ml-6 mt-1">Notify student via SMS when charged/marked.</p>
                                     </div>
                                 </div>
                             )}
