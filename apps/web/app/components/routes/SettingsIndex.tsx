@@ -4,9 +4,7 @@ import { useState, useEffect } from "react";
 import { Settings, Save, MapPin, Plus, Trash2, CreditCard, ShoppingBag, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmationDialog } from "~/components/Dialogs";
-import { apiRequest } from "~/utils/api";
-
-const API_URL = typeof window !== 'undefined' ? (window as any).ENV?.API_URL : '';
+import { apiRequest, API_URL } from "~/utils/api";
 
 export default function SettingsIndexComponent({ locations }: { locations: any[] }) {
     const { slug } = useParams();
