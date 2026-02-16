@@ -375,6 +375,7 @@ studioApp.get('/info', async (c) => {
     tier: tenant.tier,
     status: tenant.status,
     customDomain: tenant.customDomain,
+    isPublic: !!tenant.isPublic,
     settings: safeSettings, // Use filtered settings
     kioskEnabled: !!kioskFeature?.enabled, // Helper flag
     mobileAppConfig: tenant.mobileAppConfig,
