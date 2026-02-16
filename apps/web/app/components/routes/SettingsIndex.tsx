@@ -198,6 +198,7 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                             checked={tenant.isPublic || false}
                             onChange={async (e) => {
                                 const checked = e.target.checked;
+                                setTenant((prev: any) => ({ ...prev, isPublic: checked }));
                                 try {
                                     const token = await (window as any).Clerk?.session?.getToken();
                                     await apiRequest(`/tenant/settings`, token, {
@@ -205,9 +206,10 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                         headers: { 'X-Tenant-Slug': slug || tenant.slug || '' },
                                         body: JSON.stringify({ isPublic: checked })
                                     });
-                                    window.location.reload();
+                                    toast.success("Updated visibility");
                                 } catch (err: any) {
-                                    toast.error(err.message || "Failed to update marketplace setting");
+                                    toast.error(err.message || "Failed to update");
+                                    setTenant((prev: any) => ({ ...prev, isPublic: !checked })); // Revert
                                 }
                             }}
                         />
@@ -244,6 +246,12 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                             checked={tenant.features?.includes('kiosk') || false}
                             onChange={async (e) => {
                                 const checked = e.target.checked;
+                                setTenant((prev: any) => ({
+                                    ...prev,
+                                    features: checked
+                                        ? [...(prev.features || []), 'kiosk']
+                                        : (prev.features || []).filter((f: string) => f !== 'kiosk')
+                                }));
                                 try {
                                     const token = await (window as any).Clerk?.session?.getToken();
                                     await apiRequest(`/tenant/features`, token, {
@@ -251,9 +259,10 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                         headers: { 'X-Tenant-Slug': slug || tenant.slug || '' },
                                         body: JSON.stringify({ featureKey: 'kiosk', enabled: checked })
                                     });
-                                    window.location.reload();
+                                    toast.success(checked ? "Kiosk enabled" : "Kiosk disabled");
                                 } catch (err: any) {
                                     toast.error(err.message || "Failed to toggle Kiosk mode");
+                                    // Revert could be added here
                                 }
                             }}
                         />
@@ -330,6 +339,7 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                             checked={tenant.settings?.enableStudentRegistration || false}
                             onChange={async (e) => {
                                 const checked = e.target.checked;
+                                setTenant((prev: any) => ({ ...prev, settings: { ...prev.settings, enableStudentRegistration: checked } }));
                                 try {
                                     const token = await (window as any).Clerk?.session?.getToken();
                                     await apiRequest(`/tenant/settings`, token, {
@@ -337,7 +347,7 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                         headers: { 'X-Tenant-Slug': tenant.slug },
                                         body: JSON.stringify({ settings: { enableStudentRegistration: checked } })
                                     });
-                                    window.location.reload();
+                                    toast.success("Updated registration");
                                 } catch (err) {
                                     toast.error("Failed to update setting");
                                 }
@@ -377,7 +387,7 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded border border-zinc-200 dark:border-zinc-700">
+                        <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded border border-zinc-200 dark:border-zinc-700 h-fit">
                             <div>
                                 <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">New Student Alerts</span>
                                 <p className="text-xs text-zinc-500 dark:text-zinc-400">Email on registration.</p>
@@ -389,20 +399,27 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                     checked={tenant.settings?.notifications?.newStudentAlert || false}
                                     onChange={async (e) => {
                                         const checked = e.target.checked;
+                                        setTenant((prev: any) => ({
+                                            ...prev,
+                                            settings: {
+                                                ...prev.settings,
+                                                notifications: { ...prev.settings?.notifications, newStudentAlert: checked }
+                                            }
+                                        }));
                                         const token = await (window as any).Clerk?.session?.getToken();
                                         await apiRequest(`/tenant/settings`, token, {
                                             method: "PATCH",
                                             headers: { 'X-Tenant-Slug': tenant.slug },
                                             body: JSON.stringify({ settings: { notifications: { ...tenant.settings?.notifications, newStudentAlert: checked } } })
                                         });
-                                        window.location.reload();
+                                        toast.success("Saved");
                                     }}
                                 />
                                 <div className="w-9 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                             </label>
                         </div>
 
-                        <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded border border-zinc-200 dark:border-zinc-700">
+                        <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded border border-zinc-200 dark:border-zinc-700 h-fit">
                             <div>
                                 <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">BCC on User Emails</span>
                                 <p className="text-xs text-zinc-500 dark:text-zinc-400">Copy of booking emails.</p>
@@ -414,147 +431,171 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                     checked={tenant.settings?.notifications?.enableBcc || false}
                                     onChange={async (e) => {
                                         const checked = e.target.checked;
+                                        setTenant((prev: any) => ({
+                                            ...prev,
+                                            settings: {
+                                                ...prev.settings,
+                                                notifications: { ...prev.settings?.notifications, enableBcc: checked }
+                                            }
+                                        }));
                                         const token = await (window as any).Clerk?.session?.getToken();
                                         await apiRequest(`/tenant/settings`, token, {
                                             method: "PATCH",
                                             headers: { 'X-Tenant-Slug': tenant.slug },
                                             body: JSON.stringify({ settings: { notifications: { ...tenant.settings?.notifications, enableBcc: checked } } })
                                         });
-                                        window.location.reload();
+                                        toast.success("Saved");
                                     }}
                                 />
                                 <div className="w-9 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                             </label>
                         </div>
-                    </div>
 
-                    <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                        <div className="flex items-center justify-between mb-4">
-                            <div>
-                                <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Enable No-Show Fee Automation</span>
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400">Automatically charge fees for missed classes.</p>
-                            </div>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    className="sr-only peer"
-                                    checked={tenant.settings?.noShowFeeEnabled || false}
-                                    onChange={async (e) => {
-                                        const checked = e.target.checked;
-                                        try {
-                                            const token = await (window as any).Clerk?.session?.getToken();
-                                            await apiRequest(`/tenant/settings`, token, {
-                                                method: "PATCH",
-                                                headers: { 'X-Tenant-Slug': tenant.slug },
-                                                body: JSON.stringify({ settings: { noShowFeeEnabled: checked } })
-                                            });
-                                            window.location.reload();
-                                        } catch (err) { toast.error("Failed to save"); }
-                                    }}
-                                />
-                                <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                            </label>
-                        </div>
-
-                        {tenant.settings?.noShowFeeEnabled && (
-                            <>
-                                <div className="mb-4">
-                                    <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Fee Amount ($)</label>
+                        {/* No-Show Fee Automation */}
+                        <div className="p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded border border-zinc-200 dark:border-zinc-700 h-fit">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">No-Show Fee Automation</span>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Auto-charge for missed classes.</p>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer">
                                     <input
-                                        type="number"
-                                        step="0.01"
-                                        className="w-full border-zinc-300 dark:border-zinc-700 rounded text-sm px-3 py-2 bg-white dark:bg-zinc-800"
-                                        placeholder="10.00"
-                                        defaultValue={tenant.settings?.noShowFeeAmount ? (tenant.settings.noShowFeeAmount / 100).toFixed(2) : '10.00'}
-                                        onBlur={async (e) => {
-                                            const val = parseFloat(e.target.value);
-                                            if (val > 0) {
-                                                const cents = Math.round(val * 100);
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={tenant.settings?.noShowFeeEnabled || false}
+                                        onChange={async (e) => {
+                                            const checked = e.target.checked;
+                                            setTenant((prev: any) => ({
+                                                ...prev,
+                                                settings: { ...prev.settings, noShowFeeEnabled: checked }
+                                            }));
+                                            try {
                                                 const token = await (window as any).Clerk?.session?.getToken();
                                                 await apiRequest(`/tenant/settings`, token, {
                                                     method: "PATCH",
                                                     headers: { 'X-Tenant-Slug': tenant.slug },
-                                                    body: JSON.stringify({ settings: { noShowFeeAmount: cents } })
+                                                    body: JSON.stringify({ settings: { noShowFeeEnabled: checked } })
                                                 });
-                                            }
+                                                toast.success("Saved");
+                                            } catch (err) { toast.error("Failed to save"); }
                                         }}
                                     />
-                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Fee will be charged automatically when marking "No Show".</p>
-                                </div>
+                                    <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
 
-                                <div className="mb-4 ml-1">
-                                    <label className="flex items-center gap-2 cursor-pointer">
+                            {tenant.settings?.noShowFeeEnabled && (
+                                <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700 space-y-3">
+                                    <div>
+                                        <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Fee Amount ($)</label>
                                         <input
-                                            type="checkbox"
-                                            className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
-                                            checked={tenant.settings?.notificationSettings?.noShowSms !== false}
-                                            onChange={async (e) => {
-                                                const checked = e.target.checked;
+                                            type="number"
+                                            step="0.01"
+                                            className="w-full border-zinc-300 dark:border-zinc-700 rounded text-sm px-3 py-2 bg-white dark:bg-zinc-800"
+                                            placeholder="10.00"
+                                            defaultValue={tenant.settings?.noShowFeeAmount ? (tenant.settings.noShowFeeAmount / 100).toFixed(2) : '10.00'}
+                                            onBlur={async (e) => {
+                                                const val = parseFloat(e.target.value);
+                                                if (val > 0) {
+                                                    const cents = Math.round(val * 100);
+                                                    const token = await (window as any).Clerk?.session?.getToken();
+                                                    await apiRequest(`/tenant/settings`, token, {
+                                                        method: "PATCH",
+                                                        headers: { 'X-Tenant-Slug': tenant.slug },
+                                                        body: JSON.stringify({ settings: { noShowFeeAmount: cents } })
+                                                    });
+                                                }
+                                            }}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                                                checked={tenant.settings?.notificationSettings?.noShowSms !== false}
+                                                onChange={async (e) => {
+                                                    const checked = e.target.checked;
+                                                    setTenant((prev: any) => ({
+                                                        ...prev,
+                                                        settings: {
+                                                            ...prev.settings,
+                                                            notificationSettings: { ...prev.settings?.notificationSettings, noShowSms: checked }
+                                                        }
+                                                    }));
+                                                    const token = await (window as any).Clerk?.session?.getToken();
+                                                    await apiRequest(`/tenant/settings`, token, {
+                                                        method: "PATCH",
+                                                        headers: { 'X-Tenant-Slug': tenant.slug },
+                                                        body: JSON.stringify({ settings: { notificationSettings: { ...tenant.settings?.notificationSettings, noShowSms: checked } } })
+                                                    });
+                                                    toast.success("Saved");
+                                                }}
+                                            />
+                                            <span className="text-sm text-zinc-700 dark:text-zinc-300">Send SMS Alert</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Auto-Mark No Shows */}
+                        <div className="p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded border border-zinc-200 dark:border-zinc-700 h-fit">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Auto-Mark No Shows</span>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Auto-mark expected students.</p>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={tenant.settings?.noShowAutoMarkEnabled || false}
+                                        onChange={async (e) => {
+                                            const checked = e.target.checked;
+                                            setTenant((prev: any) => ({
+                                                ...prev,
+                                                settings: { ...prev.settings, noShowAutoMarkEnabled: checked }
+                                            }));
+                                            try {
                                                 const token = await (window as any).Clerk?.session?.getToken();
                                                 await apiRequest(`/tenant/settings`, token, {
                                                     method: "PATCH",
                                                     headers: { 'X-Tenant-Slug': tenant.slug },
-                                                    body: JSON.stringify({ settings: { notificationSettings: { ...tenant.settings?.notificationSettings, noShowSms: checked } } })
+                                                    body: JSON.stringify({ settings: { noShowAutoMarkEnabled: checked } })
                                                 });
-                                                window.location.reload();
-                                            }}
-                                        />
-                                        <span className="text-sm text-zinc-700 dark:text-zinc-300">Send SMS Alert</span>
-                                    </label>
-                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 ml-6 mt-1">Notify student via SMS when charged/marked.</p>
-                                </div>
-                            </>
-                        )}
-
-                        <div className="flex items-center justify-between pb-4">
-                            <div>
-                                <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Auto-Mark No Shows</span>
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400">Automatically mark expected students as No Show.</p>
+                                                toast.success("Saved");
+                                            } catch (err) { toast.error("Failed to save"); }
+                                        }}
+                                    />
+                                    <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
                             </div>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    className="sr-only peer"
-                                    checked={tenant.settings?.noShowAutoMarkEnabled || false}
-                                    onChange={async (e) => {
-                                        const checked = e.target.checked;
-                                        try {
+
+                            {tenant.settings?.noShowAutoMarkEnabled && (
+                                <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700">
+                                    <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">When to Mark?</label>
+                                    <select
+                                        className="w-full border-zinc-300 dark:border-zinc-700 rounded text-sm px-3 py-2 bg-white dark:bg-zinc-800"
+                                        defaultValue={tenant.settings?.noShowAutoMarkTime || 'end_of_class'}
+                                        onChange={async (e) => {
+                                            const val = e.target.value;
                                             const token = await (window as any).Clerk?.session?.getToken();
                                             await apiRequest(`/tenant/settings`, token, {
                                                 method: "PATCH",
                                                 headers: { 'X-Tenant-Slug': tenant.slug },
-                                                body: JSON.stringify({ settings: { noShowAutoMarkEnabled: checked } })
+                                                body: JSON.stringify({ settings: { noShowAutoMarkTime: val } })
                                             });
-                                            window.location.reload();
-                                        } catch (err) { toast.error("Failed to save"); }
-                                    }}
-                                />
-                                <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                            </label>
+                                        }}
+                                    >
+                                        <option value="start_of_class">Start of Class</option>
+                                        <option value="15_mins_after_start">15 Minutes After Start</option>
+                                        <option value="end_of_class">End of Class</option>
+                                    </select>
+                                </div>
+                            )}
                         </div>
-
-                        {tenant.settings?.noShowAutoMarkEnabled && (
-                            <div>
-                                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">When to Mark?</label>
-                                <select
-                                    className="w-full border-zinc-300 dark:border-zinc-700 rounded text-sm px-3 py-2 bg-white dark:bg-zinc-800"
-                                    defaultValue={tenant.settings?.noShowAutoMarkTime || 'end_of_class'}
-                                    onChange={async (e) => {
-                                        const val = e.target.value;
-                                        const token = await (window as any).Clerk?.session?.getToken();
-                                        await apiRequest(`/tenant/settings`, token, {
-                                            method: "PATCH",
-                                            headers: { 'X-Tenant-Slug': tenant.slug },
-                                            body: JSON.stringify({ settings: { noShowAutoMarkTime: val } })
-                                        });
-                                    }}
-                                >
-                                    <option value="start_of_class">Start of Class</option>
-                                    <option value="15_mins_after_start">15 Minutes After Start</option>
-                                    <option value="end_of_class">End of Class</option>
-                                </select>
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>
@@ -618,13 +659,20 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                         checked={tenant.settings?.classSettings?.defaultAutoCancelEnabled !== false}
                                         onChange={async (e) => {
                                             const checked = e.target.checked;
+                                            setTenant((prev: any) => ({
+                                                ...prev,
+                                                settings: {
+                                                    ...prev.settings,
+                                                    classSettings: { ...prev.settings?.classSettings, defaultAutoCancelEnabled: checked }
+                                                }
+                                            }));
                                             const token = await (window as any).Clerk?.session?.getToken();
                                             await apiRequest(`/tenant/settings`, token, {
                                                 method: "PATCH",
                                                 headers: { 'X-Tenant-Slug': tenant.slug },
                                                 body: JSON.stringify({ settings: { classSettings: { ...tenant.settings?.classSettings, defaultAutoCancelEnabled: checked } } })
                                             });
-                                            window.location.reload();
+                                            toast.success("Saved");
                                         }}
                                     />
                                     <span className="text-sm text-zinc-700 dark:text-zinc-300">Enable by Default</span>
@@ -666,13 +714,20 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                         checked={tenant.settings?.notificationSettings?.bookingEmail !== false}
                                         onChange={async (e) => {
                                             const checked = e.target.checked;
+                                            setTenant((prev: any) => ({
+                                                ...prev,
+                                                settings: {
+                                                    ...prev.settings,
+                                                    notificationSettings: { ...prev.settings?.notificationSettings, bookingEmail: checked }
+                                                }
+                                            }));
                                             const token = await (window as any).Clerk?.session?.getToken();
                                             await apiRequest(`/tenant/settings`, token, {
                                                 method: "PATCH",
                                                 headers: { 'X-Tenant-Slug': tenant.slug },
                                                 body: JSON.stringify({ settings: { notificationSettings: { ...tenant.settings?.notificationSettings, bookingEmail: checked } } })
                                             });
-                                            window.location.reload();
+                                            toast.success("Saved");
                                         }}
                                     />
                                     <span className="text-sm text-zinc-700 dark:text-zinc-300">Email</span>
@@ -684,13 +739,20 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                         checked={tenant.settings?.notificationSettings?.bookingSms !== false}
                                         onChange={async (e) => {
                                             const checked = e.target.checked;
+                                            setTenant((prev: any) => ({
+                                                ...prev,
+                                                settings: {
+                                                    ...prev.settings,
+                                                    notificationSettings: { ...prev.settings?.notificationSettings, bookingSms: checked }
+                                                }
+                                            }));
                                             const token = await (window as any).Clerk?.session?.getToken();
                                             await apiRequest(`/tenant/settings`, token, {
                                                 method: "PATCH",
                                                 headers: { 'X-Tenant-Slug': tenant.slug },
                                                 body: JSON.stringify({ settings: { notificationSettings: { ...tenant.settings?.notificationSettings, bookingSms: checked } } })
                                             });
-                                            window.location.reload();
+                                            toast.success("Saved");
                                         }}
                                     />
                                     <span className="text-sm text-zinc-700 dark:text-zinc-300">SMS</span>
@@ -711,13 +773,20 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                         checked={tenant.settings?.notificationSettings?.waitlistEmail !== false}
                                         onChange={async (e) => {
                                             const checked = e.target.checked;
+                                            setTenant((prev: any) => ({
+                                                ...prev,
+                                                settings: {
+                                                    ...prev.settings,
+                                                    notificationSettings: { ...prev.settings?.notificationSettings, waitlistEmail: checked }
+                                                }
+                                            }));
                                             const token = await (window as any).Clerk?.session?.getToken();
                                             await apiRequest(`/tenant/settings`, token, {
                                                 method: "PATCH",
                                                 headers: { 'X-Tenant-Slug': tenant.slug },
                                                 body: JSON.stringify({ settings: { notificationSettings: { ...tenant.settings?.notificationSettings, waitlistEmail: checked } } })
                                             });
-                                            window.location.reload();
+                                            toast.success("Saved");
                                         }}
                                     />
                                     <span className="text-sm text-zinc-700 dark:text-zinc-300">Email</span>
@@ -729,13 +798,20 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                         checked={tenant.settings?.notificationSettings?.waitlistSms !== false}
                                         onChange={async (e) => {
                                             const checked = e.target.checked;
+                                            setTenant((prev: any) => ({
+                                                ...prev,
+                                                settings: {
+                                                    ...prev.settings,
+                                                    notificationSettings: { ...prev.settings?.notificationSettings, waitlistSms: checked }
+                                                }
+                                            }));
                                             const token = await (window as any).Clerk?.session?.getToken();
                                             await apiRequest(`/tenant/settings`, token, {
                                                 method: "PATCH",
                                                 headers: { 'X-Tenant-Slug': tenant.slug },
                                                 body: JSON.stringify({ settings: { notificationSettings: { ...tenant.settings?.notificationSettings, waitlistSms: checked } } })
                                             });
-                                            window.location.reload();
+                                            toast.success("Saved");
                                         }}
                                     />
                                     <span className="text-sm text-zinc-700 dark:text-zinc-300">SMS</span>
@@ -756,13 +832,20 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                         checked={tenant.settings?.notificationSettings?.cancellationEmail !== false} // Default true
                                         onChange={async (e) => {
                                             const checked = e.target.checked;
+                                            setTenant((prev: any) => ({
+                                                ...prev,
+                                                settings: {
+                                                    ...prev.settings,
+                                                    notificationSettings: { ...prev.settings?.notificationSettings, cancellationEmail: checked }
+                                                }
+                                            }));
                                             const token = await (window as any).Clerk?.session?.getToken();
                                             await apiRequest(`/tenant/settings`, token, {
                                                 method: "PATCH",
                                                 headers: { 'X-Tenant-Slug': tenant.slug },
                                                 body: JSON.stringify({ settings: { notificationSettings: { ...tenant.settings?.notificationSettings, cancellationEmail: checked } } })
                                             });
-                                            window.location.reload();
+                                            toast.success("Saved");
                                         }}
                                     />
                                     <span className="text-sm text-zinc-700 dark:text-zinc-300">Email</span>
@@ -774,13 +857,20 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                         checked={tenant.settings?.notificationSettings?.cancellationSms || false}
                                         onChange={async (e) => {
                                             const checked = e.target.checked;
+                                            setTenant((prev: any) => ({
+                                                ...prev,
+                                                settings: {
+                                                    ...prev.settings,
+                                                    notificationSettings: { ...prev.settings?.notificationSettings, cancellationSms: checked }
+                                                }
+                                            }));
                                             const token = await (window as any).Clerk?.session?.getToken();
                                             await apiRequest(`/tenant/settings`, token, {
                                                 method: "PATCH",
                                                 headers: { 'X-Tenant-Slug': tenant.slug },
                                                 body: JSON.stringify({ settings: { notificationSettings: { ...tenant.settings?.notificationSettings, cancellationSms: checked } } })
                                             });
-                                            window.location.reload();
+                                            toast.success("Saved");
                                         }}
                                     />
                                     <span className="text-sm text-zinc-700 dark:text-zinc-300">SMS</span>
