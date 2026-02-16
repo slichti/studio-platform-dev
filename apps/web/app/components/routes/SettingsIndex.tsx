@@ -369,9 +369,9 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                     <div>
                         <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Admin Notification Email</label>
                         <input
-                            type="email"
+                            type="text"
                             className="w-full border-zinc-300 dark:border-zinc-700 rounded text-sm px-3 py-2 bg-white dark:bg-zinc-800"
-                            placeholder="admin@studio.com"
+                            placeholder="admin@studio.com, manager@studio.com"
                             defaultValue={tenant.settings?.notifications?.adminEmail || ''}
                             onBlur={async (e) => {
                                 const val = e.target.value;
@@ -383,7 +383,7 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                 });
                             }}
                         />
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Where should we send system alerts?</p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Where should we send system alerts? Comma separate for multiple.</p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
