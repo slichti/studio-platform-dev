@@ -19,6 +19,7 @@ import { Label } from "~/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "~/components/ui/DropdownMenu";
 
 import { usePlans, useSubscriptions, type Plan } from "~/hooks/useMemberships";
+import { getTenantUrl } from "~/utils/domain";
 
 export default function MembershipPlanDetailPage() {
     const { slug, planId } = useParams();
@@ -128,12 +129,12 @@ export default function MembershipPlanDetailPage() {
                             <CardContent className="space-y-6">
                                 <UrlRow
                                     label="Checkout Link"
-                                    url={`https://${tenant?.customDomain || `${slug}.heymarvelous.com`}/buy/product/${plan.id}`}
+                                    url={`${getTenantUrl(tenant)}/buy/product/${plan.id}`}
                                     description="Direct link to purchase."
                                 />
                                 <UrlRow
                                     label="Product Page"
-                                    url={`https://${tenant?.customDomain || `${slug}.heymarvelous.com`}/product/${plan.id}`}
+                                    url={`${getTenantUrl(tenant)}/product/${plan.id}`}
                                     description="Page with details."
                                 />
                             </CardContent>
