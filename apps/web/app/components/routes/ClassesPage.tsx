@@ -75,7 +75,7 @@ export default function ClassesPage() {
     } = useInfiniteClasses(slug!, {
         status: includeArchived ? 'all' : 'active',
         limit: 20
-    });
+    }, contextToken);
 
     const classes = infiniteData?.pages.flat() || [];
 

@@ -2,13 +2,13 @@ import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { useAuth } from "@clerk/react-router";
 import { apiRequest } from "~/utils/api";
 
-export function useClasses(tenantSlug: string, filters?: { search?: string; status?: string; limit?: number; offset?: number }) {
+export function useClasses(tenantSlug: string, filters?: { search?: string; status?: string; limit?: number; offset?: number }, tokenOverride?: string | null) {
     const { getToken } = useAuth();
 
     return useQuery({
-        queryKey: ['classes', tenantSlug, filters],
+        queryKey: ['classes', tenantSlug, filters, tokenOverride],
         queryFn: async () => {
-            const token = await getToken();
+            const token = tokenOverride || await getToken();
             const queryParams = new URLSearchParams();
             if (filters?.search) queryParams.set('search', filters.search);
             if (filters?.status && filters.status !== 'all') queryParams.set('status', filters.status);
@@ -24,14 +24,14 @@ export function useClasses(tenantSlug: string, filters?: { search?: string; stat
     });
 }
 
-export function useInfiniteClasses(tenantSlug: string, filters?: { search?: string; status?: string; limit?: number }) {
+export function useInfiniteClasses(tenantSlug: string, filters?: { search?: string; status?: string; limit?: number }, tokenOverride?: string | null) {
     const { getToken } = useAuth();
     const limit = filters?.limit || 20;
 
     return useInfiniteQuery({
-        queryKey: ['classes-infinite', tenantSlug, filters],
+        queryKey: ['classes-infinite', tenantSlug, filters, tokenOverride],
         queryFn: async ({ pageParam = 0 }) => {
-            const token = await getToken();
+            const token = tokenOverride || await getToken();
             const queryParams = new URLSearchParams();
             if (filters?.search) queryParams.set('search', filters.search);
             if (filters?.status && filters.status !== 'all') queryParams.set('status', filters.status);
