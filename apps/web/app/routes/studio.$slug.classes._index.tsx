@@ -74,8 +74,14 @@ export const clientAction = async ({ request, params }: ClientActionFunctionArgs
     const memberId = formData.get("memberId"); // Optional (for family)
     const attendanceType = formData.get("attendanceType");
 
-    // Get token from global Clerk instance (SPA mode)
-    const token = await (window as any).Clerk?.session?.getToken();
+    // Get token from cookie (impersonation) or Clerk
+    let token = null;
+    const cookieMatch = document.cookie.match(/(?:^|; )__impersonate_token=([^;]*)/);
+    if (cookieMatch && cookieMatch[1]) {
+        token = cookieMatch[1];
+    } else {
+        token = await (window as any).Clerk?.session?.getToken();
+    }
 
     if (!token) return { error: "Unauthorized" };
 

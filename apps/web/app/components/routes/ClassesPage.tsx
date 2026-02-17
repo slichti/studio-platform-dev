@@ -54,7 +54,8 @@ type ClassEvent = {
 
 export default function ClassesPage() {
     const { slug } = useParams();
-    const { roles, tenant, me, member } = useOutletContext<any>() || {};
+    const { roles, tenant, me, token: contextToken } = useOutletContext<any>() || {};
+    const member = me; // Map 'me' to 'member' for consistency
     const { getToken } = useAuth();
     const queryClient = useQueryClient();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -79,7 +80,7 @@ export default function ClassesPage() {
     const classes = infiniteData?.pages.flat() || [];
 
     // User Data (for bookings)
-    const { data: userData } = useUser(slug);
+    const { data: userData } = useUser(slug, contextToken);
     const family = userData?.family || [];
 
     const [metadata, setMetadata] = useState<{ locations: any[], instructors: any[], plans: any[] }>({ locations: [], instructors: [], plans: [] });
@@ -193,7 +194,7 @@ export default function ClassesPage() {
 
     const joinWaitlist = async (cls: ClassEvent) => {
         try {
-            const token = await getToken();
+            const token = contextToken || await getToken();
             await apiRequest(`/waitlist/${cls.id}/join`, token, {
                 method: "POST",
                 headers: { 'X-Tenant-Slug': slug! },
@@ -208,7 +209,7 @@ export default function ClassesPage() {
 
     const handleQuickBook = async (cls: ClassEvent) => {
         try {
-            const token = await getToken();
+            const token = contextToken || await getToken();
             await apiRequest("/bookings", token, {
                 method: "POST",
                 headers: { 'X-Tenant-Slug': slug! },

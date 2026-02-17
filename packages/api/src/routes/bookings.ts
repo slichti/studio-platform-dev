@@ -69,37 +69,17 @@ app.post('/', async (c) => {
     const tenant = c.get('tenant')!;
 
     let targetId = memberId;
+
+    // Resolve Target Member (Self or Family)
     if (!targetId) {
-        const m = await db.select().from(tenantMembers).where(and(eq(tenantMembers.userId, c.get('auth')!.userId), eq(tenantMembers.tenantId, tenant.id))).get();
+        // Default to self
+        let m = await db.select().from(tenantMembers).where(and(eq(tenantMembers.userId, c.get('auth')!.userId), eq(tenantMembers.tenantId, tenant.id))).get();
 
         if (!m && c.get('isPlatformAdmin')) {
-            // Auto-create a member record for platform admins to allow the DB constraints to pass
+            // Auto-create for Platform Admin if missing
+            console.log(`[BOOKING] Creating admin member record for ${c.get('auth')!.userId}`);
             const newMemberId = crypto.randomUUID();
-            await db.insert(tenantMembers).values({
-                id: newMemberId,
-                tenantId: tenant.id,
-                userId: c.get('auth')!.userId,
-                status: 'active',
-                joinedAt: new Date()
-            }).run();
-
-            // Also insert the role record
-            await db.insert(tenantRoles).values({
-                id: crypto.randomUUID(),
-                memberId: newMemberId,
-                role: 'owner',
-                createdAt: new Date()
-            }).run();
-
-            targetId = newMemberId;
-            console.log(`[DEBUG] POST /bookings - Auto-created member ${newMemberId} and owner role for platform admin`);
-        } else if (!m) {
-            // Auto-join if enabled by tenant settings
-            const settings = tenant.settings as any;
-            if (settings?.enableStudentRegistration) {
-                const newMemberId = crypto.randomUUID();
-
-                // Create member record
+            try {
                 await db.insert(tenantMembers).values({
                     id: newMemberId,
                     tenantId: tenant.id,
@@ -107,30 +87,64 @@ app.post('/', async (c) => {
                     status: 'active',
                     joinedAt: new Date()
                 }).run();
-
-                // Create student role
+                await db.insert(tenantRoles).values({
+                    id: crypto.randomUUID(),
+                    memberId: newMemberId,
+                    role: 'owner',
+                    createdAt: new Date()
+                }).run();
+                m = { id: newMemberId };
+            } catch (e) {
+                // Ignore race condition if already created
+                m = await db.select().from(tenantMembers).where(and(eq(tenantMembers.userId, c.get('auth')!.userId), eq(tenantMembers.tenantId, tenant.id))).get();
+            }
+        } else if (!m) {
+            // Auto-join Logic
+            const settings = tenant.settings as any;
+            if (settings?.enableStudentRegistration) {
+                console.log(`[BOOKING] Auto-joining student ${c.get('auth')!.userId}`);
+                const newMemberId = crypto.randomUUID();
+                await db.insert(tenantMembers).values({
+                    id: newMemberId,
+                    tenantId: tenant.id,
+                    userId: c.get('auth')!.userId,
+                    status: 'active',
+                    joinedAt: new Date()
+                }).run();
                 await db.insert(tenantRoles).values({
                     id: crypto.randomUUID(),
                     memberId: newMemberId,
                     role: 'student',
                     createdAt: new Date()
                 }).run();
-
-                targetId = newMemberId;
-                console.log(`[BOOKING] Auto-joined user ${c.get('auth')!.userId} as student to tenant ${tenant.id} during booking attempt`);
+                m = { id: newMemberId };
             } else {
                 return c.json({ error: "Member not found" }, 403);
             }
-        } else {
-            targetId = m.id;
         }
+        targetId = m!.id;
+    } else {
+        // Verify target member belongs to user (Family check)
+        // TODO: Strict family check. For now, we trust the ID if it belongs to the tenant, 
+        // but ideally we should check if `targetId` is linked to `auth.userId` via family relationship.
+        // Assuming the select below verifies existence in tenant.
+        const tm = await db.select().from(tenantMembers).where(and(eq(tenantMembers.id, targetId), eq(tenantMembers.tenantId, tenant.id))).get();
+        if (!tm) return c.json({ error: "Target member not found" }, 404);
     }
 
     const cl = await db.select().from(classes).where(and(eq(classes.id, classId), eq(classes.tenantId, tenant.id))).get();
     if (!cl) return c.json({ error: "Not found" }, 404);
 
-    const existing = await db.select().from(bookings).where(and(eq(bookings.classId, classId), eq(bookings.memberId, targetId), eq(bookings.status, 'confirmed'))).all();
-    if (existing.length > 0) return c.json({ error: "Already booked" }, 400);
+    // FIX: Check for BOTH confirmed and waitlisted to prevent duplicates
+    const existing = await db.select().from(bookings).where(
+        and(
+            eq(bookings.classId, classId),
+            eq(bookings.memberId, targetId),
+            inArray(bookings.status, ['confirmed', 'waitlisted'])
+        )
+    ).all();
+
+    if (existing.length > 0) return c.json({ error: "Already booked or waitlisted" }, 400);
 
     const count = (await db.select({ c: sql<number>`count(*)` }).from(bookings).where(and(eq(bookings.classId, classId), eq(bookings.status, 'confirmed'))).get())?.c || 0;
     if (!cl.zoomEnabled && cl.capacity && count >= cl.capacity) return c.json({ error: "Class is full" }, 400);
