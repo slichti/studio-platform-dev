@@ -156,6 +156,9 @@ app.openapi(createRoute({
             bookingCount: bm.get(r.id) || 0,
             waitlistCount: wm.get(r.id) || 0,
             zoomEnabled: !!r.zoomEnabled,
+            // TODO: Split counts by attendance type when DB supports it
+            inPersonCount: bm.get(r.id) || 0,
+            virtualCount: 0,
             myBooking: myBooking ? {
                 id: myBooking.id,
                 status: myBooking.status,
