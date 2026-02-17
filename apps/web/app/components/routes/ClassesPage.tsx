@@ -31,13 +31,15 @@ type ClassEvent = {
     price: number;
     capacity?: number;
     confirmedCount?: number;
-    userBookingStatus?: string;
     zoomEnabled?: boolean;
     virtualCount?: number;
     inPersonCount?: number;
-    userBooking?: {
+    myBooking?: {
         id: string;
-        attendanceType: 'in_person' | 'zoom';
+        status: string;
+        attendanceType: 'in_person' | 'zoom' | string;
+        zoomMeetingUrl?: string | null;
+        zoomPassword?: string | null;
     };
     status: 'active' | 'cancelled' | 'archived';
     instructor?: {
@@ -280,11 +282,11 @@ export default function ClassesPage() {
                                                         <div className="flex items-start justify-between gap-2">
                                                             <span className="font-semibold text-sm line-clamp-2 leading-tight">{cls.title}</span>
                                                             {/* Status Badge */}
-                                                            {(cls.status === 'archived' || cls.userBookingStatus) && (
+                                                            {(cls.status === 'archived' || cls.myBooking) && (
                                                                 <div className="shrink-0">
                                                                     {cls.status === 'archived' && <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">Archived</Badge>}
-                                                                    {cls.userBookingStatus === 'confirmed' && <Badge variant="success" className="text-[10px] px-1.5 py-0 h-5">Booked</Badge>}
-                                                                    {cls.userBookingStatus === 'waitlisted' && <Badge variant="warning" className="text-[10px] px-1.5 py-0 h-5">Waitlisted</Badge>}
+                                                                    {cls.myBooking?.status === 'confirmed' && <Badge variant="success" className="text-[10px] px-1.5 py-0 h-5">Booked</Badge>}
+                                                                    {cls.myBooking?.status === 'waitlisted' && <Badge variant="warning" className="text-[10px] px-1.5 py-0 h-5">Waitlisted</Badge>}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -354,16 +356,16 @@ export default function ClassesPage() {
                                                                 )}
                                                                 {cls.status !== 'archived' && (
                                                                     me ? (
-                                                                        cls.userBookingStatus === 'confirmed' ? (
+                                                                        cls.myBooking?.status === 'confirmed' ? (
                                                                             <Button
                                                                                 variant="destructive"
                                                                                 size="sm"
                                                                                 className="h-7 w-full text-xs"
-                                                                                onClick={() => setConfirmCancelData({ bookingId: cls.userBooking!.id, classId: cls.id })}
+                                                                                onClick={() => setConfirmCancelData({ bookingId: cls.myBooking!.id, classId: cls.id })}
                                                                             >
                                                                                 Cancel
                                                                             </Button>
-                                                                        ) : cls.userBookingStatus === 'waitlisted' ? (
+                                                                        ) : cls.myBooking?.status === 'waitlisted' ? (
                                                                             <Button variant="secondary" disabled size="sm" className="h-7 w-full text-xs">Waitlisted</Button>
                                                                         ) : (
                                                                             ((cls.inPersonCount || 0) >= (cls.capacity || Infinity) && !cls.zoomEnabled) ? (
@@ -417,6 +419,7 @@ export default function ClassesPage() {
             />
 
             <BookingModal
+                key={selectedClass?.id}
                 isOpen={!!selectedClass}
                 onClose={() => setSelectedClass(null)}
                 classEvent={selectedClass}
