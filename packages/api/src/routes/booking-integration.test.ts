@@ -126,6 +126,13 @@ describe('Booking Lifecycle Integration', () => {
             triggered_at INTEGER, metadata TEXT
         )`);
 
+        // 13. Subscriptions (Required for Booking Logic)
+        sqlite.exec(`CREATE TABLE subscriptions (
+            id TEXT PRIMARY KEY, user_id TEXT, tenant_id TEXT, member_id TEXT, plan_id TEXT,
+            status TEXT, tier TEXT, current_period_end INTEGER, stripe_subscription_id TEXT,
+            canceled_at INTEGER, dunning_state TEXT, last_dunning_at INTEGER, created_at INTEGER
+        )`);
+
         // Setup mock environment
         env = {
             RESEND_API_KEY: 'mock_resend_key'
