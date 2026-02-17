@@ -94,7 +94,33 @@ app.post('/', async (c) => {
             targetId = newMemberId;
             console.log(`[DEBUG] POST /bookings - Auto-created member ${newMemberId} and owner role for platform admin`);
         } else if (!m) {
-            return c.json({ error: "Member not found" }, 403);
+            // Auto-join if enabled by tenant settings
+            const settings = tenant.settings as any;
+            if (settings?.enableStudentRegistration) {
+                const newMemberId = crypto.randomUUID();
+
+                // Create member record
+                await db.insert(tenantMembers).values({
+                    id: newMemberId,
+                    tenantId: tenant.id,
+                    userId: c.get('auth')!.userId,
+                    status: 'active',
+                    joinedAt: new Date()
+                }).run();
+
+                // Create student role
+                await db.insert(tenantRoles).values({
+                    id: crypto.randomUUID(),
+                    memberId: newMemberId,
+                    role: 'student',
+                    createdAt: new Date()
+                }).run();
+
+                targetId = newMemberId;
+                console.log(`[BOOKING] Auto-joined user ${c.get('auth')!.userId} as student to tenant ${tenant.id} during booking attempt`);
+            } else {
+                return c.json({ error: "Member not found" }, 403);
+            }
         } else {
             targetId = m.id;
         }
