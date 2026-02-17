@@ -55,6 +55,50 @@ type ClassEvent = {
 import { lazy, Suspense } from "react";
 import { ClientOnly } from "~/components/ClientOnly";
 
+// Actually, we should use `clientAction` if we want to keep it SPA-like or just handle it in component.
+// The `BookingModal` uses `fetcher.Form` which defaults to `action`.
+// If we have no `action`, it 405s. 
+// Let's implement `clientAction` (or `action` if SSR).
+// Given this is a "Studio Platform" usually fully SPA or hybrid. 
+// The file has `ClientOnly`, suggesting client-side rendering focus.
+// `useAuth` is from `@clerk/react-router`.
+// Let's use `clientAction` to call API.
+
+// Client Action for SPA-like behavior
+import { type ClientActionFunctionArgs } from "react-router";
+
+export const clientAction = async ({ request, params }: ClientActionFunctionArgs) => {
+    const formData = await request.formData();
+    const intent = formData.get("intent");
+    const classId = formData.get("classId");
+    const memberId = formData.get("memberId"); // Optional (for family)
+    const attendanceType = formData.get("attendanceType");
+
+    // Get token from global Clerk instance (SPA mode)
+    const token = await (window as any).Clerk?.session?.getToken();
+
+    if (!token) return { error: "Unauthorized" };
+
+    try {
+        if (intent === 'book' || intent === 'waitlist') {
+            const body: any = { classId, attendanceType };
+            if (memberId) body.memberId = memberId;
+
+            const endpoint = intent === 'waitlist' ? `/waitlist/${classId}/join` : `/bookings`;
+
+            const res = await apiRequest(endpoint, token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': params.slug! },
+                body: JSON.stringify(body)
+            });
+            return res; // Should be { success: true, id: ... } or { error: ... }
+        }
+    } catch (e: any) {
+        return { error: e.message || "Action failed" };
+    }
+    return null;
+};
+
 const ClassesPage = lazy(() => import("../components/routes/ClassesPage"));
 
 export default function StudioPublicClasses() {

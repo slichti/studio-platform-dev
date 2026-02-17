@@ -420,8 +420,11 @@ export default function ClassesPage() {
                 isOpen={!!selectedClass}
                 onClose={() => setSelectedClass(null)}
                 classEvent={selectedClass}
-                family={family}
-                member={userData?.profile?.id ? { id: userData.profile.id, ...userData.profile } : member} // Adjust member object for modal
+                family={family || []}
+                member={member}
+                onSuccess={() => {
+                    queryClient.invalidateQueries({ queryKey: ['classes-infinite', slug] });
+                }}
             />
 
             <ConfirmationDialog

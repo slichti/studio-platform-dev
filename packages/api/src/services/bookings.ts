@@ -20,9 +20,23 @@ export class BookingService {
             throw new Error("Class is full");
         }
 
-        // Credit Logic
+        // Membership Logic (Prioritize over credits)
+        const { subscriptions } = await import('@studio/db/src/schema');
+        const activeSubs = await this.db.select().from(subscriptions)
+            .where(and(
+                eq(subscriptions.memberId, memberId),
+                eq(subscriptions.status, 'active')
+            )).all();
+
+        const includedPlanIds = cls.includedPlanIds as string[] || [];
+        const isCoveredByMembership = activeSubs.some((sub: any) => includedPlanIds.includes(sub.planId!));
+
         let usedPackId = null;
-        if (cls.allowCredits) {
+
+        if (isCoveredByMembership) {
+            // Covered by membership, do not use credits
+            // specific logic could be added here (e.g. tracking which membership used)
+        } else if (cls.allowCredits) {
             // Find an active pack with credits
             // Order by expiration (earliest first) to use expiring credits first
             const { purchasedPacks } = await import('@studio/db/src/schema');

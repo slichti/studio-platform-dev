@@ -11,9 +11,10 @@ interface BookingModalProps {
     classEvent: any;
     family: any[];
     member?: any;
+    onSuccess?: () => void; // Added onSuccess prop
 }
 
-export function BookingModal({ isOpen, onClose, classEvent, family, member }: BookingModalProps) {
+export function BookingModal({ isOpen, onClose, classEvent, family, member, onSuccess }: BookingModalProps) {
     const fetcher = useFetcher();
     const [attendanceType, setAttendanceType] = useState<'in_person' | 'zoom'>('in_person');
     const [showSuccess, setShowSuccess] = useState(false);
@@ -22,18 +23,23 @@ export function BookingModal({ isOpen, onClose, classEvent, family, member }: Bo
     // Detect successful booking
     useEffect(() => {
         if (fetcher.state === 'idle' && fetcher.data && !showSuccess) {
-            setShowSuccess(true);
-            setShowConfetti(true);
+            if ((fetcher.data as any).success) { // Check for explicit success in response
+                setShowSuccess(true);
+                setShowConfetti(true);
+                if (onSuccess) onSuccess(); // Normalize state updates
 
-            // Auto-close after showing success
-            const timer = setTimeout(() => {
-                setShowSuccess(false);
-                onClose();
-            }, 2000);
+                // Auto-close after showing success
+                const timer = setTimeout(() => {
+                    setShowSuccess(false);
+                    onClose();
+                }, 2000);
 
-            return () => clearTimeout(timer);
+                return () => clearTimeout(timer);
+            } else if ((fetcher.data as any).error) {
+                // Handle error if needed, usually toast handles it in parent or here
+            }
         }
-    }, [fetcher.state, fetcher.data, showSuccess, onClose]);
+    }, [fetcher.state, fetcher.data, showSuccess, onClose, onSuccess]);
 
     if (!classEvent) return null;
 
@@ -88,6 +94,39 @@ export function BookingModal({ isOpen, onClose, classEvent, family, member }: Bo
                                         <X size={20} />
                                     </button>
                                 </div>
+
+                                {/* Class Details */}
+                                <div className="mb-6 space-y-3">
+                                    {classEvent.description && (
+                                        <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-3">
+                                            {classEvent.description}
+                                        </p>
+                                    )}
+
+                                    {/* Instructor Info */}
+                                    {classEvent.instructor && (
+                                        <div className="flex items-center gap-3 bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-lg">
+                                            {classEvent.instructor.user?.profile?.avatarUrl ? (
+                                                <img
+                                                    src={classEvent.instructor.user.profile.avatarUrl}
+                                                    alt="Instructor"
+                                                    className="w-10 h-10 rounded-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="w-10 h-10 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center">
+                                                    <User size={16} className="text-zinc-500" />
+                                                </div>
+                                            )}
+                                            <div>
+                                                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                                                    with {classEvent.instructor.user?.profile?.firstName || 'Instructor'}
+                                                </p>
+                                                {/* Could add instructor bio here if available in classEvent.instructor.profile */}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
 
                                 <div className="space-y-4">
                                     {/* Attendance Type Selector */}
@@ -164,7 +203,7 @@ export function BookingModal({ isOpen, onClose, classEvent, family, member }: Bo
 
                                     <div className="space-y-2">
                                         {/* Myself */}
-                                        <fetcher.Form method="post" action={`/studio/${window.location.pathname.split('/')[2]}/classes?index`} onSubmit={() => onClose()}>
+                                        <fetcher.Form method="post" action={`/studio/${window.location.pathname.split('/')[2]}/classes?index`} onSubmit={() => { }}>
                                             <input type="hidden" name="classId" value={classEvent.id} />
                                             <input type="hidden" name="attendanceType" value={attendanceType} />
                                             <input type="hidden" name="intent" value={isFull && attendanceType === 'in_person' ? 'waitlist' : 'book'} />
@@ -186,7 +225,7 @@ export function BookingModal({ isOpen, onClose, classEvent, family, member }: Bo
 
                                         {/* Family Members */}
                                         {family.map((f: any) => (
-                                            <fetcher.Form key={f.userId} method="post" action={`/studio/${window.location.pathname.split('/')[2]}/classes?index`} onSubmit={() => onClose()}>
+                                            <fetcher.Form key={f.userId} method="post" action={`/studio/${window.location.pathname.split('/')[2]}/classes?index`} onSubmit={() => { }}>
                                                 <input type="hidden" name="classId" value={classEvent.id} />
                                                 <input type="hidden" name="memberId" value={f.memberId || ''} />
                                                 <input type="hidden" name="attendanceType" value={attendanceType} />
