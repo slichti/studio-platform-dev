@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { bookings, classes, tenantMembers, users, tenants, tenantRoles } from '@studio/db/src/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, inArray } from 'drizzle-orm';
 import { checkAndPromoteWaitlist } from './waitlist';
 import { HonoContext } from '../types';
 import { BookingService } from '../services/bookings';
@@ -73,7 +73,7 @@ app.post('/', async (c) => {
     // Resolve Target Member (Self or Family)
     if (!targetId) {
         // Default to self
-        let m = await db.select().from(tenantMembers).where(and(eq(tenantMembers.userId, c.get('auth')!.userId), eq(tenantMembers.tenantId, tenant.id))).get();
+        const m = await db.select().from(tenantMembers).where(and(eq(tenantMembers.userId, c.get('auth')!.userId), eq(tenantMembers.tenantId, tenant.id))).get();
 
         if (!m && c.get('isPlatformAdmin')) {
             // Auto-create for Platform Admin if missing
@@ -93,10 +93,11 @@ app.post('/', async (c) => {
                     role: 'owner',
                     createdAt: new Date()
                 }).run();
-                m = { id: newMemberId };
+                targetId = newMemberId;
             } catch (e) {
                 // Ignore race condition if already created
-                m = await db.select().from(tenantMembers).where(and(eq(tenantMembers.userId, c.get('auth')!.userId), eq(tenantMembers.tenantId, tenant.id))).get();
+                const existing = await db.select().from(tenantMembers).where(and(eq(tenantMembers.userId, c.get('auth')!.userId), eq(tenantMembers.tenantId, tenant.id))).get();
+                if (existing) targetId = existing.id;
             }
         } else if (!m) {
             // Auto-join Logic
@@ -117,12 +118,13 @@ app.post('/', async (c) => {
                     role: 'student',
                     createdAt: new Date()
                 }).run();
-                m = { id: newMemberId };
+                targetId = newMemberId;
             } else {
                 return c.json({ error: "Member not found" }, 403);
             }
+        } else {
+            targetId = m.id;
         }
-        targetId = m!.id;
     } else {
         // Verify target member belongs to user (Family check)
         // TODO: Strict family check. For now, we trust the ID if it belongs to the tenant, 
