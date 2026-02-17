@@ -44,7 +44,34 @@ const ClassSchema = z.object({
     }).optional().nullable()
 }).openapi('Class');
 
-// ... (CreateClassSchema omitted for brevity as it is unchanged) ...
+const CreateClassSchema = z.object({
+    title: z.string(),
+    description: z.string().optional(),
+    startTime: z.string(), // ISO string from frontend
+    durationMinutes: z.coerce.number(),
+    instructorId: z.string().optional(),
+    locationId: z.string().optional(),
+    zoomEnabled: z.boolean().default(false),
+    createZoomMeeting: z.boolean().optional(),
+    capacity: z.coerce.number().optional(),
+    price: z.coerce.number().optional(),
+    memberPrice: z.coerce.number().optional(),
+    type: z.enum(['class', 'workshop', 'event', 'appointment']).default('class'),
+    minStudents: z.coerce.number().default(1),
+    autoCancelThreshold: z.coerce.number().optional(),
+    autoCancelEnabled: z.boolean().optional(),
+    allowCredits: z.boolean().default(true),
+    includedPlanIds: z.array(z.string()).optional(),
+    // Payroll
+    payrollModel: z.enum(['flat', 'percentage', 'hourly']).optional(),
+    payrollValue: z.coerce.number().optional(),
+    // Recurrence
+    isRecurring: z.boolean().optional(),
+    recurrenceRule: z.string().optional(),
+    recurrenceEnd: z.string().optional()
+}).openapi('CreateClass');
+
+const UpdateClassSchema = CreateClassSchema.partial().openapi('UpdateClass');
 
 // Routes
 

@@ -42,15 +42,17 @@ export function DropdownMenuContent({ children, className, align = 'end' }: { ch
     )
 }
 
-export function DropdownMenuItem({ children, className, onClick }: { children: React.ReactNode; className?: string; onClick?: () => void }) {
+export function DropdownMenuItem({ children, className, onClick, disabled }: { children: React.ReactNode; className?: string; onClick?: () => void; disabled?: boolean }) {
     return (
-        <Menu.Item>
-            {({ active }) => (
+        <Menu.Item disabled={disabled}>
+            {({ active, disabled }) => (
                 <button
                     onClick={onClick}
+                    disabled={disabled}
                     className={cn(
                         "flex w-full items-center px-4 py-2 text-sm",
                         active ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100" : "text-zinc-700 dark:text-zinc-300",
+                        disabled && "opacity-50 cursor-not-allowed",
                         className
                     )}
                 >
