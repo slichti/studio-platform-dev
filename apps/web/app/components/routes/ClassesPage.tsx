@@ -1,6 +1,6 @@
 
 import { useParams, useOutletContext, useSearchParams } from "react-router";
-import { useState } from "react";
+import { useState, useRef, useLayoutEffect } from "react";
 import { Plus, Archive, ArchiveRestore, Calendar as CalendarIcon, Clock, Users, Video } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -118,6 +118,35 @@ export default function ClassesPage() {
         return acc;
     }, {} as Record<string, ClassEvent[]>);
 
+    // Auto-scroll to today/upcoming
+    const hasScrolledRef = useRef(false);
+    useLayoutEffect(() => {
+        if (isLoadingClasses || classes.length === 0 || hasScrolledRef.current) return;
+
+        // Get local YYYY-MM-DD
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const todayIso = `${year}-${month}-${day}`;
+
+        // Small timeout to ensure rendering
+        const timer = setTimeout(() => {
+            const groups = document.querySelectorAll('[data-date-iso]');
+            for (const group of Array.from(groups)) {
+                const date = group.getAttribute('data-date-iso');
+                if (date && date >= todayIso) {
+                    // Scroll with offset for sticky header
+                    const y = group.getBoundingClientRect().top + window.scrollY - 100;
+                    window.scrollTo({ top: y, behavior: 'smooth' });
+                    hasScrolledRef.current = true;
+                    break;
+                }
+            }
+        }, 100);
+        return () => clearTimeout(timer);
+    }, [isLoadingClasses, classes.length]);
+
     const handleCreateSuccess = () => {
         queryClient.invalidateQueries({ queryKey: ['classes-infinite', slug] });
         setIsCreateOpen(false);
@@ -233,7 +262,7 @@ export default function ClassesPage() {
                     ) : (
                         <>
                             {(Object.entries(grouped) as [string, ClassEvent[]][]).map(([date, events]) => (
-                                <div key={date} className="space-y-4">
+                                <div key={date} className="space-y-4" data-date-iso={events[0]?.startTime.split('T')[0]}>
                                     <div className="sticky top-0 bg-white/95 dark:bg-zinc-950/95 py-2 z-10 backdrop-blur border-b border-zinc-100 dark:border-zinc-900">
                                         <h3 className="text-lg font-semibold flex items-center gap-2">
                                             <CalendarIcon className="h-5 w-5 text-zinc-400 ml-1" />
