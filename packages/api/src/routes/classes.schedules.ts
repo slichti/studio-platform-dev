@@ -76,7 +76,7 @@ const UpdateClassSchema = CreateClassSchema.partial().openapi('UpdateClass');
 // Routes
 
 // GET /
-app.use('/', cacheMiddleware({ maxAge: 60, staleWhileRevalidate: 300 }));
+// app.use('/', cacheMiddleware({ maxAge: 60, staleWhileRevalidate: 300 }));
 
 app.openapi(createRoute({
     method: 'get',
