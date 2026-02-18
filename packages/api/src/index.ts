@@ -289,12 +289,24 @@ const publicStudioPaths = [
 // first, identify the user (Auth)
 publicStudioPaths.forEach(path => app.use(path, optionalAuthMiddleware));
 authenticatedPaths.forEach(path => {
-  // Skip global auth for public upload paths that were added to publicStudioPaths
+  // Granular authentication for uploads to allow public GET for assets while requiring auth for POST/Private
   if (path === '/uploads' || path === '/uploads/*') {
-    // These will be handled by optionalAuthMiddleware above if they match the patterns
-    return;
+    app.use(path, async (c, next) => {
+      const isPublicAsset = c.req.method === 'GET' && (
+        c.req.path.includes('/branding/') ||
+        c.req.path.includes('/images/') ||
+        c.req.path.includes('/members/')
+      ) && !c.req.path.includes('/waivers/');
+
+      if (isPublicAsset) {
+        return optionalAuthMiddleware(c, next);
+      }
+      return authMiddleware(c, next);
+    });
+  } else {
+    app.use(path, authMiddleware);
   }
-  app.use(path, authMiddleware);
+
   // [NEW] Granular Rate Limit for Authenticated Users (Higher limit: 600 req/min)
   // This runs AFTER authMiddleware, so it will use the user ID as the key.
   app.use(path, rateLimitMiddleware({ limit: 600, window: 60 }));
