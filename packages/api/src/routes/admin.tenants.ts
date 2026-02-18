@@ -69,7 +69,16 @@ app.put('/:id/status', async (c) => {
     const db = createDb(c.env.DB);
     const { status } = await c.req.json();
     await db.update(tenants).set({ status }).where(eq(tenants.id, c.req.param('id'))).run();
-    await db.insert(auditLogs).values({ id: crypto.randomUUID(), action: 'update_status', actorId: c.get('auth')!.userId, targetId: c.req.param('id'), details: { status }, ipAddress: c.req.header('CF-Connecting-IP') }).run();
+
+    const audit = new AuditService(db);
+    await audit.log({
+        actorId: c.get('auth')!.userId,
+        action: 'update_status',
+        targetId: c.req.param('id'),
+        details: { status },
+        ipAddress: c.req.header('CF-Connecting-IP')
+    });
+
     return c.json({ success: true, status });
 });
 
@@ -84,14 +93,14 @@ app.patch('/:id/tier', async (c) => {
     await db.update(tenants).set({ tier }).where(eq(tenants.id, c.req.param('id'))).run();
 
     // Log audit
-    await db.insert(auditLogs).values({
-        id: crypto.randomUUID(),
-        action: 'update_tier',
+    const audit = new AuditService(db);
+    await audit.log({
         actorId: c.get('auth')!.userId,
+        action: 'update_tier',
         targetId: c.req.param('id'),
         details: { tier },
         ipAddress: c.req.header('CF-Connecting-IP')
-    }).run();
+    });
 
     return c.json({ success: true, tier });
 });
