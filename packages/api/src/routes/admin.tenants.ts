@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { sign } from 'hono/jwt';
 import { createDb } from '../db';
 import { tenants, tenantMembers, tenantRoles, subscriptions, tenantFeatures, websitePages, auditLogs, users, userRelationships, emailLogs, locations, classes, bookings, products, posOrders, marketingAutomations, marketingCampaigns, waiverTemplates, waiverSignatures, studentNotes, uploads, usageLogs, appointmentServices, availabilities, appointments, payrollConfig, payouts, payrollItems, automationLogs, smsLogs, pushLogs, membershipPlans, classPackDefinitions, purchasedPacks, coupons, couponRedemptions, smsConfig, substitutions, suppliers, inventoryAdjustments, purchaseOrders, purchaseOrderItems, referralCodes, referralRewards, posOrderItems, giftCards, giftCardTransactions, leads, challenges, userChallenges, progressMetricDefinitions, memberProgressEntries, videos, waitlist, subRequests, videoShares, videoCollections, videoCollectionItems, brandingAssets, referrals, tags, tagAssignments, customFieldDefinitions, customFieldValues, communityPosts, communityComments, communityLikes, reviews, tasks, refunds, webhookEndpoints, webhookLogs, websiteSettings, chatRooms, chatMessages, customReports, scheduledReports, faqs, memberCustomRoles, classSeries, customRoles, TENANT_TIERS, TENANT_STATUSES } from '@studio/db/src/schema';
 import { eq, sql, desc, count, and, inArray, or, ne } from 'drizzle-orm';
@@ -478,6 +479,56 @@ app.post('/:id/export', async (c) => {
         console.error('Export failed', e);
         return c.json({ error: 'Failed to export tenant data: ' + e.message }, 500);
     }
+});
+
+// POST /:id/impersonate
+app.post('/:id/impersonate', async (c) => {
+    const isPlatformAdmin = c.get('auth')?.claims?.isPlatformAdmin === true;
+    if (!isPlatformAdmin) return c.json({ error: 'Unauthorized' }, 403);
+
+    const db = createDb(c.env.DB);
+    const auth = c.get('auth')!;
+    const tenantId = c.req.param('id');
+
+    const tenant = await db.query.tenants.findFirst({
+        where: eq(tenants.id, tenantId)
+    });
+    if (!tenant) return c.json({ error: "Tenant not found" }, 404);
+
+    // Find the owner of this tenant
+    const owner = await db.select({
+        id: users.id,
+        email: users.email
+    })
+        .from(tenantMembers)
+        .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
+        .innerJoin(users, eq(tenantMembers.userId, users.id))
+        .where(and(
+            eq(tenantMembers.tenantId, tenantId),
+            eq(tenantRoles.role, 'owner')
+        ))
+        .get();
+
+    if (!owner) return c.json({ error: "No owner found for this tenant" }, 404);
+
+    const realId = auth.claims?.impersonatorId || auth.userId;
+    const token = await sign({
+        sub: owner.id,
+        impersonatorId: realId,
+        exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour
+    }, c.env.CLERK_SECRET_KEY as string);
+
+    await db.insert(auditLogs).values({
+        id: crypto.randomUUID(),
+        action: 'impersonate_tenant',
+        actorId: realId,
+        targetId: tenantId,
+        details: { tenantName: tenant.name, ownerEmail: owner.email, ownerId: owner.id },
+        ipAddress: c.req.header('CF-Connecting-IP'),
+        createdAt: new Date()
+    }).run();
+
+    return c.json({ token, tenant, user: owner, slug: tenant.slug });
 });
 
 export default app;

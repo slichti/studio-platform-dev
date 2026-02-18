@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { sign } from 'hono/jwt';
 import { createDb } from '../db';
 import { users, tenantMembers, tenantRoles, auditLogs } from '@studio/db/src/schema';
 import { eq, sql, desc, or, like, and, inArray, exists } from 'drizzle-orm';
@@ -123,6 +124,44 @@ app.delete('/:id', async (c) => {
     if (!res.meta.changes) return c.json({ error: "Not found" }, 404);
     await db.insert(auditLogs).values({ id: crypto.randomUUID(), action: 'delete_user', actorId: c.get('auth')!.userId, targetId: uid, details: { deleted: true }, ipAddress: c.req.header('CF-Connecting-IP') }).run();
     return c.json({ success: true });
+});
+
+// POST /impersonate
+app.post('/impersonate', async (c) => {
+    const isPlatformAdmin = c.get('auth')?.claims?.isPlatformAdmin === true;
+    if (!isPlatformAdmin) return c.json({ error: 'Unauthorized' }, 403);
+
+    const db = createDb(c.env.DB);
+    const auth = c.get('auth')!;
+    const { targetUserId } = await c.req.json();
+
+    if (!targetUserId) return c.json({ error: "Target User ID required" }, 400);
+    if (targetUserId === auth.userId) return c.json({ error: "Cannot impersonate self" }, 400);
+
+    const targetUser = await db.query.users.findFirst({
+        where: eq(users.id, targetUserId)
+    });
+
+    if (!targetUser) return c.json({ error: "Target user not found" }, 404);
+
+    const realId = auth.claims?.impersonatorId || auth.userId;
+    const token = await sign({
+        sub: targetUserId,
+        impersonatorId: realId,
+        exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour
+    }, c.env.CLERK_SECRET_KEY as string);
+
+    await db.insert(auditLogs).values({
+        id: crypto.randomUUID(),
+        action: 'impersonate_user',
+        actorId: realId,
+        targetId: targetUserId,
+        details: { targetEmail: targetUser.email },
+        ipAddress: c.req.header('CF-Connecting-IP'),
+        createdAt: new Date()
+    }).run();
+
+    return c.json({ token, user: targetUser, targetEmail: targetUser.email });
 });
 
 export default app;

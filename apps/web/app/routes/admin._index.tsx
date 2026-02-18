@@ -6,6 +6,7 @@ import { apiRequest } from "../utils/api";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/Card";
 import { Table, TableHeader, TableHead, TableRow, TableCell } from "../components/ui/Table";
 import { Badge } from "../components/ui/Badge";
+import { ImpersonationHistory } from "../components/admin/ImpersonationHistory";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     let token;
@@ -33,7 +34,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const logs = logsResult.status === 'fulfilled' ? logsResult.value : { error: logsResult.reason?.message || "Failed to load logs" };
     const health = healthResult.status === 'fulfilled' ? healthResult.value : { status: 'error', error: healthResult.reason?.message || "Failed to load health" };
 
-    return { logs, health };
+    return { logs, health, token };
 };
 
 function StatCard({ title, value, status, trend }: { title: string, value: string, status?: "success" | "warning" | "error" | "neutral", trend?: string }) {
@@ -104,7 +105,7 @@ function formatLogDetails(log: any) {
 }
 
 export default function AdminIndex() {
-    const { logs, health } = useLoaderData<any>();
+    const { logs, health, token } = useLoaderData<any>();
 
     return (
         <div className="space-y-6">
@@ -144,60 +145,67 @@ export default function AdminIndex() {
                 />
             </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Recent Audit Logs</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                    {Array.isArray(logs) ? (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-[180px]">Time</TableHead>
-                                    <TableHead className="w-[150px]">Action</TableHead>
-                                    <TableHead>Summary</TableHead>
-                                    <TableHead>Actor</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <tbody>
-                                {logs.map((log: any) => (
-                                    <TableRow key={log.id} className="hover:bg-zinc-50">
-                                        <TableCell className="font-mono text-xs text-zinc-500 whitespace-nowrap">
-                                            {new Date(log.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline" className="font-mono text-[10px] uppercase">
-                                                {log.action.replace(/_/g, ' ')}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-sm">
-                                            {formatLogDetails(log)}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{log.actorProfile?.firstName} {log.actorProfile?.lastName}</span>
-                                                <span className="text-xs text-zinc-500 dark:text-zinc-400">{log.actorEmail}</span>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {logs.length === 0 && (
-                                    <TableRow>
-                                        <TableCell className="text-center text-zinc-500 dark:text-zinc-400 py-8" colSpan={4}>
-                                            No recent activity found.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </tbody>
-                        </Table>
-                    ) : (
-                        <div className="p-6 text-red-600 bg-red-50">
-                            <p className="font-medium">Error Loading Logs</p>
-                            <p className="text-sm mt-1">{logs.error}</p>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Recent Audit Logs</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            {Array.isArray(logs) ? (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-[180px]">Time</TableHead>
+                                            <TableHead className="w-[150px]">Action</TableHead>
+                                            <TableHead>Summary</TableHead>
+                                            <TableHead>Actor</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <tbody>
+                                        {logs.map((log: any) => (
+                                            <TableRow key={log.id} className="hover:bg-zinc-50">
+                                                <TableCell className="font-mono text-xs text-zinc-500 whitespace-nowrap">
+                                                    {new Date(log.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline" className="font-mono text-[10px] uppercase">
+                                                        {log.action.replace(/_/g, ' ')}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-sm">
+                                                    {formatLogDetails(log)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{log.actorProfile?.firstName} {log.actorProfile?.lastName}</span>
+                                                        <span className="text-xs text-zinc-500 dark:text-zinc-400">{log.actorEmail}</span>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                        {logs.length === 0 && (
+                                            <TableRow>
+                                                <TableCell className="text-center text-zinc-500 dark:text-zinc-400 py-8" colSpan={4}>
+                                                    No recent activity found.
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </tbody>
+                                </Table>
+                            ) : (
+                                <div className="p-6 text-red-600 bg-red-50">
+                                    <p className="font-medium">Error Loading Logs</p>
+                                    <p className="text-sm mt-1">{logs.error}</p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+                <div>
+                    <ImpersonationHistory token={token} />
+                </div>
+            </div>
         </div>
     );
 }

@@ -396,6 +396,9 @@ export default function AdminTenantsPageComponent() {
             const res: any = await apiRequest(`/admin/tenants/${tenantToImpersonate.id}/impersonate`, token, { method: "POST" });
             if (res.error) throw new Error(res.error);
             localStorage.setItem("impersonation_token", res.token);
+            if (res.user?.email) {
+                localStorage.setItem("impersonation_target_email", res.user.email);
+            }
             window.location.href = res.redirectUrl || `/studio/${res.slug || 'studio'}`;
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message });

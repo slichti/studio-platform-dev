@@ -121,18 +121,24 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
             <div className="flex-1 flex flex-col overflow-hidden min-w-0">
                 {/* Impersonation Banner */}
                 {impersonationToken && (
-                    <div className="bg-red-500 text-white px-4 py-2 flex items-center justify-center gap-3 text-sm font-medium">
-                        <span>⚠️ Impersonating {impersonationEmail || "User"}</span>
+                    <div className="bg-indigo-600 dark:bg-indigo-500 text-white px-4 py-2 flex items-center justify-between gap-3 text-sm font-medium z-50 shadow-md">
+                        <div className="flex items-center gap-2">
+                            <div className="bg-white/20 p-1 rounded-full">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+                            </div>
+                            <span>Impersonating <strong>{impersonationEmail || "User"}</strong></span>
+                        </div>
                         <button
                             onClick={() => {
                                 localStorage.removeItem("impersonation_token");
                                 localStorage.removeItem("impersonation_target_email");
                                 setImpersonationToken(null);
-                                window.location.href = "/";
+                                window.location.href = "/admin";
                             }}
-                            className="bg-white text-red-500 px-2 py-0.5 rounded text-xs font-bold hover:bg-red-50"
+                            className="bg-white text-indigo-600 px-3 py-1 rounded-full text-xs font-bold hover:bg-indigo-50 transition-colors shadow-sm flex items-center gap-1.5"
                         >
-                            Exit
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                            Return to Admin
                         </button>
                     </div>
                 )}

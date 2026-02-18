@@ -184,8 +184,13 @@ export default function AdminUsersPageComponent() {
             });
             if (res.error) throw new Error(res.error);
             if (res.token) {
-                document.cookie = `__impersonate_token=${res.token}; path=/; max-age=3600; samesite=lax; secure`;
+                localStorage.setItem("impersonation_token", res.token);
                 const user = usersList.find((u) => u.id === impersonateTargetId);
+                if (user) {
+                    localStorage.setItem("impersonation_target_email", user.email);
+                }
+                document.cookie = `__impersonate_token=${res.token}; path=/; max-age=3600; samesite=lax; secure`;
+
                 if (user && user.memberships && user.memberships.length > 0) {
                     window.location.href = `/studio/${user.memberships[0].tenant.slug}`;
                 } else {

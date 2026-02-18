@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { users, auditLogs } from '@studio/db/src/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, or } from 'drizzle-orm';
 import type { HonoContext } from '../types';
 import { authMiddleware } from '../middleware/auth';
 
@@ -93,6 +93,35 @@ app.get('/logs', async (c) => {
     } catch (e: any) {
         console.error("Fetch Logs Failed:", e);
         return c.json({ error: "Failed to fetch audit logs: " + e.message }, 500);
+    }
+});
+
+// GET /impersonation/history
+app.get('/impersonation/history', async (c) => {
+    const db = createDb(c.env.DB);
+    try {
+        const history = await db.select({
+            id: auditLogs.id,
+            action: auditLogs.action,
+            actorId: auditLogs.actorId,
+            targetId: auditLogs.targetId,
+            details: auditLogs.details,
+            createdAt: auditLogs.createdAt,
+            actorEmail: users.email,
+        })
+            .from(auditLogs)
+            .leftJoin(users, eq(auditLogs.actorId, users.id))
+            .where(or(
+                eq(auditLogs.action, 'impersonate_user'),
+                eq(auditLogs.action, 'impersonate_tenant')
+            ))
+            .orderBy(desc(auditLogs.createdAt))
+            .limit(50)
+            .all();
+
+        return c.json(history);
+    } catch (e: any) {
+        return c.json({ error: "Failed to fetch history: " + e.message }, 500);
     }
 });
 
