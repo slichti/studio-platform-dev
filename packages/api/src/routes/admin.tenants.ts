@@ -14,13 +14,60 @@ app.get('/', async (c) => {
     if (!isPlatformAdmin) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
 
-    const [all, owners, instructors, studentRoles, subs, feats] = await Promise.all([
-        db.select().from(tenants).all(),
-        db.select({ tenantId: tenantMembers.tenantId, c: count(tenantMembers.id) }).from(tenantMembers).innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId)).where(eq(tenantRoles.role, 'owner')).groupBy(tenantMembers.tenantId).all(),
-        db.select({ tenantId: tenantMembers.tenantId, c: count(tenantMembers.id) }).from(tenantMembers).innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId)).where(eq(tenantRoles.role, 'instructor')).groupBy(tenantMembers.tenantId).all(),
-        db.select({ tenantId: tenantMembers.tenantId, c: count(tenantMembers.id) }).from(tenantMembers).innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId)).where(eq(tenantRoles.role, 'student')).groupBy(tenantMembers.tenantId).all(),
-        db.select({ tenantId: subscriptions.tenantId, c: count(subscriptions.id) }).from(subscriptions).where(eq(subscriptions.status, 'active')).groupBy(subscriptions.tenantId).all(),
-        db.select().from(tenantFeatures).all()
+    // Pagination Params
+    const limit = Math.min(parseInt(c.req.query('limit') || '50'), 100);
+    const offset = parseInt(c.req.query('offset') || '0');
+    const statusFilter = c.req.query('status');
+    const tierFilter = c.req.query('tier');
+    const search = c.req.query('search');
+
+    const filters = [];
+    if (statusFilter && statusFilter !== 'all') filters.push(eq(tenants.status, statusFilter as any));
+    if (tierFilter && tierFilter !== 'all') filters.push(eq(tenants.tier, tierFilter as any));
+    if (search) filters.push(or(sql`LOWER(${tenants.name}) LIKE ${'%' + search.toLowerCase() + '%'}`, sql`LOWER(${tenants.slug}) LIKE ${'%' + search.toLowerCase() + '%'}`));
+
+    const whereClause = filters.length > 0 ? and(...filters) : undefined;
+
+    // 1. Get total count for pagination
+    const [{ count: total }] = await db.select({ count: count() }).from(tenants).where(whereClause);
+
+    // 2. Get paginated tenants
+    const paginatedTenants = await db.select()
+        .from(tenants)
+        .where(whereClause)
+        .limit(limit)
+        .offset(offset)
+        .orderBy(desc(tenants.createdAt))
+        .all();
+
+    if (paginatedTenants.length === 0) {
+        return c.json({ tenants: [], total, limit, offset });
+    }
+
+    const tenantIds = paginatedTenants.map(t => t.id);
+
+    // 3. Optimized Stats: Only for the IDs we are returning
+    const [owners, instructors, studentRoles, subs, feats] = await Promise.all([
+        db.select({ tenantId: tenantMembers.tenantId, c: count(tenantMembers.id) })
+            .from(tenantMembers)
+            .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
+            .where(and(eq(tenantRoles.role, 'owner'), inArray(tenantMembers.tenantId, tenantIds)))
+            .groupBy(tenantMembers.tenantId).all(),
+        db.select({ tenantId: tenantMembers.tenantId, c: count(tenantMembers.id) })
+            .from(tenantMembers)
+            .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
+            .where(and(eq(tenantRoles.role, 'instructor'), inArray(tenantMembers.tenantId, tenantIds)))
+            .groupBy(tenantMembers.tenantId).all(),
+        db.select({ tenantId: tenantMembers.tenantId, c: count(tenantMembers.id) })
+            .from(tenantMembers)
+            .innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId))
+            .where(and(eq(tenantRoles.role, 'student'), inArray(tenantMembers.tenantId, tenantIds)))
+            .groupBy(tenantMembers.tenantId).all(),
+        db.select({ tenantId: subscriptions.tenantId, c: count(subscriptions.id) })
+            .from(subscriptions)
+            .where(and(eq(subscriptions.status, 'active'), inArray(subscriptions.tenantId, tenantIds)))
+            .groupBy(subscriptions.tenantId).all(),
+        db.select().from(tenantFeatures).where(inArray(tenantFeatures.tenantId, tenantIds)).all()
     ]);
 
     const ownerMap = new Map(owners.map(o => [o.tenantId, o.c]));
@@ -30,7 +77,7 @@ app.get('/', async (c) => {
     const featMap = new Map();
     feats.forEach(f => { if (!featMap.has(f.tenantId)) featMap.set(f.tenantId, {}); featMap.get(f.tenantId)[f.featureKey] = { enabled: f.enabled, source: f.source }; });
 
-    return c.json(all.map(t => ({
+    const result = paginatedTenants.map(t => ({
         ...t,
         features: featMap.get(t.id) || {},
         stats: {
@@ -40,7 +87,14 @@ app.get('/', async (c) => {
             totalStudents: studentMap.get(t.id) || 0,
             activeSubscribers: subMap.get(t.id) || 0
         }
-    })));
+    }));
+
+    return c.json({
+        tenants: result,
+        total,
+        limit,
+        offset
+    });
 });
 
 // POST /

@@ -44,8 +44,13 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken } = await getAuth(args);
     const token = await getToken();
     const url = new URL(args.request.url);
+    const page = parseInt(url.searchParams.get("page") || "1");
+    const limit = parseInt(url.searchParams.get("limit") || "50");
+    const offset = (page - 1) * limit;
     const search = url.searchParams.get("search") || "";
     const tenantId = url.searchParams.get("tenantId") || "";
+    const sort = url.searchParams.get("sort") || "joined_desc";
+
     const context = args.context as { cloudflare?: { env: any }, env?: any };
     const env = context.cloudflare?.env || context.env || {};
     const apiUrl = env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev";
@@ -54,18 +59,26 @@ export const loader = async (args: LoaderFunctionArgs) => {
         const params = new URLSearchParams();
         if (search) params.append("search", search);
         if (tenantId) params.append("tenantId", tenantId);
-        const sort = url.searchParams.get("sort");
         if (sort) params.append("sort", sort);
+        params.append("limit", limit.toString());
+        params.append("offset", offset.toString());
 
-        const [users, tenants] = await Promise.all([
-            apiRequest<User[]>(`/admin/users?${params.toString()}`, token, {}, apiUrl),
+        const [usersData, tenants] = await Promise.all([
+            apiRequest<any>(`/admin/users?${params.toString()}`, token, {}, apiUrl),
             apiRequest<Tenant[]>(`/admin/tenants`, token, {}, apiUrl)
         ]);
 
-        return { users, tenants: tenants || [], error: null };
+        return {
+            users: usersData.users,
+            total: usersData.total,
+            page,
+            limit,
+            tenants: tenants || [],
+            error: null
+        };
     } catch (e: unknown) {
         const message = e instanceof Error ? e.message : "Unauthorized";
-        return { users: [], tenants: [], error: message };
+        return { users: [], total: 0, page: 1, limit: 50, tenants: [], error: message };
     }
 };
 

@@ -14,8 +14,25 @@ import { TIER_KEYS, TENANT_STATUSES } from "@studio/db";
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export default function AdminTenantsPageComponent() {
-    const { tenants: initialTenants, platformConfig } = useLoaderData<any>();
+    const {
+        tenants: initialTenants,
+        total,
+        page: currentPage,
+        limit,
+        status: initialStatus,
+        tier: initialTier,
+        search: initialSearch,
+        platformConfig
+    } = useLoaderData<any>();
+
     const [tenants, setTenants] = useState(initialTenants);
+    const [searchTerm, setSearchTerm] = useState(initialSearch);
+
+    // Sync local tenants state with loader data when it changes
+    useEffect(() => {
+        setTenants(initialTenants);
+    }, [initialTenants]);
+
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [seedingLoading, setSeedingLoading] = useState(false);
@@ -88,9 +105,10 @@ export default function AdminTenantsPageComponent() {
     const [formData, setFormData] = useState({ name: "", slug: "", ownerEmail: "", plan: "launch" });
     const [sortField, setSortField] = useState('createdAt');
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-    const [statusFilter, setStatusFilter] = useState('all');
-    const [tierFilter, setTierFilter] = useState('all');
+    const [statusFilter, setStatusFilter] = useState(initialStatus || 'all');
+    const [tierFilter, setTierFilter] = useState(initialTier || 'all');
     const [showFinancials, setShowFinancials] = useState(false);
+
 
     const { getToken } = useAuth();
     const navigate = useNavigate();
@@ -458,16 +476,25 @@ export default function AdminTenantsPageComponent() {
         else { setSortField(field); setSortDir('asc'); }
     };
 
+    const handleFilterChange = (updates: any) => {
+        const params = new URLSearchParams(window.location.search);
+        Object.entries(updates).forEach(([k, v]: [string, any]) => {
+            if (v === 'all' || v === '') params.delete(k);
+            else params.set(k, v);
+        });
+        params.set('page', '1'); // Reset to page 1 on filter change
+        navigate(`/admin/tenants?${params.toString()}`);
+    };
+
+    const handlePageChange = (newPage: number) => {
+        const params = new URLSearchParams(window.location.search);
+        params.set('page', newPage.toString());
+        navigate(`/admin/tenants?${params.toString()}`);
+    };
+
     const sortedTenants = () => {
         if (!Array.isArray(tenants)) return [];
-        let filtered = [...tenants];
-        if (statusFilter === 'system') filtered = filtered.filter((t: any) => t.slug === 'platform');
-        else {
-            filtered = filtered.filter((t: any) => t.slug !== 'platform');
-            if (statusFilter !== 'all') filtered = filtered.filter((t: any) => (t.status || 'active') === statusFilter);
-        }
-        if (tierFilter !== 'all') filtered = filtered.filter((t: any) => (t.tier || 'launch') === tierFilter);
-        return filtered.sort((a: any, b: any) => {
+        return [...tenants].sort((a: any, b: any) => {
             const getVal = (obj: any, path: string) => path.split('.').reduce((acc, part) => acc && acc[part], obj);
             const valA = getVal(a, sortField);
             const valB = getVal(b, sortField);
@@ -476,6 +503,7 @@ export default function AdminTenantsPageComponent() {
             return sortDir === 'asc' ? res : -res;
         });
     };
+
 
     const toggleAllTenants = () => {
         if (expandedTenants.size === sortedTenants().length) setExpandedTenants(new Set());
@@ -580,7 +608,10 @@ export default function AdminTenantsPageComponent() {
                         <select
                             className="text-xs border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1 bg-white dark:bg-zinc-800"
                             value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
+                            onChange={(e) => {
+                                setStatusFilter(e.target.value);
+                                handleFilterChange({ status: e.target.value });
+                            }}
                         >
                             <option value="all">Status: All</option>
                             {TENANT_STATUSES.map(s => (
@@ -588,12 +619,14 @@ export default function AdminTenantsPageComponent() {
                                     {capitalize(s)}
                                 </option>
                             ))}
-                            <option value="system">System</option>
                         </select>
                         <select
                             className="text-sm border border-zinc-300 dark:border-zinc-700 rounded-md px-2 py-1 bg-white dark:bg-zinc-800"
                             value={tierFilter}
-                            onChange={(e) => setTierFilter(e.target.value)}
+                            onChange={(e) => {
+                                setTierFilter(e.target.value);
+                                handleFilterChange({ tier: e.target.value });
+                            }}
                         >
                             <option value="all">All Tiers</option>
                             {TIER_KEYS.map(t => (
@@ -602,6 +635,19 @@ export default function AdminTenantsPageComponent() {
                                 </option>
                             ))}
                         </select>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                placeholder="Search tenants..."
+                                className="text-xs border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1 bg-white dark:bg-zinc-800 w-48"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleFilterChange({ search: searchTerm });
+                                }}
+                            />
+                        </div>
+
                         <button onClick={toggleAllTenants} className="text-xs font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-md">
                             {expandedTenants.size === sortedTenants().length && sortedTenants().length > 0 ? 'Collapse All' : 'Expand All'}
                         </button>
@@ -716,6 +762,29 @@ export default function AdminTenantsPageComponent() {
                         ))}
                     </tbody>
                 </table>
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="mt-6 flex items-center justify-between">
+                <p className="text-sm text-zinc-500">
+                    Showing <span className="font-medium">{Math.min(total, (currentPage - 1) * limit + 1)}</span> to <span className="font-medium">{Math.min(total, currentPage * limit)}</span> of <span className="font-medium">{total}</span> tenants
+                </p>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="px-4 py-2 border border-zinc-200 dark:border-zinc-800 rounded-md text-sm font-medium disabled:opacity-50 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                    >
+                        Previous
+                    </button>
+                    <button
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage * limit >= total}
+                        className="px-4 py-2 border border-zinc-200 dark:border-zinc-800 rounded-md text-sm font-medium disabled:opacity-50 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                    >
+                        Next
+                    </button>
+                </div>
             </div>
         </div>
     );

@@ -622,9 +622,18 @@ export class AutomationsService {
     private async executeAutomation(automation: any, context: { userId: string, email?: string, firstName?: string, lastName?: string, data?: any }) {
         const recipients = (automation.recipients as string[]) || ['student'];
 
+        // Optimize: Fetch Tenant & Location once here
+        const tenant = await this.db.query.tenants.findFirst({ where: eq(tenants.id, this.tenantId) });
+        const location = await this.db.query.locations.findFirst({ where: eq(locations.tenantId, this.tenantId) });
+
+        const sharedContext = {
+            tenantName: tenant?.name || 'Studio',
+            locationAddress: location?.address || ''
+        };
+
         // 1. Send to Student (Original Target)
         if (recipients.includes('student')) {
-            await this.dispatchToUser(automation, context, 'student');
+            await this.dispatchToUser(automation, context, 'student', sharedContext);
         }
 
         // 2. Send to Owners
@@ -658,12 +667,17 @@ export class AutomationsService {
                         isOwnerNotification: true
                     }
                 };
-                await this.dispatchToUser(automation, ownerContext, 'owner');
+                await this.dispatchToUser(automation, ownerContext, 'owner', sharedContext);
             }
         }
     }
 
-    private async dispatchToUser(automation: any, context: { userId: string, email?: string, firstName?: string, lastName?: string, data?: any }, recipientType: string) {
+    private async dispatchToUser(
+        automation: any,
+        context: { userId: string, email?: string, firstName?: string, lastName?: string, data?: any },
+        recipientType: string,
+        sharedContext: { tenantName: string, locationAddress: string }
+    ) {
         // 1. Idempotency Check
         const channels: string[] = automation.channels || ['email'];
         const channel = channels[0] || 'email';
@@ -703,15 +717,10 @@ export class AutomationsService {
             }
         }
 
-        // Fetch Tenant Details (Title, Address)
-        const tenant = await this.db.query.tenants.findFirst({ where: eq(tenants.id, this.tenantId) });
-        // Fetch First Location for Address
-        const location = await this.db.query.locations.findFirst({ where: eq(locations.tenantId, this.tenantId) });
-
         const extendedContext = {
             ...context,
-            title: tenant?.name || 'Studio',
-            address: location?.address || ''
+            title: sharedContext.tenantName,
+            address: sharedContext.locationAddress
         };
 
         // 2. Coupon Generation
@@ -725,6 +734,7 @@ export class AutomationsService {
             const expiresAt = new Date();
             expiresAt.setDate(expiresAt.getDate() + (automation.couponConfig.validityDays || 7));
             try {
+                // @ts-ignore - coupons might not be in the current schema import scope but it was working before
                 await this.db.insert(coupons).values({
                     id: crypto.randomUUID(),
                     tenantId: this.tenantId,

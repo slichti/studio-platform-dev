@@ -12,13 +12,35 @@ export async function loader(args: LoaderFunctionArgs) {
     const token = await getToken();
     if (!token) throw new Error("Unauthorized");
 
-    const [tenants, platformConfig]: [any, any] = await Promise.all([
-        apiRequest("/admin/tenants", token),
+    const url = new URL(args.request.url);
+    const page = parseInt(url.searchParams.get("page") || "1");
+    const limit = parseInt(url.searchParams.get("limit") || "50");
+    const status = url.searchParams.get("status") || "all";
+    const tier = url.searchParams.get("tier") || "all";
+    const search = url.searchParams.get("search") || "";
+    const offset = (page - 1) * limit;
+
+    const queryParams = new URLSearchParams({
+        limit: limit.toString(),
+        offset: offset.toString(),
+        status,
+        tier,
+        search
+    });
+
+    const [tenantsRes, platformConfig] = await Promise.all([
+        apiRequest(`/admin/tenants?${queryParams.toString()}`, token),
         apiRequest("/admin/platform/config", token)
     ]);
 
     return {
-        tenants,
+        tenants: tenantsRes.tenants,
+        total: tenantsRes.total,
+        page,
+        limit,
+        status,
+        tier,
+        search,
         platformConfig
     };
 }

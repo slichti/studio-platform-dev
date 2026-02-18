@@ -17,6 +17,7 @@ import supportRouter from './admin.support';
 import configRouter from './admin.config';
 import couponsRouter from './admin.coupons';
 import automationsRouter from './admin.automations';
+import bookingsRouter from './admin.bookings';
 
 const app = new Hono<HonoContext>();
 
@@ -50,6 +51,7 @@ app.use('*', async (c, next) => {
 
 // Mounted Routes
 app.route('/users', usersRouter);
+app.route('/bookings', bookingsRouter);
 
 // Tenant-specific nested routes
 app.route('/tenants/:id/billing', billingRouter);

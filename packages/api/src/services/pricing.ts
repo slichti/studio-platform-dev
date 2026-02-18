@@ -129,13 +129,33 @@ export class PricingService {
 export class UsageService {
     private db: any;
     private tenantId: string;
+    private static cache = new Map<string, { data: any, timestamp: number }>();
+    private static CACHE_TTL = 60 * 1000; // 1 minute
 
     constructor(db: any, tenantId: string) {
         this.db = db;
         this.tenantId = tenantId;
     }
 
+    private getCachedUsage() {
+        const cached = UsageService.cache.get(this.tenantId);
+        if (cached && (Date.now() - cached.timestamp) < UsageService.CACHE_TTL) {
+            return cached.data;
+        }
+        return null;
+    }
+
+    private setCachedUsage(data: any) {
+        UsageService.cache.set(this.tenantId, {
+            data,
+            timestamp: Date.now()
+        });
+    }
+
     async getUsage() {
+        const cached = this.getCachedUsage();
+        if (cached) return cached;
+
         // Use db.batch for performance - reduces 5 round-trips to 1.
         const [memberCountRes, locationCountRes, instructorCountRes, classesThisWeekRes, tenantRes] = await this.db.batch([
             // 1. Count Students (Active Members)
@@ -192,16 +212,16 @@ export class UsageService {
             }).from(tenants).where(eq(tenants.id, this.tenantId))
         ]);
 
-        const memberCount = memberCountRes[0];
-        const locationCount = locationCountRes[0];
-        const instructorCount = instructorCountRes[0];
-        const classesThisWeek = classesThisWeekRes[0];
-        const tenant = tenantRes[0];
+        const memberCount = memberCountRes?.[0];
+        const locationCount = locationCountRes?.[0];
+        const instructorCount = instructorCountRes?.[0];
+        const classesThisWeek = classesThisWeekRes?.[0];
+        const tenant = tenantRes?.[0];
 
         const storageBytes = tenant?.storageUsage || 0;
         const storageGB = storageBytes / (1024 * 1024 * 1024);
 
-        return {
+        const result = {
             students: memberCount?.count || 0,
             instructors: instructorCount?.count || 0,
             locations: locationCount?.count || 0,
@@ -218,6 +238,9 @@ export class UsageService {
 
             storageGB
         };
+
+        this.setCachedUsage(result);
+        return result;
     }
 
     // Sync Helper for Admin Dashboard sorting accuracy

@@ -1,5 +1,5 @@
 
-import { useLoaderData, Link, useSearchParams, Form, useSubmit } from "react-router";
+import { useLoaderData, Link, useSearchParams, Form, useSubmit, useNavigate } from "react-router";
 import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@clerk/react-router";
 import { Button } from "../ui/button";
@@ -44,6 +44,9 @@ interface User {
 
 interface LoaderData {
     users: User[];
+    total: number;
+    page: number;
+    limit: number;
     tenants: Tenant[];
     error: string | null;
 }
@@ -55,10 +58,17 @@ interface ApiError {
 }
 
 export default function AdminUsersPageComponent() {
-    const { users, tenants } = useLoaderData<LoaderData>();
+    const { users, tenants, total, page, limit } = useLoaderData<LoaderData>();
     const [searchParams, setSearchParams] = useSearchParams();
     const submit = useSubmit();
+    const navigate = useNavigate();
     const { getToken, userId } = useAuth();
+
+    const handlePageChange = (newPage: number) => {
+        const params = new URLSearchParams(window.location.search);
+        params.set('page', newPage.toString());
+        navigate(`/admin/users?${params.toString()}`);
+    };
 
     // UI State
     const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
@@ -291,6 +301,31 @@ export default function AdminUsersPageComponent() {
                         <UserRow key={user.id} user={user} selected={selectedUsers.has(user.id)} toggle={() => toggleUser(user.id)} currentUserId={userId} onImpersonate={() => setImpersonateTargetId(user.id)} onDelete={() => setUserToDelete(user)} />
                     ))
                 )}
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="mt-6 flex items-center justify-between">
+                <p className="text-sm text-zinc-500">
+                    Showing <span className="font-medium">{Math.min(total, (page - 1) * limit + 1)}</span> to <span className="font-medium">{Math.min(total, page * limit)}</span> of <span className="font-medium">{total}</span> users
+                </p>
+                <div className="flex gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(page - 1)}
+                        disabled={page === 1}
+                    >
+                        Previous
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(page + 1)}
+                        disabled={page * limit >= total}
+                    >
+                        Next
+                    </Button>
+                </div>
             </div>
 
             {/* Modals */}

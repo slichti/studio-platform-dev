@@ -17,7 +17,8 @@ export class ConflictService {
             excludeEventId ? ne(classes.id, excludeEventId) : undefined,
             eq(classes.status, 'active'),
             lt(classes.startTime, endTime),
-            sql`datetime(${classes.startTime} / 1000, 'unixepoch', '+' || ${classes.durationMinutes} || ' minutes') > datetime(${startTime.getTime() / 1000}, 'unixepoch')`
+            // Optimized overlap: (startTime + duration) > inputStartTime
+            sql`(${classes.startTime} / 1000 + ${classes.durationMinutes} * 60) > ${startTime.getTime() / 1000}`
         )).all();
 
         const actualAppConflicts = await this.db.select().from(appointments).where(and(
@@ -49,7 +50,7 @@ export class ConflictService {
             lt(classes.startTime, endTime),
             gt(classes.startTime, earliestStart),
             // Precise overlap logic
-            sql`datetime(${classes.startTime} / 1000, 'unixepoch', '+' || ${classes.durationMinutes} || ' minutes') > datetime(${startTime.getTime() / 1000}, 'unixepoch')`
+            sql`(${classes.startTime} / 1000 + ${classes.durationMinutes} * 60) > ${startTime.getTime() / 1000}`
         )).all();
 
         const appointmentConflicts = await this.db.select().from(appointments).where(and(

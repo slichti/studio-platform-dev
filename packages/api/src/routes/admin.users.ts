@@ -13,9 +13,20 @@ app.get('/', async (c) => {
     if (!isPlatformAdmin) return c.json({ error: 'Unauthorized' }, 403);
 
     const db = createDb(c.env.DB);
+    const limit = Math.min(parseInt(c.req.query('limit') || '50'), 100);
+    const offset = parseInt(c.req.query('offset') || '0');
     const search = c.req.query('search');
     const tenantId = c.req.query('tenantId');
     const sort = c.req.query('sort') || 'joined_desc';
+
+    const countResult = await db.select({ count: sql<number>`count(*)` }).from(users).where(and(...(function () {
+        const conds = [];
+        if (search) conds.push(or(like(users.email, `%${search}%`), like(users.id, `%${search}%`), sql`LOWER(json_extract(${users.profile}, '$.firstName')) LIKE ${`%${search.toLowerCase()}%`}`, sql`LOWER(json_extract(${users.profile}, '$.lastName')) LIKE ${`%${search.toLowerCase()}%`}`));
+        if (tenantId) conds.push(exists(db.select().from(tenantMembers).where(and(eq(tenantMembers.userId, users.id), eq(tenantMembers.tenantId, tenantId)))));
+        return conds;
+    })())).get();
+
+    const total = countResult?.count || 0;
 
     const results = await db.query.users.findMany({
         with: { memberships: { with: { tenant: true, roles: true } } },
@@ -32,9 +43,15 @@ app.get('/', async (c) => {
             else ord.push(desc(u.createdAt));
             return ord;
         },
-        limit: 100
+        limit,
+        offset
     });
-    return c.json(results);
+    return c.json({
+        users: results,
+        total,
+        limit,
+        offset
+    });
 });
 
 // GET /admins
