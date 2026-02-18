@@ -5,4 +5,5 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 ENVIRONMENT = "dev"
-VITE_API_URL = "https://studio-platform-api.slichti.workers.dev"
+VITE_API_URL = "https://api.slichti.org"
+

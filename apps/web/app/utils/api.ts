@@ -1,16 +1,21 @@
 import { useAuth } from "@clerk/react-router";
 
 const DEFAULT_API_URL = "http://localhost:8788";
-const PROD_API_URL = "https://studio-platform-api.slichti.workers.dev"; // Fallback for production
+const PROD_API_URL = "https://api.slichti.org"; // Correct production API domain
 
 export const API_URL = (() => {
-    // 1. Explicit Env Var (Build Time)
+    // 1. Explicit Env Var from window.ENV (Injected by server-side loader in root.tsx)
+    if (typeof window !== "undefined" && (window as any).ENV?.VITE_API_URL) {
+        return (window as any).ENV.VITE_API_URL;
+    }
+
+    // 2. Explicit Env Var (Build Time)
     const envUrl = import.meta.env.VITE_API_URL;
     if (envUrl && typeof envUrl === 'string' && envUrl.length > 0) {
         return envUrl;
     }
 
-    // 2. Client-side Detection (Runtime)
+    // 3. Client-side Detection (Runtime Fallback)
     if (typeof window !== "undefined") {
         const hostname = window.location.hostname;
         // If we are NOT on localhost, assume production URL
@@ -19,14 +24,15 @@ export const API_URL = (() => {
         }
     }
 
-    // 3. Server-side Production Fallback (Cloudflare Pages Functions)
+    // 4. Server-side Production Fallback (Cloudflare Pages Functions)
     if (import.meta.env.PROD) {
         return PROD_API_URL;
     }
 
-    // 4. Fallback to Localhost (Dev)
+    // 5. Fallback to Localhost (Dev)
     return DEFAULT_API_URL;
 })();
+
 
 export async function apiRequest<T = any>(path: string, token: string | null | undefined, options: Omit<RequestInit, 'headers'> & { headers?: Record<string, string | undefined> | HeadersInit } = {}, baseUrl?: string): Promise<T> {
     const url = baseUrl || API_URL;

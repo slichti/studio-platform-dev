@@ -18,6 +18,7 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
     const { user, isLoaded } = useUser();
     const { signOut } = useClerk();
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [impersonationEmail, setImpersonationEmail] = useState<string | null>(null);
     const [impersonationToken, setImpersonationToken] = useState<string | null>(null);
     const location = useLocation();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -25,6 +26,7 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
     useEffect(() => {
         // Check for impersonation token on mount
         setImpersonationToken(localStorage.getItem("impersonation_token"));
+        setImpersonationEmail(localStorage.getItem("impersonation_target_email"));
     }, []);
 
     // Close mobile menu on route change
@@ -100,7 +102,7 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
                 {/* Impersonation Banner */}
                 {impersonationToken && (
                     <div className="bg-red-500 text-white px-4 py-2 flex items-center justify-center gap-3 text-sm font-medium">
-                        <span>⚠️ Impersonating {typeof window !== 'undefined' ? localStorage.getItem("impersonation_target_email") : "User"}</span>
+                        <span>⚠️ Impersonating {impersonationEmail || "User"}</span>
                         <button
                             onClick={() => {
                                 localStorage.removeItem("impersonation_token");
