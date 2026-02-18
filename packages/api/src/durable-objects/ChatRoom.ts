@@ -22,7 +22,6 @@ interface ChatMessage {
 }
 
 interface ConnectedUser {
-    webSocket: WebSocket;
     userId: string;
     userName: string;
     joinedAt: number;
@@ -44,9 +43,13 @@ export class ChatRoom {
 
             // Restore any hibernated connections
             this.state.getWebSockets().forEach((ws: WebSocket) => {
-                const meta = (ws as any).deserializeAttachment?.() as ConnectedUser | null;
-                if (meta) {
-                    this.users.set(ws, meta);
+                try {
+                    const meta = ws.deserializeAttachment() as ConnectedUser | null;
+                    if (meta) {
+                        this.users.set(ws, meta);
+                    }
+                } catch (e) {
+                    console.error('[ChatRoom] Failed to deserialize attachment', e);
                 }
             });
             console.log(`[ChatRoom] Restored ${this.users.size} connections`);
@@ -73,18 +76,18 @@ export class ChatRoom {
             }
         }
 
-        // Extract metadata from query params (for WS upgrade)
         const roomId = url.searchParams.get("roomId");
         const tenantId = url.searchParams.get("tenantId");
+        const tenantSlug = url.searchParams.get("tenantSlug");
         const userId = url.searchParams.get("userId");
         const userName = url.searchParams.get("userName") || "Anonymous";
 
-        if (!roomId || !tenantId || !userId) {
-            return new Response("Missing required parameters", { status: 400 });
+        if (!roomId || (!tenantId && !tenantSlug) || !userId) {
+            return new Response("Missing required parameters: roomId, (tenantId or tenantSlug), and userId are required.", { status: 400 });
         }
 
         this.roomId = roomId;
-        this.tenantId = tenantId;
+        this.tenantId = tenantId || tenantSlug;
 
         // Create WebSocket pair
         const pair = new WebSocketPair();
@@ -92,7 +95,6 @@ export class ChatRoom {
 
         // Set up the connection
         const connectedUser: ConnectedUser = {
-            webSocket: server,
             userId,
             userName,
             joinedAt: Date.now(),
