@@ -35,7 +35,9 @@ describe('StripeWebhookHandler', () => {
         STRIPE_SECRET_KEY: 'test',
         STRIPE_WEBHOOK_SECRET: 'test',
         CLOUDFLARE_ACCOUNT_ID: 'test',
-        CLOUDFLARE_API_TOKEN: 'test'
+        CLOUDFLARE_API_TOKEN: 'test',
+        CLERK_SECRET_KEY: 'test',
+        CLERK_PEM_PUBLIC_KEY: 'test'
     };
 
     beforeEach(() => {

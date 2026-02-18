@@ -5,23 +5,9 @@ import { createDb } from '../db';
 import { users } from '@studio/db/src/schema'; // Only used in waitUntil
 import { eq, sql } from 'drizzle-orm';
 
-type AuthVariables = {
-    auth: {
-        userId: string | null;
-        claims: any;
-    };
-    tenantId?: string;
-    isImpersonating?: boolean;
-};
+import { Bindings, Variables } from '../types';
 
-type Bindings = {
-    DB: D1Database;
-    CLERK_SECRET_KEY: string;
-    CLERK_PEM_PUBLIC_KEY: string;
-    IMPERSONATION_SECRET?: string;
-};
-
-export const authMiddleware = createMiddleware<{ Variables: AuthVariables, Bindings: Bindings }>(async (c, next) => {
+export const authMiddleware = createMiddleware<{ Variables: Variables, Bindings: Bindings }>(async (c, next) => {
     let token: string | undefined;
     const authHeader = c.req.header('Authorization');
 
@@ -168,7 +154,7 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables, Bindi
     }
 });
 
-export const optionalAuthMiddleware = createMiddleware<{ Variables: AuthVariables, Bindings: Bindings }>(async (c, next) => {
+export const optionalAuthMiddleware = createMiddleware<{ Variables: Variables, Bindings: Bindings }>(async (c, next) => {
     let token: string | undefined;
     const authHeader = c.req.header('Authorization');
     const testAuth = c.req.header('TEST-AUTH');

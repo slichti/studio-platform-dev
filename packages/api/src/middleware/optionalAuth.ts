@@ -1,14 +1,9 @@
 import { createMiddleware } from 'hono/factory';
 import { verifyToken } from '@clerk/backend';
 
-type AuthVariables = {
-    auth: {
-        userId: string | null;
-        claims: any;
-    };
-};
+import { Bindings, Variables } from '../types';
 
-export const optionalAuthMiddleware = createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
+export const optionalAuthMiddleware = createMiddleware<{ Variables: Variables, Bindings: Bindings }>(async (c, next) => {
     let token: string | undefined;
     const authHeader = c.req.header('Authorization');
     const testAuth = c.req.header('TEST-AUTH');

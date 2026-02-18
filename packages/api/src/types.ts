@@ -12,7 +12,8 @@ export interface Bindings {
     TWILIO_ACCOUNT_SID?: string;
     CLOUDFLARE_ACCOUNT_ID?: string;
     CLOUDFLARE_API_TOKEN?: string;
-    CLERK_SECRET_KEY?: string;
+    CLERK_SECRET_KEY: string;
+    CLERK_PEM_PUBLIC_KEY: string;
     CLERK_WEBHOOK_SECRET?: string;
     STRIPE_SECRET_KEY?: string;
     STRIPE_WEBHOOK_SECRET?: string;
