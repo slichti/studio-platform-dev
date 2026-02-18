@@ -2,7 +2,7 @@
 import { Modal } from "../../Modal";
 import { ErrorDialog, ConfirmationDialog } from "../../Dialogs";
 import { AlertTriangle, Activity } from "lucide-react";
-import { TENANT_TIERS } from "@studio/db";
+import { TIER_KEYS } from "@studio/db";
 import { Dialog, Transition } from "@headlessui/react";
 import { ManageOwnersModal } from "../../ManageOwnersModal";
 import { DataExportModal } from "../../DataExportModal";
@@ -248,7 +248,7 @@ export function AdminTenantsModals({ state, handlers, FEATURES }: AdminTenantsMo
                                 value={state.seedOptions.tier}
                                 onChange={(e) => handlers.setSeedOptions({ ...state.seedOptions, tier: e.target.value as any })}
                             >
-                                {TENANT_TIERS.map(tier => (
+                                {TIER_KEYS.map(tier => (
                                     <option key={tier} value={tier}>{tier.charAt(0).toUpperCase() + tier.slice(1)}</option>
                                 ))}
                             </select>
@@ -514,7 +514,7 @@ export function AdminTenantsModals({ state, handlers, FEATURES }: AdminTenantsMo
                                 value={state.formData.plan}
                                 onChange={(e) => handlers.setFormData({ ...state.formData, plan: e.target.value })}
                             >
-                                {TENANT_TIERS.map(tier => (
+                                {TIER_KEYS.map(tier => (
                                     <option key={tier} value={tier}>
                                         {tier === 'launch' ? 'Launch (Basic)' : tier.charAt(0).toUpperCase() + tier.slice(1)}
                                     </option>

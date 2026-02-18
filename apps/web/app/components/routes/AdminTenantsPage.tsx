@@ -9,7 +9,7 @@ import { TenantDetailView } from "../admin/tenants/TenantDetailView";
 import { AdminTenantsModals } from "../admin/tenants/Modals";
 import { FEATURES } from "../admin/tenants/constants";
 import { ClientOnly } from "../ClientOnly";
-import { TENANT_TIERS, TENANT_STATUSES } from "@studio/db";
+import { TIER_KEYS, TENANT_STATUSES } from "@studio/db";
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -595,8 +595,8 @@ export default function AdminTenantsPageComponent() {
                             value={tierFilter}
                             onChange={(e) => setTierFilter(e.target.value)}
                         >
-                            <option value="launch">All Tiers</option>
-                            {TENANT_TIERS.map(t => (
+                            <option value="all">All Tiers</option>
+                            {TIER_KEYS.map(t => (
                                 <option key={t} value={t}>
                                     {t === 'launch' ? 'Launch' : capitalize(t)}
                                 </option>
@@ -649,10 +649,8 @@ export default function AdminTenantsPageComponent() {
                                             onChange={(e) => setTierChange({ id: t.id, tier: e.target.value })}
                                             className={`text-xs border rounded px-2 py-0.5 ${t.tier === 'scale' ? 'bg-purple-100 text-purple-800' : t.tier === 'growth' ? 'bg-blue-100 text-blue-800' : 'bg-zinc-100 text-zinc-600'}`}
                                         >
-                                            {TENANT_TIERS.map(tier => (
-                                                <option key={tier} value={tier}>
-                                                    {tier === 'launch' ? 'Launch' : capitalize(tier)}
-                                                </option>
+                                            {TIER_KEYS.map(tier => (
+                                                <option key={tier} value={tier}>{capitalize(tier)}</option>
                                             ))}
                                         </select>
                                     </td>

@@ -151,15 +151,19 @@ app.post('/impersonate', async (c) => {
         exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour
     }, c.env.CLERK_SECRET_KEY as string);
 
-    await db.insert(auditLogs).values({
-        id: crypto.randomUUID(),
-        action: 'impersonate_user',
-        actorId: realId,
-        targetId: targetUserId,
-        details: { targetEmail: targetUser.email },
-        ipAddress: c.req.header('CF-Connecting-IP'),
-        createdAt: new Date()
-    }).run();
+    try {
+        await db.insert(auditLogs).values({
+            id: crypto.randomUUID(),
+            action: 'impersonate_user',
+            actorId: realId,
+            targetId: targetUserId,
+            details: { targetEmail: targetUser.email },
+            ipAddress: c.req.header('CF-Connecting-IP'),
+            createdAt: new Date()
+        }).run();
+    } catch (err) {
+        console.error("Failed to log impersonation event:", err);
+    }
 
     return c.json({ token, user: targetUser, targetEmail: targetUser.email });
 });

@@ -6,6 +6,7 @@ export const TENANT_STATUSES = ['active', 'paused', 'suspended', 'archived'] as 
 export type TenantStatus = typeof TENANT_STATUSES[number];
 
 export const TENANT_TIERS = ['launch', 'growth', 'scale'] as const;
+export const TIER_KEYS = TENANT_TIERS;
 export type TenantTier = typeof TENANT_TIERS[number];
 
 // --- Multi-Tenancy Root ---

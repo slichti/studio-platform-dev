@@ -518,15 +518,19 @@ app.post('/:id/impersonate', async (c) => {
         exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour
     }, c.env.CLERK_SECRET_KEY as string);
 
-    await db.insert(auditLogs).values({
-        id: crypto.randomUUID(),
-        action: 'impersonate_tenant',
-        actorId: realId,
-        targetId: tenantId,
-        details: { tenantName: tenant.name, ownerEmail: owner.email, ownerId: owner.id },
-        ipAddress: c.req.header('CF-Connecting-IP'),
-        createdAt: new Date()
-    }).run();
+    try {
+        await db.insert(auditLogs).values({
+            id: crypto.randomUUID(),
+            action: 'impersonate_tenant',
+            actorId: realId,
+            targetId: tenantId,
+            details: { tenantName: tenant.name, ownerEmail: owner.email, ownerId: owner.id },
+            ipAddress: c.req.header('CF-Connecting-IP'),
+            createdAt: new Date()
+        }).run();
+    } catch (err) {
+        console.error("Failed to log tenant impersonation event:", err);
+    }
 
     return c.json({ token, tenant, user: owner, slug: tenant.slug });
 });
