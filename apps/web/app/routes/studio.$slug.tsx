@@ -237,10 +237,18 @@ export default function StudioLayout() {
                 <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
                     <Link to={`/studio/${slug}`} prefetch="intent" className="flex items-center gap-2 group">
                         <div
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold group-hover:scale-105 transition-transform"
-                            style={{ backgroundColor: tenant.branding?.primaryColor || '#2563eb' }}
+                            className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold group-hover:scale-105 transition-transform overflow-hidden bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700"
                         >
-                            {tenant.name.substring(0, 1)}
+                            {tenant.branding?.logoUrl ? (
+                                <img src={tenant.branding.logoUrl} alt={tenant.name} className="w-full h-full object-contain" />
+                            ) : (
+                                <div
+                                    className="w-full h-full flex items-center justify-center text-white font-bold"
+                                    style={{ backgroundColor: tenant.branding?.primaryColor || '#2563eb' }}
+                                >
+                                    {tenant.name.substring(0, 1)}
+                                </div>
+                            )}
                         </div>
                         <div className="flex flex-col">
                             <span className="font-bold text-sm leading-tight text-zinc-900 dark:text-zinc-100">{tenant.name}</span>

@@ -150,7 +150,18 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                         const result = await response.json() as any;
                                         if (result.error) throw new Error(result.error);
                                         setSuccess('Logo uploaded successfully');
-                                        window.location.reload();
+
+                                        // Update local state for immediate feedback
+                                        setTenant((prev: any) => ({
+                                            ...prev,
+                                            branding: {
+                                                ...(prev.branding || {}),
+                                                logoUrl: result.logoUrl
+                                            }
+                                        }));
+
+                                        // Trigger a revalidation to sync with the loader
+                                        submit(null, { method: "post", action: window.location.pathname });
                                     } catch (err: any) {
                                         setError(err.message || 'Failed to upload logo');
                                     } finally {

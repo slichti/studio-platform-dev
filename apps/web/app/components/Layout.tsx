@@ -44,7 +44,13 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
         <>
             {/* Logo / Tenant Area */}
             <div className="p-6 flex items-center gap-4 border-b border-zinc-200 dark:border-zinc-800">
-                <div className="text-3xl">🧘‍♀️</div>
+                <div className="h-10 w-10 bg-zinc-100 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+                    {typeof (children as any)?.props?.tenant?.branding?.logoUrl === 'string' ? (
+                        <img src={(children as any).props.tenant.branding.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                    ) : (
+                        <div className="text-3xl">🧘‍♀️</div>
+                    )}
+                </div>
                 <div>
                     <h1 className="text-lg font-bold text-indigo-600 dark:text-indigo-400 leading-tight">
                         {tenantName}
