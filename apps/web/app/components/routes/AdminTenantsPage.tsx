@@ -9,6 +9,9 @@ import { TenantDetailView } from "../admin/tenants/TenantDetailView";
 import { AdminTenantsModals } from "../admin/tenants/Modals";
 import { FEATURES } from "../admin/tenants/constants";
 import { ClientOnly } from "../ClientOnly";
+import { TENANT_TIERS, TENANT_STATUSES } from "@studio/db";
+
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export default function AdminTenantsPageComponent() {
     const { tenants: initialTenants, platformConfig } = useLoaderData<any>();
@@ -577,10 +580,11 @@ export default function AdminTenantsPageComponent() {
                             onChange={(e) => setStatusFilter(e.target.value)}
                         >
                             <option value="all">Status: All</option>
-                            <option value="active">Active</option>
-                            <option value="paused">Paused</option>
-                            <option value="suspended">Suspended</option>
-                            <option value="archived">Archived</option>
+                            {TENANT_STATUSES.map(s => (
+                                <option key={s} value={s}>
+                                    {capitalize(s)}
+                                </option>
+                            ))}
                             <option value="system">System</option>
                         </select>
                         <select
@@ -588,9 +592,12 @@ export default function AdminTenantsPageComponent() {
                             value={tierFilter}
                             onChange={(e) => setTierFilter(e.target.value)}
                         >
-                            <option value="launch">Launch</option>
-                            <option value="growth">Growth</option>
-                            <option value="scale">Scale</option>
+                            <option value="launch">All Tiers</option>
+                            {TENANT_TIERS.map(t => (
+                                <option key={t} value={t}>
+                                    {t === 'launch' ? 'Launch' : capitalize(t)}
+                                </option>
+                            ))}
                         </select>
                         <button onClick={toggleAllTenants} className="text-xs font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-md">
                             {expandedTenants.size === sortedTenants().length && sortedTenants().length > 0 ? 'Collapse All' : 'Expand All'}
@@ -639,9 +646,11 @@ export default function AdminTenantsPageComponent() {
                                             onChange={(e) => setTierChange({ id: t.id, tier: e.target.value })}
                                             className={`text-xs border rounded px-2 py-0.5 ${t.tier === 'scale' ? 'bg-purple-100 text-purple-800' : t.tier === 'growth' ? 'bg-blue-100 text-blue-800' : 'bg-zinc-100 text-zinc-600'}`}
                                         >
-                                            <option value="launch">Launch</option>
-                                            <option value="growth">Growth</option>
-                                            <option value="scale">Scale</option>
+                                            {TENANT_TIERS.map(tier => (
+                                                <option key={tier} value={tier}>
+                                                    {tier === 'launch' ? 'Launch' : capitalize(tier)}
+                                                </option>
+                                            ))}
                                         </select>
                                     </td>
                                     <td className="px-6 py-4">

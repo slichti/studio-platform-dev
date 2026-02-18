@@ -2,6 +2,8 @@
 import { Modal } from "../../Modal";
 import { ErrorDialog, ConfirmationDialog } from "../../Dialogs";
 import { AlertTriangle, Activity } from "lucide-react";
+import { TENANT_TIERS } from "@studio/db";
+import { Dialog, Transition } from "@headlessui/react";
 import { ManageOwnersModal } from "../../ManageOwnersModal";
 import { DataExportModal } from "../../DataExportModal";
 
@@ -246,9 +248,9 @@ export function AdminTenantsModals({ state, handlers, FEATURES }: AdminTenantsMo
                                 value={state.seedOptions.tier}
                                 onChange={(e) => handlers.setSeedOptions({ ...state.seedOptions, tier: e.target.value as any })}
                             >
-                                <option value="launch">Launch</option>
-                                <option value="growth">Growth</option>
-                                <option value="scale">Scale</option>
+                                {TENANT_TIERS.map(tier => (
+                                    <option key={tier} value={tier}>{tier.charAt(0).toUpperCase() + tier.slice(1)}</option>
+                                ))}
                             </select>
                         </div>
 
@@ -512,9 +514,11 @@ export function AdminTenantsModals({ state, handlers, FEATURES }: AdminTenantsMo
                                 value={state.formData.plan}
                                 onChange={(e) => handlers.setFormData({ ...state.formData, plan: e.target.value })}
                             >
-                                <option value="launch">Launch (Basic)</option>
-                                <option value="growth">Growth</option>
-                                <option value="scale">Scale</option>
+                                {TENANT_TIERS.map(tier => (
+                                    <option key={tier} value={tier}>
+                                        {tier === 'launch' ? 'Launch (Basic)' : tier.charAt(0).toUpperCase() + tier.slice(1)}
+                                    </option>
+                                ))}
                             </select>
                         </div>
                         <div>

@@ -1,6 +1,13 @@
 import { sqliteTable, text, integer, uniqueIndex, index, primaryKey } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
+// --- Multi-Tenancy Constants ---
+export const TENANT_STATUSES = ['active', 'paused', 'suspended', 'archived'] as const;
+export type TenantStatus = typeof TENANT_STATUSES[number];
+
+export const TENANT_TIERS = ['launch', 'growth', 'scale'] as const;
+export type TenantTier = typeof TENANT_TIERS[number];
+
 // --- Multi-Tenancy Root ---
 export const tenants = sqliteTable('tenants', {
     id: text('id').primaryKey(),
@@ -32,8 +39,8 @@ export const tenants = sqliteTable('tenants', {
     slackCredentials: text('slack_credentials', { mode: 'json' }), // JSON: { webhookUrl, botToken }
     googleCalendarCredentials: text('google_calendar_credentials'), // Temporarily disabled JSON mode to fix raw string crash
     resendAudienceId: text('resend_audience_id'), // Added for Resend Audience tracking
-    status: text('status', { enum: ['active', 'paused', 'suspended', 'archived'] }).default('active').notNull(),
-    tier: text('tier', { enum: ['launch', 'growth', 'scale'] }).default('launch').notNull(),
+    status: text('status', { enum: TENANT_STATUSES }).default('active').notNull(),
+    tier: text('tier', { enum: TENANT_TIERS }).default('launch').notNull(),
     subscriptionStatus: text('subscription_status', { enum: ['active', 'past_due', 'canceled', 'trialing'] }).default('active').notNull(),
 
     // Marketplace

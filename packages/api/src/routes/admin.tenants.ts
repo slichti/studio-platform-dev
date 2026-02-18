@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantMembers, tenantRoles, subscriptions, tenantFeatures, websitePages, auditLogs, users, userRelationships, emailLogs, locations, classes, bookings, products, posOrders, marketingAutomations, marketingCampaigns, waiverTemplates, waiverSignatures, studentNotes, uploads, usageLogs, appointmentServices, availabilities, appointments, payrollConfig, payouts, payrollItems, automationLogs, smsLogs, pushLogs, membershipPlans, classPackDefinitions, purchasedPacks, coupons, couponRedemptions, smsConfig, substitutions, suppliers, inventoryAdjustments, purchaseOrders, purchaseOrderItems, referralCodes, referralRewards, posOrderItems, giftCards, giftCardTransactions, leads, challenges, userChallenges, progressMetricDefinitions, memberProgressEntries, videos, waitlist, subRequests, videoShares, videoCollections, videoCollectionItems, brandingAssets, referrals, tags, tagAssignments, customFieldDefinitions, customFieldValues, communityPosts, communityComments, communityLikes, reviews, tasks, refunds, webhookEndpoints, webhookLogs, websiteSettings, chatRooms, chatMessages, customReports, scheduledReports, faqs, memberCustomRoles, classSeries, customRoles } from '@studio/db/src/schema';
+import { tenants, tenantMembers, tenantRoles, subscriptions, tenantFeatures, websitePages, auditLogs, users, userRelationships, emailLogs, locations, classes, bookings, products, posOrders, marketingAutomations, marketingCampaigns, waiverTemplates, waiverSignatures, studentNotes, uploads, usageLogs, appointmentServices, availabilities, appointments, payrollConfig, payouts, payrollItems, automationLogs, smsLogs, pushLogs, membershipPlans, classPackDefinitions, purchasedPacks, coupons, couponRedemptions, smsConfig, substitutions, suppliers, inventoryAdjustments, purchaseOrders, purchaseOrderItems, referralCodes, referralRewards, posOrderItems, giftCards, giftCardTransactions, leads, challenges, userChallenges, progressMetricDefinitions, memberProgressEntries, videos, waitlist, subRequests, videoShares, videoCollections, videoCollectionItems, brandingAssets, referrals, tags, tagAssignments, customFieldDefinitions, customFieldValues, communityPosts, communityComments, communityLikes, reviews, tasks, refunds, webhookEndpoints, webhookLogs, websiteSettings, chatRooms, chatMessages, customReports, scheduledReports, faqs, memberCustomRoles, classSeries, customRoles, TENANT_TIERS, TENANT_STATUSES } from '@studio/db/src/schema';
 import { eq, sql, desc, count, and, inArray, or, ne } from 'drizzle-orm';
 import { AuditService } from '../services/audit';
 import { HonoContext } from '../types';
@@ -68,6 +68,7 @@ app.put('/:id/status', async (c) => {
     if (!isPlatformAdmin) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const { status } = await c.req.json();
+    if (!(TENANT_STATUSES as readonly string[]).includes(status)) return c.json({ error: 'Invalid status' }, 400);
     await db.update(tenants).set({ status }).where(eq(tenants.id, c.req.param('id'))).run();
 
     const audit = new AuditService(db);
@@ -88,7 +89,7 @@ app.patch('/:id/tier', async (c) => {
     if (!isPlatformAdmin) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const { tier } = await c.req.json();
-    if (!['launch', 'growth', 'scale'].includes(tier)) return c.json({ error: 'Invalid tier' }, 400);
+    if (!(TENANT_TIERS as readonly string[]).includes(tier)) return c.json({ error: 'Invalid tier' }, 400);
 
     await db.update(tenants).set({ tier }).where(eq(tenants.id, c.req.param('id'))).run();
 
@@ -386,7 +387,7 @@ app.delete('/:id', async (c) => {
                 const { StorageService } = await import('../services/storage');
                 const ss = new StorageService(c.env.R2!);
                 // Delete everything under tenants/{slug}/
-                await ss.deleteDirectory(`tenants/${t.slug}/`);
+                await ss.deleteDirectory(`tenants / ${t.slug}/`);
                 console.log(`Cleaned up R2 for tenant ${t.slug}`);
             } catch (e) {
                 console.error("Failed to clean up R2", e);
