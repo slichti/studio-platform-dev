@@ -221,9 +221,20 @@ app.post('/logo', async (c) => {
         httpMetadata: { contentType: file.type }
     });
 
-    // Public URL (proxied via API)
-    // Note: In production you might want a custom domain for R2, but this proxy works for now.
     const logoUrl = `${new URL(c.req.url).origin}/uploads/${objectKey}`;
+
+    await db.insert(uploads).values({
+        id: crypto.randomUUID(),
+        tenantId: tenant.id,
+        fileKey: objectKey,
+        fileUrl: logoUrl,
+        sizeBytes: file.size,
+        mimeType: file.type,
+        originalName: file.name,
+        uploadedBy: c.get('auth')?.userId,
+        title: 'Studio Logo',
+        createdAt: new Date()
+    }).run();
 
     const currentBranding = (tenant.branding as any) || {};
     await db.update(tenants)
@@ -262,6 +273,20 @@ app.post('/portrait', async (c) => {
     const portraitUrl = `${new URL(c.req.url).origin}/uploads/${objectKey}`;
 
     const db = createDb(c.env.DB);
+
+    await db.insert(uploads).values({
+        id: crypto.randomUUID(),
+        tenantId: tenant.id,
+        fileKey: objectKey,
+        fileUrl: portraitUrl,
+        sizeBytes: file.size,
+        mimeType: file.type,
+        originalName: file.name,
+        uploadedBy: c.get('auth')?.userId,
+        title: 'Member Portrait',
+        createdAt: new Date()
+    }).run();
+
     const targetMember = await db.select({ userId: tenantMembers.userId })
         .from(tenantMembers)
         .where(and(eq(tenantMembers.id, targetMemberId), eq(tenantMembers.tenantId, tenant.id)))
@@ -288,7 +313,7 @@ app.get('/*', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: 'Tenant context missing' }, 400);
 
-    const key = c.req.path.replace(/^\//, ''); // Strip leading slash to match R2 key
+    const key = c.req.param('*');
     if (!key) return c.json({ error: 'Key required' }, 400);
 
     // Security: Access Control
