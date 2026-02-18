@@ -1,4 +1,6 @@
 import { useUser, useClerk } from "@clerk/react-router";
+import { toast } from "sonner";
+import { API_URL } from "../utils/api";
 
 import { NavLink, useLocation } from "react-router";
 import { useState, useEffect } from "react";
@@ -27,6 +29,24 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
         // Check for impersonation token on mount
         setImpersonationToken(localStorage.getItem("impersonation_token"));
         setImpersonationEmail(localStorage.getItem("impersonation_target_email"));
+
+        // [Pillar 4] Runtime Environment Ping
+        const checkHeartbeat = async () => {
+            try {
+                const res = await fetch(API_URL);
+                if (!res.ok) throw new Error("API Unreachable");
+                const data = await res.json() as any;
+                console.log(`[Heartbeat] OK (${data.env?.ENVIRONMENT || 'unknown'})`);
+            } catch (err) {
+                console.error("[Heartbeat] Failed:", err);
+                toast.error("System connection issue detected.", {
+                    description: "The API is unreachable or misconfigured. Some features may not work.",
+                    duration: 10000,
+                });
+            }
+        };
+
+        checkHeartbeat();
     }, []);
 
     // Close mobile menu on route change
