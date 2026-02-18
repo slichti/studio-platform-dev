@@ -87,7 +87,7 @@ app.get('/rooms/:id/websocket', async (c) => {
     url.searchParams.set('userId', userId);
     url.searchParams.set('role', c.get('member')?.roles[0]?.role || (auth ? 'student' : 'guest'));
     try {
-        const doId = c.env.CHAT_ROOM!.idFromString(c.req.param('id'));
+        const doId = c.env.CHAT_ROOM!.idFromName(c.req.param('id'));
         const stub = c.env.CHAT_ROOM!.get(doId);
         console.log('[ChatRoute] Forwarding Upgrade to DO:', doId.toString());
         return await stub.fetch(url.toString(), c.req.raw);

@@ -51,6 +51,22 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
             tenant = await db.query.tenants.findFirst({
                 where: eq(tenants.slug, queryTenantSlug),
             });
+
+            // [NEW] Virtual Platform Tenant Fallback
+            if (!tenant && queryTenantSlug === 'platform') {
+                console.log('[TenantMiddleware] Synthesizing virtual Platform tenant');
+                tenant = {
+                    id: 'platform',
+                    slug: 'platform',
+                    name: 'Studio Platform',
+                    branding: { primaryColor: '#2563eb' },
+                    status: 'active',
+                    subscriptionStatus: 'active',
+                    tier: 'scale', // Full feature access for platform support
+                    isPublic: true,
+                    createdAt: new Date()
+                } as any;
+            }
         } else if (queryTenantId) {
             tenant = await db.query.tenants.findFirst({
                 where: eq(tenants.id, queryTenantId),
