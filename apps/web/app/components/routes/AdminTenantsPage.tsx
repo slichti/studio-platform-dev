@@ -82,7 +82,7 @@ export default function AdminTenantsPageComponent() {
 
     const [exportModal, setExportModal] = useState<any>(null);
 
-    const [formData, setFormData] = useState({ name: "", slug: "", ownerEmail: "", plan: "basic" });
+    const [formData, setFormData] = useState({ name: "", slug: "", ownerEmail: "", plan: "launch" });
     const [sortField, setSortField] = useState('createdAt');
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
     const [statusFilter, setStatusFilter] = useState('all');
@@ -460,7 +460,7 @@ export default function AdminTenantsPageComponent() {
             filtered = filtered.filter((t: any) => t.slug !== 'platform');
             if (statusFilter !== 'all') filtered = filtered.filter((t: any) => (t.status || 'active') === statusFilter);
         }
-        if (tierFilter !== 'all') filtered = filtered.filter((t: any) => (t.tier || 'basic') === tierFilter);
+        if (tierFilter !== 'all') filtered = filtered.filter((t: any) => (t.tier || 'launch') === tierFilter);
         return filtered.sort((a: any, b: any) => {
             const getVal = (obj: any, path: string) => path.split('.').reduce((acc, part) => acc && acc[part], obj);
             const valA = getVal(a, sortField);
@@ -588,8 +588,7 @@ export default function AdminTenantsPageComponent() {
                             value={tierFilter}
                             onChange={(e) => setTierFilter(e.target.value)}
                         >
-                            <option value="all">All Tiers</option>
-                            <option value="basic">Launch</option>
+                            <option value="launch">Launch</option>
                             <option value="growth">Growth</option>
                             <option value="scale">Scale</option>
                         </select>
@@ -636,11 +635,11 @@ export default function AdminTenantsPageComponent() {
                                     </td>
                                     <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                                         <select
-                                            value={t.tier || 'basic'}
+                                            value={t.tier || 'launch'}
                                             onChange={(e) => setTierChange({ id: t.id, tier: e.target.value })}
                                             className={`text-xs border rounded px-2 py-0.5 ${t.tier === 'scale' ? 'bg-purple-100 text-purple-800' : t.tier === 'growth' ? 'bg-blue-100 text-blue-800' : 'bg-zinc-100 text-zinc-600'}`}
                                         >
-                                            <option value="basic">Launch</option>
+                                            <option value="launch">Launch</option>
                                             <option value="growth">Growth</option>
                                             <option value="scale">Scale</option>
                                         </select>

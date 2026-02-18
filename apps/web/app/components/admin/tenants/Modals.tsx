@@ -246,7 +246,7 @@ export function AdminTenantsModals({ state, handlers, FEATURES }: AdminTenantsMo
                                 value={state.seedOptions.tier}
                                 onChange={(e) => handlers.setSeedOptions({ ...state.seedOptions, tier: e.target.value as any })}
                             >
-                                <option value="basic">Launch</option>
+                                <option value="launch">Launch</option>
                                 <option value="growth">Growth</option>
                                 <option value="scale">Scale</option>
                             </select>
@@ -512,7 +512,7 @@ export function AdminTenantsModals({ state, handlers, FEATURES }: AdminTenantsMo
                                 value={state.formData.plan}
                                 onChange={(e) => handlers.setFormData({ ...state.formData, plan: e.target.value })}
                             >
-                                <option value="basic">Launch (Basic)</option>
+                                <option value="launch">Launch (Basic)</option>
                                 <option value="growth">Growth</option>
                                 <option value="scale">Scale</option>
                             </select>
