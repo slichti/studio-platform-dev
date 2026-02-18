@@ -1,49 +1,41 @@
+import { MiddlewareHandler } from 'hono';
+import { Variables, Bindings } from '../types';
+import { Permission } from '../services/permissions';
 
-import { Context, Next } from 'hono';
-import { createDb } from '../db';
-import { memberCustomRoles, customRoles } from '@studio/db/src/schema'; // Ensure exported
-import { eq, inArray } from 'drizzle-orm';
-import { Permission } from '../const/permissions';
-
-export const requirePermission = (requiredPermission: Permission) => {
-    return async (c: Context, next: Next) => {
-        const member = c.get('member');
-        const roles = c.get('roles') || []; // System roles from tenantMiddleware
-
-        // 1. Super-User Bypass
-        if (roles.includes('owner') || roles.includes('admin')) {
-            return next();
+/**
+ * Middleware to require a specific permission.
+ * Depends on tenantMiddleware having already run and set 'can'.
+ */
+export const requirePermission = (permission: Permission): MiddlewareHandler<{ Variables: Variables, Bindings: Bindings }> => {
+    return async (c, next) => {
+        const can = c.get('can');
+        if (!can || !can(permission)) {
+            console.warn(`[RBAC] Access Denied: User ${c.get('auth')?.userId} lacks permission '${permission}' for tenant ${c.get('tenant')?.id}`);
+            return c.json({
+                error: 'Forbidden',
+                message: `You do not have the required permission: ${permission}`
+            }, 403);
         }
+        await next();
+    };
+};
 
-        if (!member) {
-            return c.json({ error: "Unauthorized: No member context" }, 401);
+/**
+ * Middleware to require at least one of the specified roles.
+ * Depends on tenantMiddleware having already run and set 'roles'.
+ */
+export const requireRole = (allowedRoles: string[]): MiddlewareHandler<{ Variables: Variables, Bindings: Bindings }> => {
+    return async (c, next) => {
+        const roles = c.get('roles') || [];
+        const hasRole = allowedRoles.some(r => roles.includes(r));
+
+        if (!hasRole) {
+            console.warn(`[RBAC] Access Denied: User ${c.get('auth')?.userId} lacks one of the required roles: [${allowedRoles.join(', ')}]`);
+            return c.json({
+                error: 'Forbidden',
+                message: `This action requires one of the following roles: ${allowedRoles.join(', ')}`
+            }, 403);
         }
-
-        // 2. Fetch Custom Permissions
-        // Optimization: We could cache this in the member object in tenantMiddleware if used frequently
-        const db = createDb(c.env.DB);
-
-        const assignedRoles = await db.select({
-            permissions: customRoles.permissions
-        })
-            .from(memberCustomRoles)
-            .innerJoin(customRoles, eq(memberCustomRoles.customRoleId, customRoles.id))
-            .where(eq(memberCustomRoles.memberId, member.id))
-            .all();
-
-        // Flatten permissions
-        const userPermissions = new Set<string>();
-        assignedRoles.forEach(role => {
-            if (Array.isArray(role.permissions)) {
-                role.permissions.forEach((p: string) => userPermissions.add(p));
-            }
-        });
-
-        // 3. Check Requirement
-        if (userPermissions.has(requiredPermission)) {
-            return next();
-        }
-
-        return c.json({ error: `Forbidden: Missing permission '${requiredPermission}'` }, 403);
+        await next();
     };
 };

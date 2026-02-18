@@ -26,6 +26,8 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
     const headerTenantId = c.req.header('X-Tenant-Id');
     const headerTenantSlug = c.req.header('X-Tenant-Slug')?.toLowerCase();
 
+    console.log(`[TenantMiddleware DEBUG] Path: ${c.req.path}, Host: ${hostname}, Header ID: ${headerTenantId}, Header Slug: ${headerTenantSlug}`);
+
     let tenant;
 
     if (headerTenantId) {

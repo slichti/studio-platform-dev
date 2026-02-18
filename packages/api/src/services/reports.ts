@@ -619,6 +619,62 @@ export class ReportService {
         return `${headers}\n${rows}`;
     }
 
+    async generatePdf(data: any[], metrics: string[], title: string, subtitle?: string) {
+        const { jsPDF } = await import('jspdf');
+        // @ts-ignore - autoTable is a plugin but we can use it if we import it or just draw manually
+        // For Workers compatibility and simplicity, let's draw a simple table manually or use basic jsPDF
+        const doc = new jsPDF();
+
+        let y = 20;
+        doc.setFontSize(20);
+        doc.text(title, 20, y);
+        y += 10;
+
+        if (subtitle) {
+            doc.setFontSize(12);
+            doc.setTextColor(100);
+            doc.text(subtitle, 20, y);
+            y += 15;
+        }
+
+        doc.setFontSize(10);
+        doc.setTextColor(0);
+
+        // Draw Headers
+        const headers = ['Date', ...metrics.map(m => m.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '))];
+        let x = 20;
+        headers.forEach((h, i) => {
+            doc.text(h, x, y);
+            x += (i === 0 ? 50 : 35);
+        });
+
+        y += 5;
+        doc.line(20, y, 190, y);
+        y += 7;
+
+        // Draw Rows
+        data.forEach((row, rowIndex) => {
+            if (y > 270) {
+                doc.addPage();
+                y = 20;
+            }
+            let rowX = 20;
+            doc.text(row.name, rowX, y);
+            rowX += 50;
+
+            metrics.forEach(m => {
+                const val = row[m] || 0;
+                const displayVal = m === 'revenue' ? `$${val.toFixed(2)}` : val.toString();
+                doc.text(displayVal, rowX, y);
+                rowX += 35;
+            });
+            y += 7;
+        });
+
+        // Convert to Uint8Array for Resend attachment
+        return new Uint8Array(doc.output('arraybuffer'));
+    }
+
     async getRetention(start: Date, end: Date) {
         // 1. Active Subscribers at Start of Period
         // Users who had an active subscription at 'start' date

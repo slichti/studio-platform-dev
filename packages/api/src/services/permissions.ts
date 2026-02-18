@@ -10,6 +10,7 @@ export type Permission =
     | 'view_classes'
     | 'manage_staff'
     | 'view_reports'
+    | 'manage_reports'
     | 'view_financials'
     | 'check_in_students'
     | 'manage_pos'
@@ -34,7 +35,7 @@ export const RolePermissions: Record<string, Permission[]> = {
         'manage_members', 'view_members',
         'manage_classes', 'view_classes',
         'manage_staff',
-        'view_reports', 'view_financials',
+        'view_reports', 'manage_reports', 'view_financials',
         'check_in_students',
         'manage_pos', 'view_pos', 'manage_inventory',
         'manage_marketing',
@@ -51,7 +52,7 @@ export const RolePermissions: Record<string, Permission[]> = {
         'manage_members', 'view_members',
         'manage_classes', 'view_classes',
         'manage_staff',
-        'view_reports',
+        'view_reports', 'manage_reports',
         'check_in_students',
         'manage_pos', 'view_pos', 'manage_inventory',
         'manage_marketing',

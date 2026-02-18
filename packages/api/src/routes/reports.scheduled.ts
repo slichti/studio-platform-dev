@@ -1,17 +1,16 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { scheduledReports, tenants } from '@studio/db/src/schema';
+import { scheduledReports, tenants, customReports } from '@studio/db/src/schema';
 import { eq, and, lte } from 'drizzle-orm';
 import { HonoContext } from '../types';
 import { ReportService } from '../services/reports';
 import { EmailService, TenantEmailConfig } from '../services/email';
+import { requirePermission } from '../middleware/rbac';
 
 const app = new Hono<HonoContext>();
 
 // GET / - List all scheduled reports
-app.get('/', async (c) => {
-    if (!c.get('can')('view_reports')) return c.json({ error: 'Unauthorized' }, 403);
-
+app.get('/', requirePermission('view_reports'), async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
@@ -24,9 +23,7 @@ app.get('/', async (c) => {
 });
 
 // POST / - Create scheduled report
-app.post('/', async (c) => {
-    if (!c.get('can')('manage_reports')) return c.json({ error: 'Unauthorized' }, 403);
-
+app.post('/', requirePermission('manage_reports'), async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
@@ -61,9 +58,7 @@ app.post('/', async (c) => {
 });
 
 // PATCH /:id - Update scheduled report
-app.patch('/:id', async (c) => {
-    if (!c.get('can')('manage_reports')) return c.json({ error: 'Unauthorized' }, 403);
-
+app.patch('/:id', requirePermission('manage_reports'), async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
@@ -85,9 +80,7 @@ app.patch('/:id', async (c) => {
 });
 
 // DELETE /:id - Delete scheduled report
-app.delete('/:id', async (c) => {
-    if (!c.get('can')('manage_reports')) return c.json({ error: 'Unauthorized' }, 403);
-
+app.delete('/:id', requirePermission('manage_reports'), async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
@@ -137,14 +130,37 @@ app.post('/execute', async (c) => {
             } else if (report.reportType === 'attendance') {
                 reportData = await reportService.getAttendance(startDate, endDate);
             } else if (report.reportType === 'custom' && report.customReportId) {
-                // TODO: Fetch custom report config and run
-                console.warn("[Scheduled Reports] Custom reports not yet fully supported in execution");
+                const reportRecord = await db.select().from(customReports).where(and(eq(customReports.id, report.customReportId), eq(customReports.tenantId, report.tenantId))).get();
+                if (reportRecord) {
+                    const config = reportRecord.config as any;
+                    reportData = await reportService.query({
+                        metrics: config.metrics,
+                        dimensions: config.dimensions,
+                        filters: { startDate, endDate }
+                    });
+                }
             }
 
-            // Generate CSV
+            // Generate Assets
             let csvContent = '';
+            let pdfBuffer: Uint8Array | null = null;
+            let metrics: string[] = [];
+
             if (reportData && 'chartData' in reportData) {
-                csvContent = reportService.generateCsv(reportData.chartData, ['name', 'value']); // Simplified headers
+                if (report.reportType === 'custom' && report.customReportId) {
+                    const reportRecord = await db.select().from(customReports).where(eq(customReports.id, report.customReportId)).get();
+                    metrics = (reportRecord?.config as any)?.metrics || [];
+                } else {
+                    metrics = [report.reportType === 'revenue' ? 'revenue' : 'attendance'];
+                }
+
+                csvContent = reportService.generateCsv(reportData.chartData, metrics);
+                pdfBuffer = await reportService.generatePdf(
+                    reportData.chartData,
+                    metrics,
+                    `${report.reportType.toUpperCase()} Report`,
+                    `${tenant.name} (${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()})`
+                );
             }
 
             // Send Email
@@ -156,8 +172,12 @@ app.post('/execute', async (c) => {
                 <p>Frequency: ${report.frequency}</p>
             `;
 
-            const filename = `${report.reportType}_${startDate.toISOString().split('T')[0]}.csv`;
-            const attachments = csvContent ? [{ filename, content: Buffer.from(csvContent) }] : [];
+            const filenameCsv = `${report.reportType}_${startDate.toISOString().split('T')[0]}.csv`;
+            const filenamePdf = `${report.reportType}_${startDate.toISOString().split('T')[0]}.pdf`;
+
+            const attachments = [];
+            if (csvContent) attachments.push({ filename: filenameCsv, content: Buffer.from(csvContent) });
+            if (pdfBuffer) attachments.push({ filename: filenamePdf, content: Buffer.from(pdfBuffer) });
 
             if (attachments.length > 0) {
                 for (const recipient of (report.recipients as string[])) {

@@ -10,6 +10,8 @@ import { StudioVariables } from '../types';
 
 const app = createOpenAPIApp<StudioVariables>();
 
+
+
 // --- Schemas ---
 
 const StudioSchema = z.object({
@@ -70,6 +72,7 @@ const MobileConfigSchema = z.object({
 
 
 // --- Routes ---
+
 
 // GET /stripe/connect (OAuth - kept as standard route)
 app.get('/stripe/connect', async (c) => {
@@ -234,44 +237,6 @@ app.openapi(createRoute({
     return c.json({ success: true });
 });
 
-// GET /google/connect (OAuth - kept as standard route)
-app.get('/google/connect', async (c) => {
-    const tenantId = c.req.query('tenantId');
-    if (!tenantId) return c.json({ error: 'Tenant ID required' }, 400);
-    const isPlatformAdmin = c.get('auth')?.claims?.isPlatformAdmin === true;
-    if (!isPlatformAdmin && !c.get('can')('manage_tenant')) return c.json({ error: "Forbidden" }, 403);
-
-    const { GoogleCalendarService } = await import('../services/google-calendar');
-    const service = new GoogleCalendarService(c.env.GOOGLE_CLIENT_ID as string, c.env.GOOGLE_CLIENT_SECRET as string, `${new URL(c.req.url).origin}/studios/google/callback`);
-    const state = await sign({ tenantId, userId: c.get('auth')!.userId, exp: Math.floor(Date.now() / 1000) + 600 }, c.env.ENCRYPTION_SECRET as string, 'HS256');
-    return c.redirect(service.getAuthUrl(state));
-});
-
-// GET /google/callback (OAuth - kept as standard route)
-app.get('/google/callback', async (c) => {
-    const { code, state, error } = c.req.query();
-    if (error || !code || !state) return c.json({ error: error || 'Missing params' }, 400);
-
-    let tenantIdStr: string;
-    try {
-        const payload = await verify(state, c.env.ENCRYPTION_SECRET as string, 'HS256');
-        if (payload.userId !== c.get('auth')?.userId) return c.json({ error: "User mismatch" }, 403);
-        tenantIdStr = payload.tenantId as string;
-    } catch (e) { return c.json({ error: "Invalid state" }, 400); }
-
-    const { GoogleCalendarService } = await import('../services/google-calendar');
-    const service = new GoogleCalendarService(c.env.GOOGLE_CLIENT_ID as string, c.env.GOOGLE_CLIENT_SECRET as string, `${new URL(c.req.url).origin}/studios/google/callback`);
-    const db = createDb(c.env.DB);
-    const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET as string);
-
-    try {
-        const tokens = await service.exchangeCode(code);
-        const credentials: any = { accessToken: await encryption.encrypt(tokens.access_token), expiryDate: Date.now() + (tokens.expires_in * 1000) };
-        if (tokens.refresh_token) credentials.refreshToken = await encryption.encrypt(tokens.refresh_token);
-        await db.update(tenants).set({ googleCalendarCredentials: credentials }).where(eq(tenants.id, tenantIdStr)).run();
-        return c.text('Google Calendar connected!');
-    } catch (e: any) { return c.json({ error: e.message }, 500); }
-});
 
 // DELETE /:id/integrations/google
 app.openapi(createRoute({

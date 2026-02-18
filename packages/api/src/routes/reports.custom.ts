@@ -4,20 +4,19 @@ import { customReports } from '@studio/db/src/schema';
 import { ReportService } from '../services/reports';
 import { eq, and, desc } from 'drizzle-orm';
 import { HonoContext } from '../types';
+import { requirePermission } from '../middleware/rbac';
 
 const app = new Hono<HonoContext>();
 
 // GET /
-app.get('/', async (c) => {
-    if (!c.get('can')('view_reports') && !c.get('can')('manage_reports')) return c.json({ error: 'Unauthorized' }, 403);
+app.get('/', requirePermission('view_reports'), async (c) => {
     const db = createDb(c.env.DB);
     const list = await db.select().from(customReports).where(eq(customReports.tenantId, c.get('tenant')!.id)).orderBy(desc(customReports.createdAt)).all();
     return c.json({ reports: list });
 });
 
 // POST /query
-app.post('/query', async (c) => {
-    if (!c.get('can')('view_reports') && !c.get('can')('manage_reports')) return c.json({ error: 'Unauthorized' }, 403);
+app.post('/query', requirePermission('view_reports'), async (c) => {
     const db = createDb(c.env.DB);
     const { metrics, dimensions, filters, format } = await c.req.json();
     const service = new ReportService(db, c.get('tenant')!.id);
@@ -28,8 +27,7 @@ app.post('/query', async (c) => {
 });
 
 // POST /
-app.post('/', async (c) => {
-    if (!c.get('can')('manage_reports')) return c.json({ error: 'Unauthorized' }, 403);
+app.post('/', requirePermission('manage_reports'), async (c) => {
     const db = createDb(c.env.DB);
     const { name, config, isPublic } = await c.req.json();
     const id = crypto.randomUUID();
@@ -38,8 +36,7 @@ app.post('/', async (c) => {
 });
 
 // DELETE /:id
-app.delete('/:id', async (c) => {
-    if (!c.get('can')('manage_reports')) return c.json({ error: 'Unauthorized' }, 403);
+app.delete('/:id', requirePermission('manage_reports'), async (c) => {
     const db = createDb(c.env.DB);
     await db.delete(customReports).where(and(eq(customReports.id, c.req.param('id')), eq(customReports.tenantId, c.get('tenant')!.id))).run();
     return c.json({ success: true });

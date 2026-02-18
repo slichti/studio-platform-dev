@@ -1,7 +1,9 @@
 // import { Hono } from 'hono' - Replaced by OpenAPIHono
 import { createDb } from './db';
 import { tenants, tenantMembers, tenantFeatures, users, classes, bookings, posOrders, purchasedPacks, waiverTemplates, waiverSignatures, tenantRoles, platformConfig, customRoles, memberCustomRoles } from '@studio/db/src/schema';
-import { eq, and, count, sum, gte, like, or } from 'drizzle-orm';
+import { sql, eq, and, count, sum, gte, like, or } from 'drizzle-orm';
+import { sign, verify } from 'hono/jwt';
+import { EncryptionUtils } from './utils/encryption';
 import { UsageService } from './services/pricing';
 import { StripeService } from './services/stripe';
 import { ExportService } from './services/export';
@@ -86,6 +88,53 @@ import { sentryMiddleware } from './middleware/sentry';
 
 const app = createOpenAPIApp()
 
+// ISOLATED GOOGLE OAUTH ROUTES
+app.get('/studios/gc-connect', authMiddleware, tenantMiddleware, async (c) => {
+  const tenantId = c.req.query('tenantId');
+  if (!tenantId) return c.json({ error: 'Tenant ID required' }, 400);
+
+  const isPlatformAdmin = c.get('auth')?.claims?.isPlatformAdmin === true;
+  if (!isPlatformAdmin && !c.get('can')('manage_tenant')) return c.json({ error: "Forbidden" } as any, 403);
+
+  const clientId = (c.env.GOOGLE_CLIENT_ID as string) || (c.env.ENVIRONMENT === 'test' ? 'mock-google-id' : '');
+  const clientSecret = (c.env.GOOGLE_CLIENT_SECRET as string) || (c.env.ENVIRONMENT === 'test' ? 'mock-google-secret' : '');
+  const encryptionSecret = (c.env.ENCRYPTION_SECRET as string) || (c.env.ENVIRONMENT === 'test' ? 'test-secret-must-be-32-chars-lng' : '');
+
+  const { GoogleCalendarService } = await import('./services/google-calendar');
+  const service = new GoogleCalendarService(clientId, clientSecret, `${new URL(c.req.url).origin}/studios/gc-callback`);
+  const state = await sign({ tenantId, userId: c.get('auth')!.userId, exp: Math.floor(Date.now() / 1000) + 600 }, encryptionSecret, 'HS256');
+  return c.redirect(service.getAuthUrl(state));
+});
+
+app.get('/studios/gc-callback', authMiddleware, tenantMiddleware, async (c) => {
+  const { code, state, error } = c.req.query();
+  if (error || !code || !state) return c.json({ error: error || 'Missing params' }, 400);
+
+  const encryptionSecret = (c.env.ENCRYPTION_SECRET as string) || (c.env.ENVIRONMENT === 'test' ? 'test-secret-must-be-32-chars-lng' : '');
+  const clientId = (c.env.GOOGLE_CLIENT_ID as string) || (c.env.ENVIRONMENT === 'test' ? 'mock-google-id' : '');
+  const clientSecret = (c.env.GOOGLE_CLIENT_SECRET as string) || (c.env.ENVIRONMENT === 'test' ? 'mock-google-secret' : '');
+
+  let tenantIdStr: string;
+  try {
+    const payload = await verify(state, encryptionSecret, 'HS256');
+    if (payload.userId !== c.get('auth')?.userId) return c.json({ error: "User mismatch" }, 403);
+    tenantIdStr = payload.tenantId as string;
+  } catch (e) { return c.json({ error: "Invalid state" }, 400); }
+
+  const { GoogleCalendarService } = await import('./services/google-calendar');
+  const service = new GoogleCalendarService(clientId, clientSecret, `${new URL(c.req.url).origin}/studios/gc-callback`);
+  const db = createDb(c.env.DB);
+  const encryption = new EncryptionUtils(encryptionSecret);
+
+  try {
+    const tokens = await service.exchangeCode(code);
+    const credentials: any = { accessToken: await encryption.encrypt(tokens.access_token), expiryDate: Date.now() + (tokens.expires_in * 1000) };
+    if (tokens.refresh_token) credentials.refreshToken = await encryption.encrypt(tokens.refresh_token);
+    await db.update(tenants).set({ googleCalendarCredentials: credentials }).where(eq(tenants.id, tenantIdStr)).run();
+    return c.text('Google Calendar connected!');
+  } catch (e: any) { return c.json({ error: e.message }, 500); }
+});
+
 app.doc('/doc', {
   openapi: '3.0.0',
   info: {
@@ -153,13 +202,6 @@ app.use('*', cors({
   credentials: true,
 }));
 
-app.notFound((c) => {
-  return c.json({
-    error: "Global App 404",
-    path: c.req.path,
-    method: c.req.method
-  }, 404);
-});
 
 app.get('/', (c) => {
   return c.json({
@@ -357,8 +399,7 @@ studioApp.notFound((c) => {
 
 // 5. Setup Feature Route sub-apps (will be mounted in next step)
 // 5. Setup Feature Route sub-apps (will be mounted in next step)
-app.route('/studios', studioRoutes);
-app.route('/tenants', studioRoutes); // Alias for legacy frontend compatibility
+
 
 // 6. Base Studio Logic
 // 6. Base Studio Logic
@@ -619,6 +660,11 @@ app.route('/video', video);
 app.route('/video-management', videoManagement);
 
 
+
+app.route('/studios', studioRoutes);
+app.route('/tenants', studioRoutes); // Alias for legacy frontend compatibility
+
+
 studioApp.route('/roles', rolesRoutes); // [NEW] RBAC Management
 
 app.route('/users', userRoutes);
@@ -643,6 +689,8 @@ app.route('/sub-dispatch', subDispatch);
 app.route('/guest', guestRoutes);
 app.route('/platform-pages', platformPagesRoutes);
 app.route('/faqs', faqRoutes); // [NEW] FAQ management
+
+
 
 // Feature Routes
 studioApp.route('/tags', tagsRoutes);
@@ -670,6 +718,14 @@ import { RateLimiter } from './durable-objects/RateLimiter';
 import { Metrics } from './durable-objects/Metrics';
 
 export { ChatRoom, RateLimiter, Metrics };
+
+app.notFound((c) => {
+  return c.json({
+    error: "Global App 404",
+    path: c.req.path,
+    method: c.req.method
+  }, 404);
+});
 
 app.route('/docs', docRoutes); // Mount docs at /docs
 

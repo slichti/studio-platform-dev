@@ -112,4 +112,44 @@ describe('Security Regression Tests', () => {
         // GET /members/me returns 404 if member record not found for user/tenant combo
         expect(res.status).toBe(404);
     });
+
+    it('Scenario 4: Role-based filtering - Student should NOT see Custom Reports', async () => {
+        const req = createRequest('GET', '/reports/custom', {
+            'X-Tenant-Id': TENANT_ID,
+            'TEST-AUTH': STUDENT_A_ID
+        });
+
+        const res = await SELF.fetch(req);
+        // Student A has no roles assigned in seed data, so tenantMiddleware defaults to no permissions
+        // and requirePermission('view_reports') should deny access.
+        expect(res.status).toBe(403);
+    });
+
+    it('Scenario 5: OAuth Callback User Mismatch - Should fail if different user tries to finish callback', async () => {
+        // 1. Initiate Connect as Owner (to get a valid signed state)
+        const connectReq = createRequest('GET', `/studios/gc-connect?tenantId=${TENANT_ID}`, {
+            'TEST-AUTH': OWNER_ID,
+            'X-Tenant-Id': TENANT_ID
+        });
+        const connectRes = await SELF.fetch(connectReq, { redirect: 'manual' });
+        if (connectRes.status !== 302) {
+            console.error('[Scenario 5 DEBUG] Failed with status:', connectRes.status, 'Body:', await connectRes.json());
+        }
+        expect(connectRes.status).toBe(302);
+        const location = connectRes.headers.get('Location');
+        const url = new URL(location!);
+        const state = url.searchParams.get('state');
+
+        // 2. Attempt Callback as Student A with Owner's state
+        const callbackReq = createRequest('GET', `/studios/gc-callback?code=mock_code&state=${state}`, {
+            'TEST-AUTH': STUDENT_A_ID,
+            'X-Tenant-Id': TENANT_ID
+        });
+        const callbackRes = await SELF.fetch(callbackReq);
+
+        // Should be 403 due to payload.userId !== c.get('auth')?.userId check
+        expect(callbackRes.status).toBe(403);
+        const body = await callbackRes.json();
+        expect(body.error).toBe('User mismatch');
+    });
 });
