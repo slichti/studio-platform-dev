@@ -93,7 +93,7 @@ export default function Layout({ children, tenantName = "Studio Platform", role,
                                 }`
                             }
                         >
-                            Overview
+                            Dashboard
                         </NavLink>
                     </>
                 )}

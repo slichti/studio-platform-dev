@@ -123,7 +123,7 @@ export default function AdminIndex() {
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Dashboard Overview</h2>
+                <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Dashboard</h2>
                 <p className="text-zinc-500 dark:text-zinc-400">System performance and activity monitoring.</p>
             </div>
 

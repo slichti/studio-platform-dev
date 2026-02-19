@@ -81,7 +81,7 @@ export default function AdminLayout() {
         { label: "Internal Docs", href: "/documentation", icon: "📚" },
         { label: "Marketing Automations", href: "/admin/workflows", icon: "📋" },
         { label: "Mobile App", href: "/admin/mobile", icon: "📱" },
-        { label: "Overview", href: "/admin", end: true, icon: "📊" },
+        { label: "Dashboard", href: "/admin", end: true, icon: "📊" },
         { label: "Operations Dashboard", href: "/admin/ops", icon: "🛠️" },
         { label: "Platform Features", href: "/admin/features", icon: "⚙️" },
         { label: "Platform Plans", href: "/admin/plans", icon: "💎" },
