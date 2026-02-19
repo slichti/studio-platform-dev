@@ -81,18 +81,18 @@ export default function HelpLayout() {
         {
             category: "Getting Started",
             items: [
-                { name: "Welcome to Studio Platform", href: "/documentation", icon: GraduationCap },
-                { name: "Setting up your Studio", href: "/documentation/setup", icon: Settings },
-                { name: "Migration & Import", href: "/documentation/migration", icon: Database },
                 { name: "For Studio Owners", href: "/documentation/studio/overview", icon: Users },
+                { name: "Migration & Import", href: "/documentation/migration", icon: Database },
+                { name: "Setting up your Studio", href: "/documentation/setup", icon: Settings },
+                { name: "Welcome to Studio Platform", href: "/documentation", icon: GraduationCap },
             ]
         },
 
         {
             category: "Classes & Schedule",
             items: [
-                { name: "Creating Classes", href: "/documentation/classes", icon: Book },
                 { name: "Courses & Monetization", href: "/documentation/courses", icon: GraduationCap },
+                { name: "Creating Classes", href: "/documentation/classes", icon: Book },
             ]
         },
         {
