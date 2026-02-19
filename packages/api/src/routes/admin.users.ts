@@ -184,8 +184,7 @@ app.post('/impersonate', async (c) => {
             actorId: realId,
             targetId: targetUserId,
             details: { targetEmail: targetUser.email },
-            ipAddress: c.req.header('CF-Connecting-IP'),
-            createdAt: new Date()
+            ipAddress: c.req.header('CF-Connecting-IP')
         }).run();
     } catch (err) {
         console.error("Failed to log impersonation event:", err);
@@ -230,14 +229,17 @@ app.post('/cleanup', async (c) => {
             deletedCount += chunk.length;
         }
 
-        await db.insert(auditLogs).values({
-            id: crypto.randomUUID(),
-            action: 'purge_orphans',
-            actorId: auth.userId,
-            details: { count: deletedCount },
-            ipAddress: c.req.header('CF-Connecting-IP'),
-            createdAt: new Date()
-        }).run();
+        try {
+            await db.insert(auditLogs).values({
+                id: crypto.randomUUID(),
+                action: 'purge_orphans',
+                actorId: auth.userId,
+                details: { count: deletedCount },
+                ipAddress: c.req.header('CF-Connecting-IP')
+            }).run();
+        } catch (err) {
+            console.error("Failed to log orphan purge event:", err);
+        }
 
         return c.json({ success: true, count: deletedCount, message: `Successfully purged ${deletedCount} orphaned users.` });
     } catch (e: any) {
