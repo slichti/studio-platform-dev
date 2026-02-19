@@ -103,6 +103,7 @@ describe('BookingService Security', () => {
         });
 
         // Attempt checkIn with Correct Tenant Context
+        mockGet.mockResolvedValueOnce({ count: 5 }); // Mock attendance count
         await service.checkIn(bookingId, true, tenantId);
 
         // Should update DB

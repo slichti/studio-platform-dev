@@ -60,8 +60,8 @@ describe('ReportService Security', () => {
 
         // Mock select for active_members
         mockAll.mockResolvedValueOnce([
-            { id: 'm1', joinedAt: new Date('2023-12-01') },
-            { id: 'm2', joinedAt: new Date('2024-01-02') }
+            { id: 'm1', joinedAt: new Date('2023-12-01'), status: 'active' },
+            { id: 'm2', joinedAt: new Date('2024-01-02'), status: 'active' }
         ]);
 
         const result = await service.query({

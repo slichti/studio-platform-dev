@@ -383,7 +383,7 @@ export class BookingService {
                         ))
                         .get();
 
-                    const count = attendanceCount.count || 0;
+                    const count = attendanceCount?.count || 0;
 
                     // Trigger: first_class_attended
                     if (count === 1) {
