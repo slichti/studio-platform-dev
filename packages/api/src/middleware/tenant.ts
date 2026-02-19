@@ -198,14 +198,8 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
             where: eq(users.id, auth.userId)
         });
 
-        console.log(`[DEBUG] TenantMiddleware: User ${auth.userId} found:`, dbUser ? 'YES' : 'NO');
-        if (dbUser) {
-            console.log(`[DEBUG] User Role: ${dbUser.role}, isPlatformAdmin: ${dbUser.isPlatformAdmin}`);
-        }
-
         const validAdminRoles = ['owner', 'admin', 'system_admin', 'platform_admin'];
         isPlatformAdmin = dbUser?.isPlatformAdmin === true || (!!dbUser?.role && validAdminRoles.includes(dbUser.role));
-        console.log(`[DEBUG] isPlatformAdmin resolved to: ${isPlatformAdmin}`);
 
         // Check 2: If Impersonating, is the ACTUAL actor (impersonator) a Platform Admin?
         if (!isPlatformAdmin && auth.claims?.impersonatorId) {
@@ -235,7 +229,6 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
             }
         }
 
-        // Find Member record
         const member = await db.query.tenantMembers.findFirst({
             where: and(
                 eq(tenantMembers.userId, auth.userId),

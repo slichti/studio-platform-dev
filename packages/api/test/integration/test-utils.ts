@@ -119,7 +119,8 @@ export async function setupTestDb(d1: D1Database) {
             id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, description TEXT, 
             price INTEGER DEFAULT 0, currency TEXT DEFAULT 'usd', "interval" TEXT DEFAULT 'month', 
             image_url TEXT, overlay_title TEXT, overlay_subtitle TEXT, vod_enabled INTEGER DEFAULT 0, 
-            active INTEGER DEFAULT 1, created_at INTEGER DEFAULT (strftime('%s', 'now')),
+            active INTEGER DEFAULT 1, stripe_product_id TEXT, stripe_price_id TEXT,
+            created_at INTEGER DEFAULT (strftime('%s', 'now')),
             updated_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
 
@@ -135,6 +136,7 @@ export async function setupTestDb(d1: D1Database) {
             id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, 
             price INTEGER DEFAULT 0, credits INTEGER NOT NULL, expiration_days INTEGER, 
             image_url TEXT, vod_enabled INTEGER DEFAULT 0, active INTEGER DEFAULT 1, 
+            stripe_product_id TEXT, stripe_price_id TEXT,
             created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
 

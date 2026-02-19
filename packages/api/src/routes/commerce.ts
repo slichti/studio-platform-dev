@@ -217,14 +217,15 @@ app.post('/products/bulk', async (c) => {
             if (item.type === 'pack') {
                 await db.insert(classPackDefinitions).values({
                     id, tenantId: tenant.id, name: item.name, price: item.price,
-                    credits: item.credits || 1, expirationDays: item.expirationDays || null, active: true
+                    credits: item.credits || 1, expirationDays: item.expirationDays || null,
+                    stripeProductId: stripeProduct.id, stripePriceId: stripePrice.id, active: true
                 }).run();
             } else if (item.type === 'membership') {
                 await db.insert(membershipPlans).values({
                     id, tenantId: tenant.id, name: item.name, price: item.price,
                     interval: item.interval === 'annual' ? 'year' : 'month',
                     stripeProductId: stripeProduct.id, stripePriceId: stripePrice.id, active: true
-                } as any).run();
+                }).run();
             }
             results.push({ name: item.name, status: 'created', id });
         } catch (e: any) {

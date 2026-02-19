@@ -671,6 +671,8 @@ export const membershipPlans = sqliteTable('membership_plans', {
     overlaySubtitle: text('overlay_subtitle'),
     vodEnabled: integer('vod_enabled', { mode: 'boolean' }).default(false), // Grant VOD access?
     active: integer('active', { mode: 'boolean' }).default(true),
+    stripeProductId: text('stripe_product_id'),
+    stripePriceId: text('stripe_price_id'),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
@@ -733,6 +735,8 @@ export const classPackDefinitions = sqliteTable('class_pack_definitions', {
     imageUrl: text('image_url'), // Visual representation
     vodEnabled: integer('vod_enabled', { mode: 'boolean' }).default(false), // Grant VOD access?
     active: integer('active', { mode: 'boolean' }).default(true),
+    stripeProductId: text('stripe_product_id'),
+    stripePriceId: text('stripe_price_id'),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 

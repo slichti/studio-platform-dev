@@ -1,50 +1,47 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { env } from 'cloudflare:test';
 import { createDb } from '../../src/db';
-import { tenants, classPackDefinitions, membershipPlans } from '@studio/db/src/schema';
-import { eq, and } from 'drizzle-orm';
+import { tenants, classPackDefinitions, membershipPlans, users, tenantMembers, tenantRoles } from '@studio/db/src/schema';
 import app from '../../src/index';
+import { setupTestDb } from './test-utils';
+
+// Mock Stripe Service
+vi.mock('../../src/services/stripe', () => ({
+    StripeService: vi.fn().mockImplementation(() => ({
+        createProduct: vi.fn().mockResolvedValue({ id: 'prod_mock' }),
+        createPrice: vi.fn().mockResolvedValue({ id: 'price_mock' }),
+    })),
+}));
 
 describe('Commerce Integration', () => {
     const tenantId = 'test-tenant-' + Date.now();
     const slug = 'test-studio-' + Date.now();
 
     beforeEach(async () => {
-        // Create Tables manually for the test runner's in-memory D1
+        // Setup clean test database using our standard utility
+        await setupTestDb(env.DB);
         const db = createDb(env.DB);
 
-        await env.DB.prepare(`CREATE TABLE IF NOT EXISTS tenants (
-            id TEXT PRIMARY KEY, slug TEXT, name TEXT, owner_id TEXT, tier TEXT, status TEXT, created_at INTEGER,
-            custom_domain TEXT, branding TEXT, mobile_app_config TEXT, settings TEXT, custom_field_definitions TEXT,
-            stripe_account_id TEXT, stripe_customer_id TEXT, stripe_subscription_id TEXT, current_period_end INTEGER,
-            marketing_provider TEXT DEFAULT 'system', resend_credentials TEXT, twilio_credentials TEXT, flodesk_credentials TEXT,
-            currency TEXT DEFAULT 'usd', zoom_credentials TEXT, mailchimp_credentials TEXT, zapier_credentials TEXT,
-            google_credentials TEXT, slack_credentials TEXT, google_calendar_credentials TEXT, resend_audience_id TEXT,
-            subscription_status TEXT DEFAULT 'active', is_public INTEGER DEFAULT 0,
-            sms_usage INTEGER DEFAULT 0, email_usage INTEGER DEFAULT 0, streaming_usage INTEGER DEFAULT 0,
-            sms_limit INTEGER, email_limit INTEGER, streaming_limit INTEGER, billing_exempt INTEGER DEFAULT 0,
-            storage_usage INTEGER DEFAULT 0, member_count INTEGER DEFAULT 0, instructor_count INTEGER DEFAULT 0,
-            last_billed_at INTEGER, archived_at INTEGER, grace_period_ends_at INTEGER, student_access_disabled INTEGER DEFAULT 0,
-            aggregator_config TEXT, is_test INTEGER DEFAULT 0 NOT NULL
-        )`).run();
+        // Seed Platform User / Member / Role
+        await db.insert(users).values({
+            id: 'user_test_admin',
+            email: 'test@example.com',
+            role: 'owner',
+            createdAt: new Date()
+        }).run();
 
-        await env.DB.prepare(`CREATE TABLE IF NOT EXISTS class_pack_definitions (
-            id TEXT PRIMARY KEY, tenant_id TEXT, name TEXT, price INTEGER DEFAULT 0, credits INTEGER,
-            expiration_days INTEGER, image_url TEXT, vod_enabled INTEGER DEFAULT 0, active INTEGER DEFAULT 1,
-            created_at INTEGER
-        )`).run();
+        await db.insert(tenantMembers).values({
+            id: 'test-member-id',
+            tenantId: tenantId,
+            userId: 'user_test_admin',
+            status: 'active'
+        }).run();
 
-        await env.DB.prepare(`CREATE TABLE IF NOT EXISTS membership_plans (
-            id TEXT PRIMARY KEY, tenant_id TEXT, name TEXT, description TEXT, price INTEGER DEFAULT 0,
-            interval TEXT DEFAULT 'month', currency TEXT DEFAULT 'usd', stripe_product_id TEXT, stripe_price_id TEXT,
-            image_url TEXT, overlay_title TEXT, overlay_subtitle TEXT, vod_enabled INTEGER DEFAULT 0, active INTEGER DEFAULT 1,
-            created_at INTEGER, updated_at INTEGER
-        )`).run();
-
-        await env.DB.prepare(`CREATE TABLE IF NOT EXISTS tenant_features (
-            id TEXT PRIMARY KEY, tenant_id TEXT, feature_key TEXT, enabled INTEGER DEFAULT 1, source TEXT,
-            updated_at INTEGER
-        )`).run();
+        await db.insert(tenantRoles).values({
+            id: 'test-role-id',
+            memberId: 'test-member-id',
+            role: 'owner'
+        }).run();
 
         // Seed Tenant
         await db.insert(tenants).values({
@@ -85,7 +82,7 @@ describe('Commerce Integration', () => {
         const req = new Request(`http://localhost/commerce/products`, {
             headers: {
                 'X-Tenant-Slug': slug,
-                'Authorization': 'Bearer mock-token'
+                'TEST-AUTH': 'user_test_admin'
             }
         });
 
@@ -98,26 +95,28 @@ describe('Commerce Integration', () => {
     });
 
     it('POST /commerce/products/bulk should return results (idempotency/permissions handled by middleware)', async () => {
-        const items = [
-            { type: 'pack', name: 'Bulk Pack', price: 8000, credits: 5 },
-            { type: 'membership', name: 'Bulk Memb', price: 12000, interval: 'monthly' }
-        ];
-
-        const req = new Request(`http://localhost/commerce/products/bulk`, {
+        const bulkRes = await app.fetch(new Request('http://localhost/commerce/products/bulk', {
             method: 'POST',
             headers: {
-                'X-Tenant-Slug': slug,
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer mock-token'
+                'TEST-AUTH': 'user_test_admin',
+                'X-Tenant-Slug': slug
             },
-            body: JSON.stringify({ items })
-        });
+            body: JSON.stringify({
+                items: [
+                    { name: 'Bulk Pack', type: 'pack', price: 5000, credits: 5 },
+                    { name: 'Bulk Plan', type: 'membership', price: 9900, interval: 'month' }
+                ]
+            })
+        }), env);
 
-        const res = await app.fetch(req, env);
-        expect(res.status).not.toBe(404);
-        const data: any = await res.json();
-        if (data.results) {
-            expect(data.results).toHaveLength(2);
+        const bulkData: any = await bulkRes.json();
+        if (bulkRes.status !== 200 || bulkData.results.some((r: any) => r.status === 'failed')) {
+            console.error('Bulk Res Results:', JSON.stringify(bulkData.results, null, 2));
         }
+        expect(bulkRes.status).toBe(200);
+        expect(bulkData.results).toHaveLength(2);
+        expect(bulkData.results[0].status).toBe('created');
+        expect(bulkData.results[1].status).toBe('created');
     });
 });
