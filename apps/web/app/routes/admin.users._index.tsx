@@ -71,6 +71,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
         return {
             users: usersData.users,
             total: usersData.total,
+            stats: usersData.stats,
             page,
             limit,
             tenants: tenants || [],
