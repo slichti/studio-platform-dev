@@ -19,7 +19,9 @@ export default function PricingWizard() {
     useEffect(() => {
         async function loadExisting() {
             try {
-                const res = await apiRequest('/commerce/products', token);
+                const res = await apiRequest('/commerce/products', token, {
+                    headers: { 'X-Tenant-Slug': tenant.slug }
+                });
                 if (res.products) {
                     setExistingProductNames(new Set(res.products.map((p: any) => p.name.toLowerCase())));
                 }
@@ -108,6 +110,7 @@ export default function PricingWizard() {
 
             const res: any = await apiRequest('/commerce/products/bulk', token, {
                 method: 'POST',
+                headers: { 'X-Tenant-Slug': tenant.slug },
                 body: JSON.stringify({ items })
             });
 

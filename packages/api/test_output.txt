@@ -1,0 +1,91 @@
+
+> api@0.0.0 test:integration
+> vitest --config vitest.config.integration.ts test/integration/vod.integration.test.ts --run
+
+
+ RUN  v3.2.4 /Users/slichti/GitHub/studio-platform-dev/packages/api
+
+Using vars defined in .dev.vars
+[vpw:debug] Adding `enable_nodejs_tty_module` compatibility flag during tests as this feature is needed to support the Vitest runner.
+[vpw:debug] Adding `enable_nodejs_fs_module` compatibility flag during tests as this feature is needed to support the Vitest runner.
+[vpw:debug] Adding `enable_nodejs_http_modules` compatibility flag during tests as this feature is needed to support the Vitest runner.
+[vpw:debug] Adding `enable_nodejs_perf_hooks_module` compatibility flag during tests as this feature is needed to support the Vitest runner.
+[vpw:info] Starting isolated runtimes for vitest.config.integration.ts...
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/index.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/rrule.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/dateutil.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/helpers.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/weekday.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/iterresult.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/callbackiterresult.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/nlp/index.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/nlp/totext.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/nlp/i18n.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/nlp/parsetext.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/types.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/parseoptions.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/datetime.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/parsestring.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/optionstostring.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/datewithzone.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/cache.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/iter/index.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/iterinfo/index.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/iterinfo/yearinfo.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/masks.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/iterinfo/monthinfo.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/iterinfo/easter.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/iter/poslist.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/rruleset.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/iterset.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/rrulestr.js" points to missing source files
+ ❯ test/integration/vod.integration.test.ts (3 tests | 3 skipped) 224ms
+   ↓ VOD Monetization (Integration) > should list catchable recordings in the public video library
+   ↓ VOD Monetization (Integration) > should full workflow: fulfill purchase and then grant access (with multi-video content)
+   ↓ VOD Monetization (Integration) > should deny access if recording is not purchased
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/integration/vod.integration.test.ts > VOD Monetization (Integration)
+Error: Failed query: insert into "classes" ("id", "tenant_id", "instructor_id", "location_id", "series_id", "title", "description", "start_time", "duration_minutes", "capacity", "waitlist_capacity", "price", "member_price", "currency", "payroll_model", "payroll_value", "type", "allow_credits", "included_plan_ids", "zoom_meeting_url", "zoom_meeting_id", "zoom_password", "zoom_enabled", "thumbnail_url", "cloudflare_stream_id", "recording_status", "video_provider", "livekit_room_name", "livekit_room_sid", "status", "min_students", "auto_cancel_threshold", "auto_cancel_enabled", "recording_price", "is_recording_sellable", "content_collection_id", "google_event_id", "created_at") values (?, ?, null, null, null, ?, null, ?, ?, null, ?, ?, null, ?, null, null, ?, ?, null, null, null, null, ?, null, ?, ?, ?, null, null, ?, ?, null, ?, ?, ?, null, null, (strftime('%s', 'now'))) on conflict do nothing
+params: vod_class_1,vod_tenant,Masterclass: VOD Monetization,1771503527,60,10,0,usd,class,1,0,stream_uid_123,ready,offline,active,1,0,1900,1
+ ❯ D1PreparedQuery.queryWithCache Users/slichti/GitHub/studio-platform-dev/node_modules/drizzle-orm/sqlite-core/session.js:43:15
+ ❯ D1PreparedQuery.run Users/slichti/GitHub/studio-platform-dev/node_modules/drizzle-orm/d1/session.js:119:12
+ ❯ test/integration/vod.integration.test.ts:47:9
+     45| 
+     46|         // 2. Setup Sellable Class with Recording
+     47|         await db.insert(schema.classes).values({
+       |         ^
+     48|             id: CLASS_ID,
+     49|             tenantId: TENANT_ID,
+
+Caused by: Error: D1_ERROR: table classes has no column named google_event_id: SQLITE_ERROR
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:139:19
+ ❯ cloudflare-internal:d1-api:348:41
+ ❯ D1PreparedQuery.queryWithCache Users/slichti/GitHub/studio-platform-dev/node_modules/drizzle-orm/sqlite-core/session.js:41:16
+ ❯ D1PreparedQuery.run Users/slichti/GitHub/studio-platform-dev/node_modules/drizzle-orm/d1/session.js:119:12
+ ❯ test/integration/vod.integration.test.ts:47:9
+
+Caused by: Error: table classes has no column named google_event_id: SQLITE_ERROR
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:140:24
+ ❯ cloudflare-internal:d1-api:348:41
+ ❯ D1PreparedQuery.queryWithCache Users/slichti/GitHub/studio-platform-dev/node_modules/drizzle-orm/sqlite-core/session.js:41:16
+ ❯ D1PreparedQuery.run Users/slichti/GitHub/studio-platform-dev/node_modules/drizzle-orm/d1/session.js:119:12
+ ❯ test/integration/vod.integration.test.ts:47:9
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 skipped (3)
+   Start at  07:18:37
+   Duration  10.00s (transform 1.64s, setup 74ms, collect 7.47s, tests 224ms, environment 1ms, prepare 489ms)
+
+[vpw:debug] Shutting down runtimes...
+npm error Lifecycle script `test:integration` failed with error:
+npm error code 1
+npm error path /Users/slichti/GitHub/studio-platform-dev/packages/api
+npm error workspace api@0.0.0
+npm error location /Users/slichti/GitHub/studio-platform-dev/packages/api
+npm error command failed
+npm error command sh -c vitest --config vitest.config.integration.ts test/integration/vod.integration.test.ts --run

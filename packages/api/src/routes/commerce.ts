@@ -35,6 +35,30 @@ app.get('/coupons', async (c) => {
     });
 });
 
+// GET /products - Aggregate List for Wizard
+app.get('/products', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+
+    const [packs, plans] = await Promise.all([
+        db.select().from(classPackDefinitions)
+            .where(and(eq(classPackDefinitions.tenantId, tenant.id), eq(classPackDefinitions.active, true)))
+            .all(),
+        db.select().from(membershipPlans)
+            .where(and(eq(membershipPlans.tenantId, tenant.id), eq(membershipPlans.active, true)))
+            .all()
+    ]);
+
+    // Map to a common format for the wizard
+    const products = [
+        ...packs.map(p => ({ id: p.id, name: p.name, type: 'pack', price: p.price })),
+        ...plans.map(p => ({ id: p.id, name: p.name, type: 'membership', price: p.price }))
+    ];
+
+    return c.json({ products });
+});
+
 // POST /coupons - Create
 app.post('/coupons', async (c) => {
     if (!c.get('can')('manage_commerce')) {

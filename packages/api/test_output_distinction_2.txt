@@ -1,0 +1,127 @@
+
+> api@0.0.0 test:integration
+> vitest --config vitest.config.integration.ts test/integration/vod.integration.test.ts --run
+
+
+ RUN  v3.2.4 /Users/slichti/GitHub/studio-platform-dev/packages/api
+
+Using vars defined in .dev.vars
+[vpw:debug] Adding `enable_nodejs_tty_module` compatibility flag during tests as this feature is needed to support the Vitest runner.
+[vpw:debug] Adding `enable_nodejs_fs_module` compatibility flag during tests as this feature is needed to support the Vitest runner.
+[vpw:debug] Adding `enable_nodejs_http_modules` compatibility flag during tests as this feature is needed to support the Vitest runner.
+[vpw:debug] Adding `enable_nodejs_perf_hooks_module` compatibility flag during tests as this feature is needed to support the Vitest runner.
+[vpw:info] Starting isolated runtimes for vitest.config.integration.ts...
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/index.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/rrule.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/dateutil.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/helpers.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/weekday.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/iterresult.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/callbackiterresult.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/nlp/index.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/nlp/totext.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/nlp/i18n.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/nlp/parsetext.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/types.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/parseoptions.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/datetime.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/parsestring.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/optionstostring.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/datewithzone.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/cache.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/iter/index.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/iterinfo/index.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/iterinfo/yearinfo.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/masks.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/iterinfo/monthinfo.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/iterinfo/easter.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/iter/poslist.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/rruleset.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/iterset.js" points to missing source files
+Sourcemap for "/Users/slichti/GitHub/studio-platform-dev/node_modules/rrule/dist/esm/rrulestr.js" points to missing source files
+stdout | test/integration/vod.integration.test.ts > VOD Monetization (Integration) > should list catchable recordings in the public video library
+<-- GET /guest/videos/vod-studio
+
+stdout | test/integration/vod.integration.test.ts > VOD Monetization (Integration) > should list catchable recordings in the public video library
+--> GET /guest/videos/vod-studio [32m200[0m 6ms
+
+stdout | test/integration/vod.integration.test.ts > VOD Monetization (Integration) > should list catchable recordings in the public video library
+{"timestamp":"2026-02-19T12:26:22.622Z","level":"info","message":"Request completed: GET /guest/videos/vod-studio","traceId":"f06fed85-5807-4d83-9c91-d05b0e59ef40","environment":"test","status":200,"durationMs":8}
+
+stdout | test/integration/vod.integration.test.ts > VOD Monetization (Integration) > should full workflow: fulfill purchase and then grant access (with multi-video content)
+[Stripe] Checkout Completed: cs_vod_full_1 (Metadata: {"tenantId":"vod_tenant","type":"recording_purchase","recordingId":"vod_class_1","userId":"guest"})
+
+stdout | test/integration/vod.integration.test.ts > VOD Monetization (Integration) > should full workflow: fulfill purchase and then grant access (with multi-video content)
+[Stripe] Processing Recording Purchase: vod_class_1
+
+stdout | test/integration/vod.integration.test.ts > VOD Monetization (Integration) > should full workflow: fulfill purchase and then grant access (with multi-video content)
+[Stripe] Triggering product_purchase automation for User guest_u_7f3b67cb-f180-421f-ab80-625eb846ac6e
+
+stdout | test/integration/vod.integration.test.ts > VOD Monetization (Integration) > should full workflow: fulfill purchase and then grant access (with multi-video content)
+<-- GET /classes/vod_class_1/recording
+
+stdout | test/integration/vod.integration.test.ts > VOD Monetization (Integration) > should full workflow: fulfill purchase and then grant access (with multi-video content)
+[TenantMiddleware DEBUG] Path: /classes/vod_class_1/recording, Host: localhost, Header ID: vod_tenant, Header Slug: undefined
+
+stdout | test/integration/vod.integration.test.ts > VOD Monetization (Integration) > should full workflow: fulfill purchase and then grant access (with multi-video content)
+[DEBUG] TenantMiddleware: User guest_u_7f3b67cb-f180-421f-ab80-625eb846ac6e found: YES
+[DEBUG] User Role: user, isPlatformAdmin: false
+[DEBUG] isPlatformAdmin resolved to: false
+
+stdout | test/integration/vod.integration.test.ts > VOD Monetization (Integration) > should full workflow: fulfill purchase and then grant access (with multi-video content)
+--> GET /classes/vod_class_1/recording [32m200[0m 11ms
+
+stdout | test/integration/vod.integration.test.ts > VOD Monetization (Integration) > should full workflow: fulfill purchase and then grant access (with multi-video content)
+{"timestamp":"2026-02-19T12:26:22.657Z","level":"info","message":"Request completed: GET /classes/vod_class_1/recording","traceId":"270a1083-9b7c-4d3e-8057-99ca00209bf0","environment":"test","userId":"guest_u_7f3b67cb-f180-421f-ab80-625eb846ac6e","tenantId":"vod_tenant","status":200,"durationMs":11}
+
+stdout | test/integration/vod.integration.test.ts > VOD Monetization (Integration) > should deny access if recording is not purchased
+<-- GET /classes/vod_class_1/recording
+
+stdout | test/integration/vod.integration.test.ts > VOD Monetization (Integration) > should deny access if recording is not purchased
+[TenantMiddleware DEBUG] Path: /classes/vod_class_1/recording, Host: localhost, Header ID: vod_tenant, Header Slug: undefined
+
+stdout | test/integration/vod.integration.test.ts > VOD Monetization (Integration) > should deny access if recording is not purchased
+[DEBUG] TenantMiddleware: User thief_2 found: NO
+[DEBUG] isPlatformAdmin resolved to: false
+
+stdout | test/integration/vod.integration.test.ts > VOD Monetization (Integration) > should deny access if recording is not purchased
+--> GET /classes/vod_class_1/recording [33m403[0m 7ms
+
+stdout | test/integration/vod.integration.test.ts > VOD Monetization (Integration) > should deny access if recording is not purchased
+{"timestamp":"2026-02-19T12:26:22.674Z","level":"info","message":"Request completed: GET /classes/vod_class_1/recording","traceId":"5ea5750b-f3fd-4116-803a-d413eafbbd26","environment":"test","userId":"thief_2","tenantId":"vod_tenant","status":403,"durationMs":7}
+
+ ❯ test/integration/vod.integration.test.ts (4 tests | 1 failed) 135ms
+   ✓ VOD Monetization (Integration) > should list catchable recordings in the public video library 34ms
+   ✓ VOD Monetization (Integration) > should full workflow: fulfill purchase and then grant access (with multi-video content) 32ms
+   ✓ VOD Monetization (Integration) > should deny access if recording is not purchased 15ms
+   × VOD Monetization (Integration) > should deny access to a COURSE for a member with VOD access but NO booking 7ms
+     → value.getTime is not a function
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/integration/vod.integration.test.ts > VOD Monetization (Integration) > should deny access to a COURSE for a member with VOD access but NO booking
+TypeError: value.getTime is not a function
+ ❯ SQLiteTimestamp.mapToDriverValue Users/slichti/GitHub/studio-platform-dev/node_modules/drizzle-orm/sqlite-core/columns/integer.js:72:24
+ ❯ Users/slichti/GitHub/studio-platform-dev/node_modules/drizzle-orm/sql/sql.js:141:73
+ ❯ SQL.buildQueryFromSourceParams Users/slichti/GitHub/studio-platform-dev/node_modules/drizzle-orm/sql/sql.js:83:32
+ ❯ Users/slichti/GitHub/studio-platform-dev/node_modules/drizzle-orm/sql/sql.js:102:21
+ ❯ SQL.buildQueryFromSourceParams Users/slichti/GitHub/studio-platform-dev/node_modules/drizzle-orm/sql/sql.js:83:32
+ ❯ Users/slichti/GitHub/studio-platform-dev/node_modules/drizzle-orm/sql/sql.js:105:21
+ ❯ SQL.buildQueryFromSourceParams Users/slichti/GitHub/studio-platform-dev/node_modules/drizzle-orm/sql/sql.js:83:32
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 3 passed (4)
+   Start at  07:26:14
+   Duration  8.13s (transform 1.16s, setup 43ms, collect 5.44s, tests 135ms, environment 1ms, prepare 432ms)
+
+[vpw:debug] Shutting down runtimes...
+npm error Lifecycle script `test:integration` failed with error:
+npm error code 1
+npm error path /Users/slichti/GitHub/studio-platform-dev/packages/api
+npm error workspace api@0.0.0
+npm error location /Users/slichti/GitHub/studio-platform-dev/packages/api
+npm error command failed
+npm error command sh -c vitest --config vitest.config.integration.ts test/integration/vod.integration.test.ts --run
