@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { env } from 'cloudflare:test';
-import { createDb } from '../db';
+import { createDb } from '../../src/db';
 import { tenants, classPackDefinitions, membershipPlans } from '@studio/db/src/schema';
 import { eq, and } from 'drizzle-orm';
-import app from '../index';
+import app from '../../src/index';
 
 describe('Commerce Integration', () => {
     const tenantId = 'test-tenant-' + Date.now();
