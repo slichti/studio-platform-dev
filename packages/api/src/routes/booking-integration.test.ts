@@ -65,7 +65,12 @@ describe('Booking Lifecycle Integration', () => {
             zoom_password TEXT, zoom_enabled INTEGER DEFAULT 0, thumbnail_url TEXT, cloudflare_stream_id TEXT,
             recording_status TEXT, video_provider TEXT DEFAULT 'offline', livekit_room_name TEXT, livekit_room_sid TEXT,
             status TEXT DEFAULT 'active', min_students INTEGER DEFAULT 1, auto_cancel_threshold INTEGER,
-            auto_cancel_enabled INTEGER DEFAULT 0, google_event_id TEXT, created_at INTEGER
+            auto_cancel_enabled INTEGER DEFAULT 0, 
+            recording_price INTEGER,
+            is_recording_sellable INTEGER DEFAULT 0,
+            is_course INTEGER DEFAULT 0,
+            content_collection_id TEXT,
+            google_event_id TEXT, created_at INTEGER
         )`);
 
         // 5. Bookings

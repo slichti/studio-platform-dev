@@ -96,10 +96,10 @@ app.openapi(createRoute({
     responses: {
         200: { content: { 'application/json': { schema: z.array(ClassSchema) } }, description: 'List of classes' }
     }
-}), async (c) => {
+}), async (c: any) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
-    const auth = c.get('auth'); // Optional auth
+    const auth = c.get('auth');
     const { start, end, instructorId, locationId, limit, offset } = c.req.valid('query');
 
     const conds = [eq(classes.tenantId, tenant.id)];
@@ -112,38 +112,40 @@ app.openapi(createRoute({
         where: and(...conds),
         with: { instructor: { with: { user: true } }, location: true },
         orderBy: [asc(classes.startTime)],
-        limit: limit || 100, // Safety fallback
+        limit: limit || 100,
         offset: offset || 0
     });
     if (!results.length) return c.json([]);
 
     const classIds = results.map(r => r.id);
-    const [bc, wc] = await Promise.all([
-        db.select({ classId: bookings.classId, c: sql<number>`count(*)` }).from(bookings).where(and(inArray(bookings.classId, classIds), eq(bookings.status, 'confirmed'))).groupBy(bookings.classId).all(),
-        db.select({ classId: bookings.classId, c: sql<number>`count(*)` }).from(bookings).where(and(inArray(bookings.classId, classIds), eq(bookings.status, 'waitlisted'))).groupBy(bookings.classId).all()
-    ]);
-    const bm = new Map(bc.map(b => [b.classId, b.c]));
-    const wm = new Map(wc.map(w => [w.classId, w.c]));
 
-    // Fetch My Bookings
+    // Optimized combined count query
+    const counts = await db.select({
+        classId: bookings.classId,
+        status: bookings.status,
+        count: sql<number>`count(*)`
+    })
+        .from(bookings)
+        .where(and(inArray(bookings.classId, classIds), inArray(bookings.status, ['confirmed', 'waitlisted'])))
+        .groupBy(bookings.classId, bookings.status)
+        .all();
+
+    const bm = new Map();
+    const wm = new Map();
+    counts.forEach((row: any) => {
+        if (row.status === 'confirmed') bm.set(row.classId, row.count);
+        if (row.status === 'waitlisted') wm.set(row.classId, row.count);
+    });
+
+    // Fetch My Bookings efficiently
     let myBookingsMap = new Map();
     if (auth?.userId) {
-        // We need tenantMembers schema import here or use raw sql/query if not imported. 
-        // It is NOT imported in the original view. I must Add it to imports in a separate call or assume it's there.
-        // Wait, I can't add imports in this chunk easily without context.
-        // Use db.query.tenantMembers if available in schema object passed to createDb...
-        // Assuming 'tenantMembers' is available in '@studio/db/src/schema' (it is).
-        const { tenantMembers } = await import('@studio/db/src/schema');
-
-        const member = await db.query.tenantMembers.findFirst({
-            where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id))
-        });
-
+        const member = c.get('member');
         if (member) {
             const myBookings = await db.query.bookings.findMany({
                 where: and(inArray(bookings.classId, classIds), eq(bookings.memberId, member.id))
             });
-            myBookings.forEach(b => myBookingsMap.set(b.classId, b));
+            myBookings.forEach((b: any) => myBookingsMap.set(b.classId, b));
         }
     }
 
@@ -151,20 +153,17 @@ app.openapi(createRoute({
         const myBooking = myBookingsMap.get(r.id);
         return {
             ...r,
-            startTime: r.startTime.toISOString(), // Ensure string
+            startTime: r.startTime.toISOString(),
             price: (r.price ?? 0) as any as number,
             bookingCount: bm.get(r.id) || 0,
             waitlistCount: wm.get(r.id) || 0,
             zoomEnabled: !!r.zoomEnabled,
-            // TODO: Split counts by attendance type when DB supports it
             inPersonCount: bm.get(r.id) || 0,
             virtualCount: 0,
             myBooking: myBooking ? {
                 id: myBooking.id,
                 status: myBooking.status,
                 attendanceType: myBooking.attendanceType,
-                // Only share Zoom link if confirmed and attendance is Zoom (or if we want to be generous, just if confirmed)
-                // User requirement: "view the Zoom link... by accessing their booking details"
                 zoomMeetingUrl: (myBooking.status === 'confirmed') ? r.zoomMeetingUrl : null,
                 zoomPassword: (myBooking.status === 'confirmed') ? r.zoomPassword : null
             } : null
@@ -185,7 +184,7 @@ app.openapi(createRoute({
         200: { content: { 'application/json': { schema: ClassSchema } }, description: 'Class details' },
         404: { description: 'Not found' }
     }
-}), async (c) => {
+}), async (c: any) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     const { id } = c.req.valid('param');
@@ -222,7 +221,7 @@ app.openapi(createRoute({
         403: { description: 'Unauthorized' },
         402: { description: 'Quota Exceeded' }
     }
-}), async (c) => {
+}), async (c: any) => {
     // [DIAGNOSTIC] Log Zod errors
     const reqBody = await c.req.json().catch(() => ({}));
     const parseResult = CreateClassSchema.safeParse(reqBody);
@@ -298,13 +297,11 @@ app.openapi(createRoute({
         const rule = new RRule(options);
         const occurrences = rule.all();
 
-        const insertedClasses = [];
+        const classData = [];
         for (const occ of occurrences) {
-            const id = crypto.randomUUID();
             const meeting = await createMeeting(title, occ);
-
-            const [nc] = await db.insert(classes).values({
-                id,
+            classData.push({
+                id: crypto.randomUUID(),
                 tenantId: tenant.id,
                 instructorId: instructorId || null,
                 locationId,
@@ -326,14 +323,17 @@ app.openapi(createRoute({
                 zoomMeetingId: meeting.id,
                 zoomMeetingUrl: meeting.url,
                 zoomPassword: meeting.pwd,
-                status: 'active',
+                status: 'active' as const,
                 payrollModel: body.payrollModel || null,
                 payrollValue: body.payrollValue || null,
                 createdAt: new Date()
-            }).returning();
-            insertedClasses.push(nc);
+            });
         }
-        return c.json({ seriesId, classes: insertedClasses.length }, 201);
+
+        if (classData.length > 0) {
+            await db.insert(classes).values(classData).run();
+        }
+        return c.json({ seriesId, classes: classData.length }, 201);
     } else {
         const id = crypto.randomUUID();
         const meeting = await createMeeting(title, start);
@@ -385,7 +385,7 @@ app.openapi(createRoute({
         404: { description: 'Not found' },
         409: { description: 'Conflict' }
     }
-}), async (c) => {
+}), async (c: any) => {
     if (!c.get('can')('manage_classes')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const tid = c.get('tenant').id;
@@ -429,7 +429,7 @@ app.openapi(createRoute({
         200: { description: 'Class cancelled' },
         404: { description: 'Not found' }
     }
-}), async (c) => {
+}), async (c: any) => {
     if (!c.get('can')('manage_classes')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const { id } = c.req.valid('param');

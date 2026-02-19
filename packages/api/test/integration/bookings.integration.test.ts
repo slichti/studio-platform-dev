@@ -121,7 +121,7 @@ describe('Bookings API (Integration)', () => {
 
         const json2 = await response2.json() as any;
         expect(response2.status).toBe(400);
-        expect(json2.error).toBe('Already booked');
+        expect(json2.error).toBe('Already booked or waitlisted');
     });
 
     it('should respect capacity limit', async () => {

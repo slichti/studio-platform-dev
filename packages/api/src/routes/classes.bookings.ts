@@ -81,7 +81,6 @@ app.post('/:id/bulk-check-in', async (c) => {
     if (!bookingIds?.length) return c.json({ error: "Missing IDs" }, 400);
 
     const service = new BookingService(db, c.env);
-
     try {
         const tenant = c.get('tenant');
         if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
