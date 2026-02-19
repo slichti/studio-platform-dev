@@ -19,6 +19,7 @@ interface ConfirmDialogProps {
     confirmText?: string;
     cancelText?: string;
     variant?: 'default' | 'destructive';
+    disabled?: boolean;
 }
 
 export function ConfirmDialog({
@@ -29,7 +30,8 @@ export function ConfirmDialog({
     description = "This action cannot be undone.",
     confirmText = "Confirm",
     cancelText = "Cancel",
-    variant = 'default'
+    variant = 'default',
+    disabled = false
 }: ConfirmDialogProps) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -41,15 +43,16 @@ export function ConfirmDialog({
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>
+                    <Button variant="outline" onClick={() => onOpenChange(false)} disabled={disabled}>
                         {cancelText}
                     </Button>
                     <Button
                         variant={variant === 'destructive' ? 'destructive' : 'default'}
                         onClick={() => {
                             onConfirm();
-                            onOpenChange(false);
+                            if (!disabled) onOpenChange(false);
                         }}
+                        disabled={disabled}
                     >
                         {confirmText}
                     </Button>

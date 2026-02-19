@@ -45,6 +45,11 @@ interface User {
 interface LoaderData {
     users: User[];
     total: number;
+    stats?: {
+        total: number;
+        assigned: number;
+        orphans: number;
+    };
     page: number;
     limit: number;
     tenants: Tenant[];
@@ -58,7 +63,7 @@ interface ApiError {
 }
 
 export default function AdminUsersPageComponent() {
-    const { users, tenants, total, page, limit } = useLoaderData<LoaderData>();
+    const { users, tenants, total, stats, page, limit } = useLoaderData<LoaderData>();
     const [searchParams, setSearchParams] = useSearchParams();
     const submit = useSubmit();
     const navigate = useNavigate();
@@ -94,6 +99,8 @@ export default function AdminUsersPageComponent() {
     const [impersonateTargetId, setImpersonateTargetId] = useState<string | null>(null);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
     const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+    const [isCleanupConfirmOpen, setIsCleanupConfirmOpen] = useState(false);
+    const [isCleaningUp, setIsCleaningUp] = useState(false);
 
     const usersList = Array.isArray(users) ? users : [];
 
@@ -229,6 +236,22 @@ export default function AdminUsersPageComponent() {
         }
     };
 
+    const handlePurgeOrphans = async () => {
+        setIsCleaningUp(true);
+        try {
+            const token = await getToken();
+            const res = await apiRequest<any>("/admin/users/cleanup", token, { method: "POST" });
+            if (res.error) throw new Error(res.error);
+            setStatusDialog({ isOpen: true, type: 'success', title: 'Cleanup Complete', message: res.message || "Orphaned users purged successfully." });
+            submit(searchParams);
+        } catch (e: any) {
+            setStatusDialog({ isOpen: true, type: 'error', title: 'Cleanup Failed', message: e.message });
+        } finally {
+            setIsCleaningUp(false);
+            setIsCleanupConfirmOpen(false);
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -240,6 +263,31 @@ export default function AdminUsersPageComponent() {
                     <PlusIcon /> Add User
                 </Button>
             </div>
+
+            {/* Stats Bar */}
+            {stats && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-white dark:bg-zinc-900 p-4 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                        <p className="text-xs font-medium text-zinc-500 uppercase">Total Platform Users</p>
+                        <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{stats.total.toLocaleString()}</p>
+                    </div>
+                    <div className="bg-white dark:bg-zinc-900 p-4 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                        <p className="text-xs font-medium text-zinc-500 uppercase">Assigned to Studios</p>
+                        <p className="text-2xl font-bold text-emerald-600">{stats.assigned.toLocaleString()}</p>
+                    </div>
+                    <div className="bg-white dark:bg-zinc-900 p-4 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden">
+                        <p className="text-xs font-medium text-zinc-500 uppercase">Orphaned / Unassigned</p>
+                        <div className="flex items-end justify-between">
+                            <p className="text-2xl font-bold text-amber-600">{stats.orphans.toLocaleString()}</p>
+                            {stats.orphans > 0 && (
+                                <Button variant="ghost" size="sm" className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50 p-0 h-auto font-bold" onClick={() => setIsCleanupConfirmOpen(true)}>
+                                    Purge Orphans
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="flex flex-col sm:flex-row gap-4 justify-between bg-white dark:bg-zinc-900 p-4 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
                 <Form onSubmit={handleSearch} className="relative w-full sm:w-96">
@@ -287,7 +335,7 @@ export default function AdminUsersPageComponent() {
                             <div className="p-3 bg-zinc-50/50 dark:bg-zinc-900/50 flex items-center gap-2 cursor-pointer" onClick={() => toggleGroup(tId)}>
                                 <span className="text-zinc-400">{expandedGroups.has(tId) ? '▼' : '▶'}</span>
                                 <span className="font-semibold text-zinc-700 dark:text-zinc-300 text-sm">{group.tenant.name}</span>
-                                <span className="text-xs text-zinc-400 bg-white dark:bg-zinc-800 border px-1.5 py-0.5 rounded-full">{group.users.length}</span>
+                                <span className="text-xs text-zinc-400 bg-white dark:bg-zinc-800 border px-1.5 py-0.5 rounded-full">{group.users.length} on this page</span>
                             </div>
                             {expandedGroups.has(tId) && (
                                 group.users.map((u: any) => (
@@ -376,6 +424,25 @@ export default function AdminUsersPageComponent() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <ConfirmDialog
+                open={isCleanupConfirmOpen}
+                onOpenChange={setIsCleanupConfirmOpen}
+                onConfirm={handlePurgeOrphans}
+                title="Purge Orphaned Users"
+                description={
+                    <div className="space-y-3">
+                        <p>This will permanently delete all users who have no memberships in any studio and are not platform administrators.</p>
+                        <div className="p-3 bg-red-50 border border-red-100 rounded text-red-700 text-sm">
+                            <strong>Warning:</strong> This action cannot be undone.
+                            {stats && <span> Approximately {stats.orphans} users will be removed.</span>}
+                        </div>
+                    </div>
+                }
+                confirmText={isCleaningUp ? "Purging..." : "Purge Now"}
+                variant="destructive"
+                disabled={isCleaningUp}
+            />
         </div>
     );
 }

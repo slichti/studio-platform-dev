@@ -28,6 +28,14 @@ app.get('/', async (c) => {
 
     const total = countResult?.count || 0;
 
+    // Additional stats for the admin
+    const [{ count: assignedCount }] = await db.select({ count: sql<number>`count(distinct ${tenantMembers.userId})` }).from(tenantMembers).all();
+    const stats = {
+        total,
+        assigned: assignedCount || 0,
+        orphans: total - (assignedCount || 0)
+    };
+
     const results = await db.query.users.findMany({
         with: { memberships: { with: { tenant: true, roles: true } } },
         where: (u, { and, or, like }) => {
@@ -49,6 +57,7 @@ app.get('/', async (c) => {
     return c.json({
         users: results,
         total,
+        stats,
         limit,
         offset
     });
@@ -183,6 +192,58 @@ app.post('/impersonate', async (c) => {
     }
 
     return c.json({ token, user: targetUser, targetEmail: targetUser.email });
+});
+
+// POST /cleanup - Purge orphaned users
+app.post('/cleanup', async (c) => {
+    const isPlatformAdmin = c.get('auth')?.claims?.isPlatformAdmin === true;
+    if (!isPlatformAdmin) return c.json({ error: 'Unauthorized' }, 403);
+
+    const db = createDb(c.env.DB);
+    const auth = c.get('auth')!;
+
+    try {
+        // Find users who have no memberships and are NOT platform admins
+        const orphans = await db.select({ id: users.id })
+            .from(users)
+            .where(
+                and(
+                    eq(users.isPlatformAdmin, false),
+                    ne(users.role, 'admin'),
+                    ne(users.id, auth.userId),
+                    sql`NOT EXISTS (SELECT 1 FROM ${tenantMembers} WHERE ${tenantMembers.userId} = ${users.id})`
+                )
+            )
+            .all();
+
+        if (orphans.length === 0) {
+            return c.json({ success: true, count: 0, message: "No orphaned users found." });
+        }
+
+        const orphanIds = orphans.map(o => o.id);
+        const CHUNK_SIZE = 50;
+        let deletedCount = 0;
+
+        for (let i = 0; i < orphanIds.length; i += CHUNK_SIZE) {
+            const chunk = orphanIds.slice(i, i + CHUNK_SIZE);
+            await db.delete(users).where(inArray(users.id, chunk)).run();
+            deletedCount += chunk.length;
+        }
+
+        await db.insert(auditLogs).values({
+            id: crypto.randomUUID(),
+            action: 'purge_orphans',
+            actorId: auth.userId,
+            details: { count: deletedCount },
+            ipAddress: c.req.header('CF-Connecting-IP'),
+            createdAt: new Date()
+        }).run();
+
+        return c.json({ success: true, count: deletedCount, message: `Successfully purged ${deletedCount} orphaned users.` });
+    } catch (e: any) {
+        console.error("Orphan purge failed:", e);
+        return c.json({ error: "Failed to purge orphans: " + e.message }, 500);
+    }
 });
 
 export default app;

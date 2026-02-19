@@ -390,7 +390,15 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
                 createdTenantId = partialTenant.id;
                 console.log(`[seedTenant] Cleaning up partial tenant ${createdTenantId}...`);
 
-                // Delete in dependency order (ignore errors for tables that may not have data yet)
+                // Collect user IDs for this tenant before member deletion
+                const tenantUserIds = await db
+                    .select({ userId: tenantMembers.userId })
+                    .from(tenantMembers)
+                    .where(eq(tenantMembers.tenantId, createdTenantId!))
+                    .all();
+                const userIdsToCheck = tenantUserIds.map((r: any) => r.userId);
+
+                // Delete in dependency order
                 const cleanupOps = [
                     () => db.delete(bookings).where(sql`class_id IN (SELECT id FROM classes WHERE tenant_id = ${createdTenantId})`).run(),
                     () => db.delete(classes).where(eq(classes.tenantId, createdTenantId!)).run(),
@@ -406,6 +414,20 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
                 for (const op of cleanupOps) {
                     try { await op(); } catch { /* ignore cleanup errors */ }
                 }
+
+                // Cleanup orphaned users
+                if (userIdsToCheck.length > 0) {
+                    for (const uid of userIdsToCheck) {
+                        const otherMems = await db.select({ id: tenantMembers.id }).from(tenantMembers).where(eq(tenantMembers.userId, uid)).get();
+                        const user = await db.select({ isPlatformAdmin: users.isPlatformAdmin, role: users.role }).from(users).where(eq(users.id, uid)).get();
+
+                        // Delete if no other memberships AND not an admin
+                        if (!otherMems && user && !user.isPlatformAdmin && user.role !== 'admin') {
+                            await db.delete(users).where(eq(users.id, uid)).run().catch(() => { });
+                        }
+                    }
+                }
+
                 console.log(`[seedTenant] Cleanup complete for ${createdTenantId}`);
             }
         } catch (cleanupErr) {
