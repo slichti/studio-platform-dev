@@ -120,6 +120,13 @@ export default function AdminTenantsPageComponent() {
         }
     }, []);
 
+    const showSuccess = (message: string, shouldRefresh = false) => {
+        setSuccessDialog({ isOpen: true, message, shouldRefresh });
+        setTimeout(() => {
+            setSuccessDialog(prev => ({ ...prev, isOpen: false }));
+        }, 3000);
+    };
+
     // Handlers
     const confirmTierChange = async () => {
         if (!tierChange) return;
@@ -132,7 +139,7 @@ export default function AdminTenantsPageComponent() {
             });
             if (res.error) throw new Error(res.error);
             setTenants(tenants.map((t: any) => t.id === id ? { ...t, tier } : t));
-            setSuccessDialog({ isOpen: true, message: `Tenant tier updated to ${tier}.`, shouldRefresh: false });
+            showSuccess(`Tenant tier updated to ${tier}.`);
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message || "Failed to update tier." });
         } finally {
@@ -151,7 +158,7 @@ export default function AdminTenantsPageComponent() {
                 body: JSON.stringify({ interval })
             });
             if (res.error) throw new Error(res.error);
-            setSuccessDialog({ isOpen: true, message: "Subscription interval updated.", shouldRefresh: false });
+            showSuccess("Subscription interval updated.");
             const details = await apiRequest(`/admin/tenants/${id}/billing/details`, token);
             setSubscriptionDetails(prev => ({ ...prev, [id]: details }));
         } catch (e: any) {
@@ -174,7 +181,7 @@ export default function AdminTenantsPageComponent() {
             if (res.error) throw new Error(res.error);
             const updated = await apiRequest("/admin/tenants", token);
             setTenants(updated);
-            setSuccessDialog({ isOpen: true, message: "Date updated.", shouldRefresh: false });
+            showSuccess("Date updated.");
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message });
         } finally {
@@ -189,7 +196,7 @@ export default function AdminTenantsPageComponent() {
             const token = await getToken();
             const res: any = await apiRequest(`/admin/tenants/${waiveUsageId}/billing/waive`, token, { method: 'POST' });
             if (res.error) throw new Error(res.error);
-            setSuccessDialog({ isOpen: true, message: "Usage waived.", shouldRefresh: false });
+            showSuccess("Usage waived.");
             setTenants(tenants.map((t: any) => t.id === waiveUsageId ? { ...t, smsUsage: 0, emailUsage: 0, streamingUsage: 0 } : t));
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message });
@@ -205,9 +212,12 @@ export default function AdminTenantsPageComponent() {
             const token = await getToken();
             const res: any = await apiRequest(`/admin/tenants/${restoreId}/lifecycle/restore`, token, { method: 'POST' });
             if (res.error) throw new Error(res.error);
-            window.location.reload();
+            setTenants(tenants.map((t: any) => t.id === restoreId ? { ...t, status: 'active' } : t));
+            showSuccess("Tenant restored.");
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message });
+        } finally {
+            setRestoreId(null);
         }
     };
 
@@ -218,9 +228,12 @@ export default function AdminTenantsPageComponent() {
             const token = await getToken();
             const res: any = await apiRequest(`/admin/tenants/${archiveId}/lifecycle/archive`, token, { method: 'POST' });
             if (res.error) throw new Error(res.error);
-            window.location.reload();
+            setTenants(tenants.map((t: any) => t.id === archiveId ? { ...t, status: 'archived' } : t));
+            setArchiveId(null);
+            showSuccess("Tenant archived.");
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message });
+        } finally {
             setArchiveLoading(false);
         }
     };
@@ -232,9 +245,13 @@ export default function AdminTenantsPageComponent() {
             const token = await getToken();
             const res: any = await apiRequest(`/admin/tenants/${tenantToDelete}`, token, { method: "DELETE" });
             if (res.error) throw new Error(res.error);
-            window.location.reload();
+            setTenants(tenants.filter((t: any) => t.id !== tenantToDelete));
+            setDeleteModalOpen(false);
+            setTenantToDelete(null);
+            showSuccess("Tenant deleted.");
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message });
+        } finally {
             setDeleteLoading(false);
         }
     };
@@ -254,7 +271,7 @@ export default function AdminTenantsPageComponent() {
             const updated = await apiRequest("/admin/tenants", token);
             setTenants(updated);
             setSeedModalOpen(false);
-            setSuccessDialog({ isOpen: true, message: `Created ${res.tenant?.name}`, shouldRefresh: true });
+            showSuccess(`Created ${res.tenant?.name}`, true);
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message });
         } finally {
@@ -273,7 +290,7 @@ export default function AdminTenantsPageComponent() {
                 body: JSON.stringify(zoomData)
             });
             if (res.error) throw new Error(res.error);
-            setSuccessDialog({ isOpen: true, message: 'Zoom info updated.', shouldRefresh: false });
+            showSuccess('Zoom info updated.');
             setZoomModalOpen(false);
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message });
@@ -297,7 +314,7 @@ export default function AdminTenantsPageComponent() {
                 })
             });
             if (res.error) throw new Error(res.error);
-            setSuccessDialog({ isOpen: true, message: "Refund processed.", shouldRefresh: false });
+            showSuccess("Refund processed.");
             setRefundModalOpen(false);
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message });
@@ -334,7 +351,7 @@ export default function AdminTenantsPageComponent() {
                 body: JSON.stringify({ immediate: false })
             });
             if (res.error) throw new Error(res.error);
-            setSuccessDialog({ isOpen: true, message: "Subscription set to cancel.", shouldRefresh: false });
+            showSuccess("Subscription set to cancel.");
             const details = await apiRequest(`/admin/tenants/${selectedTenantForCancel}/billing/details`, token);
             setSubscriptionDetails(prev => ({ ...prev, [selectedTenantForCancel]: details }));
             setCancelModalOpen(false);
@@ -357,7 +374,7 @@ export default function AdminTenantsPageComponent() {
             });
             if (res.error) throw new Error(res.error);
             setTenants(tenants.map((t: any) => t.id === id ? { ...t, studentAccessDisabled: enabled } : t));
-            setSuccessDialog({ isOpen: true, message: `Access ${enabled ? 'disabled' : 'enabled'}.`, shouldRefresh: false });
+            showSuccess(`Access ${enabled ? 'disabled' : 'enabled'}.`);
             setGracePeriodModalOpen(false);
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message });
@@ -377,7 +394,7 @@ export default function AdminTenantsPageComponent() {
                 body: JSON.stringify({ email: editEmail })
             });
             if (res.error) throw new Error(res.error);
-            setSuccessDialog({ isOpen: true, message: "Owner email updated.", shouldRefresh: false });
+            showSuccess("Owner email updated.");
             setEditModalOpen(false);
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message });
@@ -397,7 +414,7 @@ export default function AdminTenantsPageComponent() {
                 body: JSON.stringify({ subject: notifySubject, message: notifyMessage, level: 'info' })
             });
             if (res.error) throw new Error(res.error);
-            setSuccessDialog({ isOpen: true, message: "Notification sent.", shouldRefresh: false });
+            showSuccess("Notification sent.");
             setNotifyModalOpen(false);
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message });

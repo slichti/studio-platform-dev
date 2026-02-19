@@ -106,7 +106,7 @@ export async function setupTestDb(d1: D1Database) {
     await d1.batch([
         d1.prepare(`CREATE TABLE membership_plans (
             id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, description TEXT, 
-            price INTEGER DEFAULT 0, currency TEXT DEFAULT 'usd', interval TEXT DEFAULT 'month', 
+            price INTEGER DEFAULT 0, currency TEXT DEFAULT 'usd', "interval" TEXT DEFAULT 'month', 
             image_url TEXT, overlay_title TEXT, overlay_subtitle TEXT, vod_enabled INTEGER DEFAULT 0, 
             active INTEGER DEFAULT 1, created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
@@ -117,6 +117,7 @@ export async function setupTestDb(d1: D1Database) {
             current_period_end INTEGER, stripe_subscription_id TEXT, canceled_at INTEGER, 
             dunning_state TEXT, last_dunning_at INTEGER, created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
+
 
         d1.prepare(`CREATE TABLE class_pack_definitions (
             id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, 
@@ -155,6 +156,19 @@ export async function setupTestDb(d1: D1Database) {
             member_id TEXT, code TEXT NOT NULL, clicks INTEGER DEFAULT 0, 
             signups INTEGER DEFAULT 0, earnings INTEGER DEFAULT 0, 
             created_at INTEGER DEFAULT (strftime('%s', 'now')), active INTEGER DEFAULT 1
+        )`),
+
+        d1.prepare(`CREATE TABLE pos_orders (
+            id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, member_id TEXT, 
+            staff_id TEXT, total_amount INTEGER NOT NULL, tax_amount INTEGER DEFAULT 0, 
+            status TEXT DEFAULT 'completed', payment_method TEXT DEFAULT 'card', 
+            stripe_payment_intent_id TEXT, created_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )`),
+
+        d1.prepare(`CREATE TABLE pos_order_items (
+            id TEXT PRIMARY KEY, order_id TEXT NOT NULL, product_id TEXT NOT NULL, 
+            quantity INTEGER NOT NULL, unit_price INTEGER NOT NULL, 
+            total_price INTEGER NOT NULL
         )`),
 
         d1.prepare(`CREATE TABLE referral_rewards (

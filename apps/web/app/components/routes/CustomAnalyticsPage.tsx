@@ -26,6 +26,8 @@ export default function CustomAnalyticsPageComponent() {
         { id: 'attendance', label: 'Attendance' },
         { id: 'new_signups', label: 'New Signups' },
         { id: 'active_members', label: 'Active Members' },
+        { id: 'instructor_roi', label: 'Instructor ROI' },
+        { id: 'retention_rate', label: 'Retention Rate' },
     ];
     const [metrics, setMetrics] = useState<string[]>(['revenue']);
     const [dimensions, setDimensions] = useState<string[]>(['date']);
@@ -169,6 +171,8 @@ export default function CustomAnalyticsPageComponent() {
                                 {metrics.includes('attendance') && <MetricCard title="Total Attendance" value={reportData.summary?.attendance || 0} icon={<Users size={20} className="text-emerald-500" />} />}
                                 {metrics.includes('new_signups') && <MetricCard title="New Signups" value={reportData.summary?.new_signups || 0} icon={<UserPlus size={20} className="text-amber-500" />} />}
                                 {metrics.includes('active_members') && <MetricCard title="Active Members" value={reportData.summary?.active_members || 0} icon={<Users size={20} className="text-zinc-500" />} />}
+                                {metrics.includes('instructor_roi') && <MetricCard title="Total ROI" value={`$${reportData.summary?.instructor_roi?.toFixed(2) || '0.00'}`} icon={<DollarSign size={20} className="text-indigo-500" />} />}
+                                {metrics.includes('retention_rate') && <MetricCard title="Retention Rate" value={`${reportData.summary?.retention_rate?.toFixed(1) || '0.0'}%`} icon={<RefreshCw size={20} className="text-purple-500" />} />}
                             </div>
 
                             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-sm h-[450px]">
@@ -191,18 +195,22 @@ export default function CustomAnalyticsPageComponent() {
                                             {metrics.includes('attendance') && <Bar dataKey="attendance" fill="#059669" radius={[4, 4, 0, 0]} name="Attendance" />}
                                             {metrics.includes('new_signups') && <Bar dataKey="new_signups" fill="#F59E0B" radius={[4, 4, 0, 0]} name="New Signups" />}
                                             {metrics.includes('active_members') && <Bar dataKey="active_members" fill="#71717a" radius={[4, 4, 0, 0]} name="Active Members" />}
+                                            {metrics.includes('instructor_roi') && <Bar dataKey="profit" fill="#6366f1" radius={[4, 4, 0, 0]} name="Profit ($)" />}
+                                            {metrics.includes('retention_rate') && <Bar dataKey="retention_rate" fill="#a855f7" radius={[4, 4, 0, 0]} name="Retention (%)" />}
                                         </BarChart>
                                     ) : (
                                         <LineChart data={reportData.chartData}>
                                             <CartesianGrid strokeDasharray="3 3" opacity={0.1} vertical={false} />
                                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#71717a', fontSize: 12 }} dy={10} />
-                                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#71717a', fontSize: 12 }} tickFormatter={(val) => metrics.includes('revenue') && val > 100 ? `$${val}` : val} />
+                                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#71717a', fontSize: 12 }} tickFormatter={(val) => metrics.length === 1 && (metrics[0] === 'revenue' || metrics[0] === 'instructor_roi') ? `$${val}` : val} />
                                             <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                                             <Legend />
                                             {metrics.includes('revenue') && <Line type="monotone" dataKey="revenue" stroke="#2563eb" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} name="Revenue ($)" />}
                                             {metrics.includes('attendance') && <Line type="monotone" dataKey="attendance" stroke="#059669" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} name="Attendance" />}
                                             {metrics.includes('new_signups') && <Line type="monotone" dataKey="new_signups" stroke="#F59E0B" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} name="New Signups" />}
                                             {metrics.includes('active_members') && <Line type="monotone" dataKey="active_members" stroke="#71717a" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} name="Active Members" />}
+                                            {metrics.includes('instructor_roi') && <Line type="monotone" dataKey="profit" stroke="#6366f1" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} name="Profit ($)" />}
+                                            {metrics.includes('retention_rate') && <Line type="monotone" dataKey="retention_rate" stroke="#a855f7" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} name="Retention (%)" />}
                                         </LineChart>
                                     )}
                                 </ResponsiveContainer>
@@ -222,16 +230,20 @@ export default function CustomAnalyticsPageComponent() {
                                                 {metrics.includes('attendance') && <th className="px-6 py-3">Attendance</th>}
                                                 {metrics.includes('new_signups') && <th className="px-6 py-3">New Signups</th>}
                                                 {metrics.includes('active_members') && <th className="px-6 py-3">Active Members</th>}
+                                                {metrics.includes('instructor_roi') && <th className="px-6 py-3">Profit</th>}
+                                                {metrics.includes('retention_rate') && <th className="px-6 py-3">Retention</th>}
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                                             {reportData.chartData.map((row: any, i: number) => (
                                                 <tr key={i} className="hover:bg-zinc-50 transition-colors">
                                                     <td className="px-6 py-4 font-medium">{row.name}</td>
-                                                    {metrics.includes('revenue') && <td className="px-6 py-4 text-zinc-600">${row.revenue?.toFixed(2)}</td>}
-                                                    {metrics.includes('attendance') && <td className="px-6 py-4 text-zinc-600">{row.attendance}</td>}
-                                                    {metrics.includes('new_signups') && <td className="px-6 py-4 text-zinc-600">{row.new_signups}</td>}
-                                                    {metrics.includes('active_members') && <td className="px-6 py-4 text-zinc-600">{row.active_members}</td>}
+                                                    {metrics.includes('revenue') && <td className="px-6 py-4 text-zinc-600">${row.revenue?.toFixed(2) || '0.00'}</td>}
+                                                    {metrics.includes('attendance') && <td className="px-6 py-4 text-zinc-600">{row.attendance || 0}</td>}
+                                                    {metrics.includes('new_signups') && <td className="px-6 py-4 text-zinc-600">{row.new_signups || 0}</td>}
+                                                    {metrics.includes('active_members') && <td className="px-6 py-4 text-zinc-600">{row.active_members || 0}</td>}
+                                                    {metrics.includes('instructor_roi') && <td className="px-6 py-4 text-zinc-600">${row.profit?.toFixed(2) || '0.00'}</td>}
+                                                    {metrics.includes('retention_rate') && <td className="px-6 py-4 text-zinc-600">{row.retention_rate?.toFixed(1) || '0.0'}%</td>}
                                                 </tr>
                                             ))}
                                         </tbody>

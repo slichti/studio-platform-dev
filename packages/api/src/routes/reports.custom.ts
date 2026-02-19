@@ -20,10 +20,14 @@ app.post('/query', requirePermission('view_reports'), async (c) => {
     const db = createDb(c.env.DB);
     const { metrics, dimensions, filters, format } = await c.req.json();
     const service = new ReportService(db, c.get('tenant')!.id);
-    const res = await service.query({ metrics, dimensions, filters: { ...filters, startDate: new Date(filters.startDate), endDate: new Date(filters.endDate) } });
-
-    if (format === 'csv') return c.text(service.generateCsv(res.chartData, metrics), 200, { 'Content-Type': 'text/csv', 'Content-Disposition': `attachment; filename="report.csv"` });
-    return c.json(res);
+    try {
+        const res = await service.query({ metrics, dimensions, filters: { ...filters, startDate: new Date(filters.startDate), endDate: new Date(filters.endDate) } });
+        if (format === 'csv') return c.text(service.generateCsv(res.chartData, metrics, dimensions), 200, { 'Content-Type': 'text/csv', 'Content-Disposition': `attachment; filename="report.csv"` });
+        return c.json(res);
+    } catch (e: any) {
+        console.error("[REPORT QUERY ERROR]", e);
+        return c.json({ error: e.message }, 500);
+    }
 });
 
 // POST /

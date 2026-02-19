@@ -107,5 +107,9 @@ export async function apiRequest<T = any>(path: string, token: string | null | u
         }
     }
 
-    return res.json();
+    const contentType = res.headers.get("Content-Type");
+    if (contentType?.includes("application/json")) {
+        return res.json();
+    }
+    return res.text() as unknown as T;
 }

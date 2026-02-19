@@ -74,10 +74,16 @@ export function AdminTenantsModals({ state, handlers, FEATURES }: AdminTenantsMo
                 title="Success"
             >
                 <div className="space-y-4">
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                        {state.successDialog.message}
-                    </p>
-                    <div className="flex justify-end">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+                            <Activity size={20} />
+                        </div>
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                            {state.successDialog.message}
+                        </p>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                        <p className="text-[10px] text-zinc-400 self-center">Closing in 3s...</p>
                         <button
                             onClick={() => {
                                 handlers.setSuccessDialog({ ...state.successDialog, isOpen: false });
@@ -85,7 +91,7 @@ export function AdminTenantsModals({ state, handlers, FEATURES }: AdminTenantsMo
                                     window.location.reload();
                                 }
                             }}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+                            className="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-sm font-medium"
                         >
                             Dismiss
                         </button>

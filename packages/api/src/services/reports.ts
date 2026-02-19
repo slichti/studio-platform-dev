@@ -14,7 +14,7 @@ import {
     customReports,
     scheduledReports
 } from '@studio/db/src/schema'; // Ensure correct imports
-import { and, between, eq, sql, desc, count, gte, lte, inArray } from 'drizzle-orm';
+import { and, between, eq, sql, desc, count, gte, lte, inArray, or, isNull, gt } from 'drizzle-orm';
 
 
 const escapeHtml = (unsafe: string) => {
@@ -543,20 +543,19 @@ export class ReportService {
         if (metrics.includes('active_members')) {
             const members = await this.db.select({
                 id: tenantMembers.id,
-                joinedAt: tenantMembers.joinedAt
+                joinedAt: tenantMembers.joinedAt,
+                status: tenantMembers.status
             })
                 .from(tenantMembers)
                 .where(and(
                     eq(tenantMembers.tenantId, this.tenantId),
-                    lte(tenantMembers.joinedAt, filters.endDate),
-                    eq(tenantMembers.status, 'active')
+                    lte(tenantMembers.joinedAt, filters.endDate)
                 ))
                 .all();
 
-            result.summary.active_members = members.length;
+            result.summary.active_members = members.filter(m => m.status === 'active').length;
 
             if (groupByDay) {
-                // Initialize chartData if needed
                 if (!result.chartData.length) {
                     const cursor = new Date(filters.startDate);
                     while (cursor <= filters.endDate) {
@@ -567,13 +566,31 @@ export class ReportService {
                 }
 
                 result.chartData = result.chartData.map((d: any) => {
-                    const dateLimit = new Date(d.name).getTime();
-                    const count = members.filter(m => new Date(m.joinedAt || '').getTime() <= dateLimit).length;
+                    // Growth view: joined by this date (inclusive)
+                    const count = members.filter(m => {
+                        const joinDate = new Date(m.joinedAt || '').toISOString().split('T')[0];
+                        return joinDate <= d.name;
+                    }).length;
                     return {
                         ...d,
                         active_members: count
                     };
                 });
+            }
+        }
+
+        // RETENTION RATE METRIC
+        if (metrics.includes('retention_rate')) {
+            const retention = await this.getRetention(filters.startDate, filters.endDate);
+            result.summary.retention_rate = retention.retentionRate;
+
+            // Note: Retention is usually a period metric, not a daily trend in this context
+            // But we can add the summary to all chart data points for visualization consistency
+            if (groupByDay) {
+                result.chartData = result.chartData.map((d: any) => ({
+                    ...d,
+                    retention_rate: retention.retentionRate
+                }));
             }
         }
 
@@ -607,9 +624,13 @@ export class ReportService {
     }
 
     // Helper for CSV output
-    generateCsv(data: any[], metrics: string[]) {
-        if (!data || data.length === 0) return '';
-        const headers = ['Date', ...metrics].join(',');
+    generateCsv(data: any[], metrics: string[], dimensions: string[] = ['date']) {
+        const primaryDim = dimensions[0] || 'date';
+        const dimHeader = primaryDim.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        const headers = [dimHeader, ...metrics.map(m => m.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '))].join(',');
+
+        if (!data || data.length === 0) return headers;
+
         const rows = data.map(row => {
             return [
                 row.name,
@@ -684,8 +705,7 @@ export class ReportService {
             .where(and(
                 eq(subscriptions.tenantId, this.tenantId),
                 lte(subscriptions.createdAt, start),
-                sql`(${subscriptions.canceledAt} IS NULL OR ${subscriptions.canceledAt} > ${start})`,
-                inArray(subscriptions.status, ['active', 'trialing'])
+                or(isNull(subscriptions.canceledAt), gt(subscriptions.canceledAt, start))
             ))
             .get();
 
