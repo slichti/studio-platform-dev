@@ -51,10 +51,6 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const tenantId = url.searchParams.get("tenantId") || "";
     const sort = url.searchParams.get("sort") || "joined_desc";
 
-    const context = args.context as { cloudflare?: { env: any }, env?: any };
-    const env = context.cloudflare?.env || context.env || {};
-    const apiUrl = env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev";
-
     try {
         const params = new URLSearchParams();
         if (search) params.append("search", search);
@@ -64,8 +60,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
         params.append("offset", offset.toString());
 
         const [usersData, tenants] = await Promise.all([
-            apiRequest<any>(`/admin/users?${params.toString()}`, token, {}, apiUrl),
-            apiRequest<Tenant[]>(`/admin/tenants`, token, {}, apiUrl)
+            apiRequest<any>(`/admin/users?${params.toString()}`, token),
+            apiRequest<Tenant[]>(`/admin/tenants`, token)
         ]);
 
         return {
