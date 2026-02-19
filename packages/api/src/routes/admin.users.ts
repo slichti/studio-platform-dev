@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { sign } from 'hono/jwt';
 import { createDb } from '../db';
 import { users, tenantMembers, tenantRoles, auditLogs } from '@studio/db/src/schema';
-import { eq, sql, desc, or, like, and, inArray, exists } from 'drizzle-orm';
+import { eq, sql, desc, or, like, and, inArray, exists, ne } from 'drizzle-orm';
 import { HonoContext } from '../types';
 
 const app = new Hono<HonoContext>();
