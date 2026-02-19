@@ -92,6 +92,7 @@ export default function HelpLayout() {
             category: "Classes & Schedule",
             items: [
                 { name: "Creating Classes", href: "/documentation/classes", icon: Book },
+                { name: "Courses & Monetization", href: "/documentation/courses", icon: GraduationCap },
             ]
         },
         {

@@ -31,6 +31,12 @@ export const docsIndex = [
         category: "Classes"
     },
     {
+        title: "Courses & Monetization",
+        href: "/documentation/courses",
+        content: "Course Setup, Standalone Purchase, Recording Price, Non-member Access, VOD Protection",
+        category: "Classes"
+    },
+    {
         title: "Memberships & POS",
         href: "/documentation/commerce",
         content: "Recurring Subscriptions, Class Packs, Expiration, Point of Sale, Gift Cards, Products, Checkout",
