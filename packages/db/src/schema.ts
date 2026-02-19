@@ -372,6 +372,12 @@ export const classes = sqliteTable('classes', {
     autoCancelThreshold: integer('auto_cancel_threshold'), // Hours before start
     autoCancelEnabled: integer('auto_cancel_enabled', { mode: 'boolean' }).default(false),
 
+    // VOD Monetization
+    recordingPrice: integer('recording_price'), // Price in cents for standalone purchase
+    isRecordingSellable: integer('is_recording_sellable', { mode: 'boolean' }).default(false),
+    isCourse: integer('is_course', { mode: 'boolean' }).default(false),
+    contentCollectionId: text('content_collection_id').references(() => videoCollections.id),
+
     googleEventId: text('google_event_id'),
 
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
@@ -1201,14 +1207,81 @@ export const videoCollections = sqliteTable('video_collections', {
     tenantSlugIdx: uniqueIndex('collection_tenant_slug_idx').on(table.tenantId, table.slug),
 }));
 
+// --- Course Quiz System ---
+
+export const quizzes = sqliteTable('quizzes', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    title: text('title').notNull(),
+    description: text('description'),
+    randomizeOrder: integer('randomize_order', { mode: 'boolean' }).default(false),
+    passingScore: integer('passing_score').default(0), // Percentage
+    active: integer('active', { mode: 'boolean' }).default(true),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('quiz_tenant_idx').on(table.tenantId),
+}));
+
+export const quizQuestions = sqliteTable('quiz_questions', {
+    id: text('id').primaryKey(),
+    quizId: text('quiz_id').notNull().references(() => quizzes.id, { onDelete: 'cascade' }),
+    questionText: text('question_text').notNull(),
+    questionType: text('question_type', { enum: ['multiple_choice', 'true_false', 'short_answer'] }).notNull(),
+
+    // JSON stores options for MC and weights
+    options: text('options', { mode: 'json' }), // e.g. [{"label": "A", "val": "..."}]
+    correctAnswer: text('correct_answer').notNull(), // for MC/TF, value. for Short, regex or keyword
+    explanation: text('explanation'),
+
+    points: integer('points').default(1),
+    order: integer('order').notNull().default(0),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    quizIdx: index('quiz_question_idx').on(table.quizId),
+}));
+
+export const quizSubmissions = sqliteTable('quiz_submissions', {
+    id: text('id').primaryKey(),
+    quizId: text('quiz_id').notNull().references(() => quizzes.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+
+    score: integer('score').notNull(), // Percentage
+    passed: integer('passed', { mode: 'boolean' }).notNull(),
+    answers: text('answers', { mode: 'json' }).notNull(), // User's submitted answers
+
+    finishedAt: integer('finished_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    userQuizIdx: index('quiz_sub_user_quiz_idx').on(table.userId, table.quizId),
+}));
+
 export const videoCollectionItems = sqliteTable('video_collection_items', {
     id: text('id').primaryKey(),
     collectionId: text('collection_id').notNull().references(() => videoCollections.id, { onDelete: 'cascade' }),
-    videoId: text('video_id').notNull().references(() => videos.id, { onDelete: 'cascade' }),
+
+    // Polymorphic Content
+    contentType: text('content_type', { enum: ['video', 'quiz'] }).default('video').notNull(),
+    videoId: text('video_id').references(() => videos.id, { onDelete: 'cascade' }),
+    quizId: text('quiz_id').references(() => quizzes.id, { onDelete: 'cascade' }),
+
     order: integer('order').notNull().default(0),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     collectionIdx: index('collection_item_idx').on(table.collectionId),
+}));
+
+export const videoPurchases = sqliteTable('video_purchases', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    classId: text('class_id').notNull().references(() => classes.id, { onDelete: 'cascade' }),
+    pricePaid: integer('price_paid').notNull().default(0),
+    stripePaymentId: text('stripe_payment_id'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantUserIdx: index('video_purchase_tenant_user_idx').on(table.tenantId, table.userId),
+    userClassIdx: index('video_purchase_user_class_idx').on(table.userId, table.classId),
 }));
 
 export const brandingAssets = sqliteTable('branding_assets', {

@@ -25,7 +25,8 @@ export async function setupTestDb(d1: D1Database) {
         'video_collections', 'video_collection_items', 'branding_assets',
         'referrals', 'member_tags', 'members_to_tags', 'custom_field_definitions',
         'custom_field_values', 'community_posts', 'community_comments',
-        'community_likes', 'reviews'
+        'community_likes', 'reviews', 'video_purchases',
+        'quizzes', 'quiz_questions', 'quiz_submissions'
     ];
 
     for (const table of tables) {
@@ -90,7 +91,12 @@ export async function setupTestDb(d1: D1Database) {
             video_provider TEXT DEFAULT 'offline', livekit_room_name TEXT, livekit_room_sid TEXT, 
             status TEXT DEFAULT 'active', min_students INTEGER DEFAULT 1, 
             auto_cancel_threshold INTEGER, auto_cancel_enabled INTEGER DEFAULT 0, 
-            google_event_id TEXT, created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            recording_price INTEGER,
+            is_recording_sellable INTEGER DEFAULT 0,
+            is_course INTEGER DEFAULT 0,
+            content_collection_id TEXT,
+            google_event_id TEXT,
+            created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
 
         d1.prepare(`CREATE TABLE bookings (
@@ -101,6 +107,11 @@ export async function setupTestDb(d1: D1Database) {
             payment_method TEXT, used_pack_id TEXT, external_source TEXT, external_id TEXT, 
             created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
+        d1.prepare(`CREATE TABLE video_purchases (
+            id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, user_id TEXT NOT NULL, 
+            class_id TEXT NOT NULL, price_paid INTEGER NOT NULL DEFAULT 0, 
+            stripe_payment_id TEXT, created_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )`),
     ]);
 
     await d1.batch([
@@ -108,7 +119,8 @@ export async function setupTestDb(d1: D1Database) {
             id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, description TEXT, 
             price INTEGER DEFAULT 0, currency TEXT DEFAULT 'usd', "interval" TEXT DEFAULT 'month', 
             image_url TEXT, overlay_title TEXT, overlay_subtitle TEXT, vod_enabled INTEGER DEFAULT 0, 
-            active INTEGER DEFAULT 1, created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            active INTEGER DEFAULT 1, created_at INTEGER DEFAULT (strftime('%s', 'now')),
+            updated_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
 
         d1.prepare(`CREATE TABLE subscriptions (
@@ -311,12 +323,69 @@ export async function setupTestDb(d1: D1Database) {
             created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
 
-        d1.prepare(`CREATE TABLE payroll_items (
-            id TEXT PRIMARY KEY, payout_id TEXT NOT NULL, type TEXT NOT NULL, 
-            reference_id TEXT NOT NULL, amount INTEGER NOT NULL, details TEXT, 
-            created_at INTEGER DEFAULT (strftime('%s', 'now'))
+        d1.prepare(`CREATE TABLE videos (
+            id TEXT PRIMARY KEY, tenant_id TEXT, title TEXT NOT NULL, description TEXT, 
+            r2_key TEXT NOT NULL, cloudflare_stream_id TEXT, duration INTEGER DEFAULT 0, 
+            width INTEGER, height INTEGER, size_bytes INTEGER DEFAULT 0, 
+            status TEXT DEFAULT 'processing', source TEXT DEFAULT 'upload', 
+            video_provider TEXT DEFAULT 'offline', livekit_room_name TEXT, livekit_room_sid TEXT, 
+            trim_start INTEGER, trim_end INTEGER, created_at INTEGER DEFAULT (strftime('%s', 'now')), 
+            updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )`),
+
+        d1.prepare(`CREATE TABLE video_collections (
+            id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, title TEXT NOT NULL, 
+            description TEXT, slug TEXT NOT NULL, 
+            created_at INTEGER DEFAULT (strftime('%s', 'now')), 
+            updated_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`)
     ]);
+
+    await d1.prepare(`CREATE TABLE video_collection_items (
+        id TEXT PRIMARY KEY,
+        collection_id TEXT NOT NULL,
+        content_type TEXT DEFAULT 'video' NOT NULL,
+        video_id TEXT,
+        quiz_id TEXT,
+        "order" INTEGER DEFAULT 0,
+        created_at INTEGER DEFAULT (strftime('%s', 'now'))
+    )`).run();
+
+    await d1.prepare(`CREATE TABLE quizzes (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        randomize_order INTEGER DEFAULT 0,
+        passing_score INTEGER DEFAULT 0,
+        active INTEGER DEFAULT 1,
+        created_at INTEGER DEFAULT (strftime('%s', 'now')),
+        updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+    )`).run();
+
+    await d1.prepare(`CREATE TABLE quiz_questions (
+        id TEXT PRIMARY KEY,
+        quiz_id TEXT NOT NULL,
+        question_text TEXT NOT NULL,
+        question_type TEXT NOT NULL,
+        options TEXT, -- JSON
+        correct_answer TEXT NOT NULL,
+        explanation TEXT,
+        points INTEGER DEFAULT 1,
+        "order" INTEGER DEFAULT 0,
+        created_at INTEGER DEFAULT (strftime('%s', 'now'))
+    )`).run();
+
+    await d1.prepare(`CREATE TABLE quiz_submissions (
+        id TEXT PRIMARY KEY,
+        quiz_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        tenant_id TEXT NOT NULL,
+        score INTEGER NOT NULL,
+        passed INTEGER NOT NULL,
+        answers TEXT NOT NULL, -- JSON
+        finished_at INTEGER DEFAULT (strftime('%s', 'now'))
+    )`).run();
 
     return db;
 }

@@ -260,6 +260,17 @@ export class StripeWebhookHandler {
                 }
             }
 
+            // [NEW] Recording Purchase
+            if (metadata.type === 'recording_purchase') {
+                console.log(`[Stripe] Processing Recording Purchase: ${metadata.recordingId}`);
+                await fulfillment.fulfillVideoPurchase({
+                    classId: metadata.recordingId,
+                    tenantId: metadata.tenantId,
+                    userId: metadata.userId,
+                    couponId: metadata.couponId
+                }, session.payment_intent as string, amount_total || 0, session.customer_details?.email || undefined);
+            }
+
             // 5. Product Purchase (Automation)
             try {
                 const tenant = await this.db.query.tenants.findFirst({ where: eq(schema.tenants.id, metadata.tenantId) });

@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantMembers, coupons, couponRedemptions, classPackDefinitions, giftCards, membershipPlans, users, userRelationships } from '@studio/db/src/schema';
+import { tenants, tenantMembers, coupons, couponRedemptions, classPackDefinitions, giftCards, membershipPlans, users, userRelationships, classes } from '@studio/db/src/schema';
 import { eq, and, gt, sql } from 'drizzle-orm';
 import { rateLimitMiddleware } from '../middleware/rate-limit';
 import { HonoContext } from '../types';
@@ -265,10 +265,10 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
         if (!!(auth as any).isImpersonating) return c.json({ error: 'Payments cannot be processed while impersonating.' }, 403);
 
         const body = await c.req.json();
-        const { packId, planId, couponCode, giftCardCode, giftCardAmount, recipientEmail, recipientName, senderName, message, platform } = body;
-        if (!packId && !giftCardAmount && !planId) return c.json({ error: "Product ID required" }, 400);
+        const { packId, planId, recordingId, couponCode, giftCardCode, giftCardAmount, recipientEmail, recipientName, senderName, message, platform } = body;
+        if (!packId && !giftCardAmount && !planId && !recordingId) return c.json({ error: "Product ID required" }, 400);
 
-        let finalAmount = 0, basePrice = 0, discountAmount = 0, pack = null, plan = null, stripeMode: 'payment' | 'subscription' = 'payment';
+        let finalAmount = 0, basePrice = 0, discountAmount = 0, pack = null, plan = null, recording = null, stripeMode: 'payment' | 'subscription' = 'payment';
 
         if (packId) {
             pack = await db.select().from(classPackDefinitions)
@@ -281,6 +281,12 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
             if (!plan || !plan.active) return c.json({ error: "Plan not found/active" }, 404);
             finalAmount = basePrice = plan.price || 0;
             if (plan.interval && plan.interval !== 'one_time') stripeMode = 'subscription';
+        } else if (recordingId) {
+            recording = await db.select().from(classes)
+                .where(and(eq(classes.id, recordingId), eq(classes.tenantId, tenant.id))).get();
+            if (!recording || !recording.cloudflareStreamId) return c.json({ error: "Recording not found" }, 404);
+            if (!recording.isRecordingSellable) return c.json({ error: "This recording is not for sale" }, 403);
+            finalAmount = basePrice = recording.recordingPrice || recording.price || 0;
         } else if (giftCardAmount) {
             finalAmount = basePrice = parseInt(giftCardAmount);
         }
@@ -313,6 +319,9 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
             const mockId = `direct_${crypto.randomUUID()}`;
             if (pack) {
                 await fulfillment.fulfillPackPurchase({ packId: pack.id, tenantId: tenant.id, memberId: c.get('member')?.id, userId: auth.userId, couponId: appliedCouponId }, mockId, 0);
+            }
+            if (recording) {
+                await fulfillment.fulfillVideoPurchase({ classId: recording.id, tenantId: tenant.id, userId: auth.userId, couponId: appliedCouponId }, mockId, 0);
             }
             if (giftCardAmount) {
                 await fulfillment.fulfillGiftCardPurchase({ type: 'gift_card_purchase', tenantId: tenant.id, userId: auth.userId, recipientEmail, recipientName, senderName, message, amount: parseInt(giftCardAmount) }, mockId, parseInt(giftCardAmount));
@@ -350,7 +359,7 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
             lineItems.push({
                 price_data: {
                     currency: tenant.currency || 'usd',
-                    product_data: { name: pack ? pack.name : (plan ? plan.name : 'Gift Card Credit'), tax_code: 'txcd_00000000' },
+                    product_data: { name: pack ? pack.name : (plan ? plan.name : (recording ? `Access: ${recording.title}` : 'Gift Card Credit')), tax_code: 'txcd_00000000' },
                     unit_amount: Math.max(0, taxableAmount - creditApplied),
                     ...(stripeMode === 'subscription' && plan ? { recurring: { interval: plan.interval as any, interval_count: 1 } } : {})
                 },
@@ -367,10 +376,10 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
         const appFeeDecimal = tier.applicationFeePercent;
 
         const metadata = {
-            type: pack ? 'pack_purchase' : (plan ? 'membership_purchase' : 'gift_card_purchase'),
-            packId: pack?.id || '', planId: plan?.id || '', tenantId: tenant.id, userId: auth.userId || 'guest',
+            type: pack ? 'pack_purchase' : (plan ? 'membership_purchase' : (recording ? 'recording_purchase' : 'gift_card_purchase')),
+            packId: pack?.id || '', planId: plan?.id || '', recordingId: recording?.id || '', tenantId: tenant.id, userId: auth.userId || 'guest',
             couponId: appliedCouponId || '', recipientEmail, recipientName, senderName, message,
-            productName: pack ? pack.name : (plan ? plan.name : 'Gift Card'), totalCharge: String(amountWithFee),
+            productName: pack ? pack.name : (plan ? plan.name : (recording ? recording.title : 'Gift Card')), totalCharge: String(amountWithFee),
             usedGiftCardId: appliedGiftCardId || ''
         };
 

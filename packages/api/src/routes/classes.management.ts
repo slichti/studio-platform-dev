@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { classes, bookings, subscriptions, membershipPlans } from '@studio/db/src/schema';
+import { classes, bookings, subscriptions, membershipPlans, videoPurchases, videoCollectionItems, videos, quizzes } from '@studio/db/src/schema'; // Added collection tables
 import { eq, and, inArray } from 'drizzle-orm';
 import { StreamService } from '../services/stream';
 import type { HonoContext } from '../types';
@@ -16,8 +16,8 @@ app.get('/:id/recording', async (c) => {
     if (!tenant) return c.json({ error: 'Tenant context missing' }, 400);
 
     const classInfo = await db.select().from(classes).where(eq(classes.id, classId)).get();
-    if (!classInfo || !classInfo.cloudflareStreamId) {
-        return c.json({ error: 'No recording available' }, 404);
+    if (!classInfo) {
+        return c.json({ error: 'Class not found' }, 404);
     }
 
     let canWatch = false;
@@ -37,8 +37,8 @@ app.get('/:id/recording', async (c) => {
             });
             if (booking) {
                 canWatch = true;
-            } else {
-                // 2. Check Membership with VOD Access
+            } else if (!classInfo.isCourse) {
+                // 2. Check Membership with VOD Access (ONLY for non-courses)
                 const activeSub = await db.select({ id: subscriptions.id })
                     .from(subscriptions)
                     .innerJoin(membershipPlans, eq(subscriptions.planId, membershipPlans.id))
@@ -54,13 +54,81 @@ app.get('/:id/recording', async (c) => {
                 if (activeSub) canWatch = true;
             }
         }
+
+        // 3. Check Individual Buy-and-Watch Purchase
+        if (!canWatch) {
+            const purchase = await db.query.videoPurchases.findFirst({
+                where: and(
+                    eq(videoPurchases.classId, classId),
+                    eq(videoPurchases.userId, auth.userId),
+                    eq(videoPurchases.tenantId, tenant.id)
+                )
+            });
+            if (purchase) canWatch = true;
+        }
     }
 
-    if (!canWatch) return c.json({ error: 'Access Denied: You must book this class to watch the recording.' }, 403);
+    if (!canWatch) return c.json({ error: 'Access Denied: You must book this class or purchase access to watch the content.' }, 403);
+
+    const stream = new StreamService(c.env.CLOUDFLARE_STREAM_ACCOUNT_ID as string, c.env.CLOUDFLARE_STREAM_API_TOKEN as string);
+    const content: any[] = [];
+
+    // 1. Add Primary Recording if it exists
+    if (classInfo.cloudflareStreamId) {
+        const playbackToken = await stream.getSignedToken(classInfo.cloudflareStreamId);
+        content.push({
+            id: 'primary',
+            title: 'Class Recording',
+            videoId: playbackToken,
+            status: classInfo.recordingStatus
+        });
+    }
+
+    // 2. Add Supplementary Collection Content
+    if (classInfo.contentCollectionId) {
+        const collectionItems = await db.select({
+            id: videoCollectionItems.id,
+            contentType: videoCollectionItems.contentType,
+            videoId: videoCollectionItems.videoId,
+            quizId: videoCollectionItems.quizId,
+            order: videoCollectionItems.order,
+            video: videos,
+            quiz: quizzes
+        })
+            .from(videoCollectionItems)
+            .leftJoin(videos, eq(videoCollectionItems.videoId, videos.id))
+            .leftJoin(quizzes, eq(videoCollectionItems.quizId, quizzes.id))
+            .where(eq(videoCollectionItems.collectionId, classInfo.contentCollectionId))
+            .orderBy(videoCollectionItems.order).all();
+
+        for (const item of collectionItems) {
+            if (item.contentType === 'video' && item.video?.cloudflareStreamId) {
+                const token = await stream.getSignedToken(item.video.cloudflareStreamId);
+                content.push({
+                    id: item.id,
+                    type: 'video',
+                    title: item.video.title,
+                    videoId: token,
+                    status: item.video.status
+                });
+            } else if (item.contentType === 'quiz' && item.quiz) {
+                content.push({
+                    id: item.id,
+                    type: 'quiz',
+                    quizId: item.quiz.id,
+                    title: item.quiz.title,
+                    description: item.quiz.description
+                });
+            }
+        }
+    }
+
+    if (content.length === 0) {
+        return c.json({ error: 'No content available for this class' }, 404);
+    }
 
     return c.json({
-        videoId: classInfo.cloudflareStreamId,
-        status: classInfo.recordingStatus
+        videos: content
     });
 });
 

@@ -47,6 +47,37 @@ app.get('/schedule/:slug', async (c) => {
     });
 });
 
+// GET /public/videos/:slug - Public Video Library
+app.get('/videos/:slug', async (c) => {
+    const db = createDb(c.env.DB);
+    const slug = c.req.param('slug');
+
+    const tenant = await db.query.tenants.findFirst({
+        where: eq(tenants.slug, slug)
+    });
+
+    if (!tenant) return c.json({ error: "Studio not found" }, 404);
+
+    const videoLibrary = await db.query.classes.findMany({
+        where: and(
+            eq(classes.tenantId, tenant.id),
+            eq(classes.isRecordingSellable, true),
+            sql`${classes.cloudflareStreamId} IS NOT NULL`
+        ),
+        with: {
+            instructor: {
+                with: { user: true }
+            }
+        },
+        orderBy: [desc(classes.startTime)]
+    });
+
+    return c.json({
+        tenant: { name: tenant.name, id: tenant.id, currency: tenant.currency },
+        videos: videoLibrary
+    });
+});
+
 // POST /booking - Guest Booking
 app.post('/booking', rateLimitMiddleware({ limit: 5, window: 60, keyPrefix: 'guest_booking' }), async (c) => {
     const db = createDb(c.env.DB);

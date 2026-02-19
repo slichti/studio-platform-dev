@@ -40,6 +40,7 @@ import webhookRoutes from './routes/webhooks';
 import uploadRoutes from './routes/uploads';
 import userRoutes from './routes/users';
 import commerce from './routes/commerce';
+import quizzes from './routes/quizzes';
 import refunds from './routes/refunds';
 import platform from './routes/platform';
 import reports from './routes/reports';
@@ -284,7 +285,8 @@ const studioPaths = [
   '/tasks', '/tasks/*',
   '/video', '/video/*',
   '/chat', '/chat/*',
-  '/studios', '/studios/*'
+  '/studios', '/studios/*',
+  '/quizzes', '/quizzes/*'
 ];
 
 const authenticatedPaths = [
@@ -315,7 +317,8 @@ const authenticatedPaths = [
   '/analytics', '/analytics/*',
   '/challenges', '/challenges/*',
   '/tasks', '/tasks/*',
-  '/video', '/video/*'
+  '/video', '/video/*',
+  '/quizzes', '/quizzes/*'
 ];
 
 const publicStudioPaths = [
@@ -648,6 +651,7 @@ app.route('/analytics', analytics); // [NEW] Analytics
 app.route('/classes', classRoutes);
 app.route('/commerce', commerce);
 app.route('/gift-cards', giftCards);
+app.route('/quizzes', quizzes);
 app.route('/tasks', tasks);
 app.route('/inventory', inventory); // [NEW] Mount
 app.route('/reports/custom', reportsCustom);

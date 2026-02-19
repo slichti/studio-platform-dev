@@ -1,5 +1,5 @@
 
-import { classes, users, classPackDefinitions, purchasedPacks, giftCards, giftCardTransactions, tenantMembers, tenants, couponRedemptions, referralRewards, referralCodes, subscriptions, membershipPlans } from '@studio/db/src/schema'; // Ensure these are exported from schema
+import { classes, users, classPackDefinitions, purchasedPacks, giftCards, giftCardTransactions, tenantMembers, tenants, couponRedemptions, referralRewards, referralCodes, subscriptions, membershipPlans, videoPurchases } from '@studio/db/src/schema'; // Ensure these are exported from schema
 import { eq, and, sql } from 'drizzle-orm';
 import { EmailService } from './email';
 import { AutomationsService } from './automations';
@@ -331,6 +331,71 @@ export class FulfillmentService {
         }
 
         // Audit Log? Handled by WebhookHandler
+    }
+
+    async fulfillVideoPurchase(metadata: any, paymentId: string, amount: number, email?: string) {
+        let userId = metadata.userId;
+
+        // 1. Handle Guest/Shadow Account Creation
+        if ((!userId || userId === 'guest') && email) {
+            const existingUser = await this.db.query.users.findFirst({
+                where: eq(users.email, email)
+            });
+
+            if (existingUser) {
+                userId = existingUser.id;
+            } else {
+                userId = `guest_u_${crypto.randomUUID()}`;
+                await this.db.insert(users).values({
+                    id: userId,
+                    email: email,
+                    createdAt: new Date()
+                }).run();
+            }
+        }
+
+        if (!metadata.classId || !metadata.tenantId || !userId) return;
+
+        // 2. Assign Ownership
+        await this.db.insert(videoPurchases).values({
+            id: crypto.randomUUID(),
+            tenantId: metadata.tenantId,
+            userId: userId,
+            classId: metadata.classId,
+            pricePaid: amount,
+            stripePaymentId: paymentId,
+            createdAt: new Date()
+        }).run();
+
+        // 3. CRM Integration: Ensure they are a tenantMember
+        const existingMember = await this.db.query.tenantMembers.findFirst({
+            where: and(
+                eq(tenantMembers.userId, userId),
+                eq(tenantMembers.tenantId, metadata.tenantId)
+            )
+        });
+
+        if (!existingMember) {
+            await this.db.insert(tenantMembers).values({
+                id: `guest_m_${crypto.randomUUID()}`,
+                tenantId: metadata.tenantId,
+                userId: userId,
+                status: 'active',
+                joinedAt: new Date()
+            }).run();
+        }
+
+        // 4. Handle Coupon Redemption (if applied)
+        if (metadata.couponId && userId !== 'guest') {
+            await this.db.insert(couponRedemptions).values({
+                id: crypto.randomUUID(),
+                tenantId: metadata.tenantId,
+                couponId: metadata.couponId,
+                userId: userId,
+                orderId: paymentId,
+                redeemedAt: new Date()
+            }).run();
+        }
     }
 
     async redeemGiftCard(giftCardId: string, amount: number, referenceId: string) {
