@@ -3,7 +3,8 @@ import { Users, CheckCircle2 } from "lucide-react";
 
 import { useAttendance, DateRange } from "~/hooks/useAnalytics";
 import { MetricCard } from "~/components/charts/MetricCard";
-import { AttendanceChart } from "~/components/charts/AttendanceChart";
+import React, { Suspense, lazy } from "react";
+const AttendanceChart = lazy(() => import("~/components/charts/AttendanceChart").then(mod => ({ default: mod.AttendanceChart })));
 
 export default function AnalyticsAttendance() {
     const { tenant, dateRange } = useOutletContext<{ tenant: any, dateRange: DateRange }>();
@@ -47,7 +48,9 @@ export default function AnalyticsAttendance() {
                 <div className="lg:col-span-2 bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative min-h-[400px]">
                     <h3 className="text-lg font-semibold mb-6">Attendance Trends</h3>
                     <div className="h-80 w-full">
-                        <AttendanceChart data={attendanceData?.chartData} />
+                        <Suspense fallback={<div className="h-full w-full bg-zinc-50 dark:bg-zinc-800/50 animate-pulse rounded-lg" />}>
+                            <AttendanceChart data={attendanceData?.chartData} />
+                        </Suspense>
                     </div>
                 </div>
 

@@ -6,8 +6,9 @@ import { useAuth } from "@clerk/react-router";
 
 import { useRevenue, useInstructorProfitability, DateRange } from "~/hooks/useAnalytics";
 import { MetricCard } from "~/components/charts/MetricCard";
-import { RevenueChart } from "~/components/charts/RevenueChart";
-import { InstructorRoiChart } from "~/components/charts/InstructorRoiChart";
+import React, { Suspense, lazy } from "react";
+const RevenueChart = lazy(() => import("~/components/charts/RevenueChart").then(mod => ({ default: mod.RevenueChart })));
+const InstructorRoiChart = lazy(() => import("~/components/charts/InstructorRoiChart").then(mod => ({ default: mod.InstructorRoiChart })));
 import { PrivacyBlur } from "~/components/PrivacyBlur";
 
 export default function AnalyticsFinancials() {
@@ -110,7 +111,9 @@ export default function AnalyticsFinancials() {
                         </div>
                     )}
                     <div className="h-80 w-full">
-                        <RevenueChart data={revenueData?.chartData} />
+                        <Suspense fallback={<div className="h-full w-full bg-zinc-50 dark:bg-zinc-800/50 animate-pulse rounded-lg" />}>
+                            <RevenueChart data={revenueData?.chartData} />
+                        </Suspense>
                     </div>
                 </div>
 
@@ -156,7 +159,9 @@ export default function AnalyticsFinancials() {
                     <div className="absolute inset-0 z-10 backdrop-blur-md bg-white/30 dark:bg-black/30 flex items-center justify-center rounded-xl"></div>
                 )}
                 <div className="h-96 w-full">
-                    <InstructorRoiChart data={roiData} />
+                    <Suspense fallback={<div className="h-full w-full bg-zinc-50 dark:bg-zinc-800/50 animate-pulse rounded-lg" />}>
+                        <InstructorRoiChart data={roiData} />
+                    </Suspense>
                 </div>
             </div>
         </div>

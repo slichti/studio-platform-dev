@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
-import Cropper from 'react-easy-crop';
+import React, { Suspense } from 'react';
+const Cropper = React.lazy(() => import('react-easy-crop'));
 import { getCroppedImg } from '../utils/cropImage'; // Helper we'll create
 
 interface CardCreatorProps {
@@ -82,15 +83,17 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
 
             {mode === 'crop' && imageSrc && (
                 <div className="relative h-64 w-full bg-zinc-900 rounded-lg overflow-hidden">
-                    <Cropper
-                        image={imageSrc}
-                        crop={crop}
-                        zoom={zoom}
-                        aspect={3 / 2} // Standard card aspect ratio
-                        onCropChange={setCrop}
-                        onCropComplete={onCropComplete}
-                        onZoomChange={setZoom}
-                    />
+                    <Suspense fallback={<div className="h-full w-full flex items-center justify-center text-zinc-500">Loading editor...</div>}>
+                        <Cropper
+                            image={imageSrc}
+                            crop={crop}
+                            zoom={zoom}
+                            aspect={3 / 2} // Standard card aspect ratio
+                            onCropChange={setCrop}
+                            onCropComplete={onCropComplete}
+                            onZoomChange={setZoom}
+                        />
+                    </Suspense>
                     <div className="absolute bottom-4 right-4 z-10 space-x-2">
                         <button
                             type="button"
