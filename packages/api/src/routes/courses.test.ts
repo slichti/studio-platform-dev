@@ -5,6 +5,7 @@ import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from '@studio/db/src/schema';
 import { setupTestDb } from '../../test/integration/test-utils';
+import { StudioVariables, Bindings } from '../types';
 
 // Setup Mock DB globally so vi.mock can see it
 let testDb: any;
@@ -20,7 +21,7 @@ vi.mock('../services/pricing', () => ({
 }));
 
 describe('Course Management API', () => {
-    let app: Hono;
+    let app: Hono<{ Variables: StudioVariables; Bindings: Bindings }>;
     let sqlite: Database.Database;
 
     const tenantId = 'course_test_tenant';
@@ -62,14 +63,14 @@ describe('Course Management API', () => {
         sqlite.prepare(`INSERT INTO users (id, email) VALUES (?, ?)`).run(userId, 'admin@example.com');
         sqlite.prepare(`INSERT INTO tenant_members (id, tenant_id, user_id, joined_at) VALUES (?, ?, ?, ?)`).run(userId, tenantId, userId, Date.now());
 
-        app = new Hono();
+        app = new Hono<{ Variables: StudioVariables; Bindings: Bindings }>();
 
         app.use('*', async (c, next) => {
-            c.env = { DB: sqlite as any };
-            c.set('tenant', { id: tenantId, slug: slug, tier: 'launch' });
-            c.set('auth', { userId: userId });
-            c.set('member', { id: userId });
-            c.set('can', (p: string) => true); // Grant all permissions
+            c.env = { DB: sqlite as any } as Bindings;
+            c.set('tenant', { id: tenantId, slug: slug, tier: 'launch' } as any);
+            c.set('auth', { userId: userId } as any);
+            c.set('member', { id: userId } as any);
+            c.set('can', ((p: string) => true) as any); // Grant all permissions
             await next();
         });
 
