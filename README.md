@@ -5,6 +5,7 @@ The modern, all-in-one platform for dance, yoga, and fitness studios.
 ## Features
 
 *   **Studio Management:** Class scheduling, member management, and point-of-sale.
+*   **Course Management:** Standalone hybrid courses combining live sessions, on-demand VOD, and quizzes with enrollment and progress tracking. Controlled via a two-tier platform + tenant feature flag.
 *   **Website Builder:** Drag-and-drop website editor with custom domains.
 *   **Student App:** Mobile app for students to book classes and manage their accounts.
 *   **Automations:** Powerful email and SMS marketing automations with trigger events (Birthday, Absent, Trial Ending, etc).
@@ -88,6 +89,13 @@ flowchart LR
     subgraph "Data Isolation"
         HANDLER --> QUERY[Query Builder]
         QUERY -->|tenant_id filter| DATA[(Tenant Data)]
+    end
+
+    subgraph "Feature Flags"
+        HANDLER --> FLAGS{platformConfig + tenantFeatures}
+        FLAGS -->|course_management enabled| COURSES[Courses Sidebar + API]
+        FLAGS -->|vod enabled| VOD[Media Library]
+        FLAGS -->|pos enabled| POS[POS & Retail]
     end
 ```
 

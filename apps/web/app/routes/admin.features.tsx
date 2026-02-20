@@ -5,7 +5,7 @@ import { apiRequest } from "../utils/api";
 import { useState } from "react";
 import { useAuth } from "@clerk/react-router";
 import { toast } from "sonner";
-import { Smartphone, Video, CreditCard, MessageSquare, Mail, Save, Globe, MessagesSquare } from "lucide-react";
+import { Smartphone, Video, CreditCard, MessageSquare, Mail, Save, Globe, MessagesSquare, BookOpen } from "lucide-react";
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -78,6 +78,12 @@ const KNOWN_FEATURES = [
         label: 'Payroll & Compensation',
         description: 'Enable Instructor Payroll and Commission tracking.',
         icon: Save
+    },
+    {
+        key: 'feature_course_management',
+        label: 'Course Management',
+        description: 'Enable standalone Course Management — hybrid curriculum, VOD + live sessions, enrollment, and progress tracking for tenants.',
+        icon: BookOpen
     }
 ];
 

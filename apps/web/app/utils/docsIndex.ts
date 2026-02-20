@@ -7,6 +7,12 @@ export const docsIndex = [
         category: "Platform"
     },
     {
+        title: "Course Management — Platform Guide",
+        href: "/documentation/platform/courses",
+        content: "Feature flag, course_management, enable courses, tenant feature, hybrid curriculum, enrollment, progress, VOD, live sessions, Scale tier",
+        category: "Platform"
+    },
+    {
         title: "Reports & Analytics",
         href: "/documentation/reports",
         content: "Financial Reports, Gross Revenue, MRR, Attendance, Utilization Rate, Exports, CSV",

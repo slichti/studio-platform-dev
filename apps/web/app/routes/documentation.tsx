@@ -73,6 +73,7 @@ export default function HelpLayout() {
             category: "Platform Administration",
             items: [
                 { name: "Architecture Overview", href: "/documentation/platform/architecture", icon: Server },
+                { name: "Course Management", href: "/documentation/platform/courses", icon: GraduationCap },
                 { name: "Tenant Management", href: "/documentation/platform/tenants", icon: Shield },
             ]
         }] : []),
