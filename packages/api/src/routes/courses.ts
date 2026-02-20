@@ -2,7 +2,7 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { createOpenAPIApp } from '../lib/openapi';
 import { StudioVariables } from '../types';
 import { createDb } from '../db';
-import { courses, courseEnrollments, classes, videoCollectionItems, videoCollections, courseModules, courseAccessCodes } from '@studio/db/src/schema';
+import { courses, courseEnrollments, classes, videoCollectionItems, videoCollections, courseModules, courseAccessCodes, videos, quizzes } from '@studio/db/src/schema';
 import { eq, and, desc, asc } from 'drizzle-orm';
 
 const app = createOpenAPIApp<StudioVariables>();
@@ -184,13 +184,37 @@ app.openapi(createRoute({
         .orderBy(classes.startTime)
         .all();
 
-    // Get curriculum via linked video collection
-    const curriculum: any[] = course.contentCollectionId
+    // Get curriculum items with joined video + quiz data
+    const rawItems: any[] = course.contentCollectionId
         ? await db.select().from(videoCollectionItems)
             .where(eq(videoCollectionItems.collectionId, course.contentCollectionId))
             .orderBy(videoCollectionItems.order)
             .all()
         : [];
+
+    // Enrich each item with its video or quiz record
+    const curriculum = await Promise.all(rawItems.map(async (item) => {
+        let video = null;
+        let quiz = null;
+        if (item.videoId) {
+            video = await db.select({
+                id: videos.id,
+                title: videos.title,
+                cloudflareStreamId: videos.cloudflareStreamId,
+                r2Key: videos.r2Key,
+                thumbnailUrl: videos.thumbnailUrl,
+                duration: videos.duration,
+            }).from(videos).where(eq(videos.id, item.videoId)).get();
+        }
+        if (item.quizId) {
+            quiz = await db.select({
+                id: quizzes.id,
+                title: quizzes.title,
+                passingScore: quizzes.passingScore,
+            }).from(quizzes).where(eq(quizzes.id, item.quizId)).get();
+        }
+        return { ...item, video, quiz };
+    }));
 
     return c.json({ ...course, sessions, curriculum });
 });
@@ -279,11 +303,19 @@ app.openapi(createRoute({
     const { id } = c.req.valid('param');
     const db = createDb(c.env.DB);
 
-    const course = await db.select({ id: courses.id }).from(courses)
+    const course = await db.select({ id: courses.id, price: courses.price }).from(courses)
         .where(and(eq(courses.id, id), eq(courses.tenantId, tenant.id)))
         .get();
 
     if (!course) return c.json({ error: 'Course not found' }, 404);
+
+    // Idempotent: if already enrolled, return existing enrollment
+    const existing = await db.select({ id: courseEnrollments.id })
+        .from(courseEnrollments)
+        .where(and(eq(courseEnrollments.courseId, id), eq(courseEnrollments.userId, me.userId)))
+        .get();
+
+    if (existing) return c.json({ success: true, alreadyEnrolled: true });
 
     await db.insert(courseEnrollments).values({
         id: crypto.randomUUID(),

@@ -1,10 +1,9 @@
-import { useParams, useOutletContext, Link } from "react-router";
-import { useState } from "react";
-import { ArrowLeft, CheckSquare, Video, Play, Lock, ChevronDown, ChevronRight, Award } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@clerk/react-router";
-import { toast } from "sonner";
+import { useLoaderData, useOutletContext, Link, Form, useNavigation } from "react-router";
+import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
+import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
+import { ArrowLeft, CheckSquare, Video, Play, Lock, ChevronRight, Award } from "lucide-react";
+import { useState } from "react";
 import { cn } from "~/utils/cn";
 
 function ItemIcon({ contentType, done }: { contentType: string; done: boolean }) {
@@ -13,80 +12,98 @@ function ItemIcon({ contentType, done }: { contentType: string; done: boolean })
     return <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 flex-shrink-0"><CheckSquare size={14} /></div>;
 }
 
+export const loader = async (args: LoaderFunctionArgs) => {
+    let token: string | null = null;
+
+    const cookie = args.request.headers.get("Cookie");
+    const isDev = import.meta.env.DEV || process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+
+    if (isDev && cookie?.includes("__e2e_bypass_user_id=")) {
+        const match = cookie.match(/__e2e_bypass_user_id=([^;]+)/);
+        if (match) token = match[1];
+    }
+    if (!token) {
+        const { getToken } = await getAuth(args);
+        token = await getToken();
+    }
+
+    const { slug, courseSlug } = args.params;
+    const headers = { 'X-Tenant-Slug': slug! };
+
+    // Fetch all courses to find by slug
+    const allCourses: any[] = await apiRequest(`/courses?status=active`, null, { headers }).catch(() => []);
+    const course = allCourses.find((c: any) => c.slug === courseSlug);
+
+    if (!course) return { course: null, courseDetail: null, enrollment: null };
+
+    const [courseDetail, enrollments] = await Promise.all([
+        apiRequest(`/courses/${course.id}`, null, { headers }).catch(() => null),
+        token ? apiRequest(`/courses/my-enrollments`, token, { headers }).catch(() => []) : [],
+    ]);
+
+    const enrollment = (enrollments as any[]).find((e: any) => e.courseId === course.id) ?? null;
+
+    return { course, courseDetail, enrollment, slug };
+};
+
+export const action = async (args: ActionFunctionArgs) => {
+    const { getToken } = await getAuth(args);
+    const token = await getToken();
+    const { slug } = args.params;
+    const formData = await args.request.formData();
+    const intent = formData.get("intent") as string;
+    const courseId = formData.get("courseId") as string;
+    const headers = { 'X-Tenant-Slug': slug! };
+
+    try {
+        if (intent === "progress") {
+            const progress = Number(formData.get("progress"));
+            await apiRequest(`/courses/${courseId}/progress`, token, {
+                method: 'POST',
+                body: JSON.stringify({ progress }),
+                headers,
+            });
+            return { success: true };
+        }
+    } catch (e: any) {
+        return { error: e.message || 'Failed to update progress' };
+    }
+    return null;
+};
+
 export default function PortalCourseViewer() {
-    const { slug, courseSlug } = useParams();
-    const { tenant, me } = useOutletContext<any>();
-    const { getToken } = useAuth();
-    const queryClient = useQueryClient();
+    const { course, courseDetail, enrollment, slug } = useLoaderData<typeof loader>();
+    const { tenant } = useOutletContext<any>();
+    const navigation = useNavigation();
 
     const [activeItemId, setActiveItemId] = useState<string | null>(null);
-
-    // Fetch course by slug
-    const { data: courses = [] } = useQuery<any[]>({
-        queryKey: ['portal-courses', slug],
-        queryFn: () => apiRequest(`/courses?status=active`, null, { headers: { 'X-Tenant-Slug': slug! } }),
-        enabled: !!slug
-    });
-    const course = (courses as any[]).find((c: any) => c.slug === courseSlug);
-
-    // Fetch full course details (curriculum)
-    const { data: courseDetail, isLoading } = useQuery<any>({
-        queryKey: ['portal-course-detail', slug, course?.id],
-        queryFn: () => apiRequest(`/courses/${course.id}`, null, { headers: { 'X-Tenant-Slug': slug! } }),
-        enabled: !!course?.id
-    });
-
-    // Fetch my enrollment
-    const { data: enrollments = [] } = useQuery<any[]>({
-        queryKey: ['my-enrollments', slug],
-        queryFn: async () => {
-            const token = await getToken();
-            return apiRequest(`/courses/my-enrollments`, token, { headers: { 'X-Tenant-Slug': slug! } }).catch(() => []);
-        },
-        enabled: !!slug
-    });
-    const enrollment = (enrollments as any[]).find((e: any) => e.courseId === course?.id);
     const isEnrolled = !!enrollment;
     const progress = enrollment?.progress ?? 0;
-
     const curriculum: any[] = courseDetail?.curriculum || [];
     const sessions: any[] = courseDetail?.sessions || [];
-    const activeItem = curriculum.find(i => i.id === activeItemId) || curriculum[0];
+    const activeItem = curriculum.find(i => i.id === activeItemId) || curriculum[0] || null;
+    const isSubmitting = navigation.state === 'submitting';
 
-    const handleMarkComplete = async () => {
-        if (!course?.id) return;
-        const token = await getToken();
-        const doneCount = curriculum.filter(i => i._done).length + 1;
-        const newProgress = Math.round(Math.min(100, (doneCount / Math.max(1, curriculum.length)) * 100));
-        try {
-            await apiRequest(`/courses/${course.id}/progress`, token, {
-                method: 'POST',
-                headers: { 'X-Tenant-Slug': slug! },
-                body: JSON.stringify({ progress: newProgress })
-            });
-            queryClient.invalidateQueries({ queryKey: ['my-enrollments', slug] });
-            if (newProgress === 100) toast.success("🎉 Course completed! Great work.");
-            else toast.success("Progress updated!");
-        } catch (e: any) {
-            toast.error(e.message || 'Failed to update progress');
-        }
-    };
+    // Calculate new progress when marking an item complete
+    const doneCount = Math.floor((progress / 100) * curriculum.length);
+    const newProgress = curriculum.length > 0
+        ? Math.round(Math.min(100, ((doneCount + 1) / curriculum.length) * 100))
+        : 100;
 
     if (!course) return (
         <div className="p-12 text-center text-zinc-500">
-            Course not found. <Link to={`/portal/${slug}/courses`} className="text-indigo-600 underline">Browse all courses</Link>
+            Course not found. <Link to={`/portal/${slug ?? tenant?.slug}/courses`} className="text-indigo-600 underline">Browse all courses</Link>
         </div>
     );
 
     return (
         <div className="max-w-6xl mx-auto animate-in fade-in duration-500">
-            {/* Back button */}
-            <Link to={`/portal/${slug}/courses`} className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 mb-6 transition">
+            <Link to={`/portal/${slug ?? tenant?.slug}/courses`} className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 mb-6 transition">
                 <ArrowLeft size={14} /> Back to Courses
             </Link>
 
             {!isEnrolled ? (
-                // ── Not enrolled: show course preview ──
+                // ── Not enrolled: show preview ──
                 <div className="space-y-6">
                     <div className="aspect-video w-full bg-zinc-100 dark:bg-zinc-800 rounded-2xl overflow-hidden relative">
                         {course.thumbnailUrl
@@ -104,16 +121,16 @@ export default function PortalCourseViewer() {
                         <h1 className="text-3xl font-bold">{course.title}</h1>
                         <p className="text-zinc-500 mt-2">{course.description}</p>
                     </div>
-                    <Link to={`/portal/${slug}/courses`} className="inline-block px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition">
+                    <Link to={`/portal/${slug ?? tenant?.slug}/courses`} className="inline-block px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition">
                         ← Go back and enroll
                     </Link>
                 </div>
             ) : (
-                // ── Enrolled: two-panel course viewer ──
+                // ── Enrolled: two-panel viewer ──
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Main Content Panel */}
                     <div className="lg:col-span-2 space-y-4">
-                        {/* Video or Quiz player area */}
+                        {/* Player area */}
                         {activeItem ? (
                             <div className="bg-black rounded-2xl overflow-hidden aspect-video flex items-center justify-center">
                                 {activeItem.contentType === 'video' && activeItem.video?.cloudflareStreamId ? (
@@ -122,43 +139,49 @@ export default function PortalCourseViewer() {
                                         allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
                                         allowFullScreen
                                         className="w-full h-full"
+                                        title={activeItem.video?.title || 'Video'}
                                     />
                                 ) : activeItem.contentType === 'video' && activeItem.video?.r2Key ? (
-                                    <video
-                                        src={activeItem.video.r2Key}
-                                        controls
-                                        className="w-full h-full"
-                                    />
+                                    <video src={activeItem.video.r2Key} controls className="w-full h-full" />
                                 ) : (
-                                    <div className="text-center text-zinc-400">
+                                    <div className="text-center text-zinc-400 p-8">
                                         <CheckSquare size={48} className="mx-auto mb-3 text-green-400" />
                                         <p className="font-medium text-white">Quiz: {activeItem.quiz?.title}</p>
-                                        <p className="text-sm mt-2 text-zinc-400">Open quiz in new tab to complete</p>
+                                        <p className="text-sm mt-2 text-zinc-400">Open the quiz in a new tab to complete it</p>
                                     </div>
                                 )}
                             </div>
                         ) : (
                             <div className="aspect-video bg-zinc-100 dark:bg-zinc-800 rounded-2xl flex items-center justify-center text-zinc-400">
-                                Select a lesson from the right to begin.
+                                Select a lesson from the sidebar to begin.
                             </div>
                         )}
 
+                        {/* Lesson info + mark complete */}
                         {activeItem && (
                             <div className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
                                 <div>
                                     <p className="font-bold">{activeItem.video?.title || activeItem.quiz?.title || 'Lesson'}</p>
                                     <p className="text-sm text-zinc-400 capitalize">{activeItem.contentType}</p>
                                 </div>
-                                <button
-                                    onClick={handleMarkComplete}
-                                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition"
-                                >
-                                    ✓ Mark Complete
-                                </button>
+                                {progress < 100 && (
+                                    <Form method="post">
+                                        <input type="hidden" name="intent" value="progress" />
+                                        <input type="hidden" name="courseId" value={course.id} />
+                                        <input type="hidden" name="progress" value={newProgress} />
+                                        <button
+                                            type="submit"
+                                            disabled={isSubmitting}
+                                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition disabled:opacity-60"
+                                        >
+                                            {isSubmitting ? 'Saving…' : '✓ Mark Complete'}
+                                        </button>
+                                    </Form>
+                                )}
                             </div>
                         )}
 
-                        {/* Live Sessions */}
+                        {/* Live sessions */}
                         {sessions.length > 0 && (
                             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 space-y-3">
                                 <h3 className="font-bold text-sm uppercase tracking-wider text-zinc-500">Live Sessions</h3>
@@ -177,7 +200,7 @@ export default function PortalCourseViewer() {
                         )}
                     </div>
 
-                    {/* Curriculum Sidebar */}
+                    {/* Sidebar */}
                     <div className="lg:col-span-1 space-y-3">
                         {/* Progress */}
                         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
@@ -190,10 +213,10 @@ export default function PortalCourseViewer() {
                             </div>
                         </div>
 
-                        {/* H4: Certificate download — shown when course is complete */}
+                        {/* H4: Certificate — only when complete */}
                         {progress >= 100 && course?.id && (
                             <a
-                                href={`/api/${slug}/courses/${course.id}/certificate`}
+                                href={`/api/${slug ?? tenant?.slug}/courses/${course.id}/certificate`}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="flex items-center gap-2 w-full px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl text-amber-700 dark:text-amber-400 font-semibold text-sm hover:bg-amber-100 dark:hover:bg-amber-900/30 transition"
