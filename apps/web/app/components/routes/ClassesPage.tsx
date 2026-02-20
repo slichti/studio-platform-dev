@@ -88,7 +88,7 @@ export default function ClassesPage() {
     const { data: userData } = useUser(slug, contextToken);
     const family = userData?.family || [];
 
-    const [metadata, setMetadata] = useState<{ locations: any[], instructors: any[], plans: any[] }>({ locations: [], instructors: [], plans: [] });
+    const [metadata, setMetadata] = useState<{ locations: any[], instructors: any[], plans: any[], courses: any[] }>({ locations: [], instructors: [], plans: [], courses: [] });
 
     // Fetch Metadata on mount (only if admin)
     useState(() => {
@@ -97,15 +97,17 @@ export default function ClassesPage() {
             const token = await getToken();
             if (!token) return;
             try {
-                const [locs, insts, plns] = await Promise.all([
+                const [locs, insts, plns, crs] = await Promise.all([
                     apiRequest("/locations", token, { headers: { 'X-Tenant-Slug': slug! } }).catch(() => ({ locations: [] })),
                     apiRequest("/members?role=instructor", token, { headers: { 'X-Tenant-Slug': slug! } }).catch(() => ({ members: [] })),
-                    apiRequest("/memberships/plans", token, { headers: { 'X-Tenant-Slug': slug! } }).catch(() => [])
+                    apiRequest("/memberships/plans", token, { headers: { 'X-Tenant-Slug': slug! } }).catch(() => []),
+                    apiRequest("/courses", token, { headers: { 'X-Tenant-Slug': slug! } }).catch(() => [])
                 ]);
                 setMetadata({
                     locations: (locs as any).locations || [],
                     instructors: (insts as any).members || [],
-                    plans: plns || []
+                    plans: plns || [],
+                    courses: crs || []
                 });
             } catch (e) { console.error("Metadata fetch error", e); }
         };
@@ -433,6 +435,7 @@ export default function ClassesPage() {
                 locations={metadata.locations}
                 instructors={metadata.instructors}
                 plans={metadata.plans}
+                courses={metadata.courses}
             />
 
             <BookingModal

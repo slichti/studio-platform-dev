@@ -34,6 +34,7 @@ const ClassSchema = z.object({
     isCourse: z.boolean().optional(),
     recordingPrice: z.number().nullable().optional(),
     contentCollectionId: z.string().nullable().optional(),
+    courseId: z.string().nullable().optional(),
     // Augmented fields
     bookingCount: z.number().optional(),
     waitlistCount: z.number().optional(),
@@ -73,6 +74,7 @@ const CreateClassSchema = z.object({
     isCourse: z.boolean().optional(),
     recordingPrice: z.coerce.number().optional().nullable(),
     contentCollectionId: z.string().optional().nullable(),
+    courseId: z.string().optional().nullable(),
     // Recurrence
     isRecurring: z.boolean().optional(),
     recurrenceRule: z.string().optional(),
@@ -341,6 +343,7 @@ app.openapi(createRoute({
                 isCourse: !!body.isCourse,
                 recordingPrice: body.recordingPrice || null,
                 contentCollectionId: body.contentCollectionId || null,
+                courseId: body.courseId || null,
                 createdAt: new Date()
             });
         }
@@ -381,6 +384,7 @@ app.openapi(createRoute({
             isCourse: !!body.isCourse,
             recordingPrice: body.recordingPrice || null,
             contentCollectionId: body.contentCollectionId || null,
+            courseId: body.courseId || null,
             createdAt: new Date()
         }).returning();
 
@@ -414,7 +418,7 @@ app.openapi(createRoute({
     if (!ex) return c.json({ error: "Not found" }, 404);
 
     const up: any = {};
-    const keys = ['title', 'description', 'startTime', 'durationMinutes', 'capacity', 'price', 'memberPrice', 'allowCredits', 'includedPlanIds', 'zoomEnabled', 'status', 'instructorId', 'locationId', 'payrollModel', 'payrollValue', 'isCourse', 'recordingPrice', 'contentCollectionId'];
+    const keys = ['title', 'description', 'startTime', 'durationMinutes', 'capacity', 'price', 'memberPrice', 'allowCredits', 'includedPlanIds', 'zoomEnabled', 'status', 'instructorId', 'locationId', 'payrollModel', 'payrollValue', 'isCourse', 'recordingPrice', 'contentCollectionId', 'courseId'];
     // Manual mapping or loop, but since we parsed Validated JSON, we can trust keys
     Object.keys(body).forEach(k => {
         if (keys.includes(k)) {

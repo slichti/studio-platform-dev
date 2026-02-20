@@ -18,6 +18,7 @@ import { rateLimitMiddleware } from './middleware/rate-limit'; // [NEW]
 // Route Imports
 import studioRoutes from './routes/studios';
 import classRoutes from './routes/classes';
+import courseRoutes from './routes/courses';
 import locationRoutes from './routes/locations';
 import members from './routes/members';
 import memberships from './routes/memberships';
@@ -263,6 +264,7 @@ const studioPaths = [
   '/uploads', '/uploads/*',
   '/tenant', '/tenant/*',
   '/classes', '/classes/*',
+  '/courses', '/courses/*',
   '/commerce', '/commerce/*',
   '/referrals', '/referrals/*', // [NEW] Referrals
   '/coupons', '/coupons/*',  // [FIX] Added
@@ -318,7 +320,8 @@ const authenticatedPaths = [
   '/challenges', '/challenges/*',
   '/tasks', '/tasks/*',
   '/video', '/video/*',
-  '/quizzes', '/quizzes/*'
+  '/quizzes', '/quizzes/*',
+  '/courses', '/courses/*'
 ];
 
 const publicStudioPaths = [
@@ -649,6 +652,7 @@ app.route('/reports', reports);
 app.route('/analytics', analytics); // [NEW] Analytics
 
 app.route('/classes', classRoutes);
+app.route('/courses', courseRoutes);
 app.route('/commerce', commerce);
 app.route('/gift-cards', giftCards);
 app.route('/quizzes', quizzes);

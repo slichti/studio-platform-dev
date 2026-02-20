@@ -266,7 +266,7 @@ export default function StudioLayout() {
                     <SidebarGroup title="Operations">
                         <NavItem to={`/studio/${slug}/schedule`} icon={<Calendar size={18} />}>Schedule</NavItem>
                         <NavItem to={`/studio/${slug}/classes`} icon={<Dumbbell size={18} />}>Classes</NavItem>
-                        <NavItem to={`/studio/${slug}/classes?type=course`} icon={<BookOpen size={18} />}>Courses</NavItem>
+                        <NavItem to={`/studio/${slug}/courses`} icon={<BookOpen size={18} />}>Courses</NavItem>
                         <NavItem to={`/studio/${slug}/appointments`} icon={<Clock size={18} />}>Appointments</NavItem>
                         <NavItem to={`/studio/${slug}/checkin`} icon={<CheckCircle2 size={18} />}>
                             {isStudentView ? "Attendance History" : "Check-in"}

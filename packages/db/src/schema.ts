@@ -377,6 +377,7 @@ export const classes = sqliteTable('classes', {
     isRecordingSellable: integer('is_recording_sellable', { mode: 'boolean' }).default(false),
     isCourse: integer('is_course', { mode: 'boolean' }).default(false),
     contentCollectionId: text('content_collection_id').references(() => videoCollections.id),
+    courseId: text('course_id').references(() => courses.id), // Link to parent course
 
     googleEventId: text('google_event_id'),
 
@@ -1204,11 +1205,47 @@ export const videoCollections = sqliteTable('video_collections', {
     title: text('title').notNull(),
     description: text('description'),
     slug: text('slug').notNull(), // for public URLs
+    courseId: text('course_id').references(() => courses.id), // Optional link to a course
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     tenantIdx: index('collection_tenant_idx').on(table.tenantId),
     tenantSlugIdx: uniqueIndex('collection_tenant_slug_idx').on(table.tenantId, table.slug),
+}));
+
+// --- Standalone Courses ---
+
+export const courses = sqliteTable('courses', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    title: text('title').notNull(),
+    description: text('description'),
+    slug: text('slug').notNull(), // for public URLs
+    thumbnailUrl: text('thumbnail_url'),
+    price: integer('price').default(0), // Total course price in cents
+    memberPrice: integer('member_price'), // Discounted price for members
+    status: text('status', { enum: ['draft', 'active', 'archived'] }).default('draft').notNull(),
+    isPublic: integer('is_public', { mode: 'boolean' }).default(false).notNull(),
+    contentCollectionId: text('content_collection_id').references(() => videoCollections.id), // Default curriculum
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('course_tenant_idx').on(table.tenantId),
+    tenantSlugIdx: uniqueIndex('course_tenant_slug_idx').on(table.tenantId, table.slug),
+}));
+
+export const courseEnrollments = sqliteTable('course_enrollments', {
+    id: text('id').primaryKey(),
+    courseId: text('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    status: text('status', { enum: ['active', 'completed', 'dropped'] }).default('active').notNull(),
+    progress: integer('progress').default(0), // Percentage 0-100
+    enrolledAt: integer('enrolled_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    completedAt: integer('completed_at', { mode: 'timestamp' }),
+}, (table) => ({
+    userCourseIdx: uniqueIndex('user_course_enrollment_idx').on(table.userId, table.courseId),
+    tenantIdx: index('enrollment_tenant_idx').on(table.tenantId),
 }));
 
 // --- Course Quiz System ---
@@ -1221,6 +1258,7 @@ export const quizzes = sqliteTable('quizzes', {
     randomizeOrder: integer('randomize_order', { mode: 'boolean' }).default(false),
     passingScore: integer('passing_score').default(0), // Percentage
     active: integer('active', { mode: 'boolean' }).default(true),
+    courseId: text('course_id').references(() => courses.id), // Optional link to a course
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({

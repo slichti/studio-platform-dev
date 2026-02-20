@@ -13,9 +13,10 @@ interface CreateClassModalProps {
     locations?: any[];
     instructors?: any[];
     plans?: any[];
+    courses?: any[];
 }
 
-export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], instructors = [], plans = [] }: CreateClassModalProps) {
+export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], instructors = [], plans = [], courses = [] }: CreateClassModalProps) {
     const { getToken } = useAuth();
     const { slug } = useParams();
     const [loading, setLoading] = useState(false);
@@ -48,6 +49,7 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
 
         // Course Management
         isCourse: false,
+        courseId: "", // Link to standalone course
         recordingPrice: "",
         contentCollectionId: ""
     });
@@ -96,8 +98,9 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                     payrollModel: formData.payrollModel === 'default' ? null : formData.payrollModel,
                     payrollValue: formData.payrollModel !== 'default' && formData.payrollValue ? Number(formData.payrollValue) : null,
                     isCourse: formData.isCourse,
-                    recordingPrice: formData.isCourse && formData.recordingPrice ? Number(formData.recordingPrice) : null,
-                    contentCollectionId: formData.isCourse && formData.contentCollectionId ? formData.contentCollectionId : null
+                    courseId: formData.courseId || undefined,
+                    recordingPrice: (formData.isCourse || formData.courseId) && formData.recordingPrice ? Number(formData.recordingPrice) : null,
+                    contentCollectionId: (formData.isCourse || formData.courseId) && formData.contentCollectionId ? formData.contentCollectionId : null
                 })
             });
 
@@ -134,6 +137,7 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                     includedPlanIds: [],
                     recurringDays: [],
                     isCourse: false,
+                    courseId: "",
                     recordingPrice: "",
                     contentCollectionId: ""
                 });
@@ -239,6 +243,21 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                             </div>
                         </div>
                     )}
+
+                    <div className="pt-2 border-t border-blue-100 flex flex-col gap-1.5">
+                        <label className="text-xs font-medium text-blue-800">Or Link to Standalone Course</label>
+                        <select
+                            className="w-full px-3 py-2 border border-blue-200 rounded-md focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white"
+                            value={formData.courseId}
+                            onChange={(e) => setFormData({ ...formData, courseId: e.target.value, isCourse: e.target.value ? false : formData.isCourse })}
+                        >
+                            <option value="">Not part of a standalone course</option>
+                            {courses.map((c: any) => (
+                                <option key={c.id} value={c.id}>{c.title}</option>
+                            ))}
+                        </select>
+                        <p className="text-[10px] text-blue-600">Linking will automatically associate this session with the course curriculum.</p>
+                    </div>
                 </div>
 
                 <div>
