@@ -20,32 +20,38 @@ app.put('/:key', async (c) => {
     const { enabled, value, description } = await c.req.json();
     const auth = c.get('auth');
 
-    await db.insert(platformConfig).values({
-        key,
-        enabled: !!enabled,
-        value: value,
-        description: description || '',
-        updatedAt: new Date()
-    }).onConflictDoUpdate({
-        target: [platformConfig.key],
-        set: {
+    try {
+        await db.insert(platformConfig).values({
+            key,
             enabled: !!enabled,
-            value: value,
+            value: value ?? null,
             description: description || '',
             updatedAt: new Date()
-        }
-    }).run();
+        }).onConflictDoUpdate({
+            target: [platformConfig.key],
+            set: {
+                enabled: !!enabled,
+                value: value ?? null,
+                description: description || '',
+                updatedAt: new Date()
+            }
+        }).run();
 
-    await db.insert(auditLogs).values({
-        id: crypto.randomUUID(),
-        action: 'update_platform_config',
-        actorId: auth.userId,
-        targetId: key,
-        details: { key, enabled, value },
-        ipAddress: c.req.header('CF-Connecting-IP')
-    });
+        // Fire-and-forget audit log — do not let audit failures block the response
+        db.insert(auditLogs).values({
+            id: crypto.randomUUID(),
+            action: 'update_platform_config',
+            actorId: auth.userId,
+            targetId: key,
+            details: { key, enabled, value: value ?? null },
+            ipAddress: c.req.header('CF-Connecting-IP')
+        }).run().catch((e: Error) => console.error('[audit] platform_config log failed:', e.message));
 
-    return c.json({ success: true });
+        return c.json({ success: true });
+    } catch (e: any) {
+        console.error('[admin.config] PUT failed:', e.message);
+        return c.json({ error: e.message || 'Failed to update platform config' }, 500);
+    }
 });
 
 export default app;
