@@ -2,7 +2,7 @@ import React, { useState, useMemo, lazy, Suspense } from "react";
 import { useLoaderData } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
-const ProjectionsCharts = lazy(() => import("~/components/charts/ProjectionsCharts"));
+const ProjectionsCharts = lazy(() => import("~/components/charts/ProjectionsCharts.client"));
 import {
     TrendingUp, Activity, Zap, Info
 } from "lucide-react";

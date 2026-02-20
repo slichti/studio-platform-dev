@@ -4,10 +4,7 @@ import { Mail, MessageSquare, Award, UserPlus } from "lucide-react";
 
 export default function CRMDocs() {
     useEffect(() => {
-        import("mermaid").then((mermaid) => {
-            mermaid.default.initialize({ startOnLoad: true, theme: 'neutral' });
-            mermaid.default.contentLoaded();
-        });
+
     }, []);
 
     return (

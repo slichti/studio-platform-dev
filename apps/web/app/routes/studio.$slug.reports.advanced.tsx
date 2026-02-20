@@ -1,8 +1,8 @@
 import { useOutletContext, useParams } from "react-router";
 import { useLTV, useRetention, useUtilization } from "~/hooks/useAnalytics";
 import { useEffect, useState } from 'react';
-import { RetentionChart } from "~/components/charts/RetentionChart";
-import { UtilizationHeatmap } from "~/components/charts/UtilizationHeatmap";
+import { RetentionChart } from "~/components/charts/RetentionChart.client";
+import { UtilizationHeatmap } from "~/components/charts/UtilizationHeatmap.client";
 import { Loader2 } from "lucide-react";
 
 export default function AdvancedReports() {

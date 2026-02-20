@@ -6,9 +6,7 @@ import { apiRequest } from "../utils/api";
 import { useState, lazy, Suspense } from "react";
 import { useAuth } from "@clerk/react-router";
 // Lazy load Puck to avoid Cloudflare Worker global scope side-effects
-const Puck = lazy(() => import("@puckeditor/core").then(m => ({ default: m.Puck })));
-import "@puckeditor/core/dist/index.css";
-import { puckConfig } from "../components/website/puck-config";
+const PuckEditorWrapper = lazy(() => import("../components/website/PuckEditorWrapper.client").then(m => ({ default: m.PuckEditorWrapper })));
 import { Save, ArrowLeft, Eye, Loader2 } from "lucide-react";
 import { ErrorDialog } from "~/components/Dialogs";
 
@@ -130,8 +128,7 @@ export default function PlatformWebsiteEditor() {
                         <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
                     </div>
                 }>
-                    <Puck
-                        config={puckConfig}
+                    <PuckEditorWrapper
                         data={data}
                         onPublish={handleSave}
                         onChange={setData}

@@ -4,7 +4,7 @@ import { Users, CheckCircle2 } from "lucide-react";
 import { useAttendance, DateRange } from "~/hooks/useAnalytics";
 import { MetricCard } from "~/components/charts/MetricCard";
 import React, { Suspense, lazy } from "react";
-const AttendanceChart = lazy(() => import("~/components/charts/AttendanceChart").then(mod => ({ default: mod.AttendanceChart })));
+const AttendanceChart = lazy(() => import("~/components/charts/AttendanceChart.client").then(mod => ({ default: mod.AttendanceChart })));
 
 export default function AnalyticsAttendance() {
     const { tenant, dateRange } = useOutletContext<{ tenant: any, dateRange: DateRange }>();

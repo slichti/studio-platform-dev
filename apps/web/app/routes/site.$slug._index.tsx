@@ -1,5 +1,8 @@
 import { type LoaderFunctionArgs, type MetaFunction, useLoaderData } from "react-router";
-import { PublicPageRenderer } from "~/components/website/PublicPageRenderer";
+import { lazy, Suspense } from "react";
+// Lazy load the renderer to prevent heavy modules from bloating the server worker bundle
+const PublicPageRenderer = lazy(() => import("~/components/website/PublicPageRenderer.client").then(m => ({ default: m.PublicPageRenderer })));
+import { ClientOnly } from "~/components/ClientOnly";
 import { getStudioPage } from "~/utils/subdomain.server";
 
 export const meta: MetaFunction = ({ data }: any) => {
@@ -33,5 +36,15 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
 
 export default function WebsiteIndex() {
     const { page, tenantSlug } = useLoaderData<typeof loader>();
-    return <PublicPageRenderer page={page} tenantSlug={tenantSlug} />;
+    return (
+        <ClientOnly>
+            <Suspense fallback={
+                <div className="flex h-screen items-center justify-center">
+                    <div className="h-8 w-8 animate-spin rounded-full border-t-2 border-black border-r-2" />
+                </div>
+            }>
+                <PublicPageRenderer page={page} tenantSlug={tenantSlug} />
+            </Suspense>
+        </ClientOnly>
+    );
 }

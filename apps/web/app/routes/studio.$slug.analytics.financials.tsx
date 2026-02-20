@@ -7,8 +7,8 @@ import { useAuth } from "@clerk/react-router";
 import { useRevenue, useInstructorProfitability, DateRange } from "~/hooks/useAnalytics";
 import { MetricCard } from "~/components/charts/MetricCard";
 import React, { Suspense, lazy } from "react";
-const RevenueChart = lazy(() => import("~/components/charts/RevenueChart").then(mod => ({ default: mod.RevenueChart })));
-const InstructorRoiChart = lazy(() => import("~/components/charts/InstructorRoiChart").then(mod => ({ default: mod.InstructorRoiChart })));
+const RevenueChart = lazy(() => import("~/components/charts/RevenueChart.client").then(mod => ({ default: mod.RevenueChart })));
+const InstructorRoiChart = lazy(() => import("~/components/charts/InstructorRoiChart.client").then(mod => ({ default: mod.InstructorRoiChart })));
 import { PrivacyBlur } from "~/components/PrivacyBlur";
 
 export default function AnalyticsFinancials() {

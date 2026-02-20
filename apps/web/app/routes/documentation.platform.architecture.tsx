@@ -5,11 +5,7 @@ import { useEffect } from "react";
 
 export default function PlatformArchitecture() {
     useEffect(() => {
-        // Dynamically import mermaid to avoid SSR/Hydration mismatches (global style injection)
-        import("mermaid").then((mermaid) => {
-            mermaid.default.initialize({ startOnLoad: true, theme: 'neutral' });
-            mermaid.default.contentLoaded();
-        });
+
     }, []);
 
     const { isPlatformAdmin } = useOutletContext<{ isPlatformAdmin: boolean }>();

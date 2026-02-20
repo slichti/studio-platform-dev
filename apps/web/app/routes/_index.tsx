@@ -6,7 +6,9 @@ import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton, useUser } 
 import { ThemeToggle } from "~/components/ThemeToggle";
 import { ChatWidget } from "~/components/chat/ChatWidget";
 import { getStudioPage, getSubdomain } from "~/utils/subdomain.server";
-import { PublicPageRenderer } from "~/components/website/PublicPageRenderer";
+import { lazy, Suspense } from "react";
+const PublicPageRenderer = lazy(() => import("~/components/website/PublicPageRenderer.client").then(m => ({ default: m.PublicPageRenderer })));
+import { ClientOnly } from "~/components/ClientOnly";
 
 export const meta: MetaFunction = ({ data }: any) => {
     if (data?.isStudioPage && data?.page) {
@@ -55,7 +57,17 @@ export default function Index() {
 
     // If it's a studio page, render that instead of platform home
     if (data.isStudioPage && data.page) {
-        return <PublicPageRenderer page={data.page} tenantSlug={data.tenantSlug || ""} />;
+        return (
+            <ClientOnly>
+                <Suspense fallback={
+                    <div className="flex h-screen items-center justify-center">
+                        <div className="h-8 w-8 animate-spin rounded-full border-t-2 border-black border-r-2" />
+                    </div>
+                }>
+                    <PublicPageRenderer page={data.page} tenantSlug={data.tenantSlug || ""} />
+                </Suspense>
+            </ClientOnly>
+        );
     }
 
     return (
