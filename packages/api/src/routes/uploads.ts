@@ -313,7 +313,10 @@ app.get('/*', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: 'Tenant context missing' }, 400);
 
-    const key = c.req.param('*');
+    let key = c.req.param('*');
+    if (!key) {
+        key = c.req.path.replace(/^\/uploads\//, '');
+    }
     if (!key) return c.json({ error: 'Key required' }, 400);
 
     // Security: Access Control

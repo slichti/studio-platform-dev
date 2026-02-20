@@ -15,6 +15,13 @@
       "when": 1770809801131,
       "tag": "0001_good_zzzax",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1771604241014,
+      "tag": "0002_course_management",
+      "breakpoints": true
     }
   ]
 }
