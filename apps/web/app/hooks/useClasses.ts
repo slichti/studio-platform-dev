@@ -2,7 +2,7 @@ import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { useAuth } from "@clerk/react-router";
 import { apiRequest } from "~/utils/api";
 
-export function useClasses(tenantSlug: string, filters?: { search?: string; status?: string; limit?: number; offset?: number }, tokenOverride?: string | null) {
+export function useClasses(tenantSlug: string, filters?: { search?: string; status?: string; limit?: number; offset?: number; isCourse?: boolean }, tokenOverride?: string | null) {
     const { getToken } = useAuth();
 
     return useQuery({
@@ -14,6 +14,7 @@ export function useClasses(tenantSlug: string, filters?: { search?: string; stat
             if (filters?.status && filters.status !== 'all') queryParams.set('status', filters.status);
             if (filters?.limit) queryParams.set('limit', filters.limit.toString());
             if (filters?.offset) queryParams.set('offset', filters.offset.toString());
+            if (filters?.isCourse !== undefined) queryParams.set('isCourse', filters.isCourse.toString());
 
             return apiRequest(`/classes?${queryParams.toString()}`, token, {
                 headers: { 'X-Tenant-Slug': tenantSlug }
@@ -24,7 +25,7 @@ export function useClasses(tenantSlug: string, filters?: { search?: string; stat
     });
 }
 
-export function useInfiniteClasses(tenantSlug: string, filters?: { search?: string; status?: string; limit?: number }, tokenOverride?: string | null) {
+export function useInfiniteClasses(tenantSlug: string, filters?: { search?: string; status?: string; limit?: number; isCourse?: boolean }, tokenOverride?: string | null) {
     const { getToken } = useAuth();
     const limit = filters?.limit || 20;
 
@@ -37,6 +38,7 @@ export function useInfiniteClasses(tenantSlug: string, filters?: { search?: stri
             if (filters?.status && filters.status !== 'all') queryParams.set('status', filters.status);
             queryParams.set('limit', limit.toString());
             queryParams.set('offset', pageParam.toString());
+            if (filters?.isCourse !== undefined) queryParams.set('isCourse', filters.isCourse.toString());
 
             return apiRequest(`/classes?${queryParams.toString()}`, token, {
                 headers: { 'X-Tenant-Slug': tenantSlug }

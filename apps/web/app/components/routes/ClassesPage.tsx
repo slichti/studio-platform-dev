@@ -42,6 +42,8 @@ type ClassEvent = {
         zoomPassword?: string | null;
     };
     status: 'active' | 'cancelled' | 'archived';
+    isCourse?: boolean;
+    recordingPrice?: number;
     instructor?: {
         user?: {
             profile?: {
@@ -63,6 +65,8 @@ export default function ClassesPage() {
     // Permissions
     const isAdmin = roles?.includes('owner') || roles?.includes('instructor');
     const includeArchived = searchParams.get("includeArchived") === "true";
+    const typeFilter = searchParams.get("type");
+    const isCourseOnly = typeFilter === "course";
 
     // Hooks - Use Infinite Query
     const {
@@ -74,6 +78,7 @@ export default function ClassesPage() {
         error
     } = useInfiniteClasses(slug!, {
         status: includeArchived ? 'all' : 'active',
+        isCourse: isCourseOnly ? true : undefined,
         limit: 20
     }, contextToken);
 
@@ -226,8 +231,12 @@ export default function ClassesPage() {
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Class Schedule</h1>
-                    <p className="text-zinc-500 dark:text-zinc-400">View and book upcoming classes.</p>
+                    <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+                        {isCourseOnly ? "Premium Courses" : "Class Schedule"}
+                    </h1>
+                    <p className="text-zinc-500 dark:text-zinc-400">
+                        {isCourseOnly ? "Access exclusive workshop series and recordings." : "View and book upcoming classes."}
+                    </p>
                 </div>
                 <div className="flex items-center gap-2">
                     {isAdmin && (
@@ -281,7 +290,14 @@ export default function ClassesPage() {
                                                 <CardContent className="p-3 flex flex-col h-full gap-3">
                                                     <div className="space-y-1.5 flex-1">
                                                         <div className="flex items-start justify-between gap-2">
-                                                            <span className="font-semibold text-sm line-clamp-2 leading-tight">{cls.title}</span>
+                                                            <div className="flex flex-col gap-1">
+                                                                <span className="font-semibold text-sm line-clamp-2 leading-tight">{cls.title}</span>
+                                                                {cls.isCourse && (
+                                                                    <Badge variant="outline" className="w-fit text-[10px] px-1.5 py-0 h-4 bg-blue-50 text-blue-700 border-blue-200 uppercase tracking-wider font-bold">
+                                                                        Course
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
                                                             {/* Status Badge */}
                                                             {(cls.status === 'archived' || cls.myBooking) && (
                                                                 <div className="shrink-0">

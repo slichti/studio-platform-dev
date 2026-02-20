@@ -44,7 +44,12 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
         payrollValue: "",
 
         includedPlanIds: [] as string[],
-        recurringDays: [] as string[]
+        recurringDays: [] as string[],
+
+        // Course Management
+        isCourse: false,
+        recordingPrice: "",
+        contentCollectionId: ""
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -89,12 +94,17 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                     allowCredits: formData.allowCredits,
                     includedPlanIds: formData.includedPlanIds,
                     payrollModel: formData.payrollModel === 'default' ? null : formData.payrollModel,
-                    payrollValue: formData.payrollModel !== 'default' && formData.payrollValue ? Number(formData.payrollValue) : null
+                    payrollValue: formData.payrollModel !== 'default' && formData.payrollValue ? Number(formData.payrollValue) : null,
+                    isCourse: formData.isCourse,
+                    recordingPrice: formData.isCourse && formData.recordingPrice ? Number(formData.recordingPrice) : null,
+                    contentCollectionId: formData.isCourse && formData.contentCollectionId ? formData.contentCollectionId : null
                 })
             });
 
             if (res.error) {
-                const errMsg = typeof res.error === 'string' ? res.error : (res.error.message || res.error.error || JSON.stringify(res.error));
+                const errMsg = typeof res.error === 'string'
+                    ? res.error
+                    : (res.error.message || res.error.error || (typeof res.error === 'object' ? JSON.stringify(res.error) : String(res.error)));
                 setError(errMsg);
             } else {
                 onSuccess(res.class || res);
@@ -122,11 +132,15 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                     payrollValue: "",
 
                     includedPlanIds: [],
-                    recurringDays: []
+                    recurringDays: [],
+                    isCourse: false,
+                    recordingPrice: "",
+                    contentCollectionId: ""
                 });
             }
         } catch (e: any) {
-            setError(e.message || "Failed to create class");
+            const errMsg = e.data?.error || e.message || "Failed to create class";
+            setError(typeof errMsg === 'object' ? JSON.stringify(errMsg) : errMsg);
         } finally {
             setLoading(false);
         }
@@ -167,7 +181,6 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                         </select>
                     </div>
                 </div>
-
                 <div>
                     <label className="block text-sm font-medium text-zinc-700 mb-1">Class Type</label>
                     <select
@@ -180,6 +193,52 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                         <option value="event">Event</option>
                         <option value="appointment">Appointment (Private)</option>
                     </select>
+                </div>
+
+                <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-lg space-y-3">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-sm font-semibold text-blue-900">Course & Monetization</h3>
+                            <p className="text-xs text-blue-700">Mark as a premium course with standalone pricing.</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                className="sr-only peer"
+                                checked={formData.isCourse}
+                                onChange={(e) => setFormData({ ...formData, isCourse: e.target.checked })}
+                            />
+                            <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none ring-0 rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-zinc-600 peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+
+                    {formData.isCourse && (
+                        <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-1">
+                            <div>
+                                <label className="block text-xs font-medium text-blue-800 mb-1">Recording Price ($)</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    className="w-full px-3 py-2 border border-blue-200 rounded-md focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white"
+                                    value={formData.recordingPrice}
+                                    onChange={(e) => setFormData({ ...formData, recordingPrice: e.target.value })}
+                                    placeholder="Standalone VOD price"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-blue-800 mb-1">Content Collection</label>
+                                <select
+                                    className="w-full px-3 py-2 border border-blue-200 rounded-md focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white"
+                                    value={formData.contentCollectionId}
+                                    onChange={(e) => setFormData({ ...formData, contentCollectionId: e.target.value })}
+                                >
+                                    <option value="">No Collection</option>
+                                    {/* Future: Map collections here */}
+                                </select>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div>
@@ -484,7 +543,7 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                         {loading ? "Scheduling..." : "Schedule Class"}
                     </button>
                 </div>
-            </form>
+            </form >
         </Modal >
     );
 }

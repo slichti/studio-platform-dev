@@ -30,6 +30,10 @@ const ClassSchema = z.object({
     // Payroll (Phase 7)
     payrollModel: z.enum(['flat', 'percentage', 'hourly']).optional().nullable(),
     payrollValue: z.number().optional().nullable(),
+    // Course (Phase 13+)
+    isCourse: z.boolean().optional(),
+    recordingPrice: z.number().nullable().optional(),
+    contentCollectionId: z.string().nullable().optional(),
     // Augmented fields
     bookingCount: z.number().optional(),
     waitlistCount: z.number().optional(),
@@ -55,7 +59,7 @@ const CreateClassSchema = z.object({
     createZoomMeeting: z.boolean().optional(),
     capacity: z.coerce.number().optional(),
     price: z.coerce.number().optional(),
-    memberPrice: z.coerce.number().optional(),
+    memberPrice: z.coerce.number().optional().nullable(),
     type: z.enum(['class', 'workshop', 'event', 'appointment']).default('class'),
     minStudents: z.coerce.number().default(1),
     autoCancelThreshold: z.coerce.number().optional(),
@@ -63,8 +67,12 @@ const CreateClassSchema = z.object({
     allowCredits: z.boolean().default(true),
     includedPlanIds: z.array(z.string()).optional(),
     // Payroll
-    payrollModel: z.enum(['flat', 'percentage', 'hourly']).optional(),
-    payrollValue: z.coerce.number().optional(),
+    payrollModel: z.enum(['flat', 'percentage', 'hourly']).optional().nullable(),
+    payrollValue: z.coerce.number().optional().nullable(),
+    // Course
+    isCourse: z.boolean().optional(),
+    recordingPrice: z.coerce.number().optional().nullable(),
+    contentCollectionId: z.string().optional().nullable(),
     // Recurrence
     isRecurring: z.boolean().optional(),
     recurrenceRule: z.string().optional(),
@@ -90,7 +98,8 @@ app.openapi(createRoute({
             instructorId: z.string().optional(),
             locationId: z.string().optional(),
             limit: z.coerce.number().int().positive().default(50).optional(),
-            offset: z.coerce.number().int().nonnegative().default(0).optional()
+            offset: z.coerce.number().int().nonnegative().default(0).optional(),
+            isCourse: z.string().optional()
         })
     },
     responses: {
@@ -107,6 +116,9 @@ app.openapi(createRoute({
     if (end) conds.push(lte(classes.startTime, new Date(end)));
     if (instructorId) conds.push(eq(classes.instructorId, instructorId));
     if (locationId) conds.push(eq(classes.locationId, locationId));
+    if (c.req.valid('query').isCourse !== undefined) {
+        conds.push(eq(classes.isCourse, c.req.valid('query').isCourse === 'true'));
+    }
 
     const results = await db.query.classes.findMany({
         where: and(...conds),
@@ -326,6 +338,9 @@ app.openapi(createRoute({
                 status: 'active' as const,
                 payrollModel: body.payrollModel || null,
                 payrollValue: body.payrollValue || null,
+                isCourse: !!body.isCourse,
+                recordingPrice: body.recordingPrice || null,
+                contentCollectionId: body.contentCollectionId || null,
                 createdAt: new Date()
             });
         }
@@ -363,6 +378,9 @@ app.openapi(createRoute({
             status: 'active',
             payrollModel: body.payrollModel || null,
             payrollValue: body.payrollValue || null,
+            isCourse: !!body.isCourse,
+            recordingPrice: body.recordingPrice || null,
+            contentCollectionId: body.contentCollectionId || null,
             createdAt: new Date()
         }).returning();
 
@@ -396,7 +414,7 @@ app.openapi(createRoute({
     if (!ex) return c.json({ error: "Not found" }, 404);
 
     const up: any = {};
-    const keys = ['title', 'description', 'startTime', 'durationMinutes', 'capacity', 'price', 'memberPrice', 'allowCredits', 'includedPlanIds', 'zoomEnabled', 'status', 'instructorId', 'locationId', 'payrollModel', 'payrollValue'];
+    const keys = ['title', 'description', 'startTime', 'durationMinutes', 'capacity', 'price', 'memberPrice', 'allowCredits', 'includedPlanIds', 'zoomEnabled', 'status', 'instructorId', 'locationId', 'payrollModel', 'payrollValue', 'isCourse', 'recordingPrice', 'contentCollectionId'];
     // Manual mapping or loop, but since we parsed Validated JSON, we can trust keys
     Object.keys(body).forEach(k => {
         if (keys.includes(k)) {

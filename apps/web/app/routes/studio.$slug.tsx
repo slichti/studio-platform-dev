@@ -44,7 +44,8 @@ import {
     History,
     Shield,
     Activity,
-    Filter
+    Filter,
+    BookOpen
 } from "lucide-react";
 const CommandBar = lazy(() => import("../components/CommandBar").then(m => ({ default: m.CommandBar })));
 const ChatWidget = lazy(() => import("../components/chat/ChatWidget").then(m => ({ default: m.ChatWidget })));
@@ -265,6 +266,7 @@ export default function StudioLayout() {
                     <SidebarGroup title="Operations">
                         <NavItem to={`/studio/${slug}/schedule`} icon={<Calendar size={18} />}>Schedule</NavItem>
                         <NavItem to={`/studio/${slug}/classes`} icon={<Dumbbell size={18} />}>Classes</NavItem>
+                        <NavItem to={`/studio/${slug}/classes?type=course`} icon={<BookOpen size={18} />}>Courses</NavItem>
                         <NavItem to={`/studio/${slug}/appointments`} icon={<Clock size={18} />}>Appointments</NavItem>
                         <NavItem to={`/studio/${slug}/checkin`} icon={<CheckCircle2 size={18} />}>
                             {isStudentView ? "Attendance History" : "Check-in"}
