@@ -27,7 +27,7 @@ export async function setupTestDb(d1: D1Database) {
         'custom_field_values', 'community_posts', 'community_comments',
         'community_likes', 'reviews', 'video_purchases',
         'quizzes', 'quiz_questions', 'quiz_submissions',
-        'course_enrollments', 'courses'
+        'course_enrollments', 'courses', 'course_modules', 'course_access_codes'
     ];
 
     for (const table of tables) {
@@ -352,6 +352,9 @@ export async function setupTestDb(d1: D1Database) {
         video_id TEXT,
         quiz_id TEXT,
         "order" INTEGER DEFAULT 0,
+        module_id TEXT,
+        release_after_days INTEGER,
+        is_required INTEGER DEFAULT 0,
         created_at INTEGER DEFAULT (strftime('%s', 'now'))
     )`).run();
 
@@ -403,8 +406,31 @@ export async function setupTestDb(d1: D1Database) {
         status TEXT DEFAULT 'draft' NOT NULL,
         is_public INTEGER DEFAULT 0 NOT NULL,
         content_collection_id TEXT,
+        delivery_mode TEXT DEFAULT 'self_paced',
+        cohort_start_date INTEGER,
         created_at INTEGER DEFAULT (strftime('%s', 'now')),
         updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+    )`).run();
+
+    await d1.prepare(`CREATE TABLE course_modules (
+        id TEXT PRIMARY KEY,
+        course_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        "order" INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER DEFAULT (strftime('%s', 'now'))
+    )`).run();
+
+    await d1.prepare(`CREATE TABLE course_access_codes (
+        id TEXT PRIMARY KEY,
+        course_id TEXT NOT NULL,
+        tenant_id TEXT NOT NULL,
+        code TEXT NOT NULL,
+        max_uses INTEGER,
+        used_count INTEGER NOT NULL DEFAULT 0,
+        expires_at INTEGER,
+        created_at INTEGER DEFAULT (strftime('%s', 'now')),
+        UNIQUE(course_id, code)
     )`).run();
 
     await d1.prepare(`CREATE TABLE course_enrollments (
