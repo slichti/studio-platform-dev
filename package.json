@@ -21,7 +21,7 @@
         "prettier": "latest",
         "react-dom": "^19.2.4",
         "turbo": "^2.8.3",
-        "wrangler": "^4.65.0"
+        "wrangler": "^4.67.0"
     },
     "packageManager": "npm@11.7.0",
     "dependencies": {
