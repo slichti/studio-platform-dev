@@ -191,5 +191,3 @@ app.openapi(createRoute({
 });
 
 export default app;
-
-export default app;
