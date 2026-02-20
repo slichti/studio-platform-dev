@@ -2,8 +2,8 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { createOpenAPIApp } from '../lib/openapi';
 import { StudioVariables } from '../types';
 import { createDb } from '../db';
-import { courses, courseEnrollments, classes, videoCollectionItems, videoCollections } from '@studio/db/src/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { courses, courseEnrollments, classes, videoCollectionItems, videoCollections, courseModules } from '@studio/db/src/schema';
+import { eq, and, desc, asc } from 'drizzle-orm';
 
 const app = createOpenAPIApp<StudioVariables>();
 
@@ -34,6 +34,9 @@ const CreateCourseSchema = z.object({
     status: z.enum(['draft', 'active', 'archived']).default('draft'),
     isPublic: z.boolean().default(false),
     contentCollectionId: z.string().optional().nullable(),
+    // H3: Cohort mode
+    deliveryMode: z.enum(['self_paced', 'cohort']).default('self_paced'),
+    cohortStartDate: z.string().datetime().optional().nullable(),
 }).openapi('CreateCourse');
 
 const UpdateCourseSchema = CreateCourseSchema.partial().openapi('UpdateCourse');
@@ -531,6 +534,133 @@ app.openapi(createRoute({
     const completed = enrollments.filter(e => e.status === 'completed').length;
 
     return c.json({ totalStudents, totalRevenue, avgProgress, completed, enrollments });
+});
+
+// --- H1: Course Modules (section grouping) ---
+
+// GET /:id/modules - List modules for a course
+app.openapi(createRoute({
+    method: 'get',
+    path: '/{id}/modules',
+    tags: ['Courses'],
+    summary: 'List course modules',
+    request: { params: z.object({ id: z.string() }) },
+    responses: { 200: { description: 'Modules list', content: { 'application/json': { schema: z.array(z.any()) } } } }
+}), async (c) => {
+    const tenant = c.get('tenant');
+    const { id } = c.req.valid('param');
+    const db = createDb(c.env.DB);
+
+    const course = await db.select({ id: courses.id })
+        .from(courses).where(and(eq(courses.id, id), eq(courses.tenantId, tenant.id))).get();
+    if (!course) return c.json({ error: 'Course not found' }, 404);
+
+    const modules = await db.select().from(courseModules)
+        .where(eq(courseModules.courseId, id))
+        .orderBy(asc(courseModules.order))
+        .all();
+
+    return c.json(modules);
+});
+
+// POST /:id/modules - Create a module
+app.openapi(createRoute({
+    method: 'post',
+    path: '/{id}/modules',
+    tags: ['Courses'],
+    summary: 'Create a course module',
+    request: {
+        params: z.object({ id: z.string() }),
+        body: { content: { 'application/json': { schema: z.object({ title: z.string(), description: z.string().optional(), order: z.number().optional() }) } } }
+    },
+    responses: { 201: { description: 'Module created', content: { 'application/json': { schema: z.any() } } } }
+}), async (c) => {
+    const tenant = c.get('tenant');
+    const { id } = c.req.valid('param');
+    const body = c.req.valid('json');
+    const db = createDb(c.env.DB);
+
+    const course = await db.select({ id: courses.id })
+        .from(courses).where(and(eq(courses.id, id), eq(courses.tenantId, tenant.id))).get();
+    if (!course) return c.json({ error: 'Course not found' }, 404);
+
+    const existing = await db.select({ order: courseModules.order })
+        .from(courseModules).where(eq(courseModules.courseId, id))
+        .orderBy(desc(courseModules.order)).all();
+    const maxOrder = existing.length > 0 ? (existing[0].order ?? 0) : -1;
+
+    const newModule = { id: crypto.randomUUID(), courseId: id, title: body.title, description: body.description ?? null, order: body.order ?? maxOrder + 1 };
+    await db.insert(courseModules).values(newModule).run();
+    return c.json(newModule, 201);
+});
+
+// DELETE /:id/modules/:moduleId
+app.openapi(createRoute({
+    method: 'delete',
+    path: '/{id}/modules/{moduleId}',
+    tags: ['Courses'],
+    summary: 'Delete a course module',
+    request: { params: z.object({ id: z.string(), moduleId: z.string() }) },
+    responses: { 204: { description: 'Deleted' }, 404: { description: 'Not found' } }
+}), async (c) => {
+    const tenant = c.get('tenant');
+    const { id, moduleId } = c.req.valid('param');
+    const db = createDb(c.env.DB);
+
+    const course = await db.select({ id: courses.id })
+        .from(courses).where(and(eq(courses.id, id), eq(courses.tenantId, tenant.id))).get();
+    if (!course) return c.json({ error: 'Course not found' }, 404);
+
+    await db.delete(courseModules).where(and(eq(courseModules.id, moduleId), eq(courseModules.courseId, id))).run();
+    return c.body(null, 204);
+});
+
+// --- H2: Drip / Release Scheduling ---
+
+// PATCH /:id/curriculum/:itemId/config - Set releaseAfterDays and isRequired
+app.openapi(createRoute({
+    method: 'patch',
+    path: '/{id}/curriculum/{itemId}/config',
+    tags: ['Courses'],
+    summary: 'Update curriculum item release config',
+    request: {
+        params: z.object({ id: z.string(), itemId: z.string() }),
+        body: {
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        releaseAfterDays: z.number().min(0).nullable().optional(),
+                        isRequired: z.boolean().optional(),
+                        moduleId: z.string().nullable().optional(),
+                    })
+                }
+            }
+        }
+    },
+    responses: { 200: { description: 'Updated', content: { 'application/json': { schema: z.any() } } }, 404: { description: 'Not found' } }
+}), async (c) => {
+    const tenant = c.get('tenant');
+    const { id, itemId } = c.req.valid('param');
+    const body = c.req.valid('json');
+    const db = createDb(c.env.DB);
+
+    const course = await db.select({ contentCollectionId: courses.contentCollectionId })
+        .from(courses).where(and(eq(courses.id, id), eq(courses.tenantId, tenant.id))).get();
+    if (!course?.contentCollectionId) return c.json({ error: 'Course not found' }, 404);
+
+    const item = await db.select({ id: videoCollectionItems.id })
+        .from(videoCollectionItems)
+        .where(and(eq(videoCollectionItems.id, itemId), eq(videoCollectionItems.collectionId, course.contentCollectionId)))
+        .get();
+    if (!item) return c.json({ error: 'Item not found' }, 404);
+
+    const updateSet: any = {};
+    if (body.releaseAfterDays !== undefined) updateSet.releaseAfterDays = body.releaseAfterDays;
+    if (body.isRequired !== undefined) updateSet.isRequired = body.isRequired;
+    if (body.moduleId !== undefined) updateSet.moduleId = body.moduleId;
+
+    await db.update(videoCollectionItems).set(updateSet).where(eq(videoCollectionItems.id, itemId)).run();
+    return c.json({ success: true });
 });
 
 export default app;

@@ -1227,6 +1227,9 @@ export const courses = sqliteTable('courses', {
     status: text('status', { enum: ['draft', 'active', 'archived'] }).default('draft').notNull(),
     isPublic: integer('is_public', { mode: 'boolean' }).default(false).notNull(),
     contentCollectionId: text('content_collection_id').references(() => videoCollections.id), // Default curriculum
+    // H3: Cohort mode (self_paced = individual start date; cohort = shared start date)
+    deliveryMode: text('delivery_mode', { enum: ['self_paced', 'cohort'] }).default('self_paced').notNull(),
+    cohortStartDate: integer('cohort_start_date', { mode: 'timestamp' }),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
@@ -1246,6 +1249,19 @@ export const courseEnrollments = sqliteTable('course_enrollments', {
 }, (table) => ({
     userCourseIdx: uniqueIndex('user_course_enrollment_idx').on(table.userId, table.courseId),
     tenantIdx: index('enrollment_tenant_idx').on(table.tenantId),
+}));
+
+// --- Course Modules (H1: section grouping) ---
+
+export const courseModules = sqliteTable('course_modules', {
+    id: text('id').primaryKey(),
+    courseId: text('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    description: text('description'),
+    order: integer('order').notNull().default(0),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    courseIdx: index('course_module_idx').on(table.courseId),
 }));
 
 // --- Course Quiz System ---
@@ -1308,6 +1324,11 @@ export const videoCollectionItems = sqliteTable('video_collection_items', {
     quizId: text('quiz_id').references(() => quizzes.id, { onDelete: 'cascade' }),
 
     order: integer('order').notNull().default(0),
+    // H1: Module/section grouping
+    moduleId: text('module_id').references(() => courseModules.id, { onDelete: 'set null' }),
+    // H2: Drip scheduling — unlock X days after enrollment (null = immediate)
+    releaseAfterDays: integer('release_after_days'),
+    isRequired: integer('is_required', { mode: 'boolean' }).default(false),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     collectionIdx: index('collection_item_idx').on(table.collectionId),

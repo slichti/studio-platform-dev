@@ -505,6 +505,39 @@ export default function CourseEditorPage() {
                                     Publicly visible in studio portal
                                 </label>
                             </div>
+                            {/* H3: Cohort Mode */}
+                            <div className="space-y-3 p-4 bg-zinc-50 dark:bg-zinc-800/30 rounded-xl border border-zinc-100 dark:border-zinc-800">
+                                <div className="text-sm font-semibold">Delivery Mode</div>
+                                <div className="flex gap-4">
+                                    {(['self_paced', 'cohort'] as const).map(mode => (
+                                        <label key={mode} className="flex items-center gap-2 cursor-pointer group">
+                                            <input
+                                                type="radio"
+                                                name="deliveryMode"
+                                                value={mode}
+                                                checked={formData.deliveryMode === mode}
+                                                onChange={() => handleFieldChange('deliveryMode', mode)}
+                                                className="text-blue-600 focus:ring-blue-500"
+                                            />
+                                            <span className="text-sm capitalize group-hover:text-blue-600 transition">
+                                                {mode === 'self_paced' ? '🔓 Self-Paced' : '👥 Cohort'}
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                                {formData.deliveryMode === 'cohort' && (
+                                    <div className="space-y-1 pt-1">
+                                        <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Cohort Start Date</label>
+                                        <input
+                                            type="datetime-local"
+                                            className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                            value={formData.cohortStartDate ? new Date(formData.cohortStartDate).toISOString().slice(0, 16) : ''}
+                                            onChange={e => handleFieldChange('cohortStartDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
+                                        />
+                                        <p className="text-xs text-zinc-400">In cohort mode, all students start drip content on this date.</p>
+                                    </div>
+                                )}
+                            </div>
                             <div className="flex justify-end pt-2">
                                 <Button
                                     className="bg-blue-600 hover:bg-blue-700 text-white min-w-[100px]"
