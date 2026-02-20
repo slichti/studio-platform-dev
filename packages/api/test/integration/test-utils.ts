@@ -26,7 +26,8 @@ export async function setupTestDb(d1: D1Database) {
         'referrals', 'member_tags', 'members_to_tags', 'custom_field_definitions',
         'custom_field_values', 'community_posts', 'community_comments',
         'community_likes', 'reviews', 'video_purchases',
-        'quizzes', 'quiz_questions', 'quiz_submissions'
+        'quizzes', 'quiz_questions', 'quiz_submissions',
+        'course_enrollments', 'courses'
     ];
 
     for (const table of tables) {
@@ -95,6 +96,7 @@ export async function setupTestDb(d1: D1Database) {
             is_recording_sellable INTEGER DEFAULT 0,
             is_course INTEGER DEFAULT 0,
             content_collection_id TEXT,
+            course_id TEXT,
             google_event_id TEXT,
             created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
@@ -387,6 +389,34 @@ export async function setupTestDb(d1: D1Database) {
         passed INTEGER NOT NULL,
         answers TEXT NOT NULL, -- JSON
         finished_at INTEGER DEFAULT (strftime('%s', 'now'))
+    )`).run();
+
+    await d1.prepare(`CREATE TABLE courses (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        slug TEXT NOT NULL,
+        thumbnail_url TEXT,
+        price INTEGER DEFAULT 0,
+        member_price INTEGER,
+        status TEXT DEFAULT 'draft' NOT NULL,
+        is_public INTEGER DEFAULT 0 NOT NULL,
+        content_collection_id TEXT,
+        created_at INTEGER DEFAULT (strftime('%s', 'now')),
+        updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+    )`).run();
+
+    await d1.prepare(`CREATE TABLE course_enrollments (
+        id TEXT PRIMARY KEY,
+        course_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        tenant_id TEXT NOT NULL,
+        status TEXT DEFAULT 'active' NOT NULL,
+        progress INTEGER DEFAULT 0,
+        enrolled_at INTEGER DEFAULT (strftime('%s', 'now')),
+        completed_at INTEGER,
+        UNIQUE(user_id, course_id)
     )`).run();
 
     return db;

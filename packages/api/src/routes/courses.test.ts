@@ -14,6 +14,14 @@ vi.mock('../db', () => ({
     createDb: () => testDb
 }));
 
+// Mock UsageService to bypass quota checks
+vi.mock('../services/pricing', () => ({
+    UsageService: vi.fn().mockImplementation(() => ({
+        checkLimit: async () => true,
+        getUsage: async () => ({ count: 0 })
+    }))
+}));
+
 describe('Standalone Course Management API', () => {
     let app: Hono<{ Variables: StudioVariables; Bindings: Bindings }>;
     let sqlite: Database.Database;
@@ -52,6 +60,8 @@ describe('Standalone Course Management API', () => {
             c.env = { DB: sqlite as any } as Bindings;
             c.set('tenant', { id: tenantId, slug: slug } as any);
             c.set('member', { userId: userId, id: userId } as any);
+            c.set('auth', { userId: userId } as any);
+            c.set('can', ((_p: string) => true) as any); // Grant all permissions
             await next();
         });
 

@@ -70,6 +70,7 @@ describe('Booking Lifecycle Integration', () => {
             is_recording_sellable INTEGER DEFAULT 0,
             is_course INTEGER DEFAULT 0,
             content_collection_id TEXT,
+            course_id TEXT,
             google_event_id TEXT, created_at INTEGER
         )`);
 
