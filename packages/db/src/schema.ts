@@ -1264,6 +1264,22 @@ export const courseModules = sqliteTable('course_modules', {
     courseIdx: index('course_module_idx').on(table.courseId),
 }));
 
+// --- N1: Course Access Codes (free/comped enrollment) ---
+
+export const courseAccessCodes = sqliteTable('course_access_codes', {
+    id: text('id').primaryKey(),
+    courseId: text('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    code: text('code').notNull(),          // e.g. "YOGA2026"
+    maxUses: integer('max_uses'),           // null = unlimited
+    usedCount: integer('used_count').default(0).notNull(),
+    expiresAt: integer('expires_at', { mode: 'timestamp' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    courseCodeIdx: uniqueIndex('access_code_course_code_idx').on(table.courseId, table.code),
+    tenantIdx: index('access_code_tenant_idx').on(table.tenantId),
+}));
+
 // --- Course Quiz System ---
 
 export const quizzes = sqliteTable('quizzes', {

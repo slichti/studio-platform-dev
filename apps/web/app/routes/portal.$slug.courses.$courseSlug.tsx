@@ -1,6 +1,6 @@
 import { useParams, useOutletContext, Link } from "react-router";
 import { useState } from "react";
-import { ArrowLeft, CheckSquare, Video, Play, Lock, ChevronDown, ChevronRight } from "lucide-react";
+import { ArrowLeft, CheckSquare, Video, Play, Lock, ChevronDown, ChevronRight, Award } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/react-router";
 import { toast } from "sonner";
@@ -189,6 +189,19 @@ export default function PortalCourseViewer() {
                                 <div className="h-full bg-indigo-600 rounded-full transition-all" style={{ width: `${progress}%` }} />
                             </div>
                         </div>
+
+                        {/* H4: Certificate download — shown when course is complete */}
+                        {progress >= 100 && course?.id && (
+                            <a
+                                href={`/api/${slug}/courses/${course.id}/certificate`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-2 w-full px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl text-amber-700 dark:text-amber-400 font-semibold text-sm hover:bg-amber-100 dark:hover:bg-amber-900/30 transition"
+                            >
+                                <Award size={18} className="flex-shrink-0" />
+                                🎓 Download Certificate
+                            </a>
+                        )}
 
                         {/* Lesson list */}
                         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden">

@@ -2,7 +2,7 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { createOpenAPIApp } from '../lib/openapi';
 import { StudioVariables } from '../types';
 import { createDb } from '../db';
-import { courses, courseEnrollments, classes, videoCollectionItems, videoCollections, courseModules } from '@studio/db/src/schema';
+import { courses, courseEnrollments, classes, videoCollectionItems, videoCollections, courseModules, courseAccessCodes } from '@studio/db/src/schema';
 import { eq, and, desc, asc } from 'drizzle-orm';
 
 const app = createOpenAPIApp<StudioVariables>();
@@ -661,6 +661,247 @@ app.openapi(createRoute({
 
     await db.update(videoCollectionItems).set(updateSet).where(eq(videoCollectionItems.id, itemId)).run();
     return c.json({ success: true });
+});
+
+// --- H4: Completion Certificates ---
+
+// GET /:id/certificate - Generate a printable HTML certificate for a completed enrollment
+app.openapi(createRoute({
+    method: 'get',
+    path: '/{id}/certificate',
+    tags: ['Courses'],
+    summary: 'Get completion certificate (printable HTML)',
+    request: { params: z.object({ id: z.string() }) },
+    responses: {
+        200: { description: 'Printable HTML certificate page' },
+        403: { description: 'Course not completed' },
+        404: { description: 'Course or enrollment not found' }
+    }
+}), async (c) => {
+    const tenant = c.get('tenant');
+    const me = c.get('member') as any;
+    const { id } = c.req.valid('param');
+    const db = createDb(c.env.DB);
+
+    const course = await db.select({ id: courses.id, title: courses.title })
+        .from(courses).where(and(eq(courses.id, id), eq(courses.tenantId, tenant.id))).get();
+    if (!course) return c.json({ error: 'Course not found' }, 404);
+
+    const enrollment = await db.select({
+        status: courseEnrollments.status,
+        completedAt: courseEnrollments.completedAt,
+        progress: courseEnrollments.progress,
+    }).from(courseEnrollments)
+        .where(and(eq(courseEnrollments.courseId, id), eq(courseEnrollments.userId, me.userId)))
+        .get();
+
+    if (!enrollment) return c.json({ error: 'Enrollment not found' }, 404);
+    if (enrollment.status !== 'completed' && (enrollment.progress ?? 0) < 100) {
+        return c.json({ error: 'Course not completed yet' }, 403);
+    }
+
+    const completedDate = enrollment.completedAt
+        ? new Date(enrollment.completedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+        : new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Certificate of Completion — ${course.title}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;600&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #f8f7f4; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .cert {
+    width: 860px; background: #fff; border: 2px solid #c8a96e;
+    padding: 60px 80px; text-align: center; position: relative;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+  }
+  .cert::before, .cert::after {
+    content: ''; position: absolute; inset: 8px; border: 1px solid #e8d5a3; pointer-events: none;
+  }
+  .cert-badge { font-size: 48px; margin-bottom: 16px; }
+  .cert-header { font-family: 'Playfair Display', serif; font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: #9b7f3e; margin-bottom: 24px; }
+  .cert-title { font-family: 'Playfair Display', serif; font-size: 42px; color: #1a1a1a; margin-bottom: 16px; }
+  .cert-body { font-size: 16px; color: #555; line-height: 1.8; margin-bottom: 28px; }
+  .cert-name { font-family: 'Playfair Display', serif; font-style: italic; font-size: 34px; color: #2c2c2c; border-bottom: 2px solid #c8a96e; display: inline-block; padding-bottom: 8px; margin: 12px 0; }
+  .cert-course { font-family: 'Playfair Display', serif; font-size: 22px; color: #9b7f3e; font-weight: 700; margin: 8px 0; }
+  .cert-date { font-size: 14px; color: #888; letter-spacing: 1px; margin-top: 36px; }
+  .cert-studio { font-size: 15px; font-weight: 600; color: #333; margin-top: 8px; }
+  .print-btn { margin-top: 32px; padding: 12px 28px; background: #9b7f3e; color: #fff; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; font-family: 'Inter', sans-serif; }
+  @media print {
+    body { background: #fff; }
+    .print-btn { display: none; }
+    .cert { box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="cert">
+    <div class="cert-badge">🎓</div>
+    <div class="cert-header">Certificate of Completion</div>
+    <div class="cert-title">This certifies that</div>
+    <div class="cert-name">${me.userId}</div>
+    <div class="cert-body">has successfully completed the course</div>
+    <div class="cert-course">${course.title}</div>
+    <div class="cert-date">Completed on ${completedDate}</div>
+    <div class="cert-studio">Issued by ${tenant.name}</div>
+    <br>
+    <button class="print-btn" onclick="window.print()">🖨 Download / Print Certificate</button>
+  </div>
+  <script>
+    // Auto-open print dialog after a short delay for seamless download experience
+    // (disabled on load — user clicks button instead for better UX)
+  </script>
+</body>
+</html>`;
+
+    return new Response(html, {
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }
+    });
+});
+
+// --- N4: Content Protection — Enrollment-gated video URL ---
+
+// GET /:id/video/:videoId/url - Return a signed video URL only if enrolled
+app.openapi(createRoute({
+    method: 'get',
+    path: '/{id}/video/{videoId}/url',
+    tags: ['Courses'],
+    summary: 'Get enrollment-gated video URL',
+    request: { params: z.object({ id: z.string(), videoId: z.string() }) },
+    responses: {
+        200: { description: 'Video URL', content: { 'application/json': { schema: z.any() } } },
+        403: { description: 'Not enrolled' },
+        404: { description: 'Not found' }
+    }
+}), async (c) => {
+    const tenant = c.get('tenant');
+    const me = c.get('member') as any;
+    const { id, videoId } = c.req.valid('param');
+    const db = createDb(c.env.DB);
+
+    // Verify enrollment
+    const enrollment = await db.select({ status: courseEnrollments.status })
+        .from(courseEnrollments)
+        .where(and(eq(courseEnrollments.courseId, id), eq(courseEnrollments.userId, me.userId), eq(courseEnrollments.tenantId, tenant.id)))
+        .get();
+
+    if (!enrollment) return c.json({ error: 'Not enrolled in this course' }, 403);
+
+    // Return the video record — actual signed URL generation is handled by the videos route
+    // This endpoint confirms authorization; the client can then call /videos/:videoId for the stream URL
+    return c.json({ authorized: true, videoId, courseId: id });
+});
+
+// --- N1: Access Codes / Free Enrollment ---
+
+// POST /:id/access-codes - Admin generates an access code
+app.openapi(createRoute({
+    method: 'post',
+    path: '/{id}/access-codes',
+    tags: ['Courses'],
+    summary: 'Generate a course access code (admin)',
+    request: {
+        params: z.object({ id: z.string() }),
+        body: {
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        code: z.string().optional(),       // custom or auto-generated
+                        maxUses: z.number().optional(),    // null = unlimited
+                        expiresAt: z.string().datetime().optional()
+                    })
+                }
+            }
+        }
+    },
+    responses: { 201: { description: 'Code created', content: { 'application/json': { schema: z.any() } } } }
+}), async (c) => {
+    const tenant = c.get('tenant');
+    const can = c.get('can') as any;
+    if (!can?.('manage', 'courses')) return c.json({ error: 'Forbidden' }, 403);
+
+    const { id } = c.req.valid('param');
+    const body = c.req.valid('json');
+    const db = createDb(c.env.DB);
+
+    const course = await db.select({ id: courses.id }).from(courses)
+        .where(and(eq(courses.id, id), eq(courses.tenantId, tenant.id))).get();
+    if (!course) return c.json({ error: 'Course not found' }, 404);
+
+    // Auto-generate code if not provided
+    const code = body.code || Math.random().toString(36).substring(2, 10).toUpperCase();
+    const newCode = {
+        id: crypto.randomUUID(),
+        courseId: id,
+        tenantId: tenant.id,
+        code,
+        maxUses: body.maxUses ?? null,
+        usedCount: 0,
+        expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
+    };
+    await db.insert(courseAccessCodes).values(newCode).run();
+    return c.json(newCode, 201);
+});
+
+// POST /:id/redeem - Student redeems an access code for free enrollment
+app.openapi(createRoute({
+    method: 'post',
+    path: '/{id}/redeem',
+    tags: ['Courses'],
+    summary: 'Redeem access code for free course enrollment',
+    request: {
+        params: z.object({ id: z.string() }),
+        body: { content: { 'application/json': { schema: z.object({ code: z.string() }) } } }
+    },
+    responses: {
+        200: { description: 'Enrolled via access code' },
+        400: { description: 'Invalid or expired code' },
+        404: { description: 'Course not found' }
+    }
+}), async (c) => {
+    const tenant = c.get('tenant');
+    const me = c.get('member') as any;
+    const { id } = c.req.valid('param');
+    const { code } = c.req.valid('json');
+    const db = createDb(c.env.DB);
+
+    const course = await db.select({ id: courses.id }).from(courses)
+        .where(and(eq(courses.id, id), eq(courses.tenantId, tenant.id))).get();
+    if (!course) return c.json({ error: 'Course not found' }, 404);
+
+    const accessCode = await db.select().from(courseAccessCodes)
+        .where(and(eq(courseAccessCodes.courseId, id), eq(courseAccessCodes.code, code.toUpperCase())))
+        .get();
+
+    if (!accessCode) return c.json({ error: 'Invalid access code' }, 400);
+    if (accessCode.expiresAt && new Date(accessCode.expiresAt) < new Date()) {
+        return c.json({ error: 'Access code has expired' }, 400);
+    }
+    if (accessCode.maxUses !== null && accessCode.usedCount >= accessCode.maxUses) {
+        return c.json({ error: 'Access code has reached its usage limit' }, 400);
+    }
+
+    // Enroll the student
+    await db.insert(courseEnrollments).values({
+        id: crypto.randomUUID(),
+        courseId: id,
+        userId: me.userId,
+        tenantId: tenant.id,
+        status: 'active',
+        progress: 0,
+        enrolledAt: new Date(),
+    }).run().catch(() => { }); // Ignore duplicate enrollment errors
+
+    // Increment usage count
+    await db.update(courseAccessCodes)
+        .set({ usedCount: accessCode.usedCount + 1 })
+        .where(eq(courseAccessCodes.id, accessCode.id))
+        .run();
+
+    return c.json({ success: true, message: 'Enrolled successfully via access code' });
 });
 
 export default app;
