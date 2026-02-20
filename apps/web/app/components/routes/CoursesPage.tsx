@@ -4,6 +4,7 @@ import { Plus, BookOpen, Clock, Users, ChevronRight, GraduationCap, DollarSign, 
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/react-router";
+import Select from "react-select";
 
 import { Button } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/Card";
@@ -139,12 +140,13 @@ export default function CoursesPage() {
                 isOpen={isCreateOpen}
                 onClose={() => setIsCreateOpen(false)}
                 onSuccess={handleCreateSuccess}
+                courseList={courses}
             />
         </div>
     );
 }
 
-function CreateCourseModal({ isOpen, onClose, onSuccess }: { isOpen: boolean, onClose: () => void, onSuccess: (id?: string) => void }) {
+function CreateCourseModal({ isOpen, onClose, onSuccess, courseList }: { isOpen: boolean, onClose: () => void, onSuccess: (id?: string) => void, courseList: any[] }) {
     const { getToken } = useAuth();
     const { slug } = useParams();
     const [loading, setLoading] = useState(false);
@@ -155,7 +157,8 @@ function CreateCourseModal({ isOpen, onClose, onSuccess }: { isOpen: boolean, on
         isPublic: true,
         status: 'draft' as const,
         deliveryMode: 'self_paced',
-        cohortStartDate: ''
+        cohortStartDate: '',
+        prerequisiteIds: [] as string[]
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -283,6 +286,36 @@ function CreateCourseModal({ isOpen, onClose, onSuccess }: { isOpen: boolean, on
                             </p>
                         </div>
                     )}
+                </div>
+
+                {/* N3: Prerequisite Gating */}
+                <div className="space-y-3 p-4 bg-zinc-50 dark:bg-zinc-800/30 rounded-xl border border-zinc-100 dark:border-zinc-800">
+                    <div className="text-sm font-semibold mb-1">Prerequisites</div>
+                    <p className="text-xs text-zinc-500 mb-3">Students must complete the selected courses before they can enroll in this one.</p>
+                    <Select
+                        isMulti
+                        options={courseList.map(c => ({ value: c.id, label: c.title }))}
+                        value={formData.prerequisiteIds?.map(id => {
+                            const c = courseList.find(c => c.id === id);
+                            return c ? { value: c.id, label: c.title } : null;
+                        }).filter(Boolean) || []}
+                        onChange={(selected: any) => setFormData({ ...formData, prerequisiteIds: selected.map((s: any) => s.value) })}
+                        className="text-sm border-zinc-200 dark:border-zinc-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Select prerequisite courses..."
+                        styles={{
+                            control: (baseStyles: any) => ({
+                                ...baseStyles,
+                                backgroundColor: 'var(--zinc-50)',
+                                borderColor: 'var(--zinc-200)',
+                                borderRadius: '0.5rem',
+                                padding: '0.125rem'
+                            }),
+                            menu: (baseStyles: any) => ({
+                                ...baseStyles,
+                                zIndex: 100
+                            })
+                        }}
+                    />
                 </div>
 
                 <div className="flex items-center gap-2 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-100 dark:border-zinc-800">

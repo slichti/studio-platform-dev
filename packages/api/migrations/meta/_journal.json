@@ -22,6 +22,13 @@
       "when": 1771604241014,
       "tag": "0002_course_management",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1771611407146,
+      "tag": "0003_tricky_colonel_america",
+      "breakpoints": true
     }
   ]
 }

@@ -1251,6 +1251,18 @@ export const courseEnrollments = sqliteTable('course_enrollments', {
     tenantIdx: index('enrollment_tenant_idx').on(table.tenantId),
 }));
 
+// --- N3: Course Prerequisites ---
+export const coursePrerequisites = sqliteTable('course_prerequisites', {
+    id: text('id').primaryKey(),
+    courseId: text('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+    prerequisiteId: text('prerequisite_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    courseReqIdx: uniqueIndex('course_prereq_idx').on(table.courseId, table.prerequisiteId),
+    tenantIdx: index('course_prereq_tenant_idx').on(table.tenantId),
+}));
+
 // --- Course Modules (H1: section grouping) ---
 
 export const courseModules = sqliteTable('course_modules', {

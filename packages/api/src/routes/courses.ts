@@ -2,7 +2,7 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { createOpenAPIApp } from '../lib/openapi';
 import { StudioVariables } from '../types';
 import { createDb } from '../db';
-import { courses, courseEnrollments, classes, videoCollectionItems, videoCollections, courseModules, courseAccessCodes, videos, quizzes } from '@studio/db/src/schema';
+import { courses, courseEnrollments, classes, videoCollectionItems, videoCollections, courseModules, courseAccessCodes, videos, quizzes, coursePrerequisites } from '@studio/db/src/schema';
 import { eq, and, desc, asc } from 'drizzle-orm';
 
 const app = createOpenAPIApp<StudioVariables>();
@@ -37,6 +37,7 @@ const CreateCourseSchema = z.object({
     // H3: Cohort mode
     deliveryMode: z.enum(['self_paced', 'cohort']).default('self_paced'),
     cohortStartDate: z.string().datetime().optional().nullable(),
+    prerequisiteIds: z.array(z.string()).optional(),
 }).openapi('CreateCourse');
 
 const UpdateCourseSchema = CreateCourseSchema.partial().openapi('UpdateCourse');
@@ -77,7 +78,20 @@ app.openapi(createRoute({
         .offset(offset)
         .orderBy(desc(courses.createdAt))
         .all();
-    return c.json(results);
+
+    // Enrich with prerequisites
+    const enrichedResults = await Promise.all(results.map(async (course) => {
+        const prereqs = await db.select({ id: coursePrerequisites.prerequisiteId })
+            .from(coursePrerequisites)
+            .where(eq(coursePrerequisites.courseId, course.id))
+            .all();
+        return {
+            ...course,
+            prerequisiteIds: prereqs.map(p => p.id)
+        };
+    }));
+
+    return c.json(enrichedResults);
 });
 
 // GET /my-enrollments - Student's enrollments in this tenant
@@ -144,7 +158,19 @@ app.openapi(createRoute({
     };
 
     await db.insert(courses).values(newCourse).run();
-    return c.json(newCourse, 201);
+
+    if (body.prerequisiteIds && body.prerequisiteIds.length > 0) {
+        for (const reqId of body.prerequisiteIds) {
+            await db.insert(coursePrerequisites).values({
+                id: crypto.randomUUID(),
+                courseId: id,
+                prerequisiteId: reqId,
+                tenantId: tenant.id
+            }).run();
+        }
+    }
+
+    return c.json({ ...newCourse, prerequisiteIds: body.prerequisiteIds || [] }, 201);
 });
 
 // GET /:id - Get course details with curriculum
@@ -215,7 +241,13 @@ app.openapi(createRoute({
         return { ...item, video, quiz };
     }));
 
-    return c.json({ ...course, sessions, curriculum });
+    const prereqs = await db.select({ id: coursePrerequisites.prerequisiteId })
+        .from(coursePrerequisites)
+        .where(eq(coursePrerequisites.courseId, id))
+        .all();
+    const prerequisiteIds = prereqs.map(p => p.id);
+
+    return c.json({ ...course, sessions, curriculum, prerequisiteIds });
 });
 
 // PATCH /:id - Update course
@@ -255,7 +287,22 @@ app.openapi(createRoute({
     };
     await db.update(courses).set(updateData as any).where(eq(courses.id, id)).run();
 
-    return c.json({ ...existing, ...updateData });
+    if (body.prerequisiteIds !== undefined) {
+        // Drop existing and recreate to keep it simple
+        await db.delete(coursePrerequisites).where(eq(coursePrerequisites.courseId, id)).run();
+        if (body.prerequisiteIds.length > 0) {
+            for (const reqId of body.prerequisiteIds) {
+                await db.insert(coursePrerequisites).values({
+                    id: crypto.randomUUID(),
+                    courseId: id,
+                    prerequisiteId: reqId,
+                    tenantId: tenant.id
+                }).run();
+            }
+        }
+    }
+
+    return c.json({ ...existing, ...updateData, prerequisiteIds: body.prerequisiteIds });
 });
 
 // DELETE /:id - Delete course
@@ -320,6 +367,29 @@ app.openapi(createRoute({
         .get();
 
     if (existing) return c.json({ success: true, alreadyEnrolled: true });
+
+    // Enforce Prerequisites
+    const prereqs = await db.select({ prerequisiteId: coursePrerequisites.prerequisiteId })
+        .from(coursePrerequisites)
+        .where(eq(coursePrerequisites.courseId, id))
+        .all();
+
+    if (prereqs.length > 0) {
+        // Fetch user's completed enrollments
+        const completedEnrollments = await db.select({ courseId: courseEnrollments.courseId })
+            .from(courseEnrollments)
+            .where(and(
+                eq(courseEnrollments.userId, me.userId),
+                eq(courseEnrollments.progress, 100)
+            ))
+            .all();
+        const completedCourseIds = new Set(completedEnrollments.map(e => e.courseId));
+
+        const unmetPrereqs = prereqs.filter(p => !completedCourseIds.has(p.prerequisiteId));
+        if (unmetPrereqs.length > 0) {
+            return c.json({ error: 'Prerequisites not met', code: 'PREREQUISITES_NOT_MET' }, 403);
+        }
+    }
 
     await db.insert(courseEnrollments).values({
         id: crypto.randomUUID(),

@@ -9,6 +9,7 @@ import {
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@clerk/react-router";
+import Select from "react-select";
 
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/Card";
@@ -18,7 +19,7 @@ import { ComponentErrorBoundary } from "~/components/ErrorBoundary";
 import { SkeletonLoader } from "~/components/ui/SkeletonLoader";
 import { Modal } from "~/components/Modal";
 
-import { useCourse } from "~/hooks/useCourses";
+import { useCourse, useCourses } from "~/hooks/useCourses";
 import { apiRequest } from "~/utils/api";
 import { cn } from "~/lib/utils";
 
@@ -189,6 +190,7 @@ export default function CourseEditorPage() {
     const queryClient = useQueryClient();
 
     const { data: course, isLoading } = useCourse(slug!, id!, contextToken);
+    const { data: courseList = [] } = useCourses(slug!, { status: 'active' }, contextToken);
 
     // Local form state (C3: dirty state + explicit save)
     const [formData, setFormData] = useState<any>(null);
@@ -212,7 +214,18 @@ export default function CourseEditorPage() {
     // Sync course data to local state
     useEffect(() => {
         if (course && !formData) {
-            setFormData({ title: course.title, description: course.description || '', slug: course.slug, status: course.status, isPublic: course.isPublic, price: course.price, memberPrice: course.memberPrice });
+            setFormData({
+                title: course.title,
+                description: course.description || '',
+                slug: course.slug,
+                status: course.status,
+                isPublic: course.isPublic,
+                price: course.price,
+                memberPrice: course.memberPrice,
+                deliveryMode: course.deliveryMode || 'self_paced',
+                cohortStartDate: course.cohortStartDate,
+                prerequisiteIds: course.prerequisiteIds || []
+            });
             setCurriculum(course.curriculum || []);
         }
     }, [course]);
@@ -538,6 +551,37 @@ export default function CourseEditorPage() {
                                     </div>
                                 )}
                             </div>
+
+                            {/* N3: Prerequisite Gating */}
+                            <div className="space-y-3 p-4 bg-zinc-50 dark:bg-zinc-800/30 rounded-xl border border-zinc-100 dark:border-zinc-800">
+                                <div className="text-sm font-semibold mb-1">Prerequisites</div>
+                                <p className="text-xs text-zinc-500 mb-3">Students must complete the selected courses before they can enroll in this one.</p>
+                                <Select
+                                    isMulti
+                                    options={courseList.filter((c: any) => c.id !== course.id).map((c: any) => ({ value: c.id, label: c.title }))}
+                                    value={formData.prerequisiteIds?.map((id: string) => {
+                                        const c = courseList.find((c: any) => c.id === id);
+                                        return c ? { value: c.id, label: c.title } : null;
+                                    }).filter(Boolean) || []}
+                                    onChange={(selected: any) => handleFieldChange('prerequisiteIds', selected.map((s: any) => s.value))}
+                                    className="text-sm border-zinc-200 dark:border-zinc-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="Select prerequisite courses..."
+                                    styles={{
+                                        control: (baseStyles: any) => ({
+                                            ...baseStyles,
+                                            backgroundColor: 'var(--zinc-50)',
+                                            borderColor: 'var(--zinc-200)',
+                                            borderRadius: '0.5rem',
+                                            padding: '0.125rem'
+                                        }),
+                                        menu: (baseStyles: any) => ({
+                                            ...baseStyles,
+                                            zIndex: 50
+                                        })
+                                    }}
+                                />
+                            </div>
+
                             <div className="flex justify-end pt-2">
                                 <Button
                                     className="bg-blue-600 hover:bg-blue-700 text-white min-w-[100px]"

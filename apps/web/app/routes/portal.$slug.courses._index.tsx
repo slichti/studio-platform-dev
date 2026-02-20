@@ -56,7 +56,11 @@ export const action = async (args: ActionFunctionArgs) => {
             return { success: true, redeemed: true };
         }
     } catch (e: any) {
-        return { error: e.message || 'Action failed' };
+        // Handle specific prerequisite error
+        if (e.status === 403 && e.message?.includes('Prerequisites not met')) {
+            return { error: 'You must complete the prerequisite courses first.' };
+        }
+        return { error: 'Action failed: ' + (e.message || 'Unknown error') };
     }
     return null;
 };
@@ -145,29 +149,60 @@ export default function PortalCoursesIndex() {
                                         </Link>
                                     ) : (
                                         <div className="flex items-center gap-2">
-                                            {/* N1: Access code redeem */}
-                                            <button
-                                                type="button"
-                                                title="Have an access code?"
-                                                onClick={() => setRedeemCourseId(redeemCourseId === course.id ? null : course.id)}
-                                                className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
-                                            >
-                                                <Key size={15} />
-                                            </button>
-                                            <Form method="post">
-                                                <input type="hidden" name="courseId" value={course.id} />
-                                                <input type="hidden" name="intent" value="enroll" />
-                                                <button
-                                                    type="submit"
-                                                    disabled={isEnrolling}
-                                                    className={cn(
-                                                        "px-4 py-1.5 rounded-lg text-sm font-semibold transition",
-                                                        "bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-60"
-                                                    )}
-                                                >
-                                                    {isEnrolling ? <Loader2 size={14} className="animate-spin" /> : course.price > 0 ? 'Enroll' : 'Start Free'}
-                                                </button>
-                                            </Form>
+                                            {/* Prerequisites Check */}
+                                            {(() => {
+                                                const prereqs = course.prerequisiteIds || [];
+                                                const unmet = prereqs.filter((id: string) => {
+                                                    const e = enrolledMap.get(id);
+                                                    return !e || e.progress < 100;
+                                                });
+                                                const isLocked = unmet.length > 0;
+
+                                                if (isLocked) {
+                                                    const unmetNames = unmet.map((id: string) => {
+                                                        const p = courses.find((c: any) => c.id === id);
+                                                        return p?.title || 'Unknown Course';
+                                                    });
+                                                    return (
+                                                        <div className="flex flex-col items-end">
+                                                            <div className="flex items-center gap-1.5 text-sm font-semibold text-zinc-400">
+                                                                <BookOpen size={14} className="text-zinc-500" /> Locked
+                                                            </div>
+                                                            <div className="text-[10px] text-zinc-400 mt-1 max-w-[150px] text-right leading-tight">
+                                                                Requires: {unmetNames.join(', ')}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }
+
+                                                return (
+                                                    <>
+                                                        {/* N1: Access code redeem */}
+                                                        <button
+                                                            type="button"
+                                                            title="Have an access code?"
+                                                            onClick={() => setRedeemCourseId(redeemCourseId === course.id ? null : course.id)}
+                                                            className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+                                                        >
+                                                            <Key size={15} />
+                                                        </button>
+                                                        <Form method="post">
+                                                            <input type="hidden" name="courseId" value={course.id} />
+                                                            <input type="hidden" name="intent" value="enroll" />
+                                                            <button
+                                                                type="submit"
+                                                                disabled={isEnrolling}
+                                                                className={cn(
+                                                                    "px-4 py-1.5 rounded-lg text-sm font-semibold transition",
+                                                                    "bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-60"
+                                                                )}
+                                                            >
+                                                                {isEnrolling ? <Loader2 size={14} className="animate-spin" /> : course.price > 0 ? 'Enroll' : 'Start Free'}
+                                                            </button>
+                                                        </Form>
+                                                    </>
+                                                );
+                                            })()}
                                         </div>
                                     )}
                                 </div>

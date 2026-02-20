@@ -43,7 +43,18 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
     const enrollment = (enrollments as any[]).find((e: any) => e.courseId === course.id) ?? null;
 
-    return { course, courseDetail, enrollment, slug };
+    const prereqs = courseDetail?.prerequisiteIds || [];
+    const unmet = prereqs.filter((id: string) => {
+        const e = (enrollments as any[]).find((e: any) => e.courseId === id);
+        return !e || e.progress < 100;
+    });
+    const isLocked = unmet.length > 0;
+    const unmetNames = unmet.map((id: string) => {
+        const p = allCourses.find((c: any) => c.id === id);
+        return p?.title || 'Unknown Course';
+    });
+
+    return { course, courseDetail, enrollment, slug, isLocked, unmetNames };
 };
 
 export const action = async (args: ActionFunctionArgs) => {
@@ -72,7 +83,7 @@ export const action = async (args: ActionFunctionArgs) => {
 };
 
 export default function PortalCourseViewer() {
-    const { course, courseDetail, enrollment, slug } = useLoaderData<typeof loader>();
+    const { course, courseDetail, enrollment, slug, isLocked, unmetNames } = useLoaderData<typeof loader>();
     const { tenant } = useOutletContext<any>();
     const navigation = useNavigation();
 
@@ -102,7 +113,37 @@ export default function PortalCourseViewer() {
                 <ArrowLeft size={14} /> Back to Courses
             </Link>
 
-            {!isEnrolled ? (
+            {isLocked ? (
+                // ── Locked: show big lock screen ──
+                <div className="space-y-6">
+                    <div className="aspect-video w-full bg-zinc-100 dark:bg-zinc-800 rounded-2xl overflow-hidden relative">
+                        {course.thumbnailUrl
+                            ? <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-cover opacity-50 grayscale" />
+                            : <div className="w-full h-full flex items-center justify-center"><Lock size={64} className="text-zinc-300 dark:text-zinc-700" /></div>
+                        }
+                        <div className="absolute inset-0 flex items-center justify-center bg-zinc-900/60 backdrop-blur-[2px]">
+                            <div className="text-center text-white p-8 max-w-lg bg-black/40 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-md">
+                                <Lock size={48} className="mx-auto mb-4 text-zinc-300" />
+                                <h2 className="text-2xl font-bold mb-2">Course Locked</h2>
+                                <p className="text-zinc-300 mb-6">You must complete the following prerequisites before you can access this course:</p>
+                                <ul className="text-left bg-black/30 rounded-xl p-4 space-y-3 mb-8">
+                                    {unmetNames.map((name: string, i: number) => (
+                                        <li key={i} className="flex items-center gap-3 font-medium">
+                                            <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center flex-shrink-0">
+                                                <Lock size={12} className="text-zinc-400" />
+                                            </div>
+                                            {name}
+                                        </li>
+                                    ))}
+                                </ul>
+                                <Link to={`/portal/${slug ?? tenant?.slug}/courses`} className="inline-block px-8 py-3 bg-white text-black rounded-xl font-bold hover:bg-zinc-200 transition">
+                                    ← Browse Catalog
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ) : !isEnrolled ? (
                 // ── Not enrolled: show preview ──
                 <div className="space-y-6">
                     <div className="aspect-video w-full bg-zinc-100 dark:bg-zinc-800 rounded-2xl overflow-hidden relative">
