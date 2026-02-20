@@ -27,7 +27,8 @@ export async function setupTestDb(d1: D1Database) {
         'custom_field_values', 'community_posts', 'community_comments',
         'community_likes', 'reviews', 'video_purchases',
         'quizzes', 'quiz_questions', 'quiz_submissions',
-        'course_enrollments', 'courses', 'course_modules', 'course_access_codes'
+        'course_enrollments', 'courses', 'course_modules', 'course_access_codes',
+        'course_prerequisites'
     ];
 
     for (const table of tables) {
@@ -443,6 +444,14 @@ export async function setupTestDb(d1: D1Database) {
         enrolled_at INTEGER DEFAULT (strftime('%s', 'now')),
         completed_at INTEGER,
         UNIQUE(user_id, course_id)
+    )`).run();
+
+    await d1.prepare(`CREATE TABLE course_prerequisites (
+        course_id TEXT NOT NULL,
+        prerequisite_id TEXT NOT NULL,
+        tenant_id TEXT NOT NULL,
+        created_at INTEGER DEFAULT (strftime('%s', 'now')),
+        PRIMARY KEY (course_id, prerequisite_id)
     )`).run();
 
     return db;
