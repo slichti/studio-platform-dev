@@ -86,6 +86,7 @@ describe('Booking Lifecycle Integration', () => {
         sqlite.exec(`CREATE TABLE class_pack_definitions (
             id TEXT PRIMARY KEY, tenant_id TEXT, name TEXT, price INTEGER DEFAULT 0, credits INTEGER,
             expiration_days INTEGER, image_url TEXT, vod_enabled INTEGER DEFAULT 0, active INTEGER DEFAULT 1,
+            stripe_product_id TEXT, stripe_price_id TEXT,
             created_at INTEGER
         )`);
 
