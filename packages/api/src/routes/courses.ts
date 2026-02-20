@@ -2,8 +2,8 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { createOpenAPIApp } from '../lib/openapi';
 import { StudioVariables } from '../types';
 import { createDb } from '../db';
-import { courses, courseEnrollments, classes, videoCollections, videoCollectionItems, quizzes } from '@studio/db/src/schema';
-import { eq, and, sql, desc } from 'drizzle-orm';
+import { courses, courseEnrollments, classes, videoCollectionItems } from '@studio/db/src/schema';
+import { eq, and, desc } from 'drizzle-orm';
 
 const app = createOpenAPIApp<StudioVariables>();
 
@@ -20,8 +20,8 @@ const CourseSchema = z.object({
     status: z.enum(['draft', 'active', 'archived']),
     isPublic: z.boolean(),
     contentCollectionId: z.string().nullable().optional(),
-    createdAt: z.date().or(z.string()),
-    updatedAt: z.date().or(z.string())
+    createdAt: z.date().or(z.string()).or(z.number()).nullable().optional(),
+    updatedAt: z.date().or(z.string()).or(z.number()).nullable().optional(),
 }).openapi('Course');
 
 const CreateCourseSchema = z.object({
@@ -56,7 +56,7 @@ app.openapi(createRoute({
     responses: {
         200: {
             description: 'List of courses',
-            content: { 'application/json': { schema: z.array(CourseSchema) } }
+            content: { 'application/json': { schema: z.array(z.any()) } }
         }
     }
 }), async (c) => {
@@ -64,12 +64,16 @@ app.openapi(createRoute({
     const { status, limit, offset } = c.req.valid('query');
     const db = createDb(c.env.DB);
 
-    let query = db.select().from(courses).where(eq(courses.tenantId, tenant.id));
-    if (status) {
-        query = query.where(eq(courses.status, status)) as any;
-    }
+    const conditions = status
+        ? and(eq(courses.tenantId, tenant.id), eq(courses.status, status))
+        : eq(courses.tenantId, tenant.id);
 
-    const results = await query.limit(limit).offset(offset).orderBy(desc(courses.createdAt)).all();
+    const results = await db.select().from(courses)
+        .where(conditions)
+        .limit(limit)
+        .offset(offset)
+        .orderBy(desc(courses.createdAt))
+        .all();
     return c.json(results);
 });
 
@@ -85,7 +89,7 @@ app.openapi(createRoute({
     responses: {
         201: {
             description: 'Course created',
-            content: { 'application/json': { schema: CourseSchema } }
+            content: { 'application/json': { schema: z.any() } }
         }
     }
 }), async (c) => {
@@ -113,7 +117,7 @@ app.openapi(createRoute({
     };
 
     await db.insert(courses).values(newCourse).run();
-    return c.json(newCourse as any, 201);
+    return c.json(newCourse, 201);
 });
 
 // GET /:id - Get course details with curriculum
@@ -130,10 +134,7 @@ app.openapi(createRoute({
             description: 'Course details',
             content: {
                 'application/json': {
-                    schema: CourseSchema.extend({
-                        sessions: z.array(z.any()),
-                        curriculum: z.array(z.any()).optional()
-                    })
+                    schema: z.any()
                 }
             }
         },
@@ -150,26 +151,21 @@ app.openapi(createRoute({
 
     if (!course) return c.json({ error: 'Course not found' }, 404);
 
-    // Get live sessions
+    // Get live sessions linked to this course
     const sessions = await db.select().from(classes)
         .where(eq(classes.courseId, id))
         .orderBy(classes.startTime)
         .all();
 
-    // Get curriculum (VODs/Quizzes via videoCollection)
-    let curriculum = [];
-    if (course.contentCollectionId) {
-        curriculum = await db.select().from(videoCollectionItems)
+    // Get curriculum via linked video collection
+    const curriculum: any[] = course.contentCollectionId
+        ? await db.select().from(videoCollectionItems)
             .where(eq(videoCollectionItems.collectionId, course.contentCollectionId))
             .orderBy(videoCollectionItems.order)
-            .all();
-    }
+            .all()
+        : [];
 
-    return c.json({
-        ...course,
-        sessions,
-        curriculum
-    });
+    return c.json({ ...course, sessions, curriculum });
 });
 
 // PATCH /:id - Update course
@@ -185,7 +181,7 @@ app.openapi(createRoute({
     responses: {
         200: {
             description: 'Course updated',
-            content: { 'application/json': { schema: CourseSchema } }
+            content: { 'application/json': { schema: z.any() } }
         },
         404: { description: 'Course not found' }
     }
@@ -201,14 +197,10 @@ app.openapi(createRoute({
 
     if (!existing) return c.json({ error: 'Course not found' }, 404);
 
-    const updateData = {
-        ...body,
-        updatedAt: new Date()
-    };
-
+    const updateData = { ...body, updatedAt: new Date() };
     await db.update(courses).set(updateData).where(eq(courses.id, id)).run();
 
-    return c.json({ ...existing, ...updateData } as any);
+    return c.json({ ...existing, ...updateData });
 });
 
 // DELETE /:id - Delete course
@@ -229,17 +221,19 @@ app.openapi(createRoute({
     const { id } = c.req.valid('param');
     const db = createDb(c.env.DB);
 
-    const res = await db.delete(courses)
+    const existing = await db.select({ id: courses.id }).from(courses)
         .where(and(eq(courses.id, id), eq(courses.tenantId, tenant.id)))
-        .run();
+        .get();
 
-    if (res.rowsAffected === 0) return c.json({ error: 'Course not found' }, 404);
+    if (!existing) return c.json({ error: 'Course not found' }, 404);
+
+    await db.delete(courses).where(eq(courses.id, id)).run();
     return c.body(null, 204);
 });
 
 // --- Student Endpoints ---
 
-// POST /enroll - Enroll in a course (Purchase flow bypass for now/free)
+// POST /:id/enroll - Enroll in a course
 app.openapi(createRoute({
     method: 'post',
     path: '/{id}/enroll',
@@ -254,32 +248,30 @@ app.openapi(createRoute({
     }
 }), async (c) => {
     const tenant = c.get('tenant');
-    const me = c.get('member'); // Assumes middleware populated this
+    const me = c.get('member') as any;
     const { id } = c.req.valid('param');
     const db = createDb(c.env.DB);
 
-    const course = await db.select().from(courses)
+    const course = await db.select({ id: courses.id }).from(courses)
         .where(and(eq(courses.id, id), eq(courses.tenantId, tenant.id)))
         .get();
 
     if (!course) return c.json({ error: 'Course not found' }, 404);
 
-    // Create enrollment
     await db.insert(courseEnrollments).values({
         id: crypto.randomUUID(),
-        tenantId: tenant.id,
         courseId: id,
         userId: me.userId,
+        tenantId: tenant.id,
         status: 'active',
         progress: 0,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        enrolledAt: new Date(),
     }).run();
 
     return c.json({ success: true });
 });
 
-// POST /progress - Update course progress
+// POST /:id/progress - Update course progress
 app.openapi(createRoute({
     method: 'post',
     path: '/{id}/progress',
@@ -294,22 +286,26 @@ app.openapi(createRoute({
         404: { description: 'Enrollment not found' }
     }
 }), async (c) => {
-    const me = c.get('member');
+    const me = c.get('member') as any;
     const { id } = c.req.valid('param');
     const { progress } = c.req.valid('json');
     const db = createDb(c.env.DB);
 
-    const res = await db.update(courseEnrollments)
+    const enrollment = await db.select({ id: courseEnrollments.id }).from(courseEnrollments)
+        .where(and(eq(courseEnrollments.courseId, id), eq(courseEnrollments.userId, me.userId)))
+        .get();
+
+    if (!enrollment) return c.json({ error: 'Enrollment not found' }, 404);
+
+    await db.update(courseEnrollments)
         .set({
             progress,
-            updatedAt: new Date(),
             completedAt: progress === 100 ? new Date() : null,
             status: progress === 100 ? 'completed' : 'active'
         })
-        .where(and(eq(courseEnrollments.courseId, id), eq(courseEnrollments.userId, me.userId)))
+        .where(eq(courseEnrollments.id, enrollment.id))
         .run();
 
-    if (res.rowsAffected === 0) return c.json({ error: 'Enrollment not found' }, 404);
     return c.json({ success: true });
 });
 

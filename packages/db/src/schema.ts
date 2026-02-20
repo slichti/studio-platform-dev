@@ -1205,7 +1205,7 @@ export const videoCollections = sqliteTable('video_collections', {
     title: text('title').notNull(),
     description: text('description'),
     slug: text('slug').notNull(), // for public URLs
-    courseId: text('course_id').references(() => courses.id), // Optional link to a course
+    // courseId omitted here to avoid circular reference; use courses.contentCollectionId instead
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
