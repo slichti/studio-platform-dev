@@ -1,4 +1,4 @@
-import { useParams, useOutletContext, useSearchParams, Link } from "react-router";
+import { useParams, useOutletContext, useSearchParams, Link, useNavigate } from "react-router";
 import { useState } from "react";
 import { Plus, BookOpen, Clock, Users, ChevronRight, GraduationCap, DollarSign, Globe } from "lucide-react";
 import { toast } from "sonner";
@@ -22,6 +22,7 @@ export default function CoursesPage() {
     const { getToken } = useAuth();
     const queryClient = useQueryClient();
     const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
 
     const isAdmin = roles?.includes('owner') || roles?.includes('admin') || roles?.includes('instructor');
     const statusFilter = searchParams.get("status") || "active";
@@ -30,9 +31,12 @@ export default function CoursesPage() {
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-    const handleCreateSuccess = () => {
+    const handleCreateSuccess = (courseId?: string) => {
         queryClient.invalidateQueries({ queryKey: ['courses', slug] });
         setIsCreateOpen(false);
+        if (courseId) {
+            navigate(`/studio/${slug}/courses/${courseId}`);
+        }
     };
 
     return (
@@ -140,7 +144,7 @@ export default function CoursesPage() {
     );
 }
 
-function CreateCourseModal({ isOpen, onClose, onSuccess }: { isOpen: boolean, onClose: () => void, onSuccess: () => void }) {
+function CreateCourseModal({ isOpen, onClose, onSuccess }: { isOpen: boolean, onClose: () => void, onSuccess: (id?: string) => void }) {
     const { getToken } = useAuth();
     const { slug } = useParams();
     const [loading, setLoading] = useState(false);
@@ -149,7 +153,9 @@ function CreateCourseModal({ isOpen, onClose, onSuccess }: { isOpen: boolean, on
         description: "",
         price: "0",
         isPublic: true,
-        status: 'draft' as const
+        status: 'draft' as const,
+        deliveryMode: 'self_paced',
+        cohortStartDate: ''
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -162,14 +168,17 @@ function CreateCourseModal({ isOpen, onClose, onSuccess }: { isOpen: boolean, on
                 headers: { 'X-Tenant-Slug': slug! },
                 body: JSON.stringify({
                     ...formData,
-                    price: Math.round(parseFloat(formData.price) * 100)
+                    price: Math.round(parseFloat(formData.price) * 100),
+                    cohortStartDate: formData.deliveryMode === 'cohort' && formData.cohortStartDate
+                        ? new Date(formData.cohortStartDate).toISOString()
+                        : null
                 })
             });
 
             if (res.error) toast.error(res.error);
             else {
                 toast.success("Course created! Redirecting to curriculum builder...");
-                onSuccess();
+                onSuccess(res.id);
             }
         } catch (e: any) {
             toast.error(e.message || "Failed to create course");
@@ -226,6 +235,54 @@ function CreateCourseModal({ isOpen, onClose, onSuccess }: { isOpen: boolean, on
                             <option value="active">Active (Visible)</option>
                         </select>
                     </div>
+                </div>
+
+                <div className="space-y-3 p-3 bg-zinc-50 dark:bg-zinc-800/30 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                    <label className="text-sm font-semibold flex items-center gap-2">
+                        Delivery Mode
+                    </label>
+                    <div className="flex gap-4">
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                            <input
+                                type="radio"
+                                name="deliveryMode"
+                                value="self_paced"
+                                checked={formData.deliveryMode === 'self_paced'}
+                                onChange={e => setFormData({ ...formData, deliveryMode: e.target.value })}
+                                className="text-blue-600 focus:ring-blue-500"
+                            />
+                            Self-Paced
+                        </label>
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                            <input
+                                type="radio"
+                                name="deliveryMode"
+                                value="cohort"
+                                checked={formData.deliveryMode === 'cohort'}
+                                onChange={e => setFormData({ ...formData, deliveryMode: e.target.value })}
+                                className="text-blue-600 focus:ring-blue-500"
+                            />
+                            Scheduled / Cohort
+                        </label>
+                    </div>
+
+                    {formData.deliveryMode === 'cohort' && (
+                        <div className="pt-2">
+                            <label className="text-xs font-semibold text-zinc-500 block mb-1">
+                                Course Start Date
+                            </label>
+                            <input
+                                type="date"
+                                required={formData.deliveryMode === 'cohort'}
+                                className="w-full px-3 py-2 text-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-md outline-none focus:ring-2 focus:ring-blue-500"
+                                value={formData.cohortStartDate}
+                                onChange={e => setFormData({ ...formData, cohortStartDate: e.target.value })}
+                            />
+                            <p className="text-[10px] text-zinc-500 mt-1">
+                                Students can enroll now but curriculum won't unlock until this date.
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex items-center gap-2 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-100 dark:border-zinc-800">
