@@ -4,7 +4,7 @@ import { createOpenAPIApp } from '../lib/openapi';
 import { tenants } from '@studio/db/src/schema';
 import { createDb } from '../db';
 import { eq } from 'drizzle-orm';
-import { EmailService } from '../services/email';
+import { CloudflareService } from '../services/cloudflare';
 import { StudioVariables } from '../types';
 
 const app = createOpenAPIApp<StudioVariables>();
@@ -13,7 +13,7 @@ const app = createOpenAPIApp<StudioVariables>();
 
 const DomainSchema = z.object({
     domain: z.string().min(4),
-    status: z.enum(['active', 'pending', 'failed', 'not_started', 'temporary_failure', 'validation_failed']).optional(),
+    status: z.enum(['active', 'pending', 'failed', 'not_started', 'temporary_failure', 'validation_failed', 'active']).optional(), // active is confirmed
     dns_records: z.array(z.object({
         record: z.string().optional(),
         name: z.string().optional(),
@@ -22,8 +22,8 @@ const DomainSchema = z.object({
         status: z.string().optional(),
         value: z.string().optional(),
         priority: z.number().optional(),
-        txt_name: z.string().optional(), // Compatibility with frontend
-        txt_value: z.string().optional() // Compatibility with frontend
+        txt_name: z.string().optional(),
+        txt_value: z.string().optional()
     })).optional()
 }).openapi('Domain');
 
@@ -47,26 +47,13 @@ app.openapi(createRoute({
     const tenant = c.get('tenant');
     if (!tenant.customDomain) return c.json({ error: 'No domain connected' } as any, 404);
 
-    const emailService = new EmailService(
-        (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY as string
+    const cloudflare = new CloudflareService(
+        c.env.CLOUDFLARE_ACCOUNT_ID,
+        c.env.CLOUDFLARE_API_TOKEN
     );
 
     try {
-        // List domains to find ours (Resend doesn't allow get by name directly easily without ID)
-        const domains = await emailService.resendClient.domains.list();
-        const domainSummary = domains.data?.data.find(d => d.name === tenant.customDomain);
-
-        if (!domainSummary) {
-            return c.json({
-                domain: tenant.customDomain,
-                status: 'pending',
-                dns_records: []
-            });
-        }
-
-        // Fetch full details including records
-        const details = await emailService.resendClient.domains.get(domainSummary.id);
-        const domainData = details.data;
+        const domainData = await cloudflare.getDomain(tenant.customDomain);
 
         if (!domainData) {
             return c.json({
@@ -76,25 +63,15 @@ app.openapi(createRoute({
             });
         }
 
-        // Map Resend records to frontend expectation
-        // Resend returns: records: [{ record: 'SPF', name: '...', value: '...', type: 'TXT', ... }]
-        // Frontend expects: txt_name, txt_value for logic
-        // We'll pass through the Resend records and also map standard ones
-        const records = domainData.records?.map((r: any) => ({
-            ...r,
-            // shim for frontend compat if needed, mainly for verification instructions
-            txt_name: r.name,
-            txt_value: r.value
-        })) || [];
-
+        // Map Cloudflare status to our internal enum
+        // Cloudflare statuses: active, pending, temporary_failure, etc.
         return c.json({
             domain: domainData.name,
             status: domainData.status,
-            dns_records: records
+            dns_records: [] // Pages doesn't return specific records here usually, CNAME is standard
         } as any);
     } catch (e: any) {
-        console.error("Failed to fetch domain from Resend", e);
-        // Fallback if API fails
+        console.error("Failed to fetch domain from Cloudflare", e);
         return c.json({
             domain: tenant.customDomain,
             status: 'pending',
@@ -119,6 +96,8 @@ app.openapi(createRoute({
     }
 }), async (c) => {
     const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant not found" } as any, 404);
+
     const { domain } = c.req.valid('json');
 
     // Verify Tier (Scale only)
@@ -130,32 +109,20 @@ app.openapi(createRoute({
     }
 
     const db = createDb(c.env.DB);
-    const emailService = new EmailService(
-        (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY as string
+    const cloudflare = new CloudflareService(
+        c.env.CLOUDFLARE_ACCOUNT_ID,
+        c.env.CLOUDFLARE_API_TOKEN
     );
 
     try {
-        const res = await emailService.resendClient.domains.create({ name: domain });
-
-        if (res.error) {
-            return c.json({ error: res.error.message } as any, 400);
-        }
-
-        const domainData = res.data!;
+        const domainData = await cloudflare.addDomain(domain);
 
         await db.update(tenants).set({ customDomain: domain }).where(eq(tenants.id, tenant.id)).run();
-
-        // Create returns details with records typically
-        const records = domainData.records?.map((r: any) => ({
-            ...r,
-            txt_name: r.name,
-            txt_value: r.value
-        })) || [];
 
         return c.json({
             domain: domainData.name,
             status: domainData.status,
-            dns_records: records
+            dns_records: []
         } as any);
 
     } catch (e: any) {
@@ -178,57 +145,51 @@ app.openapi(createRoute({
 
     if (!tenant.customDomain) return c.json({ success: true });
 
-    const emailService = new EmailService(
-        (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY as string
+    const cloudflare = new CloudflareService(
+        c.env.CLOUDFLARE_ACCOUNT_ID,
+        c.env.CLOUDFLARE_API_TOKEN
     );
 
     try {
-        // Needed ID to delete
-        const list = await emailService.resendClient.domains.list();
-        const d = list.data?.data.find(i => i.name === tenant.customDomain);
-
-        if (d) {
-            await emailService.resendClient.domains.remove(d.id);
-        }
+        await cloudflare.deleteDomain(tenant.customDomain);
     } catch (e) {
-        console.error("Failed to delete domain from Resend", e);
-        // Proceed to clear from DB anyway
+        console.error("Failed to delete domain from Cloudflare", e);
     }
 
     await db.update(tenants).set({ customDomain: null }).where(eq(tenants.id, tenant.id)).run();
     return c.json({ success: true });
 });
 
-// POST /domain/verify - Trigger Verification
+// POST /domain/verify - Trigger Verification (Refreshes status)
 app.openapi(createRoute({
     method: 'post',
     path: '/verify',
     tags: ['Tenant'],
     summary: 'Verify custom domain',
     responses: {
-        200: { content: { 'application/json': { schema: z.object({ success: z.boolean(), message: z.string().optional() }) } }, description: 'Verification triggered' },
+        200: { content: { 'application/json': { schema: z.object({ success: z.boolean(), message: z.string().optional() }) } }, description: 'Verification refreshed' },
         404: { description: 'Domain not found' }
     }
 }), async (c) => {
     const tenant = c.get('tenant');
     if (!tenant.customDomain) return c.json({ error: "No domain configured" } as any, 400);
 
-    const emailService = new EmailService(
-        (tenant.resendCredentials as any)?.apiKey || c.env.RESEND_API_KEY as string
+    const cloudflare = new CloudflareService(
+        c.env.CLOUDFLARE_ACCOUNT_ID,
+        c.env.CLOUDFLARE_API_TOKEN
     );
 
     try {
-        const list = await emailService.resendClient.domains.list();
-        const d = list.data?.data.find(i => i.name === tenant.customDomain);
-
+        const d = await cloudflare.getDomain(tenant.customDomain);
         if (!d) return c.json({ error: "Domain not found in provider" } as any, 404);
 
-        await emailService.resendClient.domains.verify(d.id);
-
-        return c.json({ success: true, message: "Verification triggered" });
+        // Pages auto-verifies once CNAME is detected, so "verify" is just a status check
+        return c.json({ success: true, message: `Status is currently: ${d.status}` });
     } catch (e: any) {
         return c.json({ error: e.message } as any, 500);
     }
 });
+
+export default app;
 
 export default app;
