@@ -202,7 +202,6 @@ app.openapi(createRoute({
                 title: videos.title,
                 cloudflareStreamId: videos.cloudflareStreamId,
                 r2Key: videos.r2Key,
-                thumbnailUrl: videos.thumbnailUrl,
                 duration: videos.duration,
             }).from(videos).where(eq(videos.id, item.videoId)).get();
         }
@@ -248,8 +247,13 @@ app.openapi(createRoute({
 
     if (!existing) return c.json({ error: 'Course not found' }, 404);
 
-    const updateData = { ...body, updatedAt: new Date() };
-    await db.update(courses).set(updateData).where(eq(courses.id, id)).run();
+    const updateData: Record<string, any> = {
+        ...body,
+        updatedAt: new Date(),
+        // Coerce string cohortStartDate from JSON to Date for drizzle
+        ...(body.cohortStartDate !== undefined ? { cohortStartDate: body.cohortStartDate ? new Date(body.cohortStartDate) : null } : {}),
+    };
+    await db.update(courses).set(updateData as any).where(eq(courses.id, id)).run();
 
     return c.json({ ...existing, ...updateData });
 });
@@ -577,7 +581,10 @@ app.openapi(createRoute({
     tags: ['Courses'],
     summary: 'List course modules',
     request: { params: z.object({ id: z.string() }) },
-    responses: { 200: { description: 'Modules list', content: { 'application/json': { schema: z.array(z.any()) } } } }
+    responses: {
+        200: { description: 'Modules list', content: { 'application/json': { schema: z.array(z.any()) } } },
+        404: { description: 'Course not found' }
+    }
 }), async (c) => {
     const tenant = c.get('tenant');
     const { id } = c.req.valid('param');
@@ -605,7 +612,10 @@ app.openapi(createRoute({
         params: z.object({ id: z.string() }),
         body: { content: { 'application/json': { schema: z.object({ title: z.string(), description: z.string().optional(), order: z.number().optional() }) } } }
     },
-    responses: { 201: { description: 'Module created', content: { 'application/json': { schema: z.any() } } } }
+    responses: {
+        201: { description: 'Module created', content: { 'application/json': { schema: z.any() } } },
+        404: { description: 'Course not found' }
+    }
 }), async (c) => {
     const tenant = c.get('tenant');
     const { id } = c.req.valid('param');
@@ -849,7 +859,11 @@ app.openapi(createRoute({
             }
         }
     },
-    responses: { 201: { description: 'Code created', content: { 'application/json': { schema: z.any() } } } }
+    responses: {
+        201: { description: 'Code created', content: { 'application/json': { schema: z.any() } } },
+        403: { description: 'Forbidden' },
+        404: { description: 'Course not found' }
+    }
 }), async (c) => {
     const tenant = c.get('tenant');
     const can = c.get('can') as any;
