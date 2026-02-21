@@ -23,37 +23,20 @@ import { useSearchParams } from "react-router";
 const ClassesPage = lazy(() => import("~/components/routes/ClassesPage"));
 
 
-export default function StudioSchedule() {
-    const { slug } = useParams();
+function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tenant, coursesData, me }: any) {
     const queryClient = useQueryClient();
-    const [searchParams, setSearchParams] = useSearchParams();
-    const viewMode = searchParams.get('view') || 'calendar';
-
-    // Context & Hooks
-    const { tenant, me, features, roles, isStudentView } = useOutletContext<any>() || {};
     const canSchedule = !isStudentView && (roles?.includes('owner') || roles?.includes('instructor'));
-
-    if (viewMode === 'list') {
-        return (
-            <ClientOnly fallback={<div className="p-8">Loading Schedule...</div>}>
-                <Suspense fallback={<div className="p-8">Loading Schedule...</div>}>
-                    <div className="p-6">
-                        <ClassesPage />
-                    </div>
-                </Suspense>
-            </ClientOnly>
-        );
-    }
+    const [searchParams, setSearchParams] = useSearchParams();
 
     // Data Fetching
     const { data: classesData = [], isLoading: isLoadingClasses, error } = useClasses(slug!);
     const { data: studioData } = useStudioData(slug!);
     const { data: userData } = useUser(slug);
-    const { data: coursesData = [] } = useCourses(slug!, { status: 'active' });
 
     const family = userData?.family || [];
     const locations = studioData?.locations || [];
     const instructors = studioData?.instructors || [];
+
 
     // Local State
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -182,5 +165,40 @@ export default function StudioSchedule() {
                 family={family}
             />
         </div>
+    );
+}
+
+export default function StudioSchedule() {
+    const { slug } = useParams();
+    const [searchParams] = useSearchParams();
+    const viewMode = searchParams.get('view') || 'calendar';
+
+    // Context & Hooks
+    const { tenant, me, features, roles, isStudentView } = useOutletContext<any>() || {};
+
+    const { data: coursesData = [] } = useCourses(slug!, { status: 'active' });
+
+    if (viewMode === 'list') {
+        return (
+            <ClientOnly fallback={<div className="p-8">Loading Schedule...</div>}>
+                <Suspense fallback={<div className="p-8">Loading Schedule...</div>}>
+                    <div className="max-w-[1400px] w-full mx-auto p-4 sm:p-6 lg:p-8">
+                        <ClassesPage />
+                    </div>
+                </Suspense>
+            </ClientOnly>
+        );
+    }
+
+    return (
+        <StudioScheduleCalendarView
+            slug={slug}
+            isStudentView={isStudentView}
+            roles={roles}
+            features={features}
+            tenant={tenant}
+            coursesData={coursesData}
+            me={me}
+        />
     );
 }

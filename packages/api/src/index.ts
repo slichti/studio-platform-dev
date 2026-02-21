@@ -351,6 +351,17 @@ authenticatedPaths.forEach(path => {
       }
       return authMiddleware(c, next);
     });
+  } else if (path === '/courses' || path === '/courses/*') {
+    app.use(path, async (c, next) => {
+      // Allow public GET for courses list and single course details
+      // But /courses/my-enrollments must be authenticated
+      const isPublicCourse = c.req.method === 'GET' && !c.req.path.includes('/my-enrollments');
+
+      if (isPublicCourse) {
+        return optionalAuthMiddleware(c, next);
+      }
+      return authMiddleware(c, next);
+    });
   } else {
     app.use(path, authMiddleware);
   }
