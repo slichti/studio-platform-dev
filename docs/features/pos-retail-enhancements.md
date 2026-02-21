@@ -49,6 +49,10 @@ Studio Platform's Point of Sale and Retail capabilities have been enhanced using
 
 All Stripe operations use the tenant's `stripeAccountId` (Stripe Connect). Each tenant has isolated products, customers, and transactions on their connected account.
 
+## Stripe API Version
+
+All Stripe SDK usage in the API uses `apiVersion: '2026-01-28.clover'` to match the [current Stripe API](https://docs.stripe.com/api/versioning). Webhook endpoints should be created with the same version.
+
 ## Related Routes (existing)
 
 - `POST /pos/orders` – now accepts `stripePaymentIntentId`, `couponCode`

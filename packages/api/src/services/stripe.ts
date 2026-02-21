@@ -5,7 +5,7 @@ export class StripeService {
 
     constructor(apiKey: string) {
         this.stripe = new Stripe(apiKey, {
-            apiVersion: '2025-12-15.clover' as any, // Silence TS error for beta version
+            apiVersion: '2026-01-28.clover' as any
         });
     }
 
@@ -37,7 +37,7 @@ export class StripeService {
     private getClient(accountIdOrKey: string) {
         if (accountIdOrKey.startsWith('sk_') || accountIdOrKey.startsWith('rk_')) {
             return {
-                client: new Stripe(accountIdOrKey, { apiVersion: '2025-12-15.clover' as any }),
+                client: new Stripe(accountIdOrKey, { apiVersion: '2026-01-28.clover' as any }),
                 options: {}
             };
         }

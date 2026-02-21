@@ -153,7 +153,7 @@ app.post('/process-payment', async (c) => {
     if (!c.env.STRIPE_SECRET_KEY) return c.json({ error: "Misconfigured" }, 500);
 
     const { default: Stripe } = await import('stripe');
-    const stripe = new Stripe(c.env.STRIPE_SECRET_KEY, { apiVersion: '2025-10-16' as any });
+    const stripe = new Stripe(c.env.STRIPE_SECRET_KEY, { apiVersion: '2026-01-28.clover' as any });
 
     const options: any = {};
     if (tenant.stripeAccountId) options.stripeAccount = tenant.stripeAccountId;
@@ -331,7 +331,7 @@ app.get('/transactions', async (c) => {
 
     const { limit = 50, starting_after, created_after } = c.req.query();
     const { default: Stripe } = await import('stripe');
-    const stripe = new Stripe(c.env.STRIPE_SECRET_KEY, { apiVersion: '2025-12-15.clover' as any });
+    const stripe = new Stripe(c.env.STRIPE_SECRET_KEY, { apiVersion: '2026-01-28.clover' as any });
     const options = { stripeAccount: tenant.stripeAccountId };
 
     try {
@@ -433,7 +433,7 @@ app.post('/refund', async (c) => {
 
     try {
         const { default: Stripe } = await import('stripe');
-        const stripeClient = new Stripe(c.env.STRIPE_SECRET_KEY, { apiVersion: '2025-12-15.clover' as any });
+        const stripeClient = new Stripe(c.env.STRIPE_SECRET_KEY, { apiVersion: '2026-01-28.clover' as any });
         const pi = await stripeClient.paymentIntents.retrieve(paymentIntentId, { stripeAccount: tenant.stripeAccountId });
         if (pi.status !== 'succeeded') return c.json({ error: "Payment must be succeeded to refund" }, 400);
 

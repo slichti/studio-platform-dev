@@ -126,7 +126,7 @@ app.post('/stripe', async (c) => {
     if (!sig || !secret || !c.env.STRIPE_SECRET_KEY) throw new AppError('Server configuration missing for Stripe', 500, 'MISSING_SECRET');
 
     const { Stripe } = await import('stripe');
-    const stripe = new Stripe(c.env.STRIPE_SECRET_KEY as string, { apiVersion: '2025-12-15.clover' as any });
+    const stripe = new Stripe(c.env.STRIPE_SECRET_KEY as string, { apiVersion: '2026-01-28.clover' as any });
     let event;
     try {
         event = stripe.webhooks.constructEvent(await c.req.text(), sig, secret);
