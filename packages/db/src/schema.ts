@@ -349,7 +349,7 @@ export const classes = sqliteTable('classes', {
     payrollModel: text('payroll_model', { enum: ['flat', 'percentage', 'hourly'] }), // Null = use Instructor Default
     payrollValue: integer('payroll_value'), // Rate in cents or Basis Points (5000 = 50%)
 
-    type: text('type', { enum: ['class', 'workshop', 'event', 'appointment'] }).default('class').notNull(),
+    type: text('type', { enum: ['class', 'workshop', 'event', 'appointment', 'course'] }).default('class').notNull(),
     allowCredits: integer('allow_credits', { mode: 'boolean' }).default(true).notNull(), // Can pay with credits?
     includedPlanIds: text('included_plan_ids', { mode: 'json' }), // JSON Array of Plan IDs that get this free
     zoomMeetingUrl: text('zoom_meeting_url'),
@@ -1230,6 +1230,7 @@ export const courses = sqliteTable('courses', {
     // H3: Cohort mode (self_paced = individual start date; cohort = shared start date)
     deliveryMode: text('delivery_mode', { enum: ['self_paced', 'cohort'] }).default('self_paced').notNull(),
     cohortStartDate: integer('cohort_start_date', { mode: 'timestamp' }),
+    cohortEndDate: integer('cohort_end_date', { mode: 'timestamp' }),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({

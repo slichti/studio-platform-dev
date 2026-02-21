@@ -37,6 +37,7 @@ const CreateCourseSchema = z.object({
     // H3: Cohort mode
     deliveryMode: z.enum(['self_paced', 'cohort']).default('self_paced'),
     cohortStartDate: z.string().datetime().optional().nullable(),
+    cohortEndDate: z.string().datetime().optional().nullable(),
     prerequisiteIds: z.array(z.string()).optional(),
 }).openapi('CreateCourse');
 
@@ -153,6 +154,9 @@ app.openapi(createRoute({
         status: body.status,
         isPublic: body.isPublic,
         contentCollectionId: body.contentCollectionId ?? null,
+        deliveryMode: body.deliveryMode,
+        cohortStartDate: body.cohortStartDate ? new Date(body.cohortStartDate) : null,
+        cohortEndDate: body.cohortEndDate ? new Date(body.cohortEndDate) : null,
         createdAt: new Date(),
         updatedAt: new Date()
     };
@@ -284,6 +288,7 @@ app.openapi(createRoute({
         updatedAt: new Date(),
         // Coerce string cohortStartDate from JSON to Date for drizzle
         ...(body.cohortStartDate !== undefined ? { cohortStartDate: body.cohortStartDate ? new Date(body.cohortStartDate) : null } : {}),
+        ...(body.cohortEndDate !== undefined ? { cohortEndDate: body.cohortEndDate ? new Date(body.cohortEndDate) : null } : {}),
     };
     await db.update(courses).set(updateData as any).where(eq(courses.id, id)).run();
 

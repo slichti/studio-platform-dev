@@ -202,11 +202,14 @@ export default function CourseEditorPage() {
     const [curriculum, setCurriculum] = useState<any[]>([]);
     const [addModal, setAddModal] = useState<'video' | 'quiz' | null>(null);
 
-    // Analytics (C4)
+    // Analytics (C4) — use getToken() fallback to avoid 401 when contextToken is briefly undefined
     const { data: analytics } = useQuery({
-        queryKey: ['course-analytics', slug, id],
-        queryFn: () => apiRequest(`/courses/${id}/analytics`, contextToken, { headers: { 'X-Tenant-Slug': slug! } }),
-        enabled: !!id && !!slug && !!contextToken,
+        queryKey: ['course-analytics', slug, id, contextToken],
+        queryFn: async () => {
+            const token = contextToken || await getToken();
+            return apiRequest(`/courses/${id}/analytics`, token, { headers: { 'X-Tenant-Slug': slug! } });
+        },
+        enabled: !!id && !!slug,
         refetchInterval: 60000
     });
 
@@ -225,6 +228,7 @@ export default function CourseEditorPage() {
                 memberPrice: course.memberPrice,
                 deliveryMode: course.deliveryMode || 'self_paced',
                 cohortStartDate: course.cohortStartDate,
+                cohortEndDate: course.cohortEndDate,
                 prerequisiteIds: course.prerequisiteIds || []
             });
             setCurriculum(course.curriculum || []);
@@ -540,15 +544,26 @@ export default function CourseEditorPage() {
                                     ))}
                                 </div>
                                 {formData.deliveryMode === 'cohort' && (
-                                    <div className="space-y-1 pt-1">
-                                        <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Cohort Start Date</label>
-                                        <input
-                                            type="datetime-local"
-                                            className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                                            value={formData.cohortStartDate ? new Date(formData.cohortStartDate).toISOString().slice(0, 16) : ''}
-                                            onChange={e => handleFieldChange('cohortStartDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
-                                        />
-                                        <p className="text-xs text-zinc-400">In cohort mode, all students start drip content on this date.</p>
+                                    <div className="grid grid-cols-2 gap-4 pt-1">
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Cohort Start Date</label>
+                                            <input
+                                                type="datetime-local"
+                                                className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                                value={formData.cohortStartDate ? new Date(formData.cohortStartDate).toISOString().slice(0, 16) : ''}
+                                                onChange={e => handleFieldChange('cohortStartDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Cohort End Date (Optional)</label>
+                                            <input
+                                                type="datetime-local"
+                                                className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                                value={formData.cohortEndDate ? new Date(formData.cohortEndDate).toISOString().slice(0, 16) : ''}
+                                                onChange={e => handleFieldChange('cohortEndDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
+                                            />
+                                        </div>
+                                        <p className="text-xs text-zinc-400 col-span-2">In cohort mode, students start drip content on the start date. End date is for reference (e.g. academic term).</p>
                                     </div>
                                 )}
                             </div>

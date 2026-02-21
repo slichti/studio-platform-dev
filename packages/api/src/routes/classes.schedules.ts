@@ -27,6 +27,7 @@ const ClassSchema = z.object({
     locationId: z.string().nullable().optional(),
     zoomEnabled: z.boolean(),
     status: z.string(),
+    type: z.enum(['class', 'workshop', 'event', 'appointment', 'course']).default('class'),
     // Payroll (Phase 7)
     payrollModel: z.enum(['flat', 'percentage', 'hourly']).optional().nullable(),
     payrollValue: z.number().optional().nullable(),
@@ -61,7 +62,7 @@ const CreateClassSchema = z.object({
     capacity: z.coerce.number().optional(),
     price: z.coerce.number().optional(),
     memberPrice: z.coerce.number().optional().nullable(),
-    type: z.enum(['class', 'workshop', 'event', 'appointment']).default('class'),
+    type: z.enum(['class', 'workshop', 'event', 'appointment', 'course']).default('class'),
     minStudents: z.coerce.number().default(1),
     autoCancelThreshold: z.coerce.number().optional(),
     autoCancelEnabled: z.boolean().optional(),
