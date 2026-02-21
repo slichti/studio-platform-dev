@@ -50,6 +50,10 @@ Built on top of the **Cloudflare Edge Network** for sub-50ms latency globally.
 - **LMS Upgrades**: Redesigned the Course Builder and Student Player for a premium, responsive experience.
 - **Unified Roster**: Launched the centralized enrollment management view at `/studio/:slug/roster`.
 - **UX Refinement**: Replaced native browser date pickers with a custom **Discrete 3-Column Time Picker** enforcing 5-minute increments across all scheduling forms.
+- **Dependency Refresh**: All packages updated to latest stable versions. Stripe SDK upgraded to v20 (API `2026-01-28.clover`). Wrangler at v4. Web migrated to ESLint 10 flat config.
+- **POS/Retail Enhancements**: Stripe PaymentIntent ID persisted on orders for terminal refunds; transaction history endpoint (`GET /pos/transactions`) with refund status; customer update (`PUT /pos/customers/:id`); refund-by-PaymentIntent (`POST /pos/refund`); product price changes create new Stripe Price objects. All calls include `X-Tenant-Slug` for tenant resolution.
+- **Security Hardening**: Sanitized Stripe search query injection; replaced raw SQL `IN` with `inArray()`; added DOMPurify to all `dangerouslySetInnerHTML` renders; removed debug auth logging; restricted CORS `allowHeaders`; narrowed root health endpoint; added gym_id format validation in Gympass webhook.
+- **Performance Improvements**: Eliminated N+1 queries in courses route (5 parallel batch queries + in-memory maps); reduced tenant middleware from 3 sequential DB round-trips to 2 via Drizzle relations.
 
 ## Design Philosophy
 - **Performance First**: Extensive use of `D1.batch()` and SARGable queries to ensure edge speed.

@@ -34,6 +34,16 @@ The API is optimized for low-latency execution on Cloudflare Workers:
 *   **Concurrency**: Average request duration under load (20 VUs) is **~16ms** with a **p(95) of ~37ms**.
 *   **Optimized Queries**: Conflict detection and activity lookups use index-friendly range filters and aggregations to avoid N+1 bottlenecks.
 *   **Chunked Fetching**: Mandatory `limit` and `offset` pagination on list endpoints to ensure consistent performance.
+*   **Course Curriculum**: Batch-fetches all referenced content (videos, quizzes, articles, assignments, resources) in 5 parallel `inArray()` queries rather than one query per item.
+*   **Tenant Middleware**: Member and roles loaded in a single Drizzle relation query, saving one DB round-trip per authenticated request.
+
+## Security
+
+*   **Stripe API Version**: `2026-01-28.clover` (latest) — set consistently across all SDK initializations.
+*   **Input Sanitization**: Stripe customer search queries are sanitized before interpolation. Webhook payloads validated for format before DB lookup.
+*   **Safe SQL**: Array-based deletes use Drizzle `inArray()` — no raw SQL template interpolation.
+*   **CORS**: `allowHeaders` restricted to explicit list (no wildcard).
+*   **Health Endpoint**: `GET /` returns only `{ status: 'OK' }` — no environment variable disclosure.
 
 ## Testing & Stability
 

@@ -18,3 +18,16 @@ Some dependencies are pinned or capped to avoid breaking the build. Do not upgra
 
 - **Constraint:** Use flat config only. ESLint 10 removed legacy `.eslintrc` support.
 - **Config:** `apps/web/eslint.config.js` (ignores in config; no `.eslintignore`).
+
+## Stripe API Version
+
+- **Pinned version:** `2026-01-28.clover` in all SDK initializations across `packages/api`.
+- **Reason:** `stripe-node v12+` pins TypeScript types to the API version specified at initialization. Mismatched versions cause TS type errors.
+- **Files:** `src/services/stripe.ts`, `src/routes/pos.ts`, `src/routes/webhooks.ts`.
+- **When upgrading:** Also update webhook endpoints in Stripe Dashboard to match (`2026-01-28.clover`).
+
+## npm Audit (dev-only vulnerabilities)
+
+- **Status:** 43 high/moderate vulnerabilities in dev/build tools (`expo`, `jest`, `eslint-plugin-react`, `drizzle-kit`, `@typescript-eslint/*`).
+- **Risk:** None of these packages are included in the Cloudflare Worker runtime bundle.
+- **Fix:** All require `--force` (major breaking version upgrades). Do not auto-apply. Resolve manually when upgrading those packages in a dedicated upgrade branch.

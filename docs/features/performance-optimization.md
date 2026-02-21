@@ -18,11 +18,27 @@ Constraint-based lookups (like instructor or room availability) use **SARGable**
 - **Service**: `ConflictService`
 - **Technique**: Adding `lt(startTime, endTime)` and `gt(startTime, earliestStart)` filters to leverage indexes before calculating precise overlaps.
 
-### 3. N+1 Query Elimination in Automations
+### 3. N+1 Query Elimination
+
+#### Automations
 Background processing for "Win-back" or "Absent" automations avoids the N+1 pattern by using aggregated queries.
 
-- **Old way**: Loop through all members -> For each member, query their latest booking.
+- **Old way**: Loop through all members → For each member, query their latest booking.
 - **Optimized way**: Single query using `MAX(checkedInAt)` and `GROUP BY member_id` to fetch the latest activity for all candidates at once.
+
+#### Course Curriculum Enrichment (`GET /courses/:id`)
+Previously, each curriculum item required 4–5 sequential DB queries (video, quiz, article, assignment, resources).
+
+- **Old way**: `Promise.all(items.map(item => { await db...video; await db...quiz; ... }))` — O(N×K) queries where N = items, K = content types.
+- **Optimized way**: 5 parallel batch queries using `inArray()` to fetch all referenced videos, quizzes, articles, assignments, and resources in one round-trip set. Results assembled into lookup maps and joined in-memory — O(1) per item.
+- **Impact**: For a 20-item curriculum, reduces ~100 queries to 5 parallel queries (~20× fewer round-trips).
+
+#### Tenant Middleware Member Resolution
+Previously, fetching member + roles required 2 sequential queries per request.
+
+- **Old way**: `findFirst(tenantMembers)` → then `findMany(tenantRoles)`.
+- **Optimized way**: Single Drizzle relation query `with: { user: true, roles: true }` fetches member, user, and roles together.
+- **Impact**: Saves one DB round-trip on every authenticated request.
 
 ### 4. Mandatory Pagination
 All list-based endpoints (e.g., `GET /classes`, `GET /audit-logs`) enforce mandatory `limit` and `offset` parameters. This ensures that response sizes remain predictable as tenant data grows.
@@ -51,3 +67,5 @@ Heavy libraries are excluded from the main server-side bundle and main client bu
 | **Quota Check Latency** | 240ms | 45ms | **5.3x** |
 | **Class List (1000 items)** | 1.8s | 120ms | **15x** |
 | **Database Round-trips (Avg)** | 4 | 1.2 | **3.3x** |
+| **Course Curriculum (20 items)** | ~100 queries | 5 queries | **~20x** |
+| **Tenant Middleware Queries** | 3 sequential | 2 (relation join) | **1 round-trip saved per request** |

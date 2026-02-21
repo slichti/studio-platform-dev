@@ -123,6 +123,16 @@ flowchart TD
 *   **Tenant Isolation**:
     *   All queries are scoped by `tenantId` derived from the request hostname/header via strict middleware.
     *   **Automations**: Background triggers (e.g., `class_booked`) use explicit joins with the `classes` table to ensure bookings are only processed within the correct tenant scope.
+*   **Input Sanitization**:
+    *   Stripe customer search queries are sanitized (quotes and backslashes stripped) before interpolation to prevent search syntax injection.
+    *   All `dangerouslySetInnerHTML` renders (course articles, assignment instructions, website builder) pass content through `DOMPurify.sanitize()`.
+    *   Webhook `gym_id` fields are validated against a strict format regex before any DB lookup.
+*   **Safe DB Operations**:
+    *   All array-based `DELETE` operations use Drizzle's `inArray()` helper to ensure parameterized, type-safe queries.
+*   **CORS**:
+    *   `allowHeaders` is restricted to an explicit allowlist: `Authorization`, `Content-Type`, `X-Tenant-Slug`, `X-Request-Id`, `X-Impersonate-User`, and webhook signature headers.
+*   **Information Minimization**:
+    *   The root `/` health endpoint returns only `{ status: 'OK' }` — no environment variable presence disclosure.
 
 ### Platform Configuration
 The system uses a global `platform_config` table for system-wide toggles and version management.
@@ -278,7 +288,7 @@ erDiagram
 ## Performance & Optimization
 
 ### Database Efficiency & Scalability
-To maintain low latency on the edge, the API employs several database optimization strategies:
+To maintain low latency on the edge, the API employs several database optimization strategies. All version references below reflect the current pinned API version (`2026-01-28.clover`).
 
 ```mermaid
 sequenceDiagram
@@ -300,8 +310,9 @@ sequenceDiagram
 
 *   **Query Batching**: High-frequency checks (like Tenant Quotas) use `db.batch()` to consolidate multiple count/fetch operations into a single round-trip, reducing overhead by up to 80%.
 *   **SARGable Queries**: Overlap detection logic in `ConflictService` uses indexed range filters on `startTime` (indexed) to coarsely filter candidates before applying precise complex SQL duration math.
-*   **N+1 Elimination**: Background win-back automations use aggregated queries (`MAX`, `GROUP BY`) to fetch activity for all member candidates in a single operation rather than looping over members.
+*   **N+1 Elimination**: Background win-back automations use aggregated queries (`MAX`, `GROUP BY`) to fetch activity for all member candidates in a single operation rather than looping over members. Course curriculum enrichment uses 5 parallel batch queries + in-memory lookup maps, replacing per-item sequential queries.
 *   **Cursorless Pagination**: List endpoints (e.g., `/classes`) enforce mandatory `limit` and `offset` parameters to prevent performance degradation as tenant schedules grow.
+*   **Relation-based Member Loading**: Tenant middleware fetches member + roles in a single Drizzle `with: { roles: true }` relation query instead of 2 sequential queries, reducing per-request overhead.
 
 ### Server Bundle Optimization
 To adhere to the Cloudflare Worker 1MB bundle size limit, the application employs aggressive code splitting and lazy loading:
@@ -336,6 +347,12 @@ Instead of white-labeled binaries for each tenant, the system uses a **Single Pl
 *   **POS**:
     *   Retail interface for in-person sales.
     *   Stripe Terminal integration for card presence.
+    *   `stripePaymentIntentId` persisted on `pos_orders` to enable terminal refunds.
+    *   Transaction history via `GET /pos/transactions` with per-transaction refund status.
+    *   Customer update via `PUT /pos/customers/:id` (Stripe Connect).
+    *   Refund-by-PaymentIntent via `POST /pos/refund` (full or partial).
+    *   Product price changes create a new Stripe Price object (immutable price pattern).
+    *   All POS and Inventory API calls include `X-Tenant-Slug` for tenant resolution.
 
 ## Compliance & Data Minimization
 *   **Financial System of Record**: Stripe is treated as the sole system of record for financial data. The platform does **not** store sensitive cardholder data (PAN, CVV) or bank account numbers.
