@@ -110,7 +110,7 @@ ALTER TABLE `membership_plans` ADD COLUMN `stripe_product_id` text;
 --> statement-breakpoint
 ALTER TABLE `membership_plans` ADD COLUMN `stripe_price_id` text;
 --> statement-breakpoint
-ALTER TABLE `membership_plans` ADD COLUMN `updated_at` integer DEFAULT (strftime('%s', 'now'));
+ALTER TABLE `membership_plans` ADD COLUMN `updated_at` integer;
 --> statement-breakpoint
 ALTER TABLE `tenants` ADD COLUMN `is_test` integer DEFAULT 0 NOT NULL;
 --> statement-breakpoint
