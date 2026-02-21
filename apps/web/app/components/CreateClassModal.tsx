@@ -300,7 +300,23 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                             step="300"
                             className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
                             value={formData.startTime}
-                            onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                            onChange={(e) => {
+                                let val = e.target.value;
+                                if (val) {
+                                    const d = new Date(val);
+                                    const minutes = d.getMinutes();
+                                    const snapped = Math.round(minutes / 5) * 5;
+                                    d.setMinutes(snapped);
+
+                                    const year = d.getFullYear();
+                                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                                    const day = String(d.getDate()).padStart(2, '0');
+                                    const hours = String(d.getHours()).padStart(2, '0');
+                                    const mins = String(d.getMinutes()).padStart(2, '0');
+                                    val = `${year}-${month}-${day}T${hours}:${mins}`;
+                                }
+                                setFormData({ ...formData, startTime: val });
+                            }}
                         />
                     </div>
                     <div>

@@ -14,6 +14,7 @@ import { Button } from "~/components/ui/button";
 import { useClasses } from "~/hooks/useClasses";
 import { useUser } from "~/hooks/useUser";
 import { useStudioData } from "~/hooks/useStudioData";
+import { useCourses } from "~/hooks/useCourses";
 
 export default function StudioSchedule() {
     const { slug } = useParams();
@@ -27,6 +28,7 @@ export default function StudioSchedule() {
     const { data: classesData = [], isLoading: isLoadingClasses, error } = useClasses(slug!);
     const { data: studioData } = useStudioData(slug!);
     const { data: userData } = useUser(slug);
+    const { data: coursesData = [] } = useCourses(slug!, { status: 'active' });
 
     const family = userData?.family || [];
     const locations = studioData?.locations || [];
@@ -106,6 +108,7 @@ export default function StudioSchedule() {
                 tenantId={tenant?.id}
                 locations={locations}
                 instructors={instructors}
+                courses={coursesData}
             />
 
             <ClassDetailModal

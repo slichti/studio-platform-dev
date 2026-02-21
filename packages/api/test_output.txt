@@ -1,0 +1,156 @@
+
+> api@0.0.0 test:integration
+> vitest --config vitest.config.integration.ts --reporter=verbose
+
+
+ DEV  v3.2.4 /Users/slichti/GitHub/studio-platform-dev/packages/api
+
+Using vars defined in .dev.vars
+[vpw:debug] Adding `enable_nodejs_tty_module` compatibility flag during tests as this feature is needed to support the Vitest runner.
+[vpw:debug] Adding `enable_nodejs_fs_module` compatibility flag during tests as this feature is needed to support the Vitest runner.
+[vpw:debug] Adding `enable_nodejs_http_modules` compatibility flag during tests as this feature is needed to support the Vitest runner.
+[vpw:debug] Adding `enable_nodejs_perf_hooks_module` compatibility flag during tests as this feature is needed to support the Vitest runner.
+[vpw:info] Starting isolated runtimes for vitest.config.integration.ts...
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 106731793 10673191f 106701833 10672bfcc 104056318 104d860c8 106722ffc 10670d76c 1051b1caf 1051b2693 1051b4bbf 105199f3c 10519f36c 104406653 104405daf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 107639793 10763991f 107609833 107633fcc 104f5e318 105c8e0c8 10762affc 10761576c 1060b9caf 1060ba693 1060bcbbf 1060a1f3c 1060a736c 10530e653 10530ddaf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 1055b9793 1055b991f 105589833 1055b3fcc 102ede318 103c0e0c8 1055aaffc 10559576c 104039caf 10403a693 10403cbbf 104021f3c 10402736c 10328e653 10328ddaf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 104f9d793 104f9d91f 104f6d833 104f97fcc 1028c2318 1035f20c8 104f8effc 104f7976c 103a1dcaf 103a1e693 103a20bbf 103a05f3c 103a0b36c 102c72653 102c71daf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 104919793 10491991f 1048e9833 104913fcc 10223e318 102f6e0c8 10490affc 1048f576c 103399caf 10339a693 10339cbbf 103381f3c 10338736c 1025ee653 1025eddaf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 1069c5793 1069c591f 106995833 1069bffcc 1042ea318 10501a0c8 1069b6ffc 1069a176c 105445caf 105446693 105448bbf 10542df3c 10543336c 10469a653 104699daf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 1073dd793 1073dd91f 1073ad833 1073d7fcc 104d02318 105a320c8 1073ceffc 1073b976c 105e5dcaf 105e5e693 105e60bbf 105e45f3c 105e4b36c 1050b2653 1050b1daf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 104f89793 104f8991f 104f59833 104f83fcc 1028ae318 1035de0c8 104f7affc 104f6576c 103a09caf 103a0a693 103a0cbbf 1039f1f3c 1039f736c 102c5e653 102c5ddaf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 1027c9793 1027c991f 102799833 1027c3fcc 1000ee318 100e1e0c8 1027baffc 1027a576c 101249caf 10124a693 10124cbbf 101231f3c 10123736c 10049e653 10049ddaf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 106c0d793 106c0d91f 106bdd833 106c07fcc 104532318 1052620c8 106bfeffc 106be976c 10568dcaf 10568e693 105690bbf 105675f3c 10567b36c 1048e2653 1048e1daf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 1073d9793 1073d991f 1073a9833 1073d3fcc 104cfe318 105a2e0c8 1073caffc 1073b576c 105e59caf 105e5a693 105e5cbbf 105e41f3c 105e4736c 1050ae653 1050addaf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 104ee1793 104ee191f 104eb1833 104edbfcc 102806318 1035360c8 104ed2ffc 104ebd76c 103961caf 103962693 103964bbf 103949f3c 10394f36c 102bb6653 102bb5daf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 1054a9793 1054a991f 105479833 1054a3fcc 102dce318 103afe0c8 10549affc 10548576c 103f29caf 103f2a693 103f2cbbf 103f11f3c 103f1736c 10317e653 10317ddaf; spec = /?specifier=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Flib%2Fcloudflare%2Ftest-internal.mjs&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 1031a1793 1031a191f 103171833 10319bfcc 100ac6318 1017f60c8 103192ffc 10317d76c 101c21caf 101c22693 101c24bbf 101c09f3c 101c0f36c 100e76653 100e75daf; spec = /?specifier=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Flib%2Fcloudflare%2Ftest-internal.mjs&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 104ee1793 104ee191f 104eb1833 104edbfcc 102806318 1035360c8 104ed2ffc 104ebd76c 103961caf 103962693 103964bbf 103949f3c 10394f36c 102bb6653 102bb5daf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+service core:user:vitest-pool-workers-runner-: Uncaught Error: No such module "cloudflare:test-internal".
+  imported from "Users/slichti/GitHub/studio-platform-dev/node_modules/@cloudflare/vitest-pool-workers/dist/worker/index.mjs"
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 104919793 10491991f 1048e9833 104913fcc 10223e318 102f6e0c8 10490affc 1048f576c 103399caf 10339a693 10339cbbf 103381f3c 10338736c 1025ee653 1025eddaf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 1054cd793 1054cd91f 10549d833 1054c7fcc 102df2318 103b220c8 1054beffc 1054a976c 103f4dcaf 103f4e693 103f50bbf 103f35f3c 103f3b36c 1031a2653 1031a1daf; spec = /?specifier=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Flib%2Fcloudflare%2Ftest-internal.mjs&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 104f9d793 104f9d91f 104f6d833 104f97fcc 1028c2318 1035f20c8 104f8effc 104f7976c 103a1dcaf 103a1e693 103a20bbf 103a05f3c 103a0b36c 102c72653 102c71daf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 1069c5793 1069c591f 106995833 1069bffcc 1042ea318 10501a0c8 1069b6ffc 1069a176c 105445caf 105446693 105448bbf 10542df3c 10543336c 10469a653 104699daf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 106c0d793 106c0d91f 106bdd833 106c07fcc 104532318 1052620c8 106bfeffc 106be976c 10568dcaf 10568e693 105690bbf 105675f3c 10567b36c 1048e2653 1048e1daf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 1027c9793 1027c991f 102799833 1027c3fcc 1000ee318 100e1e0c8 1027baffc 1027a576c 101249caf 10124a693 10124cbbf 101231f3c 10123736c 10049e653 10049ddaf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 107639793 10763991f 107609833 107633fcc 104f5e318 105c8e0c8 10762affc 10761576c 1060b9caf 1060ba693 1060bcbbf 1060a1f3c 1060a736c 10530e653 10530ddaf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 1073d9793 1073d991f 1073a9833 1073d3fcc 104cfe318 105a2e0c8 1073caffc 1073b576c 105e59caf 105e5a693 105e5cbbf 105e41f3c 105e4736c 1050ae653 1050addaf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 107441793 10744191f 107411833 10743bfcc 104d66318 105a960c8 107432ffc 10741d76c 105ec1caf 105ec2693 105ec4bbf 105ea9f3c 105eaf36c 105116653 105115daf; spec = /?specifier=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Flib%2Fcloudflare%2Ftest-internal.mjs&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 106731793 10673191f 106701833 10672bfcc 104056318 104d860c8 106722ffc 10670d76c 1051b1caf 1051b2693 1051b4bbf 105199f3c 10519f36c 104406653 104405daf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 1073dd793 1073dd91f 1073ad833 1073d7fcc 104d02318 105a320c8 1073ceffc 1073b976c 105e5dcaf 105e5e693 105e60bbf 105e45f3c 105e4b36c 1050b2653 1050b1daf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 104a49793 104a4991f 104a19833 104a43fcc 10236e318 10309e0c8 104a3affc 104a2576c 1034c9caf 1034ca693 1034ccbbf 1034b1f3c 1034b736c 10271e653 10271ddaf; spec = /?specifier=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Flib%2Fcloudflare%2Ftest-internal.mjs&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+service core:user:vitest-pool-workers-runner-: Uncaught Error: No such module "cloudflare:test-internal".
+  imported from "Users/slichti/GitHub/studio-platform-dev/node_modules/@cloudflare/vitest-pool-workers/dist/worker/index.mjs"
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 107531793 10753191f 107501833 10752bfcc 104e56318 105b860c8 107522ffc 10750d76c 105fb1caf 105fb2693 105fb4bbf 105f99f3c 105f9f36c 105206653 105205daf; spec = /?specifier=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Flib%2Fcloudflare%2Ftest-internal.mjs&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 102f39793 102f3991f 102f09833 102f33fcc 10085e318 10158e0c8 102f2affc 102f1576c 1019b9caf 1019ba693 1019bcbbf 1019a1f3c 1019a736c 100c0e653 100c0ddaf; spec = /?specifier=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Flib%2Fcloudflare%2Ftest-internal.mjs&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 1055b9793 1055b991f 105589833 1055b3fcc 102ede318 103c0e0c8 1055aaffc 10559576c 104039caf 10403a693 10403cbbf 104021f3c 10402736c 10328e653 10328ddaf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 104f89793 104f8991f 104f59833 104f83fcc 1028ae318 1035de0c8 104f7affc 104f6576c 103a09caf 103a0a693 103a0cbbf 1039f1f3c 1039f736c 102c5e653 102c5ddaf; spec = /?specifier=cloudflare%3Atest-internal&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+service core:user:vitest-pool-workers-runner-: Uncaught Error: No such module "cloudflare:test-internal".
+  imported from "Users/slichti/GitHub/studio-platform-dev/node_modules/@cloudflare/vitest-pool-workers/dist/worker/index.mjs"
+service core:user:vitest-pool-workers-runner-: Uncaught Error: No such module "cloudflare:test-internal".
+  imported from "Users/slichti/GitHub/studio-platform-dev/node_modules/@cloudflare/vitest-pool-workers/dist/worker/index.mjs"
+service core:user:vitest-pool-workers-runner-: Uncaught Error: No such module "cloudflare:test-internal".
+  imported from "Users/slichti/GitHub/studio-platform-dev/node_modules/@cloudflare/vitest-pool-workers/dist/worker/index.mjs"
+service core:user:vitest-pool-workers-runner-: Uncaught Error: No such module "cloudflare:test-internal".
+  imported from "Users/slichti/GitHub/studio-platform-dev/node_modules/@cloudflare/vitest-pool-workers/dist/worker/index.mjs"
+service core:user:vitest-pool-workers-runner-: Uncaught Error: No such module "cloudflare:test-internal".
+  imported from "Users/slichti/GitHub/studio-platform-dev/node_modules/@cloudflare/vitest-pool-workers/dist/worker/index.mjs"
+service core:user:vitest-pool-workers-runner-: Uncaught Error: No such module "cloudflare:test-internal".
+  imported from "Users/slichti/GitHub/studio-platform-dev/node_modules/@cloudflare/vitest-pool-workers/dist/worker/index.mjs"
+service core:user:vitest-pool-workers-runner-: Uncaught Error: No such module "cloudflare:test-internal".
+  imported from "Users/slichti/GitHub/studio-platform-dev/node_modules/@cloudflare/vitest-pool-workers/dist/worker/index.mjs"
+service core:user:vitest-pool-workers-runner-: Uncaught Error: No such module "cloudflare:test-internal".
+  imported from "Users/slichti/GitHub/studio-platform-dev/node_modules/@cloudflare/vitest-pool-workers/dist/worker/index.mjs"
+service core:user:vitest-pool-workers-runner-: Uncaught Error: No such module "cloudflare:test-internal".
+  imported from "Users/slichti/GitHub/studio-platform-dev/node_modules/@cloudflare/vitest-pool-workers/dist/worker/index.mjs"
+service core:user:vitest-pool-workers-runner-: Uncaught Error: No such module "cloudflare:test-internal".
+  imported from "Users/slichti/GitHub/studio-platform-dev/node_modules/@cloudflare/vitest-pool-workers/dist/worker/index.mjs"
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+MiniflareCoreError [ERR_RUNTIME_FAILURE]: The Workers runtime failed to start. There is likely additional logging output above.
+ ❯ #assembleAndUpdateConfig ../../node_modules/miniflare/dist/src/index.js:81892:13
+ ❯ process.processTicksAndRejections node:internal/process/task_queues:104:5
+ ❯ Mutex.runWith ../../node_modules/miniflare/dist/src/index.js:52266:48
+ ❯ #waitForReady ../../node_modules/miniflare/dist/src/index.js:81980:5
+ ❯ getProjectMiniflare ../../node_modules/@cloudflare/vitest-pool-workers/dist/pool/index.mjs:7632:5
+ ❯ executeMethod ../../node_modules/@cloudflare/vitest-pool-workers/dist/pool/index.mjs:7901:16
+ ❯ Object.runTests ../../node_modules/@cloudflare/vitest-pool-workers/dist/pool/index.mjs:7956:7
+ ❯ executeTests ../../node_modules/vitest/dist/chunks/coverage.DL5VHqXY.js:3421:4
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { code: 'ERR_RUNTIME_FAILURE' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  no tests
+      Tests  no tests
+     Errors  1 error
+   Start at  21:39:02
+   Duration  725ms (transform 0ms, setup 0ms, collect 0ms, tests 0ms, environment 0ms, prepare 0ms)
+
+ FAIL  Tests failed. Watching for file changes...
+       press h to show help, press q to quit
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 1031a1793 1031a191f 103171833 10319bfcc 100ac6318 1017f60c8 103192ffc 10317d76c 101c21caf 101c22693 101c24bbf 101c09f3c 101c0f36c 100e76653 100e75daf; spec = /?specifier=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Flib%2Fcloudflare%2Ftest-internal.mjs&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+service core:user:vitest-pool-workers-runner-: Uncaught Error: No such module "cloudflare:test-internal".
+  imported from "Users/slichti/GitHub/studio-platform-dev/node_modules/@cloudflare/vitest-pool-workers/dist/worker/index.mjs"
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 102f39793 102f3991f 102f09833 102f33fcc 10085e318 10158e0c8 102f2affc 102f1576c 1019b9caf 1019ba693 1019bcbbf 1019a1f3c 1019a736c 100c0e653 100c0ddaf; spec = /?specifier=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Flib%2Fcloudflare%2Ftest-internal.mjs&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+service core:user:vitest-pool-workers-runner-: Uncaught Error: No such module "cloudflare:test-internal".
+  imported from "Users/slichti/GitHub/studio-platform-dev/node_modules/@cloudflare/vitest-pool-workers/dist/worker/index.mjs"
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 1054cd793 1054cd91f 10549d833 1054c7fcc 102df2318 103b220c8 1054beffc 1054a976c 103f4dcaf 103f4e693 103f50bbf 103f35f3c 103f3b36c 1031a2653 1031a1daf; spec = /?specifier=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Flib%2Fcloudflare%2Ftest-internal.mjs&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+service core:user:vitest-pool-workers-runner-: Uncaught Error: No such module "cloudflare:test-internal".
+  imported from "Users/slichti/GitHub/studio-platform-dev/node_modules/@cloudflare/vitest-pool-workers/dist/worker/index.mjs"
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 104a49793 104a4991f 104a19833 104a43fcc 10236e318 10309e0c8 104a3affc 104a2576c 1034c9caf 1034ca693 1034ccbbf 1034b1f3c 1034b736c 10271e653 10271ddaf; spec = /?specifier=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Flib%2Fcloudflare%2Ftest-internal.mjs&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+service core:user:vitest-pool-workers-runner-: Uncaught Error: No such module "cloudflare:test-internal".
+  imported from "Users/slichti/GitHub/studio-platform-dev/node_modules/@cloudflare/vitest-pool-workers/dist/worker/index.mjs"
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 107531793 10753191f 107501833 10752bfcc 104e56318 105b860c8 107522ffc 10750d76c 105fb1caf 105fb2693 105fb4bbf 105f99f3c 105f9f36c 105206653 105205daf; spec = /?specifier=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Flib%2Fcloudflare%2Ftest-internal.mjs&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+service core:user:vitest-pool-workers-runner-: Uncaught Error: No such module "cloudflare:test-internal".
+  imported from "Users/slichti/GitHub/studio-platform-dev/node_modules/@cloudflare/vitest-pool-workers/dist/worker/index.mjs"
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 1054a9793 1054a991f 105479833 1054a3fcc 102dce318 103afe0c8 10549affc 10548576c 103f29caf 103f2a693 103f2cbbf 103f11f3c 103f1736c 10317e653 10317ddaf; spec = /?specifier=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Flib%2Fcloudflare%2Ftest-internal.mjs&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+service core:user:vitest-pool-workers-runner-: Uncaught Error: No such module "cloudflare:test-internal".
+  imported from "Users/slichti/GitHub/studio-platform-dev/node_modules/@cloudflare/vitest-pool-workers/dist/worker/index.mjs"
+workerd/server/fallback-service.c++:158: error: Fallback service failed to fetch module; exception = kj/async-io-unix.c++:1538: disconnected: connect(): Connection refused
+stack: 107441793 10744191f 107411833 10743bfcc 104d66318 105a960c8 107432ffc 10741d76c 105ec1caf 105ec2693 105ec4bbf 105ea9f3c 105eaf36c 105116653 105115daf; spec = /?specifier=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Flib%2Fcloudflare%2Ftest-internal.mjs&referrer=%2FUsers%2Fslichti%2FGitHub%2Fstudio-platform-dev%2Fnode_modules%2F%40cloudflare%2Fvitest-pool-workers%2Fdist%2Fworker%2Findex.mjs&rawSpecifier=cloudflare%3Atest-internal
+service core:user:vitest-pool-workers-runner-: Uncaught Error: No such module "cloudflare:test-internal".
+  imported from "Users/slichti/GitHub/studio-platform-dev/node_modules/@cloudflare/vitest-pool-workers/dist/worker/index.mjs"

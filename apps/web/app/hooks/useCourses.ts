@@ -9,6 +9,9 @@ export function useCourses(tenantSlug: string, filters?: { status?: string; limi
         queryKey: ['courses', tenantSlug, filters, tokenOverride],
         queryFn: async () => {
             const token = tokenOverride || await getToken();
+            // Since /courses is in authenticatedPaths, we should ideally have a token.
+            // However, we'll let the apiRequest handle it and just ensure we don't fire 
+            // if we are certain it will 401, or just let it fire and retry.
             const queryParams = new URLSearchParams();
             if (filters?.status && filters.status !== 'all') queryParams.set('status', filters.status);
             if (filters?.limit) queryParams.set('limit', filters.limit.toString());

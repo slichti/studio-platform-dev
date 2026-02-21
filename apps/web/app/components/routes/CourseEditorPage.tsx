@@ -203,13 +203,14 @@ export default function CourseEditorPage() {
     const [addModal, setAddModal] = useState<'video' | 'quiz' | null>(null);
 
     // Analytics (C4) — use getToken() fallback to avoid 401 when contextToken is briefly undefined
-    const { data: analytics } = useQuery({
+    const { data: analytics, isLoading: isLoadingAnalytics } = useQuery({
         queryKey: ['course-analytics', slug, id, contextToken],
         queryFn: async () => {
             const token = contextToken || await getToken();
+            if (!token) throw new Error("No token");
             return apiRequest(`/courses/${id}/analytics`, token, { headers: { 'X-Tenant-Slug': slug! } });
         },
-        enabled: !!id && !!slug,
+        enabled: !!id && !!slug && (!!contextToken || !!id), // id check is just to keep enabled logic simple if contextToken is missing initially
         refetchInterval: 60000
     });
 
