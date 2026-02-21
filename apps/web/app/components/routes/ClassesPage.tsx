@@ -1,7 +1,7 @@
 
-import { useParams, useOutletContext, useSearchParams } from "react-router";
+import { useParams, useOutletContext, useSearchParams, useNavigate } from "react-router";
 import { useState, useRef, useLayoutEffect } from "react";
-import { Plus, Archive, ArchiveRestore, Calendar as CalendarIcon, Clock, Users, Video } from "lucide-react";
+import { Plus, Archive, ArchiveRestore, Calendar as CalendarIcon, Clock, Users, Video, List as ListIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/react-router";
@@ -61,6 +61,7 @@ export default function ClassesPage() {
     const { getToken } = useAuth();
     const queryClient = useQueryClient();
     const [searchParams, setSearchParams] = useSearchParams();
+    const navigate = useNavigate();
 
     // Permissions
     const isAdmin = roles?.includes('owner') || roles?.includes('instructor');
@@ -241,6 +242,28 @@ export default function ClassesPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg border border-zinc-200 dark:border-zinc-700 mr-2">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-3 text-xs text-zinc-500 hover:text-zinc-900"
+                            onClick={() => {
+                                const p = new URLSearchParams(searchParams);
+                                p.set('view', 'calendar');
+                                setSearchParams(p);
+                            }}
+                        >
+                            <CalendarIcon className="h-3.5 w-3.5 mr-1.5" /> Calendar
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-3 text-xs bg-white dark:bg-zinc-900 shadow-sm text-zinc-900 dark:text-zinc-100"
+                        >
+                            <ListIcon className="h-3.5 w-3.5 mr-1.5" /> List
+                        </Button>
+                    </div>
+
                     {isAdmin && (
                         <>
                             <label className="flex items-center gap-1.5 text-sm cursor-pointer mr-2 select-none">

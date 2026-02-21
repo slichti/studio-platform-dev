@@ -265,7 +265,6 @@ export default function StudioLayout() {
 
                     <SidebarGroup title="Operations">
                         <NavItem to={`/studio/${slug}/schedule`} icon={<Calendar size={18} />}>Schedule</NavItem>
-                        <NavItem to={`/studio/${slug}/classes`} icon={<Dumbbell size={18} />}>Classes</NavItem>
                         {featureSet.has('course_management') && (
                             <NavItem to={`/studio/${slug}/courses`} icon={<BookOpen size={18} />}>Courses</NavItem>
                         )}

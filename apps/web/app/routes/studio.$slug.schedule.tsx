@@ -10,19 +10,40 @@ import { ClassDetailModal } from "../components/ClassDetailModal";
 import { BookingModal } from "../components/BookingModal";
 import { ComponentErrorBoundary } from "~/components/ErrorBoundary";
 import { Button } from "~/components/ui/button";
+import { ListIcon, Calendar as CalendarIcon } from "lucide-react";
 
 import { useClasses } from "~/hooks/useClasses";
 import { useUser } from "~/hooks/useUser";
 import { useStudioData } from "~/hooks/useStudioData";
 import { useCourses } from "~/hooks/useCourses";
+import { lazy, Suspense } from "react";
+import { ClientOnly } from "~/components/ClientOnly";
+import { useSearchParams } from "react-router";
+
+const ClassesPage = lazy(() => import("~/components/routes/ClassesPage"));
+
 
 export default function StudioSchedule() {
     const { slug } = useParams();
     const queryClient = useQueryClient();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const viewMode = searchParams.get('view') || 'calendar';
 
     // Context & Hooks
     const { tenant, me, features, roles, isStudentView } = useOutletContext<any>() || {};
     const canSchedule = !isStudentView && (roles?.includes('owner') || roles?.includes('instructor'));
+
+    if (viewMode === 'list') {
+        return (
+            <ClientOnly fallback={<div className="p-8">Loading Schedule...</div>}>
+                <Suspense fallback={<div className="p-8">Loading Schedule...</div>}>
+                    <div className="p-6">
+                        <ClassesPage />
+                    </div>
+                </Suspense>
+            </ClientOnly>
+        );
+    }
 
     // Data Fetching
     const { data: classesData = [], isLoading: isLoadingClasses, error } = useClasses(slug!);
@@ -82,12 +103,36 @@ export default function StudioSchedule() {
                         {isStudentView ? "View upcoming classes and book sessions." : "Manage your class calendar and bookings."}
                     </p>
                 </div>
-                {canSchedule && (
-                    <Button onClick={() => setIsCreateOpen(true)}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Schedule Class
-                    </Button>
-                )}
+                <div className="flex items-center gap-2">
+                    <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg border border-zinc-200 dark:border-zinc-700 mr-2">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-3 text-xs bg-white dark:bg-zinc-900 shadow-sm text-zinc-900 dark:text-zinc-100"
+                        >
+                            <CalendarIcon className="h-3.5 w-3.5 mr-1.5" /> Calendar
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-3 text-xs text-zinc-500 hover:text-zinc-900"
+                            onClick={() => {
+                                const p = new URLSearchParams(searchParams);
+                                p.set('view', 'list');
+                                setSearchParams(p);
+                            }}
+                        >
+                            <ListIcon className="h-3.5 w-3.5 mr-1.5" /> List
+                        </Button>
+                    </div>
+
+                    {canSchedule && (
+                        <Button onClick={() => setIsCreateOpen(true)}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Schedule Class
+                        </Button>
+                    )}
+                </div>
             </div>
 
             <ComponentErrorBoundary>

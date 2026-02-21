@@ -292,32 +292,44 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label htmlFor="startTime" className="block text-sm font-medium text-zinc-700 mb-1">Start Time</label>
-                        <input
-                            id="startTime"
-                            type="datetime-local"
-                            required
-                            step="300"
-                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-                            value={formData.startTime}
-                            onChange={(e) => {
-                                let val = e.target.value;
-                                if (val) {
-                                    const d = new Date(val);
-                                    const minutes = d.getMinutes();
-                                    const snapped = Math.round(minutes / 5) * 5;
-                                    d.setMinutes(snapped);
+                        <label className="block text-sm font-medium text-zinc-700 mb-1">Start Date & Time</label>
+                        <div className="flex gap-2">
+                            <input
+                                type="date"
+                                required
+                                className="w-[55%] px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
+                                value={formData.startTime ? formData.startTime.split('T')[0] : ''}
+                                onChange={(e) => {
+                                    const newDate = e.target.value;
+                                    const timePart = formData.startTime ? formData.startTime.substring(11, 16) : '09:00';
+                                    setFormData({ ...formData, startTime: `${newDate}T${timePart}` });
+                                }}
+                            />
+                            <select
+                                required
+                                className="w-[45%] px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                                value={formData.startTime ? formData.startTime.substring(11, 16) : ''}
+                                onChange={(e) => {
+                                    const newTime = e.target.value;
+                                    const datePart = formData.startTime ? formData.startTime.split('T')[0] : new Date().toISOString().split('T')[0];
+                                    setFormData({ ...formData, startTime: `${datePart}T${newTime}` });
+                                }}
+                            >
+                                <option value="" disabled>Time</option>
+                                {Array.from({ length: 24 * 12 }).map((_, i) => {
+                                    const totalMinutes = i * 5;
+                                    const h = Math.floor(totalMinutes / 60);
+                                    const m = totalMinutes % 60;
+                                    const val = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 
-                                    const year = d.getFullYear();
-                                    const month = String(d.getMonth() + 1).padStart(2, '0');
-                                    const day = String(d.getDate()).padStart(2, '0');
-                                    const hours = String(d.getHours()).padStart(2, '0');
-                                    const mins = String(d.getMinutes()).padStart(2, '0');
-                                    val = `${year}-${month}-${day}T${hours}:${mins}`;
-                                }
-                                setFormData({ ...formData, startTime: val });
-                            }}
-                        />
+                                    const ampm = h >= 12 ? 'PM' : 'AM';
+                                    const displayH = h % 12 === 0 ? 12 : h % 12;
+                                    const label = `${displayH}:${String(m).padStart(2, '0')} ${ampm}`;
+
+                                    return <option key={val} value={val}>{label}</option>;
+                                })}
+                            </select>
+                        </div>
                     </div>
                     <div>
                         <label htmlFor="duration" className="block text-sm font-medium text-zinc-700 mb-1">Duration (min)</label>
