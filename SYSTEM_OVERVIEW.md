@@ -204,6 +204,12 @@ sequenceDiagram
     API-->>Student: Display visual stat cards
 ```
 
+### 8. Learning Management System (LMS)
+The platform includes built-in course building and delivery capabilities. Instructors can construct rich curricula mixing various content types, while students track their progress through a dedicated portal.
+- **Content Types**: Supports Videos, Quizzes, Articles (rich-text reading panes), and Assignments.
+- **Interactive Features**: Students can submit assignments (text/files) and participate in threaded discussions on individual lessons via the Comments system.
+- **Assessments**: Automatically tracks course progress and generates completion certificates upon reaching 100%.
+
 ## Security Implementation
 
 ### Authentication Strategy

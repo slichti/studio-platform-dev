@@ -355,6 +355,53 @@ erDiagram
     tenant_members ||--o{ member_progress_entries : "logs"
     tenants ||--o{ member_progress_entries : "contains"
 
+    %% Courses & LMS
+    courses {
+        string id PK
+        string tenant_id FK
+        string title
+        string slug UK
+        string description
+        string thumbnail_url
+        boolean is_published
+    }
+    articles {
+        string id PK
+        string tenant_id FK
+        string title
+        string html
+    }
+    assignments {
+        string id PK
+        string tenant_id FK
+        string title
+        string description
+    }
+    assignment_submissions {
+        string id PK
+        string assignment_id FK
+        string user_id FK
+        string content
+        string status
+    }
+    course_comments {
+        string id PK
+        string course_id FK
+        string collection_item_id FK
+        string author_id FK
+        string content
+    }
+    course_resources {
+        string id PK
+        string collection_item_id FK
+        string title
+        string file_type
+    }
+
+    tenants ||--o{ courses : "offers"
+    courses ||--o{ course_comments : "has"
+    assignments ||--o{ assignment_submissions : "receives"
+
 ## Performance Indexes
 
 The schema includes several performance-critical indexes to support edge scalability:

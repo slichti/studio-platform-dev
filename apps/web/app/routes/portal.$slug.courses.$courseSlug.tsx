@@ -2,13 +2,15 @@ import { useLoaderData, useOutletContext, Link, Form, useNavigation } from "reac
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
-import { ArrowLeft, CheckSquare, Video, Play, Lock, ChevronRight, Award } from "lucide-react";
+import { ArrowLeft, CheckSquare, Video, Play, Lock, ChevronRight, Award, FileText, ClipboardList } from "lucide-react";
 import { useState } from "react";
 import { cn } from "~/utils/cn";
 
 function ItemIcon({ contentType, done }: { contentType: string; done: boolean }) {
     if (done) return <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 flex-shrink-0"><CheckSquare size={14} /></div>;
     if (contentType === 'video') return <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 flex-shrink-0"><Video size={14} /></div>;
+    if (contentType === 'article') return <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 flex-shrink-0"><FileText size={14} /></div>;
+    if (contentType === 'assignment') return <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600 flex-shrink-0"><ClipboardList size={14} /></div>;
     return <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 flex-shrink-0"><CheckSquare size={14} /></div>;
 }
 
@@ -173,7 +175,10 @@ export default function PortalCourseViewer() {
                     <div className="lg:col-span-2 space-y-4">
                         {/* Player area */}
                         {activeItem ? (
-                            <div className="bg-black rounded-2xl overflow-hidden aspect-video flex items-center justify-center">
+                            <div className={cn(
+                                "rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 flex items-center justify-center min-h-[300px]",
+                                (activeItem.contentType === 'video' || activeItem.contentType === 'quiz') ? "bg-black aspect-video flex-col" : "bg-white dark:bg-zinc-900 items-start flex-col justify-start"
+                            )}>
                                 {activeItem.contentType === 'video' && activeItem.video?.cloudflareStreamId ? (
                                     <iframe
                                         src={`https://iframe.cloudflarestream.com/${activeItem.video.cloudflareStreamId}`}
@@ -184,13 +189,45 @@ export default function PortalCourseViewer() {
                                     />
                                 ) : activeItem.contentType === 'video' && activeItem.video?.r2Key ? (
                                     <video src={activeItem.video.r2Key} controls className="w-full h-full" />
-                                ) : (
-                                    <div className="text-center text-zinc-400 p-8">
+                                ) : activeItem.contentType === 'quiz' ? (
+                                    <div className="text-center text-zinc-400 p-8 m-auto">
                                         <CheckSquare size={48} className="mx-auto mb-3 text-green-400" />
                                         <p className="font-medium text-white">Quiz: {activeItem.quiz?.title}</p>
                                         <p className="text-sm mt-2 text-zinc-400">Open the quiz in a new tab to complete it</p>
                                     </div>
-                                )}
+                                ) : activeItem.contentType === 'article' ? (
+                                    <div className="p-8 w-full">
+                                        <h2 className="text-3xl font-bold mb-6">{activeItem.article?.title}</h2>
+                                        <div className="prose dark:prose-invert max-w-none">
+                                            {activeItem.article?.html ? (
+                                                <div dangerouslySetInnerHTML={{ __html: activeItem.article.html }} />
+                                            ) : (
+                                                <p className="text-zinc-500 italic">This article is currently empty.</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : activeItem.contentType === 'assignment' ? (
+                                    <div className="p-8 w-full">
+                                        <h2 className="text-3xl font-bold mb-6">{activeItem.assignment?.title}</h2>
+                                        <div className="prose dark:prose-invert max-w-none mb-8">
+                                            {activeItem.assignment?.instructionsHtml ? (
+                                                <div dangerouslySetInnerHTML={{ __html: activeItem.assignment.instructionsHtml }} />
+                                            ) : (
+                                                <p>{activeItem.assignment?.description}</p>
+                                            )}
+                                        </div>
+                                        <div className="bg-zinc-50 dark:bg-zinc-800 p-6 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                                            <h3 className="font-bold mb-4 flex items-center gap-2"><ClipboardList size={20} className="text-orange-500" /> Submit Assignment</h3>
+                                            <textarea
+                                                className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 min-h-[120px] mb-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition shadow-sm"
+                                                placeholder="Type your submission here or attach a file..."
+                                            />
+                                            <button className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold transition shadow-sm">
+                                                Submit Assignment
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : null}
                             </div>
                         ) : (
                             <div className="aspect-video bg-zinc-100 dark:bg-zinc-800 rounded-2xl flex items-center justify-center text-zinc-400">
@@ -206,7 +243,7 @@ export default function PortalCourseViewer() {
                             return (
                                 <div className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
                                     <div>
-                                        <p className="font-bold">{activeItem.video?.title || activeItem.quiz?.title || 'Lesson'}</p>
+                                        <p className="font-bold">{activeItem.video?.title || activeItem.quiz?.title || activeItem.article?.title || activeItem.assignment?.title || 'Lesson'}</p>
                                         <p className="text-sm text-zinc-400 capitalize">{activeItem.contentType}</p>
                                     </div>
                                     {!isActiveDone && progress < 100 && (
@@ -297,7 +334,7 @@ export default function PortalCourseViewer() {
                                             <ItemIcon contentType={item.contentType} done={isDone} />
                                             <div className="flex-1 min-w-0">
                                                 <p className={cn("text-sm font-medium truncate", isActive && "text-indigo-600")}>
-                                                    {item.video?.title || item.quiz?.title || 'Untitled'}
+                                                    {item.video?.title || item.quiz?.title || item.article?.title || item.assignment?.title || 'Untitled'}
                                                 </p>
                                                 <p className="text-xs text-zinc-400 capitalize">{item.contentType}</p>
                                             </div>

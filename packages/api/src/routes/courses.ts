@@ -2,7 +2,7 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { createOpenAPIApp } from '../lib/openapi';
 import { StudioVariables } from '../types';
 import { createDb } from '../db';
-import { courses, courseEnrollments, classes, videoCollectionItems, videoCollections, courseModules, courseAccessCodes, videos, quizzes, coursePrerequisites } from '@studio/db/src/schema';
+import { courses, courseEnrollments, classes, videoCollectionItems, videoCollections, courseModules, courseAccessCodes, videos, quizzes, coursePrerequisites, articles, assignments, courseResources, courseComments, assignmentSubmissions } from '@studio/db/src/schema';
 import { eq, and, desc, asc } from 'drizzle-orm';
 
 const app = createOpenAPIApp<StudioVariables>();
@@ -222,10 +222,12 @@ app.openapi(createRoute({
             .all()
         : [];
 
-    // Enrich each item with its video or quiz record
+    // Enrich each item with its content record
     const curriculum = await Promise.all(rawItems.map(async (item) => {
         let video = null;
         let quiz = null;
+        let article = null;
+        let assignment = null;
         if (item.videoId) {
             video = await db.select({
                 id: videos.id,
@@ -242,7 +244,29 @@ app.openapi(createRoute({
                 passingScore: quizzes.passingScore,
             }).from(quizzes).where(eq(quizzes.id, item.quizId)).get();
         }
-        return { ...item, video, quiz };
+        if (item.articleId) {
+            article = await db.select({
+                id: articles.id,
+                title: articles.title,
+                html: articles.html,
+                readingTimeMinutes: articles.readingTimeMinutes,
+            }).from(articles).where(eq(articles.id, item.articleId)).get();
+        }
+        if (item.assignmentId) {
+            assignment = await db.select({
+                id: assignments.id,
+                title: assignments.title,
+                description: assignments.description,
+                instructionsHtml: assignments.instructionsHtml,
+                requireFileUpload: assignments.requireFileUpload,
+                pointsAvailable: assignments.pointsAvailable,
+            }).from(assignments).where(eq(assignments.id, item.assignmentId)).get();
+        }
+
+        // Also fetch resources attached to this lesson
+        const resources = await db.select().from(courseResources).where(eq(courseResources.collectionItemId, item.id)).all();
+
+        return { ...item, video, quiz, article, assignment, resources };
     }));
 
     const prereqs = await db.select({ id: coursePrerequisites.prerequisiteId })
@@ -461,9 +485,11 @@ app.openapi(createRoute({
             content: {
                 'application/json': {
                     schema: z.object({
-                        contentType: z.enum(['video', 'quiz']),
+                        contentType: z.enum(['video', 'quiz', 'article', 'assignment']),
                         videoId: z.string().optional().nullable(),
                         quizId: z.string().optional().nullable(),
+                        articleId: z.string().optional().nullable(),
+                        assignmentId: z.string().optional().nullable(),
                         order: z.number().optional()
                     })
                 }
@@ -490,6 +516,8 @@ app.openapi(createRoute({
 
     if (body.contentType === 'video' && !body.videoId) return c.json({ error: 'videoId required for video items' }, 400);
     if (body.contentType === 'quiz' && !body.quizId) return c.json({ error: 'quizId required for quiz items' }, 400);
+    if (body.contentType === 'article' && !body.articleId) return c.json({ error: 'articleId required for article items' }, 400);
+    if (body.contentType === 'assignment' && !body.assignmentId) return c.json({ error: 'assignmentId required for assignment items' }, 400);
 
     // Auto-create a video collection if none linked yet
     let collectionId = course.contentCollectionId;
@@ -519,11 +547,214 @@ app.openapi(createRoute({
         contentType: body.contentType,
         videoId: body.videoId ?? null,
         quizId: body.quizId ?? null,
+        articleId: body.articleId ?? null,
+        assignmentId: body.assignmentId ?? null,
         order: body.order ?? maxOrder + 1,
     };
     await db.insert(videoCollectionItems).values(newItem).run();
 
     return c.json(newItem, 201);
+});
+
+// --- Content Creation Endpoints (Articles, Assignments & Resources) ---
+
+app.openapi(createRoute({
+    method: 'post',
+    path: '/articles',
+    tags: ['Courses'],
+    summary: 'Create a new article',
+    request: {
+        body: {
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        title: z.string(),
+                        html: z.string().optional(),
+                        content: z.record(z.string(), z.any()).optional(),
+                        readingTimeMinutes: z.number().optional()
+                    })
+                }
+            }
+        }
+    },
+    responses: { 201: { description: 'Article created', content: { 'application/json': { schema: z.any() } } } }
+}), async (c) => {
+    const tenant = c.get('tenant');
+    const body = c.req.valid('json');
+    const db = createDb(c.env.DB);
+    const id = crypto.randomUUID();
+    const newArticle = { ...body, id, tenantId: tenant.id, createdAt: new Date(), updatedAt: new Date() };
+    await db.insert(articles).values(newArticle).run();
+    return c.json(newArticle, 201);
+});
+
+app.openapi(createRoute({
+    method: 'post',
+    path: '/assignments',
+    tags: ['Courses'],
+    summary: 'Create a new assignment',
+    request: {
+        body: {
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        title: z.string(),
+                        description: z.string().optional(),
+                        instructionsHtml: z.string().optional(),
+                        requireFileUpload: z.boolean().optional(),
+                        pointsAvailable: z.number().optional()
+                    })
+                }
+            }
+        }
+    },
+    responses: { 201: { description: 'Assignment created', content: { 'application/json': { schema: z.any() } } } }
+}), async (c) => {
+    const tenant = c.get('tenant');
+    const body = c.req.valid('json');
+    const db = createDb(c.env.DB);
+    const id = crypto.randomUUID();
+    const newAssignment = { ...body, id, tenantId: tenant.id, createdAt: new Date(), updatedAt: new Date() };
+    await db.insert(assignments).values(newAssignment).run();
+    return c.json(newAssignment, 201);
+});
+
+app.openapi(createRoute({
+    method: 'post',
+    path: '/resources',
+    tags: ['Courses'],
+    summary: 'Add a resource to a curriculum item',
+    request: {
+        body: {
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        collectionItemId: z.string(),
+                        title: z.string(),
+                        url: z.string().optional(),
+                        r2Key: z.string().optional(),
+                        fileType: z.string().optional(),
+                        sizeBytes: z.number().optional()
+                    })
+                }
+            }
+        }
+    },
+    responses: { 201: { description: 'Resource created', content: { 'application/json': { schema: z.any() } } } }
+}), async (c) => {
+    const tenant = c.get('tenant');
+    const body = c.req.valid('json');
+    const db = createDb(c.env.DB);
+    const id = crypto.randomUUID();
+    const newResource = { ...body, id, tenantId: tenant.id, createdAt: new Date() };
+    await db.insert(courseResources).values(newResource).run();
+    return c.json(newResource, 201);
+});
+
+// --- Interactive Features (Assignments & Comments) ---
+
+app.openapi(createRoute({
+    method: 'post',
+    path: '/assignments/{id}/submit',
+    tags: ['Courses'],
+    summary: 'Submit an assignment',
+    request: {
+        params: z.object({ id: z.string() }),
+        body: {
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        content: z.string().optional(),
+                        fileUrl: z.string().optional()
+                    })
+                }
+            }
+        }
+    },
+    responses: { 201: { description: 'Assignment submitted', content: { 'application/json': { schema: z.any() } } } }
+}), async (c) => {
+    const tenant = c.get('tenant');
+    const me = c.get('member') as any;
+    const { id: assignmentId } = c.req.valid('param');
+    const body = c.req.valid('json');
+    const db = createDb(c.env.DB);
+
+    const id = crypto.randomUUID();
+    const newSubmission = {
+        id,
+        assignmentId,
+        userId: me.userId,
+        tenantId: tenant.id,
+        content: body.content ?? null,
+        fileUrl: body.fileUrl ?? null,
+        status: 'submitted' as const,
+        submittedAt: new Date()
+    };
+    await db.insert(assignmentSubmissions).values(newSubmission).run();
+    return c.json(newSubmission, 201);
+});
+
+app.openapi(createRoute({
+    method: 'post',
+    path: '/comments',
+    tags: ['Courses'],
+    summary: 'Add a comment to a lesson',
+    request: {
+        body: {
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        courseId: z.string(),
+                        collectionItemId: z.string(),
+                        content: z.string(),
+                        parentId: z.string().optional()
+                    })
+                }
+            }
+        }
+    },
+    responses: { 201: { description: 'Comment created', content: { 'application/json': { schema: z.any() } } } }
+}), async (c) => {
+    const tenant = c.get('tenant');
+    const me = c.get('member') as any;
+    const body = c.req.valid('json');
+    const db = createDb(c.env.DB);
+
+    const id = crypto.randomUUID();
+    const newComment = {
+        ...body,
+        id,
+        tenantId: tenant.id,
+        authorId: me.id,
+        parentId: body.parentId ?? null,
+        isPinned: false,
+        isApproved: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+    };
+    await db.insert(courseComments).values(newComment).run();
+    return c.json(newComment, 201);
+});
+
+app.openapi(createRoute({
+    method: 'get',
+    path: '/comments/{itemId}',
+    tags: ['Courses'],
+    summary: 'Get comments for a lesson',
+    request: {
+        params: z.object({ itemId: z.string() })
+    },
+    responses: { 200: { description: 'List of comments', content: { 'application/json': { schema: z.array(z.any()) } } } }
+}), async (c) => {
+    const tenant = c.get('tenant');
+    const { itemId } = c.req.valid('param');
+    const db = createDb(c.env.DB);
+
+    const comments = await db.select().from(courseComments)
+        .where(and(eq(courseComments.collectionItemId, itemId), eq(courseComments.tenantId, tenant.id)))
+        .orderBy(asc(courseComments.createdAt))
+        .all();
+    return c.json(comments);
 });
 
 // DELETE /:id/curriculum/:itemId - Remove item from curriculum

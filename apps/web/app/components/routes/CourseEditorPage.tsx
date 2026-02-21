@@ -4,7 +4,7 @@ import {
     ArrowLeft, Save, Plus, Trash2, Calendar, GripVertical,
     Video, BookOpen, ChevronRight, Settings, CheckSquare,
     LayoutDashboard, GraduationCap, Globe, Users, TrendingUp,
-    ArrowUpDown, Loader2
+    ArrowUpDown, Loader2, FileText, ClipboardList
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -123,6 +123,78 @@ function AddContentModal({
     );
 }
 
+function CreateContentModal({
+    isOpen,
+    onClose,
+    contentType,
+    slug,
+    courseId,
+    token,
+    onAdded
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    contentType: 'article' | 'assignment';
+    slug: string;
+    courseId: string;
+    token: string | null;
+    onAdded: () => void;
+}) {
+    const [title, setTitle] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleCreate = async () => {
+        setLoading(true);
+        try {
+            const endpoint = contentType === 'article' ? '/articles' : '/assignments';
+            const contentRes = await apiRequest(endpoint, token, {
+                method: 'POST',
+                headers: { 'X-Tenant-Slug': slug },
+                body: JSON.stringify({ title })
+            });
+            await apiRequest(`/courses/${courseId}/curriculum`, token, {
+                method: 'POST',
+                headers: { 'X-Tenant-Slug': slug },
+                body: JSON.stringify({
+                    contentType,
+                    [contentType + 'Id']: contentRes.id
+                })
+            });
+            toast.success(`${title} created and added to curriculum`);
+            onAdded();
+            onClose();
+        } catch (e: any) {
+            toast.error(e.message || `Failed to create ${contentType}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title={`Create New ${contentType === 'article' ? 'Article' : 'Assignment'}`}>
+            <div className="space-y-4 pt-2">
+                <div className="space-y-1">
+                    <label className="text-sm font-semibold">Title</label>
+                    <input
+                        className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        placeholder="e.g. Week 1 Reading..."
+                        value={title}
+                        onChange={e => setTitle(e.target.value)}
+                        autoFocus
+                    />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                    <Button variant="ghost" onClick={onClose}>Cancel</Button>
+                    <Button onClick={handleCreate} disabled={!title.trim() || loading} className="bg-blue-600 text-white hover:bg-blue-700">
+                        {loading && <Loader2 size={16} className="animate-spin mr-2" />}
+                        Create
+                    </Button>
+                </div>
+            </div>
+        </Modal>
+    );
+}
+
 // ── Curriculum Item Row ───────────────────────────────────────────────────────
 
 function CurriculumItem({
@@ -143,6 +215,29 @@ function CurriculumItem({
     isLast: boolean;
 }) {
     const isVideo = item.contentType === 'video';
+    const isQuiz = item.contentType === 'quiz';
+    const isArticle = item.contentType === 'article';
+    const isAssignment = item.contentType === 'assignment';
+
+    let Icon = Video;
+    let iconClass = "bg-purple-50 dark:bg-purple-900/20 text-purple-600";
+    let title = item.video?.title || item.quiz?.title || item.article?.title || item.assignment?.title || 'Untitled';
+    let subtitle = item.contentType.charAt(0).toUpperCase() + item.contentType.slice(1);
+
+    if (isQuiz) {
+        Icon = CheckSquare;
+        iconClass = "bg-green-50 dark:bg-green-900/20 text-green-600";
+    } else if (isArticle) {
+        Icon = FileText;
+        iconClass = "bg-blue-50 dark:bg-blue-900/20 text-blue-600";
+    } else if (isAssignment) {
+        Icon = ClipboardList;
+        iconClass = "bg-orange-50 dark:bg-orange-900/20 text-orange-600";
+    }
+
+    if (isVideo && item.video?.duration) subtitle += ` · ${Math.round(item.video.duration / 60)} min`;
+    if (isArticle && item.article?.readingTimeMinutes) subtitle += ` · ${item.article.readingTimeMinutes} min read`;
+
     return (
         <div className="flex items-center gap-3 p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl hover:shadow-sm transition group">
             {/* Drag handle / order buttons */}
@@ -156,19 +251,14 @@ function CurriculumItem({
                 </button>
             </div>
             {/* Icon */}
-            <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
-                isVideo ? "bg-purple-50 dark:bg-purple-900/20 text-purple-600" : "bg-green-50 dark:bg-green-900/20 text-green-600"
-            )}>
-                {isVideo ? <Video size={18} /> : <CheckSquare size={18} />}
+            <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0", iconClass)}>
+                <Icon size={18} />
             </div>
             {/* Title */}
             <div className="flex-1 min-w-0">
-                <div className="font-semibold text-sm truncate">
-                    {item.video?.title || item.quiz?.title || 'Untitled'}
-                </div>
+                <div className="font-semibold text-sm truncate">{title}</div>
                 <div className="text-xs text-zinc-400 uppercase tracking-wider font-bold">
-                    {isVideo ? 'Video' : 'Quiz'}
-                    {item.video?.duration && ` · ${Math.round(item.video.duration / 60)} min`}
+                    {subtitle}
                 </div>
             </div>
             {/* Remove */}
@@ -200,7 +290,7 @@ export default function CourseEditorPage() {
 
     // Curriculum state
     const [curriculum, setCurriculum] = useState<any[]>([]);
-    const [addModal, setAddModal] = useState<'video' | 'quiz' | null>(null);
+    const [addModal, setAddModal] = useState<'video' | 'quiz' | 'article' | 'assignment' | null>(null);
 
     // Analytics (C4) — use getToken() fallback to avoid 401 when contextToken is briefly undefined
     const { data: analytics, isLoading: isLoadingAnalytics } = useQuery({
@@ -421,12 +511,18 @@ export default function CourseEditorPage() {
                                 </h3>
                                 <p className="text-sm text-zinc-500">Pre-recorded videos and quizzes for self-paced learning.</p>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                                 <Button variant="outline" size="sm" onClick={() => setAddModal('video')}>
                                     <Plus size={14} className="mr-1" /> Add Video
                                 </Button>
                                 <Button variant="outline" size="sm" onClick={() => setAddModal('quiz')}>
                                     <Plus size={14} className="mr-1" /> Add Quiz
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={() => setAddModal('article')}>
+                                    <Plus size={14} className="mr-1" /> Add Article
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={() => setAddModal('assignment')}>
+                                    <Plus size={14} className="mr-1" /> Add Assignment
                                 </Button>
                             </div>
                         </div>
@@ -675,6 +771,17 @@ export default function CourseEditorPage() {
             {/* Content Picker Modals */}
             {(addModal === 'video' || addModal === 'quiz') && (
                 <AddContentModal
+                    isOpen={true}
+                    onClose={() => setAddModal(null)}
+                    contentType={addModal}
+                    slug={slug!}
+                    courseId={id!}
+                    token={contextToken}
+                    onAdded={handleCurriculumAdded}
+                />
+            )}
+            {(addModal === 'article' || addModal === 'assignment') && (
+                <CreateContentModal
                     isOpen={true}
                     onClose={() => setAddModal(null)}
                     contentType={addModal}

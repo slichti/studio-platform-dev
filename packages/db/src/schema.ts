@@ -1343,14 +1343,96 @@ export const quizSubmissions = sqliteTable('quiz_submissions', {
     userQuizIdx: index('quiz_sub_user_quiz_idx').on(table.userId, table.quizId),
 }));
 
+export const articles = sqliteTable('articles', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    title: text('title').notNull(),
+    content: text('content', { mode: 'json' }), // Tiptap JSON or similar
+    html: text('html'), // Pre-rendered HTML for faster reads
+    readingTimeMinutes: integer('reading_time_minutes').default(0),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('article_tenant_idx').on(table.tenantId),
+}));
+
+export const assignments = sqliteTable('assignments', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    title: text('title').notNull(),
+    description: text('description'),
+    instructionsHtml: text('instructions_html'),
+    requireFileUpload: integer('require_file_upload', { mode: 'boolean' }).default(false),
+    pointsAvailable: integer('points_available').default(100),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('assignment_tenant_idx').on(table.tenantId),
+}));
+
+export const assignmentSubmissions = sqliteTable('assignment_submissions', {
+    id: text('id').primaryKey(),
+    assignmentId: text('assignment_id').notNull().references(() => assignments.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+
+    content: text('content'), // Student's text response
+    fileUrl: text('file_url'), // If they uploaded a file
+
+    status: text('status', { enum: ['submitted', 'graded', 'returned'] }).default('submitted').notNull(),
+    grade: integer('grade'), // Points awarded
+    feedbackHtml: text('feedback_html'), // Instructor feedback
+
+    submittedAt: integer('submitted_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    gradedAt: integer('graded_at', { mode: 'timestamp' }),
+}, (table) => ({
+    userAssignmentIdx: index('assign_sub_user_idx').on(table.userId, table.assignmentId),
+}));
+
+export const courseResources = sqliteTable('course_resources', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    collectionItemId: text('collection_item_id').notNull().references(() => videoCollectionItems.id, { onDelete: 'cascade' }), // Attached to a specific lesson step
+    title: text('title').notNull(),
+    url: text('url'), // External link
+    r2Key: text('r2_key'), // Internal file upload
+    fileType: text('file_type'), // e.g. 'application/pdf'
+    sizeBytes: integer('size_bytes'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    itemIdx: index('course_resource_item_idx').on(table.collectionItemId),
+}));
+
+export const courseComments = sqliteTable('course_comments', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    courseId: text('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+    collectionItemId: text('collection_item_id').notNull().references(() => videoCollectionItems.id, { onDelete: 'cascade' }),
+    authorId: text('author_id').notNull().references(() => tenantMembers.id), // The student or instructor
+
+    content: text('content').notNull(), // text or basic html
+    parentId: text('parent_id'), // Self-referential for threaded replies
+
+    isPinned: integer('is_pinned', { mode: 'boolean' }).default(false),
+    isApproved: integer('is_approved', { mode: 'boolean' }).default(true), // Can add moderation later
+
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    itemIdx: index('course_comment_item_idx').on(table.collectionItemId),
+    courseIdx: index('course_comment_course_idx').on(table.courseId),
+}));
+
 export const videoCollectionItems = sqliteTable('video_collection_items', {
     id: text('id').primaryKey(),
     collectionId: text('collection_id').notNull().references(() => videoCollections.id, { onDelete: 'cascade' }),
 
     // Polymorphic Content
-    contentType: text('content_type', { enum: ['video', 'quiz'] }).default('video').notNull(),
+    contentType: text('content_type', { enum: ['video', 'quiz', 'article', 'assignment'] }).default('video').notNull(),
     videoId: text('video_id').references(() => videos.id, { onDelete: 'cascade' }),
     quizId: text('quiz_id').references(() => quizzes.id, { onDelete: 'cascade' }),
+    articleId: text('article_id').references(() => articles.id, { onDelete: 'cascade' }),
+    assignmentId: text('assignment_id').references(() => assignments.id, { onDelete: 'cascade' }),
 
     order: integer('order').notNull().default(0),
     // H1: Module/section grouping
