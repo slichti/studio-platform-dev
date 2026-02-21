@@ -75,14 +75,14 @@ const TimeColumn = ({
   return (
     <div className="flex flex-col items-center gap-1">
       <span className="text-[10px] uppercase font-bold text-zinc-400 mb-1">{label}</span>
-      <div className="flex flex-col border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 overflow-hidden h-[180px] w-12 overflow-y-auto scrollbar-none">
+      <div className="flex flex-col border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 overflow-hidden h-[180px] w-10 overflow-y-auto scrollbar-none">
         {options.map((opt) => (
           <button
             key={opt}
             type="button"
             onClick={() => onChange(opt)}
             className={cn(
-              "py-2 text-sm transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-800",
+              "py-1.5 text-xs transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-800",
               value === opt ? "bg-blue-600 text-white hover:bg-blue-700" : "text-zinc-600 dark:text-zinc-400"
             )}
           >
@@ -155,7 +155,7 @@ export function DateTimePicker({ value, onChange, className, placeholder, name }
         )}
         autoComplete="off"
       >
-        <div className="p-4 border-l border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex gap-4">
+        <div className="p-2 border-l border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex gap-1">
           <TimeColumn
             label="Hrs"
             value={hour12}
