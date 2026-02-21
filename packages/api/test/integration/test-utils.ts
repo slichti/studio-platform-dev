@@ -28,7 +28,8 @@ export async function setupTestDb(d1: D1Database) {
         'community_likes', 'reviews', 'video_purchases',
         'quizzes', 'quiz_questions', 'quiz_submissions',
         'course_enrollments', 'courses', 'course_modules', 'course_access_codes',
-        'course_prerequisites'
+        'course_prerequisites', 'articles', 'assignments', 'assignment_submissions',
+        'course_comments', 'course_resources'
     ];
 
     for (const table of tables) {
@@ -352,6 +353,8 @@ export async function setupTestDb(d1: D1Database) {
         content_type TEXT DEFAULT 'video' NOT NULL,
         video_id TEXT,
         quiz_id TEXT,
+        article_id TEXT,
+        assignment_id TEXT,
         "order" INTEGER DEFAULT 0,
         module_id TEXT,
         release_after_days INTEGER,
@@ -454,6 +457,67 @@ export async function setupTestDb(d1: D1Database) {
         created_at INTEGER DEFAULT (strftime('%s', 'now')),
         PRIMARY KEY (course_id, prerequisite_id)
     )`).run();
+
+    await d1.batch([
+        d1.prepare(`CREATE TABLE articles (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            title TEXT NOT NULL,
+            html TEXT,
+            content TEXT,
+            reading_time_minutes INTEGER DEFAULT 0,
+            created_at INTEGER DEFAULT (strftime('%s', 'now')),
+            updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )`),
+        d1.prepare(`CREATE TABLE assignments (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            instructions_html TEXT,
+            require_file_upload INTEGER DEFAULT 0,
+            points_available INTEGER DEFAULT 100,
+            created_at INTEGER DEFAULT (strftime('%s', 'now')),
+            updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )`),
+        d1.prepare(`CREATE TABLE assignment_submissions (
+            id TEXT PRIMARY KEY,
+            assignment_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            tenant_id TEXT NOT NULL,
+            content TEXT,
+            file_url TEXT,
+            status TEXT DEFAULT 'submitted',
+            grade INTEGER,
+            feedback_html TEXT,
+            submitted_at INTEGER DEFAULT (strftime('%s', 'now')),
+            graded_at INTEGER
+        )`),
+        d1.prepare(`CREATE TABLE course_comments (
+            id TEXT PRIMARY KEY,
+            course_id TEXT NOT NULL,
+            collection_item_id TEXT NOT NULL,
+            author_id TEXT NOT NULL,
+            tenant_id TEXT NOT NULL,
+            content TEXT NOT NULL,
+            parent_id TEXT,
+            is_pinned INTEGER DEFAULT 0,
+            is_approved INTEGER DEFAULT 1,
+            created_at INTEGER DEFAULT (strftime('%s', 'now')),
+            updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )`),
+        d1.prepare(`CREATE TABLE course_resources (
+            id TEXT PRIMARY KEY,
+            collection_item_id TEXT NOT NULL,
+            tenant_id TEXT NOT NULL,
+            title TEXT NOT NULL,
+            url TEXT,
+            r2_key TEXT,
+            file_type TEXT,
+            size_bytes INTEGER DEFAULT 0,
+            created_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )`)
+    ]);
 
     return db;
 }
