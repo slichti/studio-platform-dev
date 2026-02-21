@@ -409,6 +409,7 @@ export async function setupTestDb(d1: D1Database) {
         content_collection_id TEXT,
         delivery_mode TEXT DEFAULT 'self_paced',
         cohort_start_date INTEGER,
+        cohort_end_date INTEGER,
         created_at INTEGER DEFAULT (strftime('%s', 'now')),
         updated_at INTEGER DEFAULT (strftime('%s', 'now'))
     )`).run();

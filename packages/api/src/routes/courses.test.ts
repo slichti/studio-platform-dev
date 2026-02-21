@@ -85,6 +85,7 @@ describe('Standalone Course Management API', () => {
         expect(res.status).toBe(201);
         expect(data.title).toBe('Full Stack Web Dev');
         expect(data.price).toBe(9900);
+        expect(data.cohortEndDate).toBeDefined();
     });
 
     it('should link a class to a course', async () => {
