@@ -372,6 +372,7 @@ export default function StudioLayout() {
                             <SidebarGroup title="Analytics">
                                 <NavItem to={`/studio/${slug}/analytics/financials`} icon={<DollarSign size={18} />}>Financials</NavItem>
                                 <NavItem to={`/studio/${slug}/analytics/attendance`} icon={<BarChart3 size={18} />}>Attendance</NavItem>
+                                <NavItem to={`/studio/${slug}/analytics/enrollments`} icon={<Users size={18} />}>Enrollment Rosters</NavItem>
                                 <NavItem to={`/studio/${slug}/analytics/projections`} icon={<TrendingUp size={18} />}>Projections</NavItem>
                                 <NavItem to={`/studio/${slug}/analytics/custom`} icon={<Filter size={18} />}>Custom Reports</NavItem>
                                 <NavItem to={`/studio/${slug}/analytics/reports`} icon={<Mail size={18} />}>Scheduled Reports</NavItem>

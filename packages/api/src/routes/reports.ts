@@ -2,16 +2,147 @@ import { Hono } from 'hono';
 import { createDb } from '../db';
 import { ReportService } from '../services/reports';
 import { scheduledReports, locations, classes, bookings } from '@studio/db/src/schema';
-import { eq, and, sql, count } from 'drizzle-orm';
+import { eq, and, sql, count, gte, inArray } from 'drizzle-orm';
 import { HonoContext } from '../types';
 import churnRouter from './reports.churn';
 import scheduledRouter from './reports.scheduled';
+import { desc } from 'drizzle-orm';
 
 const app = new Hono<HonoContext>();
 
 // Mount sub-routes
 app.route('/churn', churnRouter);
 app.route('/scheduled', scheduledRouter);
+
+// GET /enrollments - Unified view of class and course enrollments
+app.get('/enrollments', async (c) => {
+    if (!c.get('can')('view_reports')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const now = new Date();
+    // Look back slightly so we don't instantly lose classes that just started
+    const lookback = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const { tenantMembers, users, courses, courseEnrollments } = await import('@studio/db/src/schema');
+
+    // 1. Fetch upcoming/recent active classes
+    const activeClasses = await db.select()
+        .from(classes)
+        .where(
+            and(
+                eq(classes.tenantId, tenant.id),
+                eq(classes.status, 'active'),
+                gte(classes.startTime, lookback)
+            )
+        )
+        .orderBy(classes.startTime)
+        .limit(100)
+        .all();
+
+    const classIds = activeClasses.map(c => c.id);
+    let classBookings: any[] = [];
+    if (classIds.length > 0) {
+        // Fetch bookings for these classes, joined to get the member profile
+        classBookings = await db.select({
+            id: bookings.id,
+            classId: bookings.classId,
+            status: bookings.status,
+            attendanceType: bookings.attendanceType,
+            checkedInAt: bookings.checkedInAt,
+            memberId: bookings.memberId,
+            memberProfile: tenantMembers.profile,
+            userEmail: users.email
+        })
+            .from(bookings)
+            .innerJoin(tenantMembers, eq(bookings.memberId, tenantMembers.id))
+            .innerJoin(users, eq(tenantMembers.userId, users.id))
+            .where(inArray(bookings.classId, classIds))
+            .all();
+    }
+
+    // 2. Fetch active courses
+    const activeCourses = await db.select()
+        .from(courses)
+        .where(
+            and(
+                eq(courses.tenantId, tenant.id),
+                eq(courses.status, 'active')
+            )
+        )
+        .orderBy(desc(courses.createdAt))
+        .all();
+
+    const courseIds = activeCourses.map(c => c.id);
+    let courseEnrollees: any[] = [];
+    if (courseIds.length > 0) {
+        courseEnrollees = await db.select({
+            id: courseEnrollments.id,
+            courseId: courseEnrollments.courseId,
+            status: courseEnrollments.status,
+            progress: courseEnrollments.progress,
+            enrolledAt: courseEnrollments.enrolledAt,
+            memberId: tenantMembers.id,
+            memberProfile: tenantMembers.profile,
+            userEmail: users.email
+        })
+            .from(courseEnrollments)
+            .innerJoin(users, eq(courseEnrollments.userId, users.id))
+            // Join tenant members separately since we only have userId on courseEnrollments
+            .innerJoin(tenantMembers, and(eq(tenantMembers.userId, users.id), eq(tenantMembers.tenantId, tenant.id)))
+            .where(inArray(courseEnrollments.courseId, courseIds))
+            .all();
+    }
+
+    // Combine and structure the output
+    const enrollmentsReport = [
+        ...activeClasses.map(cls => ({
+            id: cls.id,
+            title: cls.title,
+            type: cls.type || 'class', // from DB
+            date: cls.startTime,
+            instructorId: cls.instructorId,
+            capacity: cls.capacity,
+            roster: classBookings.filter(b => b.classId === cls.id).map(b => {
+                const profile = typeof b.memberProfile === 'string' ? JSON.parse(b.memberProfile) : b.memberProfile;
+                return {
+                    bookingId: b.id,
+                    memberId: b.memberId,
+                    name: `${profile?.firstName || ''} ${profile?.lastName || ''}`.trim() || 'Unknown',
+                    email: b.userEmail,
+                    status: b.status,
+                    attendanceType: b.attendanceType,
+                    checkedIn: !!b.checkedInAt
+                };
+            })
+        })),
+        ...activeCourses.map(crs => ({
+            id: crs.id,
+            title: crs.title,
+            type: 'course',
+            date: crs.createdAt, // Course doesn't have a rigid start time mostly
+            isPublic: crs.isPublic,
+            roster: courseEnrollees.filter(e => e.courseId === crs.id).map(e => {
+                const profile = typeof e.memberProfile === 'string' ? JSON.parse(e.memberProfile) : e.memberProfile;
+                return {
+                    enrollmentId: e.id,
+                    memberId: e.memberId,
+                    name: `${profile?.firstName || ''} ${profile?.lastName || ''}`.trim() || 'Unknown',
+                    email: e.userEmail,
+                    status: e.status,
+                    progress: e.progress,
+                    enrolledAt: e.enrolledAt
+                };
+            })
+        }))
+    ];
+
+    // Sort by date (newest/upcoming first)
+    enrollmentsReport.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+
+    return c.json({ items: enrollmentsReport });
+});
 
 // GET /locations - Cross-location comparison
 app.get('/locations', async (c) => {
