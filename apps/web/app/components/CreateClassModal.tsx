@@ -4,6 +4,7 @@ import { apiRequest } from "../utils/api";
 import { useAuth } from "@clerk/react-router";
 
 import { useParams } from "react-router";
+import { DateTimePicker } from "./ui/DateTimePicker";
 
 interface CreateClassModalProps {
     isOpen: boolean;
@@ -293,35 +294,10 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label htmlFor="startTime" className="block text-sm font-medium text-zinc-700 mb-1">Start Date & Time</label>
-                        <input
-                            id="startTime"
-                            type="datetime-local"
-                            required
-                            step="300"
-                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
+                        <DateTimePicker
                             value={formData.startTime}
-                            onChange={(e) => {
-                                setFormData({ ...formData, startTime: e.target.value });
-                            }}
-                            onBlur={(e) => {
-                                let val = e.target.value;
-                                if (val) {
-                                    const d = new Date(val);
-                                    if (!isNaN(d.getTime())) {
-                                        const minutes = d.getMinutes();
-                                        const snapped = Math.round(minutes / 5) * 5;
-                                        d.setMinutes(snapped);
-
-                                        const year = d.getFullYear();
-                                        const month = String(d.getMonth() + 1).padStart(2, '0');
-                                        const day = String(d.getDate()).padStart(2, '0');
-                                        const hours = String(d.getHours()).padStart(2, '0');
-                                        const mins = String(d.getMinutes()).padStart(2, '0');
-                                        val = `${year}-${month}-${day}T${hours}:${mins}`;
-                                        setFormData({ ...formData, startTime: val });
-                                    }
-                                }
-                            }}
+                            onChange={(iso: string) => setFormData({ ...formData, startTime: iso })}
+                            placeholder="Select start date & time"
                         />
                     </div>
                     <div>

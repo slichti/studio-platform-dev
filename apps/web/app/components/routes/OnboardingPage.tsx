@@ -5,6 +5,7 @@ import { useState } from "react";
 import { CheckCircle2, MapPin, Calendar, Palette, ArrowRight, Loader2, Upload, Users, Plus, X } from "lucide-react";
 import { apiRequest } from "../../utils/api";
 import { DataImportForm } from "~/components/DataImportForm";
+import { DateTimePicker } from "~/components/ui/DateTimePicker";
 
 export default function OnboardingPage() {
     const { tenant } = useOutletContext<any>();
@@ -28,6 +29,7 @@ export default function OnboardingPage() {
 
     // Team State
     const [inviteEmails, setInviteEmails] = useState<string[]>(['']);
+    const [startTime, setStartTime] = useState<string>('');
 
     const isSubmitting = navigation.state === "submitting";
 
@@ -236,7 +238,12 @@ export default function OnboardingPage() {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Start Time</label>
-                                    <input required type="datetime-local" name="startTime" className="w-full p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900" />
+                                    <DateTimePicker
+                                        name="startTime"
+                                        value={startTime}
+                                        onChange={(iso: string) => setStartTime(iso)}
+                                        placeholder="Select start date & time"
+                                    />
                                 </div>
                                 <input type="hidden" name="price" value={defaults.price} />
                             </div>

@@ -6,6 +6,7 @@ import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
 import ImageUploader from "../components/ImageUploader";
 import { useState } from "react";
+import { DateTimePicker } from "../components/ui/DateTimePicker";
 
 type ClassItem = {
     id: string;
@@ -59,6 +60,7 @@ export default function ClassesRoute() {
     const isSubmitting = navigation.state === "submitting";
 
     const [thumbnailId, setThumbnailId] = useState<string | null>(null);
+    const [startTime, setStartTime] = useState<string>('');
 
     return (
         <div>
@@ -74,9 +76,14 @@ export default function ClassesRoute() {
                         <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '5px' }}>Title</label>
                         <input name="title" required type="text" style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #d4d4d8' }} />
                     </div>
-                    <div>
+                    <div style={{ minWidth: '240px' }}>
                         <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '5px' }}>Start Time</label>
-                        <input name="startTime" required type="datetime-local" style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #d4d4d8' }} />
+                        <DateTimePicker
+                            name="startTime"
+                            value={startTime}
+                            onChange={(iso: string) => setStartTime(iso)}
+                            placeholder="Select start date & time"
+                        />
                     </div>
                     <div>
                         <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '5px' }}>Duration (min)</label>
@@ -97,7 +104,7 @@ export default function ClassesRoute() {
                     </button>
                 </Form>
                 <div style={{ marginTop: '10px' }}>
-                    <ImageUploader onUploadComplete={(id) => setThumbnailId(id)} />
+                    <ImageUploader onUploadComplete={(id: string) => setThumbnailId(id)} />
                 </div>
                 {actionData?.error && <p style={{ color: 'red', marginTop: '10px' }}>{actionData.error}</p>}
             </div>
