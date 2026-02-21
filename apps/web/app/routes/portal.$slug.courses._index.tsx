@@ -2,8 +2,8 @@ import { useLoaderData, useOutletContext, Link, Form, useNavigation } from "reac
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
-import { BookOpen, GraduationCap, ChevronRight, Loader2, Key } from "lucide-react";
-import { useState } from "react";
+import { BookOpen, GraduationCap, ChevronRight, Loader2, Key, Search, X, SlidersHorizontal } from "lucide-react";
+import { useState, useMemo } from "react";
 import { cn } from "~/utils/cn";
 
 export const loader = async (args: LoaderFunctionArgs) => {
@@ -72,9 +72,34 @@ export default function PortalCoursesIndex() {
     const slug = tenant?.slug;
 
     const [redeemCourseId, setRedeemCourseId] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filterStatus, setFilterStatus] = useState<'all' | 'enrolled' | 'available'>('all');
+    const [sortBy, setSortBy] = useState<'title' | 'price' | 'progress'>('title');
 
     const enrolledMap = new Map((enrollments as any[]).map((e: any) => [e.courseId, e]));
     const enrollingId = navigation.formData?.get("courseId") as string;
+
+    const filteredCourses = useMemo(() => {
+        let result = (courses as any[]);
+        if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase();
+            result = result.filter((c: any) =>
+                c.title?.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q)
+            );
+        }
+        if (filterStatus === 'enrolled') result = result.filter((c: any) => enrolledMap.has(c.id));
+        if (filterStatus === 'available') result = result.filter((c: any) => !enrolledMap.has(c.id));
+        result = [...result].sort((a, b) => {
+            if (sortBy === 'price') return (a.price ?? 0) - (b.price ?? 0);
+            if (sortBy === 'progress') {
+                const pa = enrolledMap.get(a.id)?.progress ?? -1;
+                const pb = enrolledMap.get(b.id)?.progress ?? -1;
+                return pb - pa;
+            }
+            return (a.title ?? '').localeCompare(b.title ?? '');
+        });
+        return result;
+    }, [courses, searchQuery, filterStatus, sortBy, enrolledMap]);
 
     return (
         <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
@@ -86,6 +111,45 @@ export default function PortalCoursesIndex() {
                 <p className="text-zinc-500 dark:text-zinc-400 mt-1">Premium courses available from {tenant?.name}.</p>
             </div>
 
+            {/* Search + Filter bar */}
+            <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                    <input
+                        type="search"
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        placeholder="Search courses…"
+                        className="w-full pl-9 pr-8 py-2.5 text-sm border border-zinc-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900 outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                    />
+                    {searchQuery && (
+                        <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition">
+                            <X size={14} />
+                        </button>
+                    )}
+                </div>
+                <div className="flex gap-2">
+                    <select
+                        value={filterStatus}
+                        onChange={e => setFilterStatus(e.target.value as any)}
+                        className="px-3 py-2 text-sm border border-zinc-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900 outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                        <option value="all">All Courses</option>
+                        <option value="enrolled">Enrolled</option>
+                        <option value="available">Not Enrolled</option>
+                    </select>
+                    <select
+                        value={sortBy}
+                        onChange={e => setSortBy(e.target.value as any)}
+                        className="px-3 py-2 text-sm border border-zinc-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900 outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                        <option value="title">Sort: A–Z</option>
+                        <option value="price">Sort: Price</option>
+                        <option value="progress">Sort: Progress</option>
+                    </select>
+                </div>
+            </div>
+
             {(courses as any[]).length === 0 && (
                 <div className="p-16 text-center bg-white dark:bg-zinc-900 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl">
                     <BookOpen size={36} className="mx-auto text-zinc-300 mb-4" />
@@ -94,8 +158,16 @@ export default function PortalCoursesIndex() {
                 </div>
             )}
 
+            {filteredCourses.length === 0 && searchQuery && (
+                <div className="p-10 text-center bg-white dark:bg-zinc-900 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl">
+                    <Search size={28} className="mx-auto text-zinc-300 mb-3" />
+                    <p className="font-medium text-zinc-600 dark:text-zinc-400">No courses match "{searchQuery}"</p>
+                    <button onClick={() => setSearchQuery('')} className="mt-2 text-sm text-indigo-600 hover:underline">Clear search</button>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {(courses as any[]).map((course: any) => {
+                {filteredCourses.map((course: any) => {
                     const enrollment = enrolledMap.get(course.id);
                     const isEnrolled = !!enrollment;
                     const progress = enrollment?.progress ?? 0;

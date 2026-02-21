@@ -273,6 +273,169 @@ function CurriculumItem({
     );
 }
 
+// ── Grading Tab ───────────────────────────────────────────────────────────────
+
+function GradingTab({ submissions, onGraded, token, slug, getToken }: {
+    submissions: any[];
+    onGraded: () => void;
+    token: string | null;
+    slug: string;
+    getToken: () => Promise<string | null>;
+}) {
+    const [gradingId, setGradingId] = useState<string | null>(null);
+    const [gradeValue, setGradeValue] = useState<string>('');
+    const [feedbackValue, setFeedbackValue] = useState<string>('');
+    const [saving, setSaving] = useState(false);
+    const [filter, setFilter] = useState<'all' | 'submitted' | 'graded'>('submitted');
+
+    const filtered = submissions.filter(s =>
+        filter === 'all' ? true : s.status === filter
+    );
+
+    const openGrading = (s: any) => {
+        setGradingId(s.id);
+        setGradeValue(s.grade != null ? String(s.grade) : '');
+        setFeedbackValue(s.feedbackHtml ?? '');
+    };
+
+    const handleGrade = async () => {
+        if (!gradingId) return;
+        const grade = Number(gradeValue);
+        if (isNaN(grade) || grade < 0) { toast.error('Enter a valid grade'); return; }
+        setSaving(true);
+        try {
+            const t = token || await getToken();
+            await apiRequest(`/courses/assignments/submissions/${gradingId}/grade`, t, {
+                method: 'PATCH',
+                headers: { 'X-Tenant-Slug': slug },
+                body: JSON.stringify({ grade, feedbackHtml: feedbackValue, status: 'graded' }),
+            });
+            toast.success('Graded!');
+            setGradingId(null);
+            onGraded();
+        } catch (e: any) {
+            toast.error(e.message || 'Failed to save grade');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (submissions.length === 0) {
+        return (
+            <div className="p-16 text-center text-zinc-400 bg-white dark:bg-zinc-900 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl">
+                <ClipboardList size={36} className="mx-auto mb-3 opacity-40" />
+                <p className="text-sm font-medium">No assignment submissions yet.</p>
+                <p className="text-xs text-zinc-400 mt-1">Submissions will appear here when students submit their work.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-4">
+            {/* Filter bar */}
+            <div className="flex items-center gap-2">
+                {(['submitted', 'graded', 'all'] as const).map(f => (
+                    <button
+                        key={f}
+                        onClick={() => setFilter(f)}
+                        className={cn(
+                            "px-3 py-1.5 text-sm rounded-lg font-medium capitalize transition",
+                            filter === f
+                                ? "bg-indigo-600 text-white"
+                                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                        )}
+                    >
+                        {f === 'submitted' ? `Needs Grading (${submissions.filter(s => s.status === 'submitted').length})` : f === 'graded' ? `Graded (${submissions.filter(s => s.status === 'graded').length})` : `All (${submissions.length})`}
+                    </button>
+                ))}
+            </div>
+
+            {filtered.length === 0 && (
+                <p className="text-center text-zinc-400 py-8 text-sm">No submissions matching this filter.</p>
+            )}
+
+            {filtered.map((s: any) => (
+                <Card key={s.id}>
+                    <CardContent className="p-5">
+                        <div className="flex items-start gap-4">
+                            <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 text-sm font-bold flex-shrink-0">
+                                {s.userId?.[0]?.toUpperCase() ?? '?'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-semibold text-sm truncate">{s.userId}</span>
+                                    <span className={cn(
+                                        "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
+                                        s.status === 'submitted' ? "bg-orange-100 text-orange-700" :
+                                            s.status === 'graded' ? "bg-green-100 text-green-700" :
+                                                "bg-zinc-100 text-zinc-600"
+                                    )}>{s.status}</span>
+                                    {s.assignment?.title && (
+                                        <span className="text-xs text-zinc-400 truncate">&middot; {s.assignment.title}</span>
+                                    )}
+                                </div>
+                                {s.content && (
+                                    <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-3 mb-2 bg-zinc-50 dark:bg-zinc-800 p-3 rounded-lg">
+                                        {s.content}
+                                    </p>
+                                )}
+                                {s.grade != null && (
+                                    <p className="text-sm font-medium text-green-700 dark:text-green-400">
+                                        Grade: {s.grade} / {s.assignment?.pointsAvailable ?? 100} pts
+                                    </p>
+                                )}
+                                <p className="text-[11px] text-zinc-400 mt-1">
+                                    Submitted {s.submittedAt ? new Date(typeof s.submittedAt === 'number' ? s.submittedAt * 1000 : s.submittedAt).toLocaleString() : '—'}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => openGrading(s)}
+                                className="flex-shrink-0 px-3 py-1.5 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition"
+                            >
+                                {s.grade != null ? 'Re-grade' : 'Grade'}
+                            </button>
+                        </div>
+                    </CardContent>
+                </Card>
+            ))}
+
+            {/* Grading Modal */}
+            <Modal isOpen={!!gradingId} onClose={() => setGradingId(null)} title="Grade Submission">
+                <div className="space-y-4 p-1">
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Grade (points)</label>
+                        <input
+                            type="number"
+                            min="0"
+                            value={gradeValue}
+                            onChange={e => setGradeValue(e.target.value)}
+                            className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                            placeholder="e.g. 85"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Feedback (optional HTML or plain text)</label>
+                        <textarea
+                            rows={5}
+                            value={feedbackValue}
+                            onChange={e => setFeedbackValue(e.target.value)}
+                            className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                            placeholder="Great work! Consider…"
+                        />
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                        <Button variant="ghost" onClick={() => setGradingId(null)}>Cancel</Button>
+                        <Button onClick={handleGrade} disabled={saving}>
+                            {saving ? <Loader2 size={14} className="animate-spin mr-1" /> : null}
+                            Save Grade
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
+        </div>
+    );
+}
+
 // ── Main Editor ───────────────────────────────────────────────────────────────
 
 export default function CourseEditorPage() {
@@ -301,8 +464,19 @@ export default function CourseEditorPage() {
             if (!token) throw new Error("No token");
             return apiRequest(`/courses/${id}/analytics`, token, { headers: { 'X-Tenant-Slug': slug! } });
         },
-        enabled: !!id && !!slug && (!!contextToken || !!id), // id check is just to keep enabled logic simple if contextToken is missing initially
+        enabled: !!id && !!slug && (!!contextToken || !!id),
         refetchInterval: 60000
+    });
+
+    // Grading — all assignment submissions for this course
+    const { data: allSubmissions = [], refetch: refetchSubmissions } = useQuery({
+        queryKey: ['course-submissions', slug, id, contextToken],
+        queryFn: async () => {
+            const token = contextToken || await getToken();
+            if (!token) return [];
+            return apiRequest(`/courses/${id}/all-submissions`, token, { headers: { 'X-Tenant-Slug': slug! } });
+        },
+        enabled: !!id && !!slug && (!!contextToken || !!id),
     });
 
     const [activeTab, setActiveTab] = useState("curriculum");
@@ -456,6 +630,14 @@ export default function CourseEditorPage() {
                     </TabsTrigger>
                     <TabsTrigger value="students" className="flex items-center gap-2">
                         <Users size={14} /> Analytics & Students
+                    </TabsTrigger>
+                    <TabsTrigger value="grading" className="flex items-center gap-2">
+                        <ClipboardList size={14} /> Grading
+                        {(allSubmissions as any[]).filter((s: any) => s.status === 'submitted').length > 0 && (
+                            <span className="ml-1 bg-orange-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                                {(allSubmissions as any[]).filter((s: any) => s.status === 'submitted').length}
+                            </span>
+                        )}
                     </TabsTrigger>
                 </TabsList>
 
@@ -764,6 +946,17 @@ export default function CourseEditorPage() {
                             <p className="text-sm font-medium">No students enrolled yet.</p>
                         </div>
                     )}
+                </TabsContent>
+
+                {/* ── Grading Tab ── */}
+                <TabsContent value="grading" className="pt-6 space-y-4">
+                    <GradingTab
+                        submissions={allSubmissions as any[]}
+                        onGraded={refetchSubmissions}
+                        token={contextToken}
+                        slug={slug!}
+                        getToken={getToken}
+                    />
                 </TabsContent>
             </Tabs>
 

@@ -1445,6 +1445,18 @@ export const videoCollectionItems = sqliteTable('video_collection_items', {
     collectionIdx: index('collection_item_idx').on(table.collectionId),
 }));
 
+export const courseItemCompletions = sqliteTable('course_item_completions', {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+    courseId: text('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+    itemId: text('item_id').notNull().references(() => videoCollectionItems.id, { onDelete: 'cascade' }),
+    completedAt: integer('completed_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`).notNull(),
+}, (table) => ({
+    uniqueCompletion: uniqueIndex('course_item_completion_unique').on(table.userId, table.itemId),
+    courseIdx: index('course_item_completion_course_idx').on(table.userId, table.courseId),
+}));
+
 export const videoPurchases = sqliteTable('video_purchases', {
     id: text('id').primaryKey(),
     tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),

@@ -2,7 +2,7 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { createOpenAPIApp } from '../lib/openapi';
 import { StudioVariables } from '../types';
 import { createDb } from '../db';
-import { courses, courseEnrollments, classes, videoCollectionItems, videoCollections, courseModules, courseAccessCodes, videos, quizzes, coursePrerequisites, articles, assignments, courseResources, courseComments, assignmentSubmissions } from '@studio/db/src/schema';
+import { courses, courseEnrollments, classes, videoCollectionItems, videoCollections, courseModules, courseAccessCodes, videos, quizzes, quizQuestions, quizSubmissions, coursePrerequisites, articles, assignments, courseResources, courseComments, assignmentSubmissions, courseItemCompletions } from '@studio/db/src/schema';
 import { eq, and, desc, asc, inArray } from 'drizzle-orm';
 
 const app = createOpenAPIApp<StudioVariables>();
@@ -235,17 +235,23 @@ app.openapi(createRoute({
         allArticles,
         allAssignments,
         allResources,
+        allQuizQuestions,
     ] = await Promise.all([
         videoIds.length ? db.select({ id: videos.id, title: videos.title, cloudflareStreamId: videos.cloudflareStreamId, r2Key: videos.r2Key, duration: videos.duration }).from(videos).where(inArray(videos.id, videoIds)).all() : [],
-        quizIds.length ? db.select({ id: quizzes.id, title: quizzes.title, passingScore: quizzes.passingScore }).from(quizzes).where(inArray(quizzes.id, quizIds)).all() : [],
+        quizIds.length ? db.select({ id: quizzes.id, title: quizzes.title, description: quizzes.description, passingScore: quizzes.passingScore, randomizeOrder: quizzes.randomizeOrder }).from(quizzes).where(inArray(quizzes.id, quizIds)).all() : [],
         articleIds.length ? db.select({ id: articles.id, title: articles.title, html: articles.html, readingTimeMinutes: articles.readingTimeMinutes }).from(articles).where(inArray(articles.id, articleIds)).all() : [],
         assignmentIds.length ? db.select({ id: assignments.id, title: assignments.title, description: assignments.description, instructionsHtml: assignments.instructionsHtml, requireFileUpload: assignments.requireFileUpload, pointsAvailable: assignments.pointsAvailable }).from(assignments).where(inArray(assignments.id, assignmentIds)).all() : [],
         itemIds.length ? db.select().from(courseResources).where(inArray(courseResources.collectionItemId, itemIds)).all() : [],
+        quizIds.length ? db.select({
+            id: quizQuestions.id, quizId: quizQuestions.quizId,
+            questionText: quizQuestions.questionText, questionType: quizQuestions.questionType,
+            options: quizQuestions.options, points: quizQuestions.points, order: quizQuestions.order,
+            explanation: quizQuestions.explanation,
+        }).from(quizQuestions).where(inArray(quizQuestions.quizId, quizIds)).orderBy(quizQuestions.order).all() : [],
     ]);
 
     // Build lookup maps for O(1) assembly
     const videoMap = Object.fromEntries(allVideos.map(v => [v.id, v]));
-    const quizMap = Object.fromEntries(allQuizzes.map(q => [q.id, q]));
     const articleMap = Object.fromEntries(allArticles.map(a => [a.id, a]));
     const assignmentMap = Object.fromEntries(allAssignments.map(a => [a.id, a]));
     const resourcesByItem: Record<string, any[]> = {};
@@ -253,6 +259,12 @@ app.openapi(createRoute({
         if (!resourcesByItem[r.collectionItemId]) resourcesByItem[r.collectionItemId] = [];
         resourcesByItem[r.collectionItemId].push(r);
     }
+    const questionsByQuiz: Record<string, any[]> = {};
+    for (const q of allQuizQuestions) {
+        if (!questionsByQuiz[q.quizId]) questionsByQuiz[q.quizId] = [];
+        questionsByQuiz[q.quizId].push(q);
+    }
+    const quizMap = Object.fromEntries(allQuizzes.map(q => [q.id, { ...q, questions: questionsByQuiz[q.id] ?? [] }]));
 
     const curriculum = rawItems.map(item => ({
         ...item,
@@ -1248,6 +1260,324 @@ app.openapi(createRoute({
         .run();
 
     return c.json({ success: true, message: 'Enrolled successfully via access code' });
+});
+
+// --- Per-Lesson Completion Tracking (Tier 2) ---
+
+// POST /:courseId/curriculum/:itemId/complete - Mark a specific lesson item as complete
+app.openapi(createRoute({
+    method: 'post',
+    path: '/{courseId}/curriculum/{itemId}/complete',
+    tags: ['Courses'],
+    summary: 'Mark a curriculum item as complete',
+    request: { params: z.object({ courseId: z.string(), itemId: z.string() }) },
+    responses: { 200: { description: 'Item marked complete', content: { 'application/json': { schema: z.any() } } } }
+}), async (c) => {
+    const tenant = c.get('tenant');
+    const me = c.get('member') as any;
+    const { courseId, itemId } = c.req.valid('param');
+    const db = createDb(c.env.DB);
+
+    // Upsert completion record
+    await db.insert(courseItemCompletions).values({
+        id: crypto.randomUUID(),
+        userId: me.userId,
+        tenantId: tenant.id,
+        courseId,
+        itemId,
+        completedAt: new Date(),
+    }).onConflictDoNothing().run();
+
+    // Recalculate overall enrollment progress
+    const allItems = await db.select({ id: videoCollectionItems.id })
+        .from(videoCollectionItems)
+        .where(
+            // Find items in this course's collection
+            eq(videoCollectionItems.collectionId,
+                db.select({ id: courses.contentCollectionId }).from(courses).where(eq(courses.id, courseId)) as any
+            )
+        ).all();
+
+    const completedItems = await db.select({ itemId: courseItemCompletions.itemId })
+        .from(courseItemCompletions)
+        .where(and(eq(courseItemCompletions.userId, me.userId), eq(courseItemCompletions.courseId, courseId)))
+        .all();
+
+    const total = allItems.length;
+    const done = completedItems.length;
+    const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+
+    if (total > 0) {
+        await db.update(courseEnrollments).set({
+            progress,
+            status: progress >= 100 ? 'completed' : 'active',
+            ...(progress >= 100 ? { completedAt: new Date() } : {}),
+        }).where(and(eq(courseEnrollments.userId, me.userId), eq(courseEnrollments.courseId, courseId))).run();
+    }
+
+    return c.json({ success: true, completedItemIds: completedItems.map(c => c.itemId), progress });
+});
+
+// GET /:courseId/my-completions - Get all completed item IDs for a student
+app.openapi(createRoute({
+    method: 'get',
+    path: '/{courseId}/my-completions',
+    tags: ['Courses'],
+    summary: 'Get my completed lesson items for a course',
+    request: { params: z.object({ courseId: z.string() }) },
+    responses: { 200: { description: 'List of completed item IDs', content: { 'application/json': { schema: z.any() } } } }
+}), async (c) => {
+    const me = c.get('member') as any;
+    const { courseId } = c.req.valid('param');
+    const db = createDb(c.env.DB);
+
+    const completions = await db.select({ itemId: courseItemCompletions.itemId, completedAt: courseItemCompletions.completedAt })
+        .from(courseItemCompletions)
+        .where(and(eq(courseItemCompletions.userId, me.userId), eq(courseItemCompletions.courseId, courseId)))
+        .all();
+    return c.json(completions);
+});
+
+// --- Quiz Submission ---
+
+// POST /quiz/:id/submit - Student submits quiz answers, gets score back
+app.openapi(createRoute({
+    method: 'post',
+    path: '/quiz/{id}/submit',
+    tags: ['Courses'],
+    summary: 'Submit quiz answers',
+    request: {
+        params: z.object({ id: z.string() }),
+        body: {
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        answers: z.record(z.string(), z.string()) // questionId -> answer value
+                    })
+                }
+            }
+        }
+    },
+    responses: {
+        200: { description: 'Quiz submitted, score returned', content: { 'application/json': { schema: z.any() } } },
+        404: { description: 'Quiz not found' }
+    }
+}), async (c) => {
+    const tenant = c.get('tenant');
+    const me = c.get('member') as any;
+    const { id: quizId } = c.req.valid('param');
+    const { answers } = c.req.valid('json');
+    const db = createDb(c.env.DB);
+
+    const quiz = await db.select().from(quizzes).where(and(eq(quizzes.id, quizId), eq(quizzes.tenantId, tenant.id))).get();
+    if (!quiz) return c.json({ error: 'Quiz not found' }, 404);
+
+    const questions = await db.select().from(quizQuestions).where(eq(quizQuestions.quizId, quizId)).all();
+
+    let earned = 0;
+    let total = 0;
+    const graded = questions.map(q => {
+        const points = q.points ?? 1;
+        total += points;
+        const userAnswer = (answers[q.id] ?? '').toString().trim().toLowerCase();
+        const correct = (q.correctAnswer ?? '').toString().trim().toLowerCase();
+        let isCorrect = false;
+        if (q.questionType === 'short_answer') {
+            isCorrect = userAnswer.includes(correct) || correct.includes(userAnswer);
+        } else {
+            isCorrect = userAnswer === correct;
+        }
+        if (isCorrect) earned += points;
+        return { questionId: q.id, isCorrect, explanation: q.explanation ?? null };
+    });
+
+    const score = total > 0 ? Math.round((earned / total) * 100) : 0;
+    const passingScore = quiz.passingScore ?? 0;
+    const passed = score >= passingScore;
+
+    const submission = {
+        id: crypto.randomUUID(),
+        quizId,
+        userId: me.userId,
+        tenantId: tenant.id,
+        score,
+        passed,
+        answers: JSON.stringify(answers),
+        finishedAt: new Date(),
+    };
+    await db.insert(quizSubmissions).values(submission).run();
+
+    return c.json({ score, passed, passingScore, total: questions.length, graded });
+});
+
+// GET /quiz/:id/my-submission - Get student's most recent quiz submission
+app.openapi(createRoute({
+    method: 'get',
+    path: '/quiz/{id}/my-submission',
+    tags: ['Courses'],
+    summary: 'Get my most recent quiz submission',
+    request: { params: z.object({ id: z.string() }) },
+    responses: { 200: { description: 'Submission or null', content: { 'application/json': { schema: z.any() } } } }
+}), async (c) => {
+    const me = c.get('member') as any;
+    const { id: quizId } = c.req.valid('param');
+    const db = createDb(c.env.DB);
+
+    const submission = await db.select().from(quizSubmissions)
+        .where(and(eq(quizSubmissions.quizId, quizId), eq(quizSubmissions.userId, me.userId)))
+        .orderBy(desc(quizSubmissions.finishedAt))
+        .get();
+    return c.json(submission ?? null);
+});
+
+// --- Assignment Grading ---
+
+// GET /assignments/:id/my-submission - Get student's own assignment submission
+app.openapi(createRoute({
+    method: 'get',
+    path: '/assignments/{id}/my-submission',
+    tags: ['Courses'],
+    summary: 'Get my assignment submission',
+    request: { params: z.object({ id: z.string() }) },
+    responses: { 200: { description: 'Submission or null', content: { 'application/json': { schema: z.any() } } } }
+}), async (c) => {
+    const me = c.get('member') as any;
+    const { id: assignmentId } = c.req.valid('param');
+    const db = createDb(c.env.DB);
+
+    const submission = await db.select().from(assignmentSubmissions)
+        .where(and(eq(assignmentSubmissions.assignmentId, assignmentId), eq(assignmentSubmissions.userId, me.userId)))
+        .orderBy(desc(assignmentSubmissions.submittedAt))
+        .get();
+    return c.json(submission ?? null);
+});
+
+// GET /assignments/:id/submissions - Instructor: list all submissions for an assignment
+app.openapi(createRoute({
+    method: 'get',
+    path: '/assignments/{id}/submissions',
+    tags: ['Courses'],
+    summary: 'List all submissions for an assignment (instructor)',
+    request: { params: z.object({ id: z.string() }) },
+    responses: {
+        200: { description: 'List of submissions', content: { 'application/json': { schema: z.any() } } },
+    }
+}), async (c) => {
+    const tenant = c.get('tenant');
+    const can = c.get('can') as any;
+    if (!can?.('manage', 'courses')) return c.json({ error: 'Forbidden' }, 403 as any);
+    const { id: assignmentId } = c.req.valid('param');
+    const db = createDb(c.env.DB);
+
+    const subs = await db.select().from(assignmentSubmissions)
+        .where(and(eq(assignmentSubmissions.assignmentId, assignmentId), eq(assignmentSubmissions.tenantId, tenant.id)))
+        .orderBy(desc(assignmentSubmissions.submittedAt))
+        .all();
+    return c.json(subs);
+});
+
+// GET /:courseId/all-submissions - Instructor: all assignment submissions for a course
+app.openapi(createRoute({
+    method: 'get',
+    path: '/{courseId}/all-submissions',
+    tags: ['Courses'],
+    summary: 'All assignment submissions for a course (instructor)',
+    request: { params: z.object({ courseId: z.string() }) },
+    responses: {
+        200: { description: 'Submissions', content: { 'application/json': { schema: z.any() } } },
+    }
+}), async (c) => {
+    const tenant = c.get('tenant');
+    const can = c.get('can') as any;
+    if (!can?.('manage', 'courses')) return c.json({ error: 'Forbidden' }, 403 as any);
+
+    const { courseId } = c.req.valid('param');
+    const db = createDb(c.env.DB);
+
+    const course = await db.select({ contentCollectionId: courses.contentCollectionId }).from(courses)
+        .where(and(eq(courses.id, courseId), eq(courses.tenantId, tenant.id))).get();
+    if (!course) return c.json({ error: 'Course not found' }, 404 as any);
+
+    const allAssignmentIds = course.contentCollectionId
+        ? (await db.select({ assignmentId: videoCollectionItems.assignmentId })
+            .from(videoCollectionItems)
+            .where(and(eq(videoCollectionItems.collectionId, course.contentCollectionId)))
+            .all()).map(i => i.assignmentId).filter(Boolean) as string[]
+        : [];
+
+    if (!allAssignmentIds.length) return c.json([]);
+
+    const subs = await db.select({
+        id: assignmentSubmissions.id,
+        assignmentId: assignmentSubmissions.assignmentId,
+        userId: assignmentSubmissions.userId,
+        content: assignmentSubmissions.content,
+        fileUrl: assignmentSubmissions.fileUrl,
+        status: assignmentSubmissions.status,
+        grade: assignmentSubmissions.grade,
+        feedbackHtml: assignmentSubmissions.feedbackHtml,
+        submittedAt: assignmentSubmissions.submittedAt,
+        gradedAt: assignmentSubmissions.gradedAt,
+    }).from(assignmentSubmissions)
+        .where(and(inArray(assignmentSubmissions.assignmentId, allAssignmentIds), eq(assignmentSubmissions.tenantId, tenant.id)))
+        .orderBy(desc(assignmentSubmissions.submittedAt))
+        .all();
+
+    const assignmentDetails = await db.select({ id: assignments.id, title: assignments.title, pointsAvailable: assignments.pointsAvailable })
+        .from(assignments).where(inArray(assignments.id, allAssignmentIds)).all();
+    const assignmentMap = Object.fromEntries(assignmentDetails.map(a => [a.id, a]));
+
+    return c.json(subs.map(s => ({ ...s, assignment: assignmentMap[s.assignmentId] ?? null })));
+});
+
+// PATCH /assignments/submissions/:id/grade - Instructor: grade a submission
+app.openapi(createRoute({
+    method: 'patch',
+    path: '/assignments/submissions/{id}/grade',
+    tags: ['Courses'],
+    summary: 'Grade an assignment submission',
+    request: {
+        params: z.object({ id: z.string() }),
+        body: {
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        grade: z.number().min(0),
+                        feedbackHtml: z.string().optional(),
+                        status: z.enum(['graded', 'returned']).optional()
+                    })
+                }
+            }
+        }
+    },
+    responses: {
+        200: { description: 'Submission graded', content: { 'application/json': { schema: z.any() } } },
+        403: { description: 'Forbidden' },
+        404: { description: 'Submission not found' }
+    }
+}), async (c) => {
+    const tenant = c.get('tenant');
+    const can = c.get('can') as any;
+    if (!can?.('manage', 'courses')) return c.json({ error: 'Forbidden' }, 403);
+
+    const { id: submissionId } = c.req.valid('param');
+    const body = c.req.valid('json');
+    const db = createDb(c.env.DB);
+
+    const existing = await db.select({ id: assignmentSubmissions.id })
+        .from(assignmentSubmissions)
+        .where(and(eq(assignmentSubmissions.id, submissionId), eq(assignmentSubmissions.tenantId, tenant.id)))
+        .get();
+    if (!existing) return c.json({ error: 'Submission not found' }, 404);
+
+    await db.update(assignmentSubmissions).set({
+        grade: body.grade,
+        feedbackHtml: body.feedbackHtml ?? null,
+        status: body.status ?? 'graded',
+        gradedAt: new Date(),
+    }).where(eq(assignmentSubmissions.id, submissionId)).run();
+
+    return c.json({ success: true });
 });
 
 export default app;
