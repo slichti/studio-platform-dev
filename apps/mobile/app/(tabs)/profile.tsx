@@ -99,7 +99,7 @@ export default function ProfileScreen() {
                     {menuItems.map((item, index) => (
                         <Link key={index} href={item.href as any} asChild>
                             <TouchableOpacity className="flex-row items-center p-4 bg-white border border-zinc-100 rounded-xl mb-2">
-                                <item.icon size={20} color={"#18181b" as any} className="mr-3" />
+                                <item.icon size={20} stroke="#18181b" className="mr-3" />
                                 <Text className="flex-1 font-medium text-zinc-900">{item.label}</Text>
                             </TouchableOpacity>
                         </Link>
@@ -112,7 +112,7 @@ export default function ProfileScreen() {
                     onPress={() => signOut()}
                     className="flex-row items-center justify-center p-4 mt-auto mb-4 bg-zinc-100 rounded-xl"
                 >
-                    <LogOut size={20} color={"#18181b" as any} className="mr-2" />
+                    <LogOut size={20} stroke="#18181b" className="mr-2" />
                     <Text className="font-bold text-zinc-900">Sign Out</Text>
                 </TouchableOpacity>
 

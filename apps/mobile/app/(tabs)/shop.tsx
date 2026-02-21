@@ -117,7 +117,7 @@ export default function ShopScreen() {
                             <View key={pack.id} className="bg-white p-5 rounded-2xl border border-zinc-100 shadow-sm">
                                 <View className="flex-row justify-between items-start mb-2">
                                     <View className="bg-blue-50 p-3 rounded-xl">
-                                        <ShoppingBag size={24} color="#2563EB" />
+                                        <ShoppingBag size={24} stroke="#2563EB" />
                                     </View>
                                     {pack.expirationDays && (
                                         <View className="bg-zinc-100 px-2 py-1 rounded">
@@ -130,7 +130,7 @@ export default function ShopScreen() {
                                 <Text className="text-3xl font-bold text-zinc-900 mb-4">{renderPrice(pack.price)}</Text>
 
                                 <View className="flex-row items-center gap-2 mb-6">
-                                    <Sparkles size={16} color="#fbbf24" fill="#fbbf24" />
+                                    <Sparkles size={16} stroke="#fbbf24" fill="#fbbf24" />
                                     <Text className="text-zinc-600 border-zinc-200">{pack.credits} Credits</Text>
                                 </View>
 
@@ -161,7 +161,7 @@ export default function ShopScreen() {
 
                                 <View className="flex-row justify-between items-start mb-2">
                                     <View className="bg-purple-50 p-3 rounded-xl">
-                                        <CreditCard size={24} color="#9333ea" />
+                                        <CreditCard size={24} stroke="#9333ea" />
                                     </View>
                                 </View>
 

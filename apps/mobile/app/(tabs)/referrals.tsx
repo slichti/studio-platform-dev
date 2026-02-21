@@ -83,7 +83,7 @@ export default function ReferralsScreen() {
                 <View className="bg-blue-600 rounded-3xl p-6 mb-8 shadow-md">
                     <View className="flex-row items-center gap-3 mb-4">
                         <View className="bg-white/20 p-2 rounded-full">
-                            <Gift color="white" size={24} />
+                            <Gift stroke="white" size={24} />
                         </View>
                         <Text className="text-white text-xl font-bold">Give $20, Get $20</Text>
                     </View>
@@ -103,7 +103,7 @@ export default function ReferralsScreen() {
                             onPress={handleCopy}
                             className="flex-1 bg-white/10 border border-white/20 p-4 rounded-xl flex-row justify-center items-center gap-2 active:bg-white/20"
                         >
-                            <Copy color="white" size={18} />
+                            <Copy stroke="white" size={18} />
                             <Text className="text-white font-semibold">
                                 {copied ? 'Copied!' : 'Copy Link'}
                             </Text>
@@ -113,7 +113,7 @@ export default function ReferralsScreen() {
                             onPress={handleShare}
                             className="flex-1 bg-white p-4 rounded-xl flex-row justify-center items-center gap-2 active:bg-blue-50"
                         >
-                            <ShareIcon color="#2563EB" size={18} />
+                            <ShareIcon stroke="#2563EB" size={18} />
                             <Text className="text-blue-600 font-bold">Share</Text>
                         </TouchableOpacity>
                     </View>
@@ -123,14 +123,14 @@ export default function ReferralsScreen() {
                 <View className="flex-row gap-4 mb-8">
                     <View className="flex-1 bg-zinc-50 p-5 rounded-2xl border border-zinc-100">
                         <View className="bg-zinc-200/50 self-start p-2 rounded-lg mb-3">
-                            <Users color="#52525b" size={18} />
+                            <Users stroke="#52525b" size={18} />
                         </View>
                         <Text className="text-zinc-500 text-xs font-medium uppercase tracking-wider">Referred</Text>
                         <Text className="text-2xl font-bold text-zinc-900 mt-1">{stats?.stats?.signups || 0}</Text>
                     </View>
                     <View className="flex-1 bg-zinc-50 p-5 rounded-2xl border border-zinc-100">
                         <View className="bg-zinc-200/50 self-start p-2 rounded-lg mb-3">
-                            <DollarSign color="#52525b" size={18} />
+                            <DollarSign stroke="#52525b" size={18} />
                         </View>
                         <Text className="text-zinc-500 text-xs font-medium uppercase tracking-wider">Earned</Text>
                         <Text className="text-2xl font-bold text-zinc-900 mt-1">

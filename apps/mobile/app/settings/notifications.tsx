@@ -74,7 +74,7 @@ export default function NotificationSettings() {
         <SafeAreaView className="flex-1 bg-white">
             <View className="flex-row items-center px-4 py-4 border-b border-zinc-100">
                 <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2">
-                    <ArrowLeft size={24} color="#18181b" />
+                    <ArrowLeft size={24} stroke="#18181b" />
                 </TouchableOpacity>
                 <Text className="text-xl font-bold text-zinc-900 ml-2">Notifications</Text>
             </View>
@@ -87,7 +87,7 @@ export default function NotificationSettings() {
                     <View className="flex-row items-center justify-between p-5 border-b border-zinc-100">
                         <View className="flex-row items-center flex-1 pr-4">
                             <View className="bg-blue-100 p-2 rounded-lg mr-4">
-                                <Bell size={20} color="#2563EB" />
+                                <Bell size={20} stroke="#2563EB" />
                             </View>
                             <View className="flex-1">
                                 <Text className="font-semibold text-zinc-900 text-base">Push Notifications</Text>
@@ -105,7 +105,7 @@ export default function NotificationSettings() {
                     <View className="flex-row items-center justify-between p-5 border-b border-zinc-100">
                         <View className="flex-row items-center flex-1 pr-4">
                             <View className="bg-purple-100 p-2 rounded-lg mr-4">
-                                <Mail size={20} color="#9333EA" />
+                                <Mail size={20} stroke="#9333EA" />
                             </View>
                             <View className="flex-1">
                                 <Text className="font-semibold text-zinc-900 text-base">Email Notifications</Text>
@@ -123,7 +123,7 @@ export default function NotificationSettings() {
                     <View className="flex-row items-center justify-between p-5">
                         <View className="flex-row items-center flex-1 pr-4">
                             <View className="bg-green-100 p-2 rounded-lg mr-4">
-                                <Smartphone size={20} color="#16A34A" />
+                                <Smartphone size={20} stroke="#16A34A" />
                             </View>
                             <View className="flex-1">
                                 <Text className="font-semibold text-zinc-900 text-base">SMS Alerts</Text>

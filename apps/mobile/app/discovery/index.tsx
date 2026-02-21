@@ -65,7 +65,7 @@ export default function DiscoveryScreen() {
                 <Text className="text-2xl font-bold text-zinc-900 mb-4">Find a Studio</Text>
 
                 <View className="flex-row items-center bg-zinc-100 px-4 py-3 rounded-xl">
-                    <Search size={20} color={"#71717a" as any} />
+                    <Search size={20} stroke="#71717a" />
                     <TextInput
                         className="flex-1 ml-3 text-base text-zinc-900"
                         placeholder="Search by name or city..."
@@ -92,7 +92,7 @@ export default function DiscoveryScreen() {
                             <Text className="text-center text-zinc-500 mt-10">No studios found matching "{query}"</Text>
                         ) : (
                             <View className="items-center justify-center mt-20">
-                                <MapPin size={48} color={"#e4e4e7" as any} />
+                                <MapPin size={48} stroke="#e4e4e7" />
                                 <Text className="text-zinc-400 mt-4 text-center px-10">
                                     Search for your favorite yoga, pilate, or fitness studio to get started.
                                 </Text>
@@ -115,7 +115,7 @@ export default function DiscoveryScreen() {
                                 <Text className="font-bold text-lg text-zinc-900">{item.name}</Text>
                                 <Text className="text-zinc-500 text-xs">studio-platform.com/{item.slug}</Text>
                             </View>
-                            <ArrowRight size={20} color={"#d4d4d8" as any} />
+                            <ArrowRight size={20} stroke="#d4d4d8" />
                         </TouchableOpacity>
                     )}
                 />
