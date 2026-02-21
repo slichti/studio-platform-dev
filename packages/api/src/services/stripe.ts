@@ -428,6 +428,15 @@ export class StripeService {
         }, options);
     }
 
+    async updateCustomer(
+        customerId: string,
+        params: { email?: string; name?: string; phone?: string; address?: Stripe.AddressParam },
+        connectedAccountId?: string
+    ) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        return client.customers.update(customerId, params as Stripe.CustomerUpdateParams, options);
+    }
+
     async searchCustomers(query: string, connectedAccountId?: string) {
         const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
         // Use search API for better filtering

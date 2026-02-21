@@ -76,12 +76,12 @@ app.post('/orders', async (c) => {
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
     const staff = c.get('member');
-    const { items, memberId, paymentMethod, totalAmount, redeemGiftCardCode, redeemAmount } = await c.req.json();
+    const { items, memberId, paymentMethod, totalAmount, redeemGiftCardCode, redeemAmount, stripePaymentIntentId, couponCode } = await c.req.json();
 
     const service = new PosService(db, tenant.id, c.env);
 
     try {
-        const result = await service.createOrder(items, totalAmount, memberId, staff?.id, paymentMethod, redeemGiftCardCode, redeemAmount, tenant);
+        const result = await service.createOrder(items, totalAmount, memberId, staff?.id, paymentMethod, redeemGiftCardCode, redeemAmount, tenant, stripePaymentIntentId, couponCode);
 
         if (result.asyncTask) c.executionCtx.waitUntil(result.asyncTask());
 
@@ -143,7 +143,7 @@ app.post('/process-payment', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
-    const { items } = await c.req.json();
+    const { items, customerId } = await c.req.json();
     if (!items || items.length === 0) return c.json({ error: "No items" }, 400);
 
     const service = new PosService(db, tenant.id, c.env);
@@ -159,10 +159,17 @@ app.post('/process-payment', async (c) => {
     if (tenant.stripeAccountId) options.stripeAccount = tenant.stripeAccountId;
 
     try {
-        const pi = await stripe.paymentIntents.create({
-            amount: totalAmount, currency: tenant.currency || 'usd', automatic_payment_methods: { enabled: true },
-            metadata: { tenantId: tenant.id, items: JSON.stringify(itemDetails.map(i => `${i.quantity}x ${i.name}`).join(', ')) }
-        }, options);
+        const piParams: any = {
+            amount: totalAmount,
+            currency: tenant.currency || 'usd',
+            automatic_payment_methods: { enabled: true },
+            metadata: {
+                tenantId: tenant.id,
+                items: JSON.stringify(itemDetails.map((i: any) => `${i.quantity}x ${i.name}`).join(', '))
+            }
+        };
+        if (customerId) piParams.customer = customerId;
+        const pi = await stripe.paymentIntents.create(piParams, options);
         return c.json({ clientSecret: pi.client_secret, id: pi.id });
     } catch (e: any) {
         return c.json({ error: e.message }, 500);
@@ -310,6 +317,157 @@ app.post('/products/images', async (c) => {
         const json: any = await response.json();
         if (!json.success) throw new Error("Upload failed");
         return c.json({ success: true, imageId: json.result.id, url: json.result.variants[0] });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
+// GET /transactions - List Stripe transactions with refund status (verapose pattern)
+app.get('/transactions', async (c) => {
+    if (!c.get('can')('manage_pos') && !c.get('can')('view_pos')) throw new UnauthorizedError('Access Denied');
+    const tenant = c.get('tenant');
+    if (!tenant || !tenant.stripeAccountId) return c.json({ error: "Stripe not connected" }, 400);
+    if (!c.env.STRIPE_SECRET_KEY) return c.json({ error: "Misconfigured" }, 500);
+
+    const { limit = 50, starting_after, created_after } = c.req.query();
+    const { default: Stripe } = await import('stripe');
+    const stripe = new Stripe(c.env.STRIPE_SECRET_KEY, { apiVersion: '2025-12-15.clover' as any });
+    const options = { stripeAccount: tenant.stripeAccountId };
+
+    try {
+        const params: Record<string, unknown> = {
+            limit: Math.min(parseInt(limit as string) || 50, 100),
+            starting_after: starting_after || undefined,
+        };
+        if (created_after) (params as any).created = { gte: parseInt(created_after) };
+
+        const paymentIntents = await stripe.paymentIntents.list(params as any, options);
+        let allRefunds: any[] = [];
+        try {
+            const refundsRes = await stripe.refunds.list({ limit: 500 }, options);
+            allRefunds = refundsRes.data;
+        } catch { /* ignore */ }
+
+        const transactions = await Promise.all(paymentIntents.data.map(async (pi) => {
+            const refs = allRefunds.filter((r: any) => r.payment_intent === pi.id);
+            const totalRefunded = refs.reduce((s: number, r: any) => s + (r.amount || 0), 0);
+            let refundStatus: 'none' | 'partially_refunded' | 'fully_refunded' = 'none';
+            if (totalRefunded >= pi.amount) refundStatus = 'fully_refunded';
+            else if (totalRefunded > 0) refundStatus = 'partially_refunded';
+
+            let customerName: string | null = null, customerEmail: string | null = null;
+            if (pi.customer && typeof pi.customer === 'string') {
+                try {
+                    const cust = await stripe.customers.retrieve(pi.customer, {}, options);
+                    if (!cust.deleted) {
+                        customerName = cust.name || null;
+                        customerEmail = cust.email || null;
+                    }
+                } catch { /* ignore */ }
+            }
+
+            return {
+                id: pi.id,
+                amount: pi.amount,
+                currency: pi.currency,
+                status: pi.status,
+                customer: pi.customer,
+                customer_name: customerName,
+                customer_email: customerEmail,
+                metadata: pi.metadata,
+                created: pi.created,
+                refunds: refs.map((r: any) => ({ id: r.id, amount: r.amount, status: r.status, created: r.created })),
+                total_refunded: totalRefunded,
+                refund_status: refundStatus,
+                remaining_refundable: pi.amount - totalRefunded,
+            };
+        }));
+
+        return c.json({ transactions, hasMore: paymentIntents.has_more });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
+// PUT /customers/:id - Update Stripe customer (verapose pattern)
+app.put('/customers/:id', async (c) => {
+    if (!c.get('can')('manage_pos')) throw new UnauthorizedError('Access Denied');
+    const tenant = c.get('tenant');
+    if (!tenant || !tenant.stripeAccountId) return c.json({ error: "Stripe not connected" }, 400);
+
+    const stripeCustomerId = c.req.param('id');
+    const body = await c.req.json();
+    const { email, name, phone, address } = body;
+
+    if (!c.env.STRIPE_SECRET_KEY) return c.json({ error: "Misconfigured" }, 500);
+    const stripe = new StripeService(c.env.STRIPE_SECRET_KEY as string);
+
+    try {
+        const params: any = {};
+        if (email !== undefined) params.email = email;
+        if (name !== undefined) params.name = name;
+        if (phone !== undefined) params.phone = phone;
+        if (address !== undefined) params.address = address;
+        if (Object.keys(params).length === 0) return c.json({ error: "No fields to update" }, 400);
+
+        const customer = await stripe.updateCustomer(stripeCustomerId, params, tenant.stripeAccountId);
+        return c.json({ success: true, customer: { id: customer.id, email: customer.email, name: customer.name, phone: customer.phone } });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
+// POST /refund - Refund by PaymentIntent (verapose pattern; partial/full)
+app.post('/refund', async (c) => {
+    if (!c.get('can')('manage_pos') && !c.get('can')('manage_commerce')) throw new UnauthorizedError('Access Denied');
+    const tenant = c.get('tenant');
+    const auth = c.get('auth');
+    if (!tenant || !tenant.stripeAccountId || !auth?.userId) return c.json({ error: "Context missing" }, 400);
+
+    const body = await c.req.json();
+    const { paymentIntentId, amount, reason } = body;
+    if (!paymentIntentId) return c.json({ error: "paymentIntentId required" }, 400);
+
+    if (!c.env.STRIPE_SECRET_KEY) return c.json({ error: "Misconfigured" }, 500);
+    const stripe = new StripeService(c.env.STRIPE_SECRET_KEY as string);
+
+    try {
+        const { default: Stripe } = await import('stripe');
+        const stripeClient = new Stripe(c.env.STRIPE_SECRET_KEY, { apiVersion: '2025-12-15.clover' as any });
+        const pi = await stripeClient.paymentIntents.retrieve(paymentIntentId, { stripeAccount: tenant.stripeAccountId });
+        if (pi.status !== 'succeeded') return c.json({ error: "Payment must be succeeded to refund" }, 400);
+
+        const refundAmount = amount && amount > 0 ? Math.round(amount) : undefined;
+        const r = await stripe.refundPayment(tenant.stripeAccountId, {
+            paymentIntent: paymentIntentId,
+            amount: refundAmount,
+            reason: (reason as any) || 'requested_by_customer',
+            metadata: { refunded_by: auth.userId, refunded_at: new Date().toISOString() },
+        });
+
+        const db = createDb(c.env.DB);
+        const { refunds, posOrders } = await import('@studio/db/src/schema');
+        const { eq } = await import('drizzle-orm');
+        const order = await db.select().from(posOrders).where(eq(posOrders.stripePaymentIntentId, paymentIntentId)).get();
+        if (order) {
+            await db.insert(refunds).values({
+                id: crypto.randomUUID(),
+                tenantId: tenant.id,
+                amount: r.amount || 0,
+                reason: reason || 'requested_by_customer',
+                status: 'succeeded',
+                type: 'pos',
+                referenceId: order.id,
+                stripeRefundId: r.id,
+                memberId: order.memberId,
+                performedBy: auth.userId,
+            }).run();
+            if (!refundAmount || (r.amount || 0) >= pi.amount) {
+                await db.update(posOrders).set({ status: 'refunded' }).where(eq(posOrders.id, order.id)).run();
+            }
+        }
+
+        return c.json({ success: true, refund: { id: r.id, amount: r.amount, status: r.status } });
     } catch (e: any) {
         return c.json({ error: e.message }, 500);
     }

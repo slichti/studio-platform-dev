@@ -50,6 +50,7 @@ type Customer = {
 
 export default function POSPageComponent() {
     const { tenant, token } = useOutletContext<any>() || {};
+    const tenantSlug = tenant?.slug;
     const [products, setProducts] = useState<Product[]>([]);
     const [cart, setCart] = useState<CartItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -88,7 +89,7 @@ export default function POSPageComponent() {
 
     const loadProducts = async () => {
         try {
-            const res = await apiRequest('/pos/products', token);
+            const res = await apiRequest('/pos/products', token, { headers: { 'X-Tenant-Slug': tenantSlug } });
             if (res.products) {
                 setProducts(res.products.filter((p: Product) => p.isActive));
             }
@@ -109,7 +110,7 @@ export default function POSPageComponent() {
 
             const t = StripeTerminal.create({
                 onFetchConnectionToken: async () => {
-                    const res = await apiRequest('/pos/connection-token', token, { method: 'POST' });
+                    const res = await apiRequest('/pos/connection-token', token, { method: 'POST', headers: { 'X-Tenant-Slug': tenantSlug } });
                     if (res.error) throw new Error(res.error);
                     return res.secret;
                 },
@@ -167,6 +168,7 @@ export default function POSPageComponent() {
         setCouponError("");
         try {
             const res = await apiRequest('/pos/validate-coupon', token, {
+                headers: { 'X-Tenant-Slug': tenantSlug },
                 method: 'POST',
                 body: JSON.stringify({ code: couponCode, cartTotal: subtotal })
             });
@@ -213,6 +215,7 @@ export default function POSPageComponent() {
 
                 const piRes = await apiRequest('/pos/process-payment', token, {
                     method: 'POST',
+                    headers: { 'X-Tenant-Slug': tenantSlug },
                     body: JSON.stringify({ items: cart, customerId: selectedCustomer?.stripeCustomerId })
                 });
 
@@ -245,15 +248,17 @@ export default function POSPageComponent() {
         }
     };
 
-    const createOrder = async (method: string, paymentRef: string | null, memberId: string | undefined) => {
+    const createOrder = async (method: string, stripePaymentIntentId: string | null, memberId: string | undefined) => {
         await apiRequest('/pos/orders', token, {
             method: 'POST',
+            headers: { 'X-Tenant-Slug': tenantSlug },
             body: JSON.stringify({
                 items: cart,
                 memberId: memberId || null,
                 paymentMethod: method,
                 totalAmount: total,
-                couponCode: activeCoupon?.code
+                couponCode: activeCoupon?.code,
+                stripePaymentIntentId: stripePaymentIntentId || undefined
             })
         });
     };
@@ -266,7 +271,7 @@ export default function POSPageComponent() {
         const timer = setTimeout(async () => {
             setSearchingCustomer(true);
             try {
-                const res = await apiRequest(`/pos/customers?query=${customerQuery}`, token);
+                const res = await apiRequest(`/pos/customers?query=${customerQuery}`, token, { headers: { 'X-Tenant-Slug': tenantSlug } });
                 setCustomerResults(res.customers || []);
             } catch (e) { console.error(e); }
             finally { setSearchingCustomer(false); }
@@ -486,6 +491,7 @@ export default function POSPageComponent() {
                         </div>
                         <ProductForm
                             token={token}
+                            tenantSlug={tenantSlug}
                             product={editingProduct}
                             onSuccess={() => { setShowProductModal(false); setRefreshTrigger(p => p + 1); }}
                         />
@@ -532,6 +538,7 @@ export default function POSPageComponent() {
                         <h2 className="text-lg font-bold mb-4 text-zinc-900 dark:text-zinc-100">Create New Customer</h2>
                         <CustomerForm
                             token={token}
+                            tenantSlug={tenantSlug}
                             onSuccess={(c: any) => { setSelectedCustomer(c); setShowNewCustomerModal(false); }}
                             onCancel={() => setShowNewCustomerModal(false)}
                         />
@@ -542,7 +549,7 @@ export default function POSPageComponent() {
     );
 }
 
-function ProductForm({ token, product, onSuccess }: any) {
+function ProductForm({ token, tenantSlug, product, onSuccess }: any) {
     const [submitting, setSubmitting] = useState(false);
     return (
         <form className="space-y-4" onSubmit={async (e) => {
@@ -558,7 +565,7 @@ function ProductForm({ token, product, onSuccess }: any) {
             };
             const url = product ? `/pos/products/${product.id}` : '/pos/products';
             const method = product ? 'PUT' : 'POST';
-            await apiRequest(url, token, { method, body: JSON.stringify(payload) });
+            await apiRequest(url, token, { method, headers: { 'X-Tenant-Slug': tenantSlug }, body: JSON.stringify(payload) });
             setSubmitting(false);
             onSuccess();
         }}>
@@ -575,7 +582,7 @@ function ProductForm({ token, product, onSuccess }: any) {
     );
 }
 
-function CustomerForm({ token, onSuccess, onCancel }: any) {
+function CustomerForm({ token, tenantSlug, onSuccess, onCancel }: any) {
     const [submitting, setSubmitting] = useState(false);
     return (
         <form className="space-y-4" onSubmit={async (e) => {
@@ -583,7 +590,7 @@ function CustomerForm({ token, onSuccess, onCancel }: any) {
             setSubmitting(true);
             const fd = new FormData(e.currentTarget);
             const data = Object.fromEntries(fd);
-            const res = await apiRequest('/pos/customers', token, { method: 'POST', body: JSON.stringify(data) });
+            const res = await apiRequest('/pos/customers', token, { method: 'POST', headers: { 'X-Tenant-Slug': tenantSlug }, body: JSON.stringify(data) });
             setSubmitting(false);
             if (res.customer) onSuccess(res.customer);
         }}>

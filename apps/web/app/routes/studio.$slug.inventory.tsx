@@ -42,15 +42,16 @@ export default function InventoryDashboard() {
 
     const loadData = async () => {
         setLoading(true);
+        const tenantSlug = slug || '';
         try {
             if (activeTab === 'status') {
-                const data = await apiRequest('/inventory', token);
+                const data = await apiRequest('/inventory', token, { headers: { 'X-Tenant-Slug': tenantSlug } });
                 setInventory(data || []);
             } else if (activeTab === 'suppliers') {
-                const data = await apiRequest('/inventory/suppliers', token);
+                const data = await apiRequest('/inventory/suppliers', token, { headers: { 'X-Tenant-Slug': tenantSlug } });
                 setSuppliers(data || []);
             } else if (activeTab === 'orders') {
-                const data = await apiRequest('/inventory/purchase-orders', token);
+                const data = await apiRequest('/inventory/purchase-orders', token, { headers: { 'X-Tenant-Slug': tenantSlug } });
                 setPurchaseOrders(data || []);
             }
         } catch (e) {
@@ -64,7 +65,7 @@ export default function InventoryDashboard() {
     const handleReceivePO = async (poId: string) => {
         if (!confirm("Mark this purchase order as received? Stocks will be updated automatically.")) return;
         try {
-            await apiRequest(`/inventory/purchase-orders/${poId}/receive`, token, { method: 'POST' });
+            await apiRequest(`/inventory/purchase-orders/${poId}/receive`, token, { method: 'POST', headers: { 'X-Tenant-Slug': slug || '' } });
             toast.success("Purchase order received and inventory updated");
             loadData();
         } catch (e) {
@@ -76,6 +77,7 @@ export default function InventoryDashboard() {
         try {
             await apiRequest('/inventory/adjust', token, {
                 method: 'POST',
+                headers: { 'X-Tenant-Slug': slug || '' },
                 body: JSON.stringify({ productId, delta, reason })
             });
             toast.success("Stock adjusted");

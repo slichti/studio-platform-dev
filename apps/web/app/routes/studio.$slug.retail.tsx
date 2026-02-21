@@ -18,8 +18,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const tenantSlug = slug || '';
 
     try {
-        const productsData = await apiRequest('/products', token, { headers: { 'X-Tenant-Slug': tenantSlug } }) as any;
-        return { products: productsData || [] };
+        const productsData = await apiRequest('/pos/products', token, { headers: { 'X-Tenant-Slug': tenantSlug } }) as any;
+        return { products: productsData?.products ?? [] };
     } catch (e) {
         console.error("Retail Loader Error", e);
         return { products: [] };
@@ -86,8 +86,9 @@ export const action = async (args: ActionFunctionArgs) => {
         const uploadData = new FormData();
         if (file) uploadData.append("file", file);
 
-        const data = await apiRequest("/products/images", token, {
+        const data = await apiRequest("/pos/products/images", token, {
             method: 'POST',
+            headers: { 'X-Tenant-Slug': tenantSlug },
             body: uploadData
         });
         return data;
@@ -102,7 +103,7 @@ export const action = async (args: ActionFunctionArgs) => {
             return { error: "Invalid JSON" };
         }
 
-        const res = await apiRequest('/products/import', token, {
+        const res = await apiRequest('/pos/products/import', token, {
             method: 'POST',
             headers: { 'X-Tenant-Slug': tenantSlug },
             body: JSON.stringify({ products })
@@ -124,8 +125,8 @@ export const action = async (args: ActionFunctionArgs) => {
             isActive: formData.get("isActive") === "true"
         };
 
-        await apiRequest(id ? `/products/${id}` : '/products', token, {
-            method: id ? 'PATCH' : 'POST',
+        await apiRequest(id ? `/pos/products/${id}` : '/pos/products', token, {
+            method: id ? 'PUT' : 'POST',
             headers: { 'X-Tenant-Slug': tenantSlug },
             body: JSON.stringify(payload)
         });
@@ -133,8 +134,8 @@ export const action = async (args: ActionFunctionArgs) => {
 
     if (intent === 'delete') {
         const id = formData.get("id");
-        await apiRequest(`/products/${id}`, token, {
-            method: 'DELETE',
+        await apiRequest(`/pos/products/${id}/archive`, token, {
+            method: 'POST',
             headers: { 'X-Tenant-Slug': tenantSlug }
         });
     }

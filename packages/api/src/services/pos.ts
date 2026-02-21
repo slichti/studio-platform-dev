@@ -123,12 +123,26 @@ export class PosService {
         const product = await this.db.select().from(products).where(and(eq(products.id, id), eq(products.tenantId, this.tenantId))).get();
         if (!product) throw new Error('Product not found');
 
+        let newStripePriceId: string | undefined;
+        if (data.price !== undefined && this.stripeService && tenantStripeAccountId && product.stripeProductId) {
+            try {
+                const currency = product.currency || 'usd';
+                const price = await this.stripeService.createPrice({
+                    productId: product.stripeProductId,
+                    unitAmount: data.price,
+                    currency
+                }, tenantStripeAccountId);
+                newStripePriceId = price.id;
+            } catch (e) { console.error("Stripe Price Create Error", e); }
+        }
+
         await this.db.update(products).set({
             ...data,
+            ...(newStripePriceId && { stripePriceId: newStripePriceId }),
             updatedAt: new Date()
         }).where(eq(products.id, id)).run();
 
-        // Sync Stripe
+        // Sync Stripe product metadata (verapose pattern: create new price on price change)
         if (this.stripeService && tenantStripeAccountId && product.stripeProductId) {
             try {
                 await this.stripeService.updateProduct(product.stripeProductId, {
@@ -165,6 +179,7 @@ export class PosService {
         redeemGiftCardCode?: string,
         redeemAmount?: number,
         tenantContext?: any, // passed for automation context usage
+        stripePaymentIntentId?: string | null,
         couponCode?: string
     ) {
         if (!items || items.length === 0) throw new Error("No items in order");
@@ -239,6 +254,7 @@ export class PosService {
             totalAmount: finalTotal,
             status: 'completed' as const,
             paymentMethod: paymentMethod as "card" | "cash" | "account" | "other",
+            stripePaymentIntentId: stripePaymentIntentId || null,
             createdAt: new Date(),
             updatedAt: new Date()
         };
