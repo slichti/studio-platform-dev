@@ -12,6 +12,47 @@ The modern, all-in-one platform for dance, yoga, and fitness studios.
 *   **QR Codes:** Generate tracking-ready QR codes for check-in, app downloads, and marketing.
 *   **High Performance Edge:** Sub-50ms latency for core operations via Cloudflare Workers and D1 batching.
 
+## Database Schema (3NF)
+
+The platform follows a multi-tenant 3NF (Third Normal Form) database design optimized for Cloudflare D1.
+
+```mermaid
+erDiagram
+    TENANTS ||--o{ LOCATIONS : has
+    TENANTS ||--o{ TENANT_MEMBERS : employs
+    TENANTS ||--o{ COURSES : offers
+    TENANTS ||--o{ MEMBERSHIP_PLANS : defines
+    TENANTS ||--o{ UPLOADS : stores
+    
+    USERS ||--o{ TENANT_MEMBERS : joins
+    USERS ||--o{ SUBSCRIPTIONS : pays
+    USERS ||--o{ COURSE_ENROLLMENTS : studies
+    
+    TENANT_MEMBERS ||--o{ CLASSES : teaches
+    TENANT_MEMBERS ||--o{ BOOKINGS : reserves
+    TENANT_MEMBERS ||--o{ TENANT_ROLES : has
+    
+    LOCATIONS ||--o{ ROOMS : contains
+    LOCATIONS ||--o{ CLASSES : hosts
+    
+    CLASSES }|--|| CLASS_SERIES : instance_of
+    CLASSES ||--o{ BOOKINGS : manages
+    CLASSES }|--|| COURSES : belongs_to
+    
+    COURSES ||--o{ COURSE_ENROLLMENTS : enrolls
+    COURSES ||--o{ COURSE_MODULES : contains
+    COURSES ||--o{ VIDEO_COLLECTIONS : curriculum
+    
+    VIDEO_COLLECTIONS ||--o{ VIDEO_COLLECTION_ITEMS : contains
+    VIDEO_COLLECTION_ITEMS }|--|| VIDEOS : displays
+    VIDEO_COLLECTION_ITEMS }|--|| QUIZZES : tests
+    
+    MEMBERSHIP_PLANS ||--o{ SUBSCRIPTIONS : grants
+    
+    BOOKINGS ||--o{ PURCHASED_PACKS : consumes
+```
+
+
 ## Architecture
 
 ### System Overview

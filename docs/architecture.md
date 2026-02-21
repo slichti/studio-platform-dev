@@ -197,6 +197,84 @@ flowchart TB
 | **Video Calls** | Zoom API |
 | **Real-time** | Cloudflare Durable Objects (WebSockets) |
 
+## Database Schema (3NF)
+
+The platform utilizes a normalized multi-tenant relational schema. Data isolation is enforced at the application layer using `tenant_id` filters on all queries to ensure strict tenant boundaries.
+
+```mermaid
+erDiagram
+    TENANTS {
+        string id PK
+        string slug UK
+        string name
+        json branding
+        string status
+        string tier
+    }
+    USERS {
+        string id PK
+        string email UK
+        string role
+        string phone
+    }
+    TENANT_MEMBERS {
+        string id PK
+        string tenantId FK
+        string userId FK
+        string status
+    }
+    LOCATIONS {
+        string id PK
+        string tenantId FK
+        string name
+        string timezone
+    }
+    CLASSES {
+        string id PK
+        string tenantId FK
+        string instructorId FK
+        string locationId FK
+        string seriesId FK
+        string courseId FK
+        datetime startTime
+        int duration
+        string type
+    }
+    COURSES {
+        string id PK
+        string tenantId FK
+        string title
+        string slug UK
+        string deliveryMode
+        datetime cohortStartDate
+        datetime cohortEndDate
+    }
+    BOOKINGS {
+        string id PK
+        string classId FK
+        string memberId FK
+        string status
+        string attendanceType
+    }
+    SUBSCRIPTIONS {
+        string id PK
+        string userId FK
+        string tenantId FK
+        string planId FK
+        string status
+    }
+    TENANTS ||--o{ TENANT_MEMBERS : "has members"
+    USERS ||--o{ TENANT_MEMBERS : "is member of"
+    TENANTS ||--o{ LOCATIONS : "operates in"
+    TENANT_MEMBERS ||--o{ CLASSES : "teaches"
+    LOCATIONS ||--o{ CLASSES : "hosts"
+    CLASSES ||--o{ BOOKINGS : "has"
+    TENANT_MEMBERS ||--o{ BOOKINGS : "makes"
+    TENANTS ||--o{ COURSES : "offers"
+    CLASSES }|--o| COURSES : "linked to"
+    USERS ||--o{ SUBSCRIPTIONS : "subscribes"
+```
+
 ## Performance & Optimization
 
 ### Database Efficiency & Scalability
