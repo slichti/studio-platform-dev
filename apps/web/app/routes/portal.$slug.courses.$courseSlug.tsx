@@ -199,28 +199,33 @@ export default function PortalCourseViewer() {
                         )}
 
                         {/* Lesson info + mark complete */}
-                        {activeItem && (
-                            <div className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
-                                <div>
-                                    <p className="font-bold">{activeItem.video?.title || activeItem.quiz?.title || 'Lesson'}</p>
-                                    <p className="text-sm text-zinc-400 capitalize">{activeItem.contentType}</p>
+                        {activeItem && (() => {
+                            const activeIndex = curriculum.findIndex(i => i.id === activeItem.id);
+                            const isActiveDone = activeIndex !== -1 && activeIndex < doneCount;
+
+                            return (
+                                <div className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
+                                    <div>
+                                        <p className="font-bold">{activeItem.video?.title || activeItem.quiz?.title || 'Lesson'}</p>
+                                        <p className="text-sm text-zinc-400 capitalize">{activeItem.contentType}</p>
+                                    </div>
+                                    {!isActiveDone && progress < 100 && (
+                                        <Form method="post">
+                                            <input type="hidden" name="intent" value="progress" />
+                                            <input type="hidden" name="courseId" value={course.id} />
+                                            <input type="hidden" name="progress" value={newProgress} />
+                                            <button
+                                                type="submit"
+                                                disabled={isSubmitting}
+                                                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition disabled:opacity-60"
+                                            >
+                                                {isSubmitting ? 'Saving…' : '✓ Mark Complete'}
+                                            </button>
+                                        </Form>
+                                    )}
                                 </div>
-                                {progress < 100 && (
-                                    <Form method="post">
-                                        <input type="hidden" name="intent" value="progress" />
-                                        <input type="hidden" name="courseId" value={course.id} />
-                                        <input type="hidden" name="progress" value={newProgress} />
-                                        <button
-                                            type="submit"
-                                            disabled={isSubmitting}
-                                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition disabled:opacity-60"
-                                        >
-                                            {isSubmitting ? 'Saving…' : '✓ Mark Complete'}
-                                        </button>
-                                    </Form>
-                                )}
-                            </div>
-                        )}
+                            );
+                        })()}
 
                         {/* Live sessions */}
                         {sessions.length > 0 && (
@@ -257,7 +262,7 @@ export default function PortalCourseViewer() {
                         {/* H4: Certificate — only when complete */}
                         {progress >= 100 && course?.id && (
                             <a
-                                href={`/api/${slug ?? tenant?.slug}/courses/${course.id}/certificate`}
+                                href={`/portal/${slug ?? tenant?.slug}/courses/${course.slug}/certificate`}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="flex items-center gap-2 w-full px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl text-amber-700 dark:text-amber-400 font-semibold text-sm hover:bg-amber-100 dark:hover:bg-amber-900/30 transition"
@@ -279,6 +284,7 @@ export default function PortalCourseViewer() {
                                 )}
                                 {curriculum.map((item: any, idx: number) => {
                                     const isActive = activeItemId === item.id || (!activeItemId && idx === 0);
+                                    const isDone = idx < doneCount;
                                     return (
                                         <button
                                             key={item.id}
@@ -288,7 +294,7 @@ export default function PortalCourseViewer() {
                                                 isActive && "bg-indigo-50 dark:bg-indigo-900/20"
                                             )}
                                         >
-                                            <ItemIcon contentType={item.contentType} done={false} />
+                                            <ItemIcon contentType={item.contentType} done={isDone} />
                                             <div className="flex-1 min-w-0">
                                                 <p className={cn("text-sm font-medium truncate", isActive && "text-indigo-600")}>
                                                     {item.video?.title || item.quiz?.title || 'Untitled'}
