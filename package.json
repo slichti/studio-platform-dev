@@ -25,6 +25,7 @@
     },
     "packageManager": "npm@11.10.1",
     "dependencies": {
+        "@testing-library/dom": "^10.4.1",
         "cookie": "^1.1.1"
     },
     "overrides": {

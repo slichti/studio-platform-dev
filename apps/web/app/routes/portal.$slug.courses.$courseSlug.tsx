@@ -5,6 +5,7 @@ import { apiRequest } from "~/utils/api";
 import { ArrowLeft, CheckSquare, Video, Play, Lock, ChevronRight, Award, FileText, ClipboardList } from "lucide-react";
 import { useState } from "react";
 import { cn } from "~/utils/cn";
+import DOMPurify from "isomorphic-dompurify";
 
 function ItemIcon({ contentType, done }: { contentType: string; done: boolean }) {
     if (done) return <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 flex-shrink-0"><CheckSquare size={14} /></div>;
@@ -200,7 +201,7 @@ export default function PortalCourseViewer() {
                                         <h2 className="text-3xl font-bold mb-6">{activeItem.article?.title}</h2>
                                         <div className="prose dark:prose-invert max-w-none">
                                             {activeItem.article?.html ? (
-                                                <div dangerouslySetInnerHTML={{ __html: activeItem.article.html }} />
+                                                <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(activeItem.article.html) }} />
                                             ) : (
                                                 <p className="text-zinc-500 italic">This article is currently empty.</p>
                                             )}
@@ -211,7 +212,7 @@ export default function PortalCourseViewer() {
                                         <h2 className="text-3xl font-bold mb-6">{activeItem.assignment?.title}</h2>
                                         <div className="prose dark:prose-invert max-w-none mb-8">
                                             {activeItem.assignment?.instructionsHtml ? (
-                                                <div dangerouslySetInnerHTML={{ __html: activeItem.assignment.instructionsHtml }} />
+                                                <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(activeItem.assignment.instructionsHtml) }} />
                                             ) : (
                                                 <p>{activeItem.assignment?.description}</p>
                                             )}

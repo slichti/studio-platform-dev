@@ -3,7 +3,7 @@ import { createDb } from '../db';
 import { ZoomService } from '../services/zoom';
 import { StreamService } from '../services/stream';
 import * as schema from '@studio/db/src/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import { HonoContext } from '../types';
 import { AggregatorService } from '../services/aggregators';
 import { tenants, processedWebhooks } from '@studio/db/src/schema'; // For lookup
@@ -103,7 +103,7 @@ app.post('/clerk', async (c) => {
     }
     if (evt.type === 'user.deleted') {
         const mems = await db.select({ id: schema.tenantMembers.id }).from(schema.tenantMembers).where(eq(schema.tenantMembers.userId, id)).all();
-        if (mems.length) await db.delete(schema.tenantRoles).where(sql`${schema.tenantRoles.memberId} IN ${mems.map(m => m.id)}`).run();
+        if (mems.length) await db.delete(schema.tenantRoles).where(inArray(schema.tenantRoles.memberId, mems.map(m => m.id))).run();
         await db.delete(schema.tenantMembers).where(eq(schema.tenantMembers.userId, id)).run();
         await db.delete(schema.users).where(eq(schema.users.id, id)).run();
 
@@ -236,12 +236,16 @@ app.post('/gympass', async (c) => {
     const signature = c.req.header('X-Gympass-Signature');
     if (!signature) throw new UnauthorizedError('Missing signature');
 
+    // Validate gym_id format before any DB lookup (prevent enumeration/injection)
     const tenantId = body.gym_id;
-    const tenant = await db.query.tenants.findFirst({ where: eq(schema.tenants.id, tenantId) });
+    if (!tenantId || typeof tenantId !== 'string' || !/^[a-zA-Z0-9_-]{1,64}$/.test(tenantId)) {
+        throw new BadRequestError('Invalid gym_id format');
+    }
 
+    const tenant = await db.query.tenants.findFirst({ where: eq(schema.tenants.id, tenantId) });
     if (!tenant) throw new NotFoundError('Invalid gym_id');
 
-    // 1. Verify Signature
+    // Verify signature before acting on payload
     const secret = (tenant.aggregatorConfig as any)?.gympass?.webhookSecret;
     if (!secret) throw new BadRequestError('Tenant missing Gympass secret');
 

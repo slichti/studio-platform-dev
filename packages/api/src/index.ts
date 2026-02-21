@@ -197,7 +197,7 @@ app.use('*', cors({
     }
     return 'https://studio-platform-web.pages.dev';
   },
-  allowHeaders: ['*'], // Allow all headers to prevent preflight failures
+  allowHeaders: ['Authorization', 'Content-Type', 'X-Tenant-Slug', 'X-Request-Id', 'X-Impersonate-User', 'Stripe-Signature', 'Svix-Id', 'Svix-Timestamp', 'Svix-Signature'],
   allowMethods: ['POST', 'GET', 'OPTIONS', 'DELETE', 'PUT', 'PATCH'],
   exposeHeaders: ['Content-Length', 'X-Request-Id'],
   maxAge: 86400,
@@ -206,16 +206,7 @@ app.use('*', cors({
 
 
 app.get('/', (c) => {
-  return c.json({
-    status: 'OK',
-    env: {
-      CLERK_SECRET_KEY: !!c.env.CLERK_SECRET_KEY,
-      ENCRYPTION_SECRET: !!c.env.ENCRYPTION_SECRET,
-      CLOUDFLARE_ACCOUNT_ID: !!c.env.CLOUDFLARE_ACCOUNT_ID,
-      CLOUDFLARE_API_TOKEN: !!c.env.CLOUDFLARE_API_TOKEN,
-      ENVIRONMENT: c.env.ENVIRONMENT
-    }
-  });
+  return c.json({ status: 'OK' });
 })
 
 app.route('/public', publicRoutes); // [NEW] Mount public routes

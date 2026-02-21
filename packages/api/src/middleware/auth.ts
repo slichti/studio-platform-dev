@@ -11,7 +11,6 @@ export const authMiddleware = createMiddleware<{ Variables: Variables, Bindings:
     let token: string | undefined;
     const authHeader = c.req.header('Authorization');
 
-    console.log(`[AUTH] ${c.req.method} ${c.req.url} - Auth: ${authHeader ? 'Bearer ****' : 'None'}`); // DEBUG LOG - Redacted
 
     if (authHeader && authHeader.startsWith('Bearer ')) {
         token = authHeader.split(' ')[1];

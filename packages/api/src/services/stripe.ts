@@ -439,9 +439,12 @@ export class StripeService {
 
     async searchCustomers(query: string, connectedAccountId?: string) {
         const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
-        // Use search API for better filtering
+        // Sanitize query to prevent injection into Stripe search syntax.
+        // Stripe search uses Lucene-like operators; strip quotes and backslashes.
+        const safe = query.replace(/["\\]/g, '').trim().slice(0, 200);
+        if (!safe) return { data: [] };
         return client.customers.search({
-            query: `name~"${query}" OR email~"${query}"`,
+            query: `name~"${safe}" OR email~"${safe}"`,
             limit: 10
         }, options);
     }

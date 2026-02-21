@@ -229,28 +229,37 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
             }
         }
 
+        // Fetch member + roles + custom roles in parallel (was 3 sequential queries)
         const member = await db.query.tenantMembers.findFirst({
             where: and(
                 eq(tenantMembers.userId, auth.userId),
                 eq(tenantMembers.tenantId, tenant.id)
             ),
-            with: { user: true }
+            with: { user: true, roles: true }
         });
 
+        let customPerms: string[] = [];
         if (member) {
             c.set('member', member);
-            // Fetch Roles
-            const rolesResult = await db.query.tenantRoles.findMany({
-                where: eq(tenantRoles.memberId, member.id)
-            });
-            const dbRoles = rolesResult.map(r => r.role);
-            // Permissions explicitly assigned to the role assignment (overrides/additions)
-            assignedPermissions = rolesResult.flatMap(r => (r.permissions as unknown as string[]) || []);
+            const rolesResult = (member as any).roles ?? [];
+            const dbRoles = rolesResult.map((r: any) => r.role);
+            assignedPermissions = rolesResult.flatMap((r: any) => (r.permissions as unknown as string[]) || []);
 
-            // Merge with auth roles if applicable
             if (!isPlatformAdmin || !roles.length || roles.includes('owner')) {
                 roles = [...new Set([...roles, ...dbRoles])];
             }
+
+            // Fetch custom role permissions (still needed separately, but only for members)
+            const customRolesResult = await db.select({ permissions: customRoles.permissions })
+                .from(memberCustomRoles)
+                .innerJoin(customRoles, eq(memberCustomRoles.customRoleId, customRoles.id))
+                .where(eq(memberCustomRoles.memberId, member.id))
+                .all();
+
+            customPerms = [
+                ...assignedPermissions,
+                ...customRolesResult.flatMap(r => (r.permissions as any as string[]) || [])
+            ];
         } else if (isPlatformAdmin) {
             // Synthesize virtual member for platform admins
             const virtualMemberId = `virt_${auth.userId}`;
@@ -259,7 +268,7 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
                 tenantId: tenant.id,
                 userId: auth.userId,
                 status: 'active',
-                user: dbUser // Attach the global user object so /me endpoint can see roles/isPlatformAdmin
+                user: dbUser
             });
             if (!roles.includes('owner')) {
                 roles.push('owner');
@@ -268,22 +277,6 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
 
         // --- Final Resolution ---
         c.set('roles', roles);
-
-        // Resolve Custom Permissions
-        let customPerms: string[] = [];
-        const currentMember = c.get('member');
-        if (currentMember) {
-            const customRolesResult = await db.select({ permissions: customRoles.permissions })
-                .from(memberCustomRoles)
-                .innerJoin(customRoles, eq(memberCustomRoles.customRoleId, customRoles.id))
-                .where(eq(memberCustomRoles.memberId, currentMember.id))
-                .all();
-
-            customPerms = [
-                ...assignedPermissions,
-                ...customRolesResult.flatMap(r => (r.permissions as any as string[]) || [])
-            ];
-        }
 
         const permissions = PermissionService.resolvePermissions(roles, customPerms);
         c.set('permissions', permissions as any as Set<string>);

@@ -3,7 +3,7 @@ import { createOpenAPIApp } from '../lib/openapi';
 import { StudioVariables } from '../types';
 import { createDb } from '../db';
 import { courses, courseEnrollments, classes, videoCollectionItems, videoCollections, courseModules, courseAccessCodes, videos, quizzes, coursePrerequisites, articles, assignments, courseResources, courseComments, assignmentSubmissions } from '@studio/db/src/schema';
-import { eq, and, desc, asc } from 'drizzle-orm';
+import { eq, and, desc, asc, inArray } from 'drizzle-orm';
 
 const app = createOpenAPIApp<StudioVariables>();
 
@@ -222,51 +222,45 @@ app.openapi(createRoute({
             .all()
         : [];
 
-    // Enrich each item with its content record
-    const curriculum = await Promise.all(rawItems.map(async (item) => {
-        let video = null;
-        let quiz = null;
-        let article = null;
-        let assignment = null;
-        if (item.videoId) {
-            video = await db.select({
-                id: videos.id,
-                title: videos.title,
-                cloudflareStreamId: videos.cloudflareStreamId,
-                r2Key: videos.r2Key,
-                duration: videos.duration,
-            }).from(videos).where(eq(videos.id, item.videoId)).get();
-        }
-        if (item.quizId) {
-            quiz = await db.select({
-                id: quizzes.id,
-                title: quizzes.title,
-                passingScore: quizzes.passingScore,
-            }).from(quizzes).where(eq(quizzes.id, item.quizId)).get();
-        }
-        if (item.articleId) {
-            article = await db.select({
-                id: articles.id,
-                title: articles.title,
-                html: articles.html,
-                readingTimeMinutes: articles.readingTimeMinutes,
-            }).from(articles).where(eq(articles.id, item.articleId)).get();
-        }
-        if (item.assignmentId) {
-            assignment = await db.select({
-                id: assignments.id,
-                title: assignments.title,
-                description: assignments.description,
-                instructionsHtml: assignments.instructionsHtml,
-                requireFileUpload: assignments.requireFileUpload,
-                pointsAvailable: assignments.pointsAvailable,
-            }).from(assignments).where(eq(assignments.id, item.assignmentId)).get();
-        }
+    // Batch-fetch all content referenced by curriculum items (eliminates N+1)
+    const videoIds = rawItems.map(i => i.videoId).filter(Boolean) as string[];
+    const quizIds = rawItems.map(i => i.quizId).filter(Boolean) as string[];
+    const articleIds = rawItems.map(i => i.articleId).filter(Boolean) as string[];
+    const assignmentIds = rawItems.map(i => i.assignmentId).filter(Boolean) as string[];
+    const itemIds = rawItems.map(i => i.id);
 
-        // Also fetch resources attached to this lesson
-        const resources = await db.select().from(courseResources).where(eq(courseResources.collectionItemId, item.id)).all();
+    const [
+        allVideos,
+        allQuizzes,
+        allArticles,
+        allAssignments,
+        allResources,
+    ] = await Promise.all([
+        videoIds.length ? db.select({ id: videos.id, title: videos.title, cloudflareStreamId: videos.cloudflareStreamId, r2Key: videos.r2Key, duration: videos.duration }).from(videos).where(inArray(videos.id, videoIds)).all() : [],
+        quizIds.length ? db.select({ id: quizzes.id, title: quizzes.title, passingScore: quizzes.passingScore }).from(quizzes).where(inArray(quizzes.id, quizIds)).all() : [],
+        articleIds.length ? db.select({ id: articles.id, title: articles.title, html: articles.html, readingTimeMinutes: articles.readingTimeMinutes }).from(articles).where(inArray(articles.id, articleIds)).all() : [],
+        assignmentIds.length ? db.select({ id: assignments.id, title: assignments.title, description: assignments.description, instructionsHtml: assignments.instructionsHtml, requireFileUpload: assignments.requireFileUpload, pointsAvailable: assignments.pointsAvailable }).from(assignments).where(inArray(assignments.id, assignmentIds)).all() : [],
+        itemIds.length ? db.select().from(courseResources).where(inArray(courseResources.collectionItemId, itemIds)).all() : [],
+    ]);
 
-        return { ...item, video, quiz, article, assignment, resources };
+    // Build lookup maps for O(1) assembly
+    const videoMap = Object.fromEntries(allVideos.map(v => [v.id, v]));
+    const quizMap = Object.fromEntries(allQuizzes.map(q => [q.id, q]));
+    const articleMap = Object.fromEntries(allArticles.map(a => [a.id, a]));
+    const assignmentMap = Object.fromEntries(allAssignments.map(a => [a.id, a]));
+    const resourcesByItem: Record<string, any[]> = {};
+    for (const r of allResources) {
+        if (!resourcesByItem[r.collectionItemId]) resourcesByItem[r.collectionItemId] = [];
+        resourcesByItem[r.collectionItemId].push(r);
+    }
+
+    const curriculum = rawItems.map(item => ({
+        ...item,
+        video: item.videoId ? videoMap[item.videoId] ?? null : null,
+        quiz: item.quizId ? quizMap[item.quizId] ?? null : null,
+        article: item.articleId ? articleMap[item.articleId] ?? null : null,
+        assignment: item.assignmentId ? assignmentMap[item.assignmentId] ?? null : null,
+        resources: resourcesByItem[item.id] ?? [],
     }));
 
     const prereqs = await db.select({ id: coursePrerequisites.prerequisiteId })
