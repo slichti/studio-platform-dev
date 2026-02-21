@@ -112,7 +112,7 @@ ALTER TABLE `membership_plans` ADD COLUMN `stripe_price_id` text;
 --> statement-breakpoint
 ALTER TABLE `membership_plans` ADD COLUMN `updated_at` integer;
 --> statement-breakpoint
-ALTER TABLE `tenants` ADD COLUMN `is_test` integer DEFAULT 0 NOT NULL;
+-- ALTER TABLE `tenants` ADD COLUMN `is_test` integer DEFAULT 0 NOT NULL; -- Already applied in previous run
 --> statement-breakpoint
 
 -- 4. Handled by manual migrations 0064-0070 (NO ACTION NEEDED)
