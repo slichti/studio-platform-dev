@@ -28,6 +28,3 @@ CREATE TABLE IF NOT EXISTS `course_prerequisites` (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS `course_prereq_idx` ON `course_prerequisites` (`course_id`,`prerequisite_id`);
 CREATE INDEX IF NOT EXISTS `course_prereq_tenant_idx` ON `course_prerequisites` (`tenant_id`);
-
-ALTER TABLE `classes` ADD COLUMN `course_id` text REFERENCES `courses`(`id`);
-ALTER TABLE `quizzes` ADD COLUMN `course_id` text REFERENCES `courses`(`id`);
