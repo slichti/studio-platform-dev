@@ -1,4 +1,4 @@
-CREATE TABLE `articles` (
+CREATE TABLE IF NOT EXISTS `articles` (
 	`id` text PRIMARY KEY NOT NULL,
 	`tenant_id` text NOT NULL,
 	`title` text NOT NULL,
@@ -10,8 +10,8 @@ CREATE TABLE `articles` (
 	FOREIGN KEY (`tenant_id`) REFERENCES `tenants`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE INDEX `article_tenant_idx` ON `articles` (`tenant_id`);--> statement-breakpoint
-CREATE TABLE `assignment_submissions` (
+CREATE INDEX IF NOT EXISTS `article_tenant_idx` ON `articles` (`tenant_id`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `assignment_submissions` (
 	`id` text PRIMARY KEY NOT NULL,
 	`assignment_id` text NOT NULL,
 	`user_id` text NOT NULL,
@@ -28,8 +28,8 @@ CREATE TABLE `assignment_submissions` (
 	FOREIGN KEY (`tenant_id`) REFERENCES `tenants`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE INDEX `assign_sub_user_idx` ON `assignment_submissions` (`user_id`,`assignment_id`);--> statement-breakpoint
-CREATE TABLE `assignments` (
+CREATE INDEX IF NOT EXISTS `assign_sub_user_idx` ON `assignment_submissions` (`user_id`,`assignment_id`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `assignments` (
 	`id` text PRIMARY KEY NOT NULL,
 	`tenant_id` text NOT NULL,
 	`title` text NOT NULL,
@@ -42,8 +42,8 @@ CREATE TABLE `assignments` (
 	FOREIGN KEY (`tenant_id`) REFERENCES `tenants`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE INDEX `assignment_tenant_idx` ON `assignments` (`tenant_id`);--> statement-breakpoint
-CREATE TABLE `course_access_codes` (
+CREATE INDEX IF NOT EXISTS `assignment_tenant_idx` ON `assignments` (`tenant_id`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `course_access_codes` (
 	`id` text PRIMARY KEY NOT NULL,
 	`course_id` text NOT NULL,
 	`tenant_id` text NOT NULL,
@@ -56,9 +56,9 @@ CREATE TABLE `course_access_codes` (
 	FOREIGN KEY (`tenant_id`) REFERENCES `tenants`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `access_code_course_code_idx` ON `course_access_codes` (`course_id`,`code`);--> statement-breakpoint
-CREATE INDEX `access_code_tenant_idx` ON `course_access_codes` (`tenant_id`);--> statement-breakpoint
-CREATE TABLE `course_comments` (
+CREATE UNIQUE INDEX IF NOT EXISTS `access_code_course_code_idx` ON `course_access_codes` (`course_id`,`code`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `access_code_tenant_idx` ON `course_access_codes` (`tenant_id`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `course_comments` (
 	`id` text PRIMARY KEY NOT NULL,
 	`tenant_id` text NOT NULL,
 	`course_id` text NOT NULL,
@@ -76,9 +76,9 @@ CREATE TABLE `course_comments` (
 	FOREIGN KEY (`author_id`) REFERENCES `tenant_members`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE INDEX `course_comment_item_idx` ON `course_comments` (`collection_item_id`);--> statement-breakpoint
-CREATE INDEX `course_comment_course_idx` ON `course_comments` (`course_id`);--> statement-breakpoint
-CREATE TABLE `course_enrollments` (
+CREATE INDEX IF NOT EXISTS `course_comment_item_idx` ON `course_comments` (`collection_item_id`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `course_comment_course_idx` ON `course_comments` (`course_id`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `course_enrollments` (
 	`id` text PRIMARY KEY NOT NULL,
 	`course_id` text NOT NULL,
 	`user_id` text NOT NULL,
@@ -92,9 +92,9 @@ CREATE TABLE `course_enrollments` (
 	FOREIGN KEY (`tenant_id`) REFERENCES `tenants`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `user_course_enrollment_idx` ON `course_enrollments` (`user_id`,`course_id`);--> statement-breakpoint
-CREATE INDEX `enrollment_tenant_idx` ON `course_enrollments` (`tenant_id`);--> statement-breakpoint
-CREATE TABLE `course_modules` (
+CREATE UNIQUE INDEX IF NOT EXISTS `user_course_enrollment_idx` ON `course_enrollments` (`user_id`,`course_id`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `enrollment_tenant_idx` ON `course_enrollments` (`tenant_id`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `course_modules` (
 	`id` text PRIMARY KEY NOT NULL,
 	`course_id` text NOT NULL,
 	`title` text NOT NULL,
@@ -104,8 +104,8 @@ CREATE TABLE `course_modules` (
 	FOREIGN KEY (`course_id`) REFERENCES `courses`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE INDEX `course_module_idx` ON `course_modules` (`course_id`);--> statement-breakpoint
-CREATE TABLE `course_prerequisites` (
+CREATE INDEX IF NOT EXISTS `course_module_idx` ON `course_modules` (`course_id`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `course_prerequisites` (
 	`id` text PRIMARY KEY NOT NULL,
 	`course_id` text NOT NULL,
 	`prerequisite_id` text NOT NULL,
@@ -116,9 +116,9 @@ CREATE TABLE `course_prerequisites` (
 	FOREIGN KEY (`tenant_id`) REFERENCES `tenants`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `course_prereq_idx` ON `course_prerequisites` (`course_id`,`prerequisite_id`);--> statement-breakpoint
-CREATE INDEX `course_prereq_tenant_idx` ON `course_prerequisites` (`tenant_id`);--> statement-breakpoint
-CREATE TABLE `course_resources` (
+CREATE UNIQUE INDEX IF NOT EXISTS `course_prereq_idx` ON `course_prerequisites` (`course_id`,`prerequisite_id`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `course_prereq_tenant_idx` ON `course_prerequisites` (`tenant_id`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `course_resources` (
 	`id` text PRIMARY KEY NOT NULL,
 	`tenant_id` text NOT NULL,
 	`collection_item_id` text NOT NULL,
@@ -132,8 +132,8 @@ CREATE TABLE `course_resources` (
 	FOREIGN KEY (`collection_item_id`) REFERENCES `video_collection_items`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE INDEX `course_resource_item_idx` ON `course_resources` (`collection_item_id`);--> statement-breakpoint
-CREATE TABLE `courses` (
+CREATE INDEX IF NOT EXISTS `course_resource_item_idx` ON `course_resources` (`collection_item_id`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `courses` (
 	`id` text PRIMARY KEY NOT NULL,
 	`tenant_id` text NOT NULL,
 	`title` text NOT NULL,
@@ -154,9 +154,9 @@ CREATE TABLE `courses` (
 	FOREIGN KEY (`content_collection_id`) REFERENCES `video_collections`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE INDEX `course_tenant_idx` ON `courses` (`tenant_id`);--> statement-breakpoint
-CREATE UNIQUE INDEX `course_tenant_slug_idx` ON `courses` (`tenant_id`,`slug`);--> statement-breakpoint
-CREATE TABLE `quiz_questions` (
+CREATE INDEX IF NOT EXISTS `course_tenant_idx` ON `courses` (`tenant_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS `course_tenant_slug_idx` ON `courses` (`tenant_id`,`slug`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `quiz_questions` (
 	`id` text PRIMARY KEY NOT NULL,
 	`quiz_id` text NOT NULL,
 	`question_text` text NOT NULL,
@@ -170,8 +170,8 @@ CREATE TABLE `quiz_questions` (
 	FOREIGN KEY (`quiz_id`) REFERENCES `quizzes`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE INDEX `quiz_question_idx` ON `quiz_questions` (`quiz_id`);--> statement-breakpoint
-CREATE TABLE `quiz_submissions` (
+CREATE INDEX IF NOT EXISTS `quiz_question_idx` ON `quiz_questions` (`quiz_id`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `quiz_submissions` (
 	`id` text PRIMARY KEY NOT NULL,
 	`quiz_id` text NOT NULL,
 	`user_id` text NOT NULL,
@@ -185,8 +185,8 @@ CREATE TABLE `quiz_submissions` (
 	FOREIGN KEY (`tenant_id`) REFERENCES `tenants`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE INDEX `quiz_sub_user_quiz_idx` ON `quiz_submissions` (`user_id`,`quiz_id`);--> statement-breakpoint
-CREATE TABLE `quizzes` (
+CREATE INDEX IF NOT EXISTS `quiz_sub_user_quiz_idx` ON `quiz_submissions` (`user_id`,`quiz_id`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `quizzes` (
 	`id` text PRIMARY KEY NOT NULL,
 	`tenant_id` text NOT NULL,
 	`title` text NOT NULL,
@@ -201,8 +201,8 @@ CREATE TABLE `quizzes` (
 	FOREIGN KEY (`course_id`) REFERENCES `courses`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE INDEX `quiz_tenant_idx` ON `quizzes` (`tenant_id`);--> statement-breakpoint
-CREATE TABLE `rooms` (
+CREATE INDEX IF NOT EXISTS `quiz_tenant_idx` ON `quizzes` (`tenant_id`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `rooms` (
 	`id` text PRIMARY KEY NOT NULL,
 	`tenant_id` text NOT NULL,
 	`name` text NOT NULL,
@@ -213,8 +213,8 @@ CREATE TABLE `rooms` (
 	FOREIGN KEY (`tenant_id`) REFERENCES `tenants`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE INDEX `room_tenant_idx` ON `rooms` (`tenant_id`);--> statement-breakpoint
-CREATE TABLE `tag_assignments` (
+CREATE INDEX IF NOT EXISTS `room_tenant_idx` ON `rooms` (`tenant_id`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `tag_assignments` (
 	`id` text PRIMARY KEY NOT NULL,
 	`tag_id` text NOT NULL,
 	`target_id` text NOT NULL,
@@ -223,9 +223,9 @@ CREATE TABLE `tag_assignments` (
 	FOREIGN KEY (`tag_id`) REFERENCES `tags`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE INDEX `tag_assign_target_idx` ON `tag_assignments` (`target_id`,`target_type`);--> statement-breakpoint
-CREATE INDEX `tag_assign_tag_idx` ON `tag_assignments` (`tag_id`);--> statement-breakpoint
-CREATE TABLE `tags` (
+CREATE INDEX IF NOT EXISTS `tag_assign_target_idx` ON `tag_assignments` (`target_id`,`target_type`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `tag_assign_tag_idx` ON `tag_assignments` (`tag_id`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `tags` (
 	`id` text PRIMARY KEY NOT NULL,
 	`tenant_id` text NOT NULL,
 	`name` text NOT NULL,
@@ -235,9 +235,9 @@ CREATE TABLE `tags` (
 	FOREIGN KEY (`tenant_id`) REFERENCES `tenants`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE INDEX `tag_tenant_idx` ON `tags` (`tenant_id`);--> statement-breakpoint
-CREATE UNIQUE INDEX `tag_unique_name_idx` ON `tags` (`tenant_id`,`name`);--> statement-breakpoint
-CREATE TABLE `video_purchases` (
+CREATE INDEX IF NOT EXISTS `tag_tenant_idx` ON `tags` (`tenant_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS `tag_unique_name_idx` ON `tags` (`tenant_id`,`name`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `video_purchases` (
 	`id` text PRIMARY KEY NOT NULL,
 	`tenant_id` text NOT NULL,
 	`user_id` text NOT NULL,
@@ -250,30 +250,24 @@ CREATE TABLE `video_purchases` (
 	FOREIGN KEY (`class_id`) REFERENCES `classes`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE INDEX `video_purchase_tenant_user_idx` ON `video_purchases` (`tenant_id`,`user_id`);--> statement-breakpoint
-CREATE INDEX `video_purchase_user_class_idx` ON `video_purchases` (`user_id`,`class_id`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `video_purchase_tenant_user_idx` ON `video_purchases` (`tenant_id`,`user_id`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `video_purchase_user_class_idx` ON `video_purchases` (`user_id`,`class_id`);--> statement-breakpoint
 DROP TABLE `member_tags`;--> statement-breakpoint
 DROP TABLE `members_to_tags`;--> statement-breakpoint
 DROP INDEX `cf_def_tenant_entity_idx`;--> statement-breakpoint
 DROP INDEX `cf_def_unique_key_idx`;--> statement-breakpoint
 ALTER TABLE `custom_field_definitions` ADD `target_type` text DEFAULT 'member' NOT NULL;--> statement-breakpoint
-CREATE INDEX `cf_def_tenant_target_idx` ON `custom_field_definitions` (`tenant_id`,`target_type`);--> statement-breakpoint
-CREATE UNIQUE INDEX `cf_def_unique_key_idx` ON `custom_field_definitions` (`tenant_id`,`target_type`,`key`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `cf_def_tenant_target_idx` ON `custom_field_definitions` (`tenant_id`,`target_type`);--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS `cf_def_unique_key_idx` ON `custom_field_definitions` (`tenant_id`,`target_type`,`key`);--> statement-breakpoint
 ALTER TABLE `custom_field_definitions` DROP COLUMN `entity_type`;--> statement-breakpoint
 DROP INDEX `cf_val_entity_idx`;--> statement-breakpoint
 DROP INDEX `cf_val_unique_idx`;--> statement-breakpoint
 ALTER TABLE `custom_field_values` ADD `target_id` text NOT NULL;--> statement-breakpoint
-CREATE INDEX `cf_val_target_idx` ON `custom_field_values` (`target_id`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `cf_val_target_idx` ON `custom_field_values` (`target_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `cf_val_unique_idx` ON `custom_field_values` (`target_id`,`definition_id`);--> statement-breakpoint
 ALTER TABLE `custom_field_values` DROP COLUMN `entity_id`;--> statement-breakpoint
-DROP INDEX `class_instructor_idx`;--> statement-breakpoint
-ALTER TABLE `classes` ADD `recording_price` integer;--> statement-breakpoint
-ALTER TABLE `classes` ADD `is_recording_sellable` integer DEFAULT false;--> statement-breakpoint
-ALTER TABLE `classes` ADD `is_course` integer DEFAULT false;--> statement-breakpoint
-ALTER TABLE `classes` ADD `content_collection_id` text REFERENCES video_collections(id);--> statement-breakpoint
-ALTER TABLE `classes` ADD `course_id` text REFERENCES courses(id);--> statement-breakpoint
-CREATE INDEX `class_location_time_idx` ON `classes` (`location_id`,`start_time`);--> statement-breakpoint
-CREATE INDEX `class_instructor_idx` ON `classes` (`instructor_id`,`start_time`);--> statement-breakpoint
+-- Redundant classes alterations removed (handled by 0064)
+--> statement-breakpoint--> statement-breakpoint
 PRAGMA foreign_keys=OFF;--> statement-breakpoint
 CREATE TABLE `__new_class_series` (
 	`id` text PRIMARY KEY NOT NULL,
@@ -322,13 +316,13 @@ CREATE TABLE `__new_video_collection_items` (
 INSERT INTO `__new_video_collection_items`("id", "collection_id", "content_type", "video_id", "quiz_id", "article_id", "assignment_id", "order", "module_id", "release_after_days", "is_required", "created_at") SELECT "id", "collection_id", "content_type", "video_id", "quiz_id", "article_id", "assignment_id", "order", "module_id", "release_after_days", "is_required", "created_at" FROM `video_collection_items`;--> statement-breakpoint
 DROP TABLE `video_collection_items`;--> statement-breakpoint
 ALTER TABLE `__new_video_collection_items` RENAME TO `video_collection_items`;--> statement-breakpoint
-CREATE INDEX `collection_item_idx` ON `video_collection_items` (`collection_id`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `collection_item_idx` ON `video_collection_items` (`collection_id`);--> statement-breakpoint
 ALTER TABLE `class_pack_definitions` ADD `stripe_product_id` text;--> statement-breakpoint
 ALTER TABLE `class_pack_definitions` ADD `stripe_price_id` text;--> statement-breakpoint
 ALTER TABLE `membership_plans` ADD `stripe_product_id` text;--> statement-breakpoint
 ALTER TABLE `membership_plans` ADD `stripe_price_id` text;--> statement-breakpoint
 ALTER TABLE `membership_plans` ADD `updated_at` integer DEFAULT (strftime('%s', 'now'));--> statement-breakpoint
 ALTER TABLE `tenants` ADD `is_test` integer DEFAULT false NOT NULL;--> statement-breakpoint
-CREATE INDEX `apt_location_time_idx` ON `appointments` (`location_id`,`start_time`);--> statement-breakpoint
-CREATE INDEX `booking_member_active_idx` ON `bookings` (`member_id`,`status`,`checked_in_at`);--> statement-breakpoint
-CREATE INDEX `booking_created_idx` ON `bookings` (`created_at`);
+CREATE INDEX IF NOT EXISTS `apt_location_time_idx` ON `appointments` (`location_id`,`start_time`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `booking_member_active_idx` ON `bookings` (`member_id`,`status`,`checked_in_at`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `booking_created_idx` ON `bookings` (`created_at`);
