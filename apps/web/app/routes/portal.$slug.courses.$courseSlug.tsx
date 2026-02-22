@@ -7,9 +7,25 @@ import {
     FileText, ClipboardList, MessageSquare, Send, CheckCircle2, XCircle,
     RotateCcw, AlertCircle, ThumbsUp
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { cn } from "~/utils/cn";
-import DOMPurify from "isomorphic-dompurify";
+
+// DOMPurify requires a browser DOM and cannot run in Cloudflare Workers.
+// SafeHtml renders raw HTML on the server (trusted API content) and
+// sanitizes client-side after hydration using a dynamic import of dompurify.
+function SafeHtml({ html, className }: { html: string; className?: string }) {
+    const divRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!divRef.current || !html) return;
+        import('dompurify').then(({ default: DOMPurify }) => {
+            if (divRef.current) {
+                divRef.current.innerHTML = DOMPurify.sanitize(html);
+            }
+        });
+    }, [html]);
+    // eslint-disable-next-line react/no-danger
+    return <div ref={divRef} className={className} dangerouslySetInnerHTML={{ __html: html }} />;
+}
 
 function ItemIcon({ contentType, done }: { contentType: string; done: boolean }) {
     if (done) return <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 flex-shrink-0"><CheckSquare size={14} /></div>;
@@ -575,7 +591,7 @@ export default function PortalCourseViewer() {
                                         )}
                                         <div className="prose dark:prose-invert max-w-none">
                                             {activeItem.article?.html ? (
-                                                <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(activeItem.article.html) }} />
+                                                <SafeHtml html={activeItem.article.html} />
                                             ) : (
                                                 <p className="text-zinc-500 italic">This article is currently empty.</p>
                                             )}
@@ -775,13 +791,13 @@ function AssignmentSection({ item, existingSubmission }: { item: any; existingSu
             <h2 className="text-3xl font-bold mb-6">{item.assignment?.title}</h2>
 
             {item.assignment?.instructionsHtml || item.assignment?.description ? (
-                <div className="prose dark:prose-invert max-w-none mb-8">
-                    {item.assignment?.instructionsHtml ? (
-                        <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.assignment.instructionsHtml) }} />
-                    ) : (
-                        <p>{item.assignment?.description}</p>
-                    )}
-                </div>
+                        <div className="prose dark:prose-invert max-w-none mb-8">
+                            {item.assignment?.instructionsHtml ? (
+                                <SafeHtml html={item.assignment.instructionsHtml} />
+                            ) : (
+                                <p>{item.assignment?.description}</p>
+                            )}
+                        </div>
             ) : null}
 
             {/* Graded feedback */}
@@ -794,8 +810,7 @@ function AssignmentSection({ item, existingSubmission }: { item: any; existingSu
                         </span>
                     </div>
                     {submission.feedbackHtml && (
-                        <div className="prose prose-sm dark:prose-invert max-w-none mt-2"
-                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(submission.feedbackHtml) }} />
+                        <SafeHtml html={submission.feedbackHtml} className="prose prose-sm dark:prose-invert max-w-none mt-2" />
                     )}
                 </div>
             )}
