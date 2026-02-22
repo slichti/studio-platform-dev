@@ -17,6 +17,9 @@ type Bindings = {
 // Variables were moved to types.ts and imported above
 
 export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variables: Variables }>, next: Next) => {
+    // If tenant already resolved (e.g. via API key middleware)
+    if (c.get('tenant')) return await next();
+
     const url = new URL(c.req.url);
     const hostname = url.hostname;
 

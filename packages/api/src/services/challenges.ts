@@ -255,7 +255,7 @@ export class ChallengeService {
     }
 
     async reconcileRefund(referenceId: string, type: string) {
-        if (type !== 'pack' && type !== 'pos') return;
+        if (type !== 'pack' && type !== 'pos' && type !== 'membership') return;
 
         // 1. Find bookings associated with this purchase (if pack)
         let relevantUserIds: string[] = [];
@@ -275,6 +275,16 @@ export class ChallengeService {
             if (order?.memberId) {
                 const member = await this.db.query.tenantMembers.findFirst({
                     where: eq(schema.tenantMembers.id, order.memberId)
+                });
+                if (member) relevantUserIds = [member.userId];
+            }
+        } else if (type === 'membership') {
+            const sub = await this.db.query.subscriptions.findFirst({
+                where: eq(schema.subscriptions.id, referenceId)
+            });
+            if (sub?.memberId) {
+                const member = await this.db.query.tenantMembers.findFirst({
+                    where: eq(schema.tenantMembers.id, sub.memberId)
                 });
                 if (member) relevantUserIds = [member.userId];
             }

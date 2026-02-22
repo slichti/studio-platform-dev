@@ -4,6 +4,7 @@ import { Users, CheckCircle2 } from "lucide-react";
 import { useAttendance, DateRange } from "~/hooks/useAnalytics";
 import { MetricCard } from "~/components/charts/MetricCard";
 import React, { Suspense, lazy } from "react";
+import { SkeletonLoader } from "~/components/ui/SkeletonLoader";
 const AttendanceChart = lazy(() => import("~/components/charts/AttendanceChart.client").then(mod => ({ default: mod.AttendanceChart })));
 
 export default function AnalyticsAttendance() {
@@ -12,10 +13,11 @@ export default function AnalyticsAttendance() {
 
     if (isLoading) {
         return (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-pulse">
-                <div className="h-32 bg-zinc-100 dark:bg-zinc-800 rounded-xl"></div>
-                <div className="h-32 bg-zinc-100 dark:bg-zinc-800 rounded-xl"></div>
-                <div className="col-span-1 md:col-span-2 h-80 bg-zinc-100 dark:bg-zinc-800 rounded-xl"></div>
+            <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <SkeletonLoader type="card" count={2} />
+                </div>
+                <SkeletonLoader type="card" count={1} className="h-[400px]" />
             </div>
         );
     }

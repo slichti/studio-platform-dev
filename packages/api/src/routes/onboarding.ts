@@ -1,8 +1,10 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { tenants, tenantMembers, tenantRoles, users, auditLogs, websitePages, platformPlans, locations, classes, classSeries } from '@studio/db/src/schema';
+import { WebhookService } from '../services/webhooks';
 import { eq, and, sql } from 'drizzle-orm';
 import { rateLimitMiddleware } from '../middleware/rate-limit';
+import { Svix } from 'svix';
 
 type Bindings = {
     STRIPE_SECRET_KEY: string;
@@ -10,7 +12,8 @@ type Bindings = {
     STRIPE_PRICE_SCALE?: string;
     CLERK_SECRET_KEY: string;
     RESEND_API_KEY: string;
-    PLATFORM_ADMIN_EMAIL?: string; // Optional config for alerts
+    PLATFORM_ADMIN_EMAIL?: string;
+    SVIX_AUTH_TOKEN?: string;
     DB: D1Database;
 };
 
@@ -173,6 +176,21 @@ app.post('/studio', rateLimitMiddleware({ limit: 5, window: 300, keyPrefix: 'onb
     try {
         await db.insert(tenants).values(newTenant).run();
 
+        // 3b. Provision Svix Application
+        if (c.env.SVIX_AUTH_TOKEN) {
+            try {
+                const svix = new Svix(c.env.SVIX_AUTH_TOKEN as string);
+                await svix.application.create({
+                    name: newTenant.name,
+                    uid: tenantId // Use tenantId as unique identifier in Svix
+                });
+                console.log(`[Svix] Provisioned application for tenant ${tenantId}`);
+            } catch (err: any) {
+                console.error(`[Svix] Provisioning Failed for tenant ${tenantId}:`, err.message);
+                // Non-blocking in case Svix is down, but we should ideally ensure this works
+            }
+        }
+
         // 4. Add User as Owner
         let user = await db.query.users.findFirst({
             where: eq(users.id, auth.userId)
@@ -244,6 +262,14 @@ app.post('/studio', rateLimitMiddleware({ limit: 5, window: 300, keyPrefix: 'onb
             memberId: memberId,
             role: 'owner'
         }).run();
+
+        // Dispatch Webhook
+        const webhookService = new WebhookService(db, c.env.SVIX_AUTH_TOKEN as string);
+        webhookService.dispatch(tenantId, 'member.created', {
+            id: memberId,
+            userId: auth.userId,
+            role: 'owner'
+        });
 
         // 4b. Create Default Home Page for Public Access
         try {

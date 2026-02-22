@@ -2,6 +2,7 @@ import { View, Text, SafeAreaView, SectionList, TouchableOpacity, RefreshControl
 import { useState, useEffect, useCallback } from 'react';
 import { apiRequest } from '../../lib/api';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 
 type ClassSession = {
     id: string;
@@ -137,7 +138,10 @@ export default function ScheduleScreen() {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="px-6 pb-2">
                     {/* Category Filter */}
                     <TouchableOpacity
-                        onPress={() => setSelectedCategory(null)}
+                        onPress={() => {
+                            Haptics.selectionAsync();
+                            setSelectedCategory(null);
+                        }}
                         className={`mr-2 px-4 py-2 rounded-full border ${!selectedCategory ? 'bg-black border-black' : 'bg-white border-zinc-200'}`}
                     >
                         <Text className={`text-xs font-bold ${!selectedCategory ? 'text-white' : 'text-zinc-600'}`}>All</Text>
@@ -145,7 +149,10 @@ export default function ScheduleScreen() {
                     {categories.map(cat => (
                         <TouchableOpacity
                             key={cat}
-                            onPress={() => setSelectedCategory(cat)}
+                            onPress={() => {
+                                Haptics.selectionAsync();
+                                setSelectedCategory(cat);
+                            }}
                             className={`mr-2 px-4 py-2 rounded-full border ${selectedCategory === cat ? 'bg-black border-black' : 'bg-white border-zinc-200'}`}
                         >
                             <Text className={`text-xs font-bold ${selectedCategory === cat ? 'text-white' : 'text-zinc-600'}`}>{cat}</Text>
@@ -155,7 +162,10 @@ export default function ScheduleScreen() {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="px-6 pb-4">
                     {/* Instructor Filter */}
                     <TouchableOpacity
-                        onPress={() => setSelectedInstructor(null)}
+                        onPress={() => {
+                            Haptics.selectionAsync();
+                            setSelectedInstructor(null);
+                        }}
                         className={`mr-2 px-4 py-2 rounded-full border ${!selectedInstructor ? 'bg-zinc-800 border-zinc-800' : 'bg-zinc-50 border-zinc-100'}`}
                     >
                         <Text className={`text-xs font-bold ${!selectedInstructor ? 'text-white' : 'text-zinc-500'}`}>Any Instructor</Text>
@@ -163,7 +173,10 @@ export default function ScheduleScreen() {
                     {instructors.map(name => (
                         <TouchableOpacity
                             key={name}
-                            onPress={() => setSelectedInstructor(name)}
+                            onPress={() => {
+                                Haptics.selectionAsync();
+                                setSelectedInstructor(name);
+                            }}
                             className={`mr-2 px-4 py-2 rounded-full border ${selectedInstructor === name ? 'bg-zinc-800 border-zinc-800' : 'bg-zinc-50 border-zinc-100'}`}
                         >
                             <Text className={`text-xs font-bold ${selectedInstructor === name ? 'text-white' : 'text-zinc-500'}`}>{name}</Text>

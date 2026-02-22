@@ -8,6 +8,9 @@ import { eq, sql } from 'drizzle-orm';
 import { Bindings, Variables } from '../types';
 
 export const authMiddleware = createMiddleware<{ Variables: Variables, Bindings: Bindings }>(async (c, next) => {
+    // If already authenticated (e.g. via API key or previous middleware)
+    if (c.get('auth')) return await next();
+
     let token: string | undefined;
     const authHeader = c.req.header('Authorization');
 

@@ -1035,6 +1035,8 @@ export const leads = sqliteTable('leads', {
     status: text('status', { enum: ['new', 'contacted', 'trialing', 'converted', 'lost'] }).default('new').notNull(),
     source: text('source'), // e.g. "website", "referral"
     notes: text('notes'),
+    convertedAt: integer('converted_at', { mode: 'timestamp' }),
+    convertedMemberId: text('converted_member_id').references(() => tenantMembers.id),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
@@ -1184,7 +1186,7 @@ export const subRequests = sqliteTable('sub_requests', {
     originalInstructorId: text('original_instructor_id').notNull().references(() => tenantMembers.id),
     coveredByUserId: text('covered_by_user_id').references(() => tenantMembers.id), // Nullable until claimed
 
-    status: text('status', { enum: ['open', 'filled', 'cancelled'] }).default('open').notNull(),
+    status: text('status', { enum: ['open', 'filled', 'cancelled', 'pending_approval'] }).default('open').notNull(),
     message: text('message'),
 
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
@@ -2331,4 +2333,20 @@ export const restoreHistory = sqliteTable('restore_history', {
     typeIdx: index('restore_type_idx').on(table.type, table.restoredAt),
     tenantIdx: index('restore_tenant_idx').on(table.tenantId),
     restoredByIdx: index('restore_user_idx').on(table.restoredBy),
+}));
+
+// --- Phase 7: Developer Platform (API Keys) ---
+export const apiKeys = sqliteTable('api_keys', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(), // e.g. "Zapier Integration"
+    keyHash: text('key_hash').notNull().unique(), // SHA-256 hash
+    prefix: text('prefix').notNull(), // First 7 chars + sp_
+    lastUsedAt: integer('last_used_at', { mode: 'timestamp' }),
+    expiresAt: integer('expires_at', { mode: 'timestamp' }),
+    isActive: integer('active', { mode: 'boolean' }).default(true).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('api_key_tenant_idx').on(table.tenantId),
 }));

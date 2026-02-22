@@ -55,6 +55,7 @@ const listMembersRoute = createRoute({
         query: z.object({
             q: z.string().optional().openapi({ description: 'Search query' }),
             role: z.string().optional().openapi({ description: 'Filter by role' }),
+            status: z.string().optional().openapi({ description: 'Filter by status' }),
             limit: z.coerce.number().int().positive().default(50).optional(),
             offset: z.coerce.number().int().nonnegative().default(0).optional()
         })
@@ -75,9 +76,12 @@ app.openapi(listMembersRoute, async (c) => {
     if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant')!;
-    const { q, role, limit = 50, offset = 0 } = c.req.valid('query');
+    const { q, role, status, limit = 50, offset = 0 } = c.req.valid('query');
 
     const conds = [eq(tenantMembers.tenantId, tenant.id)];
+    if (status && status !== 'all') {
+        conds.push(eq(tenantMembers.status, status as any));
+    }
     let whereClause = and(...conds);
 
     if (q) {

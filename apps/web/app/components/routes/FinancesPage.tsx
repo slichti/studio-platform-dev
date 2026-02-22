@@ -1,9 +1,9 @@
-
 import { useOutletContext } from "react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/react-router";
 import { apiRequest } from "../../utils/api";
 import { ConfirmationDialog, ErrorDialog, SuccessDialog } from "~/components/Dialogs";
+import { Skeleton, SkeletonLoader } from "~/components/ui/SkeletonLoader";
 
 export default function FinancesPage() {
     const { tenant, roles } = useOutletContext<any>();
@@ -17,33 +17,70 @@ export default function FinancesPage() {
     const { getToken } = useAuth();
     const [stats, setStats] = useState<any>(null);
     const [transactions, setTransactions] = useState<any[]>([]);
+    const [hasMore, setHasMore] = useState(false);
+    const [lastId, setLastId] = useState<string | null>(null);
     const [balance, setBalance] = useState<any>(null);
+
+    const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
 
     const [errorDialog, setErrorDialog] = useState<{ isOpen: boolean, message: string }>({ isOpen: false, message: '' });
     const [successDialog, setSuccessDialog] = useState<{ isOpen: boolean, message: string }>({ isOpen: false, message: '' });
     const [retryConfirmId, setRetryConfirmId] = useState<string | null>(null);
 
-    useEffect(() => {
+    const fetchData = useCallback(async () => {
         if (!tenant.stripeAccountId || !isOwner) return;
+        setLoading(true);
 
-        const fetchData = async () => {
-            const token = await getToken();
-            const url = import.meta.env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev";
+        const token = await getToken();
+        const url = import.meta.env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev";
 
-            apiRequest(`${url}/commerce/stats`, token).then(res => {
-                if (res) setStats(res);
-            });
+        try {
+            const [statsRes, transRes, balanceRes] = await Promise.all([
+                apiRequest(`${url}/commerce/stats`, token),
+                apiRequest(`${url}/commerce/transactions?limit=20`, token),
+                apiRequest(`${url}/commerce/balance`, token)
+            ]);
 
-            apiRequest(`${url}/commerce/transactions`, token).then((res: any) => {
-                if (res && res.transactions) setTransactions(res.transactions);
-            });
+            if (statsRes) setStats(statsRes);
+            if (transRes) {
+                setTransactions(transRes.transactions || []);
+                setHasMore(transRes.hasMore);
+                setLastId(transRes.lastId);
+            }
+            if (balanceRes && !balanceRes.error) setBalance(balanceRes);
+        } catch (e) {
+            console.error("Failed to fetch finances:", e);
+        } finally {
+            setLoading(false);
+        }
+    }, [tenant.id, tenant.stripeAccountId, isOwner, getToken]);
 
-            apiRequest(`${url}/commerce/balance`, token).then((res: any) => {
-                if (res && !res.error) setBalance(res);
-            });
-        };
+    const loadMore = async () => {
+        if (loadingMore || !hasMore || !lastId) return;
+        setLoadingMore(true);
+
+        const token = await getToken();
+        const url = import.meta.env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev";
+
+        try {
+            const res = await apiRequest(`${url}/commerce/transactions?limit=20&starting_after=${lastId}`, token);
+            if (res && res.transactions) {
+                setTransactions(prev => [...prev, ...res.transactions]);
+                setHasMore(res.hasMore);
+                setLastId(res.lastId);
+            }
+        } catch (e) {
+            console.error("Failed to load more transactions:", e);
+        } finally {
+            setLoadingMore(false);
+        }
+    };
+
+    useEffect(() => {
         fetchData();
-    }, [tenant.id, isOwner, getToken]);
+    }, [fetchData]);
+
 
     const [activeTab, setActiveTab] = useState<'overview' | 'failed'>('overview');
     const [failedPayments, setFailedPayments] = useState<any[]>([]);
@@ -305,54 +342,89 @@ export default function FinancesPage() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-lg shadow-sm">
                                 <div className="text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Total Revenue</div>
-                                <div className="text-3xl font-bold">${stats ? (stats.totalRevenue / 100).toFixed(2) : '0.00'}</div>
+                                {loading ? (
+                                    <Skeleton className="h-8 w-24" />
+                                ) : (
+                                    <div className="text-3xl font-bold">${stats ? stats.totalRevenue.toFixed(2) : '0.00'}</div>
+                                )}
                             </div>
                             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-lg shadow-sm">
                                 <div className="text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Monthly Recurring</div>
-                                <div className="text-3xl font-bold">${stats ? (stats.mrr / 100).toFixed(2) : '0.00'}</div>
+                                {loading ? (
+                                    <Skeleton className="h-8 w-24" />
+                                ) : (
+                                    <div className="text-3xl font-bold">${stats ? stats.mrr.toFixed(2) : '0.00'}</div>
+                                )}
                             </div>
                             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-lg shadow-sm">
                                 <div className="text-sm font-medium mb-1 text-zinc-500 dark:text-zinc-400">Stripe Balance</div>
-                                <div className="text-3xl font-bold">
-                                    ${balance ? (balance.available / 100).toFixed(2) : '0.00'}
-                                </div>
+                                {loading ? (
+                                    <Skeleton className="h-8 w-24" />
+                                ) : (
+                                    <div className="text-3xl font-bold">
+                                        ${balance?.available?.[0] ? (balance.available[0].amount / 100).toFixed(2) : '0.00'}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
                         <div className="p-4 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
                             <h3 className="font-semibold mb-4 text-zinc-900 dark:text-zinc-100">Transaction History</h3>
-                            {transactions.length === 0 ? (
+                            {loading && transactions.length === 0 ? (
+                                <div className="space-y-4">
+                                    {Array.from({ length: 5 }).map((_, i) => (
+                                        <div key={i} className="flex justify-between items-center py-2 border-b border-zinc-200 dark:border-zinc-800">
+                                            <Skeleton className="h-4 w-24" />
+                                            <Skeleton className="h-4 w-48" />
+                                            <Skeleton className="h-4 w-16" />
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : transactions.length === 0 ? (
                                 <p className="text-sm text-zinc-500 dark:text-zinc-400">No recent transactions.</p>
                             ) : (
-                                <table className="min-w-full text-sm">
-                                    <thead>
-                                        <tr className="border-b border-zinc-200 dark:border-zinc-700">
-                                            <th className="text-left py-2 font-medium text-zinc-700 dark:text-zinc-300">Date</th>
-                                            <th className="text-left py-2 font-medium text-zinc-700 dark:text-zinc-300">Description</th>
-                                            <th className="text-left py-2 font-medium text-zinc-700 dark:text-zinc-300">Customer</th>
-                                            <th className="text-right py-2 font-medium text-zinc-700 dark:text-zinc-300">Amount</th>
-                                            <th className="text-right py-2 font-medium text-zinc-700 dark:text-zinc-300">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {transactions.map((t: any) => (
-                                            <tr key={t.id} className="border-b last:border-0 border-zinc-200 dark:border-zinc-700">
-                                                <td className="py-2 text-zinc-600 dark:text-zinc-400">{new Date(t.date).toLocaleDateString()}</td>
-                                                <td className="py-2 text-zinc-600 dark:text-zinc-400">{t.description}</td>
-                                                <td className="py-2 text-zinc-600 dark:text-zinc-400">{t.customer}</td>
-                                                <td className="py-2 text-right text-zinc-900 dark:text-zinc-100">${(t.amount / 100).toFixed(2)}</td>
-                                                <td className="py-2 text-right">
-                                                    <button
-                                                        onClick={() => handleOpenRefund(t)}
-                                                        className="text-xs text-red-600 hover:text-red-700 hover:underline"
-                                                    >
-                                                        Refund
-                                                    </button>
-                                                </td>
+                                <div className="space-y-4">
+                                    <table className="min-w-full text-sm">
+                                        <thead>
+                                            <tr className="border-b border-zinc-200 dark:border-zinc-700">
+                                                <th className="text-left py-2 font-medium text-zinc-700 dark:text-zinc-300">Date</th>
+                                                <th className="text-left py-2 font-medium text-zinc-700 dark:text-zinc-300">Description</th>
+                                                <th className="text-left py-2 font-medium text-zinc-700 dark:text-zinc-300">Customer</th>
+                                                <th className="text-right py-2 font-medium text-zinc-700 dark:text-zinc-300">Amount</th>
+                                                <th className="text-right py-2 font-medium text-zinc-700 dark:text-zinc-300">Actions</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                            {transactions.map((t: any) => (
+                                                <tr key={t.id} className="border-b last:border-0 border-zinc-200 dark:border-zinc-700">
+                                                    <td className="py-2 text-zinc-600 dark:text-zinc-400">{new Date(t.date).toLocaleDateString()}</td>
+                                                    <td className="py-2 text-zinc-600 dark:text-zinc-400">{t.description}</td>
+                                                    <td className="py-2 text-zinc-600 dark:text-zinc-400">{t.customerName}</td>
+                                                    <td className="py-2 text-right text-zinc-900 dark:text-zinc-100">${(t.amount / 100).toFixed(2)}</td>
+                                                    <td className="py-2 text-right">
+                                                        <button
+                                                            onClick={() => handleOpenRefund(t)}
+                                                            className="text-xs text-red-600 hover:text-red-700 hover:underline"
+                                                        >
+                                                            Refund
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                    {hasMore && (
+                                        <div className="flex justify-center pt-4">
+                                            <button
+                                                onClick={loadMore}
+                                                disabled={loadingMore}
+                                                className="px-4 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-50"
+                                            >
+                                                {loadingMore ? 'Loading...' : 'Load More Transactions'}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             )}
                         </div>
                     </div>
@@ -361,3 +433,4 @@ export default function FinancesPage() {
         </div>
     );
 }
+

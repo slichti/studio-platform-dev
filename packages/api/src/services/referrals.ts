@@ -39,6 +39,13 @@ export class ReferralService {
                 userId = member?.userId || null;
                 purchaseDate = order.createdAt;
             }
+        } else if (type === 'membership') {
+            const sub = await db.query.subscriptions.findFirst({ where: eq(schema.subscriptions.id, referenceId) });
+            if (sub) {
+                const member = await db.query.tenantMembers.findFirst({ where: eq(schema.tenantMembers.id, sub.memberId!) });
+                userId = member?.userId || null;
+                purchaseDate = sub.createdAt;
+            }
         }
 
         if (userId && purchaseDate) {

@@ -40,6 +40,8 @@ export default defineConfig({
                         if (id.includes('@radix-ui')) return 'vendor-radix';
                         if (id.includes('recharts')) return 'vendor-charts';
                         if (id.includes('date-fns')) return 'vendor-date-fns';
+                        if (id.includes('tiptap')) return 'vendor-tiptap';
+                        if (id.includes('mermaid')) return 'vendor-mermaid';
                     }
                     return undefined;
                 },

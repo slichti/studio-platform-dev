@@ -88,6 +88,8 @@ export class PayrollService {
 
     private async calculateClassPay(config: any, cls: any) {
         let amount = 0, details = "";
+
+        // Base pay calculation
         if (config.payModel === 'flat') {
             amount = config.rate;
             details = `Flat rate per class`;
@@ -99,49 +101,61 @@ export class PayrollService {
                 where: and(eq(bookings.classId, cls.id), eq(bookings.status, 'confirmed')),
                 with: { usedPack: true }
             });
-            let totalRevenueCents = 0;
+
+            let totalGrossRevenue = 0;
+            let dropInCount = 0;
+
             for (const b of classBookings) {
-                if (b.paymentMethod === 'drop_in') totalRevenueCents += (cls.price || 0);
-                else if (b.paymentMethod === 'credit' && b.usedPack) {
-                    totalRevenueCents += (b.usedPack.price || 0) / (b.usedPack.initialCredits || 1);
+                if (b.paymentMethod === 'drop_in') {
+                    totalGrossRevenue += (cls.price || 0);
+                    dropInCount++;
+                } else if (b.paymentMethod === 'credit' && b.usedPack) {
+                    // Calculate per-credit value: Pack Price / Credits
+                    totalGrossRevenue += (b.usedPack.price || 0) / (b.usedPack.initialCredits || 1);
                 }
             }
 
-            // Subtract Refunds
+            // Subtract Specific Class Refunds (if any)
             const refundedAmount = await this.db.select({ total: sql<number>`sum(${schema.refunds.amount})` })
                 .from(schema.refunds)
                 .where(and(
                     eq(schema.refunds.tenantId, this.tenantId),
-                    eq(schema.refunds.referenceId, cls.id),
-                    eq(schema.refunds.type, 'pos') // Assuming POS refund for drop-in? Or pack refund?
+                    eq(schema.refunds.referenceId, cls.id)
                 ))
                 .get();
 
-            // Also subtract pack refunds proportionally? 
-            // In a real system we'd track specific booking refunds. 
-            // For now, let's subtract direct order refunds.
-
-            const revenue = Math.round(totalRevenueCents - (refundedAmount?.total || 0));
+            let revenue = Math.round(totalGrossRevenue - (refundedAmount?.total || 0));
             let basisAmount = revenue, basisLabel = "Gross Revenue";
 
-            // Apply Fixed Deduction if set in config (e.g. Room Fee)
-            const fixedDeduction = (config.metadata as any)?.fixedDeduction || 0;
-            basisAmount = Math.max(0, basisAmount - fixedDeduction);
-
+            // If Net Payout Basis: Subtract estimated transaction fees
             if (config.payoutBasis === 'net') {
-                const estimatedFees = Math.floor(revenue * 0.029) + (classBookings.filter((b: any) => b.paymentMethod === 'drop_in').length * 30);
+                // Standard Stripe Fee: 2.9% + 30c per individual transaction (drop-ins)
+                // Note: We only apply fixed 30c to drop-ins as they are direct transactions.
+                // Credits are technically part of a larger pack purchase whose fees are already processed.
+                const estimatedFees = Math.floor(totalGrossRevenue * 0.029) + (dropInCount * 30);
                 basisAmount = Math.max(0, basisAmount - estimatedFees);
                 basisLabel = "Net Revenue (Est.)";
             }
+
+            // Apply Fixed Deduction (e.g., Room Fee, Admin Fee)
+            const fixedDeduction = (config.metadata as any)?.fixedDeduction || 0;
+            basisAmount = Math.max(0, basisAmount - fixedDeduction);
+
+            // Calculate Final Payout (Rate is basis points, e.g., 5000 = 50%)
             amount = Math.round(basisAmount * (config.rate / 10000));
-            details = `${(config.rate / 100)}% of $${(basisAmount / 100).toFixed(2)} (${basisLabel}${fixedDeduction > 0 ? ` - $${(fixedDeduction / 100).toFixed(2)} fee` : ''})`;
+
+            const basisStr = (basisAmount / 100).toFixed(2);
+            const ratePct = (config.rate / 100).toFixed(1);
+            details = `${ratePct}% of $${basisStr} (${basisLabel}${fixedDeduction > 0 ? ` - $${(fixedDeduction / 100).toFixed(2)} fee` : ''})`;
         }
+
         return { amount, details };
     }
 
     private async calculateAppointmentPay(config: any, apt: any) {
         let amount = 0, details = "";
         const durationMinutes = (apt.endTime.getTime() - apt.startTime.getTime()) / (1000 * 60);
+
         if (config.payModel === 'flat') {
             amount = config.rate;
             details = `Flat rate per appointment`;
@@ -150,9 +164,26 @@ export class PayrollService {
             details = `${durationMinutes} mins @ $${(config.rate / 100).toFixed(2)}/hr`;
         } else if (config.payModel === 'percentage') {
             const revenue = apt.servicePrice || 0;
-            amount = Math.round(revenue * (config.rate / 10000));
-            details = `${(config.rate / 100)}% of $${(revenue / 100).toFixed(2)} service price`;
+            let basisAmount = revenue, basisLabel = "Service Price";
+
+            // If Net Payout Basis: Subtract 2.9% + 30c
+            if (config.payoutBasis === 'net') {
+                const estimatedFees = Math.floor(revenue * 0.029) + 30;
+                basisAmount = Math.max(0, basisAmount - estimatedFees);
+                basisLabel = "Net Revenue (Est.)";
+            }
+
+            // Apply Fixed Deduction (e.g. platform fee)
+            const fixedDeduction = (config.metadata as any)?.fixedDeduction || 0;
+            basisAmount = Math.max(0, basisAmount - fixedDeduction);
+
+            amount = Math.round(basisAmount * (config.rate / 10000));
+
+            const basisStr = (basisAmount / 100).toFixed(2);
+            const ratePct = (config.rate / 100).toFixed(1);
+            details = `${ratePct}% of $${basisStr} (${basisLabel}${fixedDeduction > 0 ? ` - $${(fixedDeduction / 100).toFixed(2)} fee` : ''})`;
         }
+
         return { amount, details };
     }
 

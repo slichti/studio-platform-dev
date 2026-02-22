@@ -7,6 +7,102 @@ import { HonoContext } from '../types';
 
 const app = new Hono<HonoContext>();
 
+// GET /stats - Aggregated Revenue & Growth
+app.get('/stats', async (c) => {
+    if (!c.get('can')('view_commerce')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+
+    const { ReportService } = await import('../services/reports');
+    const reports = new ReportService(db, tenant.id);
+
+    // Default to last 30 days for stats cards
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - 30);
+
+    const data = await reports.getRevenue(start, end);
+
+    return c.json({
+        totalRevenue: data.grossVolume / 100,
+        mrr: data.mrr / 100,
+        growth: 12, // Placeholder for trend logic if needed later
+        activeSubscribers: 0 // Placeholder
+    });
+});
+
+// GET /balance - Stripe Account Balance
+app.get('/balance', async (c) => {
+    if (!c.get('can')('view_commerce')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+    const tenant = c.get('tenant');
+    if (!tenant || !tenant.stripeAccountId) return c.json({ available: [] });
+
+    try {
+        const { StripeService } = await import('../services/stripe');
+        const stripe = new StripeService(c.env.STRIPE_SECRET_KEY as string);
+        const balance = await stripe.getBalance(tenant.stripeAccountId);
+
+        return c.json({
+            available: balance.available.map(b => ({
+                amount: b.amount,
+                currency: b.currency
+            }))
+        });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
+// GET /transactions - List Stripe transactions with pagination
+app.get('/transactions', async (c) => {
+    if (!c.get('can')('view_commerce')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+    const tenant = c.get('tenant');
+    if (!tenant || !tenant.stripeAccountId) return c.json({ transactions: [], hasMore: false });
+
+    const { limit = '20', starting_after } = c.req.query();
+
+    try {
+        const { StripeService } = await import('../services/stripe');
+        const stripe = new StripeService(c.env.STRIPE_SECRET_KEY as string);
+
+        // We'll use paymentIntents.list for general transaction history
+        // In a real app, you might want balance transactions, but PIs are better for customer-facing info
+        const params: any = {
+            limit: Math.min(parseInt(limit), 100),
+            starting_after: starting_after || undefined,
+            expand: ['data.customer']
+        };
+
+        const { client, options } = (stripe as any).getClient(tenant.stripeAccountId);
+        const paymentIntents = await client.paymentIntents.list(params, options);
+
+        const transactions = paymentIntents.data.map((pi: any) => ({
+            id: pi.id,
+            date: pi.created * 1000,
+            amount: pi.amount,
+            currency: pi.currency,
+            status: pi.status,
+            customerName: pi.customer?.name || pi.metadata?.customerName || 'Guest',
+            description: pi.description || pi.metadata?.productName || 'Sale'
+        }));
+
+        return c.json({
+            transactions,
+            hasMore: paymentIntents.has_more,
+            lastId: transactions.length > 0 ? transactions[transactions.length - 1].id : undefined
+        });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
 // GET /coupons - List
 app.get('/coupons', async (c) => {
     if (!c.get('can')('view_commerce')) {

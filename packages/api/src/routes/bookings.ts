@@ -3,6 +3,7 @@ import { createDb } from '../db';
 import { bookings, classes, tenantMembers, users, tenants, tenantRoles } from '@studio/db/src/schema';
 import { eq, and, sql, inArray, lt, desc } from 'drizzle-orm';
 import { checkAndPromoteWaitlist } from './waitlist';
+import { WebhookService } from '../services/webhooks';
 import { HonoContext } from '../types';
 import { BookingService } from '../services/bookings';
 import { ConflictService } from '../services/conflicts';
@@ -243,6 +244,14 @@ app.post('/', async (c) => {
                     createdAt: new Date()
                 }).run();
                 targetId = newMemberId;
+
+                // Dispatch Webhook
+                const webhookService = new WebhookService(db, c.env.SVIX_AUTH_TOKEN as string);
+                webhookService.dispatch(tenant.id, 'member.created', {
+                    id: newMemberId,
+                    userId: c.get('auth')!.userId,
+                    role: 'student'
+                });
             } else {
                 return c.json({ error: "Member not found" }, 403);
             }

@@ -21,6 +21,7 @@ import { useInfiniteMembers } from "../../hooks/useMembers";
 import { ComponentErrorBoundary } from "../ErrorBoundary";
 import { apiRequest } from "../../utils/api";
 import { cn } from "../../lib/utils";
+import { Skeleton, SkeletonLoader } from "../ui/SkeletonLoader";
 
 export default function StudentsPage() {
     const { slug } = useParams();
@@ -286,12 +287,22 @@ export default function StudentsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {isLoading ? (
+                            {isLoading && members.length === 0 ? (
                                 Array.from({ length: 5 }).map((_, i) => (
                                     <TableRow key={i}>
-                                        <TableCell colSpan={5}>
-                                            <div className="h-10 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
+                                        <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-3">
+                                                <Skeleton className="h-9 w-9 rounded-full" />
+                                                <div className="space-y-2">
+                                                    <Skeleton className="h-4 w-24" />
+                                                    <Skeleton className="h-3 w-32" />
+                                                </div>
+                                            </div>
                                         </TableCell>
+                                        <TableCell><Skeleton className="h-6 w-16" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                        <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                                     </TableRow>
                                 ))
                             ) : filteredMembers.length === 0 ? (

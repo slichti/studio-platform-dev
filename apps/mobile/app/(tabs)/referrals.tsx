@@ -3,6 +3,7 @@ import { apiRequest } from '../../lib/api';
 import { useEffect, useState } from 'react';
 import { Copy, Share as ShareIcon, Users, DollarSign, Gift } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
 import { useTenant } from '../../context/TenantContext';
 
 interface ReferralStats {
@@ -47,16 +48,23 @@ export default function ReferralsScreen() {
     const referralLink = stats ? `https://${tenant?.slug}.studio.com/join?ref=${stats.code}` : '';
 
     const handleCopy = async () => {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         await Clipboard.setStringAsync(referralLink);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
 
     const handleShare = async () => {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         try {
             await Share.share({
-                message: `Join me at ${tenant?.name}! Use my link to get $20 off: ${referralLink}`,
+                title: `Referral for ${tenant?.name}`,
+                message: `Join me at ${tenant?.name}! Use my link to get a $20 discount on your first class pack: ${referralLink}`,
                 url: referralLink, // iOS only
+            }, {
+                // Android-specific:
+                dialogTitle: `Share with friends`,
+                subject: `Join me at ${tenant?.name}`, // Some email apps use this
             });
         } catch (error) {
             console.error(error);

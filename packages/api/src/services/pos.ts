@@ -294,7 +294,7 @@ export class PosService {
             orderId, asyncTask: async () => {
                 // Webhook
                 try {
-                    const hook = new WebhookService(this.db);
+                    const hook = new WebhookService(this.db, this.env.SVIX_AUTH_TOKEN);
                     await hook.dispatch(this.tenantId, 'order.completed', {
                         orderId: orderId,
                         total: totalAmount,

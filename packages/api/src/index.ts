@@ -14,6 +14,7 @@ import { tenantMiddleware } from './middleware/tenant';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { rateLimitMiddleware } from './middleware/rate-limit'; // [NEW]
+import { apiKeyMiddleware } from './middleware/apiKey';
 
 // Route Imports
 import studioRoutes from './routes/studios';
@@ -59,6 +60,7 @@ import telemetryRoutes from './routes/telemetry';
 import websiteRoutes from './routes/website';
 import chatRoutes from './routes/chat';
 import platformPagesRoutes from './routes/platform-pages';
+import publicAssets from './routes/public-assets';
 import guestRoutes from './routes/guest';
 import adminStats from './routes/admin-stats'; // [NEW] Import
 import adminPlans from './routes/admin.plans'; // [NEW] Import
@@ -149,6 +151,7 @@ app.get('/docs', swaggerUI({ url: '/doc' }));
 
 app.use('*', traceMiddleware);
 app.use('*', sentryMiddleware()); // [NEW] Sentry error tracking
+app.use('*', apiKeyMiddleware); // [NEW] Phase 7: API Key Auth
 app.use('*', rateLimitMiddleware({ limit: 300, window: 60 })); // [NEW] Global Rate Limit: 300 req/min
 app.use('*', logger((str, ...rest) => {
   // Custom logger wrapper could go here, but Hono logger is simple.
@@ -190,18 +193,23 @@ app.onError((err: any, c) => {
 });
 
 app.use('*', cors({
-  origin: (origin) => {
+  origin: (origin, c) => {
+    // Allow any origin for public assets, guest routes, and public tenant info
+    const path = c.req.path;
+    if (path.startsWith('/public-assets/') || path.startsWith('/guest/') || path.startsWith('/public/')) {
+      return origin || '*';
+    }
+
     if (!origin) return 'https://studio-platform-web.pages.dev';
     if (origin.endsWith('.pages.dev') || origin.endsWith('.slichti.org') || origin.includes('localhost')) {
       return origin;
     }
     return 'https://studio-platform-web.pages.dev';
   },
-  allowHeaders: ['Authorization', 'Content-Type', 'X-Tenant-Slug', 'X-Request-Id', 'X-Impersonate-User', 'Stripe-Signature', 'Svix-Id', 'Svix-Timestamp', 'Svix-Signature'],
+  allowHeaders: ['Authorization', 'Content-Type', 'X-Tenant-Slug', 'X-Tenant-Id', 'X-Request-Id', 'X-Impersonate-User', 'Stripe-Signature', 'Svix-Id', 'Svix-Timestamp', 'Svix-Signature'],
   allowMethods: ['POST', 'GET', 'OPTIONS', 'DELETE', 'PUT', 'PATCH'],
-  exposeHeaders: ['Content-Length', 'X-Request-Id'],
+  exposeHeaders: ['Content-Length', 'X-Request-Id', 'X-MFA-Warning'],
   maxAge: 86400,
-  credentials: true,
 }));
 
 
@@ -764,6 +772,7 @@ app.route('/bookings', bookingRoutes);
 app.route('/admin', admin);
 app.route('/admin/plans', adminPlans); // [NEW] Mount
 app.route('/admin/stats', adminStats); // [NEW] Mount
+app.route('/admin/api-keys', adminApiKeys); // [NEW] API Key Management
 app.route('/admin/mobile', adminMobile); // [NEW] Backed Admin Mobile
 app.route('/admin/search', adminSearch); // [NEW] Global Search
 app.route('/admin/backups', adminBackups); // [NEW] Backup Management
@@ -778,6 +787,7 @@ app.route('/website', websiteRoutes);
 app.route('/chat', chatRoutes);
 app.route('/waitlist', waitlist);
 app.route('/sub-dispatch', subDispatch);
+app.route('/public-assets', publicAssets);
 app.route('/guest', guestRoutes);
 app.route('/platform-pages', platformPagesRoutes);
 app.route('/faqs', faqRoutes); // [NEW] FAQ management

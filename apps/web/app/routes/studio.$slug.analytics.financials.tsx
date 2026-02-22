@@ -7,6 +7,7 @@ import { useAuth } from "@clerk/react-router";
 import { useRevenue, useInstructorProfitability, DateRange } from "~/hooks/useAnalytics";
 import { MetricCard } from "~/components/charts/MetricCard";
 import React, { Suspense, lazy } from "react";
+import { SkeletonLoader } from "~/components/ui/SkeletonLoader";
 const RevenueChart = lazy(() => import("~/components/charts/RevenueChart.client").then(mod => ({ default: mod.RevenueChart })));
 const InstructorRoiChart = lazy(() => import("~/components/charts/InstructorRoiChart.client").then(mod => ({ default: mod.InstructorRoiChart })));
 import { PrivacyBlur } from "~/components/PrivacyBlur";
@@ -52,11 +53,11 @@ export default function AnalyticsFinancials() {
 
     if (isLoading) {
         return (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-pulse">
-                <div className="h-32 bg-zinc-100 dark:bg-zinc-800 rounded-xl"></div>
-                <div className="h-32 bg-zinc-100 dark:bg-zinc-800 rounded-xl"></div>
-                <div className="h-32 bg-zinc-100 dark:bg-zinc-800 rounded-xl"></div>
-                <div className="col-span-1 md:col-span-3 h-80 bg-zinc-100 dark:bg-zinc-800 rounded-xl"></div>
+            <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <SkeletonLoader type="card" count={3} />
+                </div>
+                <SkeletonLoader type="card" count={1} className="h-[400px]" />
             </div>
         );
     }

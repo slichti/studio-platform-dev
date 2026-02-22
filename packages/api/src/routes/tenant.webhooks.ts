@@ -6,6 +6,7 @@ import { createDb } from '../db';
 import { webhookLogs, webhookEndpoints, tenants } from '@studio/db/src/schema';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import { WebhookService } from '../services/webhooks';
+import { Svix } from 'svix';
 
 const app = createOpenAPIApp<StudioVariables>();
 
@@ -107,11 +108,38 @@ app.openapi(createRoute({
     const db = createDb(c.env.DB);
     const { eventType, payload } = c.req.valid('json');
 
-    const service = new WebhookService(db);
+    const service = new WebhookService(db, c.env.SVIX_AUTH_TOKEN as string);
 
     await service.dispatch(tenantId, eventType, payload || { message: 'Hello World', timestamp: new Date().toISOString() });
 
     return c.json({ success: true }, 200);
+});
+
+// GET /portal - Svix Consumer Portal SSO
+app.openapi(createRoute({
+    method: 'get',
+    path: '/portal',
+    tags: ['Admin Webhooks'],
+    summary: 'Get Svix Portal SSO URL',
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ url: z.string() }) } }, description: 'SSO URL' },
+        403: { description: 'Unauthorized', content: { 'application/json': { schema: ErrorSchema } } },
+        500: { description: 'Error', content: { 'application/json': { schema: ErrorSchema } } }
+    }
+}), async (c) => {
+    if (!c.get('can')('manage_settings')) return c.json({ error: 'Unauthorized' }, 403);
+    const tenantId = c.get('tenant').id;
+    const svixToken = c.env.SVIX_AUTH_TOKEN as string;
+
+    if (!svixToken) return c.json({ error: 'Webhooks not configured' }, 500);
+
+    try {
+        const svix = new Svix(svixToken);
+        const portalResponse = await svix.authentication.appPortalAccess(tenantId, {});
+        return c.json({ url: portalResponse.url }, 200);
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
 });
 
 // GET /endpoints - List Endpoints

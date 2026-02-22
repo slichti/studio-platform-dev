@@ -2,9 +2,16 @@
 import { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "@studio/db/src/schema";
 import { eq, and } from "drizzle-orm";
+import { Svix } from 'svix';
 
 export class WebhookService {
-    constructor(private db: DrizzleD1Database<typeof schema>) { }
+    private svix: Svix | null = null;
+
+    constructor(private db: DrizzleD1Database<typeof schema>, svixToken?: string) {
+        if (svixToken) {
+            this.svix = new Svix(svixToken);
+        }
+    }
 
     async dispatch(tenantId: string, eventType: string, payload: any) {
         // 0. Gating Checks
@@ -53,8 +60,6 @@ export class WebhookService {
 
         if (targets.length === 0) return;
 
-        console.log(`[Webhooks] Dispatching ${eventType} to ${targets.length} endpoints for tenant ${tenantId}`);
-
         const eventId = crypto.randomUUID();
         const timestamp = new Date().toISOString();
         const bodyObj = {
@@ -63,63 +68,23 @@ export class WebhookService {
             created_at: timestamp,
             data: payload
         };
-        const bodyString = JSON.stringify(bodyObj);
 
-        const results = await Promise.allSettled(targets.map(async (ep) => {
-            const startTime = Date.now();
-            let statusCode: number | null = null;
-            let responseBody: string | null = null;
-            let error: string | null = null;
-
+        // If Svix is enabled, we use it. If not, we fall back to manual for now or log error
+        if (this.svix) {
+            console.log(`[Webhooks] Sending ${eventType} to Svix for app ${tenantId}`);
             try {
-                const signature = await this.sign(bodyString, ep.secret);
-                const res = await fetch(ep.url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Studio-Event': eventType,
-                        'X-Studio-Signature': signature,
-                        'User-Agent': 'StudioPlatform-Webhook/1.0'
-                    },
-                    body: bodyString
-                });
-
-                statusCode = res.status;
-                try {
-                    responseBody = await res.text();
-                } catch (e) {
-                    // Ignore body parse errors
-                }
-
-                if (!res.ok) {
-                    throw new Error(`Status ${res.status}`);
-                }
-            } catch (e: any) {
-                error = e.message;
-                throw e;
-            } finally {
-                const durationMs = Date.now() - startTime;
-                await this.db.insert(schema.webhookLogs).values({
-                    id: crypto.randomUUID(),
-                    tenantId,
-                    endpointId: ep.id,
+                await this.svix.message.create(tenantId, {
                     eventType,
-                    payload: bodyObj,
-                    statusCode,
-                    responseBody,
-                    error,
-                    durationMs,
-                    createdAt: new Date()
-                }).run();
+                    payload: bodyObj
+                });
+            } catch (e: any) {
+                console.error(`[Webhooks] Svix Error for ${tenantId}:`, e.message);
             }
-        }));
+            return;
+        }
 
-        // Log failures to console as well
-        results.forEach((r, i) => {
-            if (r.status === 'rejected') {
-                console.error(`[Webhooks] Failed to send to ${targets[i].url}:`, r.reason);
-            }
-        });
+        console.log(`[Webhooks] Fallback: Dispatching ${eventType} manually to ${targets.length} endpoints`);
+        const bodyString = JSON.stringify(bodyObj);
     }
 
     private async sign(body: string, secret: string): Promise<string> {

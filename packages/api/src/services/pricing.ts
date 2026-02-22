@@ -208,7 +208,8 @@ export class UsageService {
                 emailLimit: tenants.emailLimit,
                 streamingLimit: tenants.streamingLimit,
                 storageUsage: tenants.storageUsage,
-                tier: tenants.tier
+                tier: tenants.tier,
+                billingExempt: tenants.billingExempt
             }).from(tenants).where(eq(tenants.id, this.tenantId))
         ]);
 
@@ -236,7 +237,8 @@ export class UsageService {
             emailLimit: tenant?.emailLimit ?? PricingService.getTierConfig(tenant?.tier).limits.email,
             streamingLimit: tenant?.streamingLimit ?? PricingService.getTierConfig(tenant?.tier).limits.streamingMinutes,
 
-            storageGB
+            storageGB,
+            billingExempt: !!tenant?.billingExempt
         };
 
         this.setCachedUsage(result);
@@ -315,25 +317,24 @@ export class UsageService {
     }
 
     async canSend(service: 'sms' | 'email'): Promise<boolean> {
-        // 1. Fetch Tenant Status
-        const tenant = await this.db.select({
-            billingExempt: tenants.billingExempt,
-            smsUsage: tenants.smsUsage,
-            emailUsage: tenants.emailUsage,
-            smsLimit: tenants.smsLimit,
-            emailLimit: tenants.emailLimit,
-            tier: tenants.tier
-        }).from(tenants).where(eq(tenants.id, this.tenantId)).get();
+        // 1. Fetch Tenant Status (via cached getUsage)
+        const usage = await this.getUsage();
 
-        if (!tenant) return false;
-        if (tenant.billingExempt) return true; // Unlimited for friends/VIPs
+        // We need billingExempt which isn't in getUsage's return object yet. 
+        // Let's add it to getUsage or handle it here? 
+        // Better: Add billingExempt to getUsage return.
 
-        // 2. Check Limits
-        const limit = tenant[`${service}Limit`] ?? PricingService.getTierConfig(tenant.tier).limits[service];
+        // Wait, I'll check if getUsage has it. 
+        // getUsage fetches: smsUsage, emailUsage, streamingUsage, smsLimit, emailLimit, streamingLimit, storageUsage, tier.
+        // It does NOT fetch billingExempt. I'll update getUsage too.
 
-        if (limit === -1) return true; // Unlimited Tier
+        if ((usage as any).billingExempt) return true;
 
-        return (tenant[`${service}Usage`] || 0) < limit;
+        const limit = service === 'sms' ? usage.smsLimit : usage.emailLimit;
+        const currentUsage = service === 'sms' ? usage.smsUsage : usage.emailUsage;
+
+        if (limit === -1) return true;
+        return currentUsage < limit;
     }
 
     async incrementUsage(service: 'sms' | 'email' | 'vod_minutes' | 'vod_storage', amount = 1, metadata: any = {}) {

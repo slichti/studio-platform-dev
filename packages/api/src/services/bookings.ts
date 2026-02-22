@@ -1,6 +1,7 @@
 import { eq, and, sql, asc, isNotNull } from 'drizzle-orm';
 import { bookings, tenantMembers, classes, tenants, progressMetricDefinitions, tenantRoles } from '@studio/db/src/schema'; // Added progressMetricDefinitions, tenantRoles
 import { EmailService } from './email';
+import { WebhookService } from './webhooks';
 
 export class BookingService {
     constructor(private db: any, private env: any) { }
@@ -90,7 +91,7 @@ export class BookingService {
         }).run();
 
         // Fire built-in booking confirmation email (best-effort, non-blocking)
-        this.sendBuiltInConfirmation(id, cls).catch(() => {});
+        this.sendBuiltInConfirmation(id, cls).catch(() => { });
 
         // Trigger Automation
         this.dispatchAutomation('class_booked', id);
@@ -103,6 +104,16 @@ export class BookingService {
                 this.dispatchAutomation('credits_low', id, { remainingCredits: updatedPack.remainingCredits });
             }
         }
+
+        // Dispatch Webhook
+        const webhookService = new WebhookService(this.db, this.env.SVIX_AUTH_TOKEN);
+        webhookService.dispatch(cls.tenantId, 'booking.created', {
+            id,
+            classId,
+            memberId,
+            status: 'confirmed',
+            attendanceType
+        });
 
         return { id, status: 'confirmed' };
     }
@@ -167,6 +178,14 @@ export class BookingService {
 
         // Trigger Automation
         this.dispatchAutomation('booking_cancelled', bookingId);
+
+        // Dispatch Webhook
+        const webhookService = new WebhookService(this.db, this.env.SVIX_AUTH_TOKEN);
+        webhookService.dispatch(booking.member.tenantId, 'booking.cancelled', {
+            id: bookingId,
+            classId: booking.classId,
+            memberId: booking.memberId
+        });
     }
 
     // 5. Promote Logic
@@ -189,7 +208,7 @@ export class BookingService {
             }).where(eq(bookings.id, next.id)).run();
 
             // Built-in notification + marketing automation
-            this.sendBuiltInWaitlistPromotion(next.id).catch(() => {});
+            this.sendBuiltInWaitlistPromotion(next.id).catch(() => { });
             this.dispatchAutomation('waitlist_promoted', next.id);
         }
     }
@@ -317,6 +336,14 @@ export class BookingService {
             .set({ checkedInAt: checkedIn ? new Date() : null })
             .where(eq(bookings.id, bookingId))
             .run();
+
+        // Dispatch Webhook
+        const webhookService = new WebhookService(this.db, this.env.SVIX_AUTH_TOKEN);
+        webhookService.dispatch(booking.member.tenantId, checkedIn ? 'booking.checked_in' : 'booking.checked_out', {
+            id: bookingId,
+            classId: booking.classId,
+            memberId: booking.memberId
+        });
 
         // 3. Automated Logic (Progress & Marketing)
         if (checkedIn) {

@@ -82,6 +82,56 @@ app.post('/classes/:classId/request', async (c) => {
     return c.json({ success: true, requestId });
 });
 
+// POST /items/:requestId/approve
+app.post('/items/:requestId/approve', async (c) => {
+    if (!c.get('can')('manage_classes')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant missing' }, 400);
+
+    const request = await db.select().from(subRequests).where(and(eq(subRequests.id, c.req.param('requestId')), eq(subRequests.tenantId, tenant.id))).get();
+    if (!request || request.status !== 'pending_approval' || !request.coveredByUserId) return c.json({ error: 'Invalid request' }, 400);
+
+    await db.transaction(async (tx) => {
+        await tx.update(subRequests).set({ status: 'filled', updatedAt: new Date() }).where(eq(subRequests.id, request.id));
+        await tx.update(classes).set({ instructorId: request.coveredByUserId! }).where(eq(classes.id, request.classId));
+    });
+
+    c.executionCtx.waitUntil((async () => {
+        try {
+            const { EmailService } = await import('../services/email');
+            const email = new EmailService(c.env.RESEND_API_KEY as string, tenant.settings as any, { slug: tenant.slug }, undefined, false, db, tenant.id);
+            const covMem = await db.select().from(tenantMembers).where(eq(tenantMembers.id, request.coveredByUserId!)).get();
+            const origMem = await db.select().from(tenantMembers).where(eq(tenantMembers.id, request.originalInstructorId!)).get();
+            const cls = await db.select().from(classes).where(eq(classes.id, request.classId)).get();
+            const dateStr = formatShortDate(cls?.startTime || new Date());
+
+            if (covMem) {
+                const u = await db.select().from(users).where(eq(users.id, covMem.userId)).get();
+                if (u) await email.sendGenericEmail(u.email, `Sub Approved`, `<p>Your claim for ${cls?.title} on ${dateStr} has been approved. You are now the assigned instructor.</p>`);
+            }
+            if (origMem) {
+                const u = await db.select().from(users).where(eq(users.id, origMem.userId)).get();
+                const coverName = covMem?.profile && typeof covMem.profile === 'string' ? JSON.parse(covMem.profile).firstName : (covMem?.profile as any)?.firstName;
+                if (u) await email.sendSubRequestFilled(u.email, { classTitle: cls?.title || 'Class', date: dateStr, coveredBy: String(coverName) });
+            }
+        } catch (e) { console.error(e); }
+    })());
+
+    return c.json({ success: true });
+});
+
+// POST /items/:requestId/decline
+app.post('/items/:requestId/decline', async (c) => {
+    if (!c.get('can')('manage_classes')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant missing' }, 400);
+
+    await db.update(subRequests).set({ status: 'open', coveredByUserId: null, updatedAt: new Date() }).where(and(eq(subRequests.id, c.req.param('requestId')), eq(subRequests.tenantId, tenant.id))).run();
+    return c.json({ success: true });
+});
+
 // POST /items/:requestId/accept
 app.post('/items/:requestId/accept', async (c) => {
     const db = createDb(c.env.DB);
@@ -93,29 +143,55 @@ app.post('/items/:requestId/accept', async (c) => {
     if (!request || request.status !== 'open') return c.json({ error: 'Invalid request' }, 400);
     if (request.originalInstructorId === member.id) return c.json({ error: 'Cannot self-accept' }, 400);
 
+    const requireApproval = (tenant.settings as any)?.substitutionsRequireApproval === true;
+    const finalStatus = requireApproval ? 'pending_approval' : 'filled';
+
     await db.transaction(async (tx) => {
-        await tx.update(subRequests).set({ status: 'filled', coveredByUserId: member.id, updatedAt: new Date() }).where(eq(subRequests.id, request.id));
-        await tx.update(classes).set({ instructorId: member.id }).where(eq(classes.id, request.classId));
+        await tx.update(subRequests).set({
+            status: finalStatus as any,
+            coveredByUserId: member.id,
+            updatedAt: new Date()
+        }).where(eq(subRequests.id, request.id));
+
+        // Only update class instructor if approval is NOT required
+        if (!requireApproval) {
+            await tx.update(classes).set({ instructorId: member.id }).where(eq(classes.id, request.classId));
+        }
     });
 
     c.executionCtx.waitUntil((async () => {
         try {
-            const origMem = await db.select().from(tenantMembers).where(eq(tenantMembers.id, request.originalInstructorId!)).get();
-            if (origMem) {
-                const u = await db.select().from(users).where(eq(users.id, origMem.userId)).get();
-                if (u) {
-                    const cls = await db.select().from(classes).where(eq(classes.id, request.classId)).get();
-                    const s = (origMem.settings as any)?.notifications?.substitutions || { email: true, sms: false, push: false };
-                    const coverName = member.profile && typeof member.profile === 'string' ? JSON.parse(member.profile).firstName : member.profile?.firstName;
-                    const { EmailService } = await import('../services/email');
-                    const email = new EmailService(c.env.RESEND_API_KEY as string, tenant.settings as any, { slug: tenant.slug }, undefined, false, db, tenant.id);
-                    if (s.email !== false) await email.sendSubRequestFilled(u.email, { classTitle: cls?.title || 'Class', date: formatShortDate(cls?.startTime || new Date()), coveredBy: String(coverName) });
+            const { EmailService } = await import('../services/email');
+            const email = new EmailService(c.env.RESEND_API_KEY as string, tenant.settings as any, { slug: tenant.slug }, undefined, false, db, tenant.id);
+            const coverName = member.profile && typeof member.profile === 'string' ? JSON.parse(member.profile).firstName : member.profile?.firstName;
+            const cls = await db.select().from(classes).where(eq(classes.id, request.classId)).get();
+            const dateStr = formatShortDate(cls?.startTime || new Date());
+
+            if (requireApproval) {
+                // Notify Owners of claim that needs approval
+                const owners = await db.select({ email: users.email }).from(tenantMembers)
+                    .innerJoin(users, eq(tenantMembers.userId, users.id))
+                    .innerJoin(tenantRoles, eq(tenantRoles.memberId, tenantMembers.id))
+                    .where(and(eq(tenantMembers.tenantId, tenant.id), eq(tenantRoles.role, 'owner'))).all();
+
+                for (const o of owners) {
+                    await email.sendGenericEmail(o.email, `Sub Claim Approval Needed`, `<p>${coverName} has claimed the sub for ${cls?.title} on ${dateStr}. Please approve in dashboard.</p>`);
+                }
+            } else {
+                // Immediate acceptance notification
+                const origMem = await db.select().from(tenantMembers).where(eq(tenantMembers.id, request.originalInstructorId!)).get();
+                if (origMem) {
+                    const u = await db.select().from(users).where(eq(users.id, origMem.userId)).get();
+                    if (u) {
+                        const s = (origMem.settings as any)?.notifications?.substitutions || { email: true, sms: false, push: false };
+                        if (s.email !== false) await email.sendSubRequestFilled(u.email, { classTitle: cls?.title || 'Class', date: dateStr, coveredBy: String(coverName) });
+                    }
                 }
             }
         } catch (e) { console.error(e); }
     })());
 
-    return c.json({ success: true });
+    return c.json({ success: true, status: finalStatus });
 });
 
 export default app;

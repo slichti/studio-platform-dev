@@ -121,4 +121,31 @@ app.patch('/:id', async (c) => {
     return c.json({ success: true });
 });
 
+// POST /leads/:id/convert
+app.post('/:id/convert', async (c) => {
+    if (!c.get('can')('manage_marketing')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+
+    const id = c.req.param('id');
+    const { memberId } = await c.req.json();
+    if (!memberId) return c.json({ error: "Member ID is required to link the lead" }, 400);
+
+    const lead = await db.select().from(leads).where(and(eq(leads.id, id), eq(leads.tenantId, tenant.id))).get();
+    if (!lead) return c.json({ error: "Lead not found" }, 404);
+
+    await db.update(leads)
+        .set({
+            status: 'converted',
+            convertedAt: new Date(),
+            convertedMemberId: memberId,
+            updatedAt: new Date()
+        })
+        .where(eq(leads.id, id))
+        .run();
+
+    return c.json({ success: true });
+});
+
 export default app;

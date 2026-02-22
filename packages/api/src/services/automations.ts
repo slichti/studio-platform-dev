@@ -14,12 +14,27 @@ export class AutomationsService {
     private smsService: SmsService | undefined;
     private pushService: PushService | undefined;
 
+    private sharedContextCache: { tenant: any, location: any } | null = null;
+
     constructor(db: any, tenantId: string, emailService: EmailService, smsService?: SmsService, pushService?: PushService) {
         this.db = db;
         this.tenantId = tenantId;
         this.emailService = emailService;
         this.smsService = smsService;
         this.pushService = pushService;
+    }
+
+    private async getSharedContext() {
+        if (this.sharedContextCache) return this.sharedContextCache;
+
+        // Fetch Tenant & Location once
+        const [tenant, location] = await Promise.all([
+            this.db.query.tenants.findFirst({ where: eq(tenants.id, this.tenantId) }),
+            this.db.query.locations.findFirst({ where: eq(locations.tenantId, this.tenantId) })
+        ]);
+
+        this.sharedContextCache = { tenant, location };
+        return this.sharedContextCache;
     }
 
     /**
@@ -622,13 +637,10 @@ export class AutomationsService {
     private async executeAutomation(automation: any, context: { userId: string, email?: string, firstName?: string, lastName?: string, data?: any }) {
         const recipients = (automation.recipients as string[]) || ['student'];
 
-        // Optimize: Fetch Tenant & Location once here
-        const tenant = await this.db.query.tenants.findFirst({ where: eq(tenants.id, this.tenantId) });
-        const location = await this.db.query.locations.findFirst({ where: eq(locations.tenantId, this.tenantId) });
-
+        const shared = await this.getSharedContext();
         const sharedContext = {
-            tenantName: tenant?.name || 'Studio',
-            locationAddress: location?.address || ''
+            tenantName: shared.tenant?.name || 'Studio',
+            locationAddress: shared.location?.address || ''
         };
 
         // 1. Send to Student (Original Target)

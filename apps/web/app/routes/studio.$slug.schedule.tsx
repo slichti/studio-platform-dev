@@ -20,6 +20,7 @@ import { usePlans } from "~/hooks/useMemberships";
 import { lazy, Suspense } from "react";
 import { ClientOnly } from "~/components/ClientOnly";
 import { useSearchParams } from "react-router";
+import { SkeletonLoader } from "~/components/ui/SkeletonLoader";
 
 const ClassesPage = lazy(() => import("~/components/routes/ClassesPage"));
 
@@ -122,12 +123,18 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
 
             <ComponentErrorBoundary>
                 <div className="flex-1 overflow-hidden bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-800">
-                    <WeeklyCalendar
-                        events={events}
-                        onSelectEvent={handleSelectEvent}
-                        onSelectSlot={handleSelectSlot}
-                        defaultDate={new Date()}
-                    />
+                    {isLoadingClasses ? (
+                        <div className="p-8 h-full">
+                            <SkeletonLoader type="card" count={1} className="h-full" />
+                        </div>
+                    ) : (
+                        <WeeklyCalendar
+                            events={events}
+                            onSelectEvent={handleSelectEvent}
+                            onSelectSlot={handleSelectSlot}
+                            defaultDate={new Date()}
+                        />
+                    )}
                 </div>
             </ComponentErrorBoundary>
 

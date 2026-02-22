@@ -28,6 +28,7 @@ export function useInfiniteMembers(tenantSlug: string, options: UseMembersOption
             const token = await (window as any).Clerk?.session?.getToken();
             const params = new URLSearchParams();
             if (role && role !== 'all') params.append('role', role);
+            if (status && status !== 'all') params.append('status', status);
             if (search) params.append('q', search);
             params.append('limit', limit.toString());
             params.append('offset', (pageParam as number).toString());
@@ -36,14 +37,8 @@ export function useInfiniteMembers(tenantSlug: string, options: UseMembersOption
                 headers: { 'X-Tenant-Slug': tenantSlug }
             });
 
-            // Client-side status filtering if API doesn't support it yet
-            let members = data.members;
-            if (status && status !== 'all') {
-                members = members.filter(m => m.status === status);
-            }
-
             return {
-                members,
+                members: data.members,
                 total: data.total,
                 nextOffset: (pageParam as number) + limit
             };
@@ -67,6 +62,7 @@ export function useMembers(tenantSlug: string, options: UseMembersOptions = {}) 
             const token = await (window as any).Clerk?.session?.getToken();
             const params = new URLSearchParams();
             if (role && role !== 'all') params.append('role', role);
+            if (status && status !== 'all') params.append('status', status);
             if (search) params.append('q', search);
             params.append('limit', limit.toString());
             params.append('offset', offset.toString());
@@ -75,14 +71,8 @@ export function useMembers(tenantSlug: string, options: UseMembersOptions = {}) 
                 headers: { 'X-Tenant-Slug': tenantSlug }
             });
 
-            // Client-side status filtering if API doesn't support it yet
-            let members = data.members;
-            if (status && status !== 'all') {
-                members = members.filter(m => m.status === status);
-            }
-
             return {
-                members,
+                members: data.members,
                 total: data.total
             };
         },
@@ -90,3 +80,4 @@ export function useMembers(tenantSlug: string, options: UseMembersOptions = {}) 
         keepPreviousData: true
     } as any);
 }
+

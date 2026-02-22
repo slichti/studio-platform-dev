@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { apiRequest } from '../../lib/api';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 
 export default function ClassDetailScreen() {
     const { id } = useLocalSearchParams();
@@ -28,12 +29,11 @@ export default function ClassDetailScreen() {
     };
 
     const handleBook = async () => {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         setProcessing(true);
         try {
             // Check if already booked
             if (classData.userBookingStatus) {
-                // If booked, maybe cancel?
-                // For MVP, just show status, maybe allow cancel via a different button or "Manage"
                 Alert.alert('Info', 'You are already booked/waitlisted.');
                 return;
             }
@@ -42,11 +42,12 @@ export default function ClassDetailScreen() {
                 method: 'POST',
                 body: JSON.stringify({ classId: id })
             });
+
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             Alert.alert('Success', 'Class booked successfully!');
             router.back();
-            // Or reload to show status
-            // loadClass();
         } catch (e: any) {
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert('Booking Failed', e.message);
         } finally {
             setProcessing(false);
