@@ -1,4 +1,6 @@
-# CURSOR.md - Project Overview & Status
+# CURSOR-GEMINI.md - Project Overview & Status
+
+> **IDE Sync File** — Updated by Cursor (Gemini session). Append updates here whenever features land so other IDEs stay in sync.
 
 ## Application Overview
 **Studio Platform** is a modern, all-in-one multi-tenant SaaS platform designed for dance, yoga, and fitness studios. It provides studio owners with tools for management, commerce, and student engagement while providing students with a seamless booking and learning experience.
@@ -54,6 +56,60 @@ Built on top of the **Cloudflare Edge Network** for sub-50ms latency globally.
 - **POS/Retail Enhancements**: Stripe PaymentIntent ID persisted on orders for terminal refunds; transaction history endpoint (`GET /pos/transactions`) with refund status; customer update (`PUT /pos/customers/:id`); refund-by-PaymentIntent (`POST /pos/refund`); product price changes create new Stripe Price objects. All calls include `X-Tenant-Slug` for tenant resolution.
 - **Security Hardening**: Sanitized Stripe search query injection; replaced raw SQL `IN` with `inArray()`; added DOMPurify to all `dangerouslySetInnerHTML` renders; removed debug auth logging; restricted CORS `allowHeaders`; narrowed root health endpoint; added gym_id format validation in Gympass webhook.
 - **Performance Improvements**: Eliminated N+1 queries in courses route (5 parallel batch queries + in-memory maps); reduced tenant middleware from 3 sequential DB round-trips to 2 via Drizzle relations.
+
+---
+
+## Recent Changes (Cursor / Gemini Session — Feb 2026)
+
+### LMS Tier 1–3 Enhancements
+- **Quiz Player** (`portal.$slug.courses.$courseSlug.tsx`): Interactive quiz UI — renders questions, captures student answers, submits to `POST /quiz/{id}/submit`, displays score/pass-fail/per-question breakdown and retake option.
+- **Assignment Submission & Grading**:
+  - `AssignmentSection` component: shows submission status, instructor grade and feedback (sanitized via `SafeHtml`), and a re-submission form.
+  - New instructor **Grading tab** in `CourseEditorPage` with filter by status (submitted / graded / all) and a grade + feedback modal (`PATCH /assignments/submissions/:id/grade`).
+- **Per-Lesson Completion Tracking**:
+  - New `course_item_completions` DB table (`packages/db/src/schema.ts`, migration `0071`).
+  - `POST /{courseId}/curriculum/{itemId}/complete` marks individual items complete and recalculates overall progress.
+  - `GET /{courseId}/my-completions` returns the student's completed item IDs; "Mark Complete" button on the player is now per-lesson.
+- **Course Catalog UX** (`portal.$slug.courses._index.tsx`): client-side search by title/description, enrollment-status filter (All / Enrolled / Not Enrolled), and sort options (A–Z / Price / Progress).
+- **Comments Section**: per-lesson comment thread and post form wired to the API.
+- **New API routes** (all in `packages/api/src/routes/courses.ts`):
+  - `POST /quiz/{id}/submit` — score a student submission
+  - `GET /quiz/{id}/my-submission` — fetch latest quiz result
+  - `GET /assignments/{id}/my-submission` / `GET /assignments/{id}/submissions` — student & instructor views
+  - `GET /{courseId}/all-submissions` — all assignment submissions for a course
+  - `PATCH /assignments/submissions/{id}/grade` — instructor grading
+
+### Mobile Typecheck Fix
+- Replaced deprecated `color` prop with `stroke` on all `lucide-react-native` icon usages across `apps/mobile`.
+- Added `apps/mobile/react-native-svg.d.ts` type stub (peer dependency `react-native-svg` not directly installed); included it in `apps/mobile/tsconfig.json`.
+
+### deploy-web Fix (Cloudflare Worker)
+- Removed `isomorphic-dompurify` import from `portal.$slug.courses.$courseSlug.tsx`; replaced all `DOMPurify.sanitize()` calls with a new `SafeHtml` component that dynamically imports `dompurify` inside a `useEffect` (client-only), resolving the `TypeError: Cannot read properties of undefined (reading 'bind')` crash in the Cloudflare Worker SSR environment.
+
+### API Typecheck Fix
+- Hono OpenAPI strict response typing on `/assignments/:id/submissions` and `/:courseId/all-submissions` — added explicit `403`/`404` response schemas and loosened inner data types to `z.any()`.
+
+### Schedule / DateTimePicker Fixes
+- `DateTimePicker` (`components/ui/DateTimePicker.tsx`):
+  - Added `popperProps={{ strategy: "fixed" }}` — calendar no longer clips behind the modal's `overflow-hidden` boundary.
+  - Added `.react-datepicker__children-container { width: auto; padding: 0; }` — removes extra whitespace to the right of the time columns.
+  - Added `shouldCloseOnSelect={false}` — picker stays open after date selection so the user can also set the time.
+- `WeeklyCalendar` (`components/schedule/WeeklyCalendar.tsx`):
+  - On first load, auto-advances to the week of the next upcoming event if the current week has no future classes (fixes Saturday-night "class is on Sunday" invisibility).
+
+### Sidebar & Navigation
+- Renamed sidebar nav item **"Courses" → "Course Management"** (`routes/studio.$slug.tsx`).
+
+### Membership Plans
+- **"No plans found" in Schedule modal**: `studio.$slug.schedule.tsx` was not fetching plans. Added `usePlans(slug!)` and passed result as `plans` prop to `CreateClassModal`.
+- **Plan Detail Page** (`studio.$slug.memberships.$planId.tsx`):
+  - **Edit Plan**: wired to a pre-populated `PlanModal` with `PATCH /memberships/plans/:id`.
+  - **Duplicate**: implemented — POSTs a copy with `" (Copy)"` suffix, previously `disabled`.
+  - **Delete**: wired to `ConfirmationDialog` with `DELETE /memberships/plans/:id`.
+  - **Preview URL**: fixed from `/portal/{slug}/checkout` (no matching route → System Error) to `/studio/{slug}/checkout?planId=...`.
+- **PlanModal extracted** to `apps/web/app/components/PlanModal.tsx` (shared by index + detail pages).
+
+---
 
 ## Design Philosophy
 - **Performance First**: Extensive use of `D1.batch()` and SARGable queries to ensure edge speed.
