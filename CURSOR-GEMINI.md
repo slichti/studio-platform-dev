@@ -39,6 +39,8 @@
 - **Database**: `npx wrangler d1 migrations apply studio-db --local`
 
 ## 📈 Recent Progress (Feb 2026)
+
+### Session 1 — LMS v2 + UI
 - **LMS v2 Launch**:
   - Implemented the `courseItemCompletions` system for atomic lesson tracking.
   - Added full **Quiz Submission** logic with automated scoring.
@@ -48,9 +50,23 @@
   - **Discrete Time Picker**: Custom 3-column selection (Hour/Min/AM-PM) with strict 5-minute increments.
   - **Compact Design System**: Reduced padding and gaps in scheduling modals for better visibility.
   - **Sidebar Overhaul**: Improved navigation for "Course Management" and operations.
-- **Infrastructure**:
-  - Stabilized D1 migrations involving complex `FOREIGN KEY` constraints.
-  - Overhauled `schema_diagram.md` to reflect the latest membership (Trial Days) and LMS tracking entities.
+- **Documentation**: Updated `schema_diagram.md`, `architecture.md`, `api_blueprint.md`, `README.md`. Created `docs/features/memberships.md`.
+
+### Session 2 — RBAC & Security Hardening
+- **Deep capability audit** of 92+ API routes and 8+ portal pages identified **34 permission bugs**.
+- **Fixed bugs across 8 route files**: `courses.ts` (14 guards), `analytics.ts` (3), `audit-logs.ts` (1), `tags.ts` (6 including IDOR), `custom-fields.ts` (3 including IDOR), `tasks.ts` (4, fixed missing `can()`), `import.ts` (1, fixed missing `can()`).
+- **Portal security**: Enforced tenant membership check in `portal.$slug.tsx`; replaced hardcoded stats in `portal.$slug.profile.tsx` with live API data.
+
+### Session 3 — Student Portal Gaps
+- **New API endpoints**:
+  - `GET /bookings/history` — past bookings paginated, SQL-filtered by `startTime < unixepoch()`
+  - `GET /members/me/packs` — purchased class packs with `remainingCredits` and definition details
+  - `PATCH /users/me` — update `firstName`, `lastName`, `phone`, `bio` in profile JSON
+- **New portal pages**:
+  - `portal.$slug.history` — class attendance history grouped by month with Attended/Cancelled/Waitlisted badges
+  - `portal.$slug.packs` — credit summary, per-pack progress bars, available packs to purchase
+- **Profile editing**: Inline edit form in `portal.$slug.profile` with save/cancel via `PATCH /users/me`
+- **Portal nav updated**: Added "Class History" and "My Packs" items to sidebar and mobile menu
 
 ## 🎯 Design Philosophy
 - **Edge Native**: Minimize round-trips via `D1.batch()` and SARGable queries.

@@ -72,11 +72,37 @@ Context-aware routes that require both `authMiddleware` and `tenantMiddleware`.
 
 ### Functional Domains
 
-#### Classes (`/classes`)
+#### Classes & Bookings (`/classes`, `/bookings`)
 Schedules, bookings, check-ins, recordings, series management, and conflict detection.
+
+| Method | Path | Auth | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/classes` | Any | Paginated class schedule (supports `?limit=&offset=`) |
+| `POST` | `/bookings` | Student | Book a class |
+| `DELETE` | `/bookings/:id` | Student | Cancel own booking |
+| `GET` | `/bookings/my-upcoming` | Student | Next 50 upcoming bookings (sorted ascending) |
+| `GET` | `/bookings/history` | Student | Past bookings, paginated, filtered `startTime < now()` |
+| `GET` | `/bookings/:id` | Owner/Student | Single booking (student can only view own) |
 
 #### Members (`/members`)
 Profile management, attendance history, class packs, waiver status, and student notes.
+
+| Method | Path | Auth | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/members/me` | Member | Current member profile + roles |
+| `PATCH` | `/members/me/settings` | Member | Update notification preferences |
+| `GET` | `/members/me/packs` | Member | Purchased class packs with `remainingCredits` and definition |
+
+#### Users (`/users`)
+User identity and profile management (Clerk-backed). Profile fields (name, phone) are stored in `users.profile` JSON.
+
+| Method | Path | Auth | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/users/me` | Auth | Current user + tenant memberships |
+| `PATCH` | `/users/me` | Auth | Update `firstName`, `lastName`, `phone`, `bio` |
+| `GET` | `/users/me/family` | Auth | Family profiles linked to this account |
+| `POST` | `/users/me/family` | Auth | Add a family member |
+| `PUT` | `/users/me/settings/notifications` | Auth | Update notification settings |
 
 #### Memberships (`/memberships`) — Updated Feb 2026
 Self-service subscription management integrated with Stripe.
@@ -130,5 +156,8 @@ Live chat via Durable Objects WebSockets, FAQ management.
 ## Design Patterns
 - **Success Responses**: Standard JSON objects.
 - **Error Responses**: `{ error: string, message?: string }`.
-- **RBAC**: Handled via `c.get('roles')` in route handlers.
+- **RBAC**: Enforced via `c.get('can')(permission)` early-exit guards in each handler. Returns `403` before any DB access. See [docs/security.md](../security.md) for the full permission key reference.
 - **Traceability**: All requests logged with `traceId`.
+- **Pagination**: All list endpoints accept `?limit=&offset=` (max enforced per route). Portal uses `useFetcher.load()` for infinite scroll.
+- **Tenant Isolation**: Every handler reads `c.get('tenant')` and filters all queries by `tenantId`. Cross-tenant data leakage is not possible via the API layer.
+- **OpenAPI Strict Typing**: Routes registered with `app.openapi()` require response types to match declared schemas. Early `403` exits use `c.json({error}, 403) as any` to bypass the Hono union-type constraint while preserving runtime behavior.

@@ -80,31 +80,51 @@ flowchart LR
 
 ## Role-Based Access Control
 
+Permission checks use the `c.get('can')(permission)` helper resolved by `PermissionService` on every authenticated request. Custom roles merge with base permissions before evaluation.
+
 ```mermaid
 flowchart TD
-    subgraph "Roles"
-        SYS[System Admin] --> OWN[Owner]
+    subgraph "Role Hierarchy"
+        SYS[Platform Admin] --> OWN[Owner]
         OWN --> INST[Instructor]
-        INST --> STU[Student]
+        INST --> STU[Student / Member]
     end
 
-    subgraph "Permissions"
-        SYS -->|Full Access| ALL[All Tenants]
-        OWN -->|Full Access| TENT[Own Tenant]
-        INST -->|Limited| CLAS[Classes & Students]
-        STU -->|View Only| SELF[Own Profile & Bookings]
+    subgraph "Permission Gates"
+        SYS -->|"isPlatformAdmin"| ALL[All Tenants & Config]
+        OWN -->|"manage_*"| TENT[Full Tenant Access]
+        INST -->|"manage_classes"| CLAS[Classes & Bookings]
+        STU -->|"authenticated"| SELF[Own Data Only]
     end
 
-    subgraph "Student Restrictions"
-        STU -.->|Cannot| SCHED[Schedule Classes]
-        STU -.->|Cannot| COUPONS[View All Coupons]
-        STU -.->|Cannot| PHOTOS[Access Photos]
-        STU -.->|Can| BOOK[Book Classes]
-        STU -.->|Can| VIDEOS[Watch Videos]
-        STU -.->|Can| PROGRESS[View Progress]
+    subgraph "Student — CAN do"
+        STU -->|Booking| BOOK[Book · Cancel · View History]
+        STU -->|Commerce| PACK[Purchase & View Packs]
+        STU -->|Courses| LMS[Enroll · Watch · Submit Quiz/Assignment]
+        STU -->|Membership| MEM[Browse Plans · Subscribe · Cancel Own]
+        STU -->|Profile| PROF[View & Edit Own Name / Phone]
     end
 
+    subgraph "Student — CANNOT do"
+        STU -.->|manage_courses| SCHED[Create / Edit Courses]
+        STU -.->|view_reports| ANALYTICS[View Studio Analytics]
+        STU -.->|manage_settings| AUDITLOG[Read Audit Logs]
+        STU -.->|manage_members| TAGS[Manage Tags / Custom Fields]
+        STU -.->|manage_marketing| CRM[Manage CRM Tasks]
+        STU -.->|manage_members| IMPORT[Bulk Import Members]
+    end
 ```
+
+### Permission Guard Reference
+| Permission Key | Guarded Routes |
+|---|---|
+| `manage_courses` | Course CRUD, module/curriculum management, course analytics |
+| `manage_classes` | Class scheduling, series management, instructor actions |
+| `view_reports` | Analytics (utilization, retention, LTV) |
+| `manage_settings` | Tenant settings, audit log access |
+| `manage_members` | Tag CRUD, tag assignments, custom field definitions/values, bulk import |
+| `manage_marketing` | CRM tasks (create/edit/delete/list-all) |
+| `manage_commerce` | Pack definitions, coupon admin |
 
 ## Security Implementation
 
@@ -465,6 +485,58 @@ flowchart TB
 | `GET` | `/assignments/:id/submissions` | All submissions (instructor) |
 | `GET` | `/:courseId/all-submissions` | All course assignments (instructor) |
 | `PATCH` | `/assignments/submissions/:id/grade` | Grade with score + feedback |
+
+---
+
+## Student Portal
+
+The student-facing portal lives at `/portal/:slug/*` and requires the authenticated user to be an active member of the studio (enforced in `portal.$slug.tsx` loader — non-members are redirected to `/studio/:slug/join`).
+
+### Portal Route Map
+
+| Route | Page | Data Sources |
+|---|---|---|
+| `/portal/:slug` | Dashboard (achievements, challenges) | `/progress/my-stats` |
+| `/portal/:slug/classes` | Class schedule + book/cancel | `GET /classes`, `GET /bookings/my-upcoming` |
+| `/portal/:slug/history` | Past attendance, paginated by month | `GET /bookings/history` |
+| `/portal/:slug/packs` | Purchased pack credits + buy new | `GET /members/me/packs`, `GET /commerce/packs` |
+| `/portal/:slug/courses` | Course catalog + enrollments | `GET /courses`, `GET /courses/:id/my-completions` |
+| `/portal/:slug/courses/:courseSlug` | LMS player (video/quiz/assignment) | Course + curriculum endpoints |
+| `/portal/:slug/memberships` | Plan browser + active subscription | `GET /memberships/plans`, `GET /memberships/my-active` |
+| `/portal/:slug/profile` | Stats, memberships, inline profile edit | `GET /members/me`, `PATCH /users/me` |
+
+### Portal Data Flow
+
+```mermaid
+flowchart LR
+    subgraph "portal.$slug.tsx (Layout)"
+        AUTH[Auth Check] --> MEMBER{Is member of tenant?}
+        MEMBER -->|No| REDIRECT[Redirect /studio/:slug/join]
+        MEMBER -->|Yes| PORTAL[Render Portal + Outlet]
+    end
+
+    subgraph "Child Routes"
+        CLASSES[classes — Book/Cancel]
+        HISTORY[history — Attendance Log]
+        PACKS[packs — Credits & Purchase]
+        COURSES[courses — LMS Player]
+        MEMS[memberships — Subscribe]
+        PROFILE[profile — Edit Name/Phone]
+    end
+
+    PORTAL --> CLASSES & HISTORY & PACKS & COURSES & MEMS & PROFILE
+```
+
+### Publicly Accessible Endpoints (No Auth Required)
+These endpoints serve booking widgets and checkout flows embedded in public studio websites:
+
+| Endpoint | Use Case |
+|---|---|
+| `GET /appointments/services` | Public booking widget — lists bookable services |
+| `GET /appointments/availability` | Public booking widget — shows available slots |
+| `GET /gift-cards/validate/:code` | Checkout page — validates gift card before payment |
+| `GET /memberships/plans` | Public plan browser (filtered to `active` only) |
+| `GET /classes` | Public class schedule widget |
 
 ---
 

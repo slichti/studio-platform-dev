@@ -12,16 +12,57 @@ This document describes the security controls implemented across the Studio Plat
 
 ## Authorization (RBAC)
 
-Permissions are resolved by `PermissionService` on every authenticated request:
+Permissions are resolved by `PermissionService` on every authenticated request via `c.get('can')(permission: string) → boolean`. Custom roles can extend built-in permissions through `customRoles` → `memberCustomRoles`; all custom permissions are merged with base role permissions before evaluation.
+
+### Role Reference
 
 | Role | Scope |
 |------|-------|
-| Platform Admin | All tenants, all data |
+| Platform Admin | All tenants, all data (`isPlatformAdmin: true`) |
 | Owner | Full access to own tenant |
-| Instructor | Classes, students, bookings |
-| Student | Own profile, own bookings |
+| Instructor | Classes, students, bookings (limited management) |
+| Student / Member | Own profile, own bookings, own purchases |
 
-Custom roles can extend built-in permissions via `customRoles` → `memberCustomRoles`. All custom permissions are merged with base role permissions before `can()` checks.
+### Permission Key → Guarded Routes
+
+| Permission | Files | Guarded Actions |
+|---|---|---|
+| `manage_courses` | `courses.ts` | Create/edit/delete courses, modules, curriculum items, course analytics |
+| `manage_classes` | `classes.ts`, `bookings.ts` | Schedule, edit, delete classes; manage others' bookings |
+| `view_reports` | `analytics.ts` | Utilization, retention, LTV reports |
+| `manage_settings` | `audit-logs.ts`, `settings` | Read audit log, update tenant config |
+| `manage_members` | `tags.ts`, `custom-fields.ts`, `import.ts` | Tag CRUD, tag assignment reads (IDOR guard), custom field defs, bulk import |
+| `manage_marketing` | `tasks.ts`, `marketing.ts` | Create/edit/delete CRM tasks, read all tasks (vs. own) |
+| `manage_commerce` | `commerce.ts` | Create/edit pack definitions and coupon admin |
+
+### Student Capability Matrix (Feb 2026 Audit)
+
+Following a comprehensive audit of 92+ API routes, all critical IDOR and privilege-escalation vectors have been remediated. The table below reflects the current enforced state.
+
+| Domain | Students CAN | Students CANNOT |
+|---|---|---|
+| **Classes** | View schedule, book class, cancel own booking | Schedule/edit/delete classes |
+| **Booking History** | `GET /bookings/history` (own only) | Access others' booking history |
+| **Class Packs** | `GET /members/me/packs` (own), purchase via checkout | Create pack definitions |
+| **Courses** | Enroll, watch content, submit quizzes/assignments, view own completions | Create/edit/delete courses, modules, items |
+| **Course Analytics** | View own progress % | `GET /courses/:id/analytics` (owner/instructor only) |
+| **Memberships** | Browse active plans, subscribe, cancel own subscription | Create/modify/delete plans |
+| **Profile** | `GET /users/me`, `PATCH /users/me` (own name/phone/bio) | Update other users' profiles |
+| **Analytics** | — | Utilization, retention, LTV reports |
+| **Audit Logs** | — | `GET /audit-logs` |
+| **Tags** | — | Create/edit/delete tags, read tag assignments on any `targetId` |
+| **Custom Fields** | — | Create field defs, upsert values, read values for arbitrary `targetId` |
+| **CRM Tasks** | `GET /tasks?mine=true` (own tasks only) | Create/edit/delete tasks, list all tasks |
+| **Data Import** | — | `POST /import/csv` |
+| **Reports** | — | `GET /analytics/*` |
+
+### IDOR Prevention
+Explicit ownership checks are placed **before** any DB read to prevent Insecure Direct Object Reference attacks:
+
+- **Bookings**: `GET /bookings/:id` verifies `booking.memberId === currentMember.id` OR `can('manage_classes')`.
+- **Tags**: `GET /tags/assignments/:targetId` verifies `can('manage_members')` — prevents students from discovering tag assignments on arbitrary member IDs.
+- **Custom Fields**: `GET /custom-fields/values/:targetId` verifies `can('manage_members')` — prevents students from reading field values for arbitrary entities.
+- **Packs**: `GET /members/me/packs` is scoped to `memberId` of the authenticated user — no ID parameter accepted.
 
 ## Input Sanitization
 

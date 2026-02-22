@@ -7,6 +7,8 @@ The modern, all-in-one platform for dance, yoga, and fitness studios.
 *   **Studio Management:** Class scheduling, member management, and point-of-sale.
 *   **Memberships & Subscriptions:** Self-service membership plans with Stripe billing, free trials, archive/restore lifecycle, and student-facing plan browser. Students can cancel subscriptions directly from their profile.
 *   **Course Management (LMS):** Hybrid courses combining live sessions, on-demand VOD, quizzes, assignments, and per-lesson completion tracking with progress percentage. Instructors can grade assignments with feedback.
+*   **Student Portal:** Full self-service portal at `/portal/:slug` — book classes, view attendance history, manage class pack credits, browse and enroll in courses, manage memberships, and edit their profile (name, phone).
+*   **RBAC & Security:** Comprehensive role-based access control audited across 92+ API routes. Students are precisely scoped to their own data with explicit IDOR guards on tag assignments, custom field values, and booking records.
 *   **Website Builder:** Drag-and-drop website editor with custom domains.
 *   **Student App:** Mobile app for students to book classes and manage their accounts.
 *   **Automations:** Powerful email and SMS marketing automations with trigger events (Birthday, Absent, Trial Ending, Membership Dunning, etc).
@@ -55,7 +57,8 @@ erDiagram
     ASSIGNMENTS ||--o{ ASSIGNMENT_SUBMISSIONS : receives
 
     MEMBERSHIP_PLANS ||--o{ SUBSCRIPTIONS : grants
-    BOOKINGS }|--o| PURCHASED_PACKS : consumes
+    TENANT_MEMBERS ||--o{ PURCHASED_PACKS : owns
+    BOOKINGS }|--o| PURCHASED_PACKS : consumes_credit_from
 ```
 
 
