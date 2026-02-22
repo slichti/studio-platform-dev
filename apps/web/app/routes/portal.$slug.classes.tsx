@@ -2,7 +2,7 @@ import { useLoaderData, useOutletContext, Form, useNavigation, useSubmit, useFet
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
-import { Calendar as CalendarIcon, Clock, MapPin, User, CheckCircle2, AlertCircle, ChevronDown } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, MapPin, User, CheckCircle2, AlertCircle, ChevronDown, Clock3 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { format, addDays, startOfDay, isSameDay } from "date-fns";
 import { cn } from "~/utils/cn";
@@ -82,6 +82,25 @@ export const action = async (args: ActionFunctionArgs) => {
             return { success: true };
         }
 
+        if (intent === "join-waitlist") {
+            const classId = formData.get("classId");
+            await apiRequest(`/bookings/waitlist`, token, {
+                method: "POST",
+                body: JSON.stringify({ classId }),
+                headers: { 'X-Tenant-Slug': slug! }
+            });
+            return { success: true, waitlisted: true };
+        }
+
+        if (intent === "leave-waitlist") {
+            const bookingId = formData.get("bookingId");
+            await apiRequest(`/bookings/${bookingId}`, token, {
+                method: "DELETE",
+                headers: { 'X-Tenant-Slug': slug! }
+            });
+            return { success: true };
+        }
+
         return null;
     } catch (e: any) {
         return { error: e.message || "Action failed" };
@@ -126,8 +145,12 @@ export default function StudentPortalClasses() {
 
     const isBooking = (id: string) => navigation.formData?.get("classId") === id && navigation.state === "submitting";
 
-    // Helper to find if I booked this class
+    // Helper to find if I booked this class (confirmed or waitlisted)
     const getBooking = (classId: string) => initialData.myBookings?.find((b: any) => b.class?.id === classId || b.classId === classId);
+    const isWaitlisted = (classId: string) => {
+        const b = getBooking(classId);
+        return b?.status === 'waitlisted';
+    };
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -180,7 +203,7 @@ export default function StudentPortalClasses() {
                                             </div>
 
                                             <div className="flex flex-col justify-center min-w-[8rem]">
-                                                {booking ? (
+                                                {booking && !isWaitlisted(cls.id) ? (
                                                     <div className="flex flex-col gap-2">
                                                         <div className="flex items-center gap-2 text-emerald-600 text-sm font-bold bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-lg justify-center">
                                                             <CheckCircle2 size={16} />
@@ -194,22 +217,45 @@ export default function StudentPortalClasses() {
                                                             </button>
                                                         </Form>
                                                     </div>
+                                                ) : isWaitlisted(cls.id) ? (
+                                                    <div className="flex flex-col gap-2">
+                                                        <div className="flex items-center gap-2 text-amber-600 text-sm font-bold bg-amber-50 dark:bg-amber-900/20 px-3 py-1.5 rounded-lg justify-center">
+                                                            <Clock3 size={16} />
+                                                            #{booking?.waitlistPosition} Waitlist
+                                                        </div>
+                                                        <Form method="post">
+                                                            <input type="hidden" name="bookingId" value={booking?.id} />
+                                                            <input type="hidden" name="intent" value="leave-waitlist" />
+                                                            <button className="text-xs text-red-500 hover:text-red-600 hover:underline w-full text-center">
+                                                                Leave Waitlist
+                                                            </button>
+                                                        </Form>
+                                                    </div>
+                                                ) : isFull ? (
+                                                    <div className="flex flex-col gap-2">
+                                                        <Form method="post">
+                                                            <input type="hidden" name="classId" value={cls.id} />
+                                                            <input type="hidden" name="intent" value="join-waitlist" />
+                                                            <button
+                                                                disabled={isBooking(cls.id)}
+                                                                className="w-full py-2.5 px-4 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-900/50"
+                                                            >
+                                                                <Clock3 size={15} />
+                                                                {isBooking(cls.id) ? "Joining..." : "Join Waitlist"}
+                                                            </button>
+                                                        </Form>
+                                                        <div className="text-center text-xs text-zinc-400">Class is full</div>
+                                                    </div>
                                                 ) : (
                                                     <Form method="post">
                                                         <input type="hidden" name="classId" value={cls.id} />
                                                         <input type="hidden" name="intent" value="book" />
                                                         <button
-                                                            disabled={isFull || isBooking(cls.id)}
-                                                            className={cn(
-                                                                "w-full py-2.5 px-4 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2",
-                                                                isFull
-                                                                    ? "bg-zinc-100 text-zinc-400 cursor-not-allowed"
-                                                                    : "bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg shadow-indigo-200 dark:shadow-none"
-                                                            )}
+                                                            disabled={isBooking(cls.id)}
+                                                            className="w-full py-2.5 px-4 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg shadow-indigo-200 dark:shadow-none"
                                                         >
-                                                            {isBooking(cls.id) ? "Booking..." : isFull ? "Full" : "Book Class"}
+                                                            {isBooking(cls.id) ? "Booking..." : "Book Class"}
                                                         </button>
-                                                        {isFull && <div className="text-center text-xs text-zinc-400 mt-1">Waitlist Available</div>}
                                                     </Form>
                                                 )}
                                             </div>

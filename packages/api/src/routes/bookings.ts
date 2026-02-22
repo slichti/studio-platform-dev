@@ -34,6 +34,43 @@ app.get('/my-upcoming', async (c) => {
     })).sort((a, b) => new Date(a.class.startTime).getTime() - new Date(b.class.startTime).getTime()));
 });
 
+// POST /waitlist — join the waitlist for a full class
+app.post('/waitlist', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+    const auth = c.get('auth')!;
+    const { classId, attendanceType } = await c.req.json<{ classId: string; attendanceType?: 'in_person' | 'zoom' }>();
+
+    if (!classId) return c.json({ error: 'classId required' }, 400);
+
+    const member = await db.query.tenantMembers.findFirst({ where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id)) });
+    if (!member) return c.json({ error: 'Not a member of this studio' }, 403);
+
+    const cl = await db.select().from(classes).where(and(eq(classes.id, classId), eq(classes.tenantId, tenant.id))).get();
+    if (!cl) return c.json({ error: 'Class not found' }, 404);
+
+    const existing = await db.select({ id: bookings.id }).from(bookings).where(
+        and(eq(bookings.classId, classId), eq(bookings.memberId, member.id), inArray(bookings.status, ['confirmed', 'waitlisted']))
+    ).get();
+    if (existing) return c.json({ error: 'Already booked or on waitlist' }, 400);
+
+    // Count current waitlist size to assign next position
+    const waitlistCount = await db.select({ c: sql<number>`count(*)` }).from(bookings)
+        .where(and(eq(bookings.classId, classId), eq(bookings.status, 'waitlisted'))).get();
+    const position = ((waitlistCount?.c) || 0) + 1;
+
+    const id = crypto.randomUUID();
+    await db.insert(bookings).values({
+        id, classId, memberId: member.id,
+        status: 'waitlisted',
+        waitlistPosition: position,
+        attendanceType: attendanceType || 'in_person',
+        createdAt: new Date(),
+    }).run();
+
+    return c.json({ success: true, id, waitlistPosition: position });
+});
+
 // GET /history — past bookings for the current member (paginated)
 app.get('/history', async (c) => {
     const db = createDb(c.env.DB);

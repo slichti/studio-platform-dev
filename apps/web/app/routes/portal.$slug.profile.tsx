@@ -3,7 +3,7 @@ import { useLoaderData, useOutletContext, Form, useFetcher, Link } from "react-r
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { getAuth } from "~/utils/auth-wrapper.server";
 import { apiRequest } from "~/utils/api";
-import { User, Mail, Calendar, LogOut, Shield, TrendingUp, Award, CreditCard, AlertCircle, Edit2, Phone, Save, X } from "lucide-react";
+import { User, Mail, Calendar, LogOut, Shield, TrendingUp, Award, CreditCard, AlertCircle, Edit2, Phone, Save, X, Bell } from "lucide-react";
 import { ProgressRing } from "~/components/ui/ProgressRing";
 import { StreakBadge, MilestoneBadge } from "~/components/ui/StreakBadge";
 import { useState } from "react";
@@ -16,11 +16,12 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
     const headers = { "X-Tenant-Slug": slug! };
 
-    const [memberships, upcomingBookings, progressStats, packs] = await Promise.all([
+    const [memberships, upcomingBookings, progressStats, packs, memberData] = await Promise.all([
         apiRequest(`/memberships/my-active`, token, { headers }).catch(() => []),
         apiRequest(`/bookings/my-upcoming?limit=100`, token, { headers }).catch(() => []),
         apiRequest(`/progress/my-stats`, token, { headers }).catch(() => null),
         apiRequest(`/commerce/packs`, token, { headers }).catch(() => []),
+        apiRequest(`/members/me`, token, { headers }).catch(() => null),
     ]);
 
     // Compute attendance-this-month from upcoming bookings + any cached stats
@@ -43,6 +44,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const totalClasses = (progressStats as any)?.totalBookings ?? classesThisMonth;
     const milestones = [10, 25, 50, 100];
 
+    const notificationSettings = (memberData as any)?.member?.settings?.notifications || {};
+
     return {
         memberships: memberships || [],
         streak,
@@ -51,6 +54,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
         packCredits,
         packTotal: packTotal || packCredits,
         milestones,
+        notificationSettings,
     };
 };
 
@@ -60,6 +64,25 @@ export const action = async (args: ActionFunctionArgs) => {
     const { slug } = args.params;
     const form = await args.request.formData();
     const intent = form.get("intent");
+
+    if (intent === "update-notifications") {
+        try {
+            const notifications: Record<string, boolean> = {};
+            for (const [key, val] of form.entries()) {
+                if (key.startsWith("notif_")) {
+                    notifications[key.replace("notif_", "")] = val === "on";
+                }
+            }
+            await apiRequest(`/members/me/settings`, token, {
+                method: "PATCH",
+                body: JSON.stringify({ notifications }),
+                headers: { "X-Tenant-Slug": slug!, "Content-Type": "application/json" },
+            });
+            return { success: true, intent: "update-notifications" };
+        } catch (e: any) {
+            return { error: e.message || "Failed to update notifications", intent: "update-notifications" };
+        }
+    }
 
     if (intent === "update-profile") {
         try {
@@ -151,8 +174,9 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function StudentPortalProfile() {
     const { me, tenant } = useOutletContext<any>();
-    const { memberships, streak, classesThisMonth, totalClasses, packCredits, packTotal, milestones } = useLoaderData<typeof loader>();
+    const { memberships, streak, classesThisMonth, totalClasses, packCredits, packTotal, milestones, notificationSettings } = useLoaderData<typeof loader>();
     const profileFetcher = useFetcher<typeof action>();
+    const notifFetcher = useFetcher<typeof action>();
 
     const [editing, setEditing] = useState(false);
     const [firstName, setFirstName] = useState(me?.firstName || "");
@@ -411,6 +435,54 @@ export default function StudentPortalProfile() {
                         </Link>
                     </div>
                 )}
+            </section>
+
+            {/* Notification Preferences */}
+            <section className="pt-6 border-t border-zinc-200 dark:border-zinc-800">
+                <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
+                    <Bell size={20} />
+                    Notification Preferences
+                </h3>
+                <notifFetcher.Form method="post" className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                    <input type="hidden" name="intent" value="update-notifications" />
+                    <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                        {[
+                            { key: "email_bookings", label: "Booking confirmations", desc: "Email when you book or cancel a class" },
+                            { key: "email_reminders", label: "Class reminders", desc: "Email 24 hours before your class" },
+                            { key: "sms_reminders", label: "SMS reminders", desc: "Text message 1 hour before class" },
+                            { key: "email_promotions", label: "Promotions & news", desc: "Studio announcements and special offers" },
+                        ].map(({ key, label, desc }) => (
+                            <label key={key} className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                                <div>
+                                    <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{label}</p>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{desc}</p>
+                                </div>
+                                <div className="relative shrink-0 ml-4">
+                                    <input
+                                        type="checkbox"
+                                        name={`notif_${key}`}
+                                        defaultChecked={(notificationSettings as any)?.[key] !== false}
+                                        className="sr-only peer"
+                                    />
+                                    <div className="w-10 h-6 bg-zinc-200 dark:bg-zinc-700 rounded-full peer peer-checked:bg-indigo-600 transition-colors" />
+                                    <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-4" />
+                                </div>
+                            </label>
+                        ))}
+                    </div>
+                    <div className="px-5 py-3 bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-between">
+                        {(notifFetcher.data as any)?.success && (notifFetcher.data as any)?.intent === "update-notifications" ? (
+                            <span className="text-xs text-emerald-600 font-medium">Saved!</span>
+                        ) : <span />}
+                        <button
+                            type="submit"
+                            disabled={notifFetcher.state !== "idle"}
+                            className="px-4 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                        >
+                            {notifFetcher.state !== "idle" ? "Saving…" : "Save Preferences"}
+                        </button>
+                    </div>
+                </notifFetcher.Form>
             </section>
 
             {/* Policies */}

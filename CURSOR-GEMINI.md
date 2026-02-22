@@ -139,3 +139,80 @@ Audited all 92+ API routes and 8+ portal UI routes for improper student/customer
 
 ### TypeScript Fix
 - `tags.ts` `GET /assignments/:targetId`: Changed `403 as any` to `c.json(..., 403) as any` to correctly suppress Hono OpenAPI strict response union type error.
+
+---
+
+## 🎯 Tier 1 Feature Completion (Feb 2026 — Session 4)
+
+All five Tier 1 items from the prior recommendation backlog have been completed.
+
+### 1. Dynamic Portal Dashboard
+**File**: `apps/web/app/routes/portal.$slug._index.tsx`
+
+- Loader now fetches `GET /community?type=announcement&limit=3` and `GET /bookings/my-upcoming` in parallel.
+- **Next Class widget**: Highlights the student's nearest confirmed upcoming class (title, date/time, instructor). Falls back to "No upcoming classes" with a booking prompt.
+- **Live Announcements**: Renders studio-authored posts of type `announcement` from the community feed. Shows pinned badge, content, and creation date.
+- Removed all hardcoded placeholder content (Summer schedule copy, Power Yoga promo, etc.).
+- Imports: `date-fns/format`, `Calendar`, `Megaphone`, `CalendarX`, `ChevronRight` from lucide-react.
+
+**API**: `packages/api/src/routes/community.ts`
+- Added optional `?type=` query parameter to `GET /community` (values: `post|announcement|event|photo`).
+- Added optional `?limit=` parameter (default 50, max 100).
+
+### 2. Waitlist Join Button
+**File**: `apps/web/app/routes/portal.$slug.classes.tsx`
+
+- Added `join-waitlist` and `leave-waitlist` action intents, each calling `POST /bookings/waitlist` and `DELETE /bookings/:id` respectively.
+- Class card UI now has three states beyond "Booked":
+  - **Waitlisted**: Shows position badge (e.g., "#3 Waitlist") with "Leave Waitlist" link.
+  - **Full class**: Shows amber "Join Waitlist" button (was previously a non-interactive "Waitlist Available" label).
+  - **Available**: Standard "Book Class" button unchanged.
+- Added `isWaitlisted()` helper and `Clock3` icon.
+
+**API**: `packages/api/src/routes/bookings.ts`
+- New `POST /bookings/waitlist` endpoint: verifies membership, checks no duplicate booking, counts current waitlist length, inserts `status: 'waitlisted'` booking with sequential `waitlistPosition`.
+
+### 3. Student Billing History
+**File**: `apps/web/app/routes/portal.$slug.memberships._index.tsx`
+
+- Loader now fetches `GET /commerce/invoices` alongside plans and active memberships.
+- Added **Billing History** section at the bottom of the memberships page.
+- Each invoice row shows: description, date, invoice number, formatted currency amount (color-coded by status: paid/open/uncollectible), and a PDF download link.
+- Uses `date-fns/format`; added `Receipt`, `Download` icons.
+
+### 4. Notification Preferences UI
+**File**: `apps/web/app/routes/portal.$slug.profile.tsx`
+
+- Loader now fetches `GET /members/me` to obtain `member.settings.notifications`.
+- New **"update-notifications"** action intent: reads `notif_*` checkbox fields from `FormData`, maps them to `{ email_bookings, email_reminders, sms_reminders, email_promotions }`, and calls `PATCH /members/me/settings`.
+- Added **Notification Preferences** section before the Policies section, with a styled toggle-row for each notification type and a "Save Preferences" button (via `useFetcher`).
+- Added `Bell` icon import.
+
+### 5. Integration TODOs — Mailchimp & Google Calendar
+**File**: `packages/api/src/routes/integrations.ts`
+
+**Mailchimp** (`POST /integrations/mailchimp/sync-members`):
+- Reads `tenant.mailchimpCredentials` (`{ apiKey, listId, serverPrefix }`).
+- Derives the Mailchimp data center from the API key suffix (e.g., `abc123-us10` → `us10`).
+- Fetches all active tenant members with email + profile.
+- Submits a batch `PUT` operation to the Mailchimp `/3.0/batches` API, upserting each member by email MD5 hash with `FNAME`/`LNAME` merge fields.
+- Updates `settings.integrations.mailchimp.lastSyncAt` on success.
+- Returns `{ success, synced, batchId }`.
+
+**Google Calendar** (`POST /integrations/google-calendar/export`):
+- Reads `tenant.googleCalendarCredentials` (encrypted JSON: `{ accessToken, refreshToken, expiryDate }`).
+- Decrypts credentials using `EncryptionUtils`.
+- Refreshes the access token (via `GoogleCalendarService.refreshAccessToken`) if within 60 seconds of expiry, and persists the new token.
+- Fetches all upcoming classes (next 30 days) from D1.
+- Creates a Google Calendar event for each class (title, description, ISO 8601 start/end times in UTC).
+- Updates `settings.integrations.google_calendar.lastExportAt`.
+- Returns `{ success, exported, total }`.
+
+**Generic provider sync** (`POST /integrations/:provider/sync`):
+- Replaces the "coming soon" stub with a redirect to the provider-specific endpoint (`mailchimp` → sync-members, `google_calendar` → export).
+
+### Imports Added
+- `EncryptionUtils` added to `integrations.ts`.
+- `gte` added to drizzle-orm imports in `integrations.ts`.
+- `format` (date-fns) added to dashboard index and memberships pages.
+- `Receipt`, `Download`, `Bell`, `Clock3`, `Megaphone`, `CalendarX`, `ChevronRight` icons added to portal pages.

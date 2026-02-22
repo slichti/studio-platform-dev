@@ -6,12 +6,19 @@ import { HonoContext } from '../types';
 
 const app = new Hono<HonoContext>();
 
-// GET / community - List posts
+// GET / community - List posts (supports ?type=announcement|event|post|photo and ?limit=)
 app.get('/', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     const member = c.get('member');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const typeFilter = c.req.query('type') as 'post' | 'announcement' | 'event' | 'photo' | undefined;
+    const limit = Math.min(Number(c.req.query('limit') || 50), 100);
+
+    const whereClause = typeFilter
+        ? and(eq(communityPosts.tenantId, tenant.id), eq(communityPosts.type, typeFilter))
+        : eq(communityPosts.tenantId, tenant.id);
 
     const posts = await db.select({
         id: communityPosts.id, content: communityPosts.content, type: communityPosts.type, imageUrl: communityPosts.imageUrl,
@@ -19,7 +26,7 @@ app.get('/', async (c) => {
         createdAt: communityPosts.createdAt, authorId: tenantMembers.id, authorEmail: users.email, authorProfile: users.profile
     })
         .from(communityPosts).innerJoin(tenantMembers, eq(communityPosts.authorId, tenantMembers.id)).innerJoin(users, eq(tenantMembers.userId, users.id))
-        .where(eq(communityPosts.tenantId, tenant.id)).orderBy(desc(communityPosts.isPinned), desc(communityPosts.createdAt)).limit(50).all();
+        .where(whereClause).orderBy(desc(communityPosts.isPinned), desc(communityPosts.createdAt)).limit(limit).all();
 
     let likedIds = new Set<string>();
     if (member) {

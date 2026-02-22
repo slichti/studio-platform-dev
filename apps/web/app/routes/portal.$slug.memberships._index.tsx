@@ -2,19 +2,26 @@ import { useLoaderData, useOutletContext, Link } from "react-router";
 import type { LoaderFunctionArgs } from "react-router";
 import { getAuth } from "../utils/auth-wrapper.server";
 import { apiRequest } from "~/utils/api";
-import { Check, CreditCard, Zap, Clock, Shield } from "lucide-react";
+import { Check, CreditCard, Zap, Clock, Shield, Receipt, ExternalLink, Download } from "lucide-react";
+import { format } from "date-fns";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken } = await getAuth(args);
     const token = await getToken();
     const { slug } = args.params;
+    const headers = { "X-Tenant-Slug": slug! };
 
-    const [plans, myActive] = await Promise.all([
-        apiRequest(`/memberships/plans`, token, { headers: { "X-Tenant-Slug": slug! } }).catch(() => []),
-        apiRequest(`/memberships/my-active`, token, { headers: { "X-Tenant-Slug": slug! } }).catch(() => []),
+    const [plans, myActive, invoicesData] = await Promise.all([
+        apiRequest(`/memberships/plans`, token, { headers }).catch(() => []),
+        apiRequest(`/memberships/my-active`, token, { headers }).catch(() => []),
+        apiRequest(`/commerce/invoices`, token, { headers }).catch(() => ({ invoices: [] })),
     ]);
 
-    return { plans: plans || [], myActive: myActive || [] };
+    return {
+        plans: plans || [],
+        myActive: myActive || [],
+        invoices: (invoicesData as any)?.invoices || [],
+    };
 };
 
 const INTERVAL_LABEL: Record<string, string> = {
@@ -28,9 +35,16 @@ function intervalLabel(interval: string) {
     return INTERVAL_LABEL[interval] ?? `/ ${interval}`;
 }
 
+const STATUS_COLOR: Record<string, string> = {
+    paid: "text-emerald-600",
+    open: "text-amber-600",
+    uncollectible: "text-red-500",
+    void: "text-zinc-400",
+};
+
 export default function PortalMembershipsPage() {
     const { tenant } = useOutletContext<any>();
-    const { plans, myActive } = useLoaderData<typeof loader>();
+    const { plans, myActive, invoices } = useLoaderData<typeof loader>();
 
     const activeIds = new Set((myActive as any[]).map((s: any) => s.plan?.id));
 
@@ -187,6 +201,54 @@ export default function PortalMembershipsPage() {
                     })}
                 </div>
             )}
+
+            {/* Billing History */}
+            <section className="pt-6 border-t border-zinc-200 dark:border-zinc-800">
+                <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 mb-4">
+                    <Receipt size={20} />
+                    Billing History
+                </h2>
+
+                {(invoices as any[]).length === 0 ? (
+                    <div className="text-center py-8 bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800">
+                        <Receipt className="mx-auto h-8 w-8 text-zinc-300 dark:text-zinc-600 mb-2" />
+                        <p className="text-zinc-500 dark:text-zinc-400 text-sm">No billing history yet.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-2">
+                        {(invoices as any[]).map((inv: any) => (
+                            <div
+                                key={inv.id}
+                                className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 flex items-center gap-4"
+                            >
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">{inv.description}</p>
+                                    <p className="text-xs text-zinc-500 mt-0.5">
+                                        {format(new Date(inv.date), "MMM d, yyyy")}
+                                        {inv.number ? ` · #${inv.number}` : ""}
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-3 shrink-0">
+                                    <span className={`text-sm font-bold ${STATUS_COLOR[inv.status] || "text-zinc-600 dark:text-zinc-400"}`}>
+                                        {(inv.amount / 100).toLocaleString("en-US", { style: "currency", currency: inv.currency?.toUpperCase() || "USD" })}
+                                    </span>
+                                    {inv.pdfUrl && (
+                                        <a
+                                            href={inv.pdfUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-zinc-400 hover:text-indigo-600 transition-colors"
+                                            title="Download PDF"
+                                        >
+                                            <Download size={15} />
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </section>
         </div>
     );
 }
