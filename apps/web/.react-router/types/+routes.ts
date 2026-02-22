@@ -51,6 +51,9 @@ type Pages = {
   "/documentation/guides/class-packs": {
     params: {};
   };
+  "/documentation/platform/courses": {
+    params: {};
+  };
   "/documentation/platform/tenants": {
     params: {};
   };
@@ -78,6 +81,9 @@ type Pages = {
   "/documentation/classes": {
     params: {};
   };
+  "/documentation/courses": {
+    params: {};
+  };
   "/documentation/reports": {
     params: {};
   };
@@ -101,12 +107,49 @@ type Pages = {
       "slug": string;
     };
   };
+  "/portal/:slug/courses/:courseSlug": {
+    params: {
+      "slug": string;
+      "courseSlug": string;
+    };
+  };
+  "/portal/:slug/courses/:courseSlug/certificate": {
+    params: {
+      "slug": string;
+      "courseSlug": string;
+    };
+  };
+  "/portal/:slug/memberships": {
+    params: {
+      "slug": string;
+    };
+  };
+  "/portal/:slug/courses": {
+    params: {
+      "slug": string;
+    };
+  };
+  "/portal/:slug/referrals": {
+    params: {
+      "slug": string;
+    };
+  };
   "/portal/:slug/classes": {
     params: {
       "slug": string;
     };
   };
+  "/portal/:slug/history": {
+    params: {
+      "slug": string;
+    };
+  };
   "/portal/:slug/profile": {
+    params: {
+      "slug": string;
+    };
+  };
+  "/portal/:slug/packs": {
     params: {
       "slug": string;
     };
@@ -131,6 +174,12 @@ type Pages = {
       "pageId": string;
     };
   };
+  "/studio/:slug/classes/:classId/live": {
+    params: {
+      "slug": string;
+      "classId": string;
+    };
+  };
   "/studio/:slug/financials/my-payouts": {
     params: {
       "slug": string;
@@ -147,12 +196,29 @@ type Pages = {
       "slug": string;
     };
   };
+  "/studio/:slug/memberships/:planId": {
+    params: {
+      "slug": string;
+      "planId": string;
+    };
+  };
+  "/studio/:slug/classes/:id/roster": {
+    params: {
+      "slug": string;
+      "id": string;
+    };
+  };
   "/studio/:slug/commerce/referrals": {
     params: {
       "slug": string;
     };
   };
   "/studio/:slug/financials/payroll": {
+    params: {
+      "slug": string;
+    };
+  };
+  "/studio/:slug/memberships": {
     params: {
       "slug": string;
     };
@@ -172,7 +238,17 @@ type Pages = {
       "slug": string;
     };
   };
+  "/studio/:slug/classes": {
+    params: {
+      "slug": string;
+    };
+  };
   "/studio/:slug/commerce/packs": {
+    params: {
+      "slug": string;
+    };
+  };
+  "/studio/:slug/courses": {
     params: {
       "slug": string;
     };
@@ -202,9 +278,10 @@ type Pages = {
       "slug": string;
     };
   };
-  "/studio/:slug/memberships": {
+  "/studio/:slug/courses/:id": {
     params: {
       "slug": string;
+      "id": string;
     };
   };
   "/studio/:slug/challenges": {
@@ -233,6 +310,11 @@ type Pages = {
     };
   };
   "/studio/:slug/analytics": {
+    params: {
+      "slug": string;
+    };
+  };
+  "/studio/:slug/analytics/enrollments": {
     params: {
       "slug": string;
     };
@@ -433,23 +515,6 @@ type Pages = {
       "slug": string;
     };
   };
-  "/studio/:slug/classes": {
-    params: {
-      "slug": string;
-    };
-  };
-  "/studio/:slug/classes/:classId/live": {
-    params: {
-      "slug": string;
-      "classId": string;
-    };
-  };
-  "/studio/:slug/classes/:id/roster": {
-    params: {
-      "slug": string;
-      "id": string;
-    };
-  };
   "/studio/:slug/loyalty": {
     params: {
       "slug": string;
@@ -466,6 +531,11 @@ type Pages = {
     };
   };
   "/studio/:slug/reports/advanced": {
+    params: {
+      "slug": string;
+    };
+  };
+  "/studio/:slug/reviews": {
     params: {
       "slug": string;
     };
@@ -670,6 +740,9 @@ type Pages = {
   "/admin/workflows": {
     params: {};
   };
+  "/admin/bookings": {
+    params: {};
+  };
   "/admin/features": {
     params: {};
   };
@@ -711,7 +784,7 @@ type Pages = {
 type RouteFiles = {
   "root.tsx": {
     id: "root";
-    page: "/" | "/site/:slug/:pageSlug" | "/site/:slug" | "/pricing/compare" | "/pricing" | "/:slug/support" | "/accept-invite" | "/create-studio" | "/documentation" | "/documentation/platform/architecture" | "/documentation/guides/class-packs" | "/documentation/platform/tenants" | "/documentation/studio/analytics" | "/documentation/studio/overview" | "/documentation/mobile-builder" | "/documentation/guides/waiver" | "/documentation/studio/portal" | "/documentation/migration" | "/documentation/commerce" | "/documentation/classes" | "/documentation/reports" | "/documentation/website" | "/documentation/setup" | "/documentation/team" | "/documentation/crm" | "/sitemap.xml" | "/portal/:slug" | "/portal/:slug/classes" | "/portal/:slug/profile" | "/robots.txt" | "/studio/:slug" | "/studio/:slug/videos/collections/:id" | "/studio/:slug/website/editor/:pageId" | "/studio/:slug/financials/my-payouts" | "/studio/:slug/videos/edit/:videoId" | "/studio/:slug/commerce/gift-cards" | "/studio/:slug/commerce/referrals" | "/studio/:slug/financials/payroll" | "/studio/:slug/financials" | "/studio/:slug/commerce/coupons" | "/studio/:slug/commerce/wizard" | "/studio/:slug/commerce/packs" | "/studio/:slug/substitutions" | "/studio/:slug/videos" | "/studio/:slug/website/pages" | "/studio/:slug/appointments" | "/studio/:slug/appointments/calendar" | "/studio/:slug/memberships" | "/studio/:slug/challenges" | "/studio/:slug/instructor" | "/studio/:slug/instructor/schedule" | "/studio/:slug/instructor/payroll" | "/studio/:slug/onboarding" | "/studio/:slug/analytics" | "/studio/:slug/analytics/projections" | "/studio/:slug/analytics/attendance" | "/studio/:slug/analytics/financials" | "/studio/:slug/analytics/reports" | "/studio/:slug/analytics/custom" | "/studio/:slug/dashboard" | "/studio/:slug/discounts" | "/studio/:slug/inventory" | "/studio/:slug/marketing" | "/studio/:slug/marketing/automations" | "/studio/:slug/marketing/referrals" | "/studio/:slug/branding" | "/studio/:slug/checkout" | "/studio/:slug/checkout/return" | "/studio/:slug/finances" | "/studio/:slug/progress" | "/studio/:slug/schedule" | "/studio/:slug/settings" | "/studio/:slug/settings/appointments" | "/studio/:slug/settings/integrations" | "/studio/:slug/settings/tags-fields" | "/studio/:slug/settings/developers" | "/studio/:slug/settings/locations" | "/studio/:slug/settings/activity" | "/studio/:slug/settings/branding" | "/studio/:slug/settings/hardware" | "/studio/:slug/settings/progress" | "/studio/:slug/settings/billing" | "/studio/:slug/settings/addons" | "/studio/:slug/settings/domain" | "/studio/:slug/settings/embeds" | "/studio/:slug/settings/mobile" | "/studio/:slug/settings/roles" | "/studio/:slug/settings/staff" | "/studio/:slug/settings/chat" | "/studio/:slug/settings/qr" | "/studio/:slug/students" | "/studio/:slug/students/:id" | "/studio/:slug/checkin" | "/studio/:slug/classes" | "/studio/:slug/classes/:classId/live" | "/studio/:slug/classes/:id/roster" | "/studio/:slug/loyalty" | "/studio/:slug/profile" | "/studio/:slug/reports" | "/studio/:slug/reports/advanced" | "/studio/:slug/waivers" | "/studio/:slug/waivers/new" | "/studio/:slug/retail" | "/studio/:slug/leads" | "/studio/:slug/tasks" | "/studio/:slug/chat" | "/studio/:slug/chat/:roomId" | "/studio/:slug/data" | "/studio/:slug/data/export" | "/studio/:slug/data/import" | "/studio/:slug/pos" | "/waiver/:slug" | "/embed/:slug" | "/embed/:slug/calendar" | "/embed/:slug/pricing" | "/embed/:slug/book" | "/embed/:slug/chat" | "/embed/:slug/shop" | "/kiosk/:slug" | "/kiosk/:slug/login" | "/kiosk/:slug/mode" | "/:pageSlug" | "/dashboard" | "/dashboard/classes" | "/dashboard/classes/:id/roster" | "/dashboard/classes/:id/watch" | "/dashboard/profile" | "/debug-ssr" | "/sign-in/*" | "/sign-up/*" | "/features" | "/admin" | "/admin/website/edit/:pageId" | "/admin/communications/logs" | "/admin/coupons" | "/admin/website" | "/admin/users/:userId" | "/admin/architecture" | "/admin/chat/:roomId" | "/admin/users" | "/admin/chat" | "/admin/diagnostics" | "/admin/diagnostics/run" | "/admin/projections" | "/admin/financials" | "/admin/financials/failed" | "/admin/workflows" | "/admin/features" | "/admin/backups" | "/admin/tenants" | "/admin/emails" | "/admin/mobile" | "/admin/status" | "/admin/videos" | "/admin/comms" | "/admin/plans" | "/admin/faqs" | "/admin/logs" | "/admin/ops";
+    page: "/" | "/site/:slug/:pageSlug" | "/site/:slug" | "/pricing/compare" | "/pricing" | "/:slug/support" | "/accept-invite" | "/create-studio" | "/documentation" | "/documentation/platform/architecture" | "/documentation/guides/class-packs" | "/documentation/platform/courses" | "/documentation/platform/tenants" | "/documentation/studio/analytics" | "/documentation/studio/overview" | "/documentation/mobile-builder" | "/documentation/guides/waiver" | "/documentation/studio/portal" | "/documentation/migration" | "/documentation/commerce" | "/documentation/classes" | "/documentation/courses" | "/documentation/reports" | "/documentation/website" | "/documentation/setup" | "/documentation/team" | "/documentation/crm" | "/sitemap.xml" | "/portal/:slug" | "/portal/:slug/courses/:courseSlug" | "/portal/:slug/courses/:courseSlug/certificate" | "/portal/:slug/memberships" | "/portal/:slug/courses" | "/portal/:slug/referrals" | "/portal/:slug/classes" | "/portal/:slug/history" | "/portal/:slug/profile" | "/portal/:slug/packs" | "/robots.txt" | "/studio/:slug" | "/studio/:slug/videos/collections/:id" | "/studio/:slug/website/editor/:pageId" | "/studio/:slug/classes/:classId/live" | "/studio/:slug/financials/my-payouts" | "/studio/:slug/videos/edit/:videoId" | "/studio/:slug/commerce/gift-cards" | "/studio/:slug/memberships/:planId" | "/studio/:slug/classes/:id/roster" | "/studio/:slug/commerce/referrals" | "/studio/:slug/financials/payroll" | "/studio/:slug/memberships" | "/studio/:slug/financials" | "/studio/:slug/commerce/coupons" | "/studio/:slug/commerce/wizard" | "/studio/:slug/classes" | "/studio/:slug/commerce/packs" | "/studio/:slug/courses" | "/studio/:slug/substitutions" | "/studio/:slug/videos" | "/studio/:slug/website/pages" | "/studio/:slug/appointments" | "/studio/:slug/appointments/calendar" | "/studio/:slug/courses/:id" | "/studio/:slug/challenges" | "/studio/:slug/instructor" | "/studio/:slug/instructor/schedule" | "/studio/:slug/instructor/payroll" | "/studio/:slug/onboarding" | "/studio/:slug/analytics" | "/studio/:slug/analytics/enrollments" | "/studio/:slug/analytics/projections" | "/studio/:slug/analytics/attendance" | "/studio/:slug/analytics/financials" | "/studio/:slug/analytics/reports" | "/studio/:slug/analytics/custom" | "/studio/:slug/dashboard" | "/studio/:slug/discounts" | "/studio/:slug/inventory" | "/studio/:slug/marketing" | "/studio/:slug/marketing/automations" | "/studio/:slug/marketing/referrals" | "/studio/:slug/branding" | "/studio/:slug/checkout" | "/studio/:slug/checkout/return" | "/studio/:slug/finances" | "/studio/:slug/progress" | "/studio/:slug/schedule" | "/studio/:slug/settings" | "/studio/:slug/settings/appointments" | "/studio/:slug/settings/integrations" | "/studio/:slug/settings/tags-fields" | "/studio/:slug/settings/developers" | "/studio/:slug/settings/locations" | "/studio/:slug/settings/activity" | "/studio/:slug/settings/branding" | "/studio/:slug/settings/hardware" | "/studio/:slug/settings/progress" | "/studio/:slug/settings/billing" | "/studio/:slug/settings/addons" | "/studio/:slug/settings/domain" | "/studio/:slug/settings/embeds" | "/studio/:slug/settings/mobile" | "/studio/:slug/settings/roles" | "/studio/:slug/settings/staff" | "/studio/:slug/settings/chat" | "/studio/:slug/settings/qr" | "/studio/:slug/students" | "/studio/:slug/students/:id" | "/studio/:slug/checkin" | "/studio/:slug/loyalty" | "/studio/:slug/profile" | "/studio/:slug/reports" | "/studio/:slug/reports/advanced" | "/studio/:slug/reviews" | "/studio/:slug/waivers" | "/studio/:slug/waivers/new" | "/studio/:slug/retail" | "/studio/:slug/leads" | "/studio/:slug/tasks" | "/studio/:slug/chat" | "/studio/:slug/chat/:roomId" | "/studio/:slug/data" | "/studio/:slug/data/export" | "/studio/:slug/data/import" | "/studio/:slug/pos" | "/waiver/:slug" | "/embed/:slug" | "/embed/:slug/calendar" | "/embed/:slug/pricing" | "/embed/:slug/book" | "/embed/:slug/chat" | "/embed/:slug/shop" | "/kiosk/:slug" | "/kiosk/:slug/login" | "/kiosk/:slug/mode" | "/:pageSlug" | "/dashboard" | "/dashboard/classes" | "/dashboard/classes/:id/roster" | "/dashboard/classes/:id/watch" | "/dashboard/profile" | "/debug-ssr" | "/sign-in/*" | "/sign-up/*" | "/features" | "/admin" | "/admin/website/edit/:pageId" | "/admin/communications/logs" | "/admin/coupons" | "/admin/website" | "/admin/users/:userId" | "/admin/architecture" | "/admin/chat/:roomId" | "/admin/users" | "/admin/chat" | "/admin/diagnostics" | "/admin/diagnostics/run" | "/admin/projections" | "/admin/financials" | "/admin/financials/failed" | "/admin/workflows" | "/admin/bookings" | "/admin/features" | "/admin/backups" | "/admin/tenants" | "/admin/emails" | "/admin/mobile" | "/admin/status" | "/admin/videos" | "/admin/comms" | "/admin/plans" | "/admin/faqs" | "/admin/logs" | "/admin/ops";
   };
   "routes/site.$slug.$pageSlug.tsx": {
     id: "routes/site.$slug.$pageSlug";
@@ -743,7 +816,7 @@ type RouteFiles = {
   };
   "routes/documentation.tsx": {
     id: "routes/documentation";
-    page: "/documentation" | "/documentation/platform/architecture" | "/documentation/guides/class-packs" | "/documentation/platform/tenants" | "/documentation/studio/analytics" | "/documentation/studio/overview" | "/documentation/mobile-builder" | "/documentation/guides/waiver" | "/documentation/studio/portal" | "/documentation/migration" | "/documentation/commerce" | "/documentation/classes" | "/documentation/reports" | "/documentation/website" | "/documentation/setup" | "/documentation/team" | "/documentation/crm";
+    page: "/documentation" | "/documentation/platform/architecture" | "/documentation/guides/class-packs" | "/documentation/platform/courses" | "/documentation/platform/tenants" | "/documentation/studio/analytics" | "/documentation/studio/overview" | "/documentation/mobile-builder" | "/documentation/guides/waiver" | "/documentation/studio/portal" | "/documentation/migration" | "/documentation/commerce" | "/documentation/classes" | "/documentation/courses" | "/documentation/reports" | "/documentation/website" | "/documentation/setup" | "/documentation/team" | "/documentation/crm";
   };
   "routes/documentation.platform.architecture.tsx": {
     id: "routes/documentation.platform.architecture";
@@ -752,6 +825,10 @@ type RouteFiles = {
   "routes/documentation.guides.class-packs.tsx": {
     id: "routes/documentation.guides.class-packs";
     page: "/documentation/guides/class-packs";
+  };
+  "routes/documentation.platform.courses.tsx": {
+    id: "routes/documentation.platform.courses";
+    page: "/documentation/platform/courses";
   };
   "routes/documentation.platform.tenants.tsx": {
     id: "routes/documentation.platform.tenants";
@@ -789,6 +866,10 @@ type RouteFiles = {
     id: "routes/documentation.classes";
     page: "/documentation/classes";
   };
+  "routes/documentation.courses.tsx": {
+    id: "routes/documentation.courses";
+    page: "/documentation/courses";
+  };
   "routes/documentation.reports.tsx": {
     id: "routes/documentation.reports";
     page: "/documentation/reports";
@@ -819,11 +900,35 @@ type RouteFiles = {
   };
   "routes/portal.$slug.tsx": {
     id: "routes/portal.$slug";
-    page: "/portal/:slug" | "/portal/:slug/classes" | "/portal/:slug/profile";
+    page: "/portal/:slug" | "/portal/:slug/courses/:courseSlug" | "/portal/:slug/courses/:courseSlug/certificate" | "/portal/:slug/memberships" | "/portal/:slug/courses" | "/portal/:slug/referrals" | "/portal/:slug/classes" | "/portal/:slug/history" | "/portal/:slug/profile" | "/portal/:slug/packs";
+  };
+  "routes/portal.$slug.courses.$courseSlug.tsx": {
+    id: "routes/portal.$slug.courses.$courseSlug";
+    page: "/portal/:slug/courses/:courseSlug" | "/portal/:slug/courses/:courseSlug/certificate";
+  };
+  "routes/portal.$slug.courses.$courseSlug.certificate.tsx": {
+    id: "routes/portal.$slug.courses.$courseSlug.certificate";
+    page: "/portal/:slug/courses/:courseSlug/certificate";
+  };
+  "routes/portal.$slug.memberships._index.tsx": {
+    id: "routes/portal.$slug.memberships._index";
+    page: "/portal/:slug/memberships";
+  };
+  "routes/portal.$slug.courses._index.tsx": {
+    id: "routes/portal.$slug.courses._index";
+    page: "/portal/:slug/courses";
+  };
+  "routes/portal.$slug.referrals.tsx": {
+    id: "routes/portal.$slug.referrals";
+    page: "/portal/:slug/referrals";
   };
   "routes/portal.$slug.classes.tsx": {
     id: "routes/portal.$slug.classes";
     page: "/portal/:slug/classes";
+  };
+  "routes/portal.$slug.history.tsx": {
+    id: "routes/portal.$slug.history";
+    page: "/portal/:slug/history";
   };
   "routes/portal.$slug.profile.tsx": {
     id: "routes/portal.$slug.profile";
@@ -833,13 +938,17 @@ type RouteFiles = {
     id: "routes/portal.$slug._index";
     page: "/portal/:slug";
   };
+  "routes/portal.$slug.packs.tsx": {
+    id: "routes/portal.$slug.packs";
+    page: "/portal/:slug/packs";
+  };
   "routes/robots[.]txt.ts": {
     id: "routes/robots[.]txt";
     page: "/robots.txt";
   };
   "routes/studio.$slug.tsx": {
     id: "routes/studio.$slug";
-    page: "/studio/:slug" | "/studio/:slug/videos/collections/:id" | "/studio/:slug/website/editor/:pageId" | "/studio/:slug/financials/my-payouts" | "/studio/:slug/videos/edit/:videoId" | "/studio/:slug/commerce/gift-cards" | "/studio/:slug/commerce/referrals" | "/studio/:slug/financials/payroll" | "/studio/:slug/financials" | "/studio/:slug/commerce/coupons" | "/studio/:slug/commerce/wizard" | "/studio/:slug/commerce/packs" | "/studio/:slug/substitutions" | "/studio/:slug/videos" | "/studio/:slug/website/pages" | "/studio/:slug/appointments" | "/studio/:slug/appointments/calendar" | "/studio/:slug/memberships" | "/studio/:slug/challenges" | "/studio/:slug/instructor" | "/studio/:slug/instructor/schedule" | "/studio/:slug/instructor/payroll" | "/studio/:slug/onboarding" | "/studio/:slug/analytics" | "/studio/:slug/analytics/projections" | "/studio/:slug/analytics/attendance" | "/studio/:slug/analytics/financials" | "/studio/:slug/analytics/reports" | "/studio/:slug/analytics/custom" | "/studio/:slug/dashboard" | "/studio/:slug/discounts" | "/studio/:slug/inventory" | "/studio/:slug/marketing" | "/studio/:slug/marketing/automations" | "/studio/:slug/marketing/referrals" | "/studio/:slug/branding" | "/studio/:slug/checkout" | "/studio/:slug/checkout/return" | "/studio/:slug/finances" | "/studio/:slug/progress" | "/studio/:slug/schedule" | "/studio/:slug/settings" | "/studio/:slug/settings/appointments" | "/studio/:slug/settings/integrations" | "/studio/:slug/settings/tags-fields" | "/studio/:slug/settings/developers" | "/studio/:slug/settings/locations" | "/studio/:slug/settings/activity" | "/studio/:slug/settings/branding" | "/studio/:slug/settings/hardware" | "/studio/:slug/settings/progress" | "/studio/:slug/settings/billing" | "/studio/:slug/settings/addons" | "/studio/:slug/settings/domain" | "/studio/:slug/settings/embeds" | "/studio/:slug/settings/mobile" | "/studio/:slug/settings/roles" | "/studio/:slug/settings/staff" | "/studio/:slug/settings/chat" | "/studio/:slug/settings/qr" | "/studio/:slug/students" | "/studio/:slug/students/:id" | "/studio/:slug/checkin" | "/studio/:slug/classes" | "/studio/:slug/classes/:classId/live" | "/studio/:slug/classes/:id/roster" | "/studio/:slug/loyalty" | "/studio/:slug/profile" | "/studio/:slug/reports" | "/studio/:slug/reports/advanced" | "/studio/:slug/waivers" | "/studio/:slug/waivers/new" | "/studio/:slug/retail" | "/studio/:slug/leads" | "/studio/:slug/tasks" | "/studio/:slug/chat" | "/studio/:slug/chat/:roomId" | "/studio/:slug/data" | "/studio/:slug/data/export" | "/studio/:slug/data/import" | "/studio/:slug/pos";
+    page: "/studio/:slug" | "/studio/:slug/videos/collections/:id" | "/studio/:slug/website/editor/:pageId" | "/studio/:slug/classes/:classId/live" | "/studio/:slug/financials/my-payouts" | "/studio/:slug/videos/edit/:videoId" | "/studio/:slug/commerce/gift-cards" | "/studio/:slug/memberships/:planId" | "/studio/:slug/classes/:id/roster" | "/studio/:slug/commerce/referrals" | "/studio/:slug/financials/payroll" | "/studio/:slug/memberships" | "/studio/:slug/financials" | "/studio/:slug/commerce/coupons" | "/studio/:slug/commerce/wizard" | "/studio/:slug/classes" | "/studio/:slug/commerce/packs" | "/studio/:slug/courses" | "/studio/:slug/substitutions" | "/studio/:slug/videos" | "/studio/:slug/website/pages" | "/studio/:slug/appointments" | "/studio/:slug/appointments/calendar" | "/studio/:slug/courses/:id" | "/studio/:slug/challenges" | "/studio/:slug/instructor" | "/studio/:slug/instructor/schedule" | "/studio/:slug/instructor/payroll" | "/studio/:slug/onboarding" | "/studio/:slug/analytics" | "/studio/:slug/analytics/enrollments" | "/studio/:slug/analytics/projections" | "/studio/:slug/analytics/attendance" | "/studio/:slug/analytics/financials" | "/studio/:slug/analytics/reports" | "/studio/:slug/analytics/custom" | "/studio/:slug/dashboard" | "/studio/:slug/discounts" | "/studio/:slug/inventory" | "/studio/:slug/marketing" | "/studio/:slug/marketing/automations" | "/studio/:slug/marketing/referrals" | "/studio/:slug/branding" | "/studio/:slug/checkout" | "/studio/:slug/checkout/return" | "/studio/:slug/finances" | "/studio/:slug/progress" | "/studio/:slug/schedule" | "/studio/:slug/settings" | "/studio/:slug/settings/appointments" | "/studio/:slug/settings/integrations" | "/studio/:slug/settings/tags-fields" | "/studio/:slug/settings/developers" | "/studio/:slug/settings/locations" | "/studio/:slug/settings/activity" | "/studio/:slug/settings/branding" | "/studio/:slug/settings/hardware" | "/studio/:slug/settings/progress" | "/studio/:slug/settings/billing" | "/studio/:slug/settings/addons" | "/studio/:slug/settings/domain" | "/studio/:slug/settings/embeds" | "/studio/:slug/settings/mobile" | "/studio/:slug/settings/roles" | "/studio/:slug/settings/staff" | "/studio/:slug/settings/chat" | "/studio/:slug/settings/qr" | "/studio/:slug/students" | "/studio/:slug/students/:id" | "/studio/:slug/checkin" | "/studio/:slug/loyalty" | "/studio/:slug/profile" | "/studio/:slug/reports" | "/studio/:slug/reports/advanced" | "/studio/:slug/reviews" | "/studio/:slug/waivers" | "/studio/:slug/waivers/new" | "/studio/:slug/retail" | "/studio/:slug/leads" | "/studio/:slug/tasks" | "/studio/:slug/chat" | "/studio/:slug/chat/:roomId" | "/studio/:slug/data" | "/studio/:slug/data/export" | "/studio/:slug/data/import" | "/studio/:slug/pos";
   };
   "routes/studio.$slug.videos.collections.$id.tsx": {
     id: "routes/studio.$slug.videos.collections.$id";
@@ -848,6 +957,10 @@ type RouteFiles = {
   "routes/studio.$slug.website.editor.$pageId.tsx": {
     id: "routes/studio.$slug.website.editor.$pageId";
     page: "/studio/:slug/website/editor/:pageId";
+  };
+  "routes/studio.$slug.classes.$classId.live.tsx": {
+    id: "routes/studio.$slug.classes.$classId.live";
+    page: "/studio/:slug/classes/:classId/live";
   };
   "routes/studio.$slug.financials.my-payouts.tsx": {
     id: "routes/studio.$slug.financials.my-payouts";
@@ -861,6 +974,14 @@ type RouteFiles = {
     id: "routes/studio.$slug.commerce.gift-cards";
     page: "/studio/:slug/commerce/gift-cards";
   };
+  "routes/studio.$slug.memberships.$planId.tsx": {
+    id: "routes/studio.$slug.memberships.$planId";
+    page: "/studio/:slug/memberships/:planId";
+  };
+  "routes/studio.$slug.classes.$id.roster.tsx": {
+    id: "routes/studio.$slug.classes.$id.roster";
+    page: "/studio/:slug/classes/:id/roster";
+  };
   "routes/studio.$slug.commerce.referrals.tsx": {
     id: "routes/studio.$slug.commerce.referrals";
     page: "/studio/:slug/commerce/referrals";
@@ -868,6 +989,10 @@ type RouteFiles = {
   "routes/studio.$slug.financials.payroll.tsx": {
     id: "routes/studio.$slug.financials.payroll";
     page: "/studio/:slug/financials/payroll";
+  };
+  "routes/studio.$slug.memberships._index.tsx": {
+    id: "routes/studio.$slug.memberships._index";
+    page: "/studio/:slug/memberships";
   };
   "routes/studio.$slug.financials._index.tsx": {
     id: "routes/studio.$slug.financials._index";
@@ -881,9 +1006,17 @@ type RouteFiles = {
     id: "routes/studio.$slug.commerce.wizard";
     page: "/studio/:slug/commerce/wizard";
   };
+  "routes/studio.$slug.classes._index.tsx": {
+    id: "routes/studio.$slug.classes._index";
+    page: "/studio/:slug/classes";
+  };
   "routes/studio.$slug.commerce.packs.tsx": {
     id: "routes/studio.$slug.commerce.packs";
     page: "/studio/:slug/commerce/packs";
+  };
+  "routes/studio.$slug.courses._index.tsx": {
+    id: "routes/studio.$slug.courses._index";
+    page: "/studio/:slug/courses";
   };
   "routes/studio.$slug.substitutions.tsx": {
     id: "routes/studio.$slug.substitutions";
@@ -905,9 +1038,9 @@ type RouteFiles = {
     id: "routes/studio.$slug.appointments.calendar";
     page: "/studio/:slug/appointments/calendar";
   };
-  "routes/studio.$slug.memberships.tsx": {
-    id: "routes/studio.$slug.memberships";
-    page: "/studio/:slug/memberships";
+  "routes/studio.$slug.courses.$id.tsx": {
+    id: "routes/studio.$slug.courses.$id";
+    page: "/studio/:slug/courses/:id";
   };
   "routes/studio.$slug.challenges.tsx": {
     id: "routes/studio.$slug.challenges";
@@ -931,7 +1064,11 @@ type RouteFiles = {
   };
   "routes/studio.$slug.analytics.tsx": {
     id: "routes/studio.$slug.analytics";
-    page: "/studio/:slug/analytics" | "/studio/:slug/analytics/projections" | "/studio/:slug/analytics/attendance" | "/studio/:slug/analytics/financials" | "/studio/:slug/analytics/reports" | "/studio/:slug/analytics/custom";
+    page: "/studio/:slug/analytics" | "/studio/:slug/analytics/enrollments" | "/studio/:slug/analytics/projections" | "/studio/:slug/analytics/attendance" | "/studio/:slug/analytics/financials" | "/studio/:slug/analytics/reports" | "/studio/:slug/analytics/custom";
+  };
+  "routes/studio.$slug.analytics.enrollments.tsx": {
+    id: "routes/studio.$slug.analytics.enrollments";
+    page: "/studio/:slug/analytics/enrollments";
   };
   "routes/studio.$slug.analytics.projections.tsx": {
     id: "routes/studio.$slug.analytics.projections";
@@ -1101,22 +1238,6 @@ type RouteFiles = {
     id: "routes/studio.$slug.checkin";
     page: "/studio/:slug/checkin";
   };
-  "routes/studio.$slug.classes.tsx": {
-    id: "routes/studio.$slug.classes";
-    page: "/studio/:slug/classes" | "/studio/:slug/classes/:classId/live" | "/studio/:slug/classes/:id/roster";
-  };
-  "routes/studio.$slug.classes.$classId.live.tsx": {
-    id: "routes/studio.$slug.classes.$classId.live";
-    page: "/studio/:slug/classes/:classId/live";
-  };
-  "routes/studio.$slug.classes.$id.roster.tsx": {
-    id: "routes/studio.$slug.classes.$id.roster";
-    page: "/studio/:slug/classes/:id/roster";
-  };
-  "routes/studio.$slug.classes._index.tsx": {
-    id: "routes/studio.$slug.classes._index";
-    page: "/studio/:slug/classes";
-  };
   "routes/studio.$slug.loyalty.tsx": {
     id: "routes/studio.$slug.loyalty";
     page: "/studio/:slug/loyalty";
@@ -1132,6 +1253,10 @@ type RouteFiles = {
   "routes/studio.$slug.reports.advanced.tsx": {
     id: "routes/studio.$slug.reports.advanced";
     page: "/studio/:slug/reports/advanced";
+  };
+  "routes/studio.$slug.reviews.tsx": {
+    id: "routes/studio.$slug.reviews";
+    page: "/studio/:slug/reviews";
   };
   "routes/studio.$slug.waivers.tsx": {
     id: "routes/studio.$slug.waivers";
@@ -1283,7 +1408,7 @@ type RouteFiles = {
   };
   "routes/admin.tsx": {
     id: "routes/admin";
-    page: "/admin" | "/admin/website/edit/:pageId" | "/admin/communications/logs" | "/admin/coupons" | "/admin/website" | "/admin/users/:userId" | "/admin/architecture" | "/admin/chat/:roomId" | "/admin/users" | "/admin/chat" | "/admin/diagnostics" | "/admin/diagnostics/run" | "/admin/projections" | "/admin/financials" | "/admin/financials/failed" | "/admin/workflows" | "/admin/features" | "/admin/backups" | "/admin/tenants" | "/admin/emails" | "/admin/mobile" | "/admin/status" | "/admin/videos" | "/admin/comms" | "/admin/plans" | "/admin/faqs" | "/admin/logs" | "/admin/ops";
+    page: "/admin" | "/admin/website/edit/:pageId" | "/admin/communications/logs" | "/admin/coupons" | "/admin/website" | "/admin/users/:userId" | "/admin/architecture" | "/admin/chat/:roomId" | "/admin/users" | "/admin/chat" | "/admin/diagnostics" | "/admin/diagnostics/run" | "/admin/projections" | "/admin/financials" | "/admin/financials/failed" | "/admin/workflows" | "/admin/bookings" | "/admin/features" | "/admin/backups" | "/admin/tenants" | "/admin/emails" | "/admin/mobile" | "/admin/status" | "/admin/videos" | "/admin/comms" | "/admin/plans" | "/admin/faqs" | "/admin/logs" | "/admin/ops";
   };
   "routes/admin.website.edit.$pageId.tsx": {
     id: "routes/admin.website.edit.$pageId";
@@ -1344,6 +1469,10 @@ type RouteFiles = {
   "routes/admin.workflows.tsx": {
     id: "routes/admin.workflows";
     page: "/admin/workflows";
+  };
+  "routes/admin.bookings.tsx": {
+    id: "routes/admin.bookings";
+    page: "/admin/bookings";
   };
   "routes/admin.features.tsx": {
     id: "routes/admin.features";
@@ -1411,6 +1540,7 @@ type RouteModules = {
   "routes/documentation": typeof import("./app/routes/documentation.tsx");
   "routes/documentation.platform.architecture": typeof import("./app/routes/documentation.platform.architecture.tsx");
   "routes/documentation.guides.class-packs": typeof import("./app/routes/documentation.guides.class-packs.tsx");
+  "routes/documentation.platform.courses": typeof import("./app/routes/documentation.platform.courses.tsx");
   "routes/documentation.platform.tenants": typeof import("./app/routes/documentation.platform.tenants.tsx");
   "routes/documentation.studio.analytics": typeof import("./app/routes/documentation.studio.analytics.tsx");
   "routes/documentation.studio.overview": typeof import("./app/routes/documentation.studio.overview.tsx");
@@ -1420,6 +1550,7 @@ type RouteModules = {
   "routes/documentation.migration": typeof import("./app/routes/documentation.migration.tsx");
   "routes/documentation.commerce": typeof import("./app/routes/documentation.commerce.tsx");
   "routes/documentation.classes": typeof import("./app/routes/documentation.classes.tsx");
+  "routes/documentation.courses": typeof import("./app/routes/documentation.courses.tsx");
   "routes/documentation.reports": typeof import("./app/routes/documentation.reports.tsx");
   "routes/documentation.website": typeof import("./app/routes/documentation.website.tsx");
   "routes/documentation._index": typeof import("./app/routes/documentation._index.tsx");
@@ -1428,34 +1559,48 @@ type RouteModules = {
   "routes/documentation.crm": typeof import("./app/routes/documentation.crm.tsx");
   "routes/sitemap[.]xml": typeof import("./app/routes/sitemap[.]xml.ts");
   "routes/portal.$slug": typeof import("./app/routes/portal.$slug.tsx");
+  "routes/portal.$slug.courses.$courseSlug": typeof import("./app/routes/portal.$slug.courses.$courseSlug.tsx");
+  "routes/portal.$slug.courses.$courseSlug.certificate": typeof import("./app/routes/portal.$slug.courses.$courseSlug.certificate.tsx");
+  "routes/portal.$slug.memberships._index": typeof import("./app/routes/portal.$slug.memberships._index.tsx");
+  "routes/portal.$slug.courses._index": typeof import("./app/routes/portal.$slug.courses._index.tsx");
+  "routes/portal.$slug.referrals": typeof import("./app/routes/portal.$slug.referrals.tsx");
   "routes/portal.$slug.classes": typeof import("./app/routes/portal.$slug.classes.tsx");
+  "routes/portal.$slug.history": typeof import("./app/routes/portal.$slug.history.tsx");
   "routes/portal.$slug.profile": typeof import("./app/routes/portal.$slug.profile.tsx");
   "routes/portal.$slug._index": typeof import("./app/routes/portal.$slug._index.tsx");
+  "routes/portal.$slug.packs": typeof import("./app/routes/portal.$slug.packs.tsx");
   "routes/robots[.]txt": typeof import("./app/routes/robots[.]txt.ts");
   "routes/studio.$slug": typeof import("./app/routes/studio.$slug.tsx");
   "routes/studio.$slug.videos.collections.$id": typeof import("./app/routes/studio.$slug.videos.collections.$id.tsx");
   "routes/studio.$slug.website.editor.$pageId": typeof import("./app/routes/studio.$slug.website.editor.$pageId.tsx");
+  "routes/studio.$slug.classes.$classId.live": typeof import("./app/routes/studio.$slug.classes.$classId.live.tsx");
   "routes/studio.$slug.financials.my-payouts": typeof import("./app/routes/studio.$slug.financials.my-payouts.tsx");
   "routes/studio.$slug.videos.edit.$videoId": typeof import("./app/routes/studio.$slug.videos.edit.$videoId.tsx");
   "routes/studio.$slug.commerce.gift-cards": typeof import("./app/routes/studio.$slug.commerce.gift-cards.tsx");
+  "routes/studio.$slug.memberships.$planId": typeof import("./app/routes/studio.$slug.memberships.$planId.tsx");
+  "routes/studio.$slug.classes.$id.roster": typeof import("./app/routes/studio.$slug.classes.$id.roster.tsx");
   "routes/studio.$slug.commerce.referrals": typeof import("./app/routes/studio.$slug.commerce.referrals.tsx");
   "routes/studio.$slug.financials.payroll": typeof import("./app/routes/studio.$slug.financials.payroll.tsx");
+  "routes/studio.$slug.memberships._index": typeof import("./app/routes/studio.$slug.memberships._index.tsx");
   "routes/studio.$slug.financials._index": typeof import("./app/routes/studio.$slug.financials._index.tsx");
   "routes/studio.$slug.commerce.coupons": typeof import("./app/routes/studio.$slug.commerce.coupons.tsx");
   "routes/studio.$slug.commerce.wizard": typeof import("./app/routes/studio.$slug.commerce.wizard.tsx");
+  "routes/studio.$slug.classes._index": typeof import("./app/routes/studio.$slug.classes._index.tsx");
   "routes/studio.$slug.commerce.packs": typeof import("./app/routes/studio.$slug.commerce.packs.tsx");
+  "routes/studio.$slug.courses._index": typeof import("./app/routes/studio.$slug.courses._index.tsx");
   "routes/studio.$slug.substitutions": typeof import("./app/routes/studio.$slug.substitutions.tsx");
   "routes/studio.$slug.videos._index": typeof import("./app/routes/studio.$slug.videos._index.tsx");
   "routes/studio.$slug.website.pages": typeof import("./app/routes/studio.$slug.website.pages.tsx");
   "routes/studio.$slug.appointments": typeof import("./app/routes/studio.$slug.appointments.tsx");
   "routes/studio.$slug.appointments.calendar": typeof import("./app/routes/studio.$slug.appointments.calendar.tsx");
-  "routes/studio.$slug.memberships": typeof import("./app/routes/studio.$slug.memberships.tsx");
+  "routes/studio.$slug.courses.$id": typeof import("./app/routes/studio.$slug.courses.$id.tsx");
   "routes/studio.$slug.challenges": typeof import("./app/routes/studio.$slug.challenges.tsx");
   "routes/studio.$slug.instructor": typeof import("./app/routes/studio.$slug.instructor.tsx");
   "routes/studio.$slug.instructor.schedule": typeof import("./app/routes/studio.$slug.instructor.schedule.tsx");
   "routes/studio.$slug.instructor.payroll": typeof import("./app/routes/studio.$slug.instructor.payroll.tsx");
   "routes/studio.$slug.onboarding": typeof import("./app/routes/studio.$slug.onboarding.tsx");
   "routes/studio.$slug.analytics": typeof import("./app/routes/studio.$slug.analytics.tsx");
+  "routes/studio.$slug.analytics.enrollments": typeof import("./app/routes/studio.$slug.analytics.enrollments.tsx");
   "routes/studio.$slug.analytics.projections": typeof import("./app/routes/studio.$slug.analytics.projections.tsx");
   "routes/studio.$slug.analytics.attendance": typeof import("./app/routes/studio.$slug.analytics.attendance.tsx");
   "routes/studio.$slug.analytics.financials": typeof import("./app/routes/studio.$slug.analytics.financials.tsx");
@@ -1498,14 +1643,11 @@ type RouteModules = {
   "routes/studio.$slug.students._index": typeof import("./app/routes/studio.$slug.students._index.tsx");
   "routes/studio.$slug.students.$id": typeof import("./app/routes/studio.$slug.students.$id.tsx");
   "routes/studio.$slug.checkin": typeof import("./app/routes/studio.$slug.checkin.tsx");
-  "routes/studio.$slug.classes": typeof import("./app/routes/studio.$slug.classes.tsx");
-  "routes/studio.$slug.classes.$classId.live": typeof import("./app/routes/studio.$slug.classes.$classId.live.tsx");
-  "routes/studio.$slug.classes.$id.roster": typeof import("./app/routes/studio.$slug.classes.$id.roster.tsx");
-  "routes/studio.$slug.classes._index": typeof import("./app/routes/studio.$slug.classes._index.tsx");
   "routes/studio.$slug.loyalty": typeof import("./app/routes/studio.$slug.loyalty.tsx");
   "routes/studio.$slug.profile": typeof import("./app/routes/studio.$slug.profile.tsx");
   "routes/studio.$slug.reports": typeof import("./app/routes/studio.$slug.reports.tsx");
   "routes/studio.$slug.reports.advanced": typeof import("./app/routes/studio.$slug.reports.advanced.tsx");
+  "routes/studio.$slug.reviews": typeof import("./app/routes/studio.$slug.reviews.tsx");
   "routes/studio.$slug.waivers": typeof import("./app/routes/studio.$slug.waivers.tsx");
   "routes/studio.$slug.waivers._index": typeof import("./app/routes/studio.$slug.waivers._index.tsx");
   "routes/studio.$slug.waivers.new": typeof import("./app/routes/studio.$slug.waivers.new.tsx");
@@ -1559,6 +1701,7 @@ type RouteModules = {
   "routes/admin.financials": typeof import("./app/routes/admin.financials.tsx");
   "routes/admin.financials.failed": typeof import("./app/routes/admin.financials.failed.tsx");
   "routes/admin.workflows": typeof import("./app/routes/admin.workflows.tsx");
+  "routes/admin.bookings": typeof import("./app/routes/admin.bookings.tsx");
   "routes/admin.features": typeof import("./app/routes/admin.features.tsx");
   "routes/admin.backups": typeof import("./app/routes/admin.backups.tsx");
   "routes/admin.tenants": typeof import("./app/routes/admin.tenants.tsx");

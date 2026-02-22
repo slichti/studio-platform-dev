@@ -16,9 +16,6 @@ type Matches = [{
   id: "routes/studio.$slug";
   module: typeof import("../studio.$slug.js");
 }, {
-  id: "routes/studio.$slug.classes";
-  module: typeof import("../studio.$slug.classes.js");
-}, {
   id: "routes/studio.$slug.classes.$id.roster";
   module: typeof import("../studio.$slug.classes.$id.roster.js");
 }];
