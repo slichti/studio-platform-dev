@@ -388,11 +388,64 @@ When `BookingService.promoteNextInLine` ran, it dispatched the `waitlist_promote
 
 **Files**: `packages/api/src/routes/bookings.ts`, `apps/web/app/routes/portal.$slug.history.tsx`
 
-**API** (`GET /bookings/history/export`):
-- New endpoint that returns all past bookings for the authenticated member as a CSV download.
-- Columns: Date, Time, Class, Duration (min), Status, Attendance Type, Checked In At.
-- Returns `Content-Type: text/csv` with `Content-Disposition: attachment` header.
-- No pagination limit (returns full history).
-
 **Portal UI**: "Export CSV" button in the history page header triggers a fetch with auth token, converts response to a Blob, and downloads via a temporary `<a>` element. Shows loading state while exporting.
+
+---
+
+## 🎯 Tier 4 Feature Completion (Feb 2026 — Session 7)
+
+### Summary
+Tier 4 focused on **Retention & Growth Engine** mechanisms. These capabilities automate high-touch studio management workflows to boost re-engagement and streamline expansion.
+
+### 1. Waitlist Automation
+- Implemented smart waitlists that auto-promote the next available student when a confirmed booking cancels.
+- Real-time DB locking via `D1.batch` ensures atomic promotions without double-booking over capacity.
+- Automatic email dispatch built into the Booking Service (`sendBuiltInWaitlistPromotion`).
+
+### 2. Gift Cards
+- **Backend API**: Full CRUD for gift cards (`POST /gift-cards`), including Stripe checkout integration for direct consumer purchases, plus admin balance loading/draining.
+- **Portal UI**: Added a user-facing gift card balance application to the checkout flow.
+- Admin UI for viewing generated codes, transaction history, and unused balances.
+
+### 3. Quick Start Wizard
+- A dynamic, step-by-step generic onboarding flow for new studio sign-ups.
+- Walks owners through: Stripe Connect onboarding, Schedule creation, Waiver setup, and Custom Domain routing.
+- Validates each step dynamically (e.g., checks `stripeDetailsSubmitted` flag in real-time).
+
+### 4. CRM Pipeline
+- Introduced `leads` table for managing prospects before they convert to full members.
+- Added `/leads` API routes and a Kanban-style CRM board in the studio admin dashboard.
+- Statuses: New -> Contacted -> Trialing -> Converted -> Lost. Includes activity timeline tracking.
+
+### 5. Gamified Loyalty Challenges
+- Built `challenges` and `user_challenges` to track student engagement (e.g., "Take 10 classes in August").
+- Supports three types: `count` (total classes), `streak` (consecutive days/weeks), and `minutes` (total duration).
+- Integration test suite ensuring progress accumulation, goal thresholds, and automated reward issuance (e.g., "$10 Retail Credit").
+
+---
+
+## 🎯 Tier 5 & System Polish Completion (Feb 2026 — Session 8)
+
+### Summary
+Tier 5 finalized the core architecture by focusing on **External Integrations, Performance Optimization, and System Resilience**.
+
+### 1. Advanced Payroll & Refunds
+- **Payroll**: Added Net GMV percentage models, calculating instructor cuts *after* Stripe fees are processed (`POST /payroll/calculate`).
+- **Partial Refunds**: Synchronized Stripe refund webhooks with internal `purchased_packs` remaining credits; built credit-reversal logic.
+- **PDF Generation**: Added Puppeteer/HTML-based PDF export (`GET /reports/scheduled/:id/pdf`) for business intelligence drops.
+
+### 2. Webhooks & Svix Integration
+- **Platform Webhooks**: Built a fully signed, scalable webhook dispatcher using the **Svix** service wrapper.
+- Automatic Svix Application provisioning on new tenant creation (`POST /studio`).
+- **Events Supported**: `booking.created/cancelled/checked_in`, `member.created`, `payment.failed/succeeded`, `pack.purchased`, `subscription.created/updated/deleted`.
+- **SSO UI**: Admin access to Svix App Portal via `GET /portal` for tenant webhook subscription management.
+
+### 3. System Resilience (Anti-N+1 & Indexing)
+- **Database Indices**: Added complex composite indexes to `pos_orders (tenant_id, created_at)` and `subscriptions (tenant_id, status)` for immediate sub-50ms sorts.
+- **Bulk Scheduling Rewrite**: Refactored `ConflictService` to use a global time-window batch fetch, eliminating N+1 repeated queries when verifying 100+ recurring class inserts simultaneously.
+
+### 4. Mobile Polish
+- Replaced generic UUID generation with native WebCrypto APIs for edge environment compatibility.
+- Streamlined `Expo` haptics and Native Sharing sheets (Refer & Earn) for iOS and Android bridging.
+- Fixed complex hydration bugs caused by React 18 hydration mismatches with localized timestamp dates on client vs server rendering.
 
