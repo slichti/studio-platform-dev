@@ -88,7 +88,7 @@ app.openapi(createTagRoute, async (c) => {
     try {
         const tenant = c.get('tenant');
         if (!tenant) throw new Error('Tenant context missing');
-        if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
+        if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403 as any);
 
         const db = createDb(c.env.DB);
         const { name, color, description } = c.req.valid('json');
@@ -148,7 +148,7 @@ app.openapi(updateTagRoute, async (c) => {
     try {
         const tenant = c.get('tenant');
         if (!tenant) throw new Error('Tenant context missing');
-        if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
+        if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403 as any);
 
         const db = createDb(c.env.DB);
         const { id } = c.req.valid('param');
@@ -199,7 +199,7 @@ app.openapi(deleteTagRoute, async (c) => {
     try {
         const tenant = c.get('tenant');
         if (!tenant) throw new Error('Tenant context missing');
-        if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
+        if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403 as any);
 
         const db = createDb(c.env.DB);
         const { id } = c.req.valid('param');
@@ -249,7 +249,7 @@ const assignTagRoute = createRoute({
 
 app.openapi(assignTagRoute, async (c) => {
     try {
-        if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
+        if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403 as any);
         const db = createDb(c.env.DB);
         const { tagId, targetId, targetType } = c.req.valid('json');
 
@@ -299,7 +299,7 @@ const unassignTagRoute = createRoute({
 
 app.openapi(unassignTagRoute, async (c) => {
     try {
-        if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
+        if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403 as any);
         const db = createDb(c.env.DB);
         const { tagId, targetId, targetType } = c.req.valid('json');
 
