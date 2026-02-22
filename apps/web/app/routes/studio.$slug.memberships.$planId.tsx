@@ -4,32 +4,105 @@ import { useAuth } from "@clerk/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-    ArrowLeft, Loader2, Users, DollarSign, Calendar, TrendingUp,
-    Copy, ExternalLink, MoreVertical, Edit, Trash2, Share2, Eye, FileText,
-    CheckCircle2, XCircle, MoreHorizontal, Link as LinkIcon
+    ArrowLeft, Loader2, Users, DollarSign, TrendingUp,
+    Copy, Edit, Trash2, Eye, MoreHorizontal
 } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/components/ui/Card";
 import { Badge } from "~/components/ui/Badge";
 import { ComponentErrorBoundary } from "~/components/ErrorBoundary";
-import { Switch } from "~/components/ui/switch";
 import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "~/components/ui/DropdownMenu";
+import { ConfirmationDialog } from "~/components/Dialogs";
+import { PlanModal } from "~/components/PlanModal";
 
 import { usePlans, useSubscriptions, type Plan } from "~/hooks/useMemberships";
+import { apiRequest } from "~/utils/api";
 import { getTenantUrl } from "~/utils/domain";
 
 export default function MembershipPlanDetailPage() {
     const { slug, planId } = useParams();
     const { tenant } = useOutletContext<{ tenant: any }>();
+    const { getToken } = useAuth();
+    const queryClient = useQueryClient();
 
     // Data
     const { data: plans = [], isLoading: isLoadingPlans } = usePlans(slug!);
     const { data: subscriptions = [], isLoading: isLoadingSubs } = useSubscriptions(slug!, planId);
 
     const plan = plans.find(p => p.id === planId);
+
+    // Edit / Duplicate / Delete state
+    const [isEditOpen, setIsEditOpen] = useState(false);
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const refresh = () => queryClient.invalidateQueries({ queryKey: ['plans', slug] });
+
+    const handleSave = async (data: any, id?: string) => {
+        setIsSubmitting(true);
+        try {
+            const token = await getToken();
+            await apiRequest(`/memberships/plans/${id}`, token, {
+                method: "PATCH",
+                headers: { 'X-Tenant-Slug': slug! },
+                body: JSON.stringify(data)
+            });
+            toast.success("Plan updated");
+            refresh();
+            setIsEditOpen(false);
+        } catch (e: any) {
+            toast.error(e.message || "Failed to save plan");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleDuplicate = async () => {
+        if (!plan) return;
+        setIsSubmitting(true);
+        try {
+            const token = await getToken();
+            await apiRequest("/memberships/plans", token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': slug! },
+                body: JSON.stringify({
+                    name: `${plan.name} (Copy)`,
+                    price: plan.price,
+                    interval: plan.interval,
+                    description: plan.description,
+                    imageUrl: plan.imageUrl,
+                    overlayTitle: plan.overlayTitle,
+                    overlaySubtitle: plan.overlaySubtitle,
+                    vodEnabled: plan.vodEnabled
+                })
+            });
+            toast.success("Plan duplicated");
+            refresh();
+        } catch (e: any) {
+            toast.error(e.message || "Failed to duplicate plan");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!plan) return;
+        try {
+            const token = await getToken();
+            await apiRequest(`/memberships/plans/${plan.id}`, token, {
+                method: "DELETE",
+                headers: { 'X-Tenant-Slug': slug! }
+            });
+            toast.success("Plan deleted");
+            refresh();
+        } catch (e: any) {
+            toast.error(e.message || "Failed to delete plan");
+        } finally {
+            setIsDeleteOpen(false);
+        }
+    };
 
     // Initial Loading State
     if (isLoadingPlans) {
@@ -71,10 +144,10 @@ export default function MembershipPlanDetailPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => window.open(`/portal/${slug}/checkout?planId=${plan.id}`, '_blank')}>
+                        <Button variant="outline" size="sm" onClick={() => window.open(`/studio/${slug}/checkout?planId=${plan.id}`, '_blank')}>
                             <Eye className="w-4 h-4 mr-2" /> Preview
                         </Button>
-                        <Button variant="default" size="sm">
+                        <Button variant="default" size="sm" onClick={() => setIsEditOpen(true)}>
                             <Edit className="w-4 h-4 mr-2" /> Edit Plan
                         </Button>
                         <DropdownMenu>
@@ -84,10 +157,13 @@ export default function MembershipPlanDetailPage() {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem disabled>
+                                <DropdownMenuItem onClick={handleDuplicate} disabled={isSubmitting}>
                                     <Copy className="w-4 h-4 mr-2" /> Duplicate
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20">
+                                <DropdownMenuItem
+                                    onClick={() => setIsDeleteOpen(true)}
+                                    className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20"
+                                >
                                     <Trash2 className="w-4 h-4 mr-2" /> Delete
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -173,6 +249,25 @@ export default function MembershipPlanDetailPage() {
                 </div>
 
             </div>
+
+            <PlanModal
+                isOpen={isEditOpen}
+                plan={plan}
+                onClose={() => setIsEditOpen(false)}
+                onSave={handleSave}
+                isSubmitting={isSubmitting}
+                tenantSlug={slug!}
+            />
+
+            <ConfirmationDialog
+                isOpen={isDeleteOpen}
+                onClose={() => setIsDeleteOpen(false)}
+                onConfirm={handleDelete}
+                title="Delete Membership Plan"
+                message="Are you sure you want to delete this plan? This cannot be undone and may affect existing subscriptions."
+                confirmText="Delete Plan"
+                isDestructive
+            />
         </div>
     );
 }
