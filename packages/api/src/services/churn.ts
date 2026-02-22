@@ -171,11 +171,13 @@ export class ChurnService {
                 if (m && m.user) {
                     await this.automationsService.dispatchTrigger('churn_risk_high', {
                         userId: m.userId,
+                        memberId: m.id,
                         email: m.user.email,
-                        firstName: (m.user.profile as any)?.firstName,
+                        firstName: (m.user.profile as any)?.firstName || 'Friend',
                         data: {
                             churnScore: result.churnScore,
-                            daysAbsent: result.daysSinceLastAttendance
+                            daysAbsent: result.daysSinceLastAttendance,
+                            studioName: 'the studio' // AutomationsService will override this if it fetches tenant
                         }
                     });
                 }

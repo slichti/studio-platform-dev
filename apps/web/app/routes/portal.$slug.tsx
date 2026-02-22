@@ -70,6 +70,7 @@ export default function StudentPortalLayout() {
         { label: "My Packs", icon: Package, to: "packs" },
         { label: "Courses", icon: BookOpen, to: "courses" },
         { label: "Memberships", icon: CreditCard, to: "memberships" },
+        { label: "Refer & Earn", icon: Award, to: "referrals" },
         { label: "My Profile", icon: User, to: "profile" },
     ];
 

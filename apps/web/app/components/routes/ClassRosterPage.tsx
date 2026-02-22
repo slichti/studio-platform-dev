@@ -67,9 +67,23 @@ export default function ClassRosterPageComponent() {
                     <div className="h-6 w-px bg-zinc-300"></div>
                     <h2 className="text-2xl font-bold">Class Roster</h2>
                 </div>
-                <button onClick={() => setAddStudentOpen(true)} className="flex items-center gap-2 bg-zinc-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-zinc-800">
-                    <UserPlus size={16} /> Add Student
-                </button>
+                <div className="flex items-center gap-2">
+                    {confirmedBookings.some(b => !b.checkedInAt) && (
+                        <button
+                            onClick={() => {
+                                if (confirm("Mark all confirmed students as present?")) {
+                                    fetcher.submit({ intent: "check_in_all" }, { method: "post" });
+                                }
+                            }}
+                            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 transition-colors"
+                        >
+                            <Check size={16} /> Check-in All
+                        </button>
+                    )}
+                    <button onClick={() => setAddStudentOpen(true)} className="flex items-center gap-2 bg-zinc-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-zinc-800 transition-colors">
+                        <UserPlus size={16} /> Add Student
+                    </button>
+                </div>
             </div>
 
             <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm mb-8">

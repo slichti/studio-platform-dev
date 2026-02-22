@@ -75,6 +75,37 @@ export class FulfillmentService {
                             .where(and(eq(referralCodes.tenantId, metadata.tenantId), eq(referralCodes.userId, pendingReferral.referrerUserId)))
                             .run();
 
+                        // [NEW] Issue Gift Card for the reward
+                        const gcId = crypto.randomUUID();
+                        const gcCode = `REF-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+                        // Find referrer memberId
+                        const referrerMember = await this.db.select({ id: tenantMembers.id }).from(tenantMembers)
+                            .where(and(eq(tenantMembers.userId, pendingReferral.referrerUserId), eq(tenantMembers.tenantId, metadata.tenantId)))
+                            .get();
+
+                        if (referrerMember) {
+                            await this.db.insert(giftCards).values({
+                                id: gcId,
+                                tenantId: metadata.tenantId,
+                                code: gcCode,
+                                initialValue: pendingReferral.amount,
+                                currentBalance: pendingReferral.amount,
+                                recipientMemberId: referrerMember.id,
+                                notes: `Referral Reward for ${metadata.recipientName || 'a friend'}`,
+                                status: 'active',
+                                createdAt: new Date()
+                            }).run();
+
+                            await this.db.insert(giftCardTransactions).values({
+                                id: crypto.randomUUID(),
+                                giftCardId: gcId,
+                                amount: pendingReferral.amount,
+                                type: 'purchase',
+                                createdAt: new Date()
+                            }).run();
+                        }
+
                         // Trigger Automation: referral_conversion_success
                         if (this.env?.RESEND_API_KEY || this.resendApiKey) {
                             const tenant = await this.db.select().from(tenants).where(eq(tenants.id, metadata.tenantId)).get();

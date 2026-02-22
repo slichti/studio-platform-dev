@@ -42,6 +42,15 @@ export const action = async (args: ActionFunctionArgs) => {
         return { success: true };
     }
 
+    if (intent === "check_in_all") {
+        await apiRequest(`/classes/${classId}/check-in-all`, token, {
+            method: "POST",
+            headers: { 'X-Tenant-Slug': params.slug! },
+            body: JSON.stringify({ checkedIn: true })
+        });
+        return { success: true };
+    }
+
     return null;
 };
 
