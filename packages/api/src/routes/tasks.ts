@@ -19,10 +19,16 @@ type TaskCreate = {
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
 // GET /tasks - List tasks
+// Requires manage_marketing unless ?mine=true (own assigned tasks only)
 app.get('/', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     const { status, assignee, leadId, memberId, mine } = c.req.query();
+
+    // Students may only query tasks assigned to themselves
+    if (!c.get('can')('manage_marketing') && mine !== 'true') {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
 
     // Base Select
     let query = db.select({

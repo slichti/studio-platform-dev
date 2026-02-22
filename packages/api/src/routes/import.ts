@@ -3,17 +3,7 @@ import { createDb } from '../db';
 import { tenants, tenantMembers, tenantRoles, users, subscriptions, membershipPlans, purchasedPacks, classPackDefinitions, classes, locations } from '@studio/db/src/schema';
 import { eq, and } from 'drizzle-orm';
 import Papa from 'papaparse';
-
-type Bindings = {
-    DB: D1Database;
-};
-
-type Variables = {
-    auth: {
-        userId: string;
-    };
-    tenant: typeof tenants.$inferSelect;
-}
+import { Bindings, Variables } from '../types';
 
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 
@@ -21,6 +11,7 @@ const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 app.post('/csv', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context required" }, 400);
+    if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
 
     const formData = await c.req.formData();
     const fileEntry = formData.get('file');

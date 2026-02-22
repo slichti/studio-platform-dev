@@ -121,10 +121,12 @@ app.openapi(createRoute({
         200: {
             description: 'List of field values',
             content: { 'application/json': { schema: z.array(CustomFieldValueSchema) } }
-        }
+        },
+        403: { description: 'Unauthorized' }
     }
 }), async (c) => {
     const db = createDb(c.env.DB);
+    if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403 as any);
     const { targetId } = c.req.valid('param');
     const values = await db.select().from(customFieldValues).where(eq(customFieldValues.targetId, targetId)).all();
     return c.json(values as any[]);
