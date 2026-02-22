@@ -188,6 +188,7 @@ app.get('/my-active', async (c) => {
         currentPeriodEnd: subscriptions.currentPeriodEnd,
         stripeSubscriptionId: subscriptions.stripeSubscriptionId,
         canceledAt: subscriptions.canceledAt,
+        pausedUntil: subscriptions.pausedUntil,
         createdAt: subscriptions.createdAt,
         plan: {
             id: membershipPlans.id,
@@ -213,6 +214,8 @@ app.get('/my-active', async (c) => {
         nextBillingDate: r.currentPeriodEnd,
         stripeSubscriptionId: r.stripeSubscriptionId,
         canceledAt: r.canceledAt,
+        pausedUntil: r.pausedUntil,
+        isPaused: r.pausedUntil ? new Date(r.pausedUntil) > new Date() : false,
         createdAt: r.createdAt,
         plan: r.plan,
     })));
@@ -252,6 +255,90 @@ app.post('/subscriptions/:id/cancel', async (c) => {
     await db.update(subscriptions)
         .set({ status: 'canceled', canceledAt: new Date() })
         .where(eq(subscriptions.id, subscriptionId));
+
+    return c.json({ success: true });
+});
+
+/**
+ * Pause a subscription for a set duration (vacation freeze).
+ * Tells Stripe to stop collecting payment; access is still granted until period end.
+ * Students can pause their own; admins can pause any.
+ */
+app.post('/subscriptions/:id/pause', async (c) => {
+    if (!c.get('auth')?.userId) return c.json({ error: 'Unauthorized' }, 401);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+    const userId = c.get('auth')!.userId;
+    const subscriptionId = c.req.param('id');
+    const canManage = c.get('can')('manage_commerce');
+
+    const body = await c.req.json().catch(() => ({ months: 1 })) as { months?: number };
+    const months = Math.min(Math.max(Number(body?.months ?? 1), 1), 6); // 1–6 months
+
+    const sub = await db.select().from(subscriptions)
+        .where(and(
+            eq(subscriptions.id, subscriptionId),
+            eq(subscriptions.tenantId, tenant.id),
+            !canManage ? eq(subscriptions.userId, userId) : undefined
+        ))
+        .get();
+
+    if (!sub) return c.json({ error: 'Subscription not found' }, 404);
+    if (sub.status === 'canceled') return c.json({ error: 'Canceled subscriptions cannot be paused' }, 400);
+    if (sub.pausedUntil && sub.pausedUntil > new Date()) return c.json({ error: 'Subscription is already paused' }, 400);
+
+    const resumeAt = new Date();
+    resumeAt.setMonth(resumeAt.getMonth() + months);
+    const resumeAtEpoch = Math.floor(resumeAt.getTime() / 1000);
+
+    // Pause in Stripe — void invoices during pause window
+    if (sub.stripeSubscriptionId && tenant.stripeAccountId) {
+        const { StripeService } = await import('../services/stripe');
+        const stripe = new StripeService(c.env.STRIPE_SECRET_KEY as string);
+        await stripe.pauseSubscription(sub.stripeSubscriptionId, resumeAtEpoch, tenant.stripeAccountId);
+    }
+
+    await db.update(subscriptions)
+        .set({ pausedUntil: resumeAt })
+        .where(eq(subscriptions.id, subscriptionId))
+        .run();
+
+    return c.json({ success: true, resumesAt: resumeAt.toISOString() });
+});
+
+/**
+ * Resume a paused subscription immediately.
+ */
+app.post('/subscriptions/:id/resume', async (c) => {
+    if (!c.get('auth')?.userId) return c.json({ error: 'Unauthorized' }, 401);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+    const userId = c.get('auth')!.userId;
+    const subscriptionId = c.req.param('id');
+    const canManage = c.get('can')('manage_commerce');
+
+    const sub = await db.select().from(subscriptions)
+        .where(and(
+            eq(subscriptions.id, subscriptionId),
+            eq(subscriptions.tenantId, tenant.id),
+            !canManage ? eq(subscriptions.userId, userId) : undefined
+        ))
+        .get();
+
+    if (!sub) return c.json({ error: 'Subscription not found' }, 404);
+    if (!sub.pausedUntil) return c.json({ error: 'Subscription is not paused' }, 400);
+
+    // Resume in Stripe — remove pause_collection
+    if (sub.stripeSubscriptionId && tenant.stripeAccountId) {
+        const { StripeService } = await import('../services/stripe');
+        const stripe = new StripeService(c.env.STRIPE_SECRET_KEY as string);
+        await stripe.resumeSubscription(sub.stripeSubscriptionId, tenant.stripeAccountId);
+    }
+
+    await db.update(subscriptions)
+        .set({ pausedUntil: null })
+        .where(eq(subscriptions.id, subscriptionId))
+        .run();
 
     return c.json({ success: true });
 });

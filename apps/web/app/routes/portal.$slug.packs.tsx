@@ -2,9 +2,11 @@ import { useLoaderData, useOutletContext, Link } from "react-router";
 import type { LoaderFunctionArgs } from "react-router";
 import { getAuth } from "~/utils/auth-wrapper.server";
 import { apiRequest } from "~/utils/api";
-import { Package, ShoppingCart, Clock, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Package, ShoppingCart, Clock, CheckCircle2, AlertTriangle, Tag, X, CheckCircle } from "lucide-react";
 import { format, isPast } from "date-fns";
 import { cn } from "~/utils/cn";
+import { useState, useRef } from "react";
+import { useAuth } from "@clerk/react-router";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken } = await getAuth(args);
@@ -28,8 +30,105 @@ function formatCents(cents: number) {
     return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
 }
 
+function BuyPackButton({ pack, slug }: { pack: any; slug: string }) {
+    const { getToken } = useAuth();
+    const [showCoupon, setShowCoupon] = useState(false);
+    const [couponCode, setCouponCode] = useState("");
+    const [couponState, setCouponState] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
+    const [couponDiscount, setCouponDiscount] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    const validateCoupon = async () => {
+        if (!couponCode.trim()) return;
+        setCouponState("checking");
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/coupons/${couponCode.trim().toUpperCase()}/validate`, token, {
+                headers: { "X-Tenant-Slug": slug }
+            });
+            if (res?.valid) {
+                setCouponState("valid");
+                const discountText = res.type === "percentage"
+                    ? `${res.value}% off`
+                    : `$${(res.value / 100).toFixed(2)} off`;
+                setCouponDiscount(discountText);
+            } else {
+                setCouponState("invalid");
+                setCouponDiscount(null);
+            }
+        } catch {
+            setCouponState("invalid");
+            setCouponDiscount(null);
+        }
+    };
+
+    const handleBuy = async () => {
+        setLoading(true);
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/commerce/checkout/session`, token, {
+                method: "POST",
+                body: JSON.stringify({ packId: pack.id, couponCode: couponState === "valid" ? couponCode.trim().toUpperCase() : undefined }),
+                headers: { "X-Tenant-Slug": slug, "Content-Type": "application/json" }
+            });
+            if (res?.url) window.location.href = res.url;
+        } catch {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="space-y-2">
+            {showCoupon ? (
+                <div className="space-y-2">
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            placeholder="COUPON CODE"
+                            value={couponCode}
+                            onChange={e => { setCouponCode(e.target.value.toUpperCase()); setCouponState("idle"); setCouponDiscount(null); }}
+                            className="flex-1 text-xs uppercase border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg px-3 py-2 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <button
+                            onClick={validateCoupon}
+                            disabled={couponState === "checking" || !couponCode.trim()}
+                            className="text-xs px-3 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-lg font-medium hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50"
+                        >
+                            {couponState === "checking" ? "…" : "Apply"}
+                        </button>
+                        <button onClick={() => { setShowCoupon(false); setCouponCode(""); setCouponState("idle"); setCouponDiscount(null); }} className="text-zinc-400 hover:text-zinc-600">
+                            <X size={15} />
+                        </button>
+                    </div>
+                    {couponState === "valid" && couponDiscount && (
+                        <p className="text-xs text-emerald-600 flex items-center gap-1"><CheckCircle size={11} /> {couponDiscount} applied!</p>
+                    )}
+                    {couponState === "invalid" && (
+                        <p className="text-xs text-red-500">Invalid or expired coupon.</p>
+                    )}
+                </div>
+            ) : (
+                <button
+                    onClick={() => setShowCoupon(true)}
+                    className="text-xs text-indigo-500 hover:underline flex items-center gap-1"
+                >
+                    <Tag size={11} /> Have a coupon code?
+                </button>
+            )}
+            <button
+                onClick={handleBuy}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold transition-colors shadow-sm shadow-indigo-200 dark:shadow-none disabled:opacity-60"
+            >
+                <ShoppingCart size={15} />
+                {loading ? "Redirecting…" : couponState === "valid" ? `Buy Pack (${couponDiscount})` : "Buy Pack"}
+            </button>
+        </div>
+    );
+}
+
 export default function StudentPortalPacks() {
-    const { myPacks, availablePacks } = useLoaderData<typeof loader>();
+    const { myPacks, availablePacks, slug } = useLoaderData<typeof loader>();
     const { tenant } = useOutletContext<any>();
 
     const activePacks = (myPacks as any[]).filter((p: any) => p.status === "active" && p.remainingCredits > 0);
@@ -163,17 +262,11 @@ export default function StudentPortalPacks() {
                                         {pack.expirationDays ? ` · Valid ${pack.expirationDays} days` : ""}
                                     </p>
                                 </div>
-                                <div className="flex items-center justify-between gap-3">
-                                    <span className="text-2xl font-black text-zinc-900 dark:text-zinc-100">
+                                <div>
+                                    <span className="text-2xl font-black text-zinc-900 dark:text-zinc-100 block mb-3">
                                         {formatCents(pack.price)}
                                     </span>
-                                    <Link
-                                        to={`/studio/${tenant?.slug || ""}/checkout?packId=${pack.id}`}
-                                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold transition-colors shadow-sm shadow-indigo-200 dark:shadow-none"
-                                    >
-                                        <ShoppingCart size={15} />
-                                        Buy Pack
-                                    </Link>
+                                    <BuyPackButton pack={pack} slug={slug!} />
                                 </div>
                             </div>
                         ))}

@@ -1,7 +1,8 @@
 
 import { useLoaderData, useOutletContext, Link } from "react-router";
 import { useUser } from "@clerk/react-router";
-import { Users, Calendar, DollarSign, ArrowRight, Activity, TrendingUp, FileSignature, Ticket, Award, Target, Flame, RotateCcw } from "lucide-react";
+import { Users, Calendar, DollarSign, ArrowRight, Activity, TrendingUp, FileSignature, Ticket, Award, Target, Flame, RotateCcw, CheckSquare, Clock } from "lucide-react";
+import { format } from "date-fns";
 import { type loader } from "../../routes/studio.$slug._index";
 
 export default function DashboardPage() {
@@ -145,6 +146,54 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
+            )}
+
+            {/* Today's Quick-View — class occupancy + check-in shortcuts */}
+            {!isStudentView && (stats as any).todayClasses?.length > 0 && (
+                <section className="mb-2">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                            <Clock size={18} className="text-indigo-500" />
+                            Today's Schedule
+                        </h2>
+                        <Link to="checkin" className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+                            Open Check-In →
+                        </Link>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {((stats as any).todayClasses as any[]).map((cls: any) => {
+                            const occupancy = cls.occupancyPct ?? 0;
+                            const barColor = occupancy >= 90 ? "bg-red-500" : occupancy >= 65 ? "bg-amber-500" : "bg-emerald-500";
+                            return (
+                                <div key={cls.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <p className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 truncate">{cls.title}</p>
+                                        <span className="text-xs text-zinc-400 shrink-0">{format(new Date(cls.startTime), "h:mm a")}</span>
+                                    </div>
+                                    {cls.capacity ? (
+                                        <div className="space-y-1">
+                                            <div className="flex justify-between text-xs text-zinc-500">
+                                                <span>{cls.confirmedCount}/{cls.capacity} booked</span>
+                                                <span>{occupancy}%</span>
+                                            </div>
+                                            <div className="h-1.5 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                                <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${Math.min(100, occupancy)}%` }} />
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-zinc-400">{cls.confirmedCount} booked · no cap</p>
+                                    )}
+                                    <Link
+                                        to={`classes/${cls.id}/roster`}
+                                        className="mt-1 flex items-center gap-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+                                    >
+                                        <CheckSquare size={12} /> Check In
+                                    </Link>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </section>
             )}
 
             {/* Dashboard Actions */}

@@ -569,4 +569,25 @@ export class StripeService {
     async deleteCoupon(couponId: string) {
         return this.stripe.coupons.del(couponId);
     }
+
+    /**
+     * Subscription Pause / Resume
+     */
+    async pauseSubscription(stripeSubscriptionId: string, resumeAtEpoch: number, connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        return client.subscriptions.update(
+            stripeSubscriptionId,
+            { pause_collection: { behavior: 'void', resumes_at: resumeAtEpoch } } as any,
+            options
+        );
+    }
+
+    async resumeSubscription(stripeSubscriptionId: string, connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        return client.subscriptions.update(
+            stripeSubscriptionId,
+            { pause_collection: '' as any },
+            options
+        );
+    }
 }

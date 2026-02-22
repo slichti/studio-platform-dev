@@ -368,6 +368,8 @@ function PayrollConfig({ slug }: { slug: string }) {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [formModel, setFormModel] = useState('flat');
     const [formRate, setFormRate] = useState('0');
+    const [formFixedDeduction, setFormFixedDeduction] = useState('0'); // dollars
+    const [formPayoutBasis, setFormPayoutBasis] = useState<'gross' | 'net'>('net');
 
     // Manual Pay State
     const [payModalOpen, setPayModalOpen] = useState(false);
@@ -385,13 +387,16 @@ function PayrollConfig({ slug }: { slug: string }) {
                 rate = Math.round(rate * 100);
             }
 
+            const fixedDeduction = formModel === 'percentage' ? Math.round(parseFloat(formFixedDeduction || '0') * 100) : 0;
             const res = await apiRequest('/payroll/config', token, {
                 method: 'POST',
                 headers: { 'X-Tenant-Slug': slug },
                 body: JSON.stringify({
                     memberId: editingId,
                     payModel: formModel,
-                    rate
+                    rate,
+                    payoutBasis: formPayoutBasis,
+                    fixedDeduction: fixedDeduction > 0 ? fixedDeduction : undefined,
                 })
             });
             if ((res as any).error) throw new Error((res as any).error);
@@ -436,9 +441,14 @@ function PayrollConfig({ slug }: { slug: string }) {
         if (inst.config?.payModel) {
             setFormModel(inst.config.payModel);
             setFormRate((inst.config.rate / 100).toString());
+            setFormPayoutBasis(inst.config.payoutBasis || 'net');
+            const fd = (inst.config.metadata as any)?.fixedDeduction;
+            setFormFixedDeduction(fd ? (fd / 100).toString() : '0');
         } else {
             setFormModel('flat');
             setFormRate('0');
+            setFormFixedDeduction('0');
+            setFormPayoutBasis('net');
         }
     };
 
@@ -510,6 +520,29 @@ function PayrollConfig({ slug }: { slug: string }) {
                                                     </label>
                                                     <Input type="number" step="0.01" value={formRate} onChange={e => setFormRate(e.target.value)} />
                                                 </div>
+                                                {formModel === 'percentage' && (
+                                                    <>
+                                                        <div>
+                                                            <label className="block text-sm font-medium mb-1">Revenue Basis</label>
+                                                            <Select value={formPayoutBasis} onChange={e => setFormPayoutBasis(e.target.value as 'gross' | 'net')} className="w-full border-zinc-300">
+                                                                <option value="gross">Gross Revenue</option>
+                                                                <option value="net">Net Revenue (after Stripe fees)</option>
+                                                            </Select>
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-sm font-medium mb-1">Fixed Room/Fee Deduction ($)</label>
+                                                            <p className="text-xs text-zinc-500 mb-1">Deducted from revenue before applying the % split (e.g. room rental cost).</p>
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                min="0"
+                                                                value={formFixedDeduction}
+                                                                onChange={e => setFormFixedDeduction(e.target.value)}
+                                                                placeholder="0.00"
+                                                            />
+                                                        </div>
+                                                    </>
+                                                )}
                                                 <Button onClick={() => saveConfigMutation.mutate()} className="w-full" disabled={saveConfigMutation.isPending}>
                                                     Save Configuration
                                                 </Button>

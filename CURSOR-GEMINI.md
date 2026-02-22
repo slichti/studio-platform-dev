@@ -216,3 +216,100 @@ All five Tier 1 items from the prior recommendation backlog have been completed.
 - `gte` added to drizzle-orm imports in `integrations.ts`.
 - `format` (date-fns) added to dashboard index and memberships pages.
 - `Receipt`, `Download`, `Bell`, `Clock3`, `Megaphone`, `CalendarX`, `ChevronRight` icons added to portal pages.
+
+---
+
+## 🎯 Tier 2 Feature Completion (Feb 2026 — Session 5)
+
+### Overview
+Tier 2 focused on **Studio Owner Operations + Student Commerce**, implementing five high-value features that close operational gaps identified in the API audit.
+
+---
+
+### 1. Subscription Pause / Vacation Freeze
+
+**Files**: `packages/db/src/schema.ts`, `packages/db/migrations/0006_subscription_pause.sql`, `packages/api/src/routes/memberships.ts`, `packages/api/src/services/stripe.ts`, `apps/web/app/routes/portal.$slug.memberships._index.tsx`
+
+**API**:
+- `POST /memberships/subscriptions/:id/pause` — Accepts `{ months: 1-6 }`. Pauses Stripe `pause_collection` (behavior: `void`), stores `pausedUntil` timestamp in D1.
+- `POST /memberships/subscriptions/:id/resume` — Removes Stripe `pause_collection`, clears `pausedUntil`.
+- `GET /memberships/my-active` now returns `pausedUntil` and `isPaused` boolean.
+
+**Stripe**: Added `pauseSubscription(stripeSubscriptionId, resumeAtEpoch, connectedAccountId?)` and `resumeSubscription(...)` to `StripeService`.
+
+**Schema**: Added `pausedUntil` integer column to `subscriptions` table via migration `0006_subscription_pause.sql`.
+
+**Portal UI** (`portal.$slug.memberships._index.tsx`):
+- Added `action` function handling `pause`, `resume`, `cancel` intents.
+- New `ActiveSubscriptionCard` component: shows pause status with resume date, inline pause duration picker (1/2/3/6 months), animated "Pause" / "Resume" buttons via `useFetcher`.
+
+---
+
+### 2. Coupon Code at Portal Pack Checkout
+
+**Files**: `packages/api/src/routes/coupons.ts`, `apps/web/app/routes/portal.$slug.packs.tsx`
+
+**API**: Added `GET /coupons/:code/validate` endpoint — checks coupon is active, not expired, and within usage limit. Returns `{ valid, type, value }`.
+
+**Portal UI** (`portal.$slug.packs.tsx`):
+- New `BuyPackButton` component replaces the simple `<Link>` buy button.
+- Inline "Have a coupon code?" toggle with uppercase input, Apply button, and real-time validation feedback (valid ✓ / invalid ✗).
+- On purchase, calls `POST /commerce/checkout/session` with `{ packId, couponCode }` and redirects to returned Stripe URL.
+- Uses `useAuth().getToken()` for server-side auth in the client component.
+
+---
+
+### 3. Bulk Class Cancel with Booking Cleanup + Notifications
+
+**Files**: `packages/api/src/routes/classes.bulk.ts`, `apps/web/app/components/routes/ClassesPage.tsx`
+
+**API** (`POST /classes/bulk-cancel` enhanced):
+- Now accepts **either** explicit `classIds[]` **or** a `{ from, to }` date range with optional `instructorId`/`locationId` filters.
+- After cancelling matching classes, **cascades to cancel all `confirmed`/`waitlisted` bookings** for those classes.
+- Optional `notifyStudents: true` + `cancellationReason` — sends a plain-text cancellation email via `EmailService.sendGenericEmail` to each unique affected student email (best-effort).
+- Returns `{ success, affected, notified }`.
+
+**Studio UI** (`ClassesPage.tsx`):
+- New **"Bulk Cancel"** button in the class schedule header (admin only, red outlined style).
+- Opens a `Dialog` with date range pickers (from/to), cancellation reason input, and "Email affected students" checkbox.
+- On submit, calls `POST /classes/bulk-cancel` with the range, shows toast with count of cancelled classes and notified students, and invalidates the class query cache.
+
+---
+
+### 4. Payroll Fixed Room-Fee Deduction in Config UI
+
+**Files**: `packages/db/src/schema.ts`, `packages/db/migrations/0007_payroll_metadata.sql`, `packages/api/src/routes/payroll.ts`, `apps/web/app/components/routes/PayrollPage.tsx`
+
+**Schema**: Added `metadata TEXT` (JSON) column to `payroll_config` table via `0007_payroll_metadata.sql`. Stores `{ fixedDeduction: number (cents) }`.
+
+**API** (`POST /payroll/config`):
+- Now accepts `fixedDeduction` (dollars, converted to cents server-side) and `payoutBasis` in the config body.
+- Stores as `metadata` JSON on `payroll_config`.
+- `GET /payroll/config` returns `metadata` alongside other fields.
+
+**Studio UI** (`PayrollPage.tsx`):
+- When `payModel === 'percentage'`, the config dialog now shows:
+  - **Revenue Basis** select: Gross vs Net (after Stripe fees).
+  - **Fixed Room/Fee Deduction ($)** input: amount deducted from class revenue before applying the % split (e.g. room rental cost).
+- `startEdit()` loads existing `metadata.fixedDeduction` into the form.
+- New state: `formFixedDeduction`, `formPayoutBasis`.
+
+---
+
+### 5. Studio Today's Quick-View Dashboard Widget + Real Stats Endpoint
+
+**Files**: `packages/api/src/index.ts`, `apps/web/app/routes/studio.$slug._index.tsx`, `apps/web/app/components/routes/DashboardPage.tsx`
+
+**Bug Fix**: The `GET /tenant/stats` endpoint did not exist — the dashboard was silently falling back to all-zero values. Implemented the endpoint.
+
+**API** (`GET /tenant/stats` — new endpoint in `studioApp`):
+- Returns: `activeStudents`, `upcomingBookings`, `activeSubscriptions`, `giftCardLiability`, `waiverCompliance` (signed/total/activeWaiver), `todayClasses[]`.
+- `todayClasses`: list of today's classes with `id`, `title`, `startTime`, `durationMinutes`, `capacity`, `confirmedCount`, `occupancyPct`.
+
+**Studio Loader** (`studio.$slug._index.tsx`): Updated to pass `todayClasses` from stats to the dashboard.
+
+**Studio UI** (`DashboardPage.tsx`):
+- New **"Today's Schedule"** section (owner/admin only, when classes exist today).
+- Compact class cards showing: class name, start time, occupancy bar (green/amber/red), booked/capacity count, and a direct "Check In" link to `classes/:id/roster`.
+- Added `format` (date-fns), `CheckSquare`, `Clock` icon imports.
+

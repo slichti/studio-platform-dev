@@ -119,4 +119,42 @@ app.delete('/:id', async (c) => {
     return c.json({ success: true });
 });
 
+// GET /:code/validate — public validation endpoint for portal checkout
+app.get('/:code/validate', async (c) => {
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 500);
+    const db = createDb(c.env.DB);
+    const code = c.req.param('code').toUpperCase();
+
+    const coupon = await db.select().from(coupons)
+        .where(and(eq(coupons.tenantId, tenant.id), eq(coupons.code, code), eq(coupons.active, true)))
+        .get();
+
+    if (!coupon) return c.json({ valid: false, error: 'Coupon not found or inactive' });
+
+    // Check expiry
+    if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
+        return c.json({ valid: false, error: 'Coupon has expired' });
+    }
+
+    // Check usage limit
+    if (coupon.usageLimit !== null) {
+        const used = await db.select({ count: sql<number>`count(*)` })
+            .from(couponRedemptions)
+            .where(eq(couponRedemptions.couponId, coupon.id))
+            .get();
+        if ((used?.count ?? 0) >= coupon.usageLimit) {
+            return c.json({ valid: false, error: 'Coupon usage limit reached' });
+        }
+    }
+
+    return c.json({
+        valid: true,
+        id: coupon.id,
+        code: coupon.code,
+        type: coupon.type,   // 'percent' | 'amount'
+        value: coupon.value, // percentage (0-100) or cents
+    });
+});
+
 export default app;

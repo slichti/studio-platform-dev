@@ -26,6 +26,7 @@ app.get('/config', async (c) => {
             payModel: payrollConfig.payModel,
             rate: payrollConfig.rate,
             payoutBasis: payrollConfig.payoutBasis,
+            metadata: payrollConfig.metadata,
         },
         stripeAccountId: users.stripeAccountId
     })
@@ -46,15 +47,21 @@ app.post('/config', async (c) => {
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
     const body = await c.req.json();
-    const { memberId, payModel, rate, payoutBasis } = body;
+    const { memberId, payModel, rate, payoutBasis, fixedDeduction } = body;
 
     if (!memberId || !payModel || rate === undefined) return c.json({ error: 'Missing required fields' }, 400);
 
     const existing = await db.select().from(payrollConfig).where(eq(payrollConfig.memberId, memberId)).get();
 
+    // fixedDeduction (cents) is stored in metadata JSON for percentage pay model
+    const metadata: Record<string, any> = {};
+    if (fixedDeduction !== undefined && fixedDeduction > 0) {
+        metadata.fixedDeduction = Number(fixedDeduction);
+    }
+
     if (existing) {
         await db.update(payrollConfig)
-            .set({ payModel, rate, payoutBasis, updatedAt: new Date() })
+            .set({ payModel, rate, payoutBasis, metadata: Object.keys(metadata).length ? metadata : null, updatedAt: new Date() })
             .where(eq(payrollConfig.id, existing.id)).run();
     } else {
         const member = await db.select().from(tenantMembers).where(eq(tenantMembers.id, memberId)).get();
@@ -62,7 +69,8 @@ app.post('/config', async (c) => {
 
         await db.insert(payrollConfig).values({
             id: crypto.randomUUID(), tenantId: tenant.id, memberId, userId: member.userId,
-            payModel, rate, payoutBasis: payoutBasis || 'net'
+            payModel, rate, payoutBasis: payoutBasis || 'net',
+            metadata: Object.keys(metadata).length ? metadata : null,
         }).run();
     }
     return c.json({ success: true });

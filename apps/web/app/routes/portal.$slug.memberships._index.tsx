@@ -1,9 +1,10 @@
-import { useLoaderData, useOutletContext, Link } from "react-router";
-import type { LoaderFunctionArgs } from "react-router";
+import { useLoaderData, useOutletContext, Link, useFetcher } from "react-router";
+import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { getAuth } from "../utils/auth-wrapper.server";
 import { apiRequest } from "~/utils/api";
-import { Check, CreditCard, Zap, Clock, Shield, Receipt, ExternalLink, Download } from "lucide-react";
+import { Check, CreditCard, Zap, Clock, Shield, Receipt, Download, PauseCircle, PlayCircle, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
+import { useState } from "react";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken } = await getAuth(args);
@@ -24,6 +25,47 @@ export const loader = async (args: LoaderFunctionArgs) => {
     };
 };
 
+export const action = async (args: ActionFunctionArgs) => {
+    const { getToken } = await getAuth(args);
+    const token = await getToken();
+    const { slug } = args.params;
+    const form = await args.request.formData();
+    const intent = form.get("intent") as string;
+    const subscriptionId = form.get("subscriptionId") as string;
+    const headers = { "X-Tenant-Slug": slug!, "Content-Type": "application/json" };
+
+    try {
+        if (intent === "pause") {
+            const months = Number(form.get("months") || 1);
+            await apiRequest(`/memberships/subscriptions/${subscriptionId}/pause`, token, {
+                method: "POST",
+                body: JSON.stringify({ months }),
+                headers,
+            });
+            return { success: true, intent: "pause" };
+        }
+        if (intent === "resume") {
+            await apiRequest(`/memberships/subscriptions/${subscriptionId}/resume`, token, {
+                method: "POST",
+                body: JSON.stringify({}),
+                headers,
+            });
+            return { success: true, intent: "resume" };
+        }
+        if (intent === "cancel") {
+            await apiRequest(`/memberships/subscriptions/${subscriptionId}/cancel`, token, {
+                method: "POST",
+                body: JSON.stringify({}),
+                headers,
+            });
+            return { success: true, intent: "cancel" };
+        }
+    } catch (e: any) {
+        return { error: e.message || "Action failed", intent };
+    }
+    return null;
+};
+
 const INTERVAL_LABEL: Record<string, string> = {
     month: "/ month",
     year: "/ year",
@@ -42,6 +84,91 @@ const STATUS_COLOR: Record<string, string> = {
     void: "text-zinc-400",
 };
 
+function ActiveSubscriptionCard({ sub }: { sub: any }) {
+    const fetcher = useFetcher<typeof action>();
+    const [showPause, setShowPause] = useState(false);
+    const [pauseMonths, setPauseMonths] = useState(1);
+    const isPaused = sub.isPaused;
+    const isSubmitting = fetcher.state !== "idle";
+
+    return (
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
+            <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-zinc-900 dark:text-zinc-100 truncate">{sub.plan?.name}</p>
+                    {isPaused ? (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5 flex items-center gap-1">
+                            <PauseCircle size={12} />
+                            Paused — resumes {format(new Date(sub.pausedUntil * 1000), "MMM d, yyyy")}
+                        </p>
+                    ) : (
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                            {sub.nextBillingDate
+                                ? `Renews ${format(new Date(sub.nextBillingDate * 1000), "MMM d, yyyy")}`
+                                : sub.status}
+                        </p>
+                    )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                    {isPaused ? (
+                        <fetcher.Form method="post">
+                            <input type="hidden" name="intent" value="resume" />
+                            <input type="hidden" name="subscriptionId" value={sub.id} />
+                            <button
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 border border-indigo-200 dark:border-indigo-800 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                                <PlayCircle size={13} /> Resume
+                            </button>
+                        </fetcher.Form>
+                    ) : (
+                        <button
+                            onClick={() => setShowPause(p => !p)}
+                            className="flex items-center gap-1 text-xs font-semibold text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 rounded-lg transition-colors"
+                        >
+                            <PauseCircle size={13} /> Pause
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* Pause duration picker */}
+            {showPause && !isPaused && (
+                <fetcher.Form method="post" className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center gap-3 flex-wrap">
+                    <input type="hidden" name="intent" value="pause" />
+                    <input type="hidden" name="subscriptionId" value={sub.id} />
+                    <p className="text-xs text-zinc-600 dark:text-zinc-400 font-medium">Pause for:</p>
+                    <div className="flex gap-1.5">
+                        {[1, 2, 3, 6].map(m => (
+                            <button
+                                key={m}
+                                type="button"
+                                onClick={() => setPauseMonths(m)}
+                                className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${pauseMonths === m ? "bg-indigo-600 text-white border-indigo-600" : "border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-indigo-400"}`}
+                            >
+                                {m}mo
+                            </button>
+                        ))}
+                    </div>
+                    <input type="hidden" name="months" value={pauseMonths} />
+                    <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="ml-auto text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                        {isSubmitting ? "Pausing…" : `Pause ${pauseMonths} month${pauseMonths > 1 ? "s" : ""}`}
+                    </button>
+                    <button type="button" onClick={() => setShowPause(false)} className="text-xs text-zinc-400 hover:text-zinc-600">Cancel</button>
+                </fetcher.Form>
+            )}
+            {(fetcher.data as any)?.error && (
+                <p className="mt-2 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} />{(fetcher.data as any).error}</p>
+            )}
+        </div>
+    );
+}
+
 export default function PortalMembershipsPage() {
     const { tenant } = useOutletContext<any>();
     const { plans, myActive, invoices } = useLoaderData<typeof loader>();
@@ -58,31 +185,18 @@ export default function PortalMembershipsPage() {
                 </p>
             </div>
 
-            {/* Active memberships banner */}
+            {/* Active memberships */}
             {(myActive as any[]).length > 0 && (
-                <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-5">
-                    <h2 className="font-semibold text-emerald-900 dark:text-emerald-100 mb-3 flex items-center gap-2">
-                        <Check size={16} className="text-emerald-600" /> Your Active Plans
+                <section>
+                    <h2 className="font-semibold text-zinc-700 dark:text-zinc-300 mb-3 flex items-center gap-2 text-sm uppercase tracking-wide">
+                        <Check size={14} className="text-emerald-600" /> Your Active Plans
                     </h2>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                         {(myActive as any[]).map((sub: any) => (
-                            <div key={sub.id} className="flex justify-between items-center text-sm">
-                                <span className="font-medium text-emerald-900 dark:text-emerald-100">{sub.plan?.name}</span>
-                                <span className="text-emerald-700 dark:text-emerald-300">
-                                    {sub.nextBillingDate
-                                        ? `Renews ${new Date(sub.nextBillingDate * 1000).toLocaleDateString()}`
-                                        : sub.status}
-                                </span>
-                            </div>
+                            <ActiveSubscriptionCard key={sub.id} sub={sub} />
                         ))}
                     </div>
-                    <Link
-                        to="../profile"
-                        className="mt-3 inline-block text-xs font-medium text-emerald-700 dark:text-emerald-300 hover:underline"
-                    >
-                        Manage in My Profile →
-                    </Link>
-                </div>
+                </section>
             )}
 
             {/* Plans grid */}

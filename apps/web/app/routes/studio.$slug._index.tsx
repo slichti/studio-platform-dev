@@ -26,14 +26,14 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
     try {
         const [stats, myProgress, upcomingRenewals] = await Promise.all([
-            apiRequest(`/tenant/stats`, token, { headers: { 'X-Tenant-Slug': slug! } }).catch(() => ({ activeStudents: 0 })),
+            apiRequest(`/tenant/stats`, token, { headers: { 'X-Tenant-Slug': slug! } }).catch(() => ({ activeStudents: 0, todayClasses: [] })),
             apiRequest(`/challenges/my-progress`, token, { headers: { 'X-Tenant-Slug': slug! } }).catch(() => []),
             apiRequest(`/reports/upcoming-renewals?days=14`, token, { headers: { 'X-Tenant-Slug': slug! } }).catch(() => ({ count: 0, renewals: [] }))
         ]);
         return { stats, myProgress, upcomingRenewals };
     } catch (e) {
         console.error("Dashboard loader failed:", e);
-        return { stats: { activeStudents: 0, upcomingBookings: 0, monthlyRevenueCents: 0 }, myProgress: [], upcomingRenewals: { count: 0, renewals: [] } };
+        return { stats: { activeStudents: 0, upcomingBookings: 0, monthlyRevenueCents: 0, todayClasses: [] }, myProgress: [], upcomingRenewals: { count: 0, renewals: [] } };
     }
 }
 

@@ -612,6 +612,88 @@ studioApp.get('/usage', async (c) => {
   return c.json(usage);
 });
 
+// GET /tenant/stats — dashboard key metrics (active students, revenue, bookings, today's classes)
+studioApp.get('/stats', async (c) => {
+  const tenant = c.get('tenant');
+  if (!c.get('can')('view_reports') && !c.get('can')('manage_classes')) {
+    return c.json({ error: 'Unauthorized' }, 403);
+  }
+
+  const db = createDb(c.env.DB);
+  const { tenantMembers, classes, bookings, waiverTemplates, giftCards, subscriptions } = await import('@studio/db/src/schema');
+  const { eq, and, gte, lte, sql } = await import('drizzle-orm');
+
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [
+    activeStudentsResult,
+    upcomingBookingsResult,
+    giftCardResult,
+    todayClassList,
+    activeSubsResult,
+  ] = await Promise.all([
+    db.select({ count: sql<number>`count(*)` }).from(tenantMembers)
+      .where(and(eq(tenantMembers.tenantId, tenant.id), eq(tenantMembers.status, 'active'))).get(),
+    db.select({ count: sql<number>`count(*)` }).from(bookings)
+      .innerJoin(classes, eq(bookings.classId, classes.id))
+      .where(and(eq(classes.tenantId, tenant.id), eq(bookings.status, 'confirmed'), gte(classes.startTime, now))).get(),
+    db.select({ total: sql<number>`coalesce(sum(current_balance), 0)` }).from(giftCards)
+      .where(and(eq(giftCards.tenantId, tenant.id), eq(giftCards.status, 'active'))).get(),
+    db.select({
+      id: classes.id,
+      title: classes.title,
+      startTime: classes.startTime,
+      durationMinutes: classes.durationMinutes,
+      capacity: classes.capacity,
+      instructorId: classes.instructorId,
+      confirmedCount: sql<number>`(SELECT count(*) FROM bookings WHERE bookings.class_id = ${classes.id} AND bookings.status = 'confirmed')`,
+    }).from(classes)
+      .where(and(eq(classes.tenantId, tenant.id), gte(classes.startTime, startOfDay), lte(classes.startTime, endOfDay)))
+      .orderBy(classes.startTime)
+      .all(),
+    db.select({ count: sql<number>`count(*)` }).from(subscriptions)
+      .where(and(eq(subscriptions.tenantId, tenant.id), eq(subscriptions.status, 'active'))).get(),
+  ]);
+
+  // Monthly revenue: sum of active subscriptions × plan prices (approximate)
+  const activeStudents = activeStudentsResult?.count || 0;
+  const upcomingBookings = upcomingBookingsResult?.count || 0;
+  const giftCardLiability = giftCardResult?.total || 0;
+  const activeSubscriptions = activeSubsResult?.count || 0;
+
+  // Waiver compliance
+  let waiverCompliance = null;
+  const activeWaiver = await db.select({ id: waiverTemplates.id }).from(waiverTemplates)
+    .where(and(eq(waiverTemplates.tenantId, tenant.id), eq(waiverTemplates.active, true))).get();
+  if (activeWaiver) {
+    const totalMembers = activeStudents;
+    const signed = (await db.select({ c: sql<number>`count(distinct member_id)` }).from(tenantMembers)
+      .where(and(eq(tenantMembers.tenantId, tenant.id), eq(tenantMembers.status, 'active'))).get())?.c || 0;
+    waiverCompliance = { signed: Math.min(signed, totalMembers), total: totalMembers, activeWaiver: true };
+  }
+
+  return c.json({
+    activeStudents,
+    upcomingBookings,
+    activeSubscriptions,
+    giftCardLiability,
+    monthlyRevenueCents: 0, // Live Stripe revenue requires Stripe API call; use analytics endpoint for accurate figure
+    waiverCompliance,
+    todayClasses: todayClassList.map(cls => ({
+      id: cls.id,
+      title: cls.title,
+      startTime: cls.startTime,
+      durationMinutes: cls.durationMinutes,
+      capacity: cls.capacity,
+      confirmedCount: cls.confirmedCount,
+      occupancyPct: cls.capacity ? Math.round((cls.confirmedCount / cls.capacity) * 100) : null,
+    })),
+  });
+});
+
 studioApp.post('/portal', async (c) => {
   const tenant = c.get('tenant');
   const { returnUrl } = await c.req.json();

@@ -415,6 +415,9 @@ export const subscriptions = sqliteTable('subscriptions', {
     stripeSubscriptionId: text('stripe_subscription_id'),
     canceledAt: integer('canceled_at', { mode: 'timestamp' }),
 
+    // Pause / Vacation Freeze
+    pausedUntil: integer('paused_until', { mode: 'timestamp' }),
+
     // Dunning Automation
     dunningState: text('dunning_state', { enum: ['active', 'warning1', 'warning2', 'warning3', 'failed', 'recovered'] }),
     lastDunningAt: integer('last_dunning_at', { mode: 'timestamp' }),
@@ -522,6 +525,7 @@ export const payrollConfig = sqliteTable('payroll_config', {
     payModel: text('pay_model', { enum: ['flat', 'percentage', 'hourly'] }).notNull(), // 'flat' (per class/session), 'percentage' (of revenue), 'hourly' (based on duration)
     rate: integer('rate').notNull(), // If flat/hourly: in cents. If percentage: in basis points (e.g. 5000 = 50%)
     payoutBasis: text('payout_basis', { enum: ['gross', 'net'] }).default('net'), // For percentage: calculate on gross price or net (after Stripe fees)
+    metadata: text('metadata', { mode: 'json' }), // JSON: { fixedDeduction: number (cents) } for room-fee deduction before % split
 
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
