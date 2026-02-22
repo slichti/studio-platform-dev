@@ -671,6 +671,7 @@ export const membershipPlans = sqliteTable('membership_plans', {
     overlayTitle: text('overlay_title'),
     overlaySubtitle: text('overlay_subtitle'),
     vodEnabled: integer('vod_enabled', { mode: 'boolean' }).default(false), // Grant VOD access?
+    trialDays: integer('trial_days').default(0), // 0 = no trial
     active: integer('active', { mode: 'boolean' }).default(true),
     stripeProductId: text('stripe_product_id'),
     stripePriceId: text('stripe_price_id'),

@@ -3,7 +3,7 @@ import { Outlet, Link, useLoaderData, useLocation, useOutletContext, NavLink } f
 import { getAuth } from "../utils/auth-wrapper.server";
 import { apiRequest } from "~/utils/api";
 // Removed unused Layout imports
-import { Home, Calendar, User, LogOut, Ticket, Award, BookOpen, Menu, X } from "lucide-react";
+import { Home, Calendar, User, LogOut, Ticket, Award, BookOpen, CreditCard, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { cn } from "~/utils/cn";
 
@@ -69,6 +69,7 @@ export default function StudentPortalLayout() {
         { label: "Dashboard", icon: Home, to: "." },
         { label: "Book Class", icon: Calendar, to: "classes" },
         { label: "Courses", icon: BookOpen, to: "courses" },
+        { label: "Memberships", icon: CreditCard, to: "memberships" },
         { label: "My Profile", icon: User, to: "profile" },
     ];
 

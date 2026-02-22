@@ -1,41 +1,113 @@
 
-import { useLoaderData, useOutletContext, Form } from "react-router";
-import type { LoaderFunctionArgs } from "react-router";
+import { useLoaderData, useOutletContext, Form, useFetcher, Link } from "react-router";
+import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
-import { User, Mail, Calendar, CreditCard, LogOut, Shield, TrendingUp, Award } from "lucide-react";
+import { User, Mail, Calendar, LogOut, Shield, TrendingUp, Award, CreditCard, AlertCircle } from "lucide-react";
 import { ProgressRing } from "~/components/ui/ProgressRing";
 import { StreakBadge, MilestoneBadge } from "~/components/ui/StreakBadge";
-import { EmptyState } from "~/components/ui/EmptyState";
-import { useStudentProgress } from "~/hooks/useStudentProgress";
-import { useAuth } from "@clerk/react-router";
+import { useState } from "react";
+import { cn } from "~/utils/cn";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken } = await getAuth(args);
     const token = await getToken();
     const { slug } = args.params;
 
-    try {
-        const [billingInfo, memberships] = await Promise.all([
-            // Mocking billing info endpoint for now or check if it exists
-            Promise.resolve({ balance: 0, paymentMethods: [] }),
-            apiRequest(`/memberships/my-active`, token, { headers: { 'X-Tenant-Slug': slug! } }).catch(() => [])
-        ]);
-        return { billingInfo, memberships };
-    } catch (e) {
-        return { billingInfo: null, memberships: [] };
+    const [billingInfo, memberships] = await Promise.all([
+        Promise.resolve({ balance: 0, paymentMethods: [] }),
+        apiRequest(`/memberships/my-active`, token, { headers: { "X-Tenant-Slug": slug! } }).catch(() => []),
+    ]);
+
+    return { billingInfo, memberships: memberships || [] };
+};
+
+export const action = async (args: ActionFunctionArgs) => {
+    const { getToken } = await getAuth(args);
+    const token = await getToken();
+    const { slug } = args.params;
+    const form = await args.request.formData();
+    const intent = form.get("intent");
+    const subscriptionId = form.get("subscriptionId") as string;
+
+    if (intent === "cancel-subscription" && subscriptionId) {
+        try {
+            await apiRequest(`/memberships/subscriptions/${subscriptionId}/cancel`, token, {
+                method: "POST",
+                headers: { "X-Tenant-Slug": slug! },
+            });
+            return { success: true };
+        } catch (e: any) {
+            return { error: e.message || "Failed to cancel subscription" };
+        }
     }
+
+    return { error: "Unknown action" };
+};
+
+function CancelButton({ subscriptionId }: { subscriptionId: string }) {
+    const fetcher = useFetcher();
+    const [confirming, setConfirming] = useState(false);
+    const isLoading = fetcher.state !== "idle";
+
+    if (fetcher.data && (fetcher.data as any).success) {
+        return (
+            <span className="text-xs text-zinc-500">Canceled at period end</span>
+        );
+    }
+
+    if (!confirming) {
+        return (
+            <button
+                type="button"
+                onClick={() => setConfirming(true)}
+                className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors"
+            >
+                Cancel plan
+            </button>
+        );
+    }
+
+    return (
+        <fetcher.Form method="post" className="flex items-center gap-2">
+            <input type="hidden" name="intent" value="cancel-subscription" />
+            <input type="hidden" name="subscriptionId" value={subscriptionId} />
+            <span className="text-xs text-zinc-600 dark:text-zinc-400">Sure?</span>
+            <button
+                type="submit"
+                disabled={isLoading}
+                className={cn(
+                    "text-xs font-medium px-2 py-1 rounded bg-red-600 text-white hover:bg-red-700 transition-colors",
+                    isLoading && "opacity-50 cursor-wait"
+                )}
+            >
+                {isLoading ? "Canceling…" : "Yes, cancel"}
+            </button>
+            <button
+                type="button"
+                onClick={() => setConfirming(false)}
+                className="text-xs text-zinc-500 hover:text-zinc-700"
+            >
+                Keep
+            </button>
+        </fetcher.Form>
+    );
+}
+
+const STATUS_COLORS: Record<string, string> = {
+    active: "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400",
+    trialing: "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400",
+    past_due: "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400",
 };
 
 export default function StudentPortalProfile() {
     const { me, tenant } = useOutletContext<any>();
     const { billingInfo, memberships } = useLoaderData<typeof loader>();
 
-    // Fallback if me or profile is missing
-    const firstName = me?.firstName || 'Student';
-    const lastName = me?.lastName || '';
-    const email = me?.email || 'No email';
-    const joinedAt = me?.joinedAt ? new Date(me.joinedAt).toLocaleDateString() : 'Unknown';
+    const firstName = me?.firstName || "Student";
+    const lastName = me?.lastName || "";
+    const email = me?.email || "No email";
+    const joinedAt = me?.joinedAt ? new Date(me.joinedAt).toLocaleDateString() : "Unknown";
 
     return (
         <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -48,7 +120,9 @@ export default function StudentPortalProfile() {
                         {firstName[0]}
                     </div>
                     <div className="flex-1">
-                        <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{firstName} {lastName}</h2>
+                        <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
+                            {firstName} {lastName}
+                        </h2>
                         <div className="space-y-1 mt-2">
                             <div className="flex items-center gap-2 text-sm text-zinc-500">
                                 <Mail size={14} />
@@ -79,47 +153,30 @@ export default function StudentPortalProfile() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    {/* Attendance Streak - Placeholder */}
                     <div className="bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 p-6 rounded-xl border border-orange-200 dark:border-orange-800">
                         <div className="flex items-center justify-between mb-3">
                             <span className="text-sm font-medium text-orange-900 dark:text-orange-100">Attendance Streak</span>
                             <StreakBadge streak={7} showLabel={false} />
                         </div>
-                        <div className="text-3xl font-bold text-orange-900 dark:text-orange-100">
-                            7 days
-                        </div>
+                        <div className="text-3xl font-bold text-orange-900 dark:text-orange-100">7 days</div>
                         <p className="text-xs text-orange-700 dark:text-orange-300 mt-1">Keep it going! 🔥</p>
                     </div>
 
-                    {/* Classes This Month */}
                     <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800">
                         <div className="flex items-center justify-between">
                             <div className="flex-1">
                                 <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">This Month</span>
-                                <div className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 mt-2">
-                                    12
-                                </div>
+                                <div className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 mt-2">12</div>
                                 <p className="text-xs text-zinc-500 mt-1">classes attended</p>
                             </div>
-                            <ProgressRing
-                                progress={60}
-                                size={80}
-                                strokeWidth={6}
-                                showPercentage={false}
-                                label="12/20"
-                            />
+                            <ProgressRing progress={60} size={80} strokeWidth={6} showPercentage={false} label="12/20" />
                         </div>
                     </div>
 
-                    {/* Pack Credits */}
                     <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-xl border border-blue-200 dark:border-blue-800">
                         <span className="text-sm font-medium text-blue-900 dark:text-blue-100">Pack Credits</span>
-                        <div className="text-3xl font-bold text-blue-900 dark:text-blue-100 mt-2">
-                            8
-                        </div>
-                        <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                            of 10 remaining
-                        </p>
+                        <div className="text-3xl font-bold text-blue-900 dark:text-blue-100 mt-2">8</div>
+                        <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">of 10 remaining</p>
                     </div>
                 </div>
 
@@ -138,26 +195,64 @@ export default function StudentPortalProfile() {
                 </div>
             </section>
 
-            {/* Memberships */}
+            {/* Active Memberships */}
             <section>
-                <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100 mb-4">Active Memberships</h3>
-                {memberships.length > 0 ? (
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                        <CreditCard size={20} />
+                        Active Memberships
+                    </h3>
+                    <Link
+                        to="../memberships"
+                        className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline font-medium"
+                    >
+                        Browse plans →
+                    </Link>
+                </div>
+
+                {(memberships as any[]).length > 0 ? (
                     <div className="space-y-3">
-                        {memberships.map((m: any) => (
-                            <div key={m.id} className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 flex justify-between items-center">
-                                <div>
-                                    <div className="font-bold text-zinc-900 dark:text-zinc-100">{m.plan.name}</div>
-                                    <div className="text-xs text-zinc-500 mt-0.5">Renews {new Date(m.nextBillingDate).toLocaleDateString()}</div>
+                        {(memberships as any[]).map((sub: any) => (
+                            <div
+                                key={sub.id}
+                                className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 flex justify-between items-start gap-4"
+                            >
+                                <div className="flex-1 min-w-0">
+                                    <div className="font-bold text-zinc-900 dark:text-zinc-100">{sub.plan?.name}</div>
+                                    <div className="text-xs text-zinc-500 mt-0.5">
+                                        {sub.nextBillingDate
+                                            ? `Renews ${new Date(sub.nextBillingDate * 1000).toLocaleDateString()}`
+                                            : "—"}
+                                    </div>
+                                    <div className="mt-2">
+                                        <CancelButton subscriptionId={sub.id} />
+                                    </div>
                                 </div>
-                                <div className="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-3 py-1 rounded-full text-xs font-bold">
-                                    Active
+                                <div className={cn("px-3 py-1 rounded-full text-xs font-bold shrink-0", STATUS_COLORS[sub.status] || "bg-zinc-100 text-zinc-600")}>
+                                    {sub.status === "trialing" ? "Trial" : sub.status === "past_due" ? "Past Due" : "Active"}
                                 </div>
                             </div>
                         ))}
+
+                        {/* Past due warning */}
+                        {(memberships as any[]).some((s: any) => s.status === "past_due") && (
+                            <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-200">
+                                <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                                <span>
+                                    One or more of your memberships has a failed payment. Please update your payment method to avoid losing access.
+                                </span>
+                            </div>
+                        )}
                     </div>
                 ) : (
-                    <div className="bg-zinc-50 dark:bg-zinc-900/50 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 text-center text-zinc-500">
-                        No active memberships found.
+                    <div className="bg-zinc-50 dark:bg-zinc-900/50 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 text-center space-y-3">
+                        <p className="text-zinc-500 dark:text-zinc-400">You don't have an active membership.</p>
+                        <Link
+                            to="../memberships"
+                            className="inline-block px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors"
+                        >
+                            View Membership Plans
+                        </Link>
                     </div>
                 )}
             </section>

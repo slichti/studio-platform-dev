@@ -28,6 +28,7 @@ export function PlanModal({ isOpen, plan, onClose, onSave, isSubmitting, tenantS
     const [interval, setInterval] = useState("month");
     const [description, setDescription] = useState("");
     const [vodEnabled, setVodEnabled] = useState(false);
+    const [trialDays, setTrialDays] = useState(0);
 
     const [cardData, setCardData] = useState<{ image: Blob | null; title: string; subtitle: string; previewUrl: string }>({
         image: null, title: "", subtitle: "", previewUrl: ""
@@ -41,6 +42,7 @@ export function PlanModal({ isOpen, plan, onClose, onSave, isSubmitting, tenantS
             setInterval(plan?.interval || "month");
             setDescription(plan?.description || "");
             setVodEnabled(plan?.vodEnabled || false);
+            setTrialDays(plan?.trialDays || 0);
             setCardData({
                 image: null,
                 title: plan?.overlayTitle || "",
@@ -86,7 +88,8 @@ export function PlanModal({ isOpen, plan, onClose, onSave, isSubmitting, tenantS
                     imageUrl,
                     overlayTitle: cardData.title,
                     overlaySubtitle: cardData.subtitle,
-                    vodEnabled
+                    vodEnabled,
+                    trialDays: Number(trialDays),
                 },
                 plan?.id
             );
@@ -163,6 +166,19 @@ export function PlanModal({ isOpen, plan, onClose, onSave, isSubmitting, tenantS
                                 </label>
                                 <p className="text-sm text-zinc-500">Allows entry to On-Demand Library</p>
                             </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Free Trial (days)</Label>
+                            <Input
+                                type="number"
+                                min="0"
+                                max="365"
+                                value={trialDays}
+                                onChange={e => setTrialDays(Number(e.target.value))}
+                                placeholder="0 = no trial"
+                            />
+                            <p className="text-xs text-zinc-500">Set to 0 to disable the free trial for this plan.</p>
                         </div>
                     </div>
 

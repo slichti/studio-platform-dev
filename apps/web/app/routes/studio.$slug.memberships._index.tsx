@@ -21,14 +21,16 @@ export default function StudioMemberships() {
     const queryClient = useQueryClient();
     const { isStudentView } = useOutletContext<any>() || {};
 
-    // Data
-    const { data: plans = [], isLoading: isLoadingPlans, error: plansError } = usePlans(slug!);
-    const { data: subscriptions = [], isLoading: isLoadingSubs } = useSubscriptions(slug!);
-
-    // State
+    // State (declared before data hooks that depend on them)
     const [modalState, setModalState] = useState<{ type: 'closed' } | { type: 'create' } | { type: 'edit', plan: Plan }>({ type: 'closed' });
     const [planToDelete, setPlanToDelete] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showArchived, setShowArchived] = useState(false);
+
+    // Data
+    const { data: allPlans = [], isLoading: isLoadingPlans, error: plansError } = usePlans(slug!, { includeArchived: showArchived });
+    const plans = showArchived ? allPlans : allPlans.filter((p: Plan) => p.active !== false);
+    const { data: subscriptions = [], isLoading: isLoadingSubs } = useSubscriptions(slug!);
 
     // Handlers
     const refresh = () => {
@@ -85,9 +87,19 @@ export default function StudioMemberships() {
                     <p className="text-sm text-zinc-500 dark:text-zinc-400">Manage your membership tiers and view subscriptions.</p>
                 </div>
                 {!isStudentView && (
-                    <Button onClick={() => setModalState({ type: 'create' })}>
-                        <Plus className="mr-2 h-4 w-4" /> New Plan
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowArchived(v => !v)}
+                            className="text-xs text-zinc-500"
+                        >
+                            {showArchived ? "Hide Archived" : "Show Archived"}
+                        </Button>
+                        <Button onClick={() => setModalState({ type: 'create' })}>
+                            <Plus className="mr-2 h-4 w-4" /> New Plan
+                        </Button>
+                    </div>
                 )}
             </div>
 

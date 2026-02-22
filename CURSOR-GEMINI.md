@@ -59,6 +59,60 @@ Built on top of the **Cloudflare Edge Network** for sub-50ms latency globally.
 
 ---
 
+## Recent Changes (Cursor / Gemini Session — Feb 2026, Part 2)
+
+### Memberships Overhaul (research-driven)
+
+**Research basis:** Benchmarked against Glofox/Mindbody best practices — retention-first design, self-service cancellation, trial periods, plan browsing, and archived plan management.
+
+#### API (`packages/api/src/routes/memberships.ts`) — 5 new endpoints
+| Endpoint | Description |
+|---|---|
+| `PATCH /memberships/plans/:id` | Update plan fields (was missing — Edit Plan was silently broken) |
+| `DELETE /memberships/plans/:id` | Soft-archive if active subscribers exist, hard-delete otherwise |
+| `PATCH /memberships/plans/:id/status` | Toggle active/archived without deleting |
+| `GET /memberships/my-active` | Current user's active/trialing subscriptions with full plan detail (was missing — profile always empty) |
+| `POST /memberships/subscriptions/:id/cancel` | Cancel at period end via Stripe; students can cancel their own, admins can cancel any |
+
+Also: `GET /memberships/plans` now accepts `?includeArchived=true` for admin views.
+
+#### DB Schema + Migration
+- Added `trial_days integer DEFAULT 0` to `membership_plans` table (`packages/db/src/schema.ts`)
+- Migration `0072_membership_plans_trial_days.sql`
+
+#### Portal — Student Membership Browser (`portal.$slug.memberships._index.tsx`)
+- New route: students can browse all active plans with images, pricing, perks (VOD, trial, cancel-anytime)
+- Shows "Current Plan" badge on already-owned plans
+- "Start Free Trial" / "Join Now" / "Join Free" CTA routes to studio checkout
+- Active membership summary banner at top
+- Added **Memberships** nav item to portal sidebar (`portal.$slug.tsx`)
+
+#### Portal Profile Page (`portal.$slug.profile.tsx`)
+- Wired "Active Memberships" section to real `GET /memberships/my-active` data (was always empty)
+- Added inline **Cancel** button per subscription: two-step confirmation → `POST /memberships/subscriptions/:id/cancel`
+- Status badges (Active / Trial / Past Due) with color coding
+- Past-due warning banner prompts user to update payment method
+- "Browse plans →" link when no active memberships
+
+#### Admin Plan Detail (`studio.$slug.memberships.$planId.tsx`)
+- **Archive / Restore** toggle in the dropdown (replaces silent "delete with active subscribers" behavior)
+- Fixed "Checkout Link" promotion URL (was broken `/buy/product/:id` → now `/studio/:slug/checkout?planId=:id`)
+- Fixed "Product Page" URL (now routes to portal memberships browser)
+- Replaced hardcoded "$0 Total Revenue" with **Est. Annual Revenue** computed from subscriber count × plan price × billing frequency
+
+#### Admin Plan List (`studio.$slug.memberships._index.tsx`)
+- **"Show Archived" toggle** — loads inactive plans via `?includeArchived=true`; filters locally
+
+#### PlanModal (`apps/web/app/components/PlanModal.tsx`)
+- Added **Free Trial (days)** field — `0` disables trial, any positive value enables it
+- `trialDays` passed to both create and update payloads
+
+#### Hook (`apps/web/app/hooks/useMemberships.ts`)
+- `usePlans()` now accepts `options.includeArchived` — queries `?includeArchived=true` when set
+- Added `trialDays?: number` to `Plan` type
+
+---
+
 ## Recent Changes (Cursor / Gemini Session — Feb 2026)
 
 ### LMS Tier 1–3 Enhancements

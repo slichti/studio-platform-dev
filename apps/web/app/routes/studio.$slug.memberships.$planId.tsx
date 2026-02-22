@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
     ArrowLeft, Loader2, Users, DollarSign, TrendingUp,
-    Copy, Edit, Trash2, Eye, MoreHorizontal
+    Copy, Edit, Trash2, Eye, MoreHorizontal, Archive, ArchiveRestore, BadgeAlert
 } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
@@ -91,16 +91,39 @@ export default function MembershipPlanDetailPage() {
         if (!plan) return;
         try {
             const token = await getToken();
-            await apiRequest(`/memberships/plans/${plan.id}`, token, {
+            const result = await apiRequest(`/memberships/plans/${plan.id}`, token, {
                 method: "DELETE",
                 headers: { 'X-Tenant-Slug': slug! }
             });
-            toast.success("Plan deleted");
+            if (result?.archived) {
+                toast.success("Plan archived — it has active subscribers so it was deactivated rather than deleted.");
+            } else {
+                toast.success("Plan deleted");
+            }
             refresh();
         } catch (e: any) {
             toast.error(e.message || "Failed to delete plan");
         } finally {
             setIsDeleteOpen(false);
+        }
+    };
+
+    const handleToggleArchive = async () => {
+        if (!plan) return;
+        setIsSubmitting(true);
+        try {
+            const token = await getToken();
+            await apiRequest(`/memberships/plans/${plan.id}/status`, token, {
+                method: "PATCH",
+                headers: { 'X-Tenant-Slug': slug! },
+                body: JSON.stringify({ active: !plan.active })
+            });
+            toast.success(plan.active ? "Plan archived" : "Plan restored");
+            refresh();
+        } catch (e: any) {
+            toast.error(e.message || "Failed to update plan status");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -160,6 +183,12 @@ export default function MembershipPlanDetailPage() {
                                 <DropdownMenuItem onClick={handleDuplicate} disabled={isSubmitting}>
                                     <Copy className="w-4 h-4 mr-2" /> Duplicate
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleToggleArchive} disabled={isSubmitting}>
+                                    {plan.active
+                                        ? <><Archive className="w-4 h-4 mr-2" /> Archive</>
+                                        : <><ArchiveRestore className="w-4 h-4 mr-2" /> Restore</>
+                                    }
+                                </DropdownMenuItem>
                                 <DropdownMenuItem
                                     onClick={() => setIsDeleteOpen(true)}
                                     className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20"
@@ -205,13 +234,13 @@ export default function MembershipPlanDetailPage() {
                             <CardContent className="space-y-6">
                                 <UrlRow
                                     label="Checkout Link"
-                                    url={`${getTenantUrl(tenant)}/buy/product/${plan.id}`}
-                                    description="Direct link to purchase."
+                                    url={`${getTenantUrl(tenant)}/studio/${slug}/checkout?planId=${plan.id}`}
+                                    description="Direct link to purchase this plan."
                                 />
                                 <UrlRow
-                                    label="Product Page"
-                                    url={`${getTenantUrl(tenant)}/product/${plan.id}`}
-                                    description="Page with details."
+                                    label="Memberships Page"
+                                    url={`${getTenantUrl(tenant)}/portal/${slug}/memberships`}
+                                    description="Portal page where students can browse all plans."
                                 />
                             </CardContent>
                         </Card>
@@ -220,11 +249,14 @@ export default function MembershipPlanDetailPage() {
                     {/* Right Column: Performance & Subscribers */}
                     <div className="lg:col-span-2 space-y-6">
                         {/* Highlights Row */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                             <StatsCard title="Active Members" value={activeSubs.length.toString()} icon={<Users className="w-4 h-4" />} />
                             <StatsCard title="Est. MRR" value={`$${(estimatedMRR / 100).toLocaleString()}`} icon={<DollarSign className="w-4 h-4" />} />
-                            <StatsCard title="Total Revenue" value="$0" icon={<TrendingUp className="w-4 h-4" />} />
-                            <StatsCard title="Views" value="0" icon={<Eye className="w-4 h-4" />} />
+                            <StatsCard
+                                title="Est. Annual Revenue"
+                                value={`$${((estimatedMRR / 100) * (plan.interval === 'year' ? 1 : plan.interval === 'week' ? 52 : plan.interval === 'month' ? 12 : 1)).toLocaleString()}`}
+                                icon={<TrendingUp className="w-4 h-4" />}
+                            />
                         </div>
 
                         {/* Subscribers Table */}

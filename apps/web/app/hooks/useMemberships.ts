@@ -12,6 +12,7 @@ export type Plan = {
     overlayTitle?: string;
     overlaySubtitle?: string;
     vodEnabled: boolean;
+    trialDays?: number;
     updatedAt?: string;
     active?: boolean;
 };
@@ -30,20 +31,22 @@ export type Subscription = {
     createdAt?: string; // ISO date string
 };
 
-export function usePlans(tenantSlug: string) {
+export function usePlans(tenantSlug: string, options?: { includeArchived?: boolean }) {
     const { getToken } = useAuth();
+    const includeArchived = options?.includeArchived ?? false;
 
     return useQuery({
-        queryKey: ['plans', tenantSlug],
+        queryKey: ['plans', tenantSlug, includeArchived],
         queryFn: async () => {
             const token = await getToken();
-            const res = await apiRequest("/memberships/plans", token, {
+            const qs = includeArchived ? '?includeArchived=true' : '';
+            const res = await apiRequest(`/memberships/plans${qs}`, token, {
                 headers: { 'X-Tenant-Slug': tenantSlug }
             });
             return (res || []) as Plan[];
         },
         enabled: !!tenantSlug,
-        staleTime: 1000 * 60 * 60, // 1 hour
+        staleTime: 1000 * 60 * 5,
     });
 }
 
