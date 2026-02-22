@@ -41,6 +41,9 @@ const createMockBuilder = () => {
             },
             progressMetricDefinitions: {
                 findFirst: vi.fn()
+            },
+            platformConfig: {
+                findFirst: vi.fn().mockResolvedValue(null)
             }
         }
     };

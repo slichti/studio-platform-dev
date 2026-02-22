@@ -154,8 +154,15 @@ export class BookingService {
 
     // 4. Cancel Booking & Auto-Promote
     async cancelBooking(bookingId: string) {
-        const booking = await this.db.select().from(bookings).where(eq(bookings.id, bookingId)).get();
-        if (!booking) throw new Error("Booking not found");
+        const result = await this.db
+            .select({ booking: bookings, tenantId: tenantMembers.tenantId })
+            .from(bookings)
+            .innerJoin(tenantMembers, eq(bookings.memberId, tenantMembers.id))
+            .where(eq(bookings.id, bookingId))
+            .get();
+
+        if (!result) throw new Error("Booking not found");
+        const { booking, tenantId } = result;
 
         if (booking.status === 'cancelled') return;
 
@@ -181,11 +188,13 @@ export class BookingService {
 
         // Dispatch Webhook
         const webhookService = new WebhookService(this.db, this.env.SVIX_AUTH_TOKEN);
-        webhookService.dispatch(booking.member.tenantId, 'booking.cancelled', {
-            id: bookingId,
-            classId: booking.classId,
-            memberId: booking.memberId
-        });
+        if (tenantId) {
+            webhookService.dispatch(tenantId, 'booking.cancelled', {
+                id: bookingId,
+                classId: booking.classId,
+                memberId: booking.memberId
+            });
+        }
     }
 
     // 5. Promote Logic

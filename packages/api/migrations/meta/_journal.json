@@ -36,6 +36,13 @@
       "when": 1771690753155,
       "tag": "0004_unique_gambit",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1771797916231,
+      "tag": "0005_fuzzy_the_anarchist",
+      "breakpoints": true
     }
   ]
 }

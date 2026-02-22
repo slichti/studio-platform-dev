@@ -423,7 +423,12 @@ export const subscriptions = sqliteTable('subscriptions', {
     lastDunningAt: integer('last_dunning_at', { mode: 'timestamp' }),
 
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
-});
+}, (table) => ({
+    tenantIdx: index('subscription_tenant_idx').on(table.tenantId),
+    userIdx: index('subscription_user_idx').on(table.userId),
+    stripeSubIdx: index('subscription_stripe_sub_idx').on(table.stripeSubscriptionId),
+    memberPlanIdx: index('subscription_member_plan_idx').on(table.memberId, table.planId, table.status),
+}));
 
 // --- Bookings ---
 export const bookings = sqliteTable('bookings', {
@@ -943,6 +948,7 @@ export const posOrders = sqliteTable('pos_orders', {
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     tenantIdx: index('pos_order_tenant_idx').on(table.tenantId),
+    tenantCreatedIdx: index('pos_order_tenant_created_idx').on(table.tenantId, table.createdAt),
     memberIdx: index('pos_order_member_idx').on(table.memberId),
 }));
 

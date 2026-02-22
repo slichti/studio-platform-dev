@@ -125,7 +125,7 @@ app.openapi(bulkCancelRoute, async (c) => {
         );
         const uniqueEmails = [...new Set(affectedBookings.map(b => b.studentEmail).filter(Boolean))];
         for (const email of uniqueEmails) {
-                try {
+            try {
                 await emailService.sendGenericEmail(
                     email,
                     `Class Cancellation Notice — ${tenant.name}`,
@@ -187,28 +187,31 @@ app.openapi(bulkUpdateRoute, async (c) => {
 
     const conflictService = new ConflictService(db);
 
-    // Check conflicts for each class
-    for (const cls of targetClasses) {
-        if (data.instructorId && data.instructorId !== cls.instructorId) {
-            const conflicts = await conflictService.checkInstructorConflict(
-                data.instructorId,
-                cls.startTime,
-                cls.durationMinutes,
-                cls.id
-            );
+    // Check conflicts using batched approach
+    if (data.instructorId) {
+        const proposedClassesInfo = targetClasses.filter(c => c.instructorId !== data.instructorId).map(c => ({
+            id: c.id,
+            startTime: c.startTime,
+            durationMinutes: c.durationMinutes
+        }));
+        if (proposedClassesInfo.length > 0) {
+            const conflicts = await conflictService.checkInstructorConflictBatch(data.instructorId, proposedClassesInfo);
             if (conflicts.length > 0) {
-                return c.json({ error: `Conflict for instructor in class starting at ${cls.startTime.toISOString()}` }, 400);
+                return c.json({ error: `Conflict for instructor in class starting at ${conflicts[0].proposedClass.startTime.toISOString()}` }, 400);
             }
         }
-        if (data.locationId && data.locationId !== cls.locationId) {
-            const conflicts = await conflictService.checkRoomConflict(
-                data.locationId,
-                cls.startTime,
-                cls.durationMinutes,
-                cls.id
-            );
+    }
+
+    if (data.locationId) {
+        const proposedClassesInfo = targetClasses.filter(c => c.locationId !== data.locationId).map(c => ({
+            id: c.id,
+            startTime: c.startTime,
+            durationMinutes: c.durationMinutes
+        }));
+        if (proposedClassesInfo.length > 0) {
+            const conflicts = await conflictService.checkRoomConflictBatch(data.locationId, proposedClassesInfo);
             if (conflicts.length > 0) {
-                return c.json({ error: `Conflict for location in class starting at ${cls.startTime.toISOString()}` }, 400);
+                return c.json({ error: `Conflict for location in class starting at ${conflicts[0].proposedClass.startTime.toISOString()}` }, 400);
             }
         }
     }

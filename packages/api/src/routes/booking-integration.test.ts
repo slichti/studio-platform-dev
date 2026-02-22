@@ -140,6 +140,11 @@ describe('Booking Lifecycle Integration', () => {
             canceled_at INTEGER, paused_until INTEGER, dunning_state TEXT, last_dunning_at INTEGER, created_at INTEGER
         )`);
 
+        // 14. Platform Config (Required for Webhook Service)
+        sqlite.exec(`CREATE TABLE platform_config (
+            key TEXT PRIMARY KEY, value TEXT, enabled INTEGER, description TEXT, updated_at INTEGER
+        )`);
+
         // Setup mock environment
         env = {
             RESEND_API_KEY: 'mock_resend_key'
