@@ -160,6 +160,7 @@ export function DateTimePicker({ value, onChange, className, placeholder, name }
         )}
         autoComplete="off"
         popperProps={{ strategy: "fixed" }}
+        shouldCloseOnSelect={false}
       >
         <div className="p-2 border-l border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex gap-1">
           <TimeColumn
