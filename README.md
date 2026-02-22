@@ -5,16 +5,17 @@ The modern, all-in-one platform for dance, yoga, and fitness studios.
 ## Features
 
 *   **Studio Management:** Class scheduling, member management, and point-of-sale.
-*   **Course Management:** Standalone hybrid courses combining live sessions, on-demand VOD, and quizzes with enrollment and progress tracking. Controlled via a two-tier platform + tenant feature flag.
+*   **Memberships & Subscriptions:** Self-service membership plans with Stripe billing, free trials, archive/restore lifecycle, and student-facing plan browser. Students can cancel subscriptions directly from their profile.
+*   **Course Management (LMS):** Hybrid courses combining live sessions, on-demand VOD, quizzes, assignments, and per-lesson completion tracking with progress percentage. Instructors can grade assignments with feedback.
 *   **Website Builder:** Drag-and-drop website editor with custom domains.
 *   **Student App:** Mobile app for students to book classes and manage their accounts.
-*   **Automations:** Powerful email and SMS marketing automations with trigger events (Birthday, Absent, Trial Ending, etc).
+*   **Automations:** Powerful email and SMS marketing automations with trigger events (Birthday, Absent, Trial Ending, Membership Dunning, etc).
 *   **QR Codes:** Generate tracking-ready QR codes for check-in, app downloads, and marketing.
 *   **High Performance Edge:** Sub-50ms latency for core operations via Cloudflare Workers and D1 batching.
 
 ## Database Schema (3NF)
 
-The platform follows a multi-tenant 3NF (Third Normal Form) database design optimized for Cloudflare D1.
+The platform follows a multi-tenant 3NF (Third Normal Form) database design optimized for Cloudflare D1. Full annotated schema: [`docs/schema_diagram.md`](docs/schema_diagram.md).
 
 ```mermaid
 erDiagram
@@ -22,34 +23,39 @@ erDiagram
     TENANTS ||--o{ TENANT_MEMBERS : employs
     TENANTS ||--o{ COURSES : offers
     TENANTS ||--o{ MEMBERSHIP_PLANS : defines
-    TENANTS ||--o{ UPLOADS : stores
-    
+
     USERS ||--o{ TENANT_MEMBERS : joins
-    USERS ||--o{ SUBSCRIPTIONS : pays
+    USERS ||--o{ SUBSCRIPTIONS : holds
     USERS ||--o{ COURSE_ENROLLMENTS : studies
-    
+    USERS ||--o{ QUIZ_SUBMISSIONS : attempts
+    USERS ||--o{ ASSIGNMENT_SUBMISSIONS : submits
+    USERS ||--o{ COURSE_ITEM_COMPLETIONS : tracks
+
     TENANT_MEMBERS ||--o{ CLASSES : teaches
     TENANT_MEMBERS ||--o{ BOOKINGS : reserves
     TENANT_MEMBERS ||--o{ TENANT_ROLES : has
-    
-    LOCATIONS ||--o{ ROOMS : contains
+
     LOCATIONS ||--o{ CLASSES : hosts
-    
+
     CLASSES }|--|| CLASS_SERIES : instance_of
     CLASSES ||--o{ BOOKINGS : manages
-    CLASSES }|--|| COURSES : belongs_to
-    
+    CLASSES }|--o| COURSES : belongs_to
+
     COURSES ||--o{ COURSE_ENROLLMENTS : enrolls
-    COURSES ||--o{ COURSE_MODULES : contains
     COURSES ||--o{ VIDEO_COLLECTIONS : curriculum
-    
+    COURSES ||--o{ COURSE_ITEM_COMPLETIONS : tracked_by
+
     VIDEO_COLLECTIONS ||--o{ VIDEO_COLLECTION_ITEMS : contains
-    VIDEO_COLLECTION_ITEMS }|--|| VIDEOS : displays
-    VIDEO_COLLECTION_ITEMS }|--|| QUIZZES : tests
-    
+    VIDEO_COLLECTION_ITEMS }|--o| QUIZZES : may_be
+    VIDEO_COLLECTION_ITEMS }|--o| ASSIGNMENTS : may_be
+    VIDEO_COLLECTION_ITEMS ||--o{ COURSE_ITEM_COMPLETIONS : completed_in
+
+    QUIZZES ||--o{ QUIZ_QUESTIONS : has
+    QUIZZES ||--o{ QUIZ_SUBMISSIONS : receives
+    ASSIGNMENTS ||--o{ ASSIGNMENT_SUBMISSIONS : receives
+
     MEMBERSHIP_PLANS ||--o{ SUBSCRIPTIONS : grants
-    
-    BOOKINGS ||--o{ PURCHASED_PACKS : consumes
+    BOOKINGS }|--o| PURCHASED_PACKS : consumes
 ```
 
 

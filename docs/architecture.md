@@ -157,6 +157,8 @@ flowchart TB
         CLASSES["/classes/*"]
         MEMBERS["/members/*"]
         COMMERCE["/commerce/*"]
+        MEMBERSHIPS["/memberships/*"]
+        COURSES["/courses/*"]
         APPOINTMENTS["/appointments/*"]
         VIDEO["/video-management/*"]
         CHAT["/chat/*"]
@@ -177,18 +179,11 @@ flowchart TB
         SERVICES[Business Logic Services]
     end
 
-    ROUTES --> AUTH
-    ROUTES --> USERS
-    ROUTES --> CLASSES
-    ROUTES --> MEMBERS
-    ROUTES --> COMMERCE
-    ROUTES --> APPOINTMENTS
-    ROUTES --> VIDEO
-    ROUTES --> CHAT
-    ROUTES --> WEBHOOKS
-    ROUTES --> PROGRESS
+    ROUTES --> AUTH & USERS & CLASSES & MEMBERS & COMMERCE
+    ROUTES --> MEMBERSHIPS & COURSES & APPOINTMENTS
+    ROUTES --> VIDEO & CHAT & WEBHOOKS & PROGRESS
 
-    AUTH & USERS & CLASSES & MEMBERS & COMMERCE & APPOINTMENTS & VIDEO & CHAT & WEBHOOKS & PROGRESS --> SERVICES
+    AUTH & USERS & CLASSES & MEMBERS & COMMERCE & MEMBERSHIPS & COURSES & APPOINTMENTS & VIDEO & CHAT & WEBHOOKS & PROGRESS --> SERVICES
     SERVICES --> DB[(D1 Database)]
 ```
 
@@ -209,7 +204,7 @@ flowchart TB
 
 ## Database Schema (3NF)
 
-The platform utilizes a normalized multi-tenant relational schema. Data isolation is enforced at the application layer using `tenant_id` filters on all queries to ensure strict tenant boundaries.
+The platform uses a normalized multi-tenant relational schema. Data isolation is enforced at the application layer using `tenant_id` filters on every query. Full schema with all tables: see [`docs/schema_diagram.md`](./schema_diagram.md).
 
 ```mermaid
 erDiagram
@@ -219,62 +214,109 @@ erDiagram
         string name
         json branding
         string status
-        string tier
+        string stripe_account_id
     }
     USERS {
         string id PK
         string email UK
         string role
-        string phone
+        string stripe_customer_id
     }
     TENANT_MEMBERS {
         string id PK
-        string tenantId FK
-        string userId FK
+        string tenant_id FK
+        string user_id FK
         string status
+        boolean sms_consent
+    }
+    MEMBERSHIP_PLANS {
+        string id PK
+        string tenant_id FK
+        string name
+        integer price
+        enum interval
+        integer trial_days
+        boolean vod_enabled
+        boolean active
+    }
+    SUBSCRIPTIONS {
+        string id PK
+        string user_id FK
+        string tenant_id FK
+        string plan_id FK
+        enum status
+        timestamp current_period_end
+        string stripe_subscription_id
+        timestamp canceled_at
+        enum dunning_state
     }
     LOCATIONS {
         string id PK
-        string tenantId FK
+        string tenant_id FK
         string name
         string timezone
     }
     CLASSES {
         string id PK
-        string tenantId FK
-        string instructorId FK
-        string locationId FK
-        string seriesId FK
-        string courseId FK
-        datetime startTime
-        int duration
+        string tenant_id FK
+        string instructor_id FK
+        string location_id FK
+        string course_id FK
+        datetime start_time
+        int duration_minutes
         string type
     }
     COURSES {
         string id PK
-        string tenantId FK
+        string tenant_id FK
         string title
         string slug UK
-        string deliveryMode
-        datetime cohortStartDate
-        datetime cohortEndDate
+        enum delivery_mode
+        datetime cohort_start_date
+        datetime cohort_end_date
+    }
+    VIDEO_COLLECTION_ITEMS {
+        string id PK
+        string collection_id FK
+        enum item_type
+        integer sort_order
+    }
+    QUIZ_SUBMISSIONS {
+        string id PK
+        string quiz_id FK
+        string user_id FK
+        json answers
+        integer score
+        boolean passed
+    }
+    ASSIGNMENT_SUBMISSIONS {
+        string id PK
+        string assignment_id FK
+        string user_id FK
+        enum status
+        integer grade
+        string feedback
+    }
+    COURSE_ITEM_COMPLETIONS {
+        string id PK
+        string user_id FK
+        string course_id FK
+        string item_id FK
+        timestamp completed_at
     }
     BOOKINGS {
         string id PK
-        string classId FK
-        string memberId FK
+        string class_id FK
+        string member_id FK
         string status
-        string attendanceType
+        enum attendance_type
     }
-    SUBSCRIPTIONS {
-        string id PK
-        string userId FK
-        string tenantId FK
-        string planId FK
-        string status
-    }
+
     TENANTS ||--o{ TENANT_MEMBERS : "has members"
     USERS ||--o{ TENANT_MEMBERS : "is member of"
+    TENANTS ||--o{ MEMBERSHIP_PLANS : "offers"
+    MEMBERSHIP_PLANS ||--o{ SUBSCRIPTIONS : "grants"
+    USERS ||--o{ SUBSCRIPTIONS : "holds"
     TENANTS ||--o{ LOCATIONS : "operates in"
     TENANT_MEMBERS ||--o{ CLASSES : "teaches"
     LOCATIONS ||--o{ CLASSES : "hosts"
@@ -282,7 +324,9 @@ erDiagram
     TENANT_MEMBERS ||--o{ BOOKINGS : "makes"
     TENANTS ||--o{ COURSES : "offers"
     CLASSES }|--o| COURSES : "linked to"
-    USERS ||--o{ SUBSCRIPTIONS : "subscribes"
+    VIDEO_COLLECTION_ITEMS ||--o{ QUIZ_SUBMISSIONS : "assessed by"
+    VIDEO_COLLECTION_ITEMS ||--o{ ASSIGNMENT_SUBMISSIONS : "assessed by"
+    VIDEO_COLLECTION_ITEMS ||--o{ COURSE_ITEM_COMPLETIONS : "completed in"
 ```
 
 ## Performance & Optimization
@@ -335,6 +379,94 @@ Instead of white-labeled binaries for each tenant, the system uses a **Single Pl
 *   **Theming**: The app dynamically fetches `mobile-config` (primary color, features) to rebrand itself on the fly.
 *   **Administration**: Platform admins control tenant access, force minimum versions, and toggle global maintenance mode via the **Admin Mobile Dashboard**.
 *   **Push Notifications**: Tokens are registered to the specific tenant context.
+
+## Memberships & Subscriptions
+
+The membership system follows a self-service model aligned with industry best practices (Glofox/Mindbody benchmarks). Plans are created by studio owners and discovered by students via the portal.
+
+```mermaid
+flowchart LR
+    subgraph "Admin (Studio)"
+        CREATE[Create / Edit Plan] --> PLAN[(membership_plans)]
+        ARCHIVE[Archive Plan] --> PLAN
+    end
+
+    subgraph "Student (Portal)"
+        BROWSE[Browse /portal/:slug/memberships] --> PLAN
+        JOIN[Join Now] --> CHECKOUT[/studio/:slug/checkout]
+        CHECKOUT --> STRIPE[Stripe Embedded Checkout]
+        STRIPE --> SUB[(subscriptions)]
+        CANCEL[Cancel Plan] --> API_CANCEL[POST /memberships/subscriptions/:id/cancel]
+        API_CANCEL --> STRIPE_CANCEL[Stripe cancel_at_period_end]
+        STRIPE_CANCEL --> SUB
+    end
+
+    subgraph "Dunning & Retention"
+        SUB -->|past_due| DUNNING[Dunning Automation]
+        DUNNING --> EMAIL[Resend Email]
+        DUNNING --> SMS[Twilio SMS]
+    end
+```
+
+### Plan Lifecycle
+| State | Trigger | Behavior |
+|---|---|---|
+| `active` | Created or restored | Visible to students, purchasable |
+| `archived` | Archived by admin OR DELETE with active subs | Hidden from portal; existing subs unaffected |
+| Hard deleted | DELETE with no active subs | Removed from DB |
+
+### Subscription Status Flow
+```
+incomplete → active → past_due → canceled
+                  ↘ trialing → active
+```
+
+### Trial Periods
+Plans with `trial_days > 0` display "Start Free Trial" in the portal. Stripe handles the trial period via `subscription_data.trial_period_days` during checkout.
+
+---
+
+## Course Management (LMS)
+
+```mermaid
+flowchart TB
+    subgraph "Course Structure"
+        COURSE[Course] --> MODULES[Video Collections / Modules]
+        MODULES --> ITEMS[Items: Video · Quiz · Assignment · Article]
+    end
+
+    subgraph "Student Flow"
+        ENROLL[Enroll] --> WATCH[Watch / Read]
+        WATCH --> COMPLETE[Mark Item Complete]
+        COMPLETE --> COMPLETIONS[(course_item_completions)]
+        COMPLETIONS --> PROGRESS[Recalculate Progress %]
+        WATCH --> QUIZ[Take Quiz]
+        QUIZ --> SUBMIT_Q[POST /quiz/:id/submit]
+        SUBMIT_Q --> SCORED[Auto-scored + Pass/Fail]
+        WATCH --> ASSIGN[Submit Assignment]
+        ASSIGN --> SUBMIT_A[POST /assignments/:id/submit]
+    end
+
+    subgraph "Instructor Flow"
+        GRADING[Grading Tab] --> SUBS[(assignment_submissions)]
+        SUBS --> GRADE[PATCH /assignments/submissions/:id/grade]
+        GRADE --> FEEDBACK[Grade + Feedback stored]
+    end
+```
+
+### LMS API Endpoints (Feb 2026)
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/courses/:id/curriculum/:itemId/complete` | Mark item complete, recalculate progress |
+| `GET` | `/courses/:id/my-completions` | Student's completed item IDs |
+| `POST` | `/quiz/:id/submit` | Auto-score quiz submission |
+| `GET` | `/quiz/:id/my-submission` | Latest quiz result |
+| `GET` | `/assignments/:id/my-submission` | Student's latest assignment |
+| `GET` | `/assignments/:id/submissions` | All submissions (instructor) |
+| `GET` | `/:courseId/all-submissions` | All course assignments (instructor) |
+| `PATCH` | `/assignments/submissions/:id/grade` | Grade with score + feedback |
+
+---
 
 ## Commerce Features
 *   **Gift Cards**:

@@ -71,12 +71,51 @@ Context-aware routes that require both `authMiddleware` and `tenantMiddleware`.
 | `/tenant/usage` | GET | View current usage vs limits (SMS, Email, Storage). |
 
 ### Functional Domains
-- **Classes**: `/classes` (Schedules, Bookings, Recordings)
-- **Members**: `/members` (Profile, History, Packs, Memberships)
-- **Commerce**: `/commerce`, `/pos`, `/refunds`
-- **Operations**: `/payroll`, `/locations`, `/tasks`, `/waivers`
-- **Growth**: `/marketing`, `/leads`, `/referrals`, `/coupons`
-- **Support**: `/chat`, `/faqs`
+
+#### Classes (`/classes`)
+Schedules, bookings, check-ins, recordings, series management, and conflict detection.
+
+#### Members (`/members`)
+Profile management, attendance history, class packs, waiver status, and student notes.
+
+#### Memberships (`/memberships`) — Updated Feb 2026
+Self-service subscription management integrated with Stripe.
+
+| Method | Path | Auth | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/memberships/plans` | Any | List active plans (add `?includeArchived=true` for admin) |
+| `POST` | `/memberships/plans` | Owner | Create a new plan (Stripe product + price created) |
+| `PATCH` | `/memberships/plans/:id` | Owner | Update plan name / description / trial days |
+| `DELETE` | `/memberships/plans/:id` | Owner | Hard-delete (no subs) or soft-archive (has subs) |
+| `PATCH` | `/memberships/plans/:id/status` | Owner | Toggle `active` (archive / restore) |
+| `GET` | `/memberships/my-active` | Student | Fetch caller's active/trialing/past-due subscriptions |
+| `POST` | `/memberships/subscriptions/:id/cancel` | Owner/Student | Cancel at period end via Stripe |
+
+#### Courses & LMS (`/courses`, `/quiz`, `/assignments`) — Updated Feb 2026
+Full learning management: enrollment, video curriculum, quizzes, assignments, and per-item progress.
+
+| Method | Path | Auth | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/courses/:id/curriculum/:itemId/complete` | Student | Mark item complete; recalculates progress % |
+| `GET` | `/courses/:id/my-completions` | Student | Returns set of completed item IDs |
+| `POST` | `/quiz/:id/submit` | Student | Auto-score submission; stored as `quiz_submissions` |
+| `GET` | `/quiz/:id/my-submission` | Student | Latest quiz result for caller |
+| `GET` | `/assignments/:id/my-submission` | Student | Latest assignment submission |
+| `GET` | `/assignments/:id/submissions` | Instructor | All submissions for an assignment |
+| `GET` | `/:courseId/all-submissions` | Instructor | All assignment submissions for a course |
+| `PATCH` | `/assignments/submissions/:id/grade` | Instructor | Set `grade` and `feedback` |
+
+#### Commerce (`/commerce`, `/pos`, `/refunds`)
+Gift cards, coupons, POS retail, Stripe Terminal integration, and refunds.
+
+#### Operations (`/payroll`, `/locations`, `/tasks`, `/waivers`)
+Studio operations and compliance.
+
+#### Growth (`/marketing`, `/leads`, `/referrals`, `/coupons`)
+Automations, lead capture, referral tracking.
+
+#### Support (`/chat`, `/faqs`)
+Live chat via Durable Objects WebSockets, FAQ management.
 
 ## 4. System & Integration API (`/webhooks`, `/uploads`, `/telemetry`)
 | Route | Description |

@@ -165,6 +165,22 @@ Also: `GET /memberships/plans` now accepts `?includeArchived=true` for admin vie
 
 ---
 
+## Recent Changes (Cursor Session — Feb 21, 2026)
+
+### Documentation Overhaul
+
+Updated all internal and GitHub-facing docs to reflect the memberships overhaul, LMS Tier 1–3, and all Q1 2026 improvements:
+
+| File | Change |
+|---|---|
+| `docs/schema_diagram.md` | Full ER diagram rewrite — added `membership_plans` (`active`, `trial_days`), `subscriptions` (`canceled_at`, `dunning_state`, `stripe_subscription_id`), `quiz_questions`, `quiz_submissions`, `assignment_submissions`, `course_item_completions`, `webhook_endpoints`, `webhook_logs`; added performance index table and 3NF compliance notes |
+| `docs/architecture.md` | Added **Memberships & Subscriptions** section (plan lifecycle diagram, subscription state flow, trial period docs); added **Course Management (LMS)** section (curriculum flowchart, LMS API table); updated **API Layer Structure** diagram to include `/memberships/*` and `/courses/*`; updated 3NF inline diagram to include new tables; cross-linked to full schema doc |
+| `docs/planning/api_blueprint.md` | Expanded **Functional Domains** section with full API tables for `/memberships` (5 new endpoints) and `/courses`/`/quiz`/`/assignments` (8 new endpoints) |
+| `docs/features/memberships.md` | **New file** — complete membership system reference: data model, plan lifecycle, subscription state flow, full API reference, Stripe integration, admin and portal UX, `PlanModal` fields, hook API, and migration history |
+| `README.md` | Updated features list to include memberships self-service and LMS grading; updated 3NF diagram to include `QUIZ_SUBMISSIONS`, `ASSIGNMENT_SUBMISSIONS`, `COURSE_ITEM_COMPLETIONS`; cross-linked to `docs/schema_diagram.md` |
+
+---
+
 ## Design Philosophy
 - **Performance First**: Extensive use of `D1.batch()` and SARGable queries to ensure edge speed.
 - **Data Isolation**: Strict application-level tenant isolation enforced via middleware.
