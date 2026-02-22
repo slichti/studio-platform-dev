@@ -11,6 +11,7 @@ app.get('/', async (c) => {
     try {
         const tenant = c.get('tenant');
         if (!tenant) throw new Error('Tenant context missing');
+        if (!c.get('can')('manage_settings')) return c.json({ error: 'Unauthorized' }, 403);
 
         const db = createDb(c.env.DB);
 

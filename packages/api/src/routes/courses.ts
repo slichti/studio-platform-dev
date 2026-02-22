@@ -136,6 +136,7 @@ app.openapi(createRoute({
     }
 }), async (c) => {
     const tenant = c.get('tenant');
+    if (!c.get('can')('manage_courses')) return c.json({ error: 'Unauthorized' }, 403);
     const body = c.req.valid('json');
     const db = createDb(c.env.DB);
 
@@ -303,6 +304,7 @@ app.openapi(createRoute({
     }
 }), async (c) => {
     const tenant = c.get('tenant');
+    if (!c.get('can')('manage_courses')) return c.json({ error: 'Unauthorized' }, 403);
     const { id } = c.req.valid('param');
     const body = c.req.valid('json');
     const db = createDb(c.env.DB);
@@ -355,6 +357,7 @@ app.openapi(createRoute({
     }
 }), async (c) => {
     const tenant = c.get('tenant');
+    if (!c.get('can')('manage_courses')) return c.json({ error: 'Unauthorized' }, 403);
     const { id } = c.req.valid('param');
     const db = createDb(c.env.DB);
 
@@ -484,7 +487,7 @@ app.openapi(createRoute({
     method: 'post',
     path: '/{id}/curriculum',
     tags: ['Courses'],
-    summary: 'Add item to course curriculum',
+    summary: 'Add item to course curriculum (admin)',
     request: {
         params: z.object({ id: z.string() }),
         body: {
@@ -509,6 +512,7 @@ app.openapi(createRoute({
     }
 }), async (c) => {
     const tenant = c.get('tenant');
+    if (!c.get('can')('manage_courses')) return c.json({ error: 'Unauthorized' }, 403);
     const { id } = c.req.valid('param');
     const body = c.req.valid('json');
     const db = createDb(c.env.DB);
@@ -586,6 +590,7 @@ app.openapi(createRoute({
     responses: { 201: { description: 'Article created', content: { 'application/json': { schema: z.any() } } } }
 }), async (c) => {
     const tenant = c.get('tenant');
+    if (!c.get('can')('manage_courses')) return c.json({ error: 'Unauthorized' }, 403);
     const body = c.req.valid('json');
     const db = createDb(c.env.DB);
     const id = crypto.randomUUID();
@@ -617,6 +622,7 @@ app.openapi(createRoute({
     responses: { 201: { description: 'Assignment created', content: { 'application/json': { schema: z.any() } } } }
 }), async (c) => {
     const tenant = c.get('tenant');
+    if (!c.get('can')('manage_courses')) return c.json({ error: 'Unauthorized' }, 403);
     const body = c.req.valid('json');
     const db = createDb(c.env.DB);
     const id = crypto.randomUUID();
@@ -649,6 +655,7 @@ app.openapi(createRoute({
     responses: { 201: { description: 'Resource created', content: { 'application/json': { schema: z.any() } } } }
 }), async (c) => {
     const tenant = c.get('tenant');
+    if (!c.get('can')('manage_courses')) return c.json({ error: 'Unauthorized' }, 403);
     const body = c.req.valid('json');
     const db = createDb(c.env.DB);
     const id = crypto.randomUUID();
@@ -778,6 +785,7 @@ app.openapi(createRoute({
     }
 }), async (c) => {
     const tenant = c.get('tenant');
+    if (!c.get('can')('manage_courses')) return c.json({ error: 'Unauthorized' }, 403);
     const { id, itemId } = c.req.valid('param');
     const db = createDb(c.env.DB);
 
@@ -821,6 +829,7 @@ app.openapi(createRoute({
     }
 }), async (c) => {
     const tenant = c.get('tenant');
+    if (!c.get('can')('manage_courses')) return c.json({ error: 'Unauthorized' }, 403);
     const { id } = c.req.valid('param');
     const { orderedIds } = c.req.valid('json');
     const db = createDb(c.env.DB);
@@ -930,6 +939,7 @@ app.openapi(createRoute({
     }
 }), async (c) => {
     const tenant = c.get('tenant');
+    if (!c.get('can')('manage_courses')) return c.json({ error: 'Unauthorized' }, 403);
     const { id } = c.req.valid('param');
     const body = c.req.valid('json');
     const db = createDb(c.env.DB);
@@ -958,6 +968,7 @@ app.openapi(createRoute({
     responses: { 204: { description: 'Deleted' }, 404: { description: 'Not found' } }
 }), async (c) => {
     const tenant = c.get('tenant');
+    if (!c.get('can')('manage_courses')) return c.json({ error: 'Unauthorized' }, 403);
     const { id, moduleId } = c.req.valid('param');
     const db = createDb(c.env.DB);
 
@@ -994,6 +1005,7 @@ app.openapi(createRoute({
     responses: { 200: { description: 'Updated', content: { 'application/json': { schema: z.any() } } }, 404: { description: 'Not found' } }
 }), async (c) => {
     const tenant = c.get('tenant');
+    if (!c.get('can')('manage_courses')) return c.json({ error: 'Unauthorized' }, 403);
     const { id, itemId } = c.req.valid('param');
     const body = c.req.valid('json');
     const db = createDb(c.env.DB);

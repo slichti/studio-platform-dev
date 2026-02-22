@@ -165,6 +165,107 @@ Also: `GET /memberships/plans` now accepts `?includeArchived=true` for admin vie
 
 ---
 
+## Recent Changes (Cursor Session — Feb 21, 2026, Part 2)
+
+### Student / Customer Capability Audit & RBAC Hardening
+
+Performed a comprehensive deep-dive across all 92 API route files and 8 portal UI routes to evaluate what unauthenticated users, authenticated non-members, and students could do vs. what they should be able to do.
+
+#### Capability Matrix (as-designed after fixes)
+
+| Action | Public | Student | Instructor | Owner/Admin |
+|---|:---:|:---:|:---:|:---:|
+| View public studio info / branding | ✅ | ✅ | ✅ | ✅ |
+| View public class schedule | ✅ | ✅ | ✅ | ✅ |
+| Guest book a class | ✅ | ✅ | ✅ | ✅ |
+| Browse membership plans | ✅ | ✅ | ✅ | ✅ |
+| Browse courses (active only) | ✅ | ✅ | ✅ | ✅ |
+| Sign a public waiver | ✅ | ✅ | ✅ | ✅ |
+| Book / cancel a class booking | — | ✅ | ✅ | ✅ |
+| View own upcoming bookings | — | ✅ | ✅ | ✅ |
+| Enroll in a course | — | ✅ | ✅ | ✅ |
+| Watch enrolled course videos | — | ✅ | ✅ | ✅ |
+| Submit quiz / assignment | — | ✅ | ✅ | ✅ |
+| Mark lesson complete | — | ✅ | ✅ | ✅ |
+| Download completion certificate | — | ✅ | ✅ | ✅ |
+| View own active memberships | — | ✅ | ✅ | ✅ |
+| Self-cancel a membership | — | ✅ | ✅ | ✅ |
+| Log own progress entries | — | ✅ | ✅ | ✅ |
+| Write a review | — | ✅ | ✅ | ✅ |
+| Post community content | — | ✅ | ✅ | ✅ |
+| Book an appointment | — | ✅ | ✅ | ✅ |
+| View/reorder course curriculum | — | ❌ | ❌ | ✅ |
+| Create / edit / delete a course | — | ❌ | ❌ | ✅ |
+| Create articles / assignments | — | ❌ | ❌ | ✅ |
+| Grade assignment submissions | — | ❌ | ✅ | ✅ |
+| View analytics (utilization, retention, LTV) | — | ❌ | ❌ | ✅ |
+| View audit logs | — | ❌ | ❌ | ✅ |
+| Create / edit / delete tags | — | ❌ | ❌ | ✅ |
+| Create / edit custom field definitions | — | ❌ | ❌ | ✅ |
+| Create / edit / delete tasks | — | ❌ | ❌ | ✅ |
+| Create membership plans | — | ❌ | ❌ | ✅ |
+| Schedule a class | — | ❌ | ✅ | ✅ |
+| Check in students | — | ❌ | ✅ | ✅ |
+
+#### Bugs Found & Fixed
+
+**API — Missing `manage_courses` permission guard (students could create/delete course content):**
+- `POST /courses` — Create course → added `manage_courses` guard
+- `PATCH /courses/:id` — Update course → added `manage_courses` guard
+- `DELETE /courses/:id` — Delete course → added `manage_courses` guard
+- `POST /courses/:id/curriculum` — Add curriculum item → added `manage_courses` guard
+- `DELETE /courses/:id/curriculum/:itemId` — Remove item → added `manage_courses` guard
+- `PATCH /courses/:id/curriculum/reorder` — Reorder → added `manage_courses` guard
+- `PATCH /courses/:id/curriculum/:itemId/config` — Drip config → added `manage_courses` guard
+- `POST /courses/articles` — Create article → added `manage_courses` guard
+- `POST /courses/assignments` — Create assignment → added `manage_courses` guard
+- `POST /courses/resources` — Add resource → added `manage_courses` guard
+- `POST /courses/:id/modules` — Create module → added `manage_courses` guard
+- `DELETE /courses/:id/modules/:moduleId` — Delete module → added `manage_courses` guard
+
+**API — Missing `view_reports` permission guard (students could read revenue/retention data):**
+- `GET /analytics/utilization` → added `view_reports` guard
+- `GET /analytics/retention` → added `view_reports` guard
+- `GET /analytics/ltv` → added `view_reports` guard
+
+**API — Missing `manage_settings` permission guard (any tenant member could read audit logs):**
+- `GET /audit-logs` → added `manage_settings` guard
+
+**API — Missing `manage_members` permission guards on tag management:**
+- `POST /tags` — Create tag → added guard
+- `PUT /tags/:id` — Update tag → added guard
+- `DELETE /tags/:id` — Delete tag → added guard
+- `POST /tags/assign` — Assign tag → added guard
+- `POST /tags/unassign` — Unassign tag → added guard
+
+**API — Missing `manage_members` permission guards on custom field writes:**
+- `POST /custom-fields` — Create field definition → added guard
+- `POST /custom-fields/values` — Upsert field values → added guard
+
+**API — Missing `manage_marketing` permission guards on task management:**
+- `POST /tasks` — Create task → added guard
+- `PATCH /tasks/:id` — Update task → added guard
+- `DELETE /tasks/:id` — Delete task → added guard
+- Also fixed: `tasks.ts` used its own local `Variables` type that didn't include `can` — replaced with shared `Bindings, Variables` from `../types`
+
+**Portal — Non-members could access the student portal:**
+- `portal.$slug.tsx` loader had a commented-out membership redirect. Re-enabled: non-members are now redirected to `/studio/:slug/join`.
+
+**Portal — Hardcoded progress stats on profile page:**
+- `portal.$slug.profile.tsx` showed hardcoded streak=7, classes=12, pack credits=8
+- Fixed: now fetches real data from `/bookings/my-upcoming`, `/progress/my-stats`, and `/commerce/packs`
+- Streak, classes-this-month, pack credits, and milestones all computed from live API responses
+- Also standardized import to use `auth-wrapper.server` (was inconsistently using `@clerk/react-router/server` directly)
+
+#### Items Left for Future Work (out of scope for this session)
+- Appointment booking `GET /appointments/services` and `GET /appointments/availability` are auth-gated — may need `optionalAuthMiddleware` for public booking widgets
+- Gift card validation (`GET /gift-cards/validate/:code`) requires auth — may need to be public for checkout flows
+- Booking history page (`portal.$slug.bookings.tsx`) not yet implemented — students can see upcoming but not past bookings
+- Student pack purchase history not exposed in portal UI (API exists)
+- Profile editing (name, photo, email preferences) not available in portal
+
+---
+
 ## Recent Changes (Cursor Session — Feb 21, 2026)
 
 ### Documentation Overhaul

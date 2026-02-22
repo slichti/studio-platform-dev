@@ -89,6 +89,7 @@ app.openapi(createRoute({
         const db = createDb(c.env.DB);
         const tenant = c.get('tenant');
         if (!tenant) throw new Error('Tenant context missing');
+        if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
 
         const body = c.req.valid('json');
         const id = crypto.randomUUID();
@@ -155,6 +156,7 @@ app.openapi(createRoute({
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) throw new Error('Tenant context missing');
+    if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
     const body = c.req.valid('json');
 
     for (const item of body) {

@@ -18,6 +18,7 @@ app.get('/utilization', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context required" }, 400);
+    if (!c.get('can')('view_reports')) return c.json({ error: 'Unauthorized' }, 403);
 
     // Group bookings by the CLASS start time, not booking time.
     // We want to know "When are classes busy?"
@@ -46,6 +47,7 @@ app.get('/retention', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context required" }, 400);
+    if (!c.get('can')('view_reports')) return c.json({ error: 'Unauthorized' }, 403);
 
     const cohorts = await db.select({
         cohortMonth: sql<string>`strftime('%Y-%m', ${tenantMembers.joinedAt})`,
@@ -79,6 +81,7 @@ app.get('/ltv', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context required" }, 400);
+    if (!c.get('can')('view_reports')) return c.json({ error: 'Unauthorized' }, 403);
 
     // 1. Total Members
     const memberStats = await db.select({

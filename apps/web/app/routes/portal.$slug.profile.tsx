@@ -1,7 +1,7 @@
 
 import { useLoaderData, useOutletContext, Form, useFetcher, Link } from "react-router";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
-import { getAuth } from "@clerk/react-router/server";
+import { getAuth } from "~/utils/auth-wrapper.server";
 import { apiRequest } from "~/utils/api";
 import { User, Mail, Calendar, LogOut, Shield, TrendingUp, Award, CreditCard, AlertCircle } from "lucide-react";
 import { ProgressRing } from "~/components/ui/ProgressRing";
@@ -14,16 +14,48 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const token = await getToken();
     const { slug } = args.params;
 
-    const [billingInfo, memberships] = await Promise.all([
-        Promise.resolve({ balance: 0, paymentMethods: [] }),
-        apiRequest(`/memberships/my-active`, token, { headers: { "X-Tenant-Slug": slug! } }).catch(() => []),
+    const headers = { "X-Tenant-Slug": slug! };
+
+    const [memberships, upcomingBookings, progressStats, packs] = await Promise.all([
+        apiRequest(`/memberships/my-active`, token, { headers }).catch(() => []),
+        apiRequest(`/bookings/my-upcoming?limit=100`, token, { headers }).catch(() => []),
+        apiRequest(`/progress/my-stats`, token, { headers }).catch(() => null),
+        apiRequest(`/commerce/packs`, token, { headers }).catch(() => []),
     ]);
 
-    return { billingInfo, memberships: memberships || [] };
+    // Compute attendance-this-month from upcoming bookings + any cached stats
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const classesThisMonth = Array.isArray(upcomingBookings)
+        ? upcomingBookings.filter((b: any) => new Date(b.startTime || b.class?.startTime) >= startOfMonth).length
+        : 0;
+
+    // Pack credits: sum remaining across all purchased packs
+    const packCredits = Array.isArray(packs)
+        ? packs.reduce((sum: number, p: any) => sum + (p.remainingCredits ?? 0), 0)
+        : 0;
+    const packTotal = Array.isArray(packs)
+        ? packs.reduce((sum: number, p: any) => sum + (p.initialCredits ?? 0), 0)
+        : 0;
+
+    // Streak from progress stats (days active in last 7 days)
+    const streak = (progressStats as any)?.currentStreak ?? 0;
+    const totalClasses = (progressStats as any)?.totalBookings ?? classesThisMonth;
+    const milestones = [10, 25, 50, 100];
+
+    return {
+        memberships: memberships || [],
+        streak,
+        classesThisMonth,
+        totalClasses,
+        packCredits,
+        packTotal: packTotal || packCredits,
+        milestones,
+    };
 };
 
 export const action = async (args: ActionFunctionArgs) => {
-    const { getToken } = await getAuth(args);
+    const { getToken } = await getAuth(args as any);
     const token = await getToken();
     const { slug } = args.params;
     const form = await args.request.formData();
@@ -102,7 +134,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function StudentPortalProfile() {
     const { me, tenant } = useOutletContext<any>();
-    const { billingInfo, memberships } = useLoaderData<typeof loader>();
+    const { memberships, streak, classesThisMonth, totalClasses, packCredits, packTotal, milestones } = useLoaderData<typeof loader>();
 
     const firstName = me?.firstName || "Student";
     const lastName = me?.lastName || "";
@@ -156,27 +188,29 @@ export default function StudentPortalProfile() {
                     <div className="bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 p-6 rounded-xl border border-orange-200 dark:border-orange-800">
                         <div className="flex items-center justify-between mb-3">
                             <span className="text-sm font-medium text-orange-900 dark:text-orange-100">Attendance Streak</span>
-                            <StreakBadge streak={7} showLabel={false} />
+                            <StreakBadge streak={streak} showLabel={false} />
                         </div>
-                        <div className="text-3xl font-bold text-orange-900 dark:text-orange-100">7 days</div>
-                        <p className="text-xs text-orange-700 dark:text-orange-300 mt-1">Keep it going! 🔥</p>
+                        <div className="text-3xl font-bold text-orange-900 dark:text-orange-100">{streak} day{streak !== 1 ? "s" : ""}</div>
+                        <p className="text-xs text-orange-700 dark:text-orange-300 mt-1">{streak > 0 ? "Keep it going! 🔥" : "Start your streak today!"}</p>
                     </div>
 
                     <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800">
                         <div className="flex items-center justify-between">
                             <div className="flex-1">
                                 <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">This Month</span>
-                                <div className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 mt-2">12</div>
+                                <div className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 mt-2">{classesThisMonth}</div>
                                 <p className="text-xs text-zinc-500 mt-1">classes attended</p>
                             </div>
-                            <ProgressRing progress={60} size={80} strokeWidth={6} showPercentage={false} label="12/20" />
+                            <ProgressRing progress={Math.min(100, Math.round((classesThisMonth / 20) * 100))} size={80} strokeWidth={6} showPercentage={false} label={`${classesThisMonth}/20`} />
                         </div>
                     </div>
 
                     <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-xl border border-blue-200 dark:border-blue-800">
                         <span className="text-sm font-medium text-blue-900 dark:text-blue-100">Pack Credits</span>
-                        <div className="text-3xl font-bold text-blue-900 dark:text-blue-100 mt-2">8</div>
-                        <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">of 10 remaining</p>
+                        <div className="text-3xl font-bold text-blue-900 dark:text-blue-100 mt-2">{packCredits}</div>
+                        <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                            {packTotal > 0 ? `of ${packTotal} remaining` : "No active pack"}
+                        </p>
                     </div>
                 </div>
 
@@ -187,10 +221,9 @@ export default function StudentPortalProfile() {
                         Milestones
                     </h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <MilestoneBadge milestone={10} label="Classes" achieved={true} />
-                        <MilestoneBadge milestone={25} label="Classes" achieved={false} />
-                        <MilestoneBadge milestone={50} label="Classes" achieved={false} />
-                        <MilestoneBadge milestone={100} label="Classes" achieved={false} />
+                        {(milestones as number[]).map((m) => (
+                            <MilestoneBadge key={m} milestone={m} label="Classes" achieved={totalClasses >= m} />
+                        ))}
                     </div>
                 </div>
             </section>

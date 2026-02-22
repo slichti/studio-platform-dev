@@ -45,12 +45,10 @@ export const loader = async (args: LoaderFunctionArgs) => {
         const tenant = await apiRequest(`/tenants/${slug}`, token);
         const me = await apiRequest(`/users/me`, token).catch(() => null);
 
-        // Verify Membership
+        // Verify Membership — users must be a member of this tenant to access the portal
         const membership = me?.tenants?.find((t: any) => t.slug === slug);
         if (!membership) {
-            // Not a member? Redirect to join or public page?
-            // For now, let's assume they might be trying to join
-            // return redirect(`/studio/${slug}/join`);
+            return redirect(`/studio/${slug}/join`);
         }
 
         return { tenant, me, membership };

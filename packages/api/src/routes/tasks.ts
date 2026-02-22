@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import { eq, and, desc, asc } from 'drizzle-orm';
 import { createDb } from '../db';
-import { tasks, tenantMembers, leads, users } from '@studio/db/src/schema'; // Ensure correct import path matching leads.ts
+import { tasks, tenantMembers, leads, users } from '@studio/db/src/schema';
+import { Bindings, Variables } from '../types';
 
 // Manual types for request body
 type TaskCreate = {
@@ -13,17 +14,6 @@ type TaskCreate = {
     assignedToId?: string;
     relatedLeadId?: string;
     relatedMemberId?: string;
-};
-
-type Bindings = {
-    DB: D1Database;
-};
-
-type Variables = {
-    auth: { userId: string };
-    tenant: any;
-    user?: any; // global user
-    member?: any; // tenant member
 };
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
@@ -101,6 +91,7 @@ app.get('/', async (c) => {
 app.post('/', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    if (!c.get('can')('manage_marketing')) return c.json({ error: 'Unauthorized' }, 403);
     const data = await c.req.json<TaskCreate>();
 
     if (!data.title) return c.json({ error: 'Title is required' }, 400);
@@ -125,6 +116,7 @@ app.post('/', async (c) => {
 app.patch('/:id', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    if (!c.get('can')('manage_marketing')) return c.json({ error: 'Unauthorized' }, 403);
     const id = c.req.param('id');
     const data = await c.req.json<Partial<TaskCreate>>();
 
@@ -154,6 +146,7 @@ app.patch('/:id', async (c) => {
 app.delete('/:id', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    if (!c.get('can')('manage_marketing')) return c.json({ error: 'Unauthorized' }, 403);
     const id = c.req.param('id');
 
     await db.delete(tasks).where(and(eq(tasks.id, id), eq(tasks.tenantId, tenant.id))).run();
