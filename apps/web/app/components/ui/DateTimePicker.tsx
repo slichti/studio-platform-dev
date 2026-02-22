@@ -51,6 +51,11 @@ const datePickerStyles = `
   .dark .react-datepicker__day:hover {
     background-color: #27272a !important;
   }
+  /* Remove react-datepicker's fixed-width padding on the children slot */
+  .react-datepicker__children-container {
+    width: auto !important;
+    padding: 0 !important;
+  }
 `;
 
 export interface DateTimePickerProps {
@@ -154,6 +159,7 @@ export function DateTimePicker({ value, onChange, className, placeholder, name }
           className
         )}
         autoComplete="off"
+        popperProps={{ strategy: "fixed" }}
       >
         <div className="p-2 border-l border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex gap-1">
           <TimeColumn
