@@ -1,6 +1,6 @@
-import { startOfWeek, addDays, format, isSameDay, isWithinInterval, addMinutes } from 'date-fns';
+import { startOfWeek, addDays, format, isSameDay } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { cn } from '~/utils/cn';
 
 interface Event {
@@ -20,6 +20,25 @@ interface WeeklyCalendarProps {
 
 export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDate = new Date() }: WeeklyCalendarProps) {
     const [currentDate, setCurrentDate] = useState(defaultDate);
+
+    // Auto-advance to the week of the next upcoming event if the current week
+    // has no future events (e.g. today is Saturday and the next class is Sunday).
+    const hasAutoAdvanced = useRef(false);
+    const initialWeekEndRef = useRef(addDays(startOfWeek(defaultDate, { weekStartsOn: 0 }), 6));
+    useEffect(() => {
+        if (!hasAutoAdvanced.current && events.length > 0) {
+            hasAutoAdvanced.current = true;
+            const now = new Date();
+            const initialWeekEnd = initialWeekEndRef.current;
+            const hasEventsThisWeek = events.some(e => e.start >= now && e.start <= initialWeekEnd);
+            if (!hasEventsThisWeek) {
+                const next = events
+                    .filter(e => e.start > initialWeekEnd)
+                    .sort((a, b) => a.start.getTime() - b.start.getTime());
+                if (next.length > 0) setCurrentDate(next[0].start);
+            }
+        }
+    }, [events]);
 
     const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 }); // Sunday start
     const weekDays = Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i));

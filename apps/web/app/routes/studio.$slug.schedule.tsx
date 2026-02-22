@@ -16,6 +16,7 @@ import { useClasses } from "~/hooks/useClasses";
 import { useUser } from "~/hooks/useUser";
 import { useStudioData } from "~/hooks/useStudioData";
 import { useCourses } from "~/hooks/useCourses";
+import { usePlans } from "~/hooks/useMemberships";
 import { lazy, Suspense } from "react";
 import { ClientOnly } from "~/components/ClientOnly";
 import { useSearchParams } from "react-router";
@@ -32,6 +33,7 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
     const { data: classesData = [], isLoading: isLoadingClasses, error } = useClasses(slug!);
     const { data: studioData } = useStudioData(slug!);
     const { data: userData } = useUser(slug);
+    const { data: plansData = [] } = usePlans(slug!);
 
     const family = userData?.family || [];
     const locations = studioData?.locations || [];
@@ -137,6 +139,7 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
                 locations={locations}
                 instructors={instructors}
                 courses={coursesData}
+                plans={plansData}
             />
 
             <ClassDetailModal
