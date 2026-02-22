@@ -89,6 +89,9 @@ export class BookingService {
             createdAt: new Date()
         }).run();
 
+        // Fire built-in booking confirmation email (best-effort, non-blocking)
+        this.sendBuiltInConfirmation(id, cls).catch(() => {});
+
         // Trigger Automation
         this.dispatchAutomation('class_booked', id);
 
@@ -185,7 +188,8 @@ export class BookingService {
                 waitlistNotifiedAt: new Date()
             }).where(eq(bookings.id, next.id)).run();
 
-            // Notify User
+            // Built-in notification + marketing automation
+            this.sendBuiltInWaitlistPromotion(next.id).catch(() => {});
             this.dispatchAutomation('waitlist_promoted', next.id);
         }
     }
@@ -498,6 +502,81 @@ export class BookingService {
 
         } catch (e) {
             console.error(`[BookingService] Automation Error (${trigger})`, e);
+        }
+    }
+
+    /**
+     * Built-in transactional booking confirmation — always fires regardless of marketing automations.
+     */
+    private async sendBuiltInConfirmation(bookingId: string, cls: any) {
+        try {
+            const booking = await this.db.query.bookings.findFirst({
+                where: eq(bookings.id, bookingId),
+                with: {
+                    member: {
+                        with: { user: true, tenant: true }
+                    }
+                }
+            });
+            if (!booking?.member?.user?.email || !booking?.member?.tenant) return;
+
+            const tenant = booking.member.tenant;
+            const user = booking.member.user;
+            const { EmailService } = await import('./email');
+            const emailService = new EmailService(
+                this.env.RESEND_API_KEY,
+                { branding: tenant.branding, settings: tenant.settings },
+                undefined, undefined, false, this.db, tenant.id
+            );
+
+            await emailService.sendBookingConfirmation(user.email, {
+                title: cls.title,
+                startTime: cls.startTime instanceof Date ? cls.startTime : new Date(cls.startTime),
+                zoomUrl: cls.zoomMeetingUrl ?? undefined,
+                bookedBy: `${(user.profile as any)?.firstName ?? ''} ${(user.profile as any)?.lastName ?? ''}`.trim() || undefined,
+            });
+        } catch (e) {
+            console.error('[BookingService] Built-in confirmation email failed', e);
+        }
+    }
+
+    /**
+     * Built-in waitlist promotion notification — always fires when a student is promoted.
+     */
+    private async sendBuiltInWaitlistPromotion(bookingId: string) {
+        try {
+            const booking = await this.db.query.bookings.findFirst({
+                where: eq(bookings.id, bookingId),
+                with: {
+                    member: { with: { user: true, tenant: true } },
+                    class: true
+                }
+            });
+            if (!booking?.member?.user?.email || !booking?.member?.tenant) return;
+
+            const tenant = booking.member.tenant;
+            const user = booking.member.user;
+            const cls = booking.class;
+            const { EmailService } = await import('./email');
+            const emailService = new EmailService(
+                this.env.RESEND_API_KEY,
+                { branding: tenant.branding, settings: tenant.settings },
+                undefined, undefined, false, this.db, tenant.id
+            );
+
+            const startTime = cls.startTime instanceof Date ? cls.startTime : new Date(cls.startTime);
+            const dateStr = startTime.toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+            const firstName = (user.profile as any)?.firstName ?? 'there';
+
+            await emailService.sendGenericEmail(
+                user.email,
+                `You're off the waitlist — ${cls.title}`,
+                `<p>Hi ${firstName},</p>
+<p>Great news! A spot has opened up and you've been <strong>confirmed</strong> for <strong>${cls.title}</strong> on ${dateStr}.</p>
+<p>See you there!</p>`
+            );
+        } catch (e) {
+            console.error('[BookingService] Built-in waitlist promotion email failed', e);
         }
     }
 }

@@ -79,7 +79,7 @@ describe('Booking Lifecycle Integration', () => {
             id TEXT PRIMARY KEY, class_id TEXT, member_id TEXT, status TEXT DEFAULT 'confirmed',
             attendance_type TEXT DEFAULT 'in_person', checked_in_at INTEGER, is_guest INTEGER DEFAULT 0,
             guest_name TEXT, guest_email TEXT, spot_number TEXT, waitlist_position INTEGER,
-            waitlist_notified_at INTEGER, payment_method TEXT, used_pack_id TEXT, external_source TEXT,
+            waitlist_notified_at INTEGER, reminder_sent_at INTEGER, payment_method TEXT, used_pack_id TEXT, external_source TEXT,
             external_id TEXT, created_at INTEGER
         )`);
 

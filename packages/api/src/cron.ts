@@ -1,6 +1,6 @@
 import { createDb } from './db';
 import { tenants, classes, bookings, tenantMembers, marketingAutomations, users, emailLogs, purchasedPacks, tenantRoles, subscriptions, membershipPlans, scheduledReports } from '@studio/db/src/schema'; // Ensure imports
-import { and, eq, lte, gt, gte, inArray, isNotNull, sql } from 'drizzle-orm';
+import { and, eq, lte, gt, gte, lt, isNull, inArray, isNotNull, sql } from 'drizzle-orm';
 import { BookingService } from './services/bookings';
 import { ReportService } from './services/reports';
 
@@ -352,6 +352,13 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
     // 5. Billing Renewal Notifications
     await processRenewals(db, env);
 
+    // 5b. 24h Class Reminders
+    try {
+        await send24hClassReminders(db, env);
+    } catch (e) {
+        console.error('[Cron] 24h class reminder error:', e);
+    }
+
     // 6. Student Nudges (Trial Expiring / Inactive)
     const nudgeService = new NudgeService(db, env);
     try {
@@ -531,6 +538,95 @@ async function processRenewals(db: any, env: any) {
                 console.log(`Sent Platform Renewal Notice to ${owner.email}`);
             } catch (e) {
                 console.error(`Failed to send platform renewal to ${owner.email}`, e);
+            }
+        }
+    }
+}
+
+/**
+ * 24h Class Reminder — runs on every hourly cron tick.
+ * Finds confirmed bookings for classes starting 23–25 hours from now
+ * and sends a built-in reminder email. Uses reminderSentAt to prevent double-sends.
+ */
+async function send24hClassReminders(db: any, env: any) {
+    const now = new Date();
+    const windowStart = new Date(now.getTime() + 23 * 60 * 60 * 1000);
+    const windowEnd = new Date(now.getTime() + 25 * 60 * 60 * 1000);
+
+    const upcomingClasses = await db.select({
+        id: classes.id,
+        title: classes.title,
+        startTime: classes.startTime,
+        tenantId: classes.tenantId,
+        zoomMeetingUrl: classes.zoomMeetingUrl,
+    }).from(classes)
+        .where(and(
+            eq(classes.status, 'active'),
+            gte(classes.startTime, windowStart),
+            lt(classes.startTime, windowEnd)
+        )).all() as any[];
+
+    if (upcomingClasses.length === 0) return;
+
+    const tenantCache = new Map<string, any>();
+    const getTenant = async (tenantId: string) => {
+        if (!tenantCache.has(tenantId)) {
+            const t = await db.select().from(tenants).where(eq(tenants.id, tenantId)).get();
+            tenantCache.set(tenantId, t);
+        }
+        return tenantCache.get(tenantId);
+    };
+
+    for (const cls of upcomingClasses) {
+        const tenant = await getTenant(cls.tenantId);
+        if (!tenant) continue;
+
+        const emailService = new EmailService(
+            env.RESEND_API_KEY,
+            { branding: tenant.branding, settings: tenant.settings },
+            undefined, undefined, false, db, cls.tenantId
+        );
+
+        const { isNull: isNullFn } = await import('drizzle-orm');
+        const pendingReminders = await db.select({
+            bookingId: bookings.id,
+            memberId: bookings.memberId,
+        }).from(bookings)
+            .where(and(
+                eq(bookings.classId, cls.id),
+                eq(bookings.status, 'confirmed'),
+                isNullFn(bookings.reminderSentAt)
+            )).all() as any[];
+
+        for (const b of pendingReminders) {
+            const member = await db.query.tenantMembers.findFirst({
+                where: eq(tenantMembers.id, b.memberId),
+                with: { user: true }
+            });
+            if (!member?.user?.email) continue;
+
+            const firstName = (member.user.profile as any)?.firstName ?? 'there';
+            const startTime = cls.startTime instanceof Date ? cls.startTime : new Date(cls.startTime);
+            const dateStr = startTime.toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+
+            try {
+                await emailService.sendGenericEmail(
+                    member.user.email,
+                    `Reminder: ${cls.title} is tomorrow`,
+                    `<p>Hi ${firstName},</p>
+<p>Just a reminder that you have <strong>${cls.title}</strong> coming up on <strong>${dateStr}</strong>.</p>
+${cls.zoomMeetingUrl ? `<p><a href="${cls.zoomMeetingUrl}" style="background:#4F46E5;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Join Online</a></p>` : ''}
+<p>We'll see you there!</p>`
+                );
+
+                await db.update(bookings)
+                    .set({ reminderSentAt: new Date() })
+                    .where(eq(bookings.id, b.bookingId))
+                    .run();
+
+                console.log(`[Reminder] Sent 24h reminder to ${member.user.email} for "${cls.title}"`);
+            } catch (e) {
+                console.error(`[Reminder] Failed for ${member.user.email}:`, e);
             }
         }
     }

@@ -106,6 +106,58 @@ app.get('/history', async (c) => {
     return c.json(list);
 });
 
+// GET /history/export — CSV export of full booking history for the member
+app.get('/history/export', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+    const auth = c.get('auth')!;
+    const member = await db.query.tenantMembers.findFirst({ where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id)) });
+    if (!member) return c.json({ error: "Member not found" }, 403);
+
+    const list = await db.select({
+        id: bookings.id,
+        status: bookings.status,
+        attendanceType: bookings.attendanceType,
+        checkedInAt: bookings.checkedInAt,
+        classTitle: classes.title,
+        classStartTime: classes.startTime,
+        classDurationMinutes: classes.durationMinutes,
+    })
+        .from(bookings)
+        .innerJoin(classes, eq(bookings.classId, classes.id))
+        .where(and(
+            eq(bookings.memberId, member.id),
+            lt(classes.startTime, sql`unixepoch()`)
+        ))
+        .orderBy(desc(classes.startTime))
+        .all() as any[];
+
+    const rows = [
+        ["Date", "Time", "Class", "Duration (min)", "Status", "Attendance Type", "Checked In At"],
+        ...list.map((b: any) => {
+            const start = b.classStartTime instanceof Date ? b.classStartTime : new Date(b.classStartTime * 1000);
+            const checkedIn = b.checkedInAt ? (b.checkedInAt instanceof Date ? b.checkedInAt : new Date(b.checkedInAt * 1000)) : null;
+            return [
+                start.toLocaleDateString("en-US"),
+                start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+                `"${(b.classTitle || "").replace(/"/g, '""')}"`,
+                b.classDurationMinutes ?? "",
+                b.status,
+                b.attendanceType,
+                checkedIn ? checkedIn.toLocaleString("en-US") : "",
+            ];
+        })
+    ];
+
+    const csv = rows.map(r => r.join(",")).join("\n");
+    return new Response(csv, {
+        headers: {
+            "Content-Type": "text/csv",
+            "Content-Disposition": `attachment; filename="class-history.csv"`,
+        }
+    });
+});
+
 // GET /:id
 app.get('/:id', async (c) => {
     const db = createDb(c.env.DB);

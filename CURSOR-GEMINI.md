@@ -313,3 +313,86 @@ Tier 2 focused on **Studio Owner Operations + Student Commerce**, implementing f
 - Compact class cards showing: class name, start time, occupancy bar (green/amber/red), booked/capacity count, and a direct "Check In" link to `classes/:id/roster`.
 - Added `format` (date-fns), `CheckSquare`, `Clock` icon imports.
 
+
+---
+
+## 🎯 Tier 3 Feature Completion (Feb 2026 — Session 6)
+
+### Summary
+
+Five communication and student engagement features shipped across API, portal, and studio.
+
+---
+
+### 1. Built-in Booking Confirmation Email
+
+**Files**: `packages/api/src/services/bookings.ts`
+
+Previously, the `EmailService.sendBookingConfirmation` method existed but was never called. Confirmation emails only fired if the studio owner had manually configured a marketing automation for `class_booked`. 
+
+**Change**: Added a private `sendBuiltInConfirmation(bookingId, cls)` method to `BookingService` that always fires after a booking is created, regardless of whether any marketing automation exists. Calls `EmailService.sendBookingConfirmation` with class title, start time, and Zoom URL if applicable. Runs non-blocking (`.catch(() => {})`).
+
+---
+
+### 2. Built-in Waitlist Promotion Email
+
+**Files**: `packages/api/src/services/bookings.ts`
+
+When `BookingService.promoteNextInLine` ran, it dispatched the `waitlist_promoted` trigger (which fires user-configured automations) but sent no built-in notification. Students were silently confirmed without any email.
+
+**Change**: Added a private `sendBuiltInWaitlistPromotion(bookingId)` method that sends a transactional email: "Great news! A spot has opened up and you've been confirmed for [Class] on [Date]." Also runs non-blocking alongside the existing automation dispatch.
+
+---
+
+### 3. 24h Class Reminder Cron Job + Schema
+
+**Files**: `packages/db/src/schema.ts`, `packages/db/migrations/0008_booking_reminder.sql`, `packages/api/src/cron.ts`, `packages/api/src/routes/booking-integration.test.ts`
+
+**Schema**: Added `reminderSentAt: integer('reminder_sent_at', { mode: 'timestamp' })` to the `bookings` table (migration `0008_booking_reminder.sql`).
+
+**Cron** (`send24hClassReminders` standalone function):
+- Called from the hourly cron in `scheduled()`.
+- Finds all `active` classes with `startTime` in the 23–25h window from now.
+- For each class, fetches confirmed bookings where `reminderSentAt IS NULL`.
+- Sends a reminder email via `EmailService.sendGenericEmail` with class name, time, and Zoom join button if applicable.
+- Sets `reminderSentAt = now` on the booking to prevent duplicate sends.
+
+**Test fix**: `booking-integration.test.ts` in-memory table updated with `reminder_sent_at` column.
+
+---
+
+### 4. Portal Class Review/Rating UI + Studio Moderation
+
+**Files**: `apps/web/app/routes/portal.$slug.history.tsx`, `apps/web/app/routes/studio.$slug.reviews.tsx`, `apps/web/app/routes/studio.$slug.tsx`
+
+**Portal** (`portal.$slug.history.tsx`):
+- Past attended classes now show a **"Rate"** button (amber, star icon).
+- Clicking opens a `RateClassDialog` modal with: class name, 5-star interactive rating (hover highlight), optional comment textarea, and submit/cancel buttons.
+- On submit, calls `POST /reviews` with `{ rating, content, targetType: 'class', targetId }`.
+- Locally tracks rated booking IDs so the button disappears after rating.
+- Also added **Export CSV** button (calls the new `GET /bookings/history/export` endpoint).
+
+**Studio Reviews page** (`studio.$slug.reviews.tsx`):
+- New route showing all studio reviews.
+- Summary stats: avg rating, total reviews, pending approval count.
+- Filter tabs: All / Pending / Approved / Testimonial.
+- Per-review actions: Approve (green check), Mark as Testimonial (gold badge), Delete.
+- Testimonials highlighted with amber border for easy identification.
+
+**Navigation** (`studio.$slug.tsx`):
+- Added "Reviews" nav item under the Marketing group with `Star` icon.
+
+---
+
+### 5. Student Attendance History CSV Export
+
+**Files**: `packages/api/src/routes/bookings.ts`, `apps/web/app/routes/portal.$slug.history.tsx`
+
+**API** (`GET /bookings/history/export`):
+- New endpoint that returns all past bookings for the authenticated member as a CSV download.
+- Columns: Date, Time, Class, Duration (min), Status, Attendance Type, Checked In At.
+- Returns `Content-Type: text/csv` with `Content-Disposition: attachment` header.
+- No pagination limit (returns full history).
+
+**Portal UI**: "Export CSV" button in the history page header triggers a fetch with auth token, converts response to a Blob, and downloads via a temporary `<a>` element. Shows loading state while exporting.
+

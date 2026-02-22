@@ -445,6 +445,7 @@ export const bookings = sqliteTable('bookings', {
     // Waitlist Management
     waitlistPosition: integer('waitlist_position'), // Position in waitlist (1 = first in line)
     waitlistNotifiedAt: integer('waitlist_notified_at', { mode: 'timestamp' }), // When promotion notification was sent
+    reminderSentAt: integer('reminder_sent_at', { mode: 'timestamp' }), // When 24h class reminder was sent
 
     // Payment Tracking
     paymentMethod: text('payment_method', { enum: ['credit', 'subscription', 'drop_in', 'free'] }),

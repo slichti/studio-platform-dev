@@ -45,7 +45,8 @@ import {
     Shield,
     Activity,
     Filter,
-    BookOpen
+    BookOpen,
+    Star
 } from "lucide-react";
 const CommandBar = lazy(() => import("../components/CommandBar").then(m => ({ default: m.CommandBar })));
 const ChatWidget = lazy(() => import("../components/chat/ChatWidget").then(m => ({ default: m.ChatWidget })));
@@ -314,6 +315,7 @@ export default function StudioLayout() {
                                             {isStudentView ? "My Coupons" : "Coupons"}
                                         </NavItem>
                                         <NavItem to={`/studio/${slug}/commerce/referrals`} icon={<Award size={18} />}>Refer & Earn</NavItem>
+                                        <NavItem to={`/studio/${slug}/reviews`} icon={<Star size={18} />}>Reviews</NavItem>
                                     </>
                                 )}
                             </SidebarGroup>
