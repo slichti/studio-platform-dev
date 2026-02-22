@@ -81,6 +81,7 @@ import tenantWebhooksRouter from './routes/tenant.webhooks';
 import progressRoutes from './routes/progress';
 import adminBackups from './routes/admin.backups'; // [NEW] Backup Management
 import adminOwners from './routes/admin.tenants.owners'; // [NEW] Ownership Management
+import adminApiKeys from './routes/admin.api-keys'; // [NEW] API Key Management
 
 import { createOpenAPIApp } from './lib/openapi';
 import { Bindings, Variables, StudioVariables } from './types';

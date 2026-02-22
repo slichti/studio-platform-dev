@@ -34,6 +34,7 @@ export interface Bindings {
     ZOOM_WEBHOOK_SECRET_TOKEN?: string;
     ZOOM_CLIENT_ID?: string;
     ZOOM_CLIENT_SECRET?: string;
+    SVIX_AUTH_TOKEN?: string;
 }
 
 export interface Variables {
