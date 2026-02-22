@@ -391,6 +391,31 @@ app.openapi(updateMySettingsRoute, async (c) => {
     return c.json({ success: true, settings: s }, 200);
 });
 
+// GET /me/packs — student's purchased class packs with remaining credits
+app.get('/me/packs', async (c) => {
+    const db = createDb(c.env.DB);
+    const member = c.get('member');
+    if (!member) {
+        const auth = c.get('auth');
+        if (!auth?.userId) return c.json({ error: 'Unauthorized' }, 401);
+        const tenant = c.get('tenant')!;
+        const found = await db.query.tenantMembers.findFirst({ where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id)) });
+        if (!found) return c.json({ error: 'Not a member' }, 404);
+        const packs = await db.query.purchasedPacks.findMany({
+            where: and(eq(purchasedPacks.memberId, found.id)),
+            with: { definition: true },
+            orderBy: [desc(purchasedPacks.createdAt)],
+        });
+        return c.json(packs);
+    }
+    const packs = await db.query.purchasedPacks.findMany({
+        where: eq(purchasedPacks.memberId, member.id),
+        with: { definition: true },
+        orderBy: [desc(purchasedPacks.createdAt)],
+    });
+    return c.json(packs);
+});
+
 // PATCH /members/:id/role
 const updateMemberRoleRoute = createRoute({
     method: 'patch',

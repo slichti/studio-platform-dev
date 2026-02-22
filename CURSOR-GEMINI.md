@@ -1,289 +1,125 @@
-# CURSOR-GEMINI.md - Project Overview & Status
+# CURSOR-GEMINI.md - Studio Platform Overview & Progress
 
-> **IDE Sync File** — Updated by Cursor (Gemini session). Append updates here whenever features land so other IDEs stay in sync.
+## 🚀 Application Overview
+**Studio Platform** is a high-performance multi-tenant SaaS for dance, yoga, and fitness studios. Built for the **Cloudflare Edge**, it delivers sub-50ms latency for global operations while providing a premium, integrated experience for both studio owners and students.
 
-## Application Overview
-**Studio Platform** is a modern, all-in-one multi-tenant SaaS platform designed for dance, yoga, and fitness studios. It provides studio owners with tools for management, commerce, and student engagement while providing students with a seamless booking and learning experience.
-
-## Architecture & Technology Stack
-Built on top of the **Cloudflare Edge Network** for sub-50ms latency globally.
-
+## 🏗️ Architecture & Stack
 | Layer | Technology |
 |-------|------------|
-| **Frontend (Web)** | React Router v7 (SSR), TypeScript, TailwindCSS v4 |
-| **Mobile App** | Expo v54 (React Native), Expo Router, NativeWind |
-| **API Backend** | Cloudflare Workers, Hono Framework |
+| **Frontend** | React Router v7 (SSR), TypeScript, TailwindCSS v4 |
+| **Backend** | Cloudflare Workers (Edge), Hono Framework |
 | **Database** | Cloudflare D1 (SQLite), Drizzle ORM |
-| **Real-time State** | Cloudflare Durable Objects (WebSockets) |
-| **File Storage** | Cloudflare R2 |
-| **Authentication** | Clerk |
+| **Real-time** | Cloudflare Durable Objects (WebSockets) |
+| **Storage** | Cloudflare R2 & Cloudflare Stream (Video) |
+| **Auth** | Clerk |
 | **Payments** | Stripe Connect (Multi-tenant) |
-| **Communication** | Resend (Email), Twilio (SMS), Expo (Push) |
-| **Workflow** | Cloudflare Cron Triggers |
 
-## Project Structure (Monorepo)
-- `apps/web`: React Router v7 application hosted on Cloudflare Pages.
-- `apps/mobile`: Universal mobile app (iOS/Android) built with Expo.
-- `packages/api`: Edge-optimized backend handling core business logic.
-- `packages/db`: Drizzle ORM schemas and migrations for D1.
-- `packages/emails`: React-email templates for marketing and alerts.
-- `packages/ui`: Shared React and Native component library.
+## 📦 Monorepo Structure
+- `apps/web`: Primary React Router platform app.
+- `apps/mobile`: Universal Expo app (binds dynamically to studio slugs).
+- `packages/api`: Core business logic service.
+- `packages/db`: Schema definitions and migrations.
+- `packages/ui`: Shared component library.
 
-## Core Features
-1. **Studio Management**: Class scheduling, check-ins, instructor payroll, and room conflict detection.
-2. **Course Management (LMS)**: Hybrid courses with live sessions, VOD curricula, quizzes, and automated completion certificates.
-3. **Unified Roster**: A centralized view for studio owners to manage all student enrollments across classes, workshops, and courses.
-4. **Commerce & POS**: Integrated retail checkout, Stripe Terminal support, gift card balances, and subscription management.
-5. **Marketing Automations**: Event-driven SMS/Email triggers (Birthdays, Win-backs, No-show alerts).
-6. **Mobile Platform App**: A single app store binary that dynamically rebrands based on the studio "slug" or QR code binder.
-7. **Security & Compliance**: RBAC (Admin, Owner, Instructor, Student), IDOR prevention, CAN-SPAM/TCPA compliant services, and SOC 2-ready audit logging.
+## 🔥 Core Features
+1. **Studio Management**: Intelligent scheduling, room conflict detection, and instructor payroll.
+2. **Advanced LMS (Course Builder)**:
+   - **Interactive Player**: Supports Video (Stream/R2), Articles (Rich Text), and Discussions.
+   - **Quiz Engine**: Real-time grading, passing score enforcement, and answer breakdowns.
+   - **Assignment System**: Student submissions with instructor grading and feedback loop.
+   - **Progress Tracking**: Tier 2 per-lesson completion records and course-wide analytics.
+3. **Unified Roster**: Centralized management of all students across all services.
+4. **Commerce & POS**: Retail checkout, gift card balances, and subscription dunning.
+5. **Marketing Automations**: Event-driven SMS/Email triggers (Twilio/Resend).
 
-## Build-out & Requirements
-- **Runtime**: Node.js 18+
-- **Commands**:
-  - `npm install`: Install dependencies
-  - `npm run dev`: Start local development (Turbo-orchestrated)
-  - `npm run deploy -w web`: Deploy to Cloudflare Pages
-  - `npm run test`: Run playwright and vitest suites
+## 🛠️ Build & Development
+- **Install**: `npm install`
+- **Dev**: `npm run dev` (Turbo-orchestrated)
+- **Deploy**: `npm run deploy -w web` (Cloudflare Pages)
+- **Database**: `npx wrangler d1 migrations apply studio-db --local`
 
-## Development Progress (Recent)
-- **Infrastructure**: Fixed major migration issues related to `FOREIGN KEY` constraints and duplicate columns in Drizzle migrations.
-- **Enhanced Testing**: Established full API integration test suites for courses and E2E Playwright tests for student/instructor flows.
-- **LMS Upgrades**: Redesigned the Course Builder and Student Player for a premium, responsive experience.
-- **Unified Roster**: Launched the centralized enrollment management view at `/studio/:slug/roster`.
-- **UX Refinement**: Replaced native browser date pickers with a custom **Discrete 3-Column Time Picker** enforcing 5-minute increments across all scheduling forms.
-- **Dependency Refresh**: All packages updated to latest stable versions. Stripe SDK upgraded to v20 (API `2026-01-28.clover`). Wrangler at v4. Web migrated to ESLint 10 flat config.
-- **POS/Retail Enhancements**: Stripe PaymentIntent ID persisted on orders for terminal refunds; transaction history endpoint (`GET /pos/transactions`) with refund status; customer update (`PUT /pos/customers/:id`); refund-by-PaymentIntent (`POST /pos/refund`); product price changes create new Stripe Price objects. All calls include `X-Tenant-Slug` for tenant resolution.
-- **Security Hardening**: Sanitized Stripe search query injection; replaced raw SQL `IN` with `inArray()`; added DOMPurify to all `dangerouslySetInnerHTML` renders; removed debug auth logging; restricted CORS `allowHeaders`; narrowed root health endpoint; added gym_id format validation in Gympass webhook.
-- **Performance Improvements**: Eliminated N+1 queries in courses route (5 parallel batch queries + in-memory maps); reduced tenant middleware from 3 sequential DB round-trips to 2 via Drizzle relations.
+## 📈 Recent Progress (Feb 2026)
+- **LMS v2 Launch**:
+  - Implemented the `courseItemCompletions` system for atomic lesson tracking.
+  - Added full **Quiz Submission** logic with automated scoring.
+  - Launched **Assignment Grading** tab in Course Editor with feedback capability.
+  - Added **Lesson Discussions** (Comments) with batch-fetching optimizations to eliminate N+1 API patterns.
+- **UI/UX Refinements**:
+  - **Discrete Time Picker**: Custom 3-column selection (Hour/Min/AM-PM) with strict 5-minute increments.
+  - **Compact Design System**: Reduced padding and gaps in scheduling modals for better visibility.
+  - **Sidebar Overhaul**: Improved navigation for "Course Management" and operations.
+- **Infrastructure**:
+  - Stabilized D1 migrations involving complex `FOREIGN KEY` constraints.
+  - Overhauled `schema_diagram.md` to reflect the latest membership (Trial Days) and LMS tracking entities.
+
+## 🎯 Design Philosophy
+- **Edge Native**: Minimize round-trips via `D1.batch()` and SARGable queries.
+- **Brand Dynamic**: Single mobile binary and web shell that rebrands on-the-fly via tenant metadata.
+- **Compliance First**: Integrated CAN-SPAM and TCPA guardrails in core communication services.
 
 ---
 
-## Recent Changes (Cursor / Gemini Session — Feb 2026, Part 2)
+## 🔐 RBAC & Security Hardening (Feb 2026 — Session 2)
 
-### Memberships Overhaul (research-driven)
+### Comprehensive Capability Audit
+Audited all 92+ API routes and 8+ portal UI routes for improper student/customer access. **34 permission bugs identified and fixed.**
 
-**Research basis:** Benchmarked against Glofox/Mindbody best practices — retention-first design, self-service cancellation, trial periods, plan browsing, and archived plan management.
+### Student Capability Matrix (what students CAN do)
+| Domain | Allowed |
+|--------|---------|
+| Classes | Book, cancel own booking, view schedule |
+| Courses | Enroll, complete lessons, submit quizzes/assignments |
+| Memberships | View plans, subscribe, cancel own subscription |
+| Commerce | Purchase packs, validate gift cards |
+| Profile | View own profile (name, email, streak, history) |
+| Bookings | View upcoming, view history, cancel own |
+| Family | Add/switch family profiles |
 
-#### API (`packages/api/src/routes/memberships.ts`) — 5 new endpoints
+### What Students Cannot Do (enforced via `can()` guards)
+- Create/edit/delete courses, modules, curriculum items
+- Access studio analytics (`view_reports`)
+- View audit logs (`manage_settings`)
+- Create/modify/delete tags or read tag assignments on arbitrary entities (`manage_members`)
+- Create custom field definitions or read arbitrary field values (`manage_members`)
+- Create/modify/delete CRM tasks or read all tasks (`manage_marketing`)
+- Bulk import members/subscriptions (`manage_members`)
+
+### Fixed Bugs by Category
+- **courses.ts**: 14 mutation + analytics routes now require `manage_courses`
+- **analytics.ts**: 3 report routes now require `view_reports`
+- **audit-logs.ts**: GET / now requires `manage_settings`
+- **tags.ts**: 6 routes (CRUD + assign/unassign + targetId IDOR) now require `manage_members`
+- **custom-fields.ts**: 3 routes (create def, upsert values, IDOR read) now require `manage_members`
+- **tasks.ts**: Fixed local `Variables` type (missing `can`), 3 mutation routes + GET / unless `?mine=true` require `manage_marketing`
+- **import.ts**: Fixed local `Variables` type, POST /csv requires `manage_members`
+- **portal.$slug.tsx**: Enforced tenant membership check — non-members redirected to `/studio/:slug/join`
+- **portal.$slug.profile.tsx**: Replaced hardcoded stats with live API data
+
+---
+
+## 📱 Student Portal Gaps Resolved (Feb 2026 — Session 3)
+
+### New API Endpoints
 | Endpoint | Description |
-|---|---|
-| `PATCH /memberships/plans/:id` | Update plan fields (was missing — Edit Plan was silently broken) |
-| `DELETE /memberships/plans/:id` | Soft-archive if active subscribers exist, hard-delete otherwise |
-| `PATCH /memberships/plans/:id/status` | Toggle active/archived without deleting |
-| `GET /memberships/my-active` | Current user's active/trialing subscriptions with full plan detail (was missing — profile always empty) |
-| `POST /memberships/subscriptions/:id/cancel` | Cancel at period end via Stripe; students can cancel their own, admins can cancel any |
+|----------|-------------|
+| `GET /bookings/history` | Past bookings for current member, paginated, filtered by `startTime < now()` |
+| `GET /members/me/packs` | Student's purchased class packs with remaining credits and definition details |
+| `PATCH /users/me` | Update displayable profile fields: `firstName`, `lastName`, `phone`, `bio` |
 
-Also: `GET /memberships/plans` now accepts `?includeArchived=true` for admin views.
+### New Portal Pages
+| Route | Description |
+|-------|-------------|
+| `portal.$slug.history` | Paginated past class attendance, grouped by month, with status badges (Attended/Cancelled/Waitlisted) |
+| `portal.$slug.packs` | Credit summary banner, active pack progress bars, used/expired pack history, available packs to purchase |
 
-#### DB Schema + Migration
-- Added `trial_days integer DEFAULT 0` to `membership_plans` table (`packages/db/src/schema.ts`)
-- Migration `0072_membership_plans_trial_days.sql`
+### Updated Portal Pages
+- **`portal.$slug.profile.tsx`**: Added inline edit form (firstName, lastName, phone) with `PATCH /users/me` via `useFetcher`. Save/Cancel toggle, success confirmation.
+- **`portal.$slug.tsx`**: Added "Class History" and "My Packs" nav items with `History` and `Package` icons.
 
-#### Portal — Student Membership Browser (`portal.$slug.memberships._index.tsx`)
-- New route: students can browse all active plans with images, pricing, perks (VOD, trial, cancel-anytime)
-- Shows "Current Plan" badge on already-owned plans
-- "Start Free Trial" / "Join Now" / "Join Free" CTA routes to studio checkout
-- Active membership summary banner at top
-- Added **Memberships** nav item to portal sidebar (`portal.$slug.tsx`)
+### Confirmed Public (No Auth Required)
+- `GET /appointments/services` — for public booking widgets
+- `GET /appointments/availability` — for public scheduling embeds
+- `GET /gift-cards/validate/:code` — for public checkout gift card validation
 
-#### Portal Profile Page (`portal.$slug.profile.tsx`)
-- Wired "Active Memberships" section to real `GET /memberships/my-active` data (was always empty)
-- Added inline **Cancel** button per subscription: two-step confirmation → `POST /memberships/subscriptions/:id/cancel`
-- Status badges (Active / Trial / Past Due) with color coding
-- Past-due warning banner prompts user to update payment method
-- "Browse plans →" link when no active memberships
-
-#### Admin Plan Detail (`studio.$slug.memberships.$planId.tsx`)
-- **Archive / Restore** toggle in the dropdown (replaces silent "delete with active subscribers" behavior)
-- Fixed "Checkout Link" promotion URL (was broken `/buy/product/:id` → now `/studio/:slug/checkout?planId=:id`)
-- Fixed "Product Page" URL (now routes to portal memberships browser)
-- Replaced hardcoded "$0 Total Revenue" with **Est. Annual Revenue** computed from subscriber count × plan price × billing frequency
-
-#### Admin Plan List (`studio.$slug.memberships._index.tsx`)
-- **"Show Archived" toggle** — loads inactive plans via `?includeArchived=true`; filters locally
-
-#### PlanModal (`apps/web/app/components/PlanModal.tsx`)
-- Added **Free Trial (days)** field — `0` disables trial, any positive value enables it
-- `trialDays` passed to both create and update payloads
-
-#### Hook (`apps/web/app/hooks/useMemberships.ts`)
-- `usePlans()` now accepts `options.includeArchived` — queries `?includeArchived=true` when set
-- Added `trialDays?: number` to `Plan` type
-
----
-
-## Recent Changes (Cursor / Gemini Session — Feb 2026)
-
-### LMS Tier 1–3 Enhancements
-- **Quiz Player** (`portal.$slug.courses.$courseSlug.tsx`): Interactive quiz UI — renders questions, captures student answers, submits to `POST /quiz/{id}/submit`, displays score/pass-fail/per-question breakdown and retake option.
-- **Assignment Submission & Grading**:
-  - `AssignmentSection` component: shows submission status, instructor grade and feedback (sanitized via `SafeHtml`), and a re-submission form.
-  - New instructor **Grading tab** in `CourseEditorPage` with filter by status (submitted / graded / all) and a grade + feedback modal (`PATCH /assignments/submissions/:id/grade`).
-- **Per-Lesson Completion Tracking**:
-  - New `course_item_completions` DB table (`packages/db/src/schema.ts`, migration `0071`).
-  - `POST /{courseId}/curriculum/{itemId}/complete` marks individual items complete and recalculates overall progress.
-  - `GET /{courseId}/my-completions` returns the student's completed item IDs; "Mark Complete" button on the player is now per-lesson.
-- **Course Catalog UX** (`portal.$slug.courses._index.tsx`): client-side search by title/description, enrollment-status filter (All / Enrolled / Not Enrolled), and sort options (A–Z / Price / Progress).
-- **Comments Section**: per-lesson comment thread and post form wired to the API.
-- **New API routes** (all in `packages/api/src/routes/courses.ts`):
-  - `POST /quiz/{id}/submit` — score a student submission
-  - `GET /quiz/{id}/my-submission` — fetch latest quiz result
-  - `GET /assignments/{id}/my-submission` / `GET /assignments/{id}/submissions` — student & instructor views
-  - `GET /{courseId}/all-submissions` — all assignment submissions for a course
-  - `PATCH /assignments/submissions/{id}/grade` — instructor grading
-
-### Mobile Typecheck Fix
-- Replaced deprecated `color` prop with `stroke` on all `lucide-react-native` icon usages across `apps/mobile`.
-- Added `apps/mobile/react-native-svg.d.ts` type stub (peer dependency `react-native-svg` not directly installed); included it in `apps/mobile/tsconfig.json`.
-
-### deploy-web Fix (Cloudflare Worker)
-- Removed `isomorphic-dompurify` import from `portal.$slug.courses.$courseSlug.tsx`; replaced all `DOMPurify.sanitize()` calls with a new `SafeHtml` component that dynamically imports `dompurify` inside a `useEffect` (client-only), resolving the `TypeError: Cannot read properties of undefined (reading 'bind')` crash in the Cloudflare Worker SSR environment.
-
-### API Typecheck Fix
-- Hono OpenAPI strict response typing on `/assignments/:id/submissions` and `/:courseId/all-submissions` — added explicit `403`/`404` response schemas and loosened inner data types to `z.any()`.
-
-### Schedule / DateTimePicker Fixes
-- `DateTimePicker` (`components/ui/DateTimePicker.tsx`):
-  - Added `popperProps={{ strategy: "fixed" }}` — calendar no longer clips behind the modal's `overflow-hidden` boundary.
-  - Added `.react-datepicker__children-container { width: auto; padding: 0; }` — removes extra whitespace to the right of the time columns.
-  - Added `shouldCloseOnSelect={false}` — picker stays open after date selection so the user can also set the time.
-- `WeeklyCalendar` (`components/schedule/WeeklyCalendar.tsx`):
-  - On first load, auto-advances to the week of the next upcoming event if the current week has no future classes (fixes Saturday-night "class is on Sunday" invisibility).
-
-### Sidebar & Navigation
-- Renamed sidebar nav item **"Courses" → "Course Management"** (`routes/studio.$slug.tsx`).
-
-### Membership Plans
-- **"No plans found" in Schedule modal**: `studio.$slug.schedule.tsx` was not fetching plans. Added `usePlans(slug!)` and passed result as `plans` prop to `CreateClassModal`.
-- **Plan Detail Page** (`studio.$slug.memberships.$planId.tsx`):
-  - **Edit Plan**: wired to a pre-populated `PlanModal` with `PATCH /memberships/plans/:id`.
-  - **Duplicate**: implemented — POSTs a copy with `" (Copy)"` suffix, previously `disabled`.
-  - **Delete**: wired to `ConfirmationDialog` with `DELETE /memberships/plans/:id`.
-  - **Preview URL**: fixed from `/portal/{slug}/checkout` (no matching route → System Error) to `/studio/{slug}/checkout?planId=...`.
-- **PlanModal extracted** to `apps/web/app/components/PlanModal.tsx` (shared by index + detail pages).
-
----
-
-## Recent Changes (Cursor Session — Feb 21, 2026, Part 2)
-
-### Student / Customer Capability Audit & RBAC Hardening
-
-Performed a comprehensive deep-dive across all 92 API route files and 8 portal UI routes to evaluate what unauthenticated users, authenticated non-members, and students could do vs. what they should be able to do.
-
-#### Capability Matrix (as-designed after fixes)
-
-| Action | Public | Student | Instructor | Owner/Admin |
-|---|:---:|:---:|:---:|:---:|
-| View public studio info / branding | ✅ | ✅ | ✅ | ✅ |
-| View public class schedule | ✅ | ✅ | ✅ | ✅ |
-| Guest book a class | ✅ | ✅ | ✅ | ✅ |
-| Browse membership plans | ✅ | ✅ | ✅ | ✅ |
-| Browse courses (active only) | ✅ | ✅ | ✅ | ✅ |
-| Sign a public waiver | ✅ | ✅ | ✅ | ✅ |
-| Book / cancel a class booking | — | ✅ | ✅ | ✅ |
-| View own upcoming bookings | — | ✅ | ✅ | ✅ |
-| Enroll in a course | — | ✅ | ✅ | ✅ |
-| Watch enrolled course videos | — | ✅ | ✅ | ✅ |
-| Submit quiz / assignment | — | ✅ | ✅ | ✅ |
-| Mark lesson complete | — | ✅ | ✅ | ✅ |
-| Download completion certificate | — | ✅ | ✅ | ✅ |
-| View own active memberships | — | ✅ | ✅ | ✅ |
-| Self-cancel a membership | — | ✅ | ✅ | ✅ |
-| Log own progress entries | — | ✅ | ✅ | ✅ |
-| Write a review | — | ✅ | ✅ | ✅ |
-| Post community content | — | ✅ | ✅ | ✅ |
-| Book an appointment | — | ✅ | ✅ | ✅ |
-| View/reorder course curriculum | — | ❌ | ❌ | ✅ |
-| Create / edit / delete a course | — | ❌ | ❌ | ✅ |
-| Create articles / assignments | — | ❌ | ❌ | ✅ |
-| Grade assignment submissions | — | ❌ | ✅ | ✅ |
-| View analytics (utilization, retention, LTV) | — | ❌ | ❌ | ✅ |
-| View audit logs | — | ❌ | ❌ | ✅ |
-| Create / edit / delete tags | — | ❌ | ❌ | ✅ |
-| Create / edit custom field definitions | — | ❌ | ❌ | ✅ |
-| Create / edit / delete tasks | — | ❌ | ❌ | ✅ |
-| Create membership plans | — | ❌ | ❌ | ✅ |
-| Schedule a class | — | ❌ | ✅ | ✅ |
-| Check in students | — | ❌ | ✅ | ✅ |
-
-#### Bugs Found & Fixed
-
-**API — Missing `manage_courses` permission guard (students could create/delete course content):**
-- `POST /courses` — Create course → added `manage_courses` guard
-- `PATCH /courses/:id` — Update course → added `manage_courses` guard
-- `DELETE /courses/:id` — Delete course → added `manage_courses` guard
-- `POST /courses/:id/curriculum` — Add curriculum item → added `manage_courses` guard
-- `DELETE /courses/:id/curriculum/:itemId` — Remove item → added `manage_courses` guard
-- `PATCH /courses/:id/curriculum/reorder` — Reorder → added `manage_courses` guard
-- `PATCH /courses/:id/curriculum/:itemId/config` — Drip config → added `manage_courses` guard
-- `POST /courses/articles` — Create article → added `manage_courses` guard
-- `POST /courses/assignments` — Create assignment → added `manage_courses` guard
-- `POST /courses/resources` — Add resource → added `manage_courses` guard
-- `POST /courses/:id/modules` — Create module → added `manage_courses` guard
-- `DELETE /courses/:id/modules/:moduleId` — Delete module → added `manage_courses` guard
-
-**API — Missing `view_reports` permission guard (students could read revenue/retention data):**
-- `GET /analytics/utilization` → added `view_reports` guard
-- `GET /analytics/retention` → added `view_reports` guard
-- `GET /analytics/ltv` → added `view_reports` guard
-
-**API — Missing `manage_settings` permission guard (any tenant member could read audit logs):**
-- `GET /audit-logs` → added `manage_settings` guard
-
-**API — Missing `manage_members` permission guards on tag management:**
-- `POST /tags` — Create tag → added guard
-- `PUT /tags/:id` — Update tag → added guard
-- `DELETE /tags/:id` — Delete tag → added guard
-- `POST /tags/assign` — Assign tag → added guard
-- `POST /tags/unassign` — Unassign tag → added guard
-
-**API — Missing `manage_members` permission guards on custom field writes:**
-- `POST /custom-fields` — Create field definition → added guard
-- `POST /custom-fields/values` — Upsert field values → added guard
-
-**API — Missing `manage_marketing` permission guards on task management:**
-- `POST /tasks` — Create task → added guard
-- `PATCH /tasks/:id` — Update task → added guard
-- `DELETE /tasks/:id` — Delete task → added guard
-- Also fixed: `tasks.ts` used its own local `Variables` type that didn't include `can` — replaced with shared `Bindings, Variables` from `../types`
-
-**Portal — Non-members could access the student portal:**
-- `portal.$slug.tsx` loader had a commented-out membership redirect. Re-enabled: non-members are now redirected to `/studio/:slug/join`.
-
-**Portal — Hardcoded progress stats on profile page:**
-- `portal.$slug.profile.tsx` showed hardcoded streak=7, classes=12, pack credits=8
-- Fixed: now fetches real data from `/bookings/my-upcoming`, `/progress/my-stats`, and `/commerce/packs`
-- Streak, classes-this-month, pack credits, and milestones all computed from live API responses
-- Also standardized import to use `auth-wrapper.server` (was inconsistently using `@clerk/react-router/server` directly)
-
-#### Items Left for Future Work (out of scope for this session)
-- Appointment booking `GET /appointments/services` and `GET /appointments/availability` are auth-gated — may need `optionalAuthMiddleware` for public booking widgets
-- Gift card validation (`GET /gift-cards/validate/:code`) requires auth — may need to be public for checkout flows
-- Booking history page (`portal.$slug.bookings.tsx`) not yet implemented — students can see upcoming but not past bookings
-- Student pack purchase history not exposed in portal UI (API exists)
-- Profile editing (name, photo, email preferences) not available in portal
-
----
-
-## Recent Changes (Cursor Session — Feb 21, 2026)
-
-### Documentation Overhaul
-
-Updated all internal and GitHub-facing docs to reflect the memberships overhaul, LMS Tier 1–3, and all Q1 2026 improvements:
-
-| File | Change |
-|---|---|
-| `docs/schema_diagram.md` | Full ER diagram rewrite — added `membership_plans` (`active`, `trial_days`), `subscriptions` (`canceled_at`, `dunning_state`, `stripe_subscription_id`), `quiz_questions`, `quiz_submissions`, `assignment_submissions`, `course_item_completions`, `webhook_endpoints`, `webhook_logs`; added performance index table and 3NF compliance notes |
-| `docs/architecture.md` | Added **Memberships & Subscriptions** section (plan lifecycle diagram, subscription state flow, trial period docs); added **Course Management (LMS)** section (curriculum flowchart, LMS API table); updated **API Layer Structure** diagram to include `/memberships/*` and `/courses/*`; updated 3NF inline diagram to include new tables; cross-linked to full schema doc |
-| `docs/planning/api_blueprint.md` | Expanded **Functional Domains** section with full API tables for `/memberships` (5 new endpoints) and `/courses`/`/quiz`/`/assignments` (8 new endpoints) |
-| `docs/features/memberships.md` | **New file** — complete membership system reference: data model, plan lifecycle, subscription state flow, full API reference, Stripe integration, admin and portal UX, `PlanModal` fields, hook API, and migration history |
-| `README.md` | Updated features list to include memberships self-service and LMS grading; updated 3NF diagram to include `QUIZ_SUBMISSIONS`, `ASSIGNMENT_SUBMISSIONS`, `COURSE_ITEM_COMPLETIONS`; cross-linked to `docs/schema_diagram.md` |
-
----
-
-## Design Philosophy
-- **Performance First**: Extensive use of `D1.batch()` and SARGable queries to ensure edge speed.
-- **Data Isolation**: Strict application-level tenant isolation enforced via middleware.
-- **Premium Aesthetics**: High-quality UI using glassmorphism, smooth animations, and curated typography.
-- **Regulatory Guardrails**: Direct implementation of compliance logic in base services (Email/SMS).
+### TypeScript Fix
+- `tags.ts` `GET /assignments/:targetId`: Changed `403 as any` to `c.json(..., 403) as any` to correctly suppress Hono OpenAPI strict response union type error.

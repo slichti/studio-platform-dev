@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { bookings, classes, tenantMembers, users, tenants, tenantRoles } from '@studio/db/src/schema';
-import { eq, and, sql, inArray } from 'drizzle-orm';
+import { eq, and, sql, inArray, lt, desc } from 'drizzle-orm';
 import { checkAndPromoteWaitlist } from './waitlist';
 import { HonoContext } from '../types';
 import { BookingService } from '../services/bookings';
@@ -32,6 +32,41 @@ app.get('/my-upcoming', async (c) => {
             zoomPassword: b.class.zoomPassword
         }
     })).sort((a, b) => new Date(a.class.startTime).getTime() - new Date(b.class.startTime).getTime()));
+});
+
+// GET /history — past bookings for the current member (paginated)
+app.get('/history', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+    const auth = c.get('auth')!;
+    const member = await db.query.tenantMembers.findFirst({ where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id)) });
+    if (!member) return c.json({ error: "Member not found" }, 403);
+
+    const limit = Math.min(Number(c.req.query('limit') || 20), 100);
+    const offset = Number(c.req.query('offset') || 0);
+
+    const list = await db.select({
+        id: bookings.id,
+        status: bookings.status,
+        attendanceType: bookings.attendanceType,
+        checkedInAt: bookings.checkedInAt,
+        classId: classes.id,
+        classTitle: classes.title,
+        classStartTime: classes.startTime,
+        classDurationMinutes: classes.durationMinutes,
+    })
+        .from(bookings)
+        .innerJoin(classes, eq(bookings.classId, classes.id))
+        .where(and(
+            eq(bookings.memberId, member.id),
+            lt(classes.startTime, sql`unixepoch()`)
+        ))
+        .orderBy(desc(classes.startTime))
+        .limit(limit)
+        .offset(offset)
+        .all();
+
+    return c.json(list);
 });
 
 // GET /:id

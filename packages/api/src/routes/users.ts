@@ -55,6 +55,35 @@ app.get('/me', async (c) => {
     });
 });
 
+// PATCH /me — update displayable profile fields (name, phone, bio)
+app.patch('/me', async (c) => {
+    const auth = c.get('auth');
+    if (!auth?.userId) return c.json({ error: 'Unauthorized' }, 401);
+    const db = createDb(c.env.DB);
+
+    const body = await c.req.json<{ firstName?: string; lastName?: string; phone?: string; bio?: string }>();
+
+    const user = await db.query.users.findFirst({ where: eq(users.id, auth.userId) });
+    if (!user) return c.json({ error: 'User not found' }, 404);
+
+    const current = (user.profile as Record<string, any>) || {};
+    const updated: Record<string, any> = { ...current };
+    if (body.firstName !== undefined) updated.firstName = body.firstName.trim();
+    if (body.lastName !== undefined) updated.lastName = body.lastName.trim();
+    if (body.phone !== undefined) updated.phone = body.phone.trim();
+    if (body.bio !== undefined) updated.bio = body.bio.trim();
+
+    await db.update(users).set({ profile: updated }).where(eq(users.id, auth.userId)).run();
+
+    return c.json({
+        success: true,
+        firstName: updated.firstName,
+        lastName: updated.lastName,
+        phone: updated.phone,
+        bio: updated.bio,
+    });
+});
+
 // GET /me/family
 app.get('/me/family', async (c) => {
     const auth = c.get('auth');

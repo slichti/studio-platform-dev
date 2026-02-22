@@ -338,7 +338,7 @@ const listAssignmentsRoute = createRoute({
 });
 
 app.openapi(listAssignmentsRoute, async (c) => {
-    if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403 as any);
+    if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403) as any;
     const db = createDb(c.env.DB);
     const { targetId } = c.req.valid('param');
 

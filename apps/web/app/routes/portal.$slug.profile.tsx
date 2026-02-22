@@ -3,7 +3,7 @@ import { useLoaderData, useOutletContext, Form, useFetcher, Link } from "react-r
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { getAuth } from "~/utils/auth-wrapper.server";
 import { apiRequest } from "~/utils/api";
-import { User, Mail, Calendar, LogOut, Shield, TrendingUp, Award, CreditCard, AlertCircle } from "lucide-react";
+import { User, Mail, Calendar, LogOut, Shield, TrendingUp, Award, CreditCard, AlertCircle, Edit2, Phone, Save, X } from "lucide-react";
 import { ProgressRing } from "~/components/ui/ProgressRing";
 import { StreakBadge, MilestoneBadge } from "~/components/ui/StreakBadge";
 import { useState } from "react";
@@ -60,17 +60,34 @@ export const action = async (args: ActionFunctionArgs) => {
     const { slug } = args.params;
     const form = await args.request.formData();
     const intent = form.get("intent");
-    const subscriptionId = form.get("subscriptionId") as string;
 
+    if (intent === "update-profile") {
+        try {
+            await apiRequest(`/users/me`, token, {
+                method: "PATCH",
+                body: JSON.stringify({
+                    firstName: form.get("firstName"),
+                    lastName: form.get("lastName"),
+                    phone: form.get("phone"),
+                }),
+                headers: { "X-Tenant-Slug": slug!, "Content-Type": "application/json" },
+            });
+            return { success: true, intent: "update-profile" };
+        } catch (e: any) {
+            return { error: e.message || "Failed to update profile", intent: "update-profile" };
+        }
+    }
+
+    const subscriptionId = form.get("subscriptionId") as string;
     if (intent === "cancel-subscription" && subscriptionId) {
         try {
             await apiRequest(`/memberships/subscriptions/${subscriptionId}/cancel`, token, {
                 method: "POST",
                 headers: { "X-Tenant-Slug": slug! },
             });
-            return { success: true };
+            return { success: true, intent: "cancel-subscription" };
         } catch (e: any) {
-            return { error: e.message || "Failed to cancel subscription" };
+            return { error: e.message || "Failed to cancel subscription", intent: "cancel-subscription" };
         }
     }
 
@@ -135,11 +152,20 @@ const STATUS_COLORS: Record<string, string> = {
 export default function StudentPortalProfile() {
     const { me, tenant } = useOutletContext<any>();
     const { memberships, streak, classesThisMonth, totalClasses, packCredits, packTotal, milestones } = useLoaderData<typeof loader>();
+    const profileFetcher = useFetcher<typeof action>();
 
-    const firstName = me?.firstName || "Student";
-    const lastName = me?.lastName || "";
+    const [editing, setEditing] = useState(false);
+    const [firstName, setFirstName] = useState(me?.firstName || "");
+    const [lastName, setLastName] = useState(me?.lastName || "");
+    const [phone, setPhone] = useState((me as any)?.phone || "");
+
+    const displayFirst = me?.firstName || "Student";
+    const displayLast = me?.lastName || "";
     const email = me?.email || "No email";
     const joinedAt = me?.joinedAt ? new Date(me.joinedAt).toLocaleDateString() : "Unknown";
+
+    const isSaving = profileFetcher.state !== "idle";
+    const saveSuccess = (profileFetcher.data as any)?.success && (profileFetcher.data as any)?.intent === "update-profile";
 
     return (
         <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -147,32 +173,129 @@ export default function StudentPortalProfile() {
 
             {/* Profile Card */}
             <section className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
-                <div className="flex items-start gap-4">
-                    <div className="h-16 w-16 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-2xl font-bold">
-                        {firstName[0]}
-                    </div>
-                    <div className="flex-1">
-                        <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
-                            {firstName} {lastName}
-                        </h2>
-                        <div className="space-y-1 mt-2">
-                            <div className="flex items-center gap-2 text-sm text-zinc-500">
-                                <Mail size={14} />
-                                {email}
+                {!editing ? (
+                    /* View mode */
+                    <div className="flex items-start gap-4">
+                        <div className="h-16 w-16 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-2xl font-bold shrink-0">
+                            {displayFirst[0]}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-3">
+                                <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
+                                    {displayFirst} {displayLast}
+                                </h2>
+                                {saveSuccess && (
+                                    <span className="text-xs text-emerald-600 font-medium">Saved!</span>
+                                )}
                             </div>
-                            <div className="flex items-center gap-2 text-sm text-zinc-500">
-                                <Calendar size={14} />
-                                Member since {joinedAt}
+                            <div className="space-y-1 mt-2">
+                                <div className="flex items-center gap-2 text-sm text-zinc-500">
+                                    <Mail size={14} />
+                                    {email}
+                                </div>
+                                {(me as any)?.phone && (
+                                    <div className="flex items-center gap-2 text-sm text-zinc-500">
+                                        <Phone size={14} />
+                                        {(me as any).phone}
+                                    </div>
+                                )}
+                                <div className="flex items-center gap-2 text-sm text-zinc-500">
+                                    <Calendar size={14} />
+                                    Member since {joinedAt}
+                                </div>
                             </div>
                         </div>
+                        <div className="flex flex-col gap-2 shrink-0">
+                            <button
+                                onClick={() => {
+                                    setFirstName(me?.firstName || "");
+                                    setLastName(me?.lastName || "");
+                                    setPhone((me as any)?.phone || "");
+                                    setEditing(true);
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-600 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg transition-colors"
+                            >
+                                <Edit2 size={13} />
+                                Edit
+                            </button>
+                            <Form action="/sign-out" method="post">
+                                <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/10 dark:hover:bg-red-900/20 rounded-lg transition-colors w-full">
+                                    <LogOut size={13} />
+                                    Log Out
+                                </button>
+                            </Form>
+                        </div>
                     </div>
-                    <Form action="/sign-out" method="post">
-                        <button className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/10 dark:hover:bg-red-900/20 rounded-lg transition-colors">
-                            <LogOut size={14} />
-                            Log Out
-                        </button>
-                    </Form>
-                </div>
+                ) : (
+                    /* Edit mode */
+                    <profileFetcher.Form
+                        method="post"
+                        onSubmit={() => setEditing(false)}
+                        className="space-y-4"
+                    >
+                        <input type="hidden" name="intent" value="update-profile" />
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="h-16 w-16 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-2xl font-bold shrink-0">
+                                {(firstName[0] || displayFirst[0]).toUpperCase()}
+                            </div>
+                            <div>
+                                <p className="font-semibold text-zinc-900 dark:text-zinc-100">Edit Profile</p>
+                                <p className="text-xs text-zinc-500">Changes apply to your display name.</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">First Name</label>
+                                <input
+                                    name="firstName"
+                                    value={firstName}
+                                    onChange={e => setFirstName(e.target.value)}
+                                    className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Last Name</label>
+                                <input
+                                    name="lastName"
+                                    value={lastName}
+                                    onChange={e => setLastName(e.target.value)}
+                                    className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Phone</label>
+                            <input
+                                name="phone"
+                                type="tel"
+                                value={phone}
+                                onChange={e => setPhone(e.target.value)}
+                                placeholder="+1 (555) 000-0000"
+                                className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                        </div>
+
+                        <div className="flex gap-2 pt-1">
+                            <button
+                                type="submit"
+                                disabled={isSaving}
+                                className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                            >
+                                <Save size={14} />
+                                {isSaving ? "Saving…" : "Save Changes"}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setEditing(false)}
+                                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-zinc-600 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg transition-colors"
+                            >
+                                <X size={14} />
+                                Cancel
+                            </button>
+                        </div>
+                    </profileFetcher.Form>
+                )}
             </section>
 
             {/* Progress Dashboard */}
