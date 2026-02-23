@@ -290,12 +290,16 @@ app.post('/', async (c) => {
         const result = await service.createBooking(classId, targetId, attendanceType);
         return c.json({ success: true, id: result.id });
     } catch (e: any) {
-        console.error("Booking Error:", e);
         const message = e?.message ?? '';
-        const safeMessage = message.includes('Failed query') || message.includes('insert into')
+        const isDbError = message.includes('Failed query') || message.includes('insert into') || message.includes('SQLITE_');
+        const safeMessage = isDbError
             ? 'Booking failed. Please try again or contact the studio.'
             : (message || 'Booking failed');
-        return c.json({ error: safeMessage }, 400);
+        console.error("Booking Error:", isDbError ? safeMessage : message, e);
+        return c.json({
+            error: safeMessage,
+            ...(isDbError ? { code: 'BOOKING_SERVICE_ERROR' } : {})
+        }, 400);
     }
 });
 

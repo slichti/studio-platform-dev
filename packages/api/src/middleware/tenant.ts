@@ -280,6 +280,7 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
 
         // --- Final Resolution ---
         c.set('roles', roles);
+        c.set('isPlatformAdmin', isPlatformAdmin);
 
         const permissions = PermissionService.resolvePermissions(roles, customPerms);
         c.set('permissions', permissions as any as Set<string>);
