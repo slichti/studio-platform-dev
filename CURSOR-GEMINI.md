@@ -142,6 +142,18 @@ Audited all 92+ API routes and 8+ portal UI routes for improper student/customer
 
 ---
 
+## 🌐 Rate Limiting & Ops Runbooks (Feb 2026 — Session 6)
+
+- **Durable Object-backed rate limiting** is fully wired across the API:
+  - Global 300 req/min per user/IP with 600 req/min for authenticated app traffic.
+  - Stricter, cost-weighted limits (`cost: 10`) for expensive endpoints like exports, payroll generation, bulk member/class operations, analytics, and imports.
+  - Public schedule, guest booking, tokens, checkout, and gift card validation all have dedicated caps to mitigate abuse.
+- **Deploy & staging checklist** now includes a concrete Stripe Connect runbook:
+  - Step-by-step flows for subscription and one-time/pack purchases in staging.
+  - Explicit verification of connected-account routing, refunds, and portal visibility for transactions.
+
+---
+
 ## 🎯 Tier 1 Feature Completion (Feb 2026 — Session 4)
 
 All five Tier 1 items from the prior recommendation backlog have been completed.

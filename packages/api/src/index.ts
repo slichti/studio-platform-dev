@@ -394,7 +394,9 @@ const expensivePaths = [
   '/reports/export',
   '/payroll/generate',
   '/members/bulk',
-  '/import/*'
+  '/import/*',
+  '/analytics',
+  '/analytics/*'
 ];
 
 expensivePaths.forEach(path => {

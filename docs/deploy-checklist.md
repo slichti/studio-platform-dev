@@ -33,8 +33,16 @@ Use this checklist before and after deploying the Studio Platform (API + Web) to
 
 - [ ] **Auth:** Sign-in (Clerk) works for studio owners and students.
 - [ ] **Tenant context:** Switching studios / tenant slug works; data is isolated.
-- [ ] **Stripe Connect:** If applicable, test a paid flow (subscription or one-time) in staging with test keys.
-- [ ] **Critical paths:** Book a class, cancel, check-in; create a class; run a report (e.g. at-risk, churn).
+- [ ] **Stripe Connect (Subscriptions):**
+  - [ ] Connect a test studio owner to a Stripe test account.
+  - [ ] Start a new subscription from the web app using Stripe test cards.
+  - [ ] Verify the subscription appears correctly in both Studio Platform and Stripe Dashboard.
+  - [ ] Cancel the subscription and confirm webhooks update status + access.
+- [ ] **Stripe Connect (One‑time / Packs & POS):**
+  - [ ] Purchase a class pack or retail item in staging using Stripe test cards.
+  - [ ] Confirm the charge lands on the connected account, not the platform account.
+  - [ ] Verify gift card / pack balances and receipts in the student portal.
+- [ ] **Critical paths:** Book a class, cancel, check-in; create a class; run a report (e.g. at-risk, churn, payroll preview/export).
 - [ ] **Cron:** If cron triggers are time-sensitive, confirm next run time or trigger a test run and check logs (`wrangler tail`).
 
 ---
@@ -51,12 +59,14 @@ If a deploy causes issues:
 
 ## Rate Limiting
 
-- **Global:** 300 req/min per user (or IP/token)
-- **Booking:** 20 req/min (POST /bookings, POST /waitlist)
+- **Global:** 300 req/min per user (or IP/token) via Durable Object-backed counter.
+- **Authenticated app traffic:** 600 req/min per user for most `/members`, `/classes`, `/payroll`, etc. (see `authenticatedPaths` in `packages/api/src/index.ts`).
+- **Cost-based limits:** Expensive operations (exports, payroll generation, bulk mutations, imports, analytics) are weighted with `cost: 10` so a few heavy calls can saturate a minute’s budget faster than light reads.
+- **Booking:** 20 req/min (POST `/bookings`, POST `/bookings/waitlist`)
 - **Gift card validate:** 30 req/min (public brute-force protection)
 - **Checkout:** 10 req/min
-- **Guest booking:** 5 req/min
-- **Public schedule:** 60 req/min
+- **Guest booking & tokens:** 5 req/min for `/guest/booking` and `/guest/token`
+- **Public schedule:** 60 req/min for `/classes`, `/public/tenant/:slug`, and public schedule feeds.
 
 See `packages/api/src/middleware/rate-limit.ts` and route-specific overrides. 429 responses include `X-RateLimit-*` headers.
 

@@ -56,16 +56,16 @@ Tracked from API Audit, walkthroughs, and ops. Updated as items are completed.
 
 ## 6. Deploy & Staging (Ops — Manual)
 **Source:** `.walkthrough.md`  
-**Status:** ⬜
+**Status:** 🔄
 
 - Deploy `api` and `web` with latest changes.
-- Test Stripe Connect and paid flows in staging.
-- *No code change; checklist only.*
+- Test Stripe Connect and paid flows in staging (see expanded "Staging Verification" section in `deploy-checklist.md` for step-by-step flows).
+- *No code change; checklist + runbook only. Ops execution remains manual.*
 
 ---
 
 ## 7. Rate Limiting Tuning (Optional)
 **Source:** `api_improvements.md`  
-**Status:** ⬜ (deferred)
+**Status:** ✅
 
-- Per-user or stricter cost-based limits if needed. Phase 2 already implemented cost-based + Durable Object store.
+- Per-user and stricter cost-based limits implemented via `rateLimitMiddleware` and a Durable Object store, with higher-cost weights for exports, payroll generation, bulk operations, analytics, and imports. Documented in `deploy-checklist.md` and `api_improvements.md`.

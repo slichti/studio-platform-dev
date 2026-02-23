@@ -7,6 +7,12 @@ export const docsIndex = [
         category: "Platform"
     },
     {
+        title: "RBAC, Roles & Permissions",
+        href: "/documentation/platform/rbac",
+        content: "Roles, permissions, capabilities, student matrix, PermissionService, ALL_PERMISSIONS, RolePermissions, c.get('can')",
+        category: "Platform"
+    },
+    {
         title: "Course Management — Platform Guide",
         href: "/documentation/platform/courses",
         content: "Feature flag, course_management, enable courses, tenant feature, hybrid curriculum, enrollment, progress, VOD, live sessions, Scale tier",

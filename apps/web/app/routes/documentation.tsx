@@ -74,8 +74,9 @@ export default function HelpLayout() {
             items: [
                 { name: "Architecture Overview", href: "/documentation/platform/architecture", icon: Server },
                 { name: "Course Management", href: "/documentation/platform/courses", icon: GraduationCap },
+                { name: "RBAC, Roles & Permissions", href: "/documentation/platform/rbac", icon: Shield },
                 { name: "Tenant Management", href: "/documentation/platform/tenants", icon: Shield },
-            ]
+            ].sort((a, b) => a.name.localeCompare(b.name))
         }] : []),
 
         // STUDIO MANAGEMENT SECTION (Visible to everyone)
