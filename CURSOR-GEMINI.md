@@ -577,8 +577,14 @@ Tracked from recommendation backlog. Status updated as work completes.
 | Enable notifications | ✅ | AuthContext.requestPushAndRegister(); onboarding card CTA requests permission and registers token |
 | Dismiss / Maybe later | ✅ | useOnboarding (SecureStore) tracks firstBooked, notificationsEnabled, dismissed |
 
-### T5, T8–T11 — Pending
-- T5: Performance tuning (schedule, dashboard, LMS)
+### T5 — Performance tuning ✅
+| Item | Status | Notes |
+|------|--------|-------|
+| Dashboard stats N+1 | ✅ | GET /tenant/stats: today’s classes use batch confirmed-count query instead of correlated subquery per class |
+| Schedule/class list | ✅ | GET /classes already uses batch booking/waitlist counts and batch my-booking fetch |
+| Docs | ✅ | docs/deploy-checklist.md — Performance section (batch queries, bounded payloads) |
+
+### T8–T11 — Pending
 - T8: RBAC policy helpers, permissions view
 - T9: Data lifecycle (anonymization, retention docs)
 - T10: OpenAPI grouping, dev settings, request log

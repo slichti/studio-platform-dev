@@ -630,12 +630,11 @@ studioApp.get('/stats', async (c) => {
 
   const db = createDb(c.env.DB);
   const { tenantMembers, classes, bookings, waiverTemplates, giftCards, subscriptions } = await import('@studio/db/src/schema');
-  const { eq, and, gte, lte, sql } = await import('drizzle-orm');
+  const { eq, and, gte, lte, sql, inArray } = await import('drizzle-orm');
 
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
   const [
     activeStudentsResult,
@@ -658,7 +657,6 @@ studioApp.get('/stats', async (c) => {
       durationMinutes: classes.durationMinutes,
       capacity: classes.capacity,
       instructorId: classes.instructorId,
-      confirmedCount: sql<number>`(SELECT count(*) FROM bookings WHERE bookings.class_id = ${classes.id} AND bookings.status = 'confirmed')`,
     }).from(classes)
       .where(and(eq(classes.tenantId, tenant.id), gte(classes.startTime, startOfDay), lte(classes.startTime, endOfDay)))
       .orderBy(classes.startTime)
@@ -667,21 +665,45 @@ studioApp.get('/stats', async (c) => {
       .where(and(eq(subscriptions.tenantId, tenant.id), eq(subscriptions.status, 'active'))).get(),
   ]);
 
-  // Monthly revenue: sum of active subscriptions × plan prices (approximate)
   const activeStudents = activeStudentsResult?.count || 0;
   const upcomingBookings = upcomingBookingsResult?.count || 0;
   const giftCardLiability = giftCardResult?.total || 0;
   const activeSubscriptions = activeSubsResult?.count || 0;
 
-  // Waiver compliance
+  // Batch confirmed counts for today's classes (avoids N+1 correlated subqueries)
+  let todayClasses: Array<{ id: string; title: string; startTime: Date; durationMinutes: number | null; capacity: number | null; confirmedCount: number; occupancyPct: number | null }> = [];
+  if (todayClassList.length > 0) {
+    const todayIds = todayClassList.map((c: { id: string }) => c.id);
+    const countRows = await db.select({
+      classId: bookings.classId,
+      count: sql<number>`count(*)`,
+    }).from(bookings)
+      .where(and(inArray(bookings.classId, todayIds), eq(bookings.status, 'confirmed')))
+      .groupBy(bookings.classId)
+      .all();
+    const countMap = new Map<string, number>();
+    countRows.forEach((r: { classId: string; count: number }) => countMap.set(r.classId, r.count));
+    todayClasses = todayClassList.map((cls: { id: string; title: string; startTime: Date; durationMinutes: number | null; capacity: number | null }) => {
+      const confirmedCount = countMap.get(cls.id) ?? 0;
+      return {
+        id: cls.id,
+        title: cls.title,
+        startTime: cls.startTime,
+        durationMinutes: cls.durationMinutes,
+        capacity: cls.capacity,
+        confirmedCount,
+        occupancyPct: cls.capacity ? Math.round((confirmedCount / cls.capacity) * 100) : null,
+      };
+    });
+  }
+
   let waiverCompliance = null;
   const activeWaiver = await db.select({ id: waiverTemplates.id }).from(waiverTemplates)
     .where(and(eq(waiverTemplates.tenantId, tenant.id), eq(waiverTemplates.active, true))).get();
   if (activeWaiver) {
-    const totalMembers = activeStudents;
     const signed = (await db.select({ c: sql<number>`count(distinct member_id)` }).from(tenantMembers)
       .where(and(eq(tenantMembers.tenantId, tenant.id), eq(tenantMembers.status, 'active'))).get())?.c || 0;
-    waiverCompliance = { signed: Math.min(signed, totalMembers), total: totalMembers, activeWaiver: true };
+    waiverCompliance = { signed: Math.min(signed, activeStudents), total: activeStudents, activeWaiver: true };
   }
 
   return c.json({
@@ -689,17 +711,9 @@ studioApp.get('/stats', async (c) => {
     upcomingBookings,
     activeSubscriptions,
     giftCardLiability,
-    monthlyRevenueCents: 0, // Live Stripe revenue requires Stripe API call; use analytics endpoint for accurate figure
+    monthlyRevenueCents: 0,
     waiverCompliance,
-    todayClasses: todayClassList.map(cls => ({
-      id: cls.id,
-      title: cls.title,
-      startTime: cls.startTime,
-      durationMinutes: cls.durationMinutes,
-      capacity: cls.capacity,
-      confirmedCount: cls.confirmedCount,
-      occupancyPct: cls.capacity ? Math.round((cls.confirmedCount / cls.capacity) * 100) : null,
-    })),
+    todayClasses,
   });
 });
 

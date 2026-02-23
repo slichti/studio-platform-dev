@@ -59,3 +59,11 @@ If a deploy causes issues:
 - **Public schedule:** 60 req/min
 
 See `packages/api/src/middleware/rate-limit.ts` and route-specific overrides. 429 responses include `X-RateLimit-*` headers.
+
+---
+
+## Performance
+
+- **Dashboard (GET /tenant/stats):** Today’s classes use a single batch count query for confirmed bookings (no per-class subqueries).
+- **Class list (GET /classes):** Booking and waitlist counts are fetched in one grouped query; “my booking” in one batch by class IDs.
+- Prefer `?start`/`?end` and `?limit` on schedule/class list to keep payloads bounded.
