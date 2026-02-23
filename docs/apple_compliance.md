@@ -3,21 +3,23 @@
 ## Executive Summary
 This report analyzes the current mobile app beta against Apple's App Store Review Guidelines.
 
-**Status:** ⚠️ **Partial Compliance**
-**Critical Issues:** 1 (Account Deletion)
+**Status:** ✅ **Largely Compliant (see notes)**
+**Critical Issues:** 0 (Account Deletion implemented)
 **Potential Issues:** 1 (Digital Goods/Memberships)
 
 ---
 
 ## 1. Privacy & Data (Critical)
 
-### 🔴 Missing Account Deletion
+### 🟢 Account Deletion (Implemented)
 **Requirement:** Guideline 5.1.1(v) requires apps that support account creation to also support account deletion *within the app*.
-**Current Status:** The Profile screen allows "Sign Out" but has no "Delete Account" option.
-**Remediation:** Implement a "Delete Account" button in `ProfileScreen` or a dedicated Settings screen. This must:
-1.  Confirm the action with the user.
-2.  Call a backend API to delete the user's data (or schedule it).
-3.  Revoke "Sign in with Apple" tokens interaction if applicable.
+**Current Status:** The mobile `ProfileScreen` includes a **Delete Account** button which:
+1. Confirms the action with a destructive confirmation dialog.
+2. Calls the backend `DELETE /users/me` endpoint to delete the account.
+3. Signs the user out on success.
+
+**Next step (optional hardening):**
+- If/when Sign in with Apple is added, ensure the deletion flow also revokes Apple tokens per Apple’s guidance.
 
 ### 🟢 Data Minimization
 **Current Status:** The app collects minimal data (Name, Email for booking). No third-party tracking libraries (Facebook, Google Analytics) were found in `package.json`.
