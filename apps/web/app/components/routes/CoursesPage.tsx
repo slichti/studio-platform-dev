@@ -20,13 +20,13 @@ import { cn } from "~/lib/utils";
 
 export default function CoursesPage() {
     const { slug } = useParams();
-    const { roles, tenant, token: contextToken } = useOutletContext<any>() || {};
+    const { roles, tenant, token: contextToken, isStudentView } = useOutletContext<any>() || {};
     const { getToken } = useAuth();
     const queryClient = useQueryClient();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
 
-    const isAdmin = roles?.includes('owner') || roles?.includes('admin') || roles?.includes('instructor');
+    const isAdmin = !isStudentView && (roles?.includes('owner') || roles?.includes('admin') || roles?.includes('instructor'));
     const statusFilter = searchParams.get("status") || "active";
 
     const { data: courses = [], isLoading } = useCourses(slug!, { status: statusFilter as any }, contextToken);
@@ -47,10 +47,12 @@ export default function CoursesPage() {
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
                         <GraduationCap className="h-6 w-6 text-blue-600" />
-                        Course Management
+                        {isStudentView ? "Courses" : "Course Management"}
                     </h1>
                     <p className="text-zinc-500 dark:text-zinc-400">
-                        Design and sell premium standalone courses with hybrid curriculum.
+                        {isStudentView
+                            ? "Browse and open your courses."
+                            : "Design and sell premium standalone courses with hybrid curriculum."}
                     </p>
                 </div>
                 {isAdmin && (
@@ -79,59 +81,65 @@ export default function CoursesPage() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {courses.map((course: any) => (
-                                <Link
-                                    key={course.id}
-                                    to={`/studio/${slug}/courses/${course.id}`}
-                                    className="group block"
-                                >
-                                    <Card className="h-full overflow-hidden transition-all hover:shadow-xl hover:border-blue-500/50 dark:hover:border-blue-500/30">
-                                        <div className="aspect-video w-full bg-zinc-100 dark:bg-zinc-800 relative">
-                                            {course.thumbnailUrl ? (
-                                                <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-zinc-300 dark:text-zinc-700">
-                                                    <BookOpen size={48} />
-                                                </div>
-                                            )}
-                                            <div className="absolute top-3 right-3 flex gap-2">
-                                                <Badge className={cn(
-                                                    "px-2 py-0.5 text-[10px] uppercase font-bold",
-                                                    course.status === 'active' ? "bg-green-500" : "bg-zinc-500"
-                                                )}>
-                                                    {course.status}
-                                                </Badge>
-                                                {course.isPublic && (
-                                                    <Badge variant="secondary" className="px-2 py-0.5 text-[10px] uppercase font-bold bg-blue-500 text-white border-0">
-                                                        <Globe size={10} className="mr-1" /> Public
-                                                    </Badge>
+                            {courses.map((course: any) => {
+                                const href = isStudentView
+                                    ? `/portal/${slug}/courses/${course.slug || course.id}`
+                                    : `/studio/${slug}/courses/${course.id}`;
+                                const actionLabel = isStudentView ? "View" : "Manage";
+                                return (
+                                    <Link
+                                        key={course.id}
+                                        to={href}
+                                        className="group block"
+                                    >
+                                        <Card className="h-full overflow-hidden transition-all hover:shadow-xl hover:border-blue-500/50 dark:hover:border-blue-500/30">
+                                            <div className="aspect-video w-full bg-zinc-100 dark:bg-zinc-800 relative">
+                                                {course.thumbnailUrl ? (
+                                                    <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-zinc-300 dark:text-zinc-700">
+                                                        <BookOpen size={48} />
+                                                    </div>
                                                 )}
+                                                <div className="absolute top-3 right-3 flex gap-2">
+                                                    <Badge className={cn(
+                                                        "px-2 py-0.5 text-[10px] uppercase font-bold",
+                                                        course.status === 'active' ? "bg-green-500" : "bg-zinc-500"
+                                                    )}>
+                                                        {course.status}
+                                                    </Badge>
+                                                    {course.isPublic && (
+                                                        <Badge variant="secondary" className="px-2 py-0.5 text-[10px] uppercase font-bold bg-blue-500 text-white border-0">
+                                                            <Globe size={10} className="mr-1" /> Public
+                                                        </Badge>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
-                                        <CardContent className="p-5 flex flex-col gap-4">
-                                            <div className="space-y-1">
-                                                <h3 className="font-bold text-lg leading-tight group-hover:text-blue-600 transition-colors">{course.title}</h3>
-                                                <p className="text-sm text-zinc-500 dark:text-zinc-400 line-clamp-2 min-h-[40px]">
-                                                    {course.description || "No description provided."}
-                                                </p>
-                                            </div>
+                                            <CardContent className="p-5 flex flex-col gap-4">
+                                                <div className="space-y-1">
+                                                    <h3 className="font-bold text-lg leading-tight group-hover:text-blue-600 transition-colors">{course.title}</h3>
+                                                    <p className="text-sm text-zinc-500 dark:text-zinc-400 line-clamp-2 min-h-[40px]">
+                                                        {course.description || "No description provided."}
+                                                    </p>
+                                                </div>
 
-                                            <div className="flex items-center justify-between mt-auto pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                                                <div className="flex flex-col">
-                                                    <span className="text-[10px] uppercase text-zinc-400 dark:text-zinc-500 font-bold tracking-wider">Price</span>
-                                                    <span className="font-bold text-blue-600 dark:text-blue-400">
-                                                        ${(course.price / 100).toFixed(2)}
-                                                    </span>
+                                                <div className="flex items-center justify-between mt-auto pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[10px] uppercase text-zinc-400 dark:text-zinc-500 font-bold tracking-wider">Price</span>
+                                                        <span className="font-bold text-blue-600 dark:text-blue-400">
+                                                            ${(course.price / 100).toFixed(2)}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1 text-zinc-400 group-hover:text-blue-600 transition-colors">
+                                                        <span className="text-sm font-medium">{actionLabel}</span>
+                                                        <ChevronRight size={16} />
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center gap-1 text-zinc-400 group-hover:text-blue-600 transition-colors">
-                                                    <span className="text-sm font-medium">Manage</span>
-                                                    <ChevronRight size={16} />
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                </Link>
-                            ))}
+                                            </CardContent>
+                                        </Card>
+                                    </Link>
+                                );
+                            })}
                         </div>
                     )}
                 </div>

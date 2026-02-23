@@ -270,7 +270,7 @@ app.post('/packs', async (c) => {
     return c.json({ success: true, id });
 });
 
-// POST /products/bulk - Bulk Create (Wizard)
+// POST /products/bulk - Bulk Create (Wizard); idempotent: skips items that already exist (same name + type)
 app.post('/products/bulk', async (c) => {
     if (!c.get('can')('manage_commerce')) {
         return c.json({ error: 'Access Denied' }, 403);
@@ -286,10 +286,31 @@ app.post('/products/bulk', async (c) => {
     const { StripeService } = await import('../services/stripe');
     const stripe = new StripeService(c.env.STRIPE_SECRET_KEY as string);
 
-    const results = [];
+    const results: { name: string; status: string; id?: string; error?: string }[] = [];
+    let created = 0;
+    let skipped = 0;
 
     for (const item of items) {
         try {
+            // Idempotency: skip if a product with same name and type already exists
+            if (item.type === 'pack') {
+                const existing = await db.select({ id: classPackDefinitions.id }).from(classPackDefinitions)
+                    .where(and(eq(classPackDefinitions.tenantId, tenant.id), eq(classPackDefinitions.name, item.name), eq(classPackDefinitions.active, true))).get();
+                if (existing) {
+                    results.push({ name: item.name, status: 'skipped' });
+                    skipped++;
+                    continue;
+                }
+            } else if (item.type === 'membership') {
+                const existing = await db.select({ id: membershipPlans.id }).from(membershipPlans)
+                    .where(and(eq(membershipPlans.tenantId, tenant.id), eq(membershipPlans.name, item.name), eq(membershipPlans.active, true))).get();
+                if (existing) {
+                    results.push({ name: item.name, status: 'skipped' });
+                    skipped++;
+                    continue;
+                }
+            }
+
             const stripeProduct = await stripe.createProduct({
                 name: item.name,
                 active: true,
@@ -324,12 +345,13 @@ app.post('/products/bulk', async (c) => {
                 }).run();
             }
             results.push({ name: item.name, status: 'created', id });
+            created++;
         } catch (e: any) {
             results.push({ name: item.name, status: 'failed', error: e.message });
         }
     }
 
-    return c.json({ results });
+    return c.json({ results, created, skipped });
 });
 
 // POST /validate - For Checkout

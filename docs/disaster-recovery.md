@@ -20,7 +20,9 @@ This document outlines the procedures for backing up and restoring the Studio Pl
 ### Monitoring
 - Check last backup timestamp: View R2 bucket in Cloudflare Dashboard
 - Check cron execution logs: `npx wrangler tail` during scheduled time
-- Alerts: Errors are logged to console (TODO: Add Slack/PagerDuty integration)
+- **Alerts:** Backup failures trigger:
+  - **MonitoringService**: Email to `PLATFORM_ADMIN_EMAIL` and, if set, Slack via `SLACK_WEBHOOK_URL`
+  - **Optional:** Set `BACKUP_ALERT_WEBHOOK_URL` (e.g. PagerDuty inbound URL or a dedicated Slack webhook) to POST a JSON payload `{ event: 'backup.failed', message, timestamp, source }` on system or tenant backup failure
 
 ---
 

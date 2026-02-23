@@ -86,7 +86,7 @@ export class BookingService {
             memberId,
             status: 'confirmed',
             attendanceType,
-            usedPackId, // Save which pack was used
+            ...(usedPackId ? { usedPackId } : {}), // Omit when null to avoid FK violation (some drivers bind null as '')
             createdAt: new Date()
         }).run();
 

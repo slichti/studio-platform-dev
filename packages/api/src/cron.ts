@@ -29,6 +29,22 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
         } catch (error: any) {
             console.error('❌ System backup failed:', error.message);
             await monitoring.alert('System Backup Failed', error.message, { error });
+            // Optional: send to a dedicated backup webhook (e.g. PagerDuty, Slack channel)
+            const backupWebhook = (env as any).BACKUP_ALERT_WEBHOOK_URL;
+            if (backupWebhook) {
+                try {
+                    await fetch(backupWebhook, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            event: 'backup.failed',
+                            message: error.message,
+                            timestamp: new Date().toISOString(),
+                            source: 'system_backup',
+                        }),
+                    });
+                } catch (_) { /* best-effort */ }
+            }
         }
 
         // 2. Per-tenant backups
@@ -41,6 +57,21 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
         } catch (error: any) {
             console.error('❌ Tenant backups failed:', error.message);
             await monitoring.alert('Tenant Backups Critical Failure', error.message, { error });
+            const backupWebhook = (env as any).BACKUP_ALERT_WEBHOOK_URL;
+            if (backupWebhook) {
+                try {
+                    await fetch(backupWebhook, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            event: 'backup.failed',
+                            message: error.message,
+                            timestamp: new Date().toISOString(),
+                            source: 'tenant_backups',
+                        }),
+                    });
+                } catch (_) { /* best-effort */ }
+            }
         }
 
         // 3. Log Maintenance (Prune old audit and webhook logs)

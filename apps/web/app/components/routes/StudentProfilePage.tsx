@@ -5,7 +5,7 @@ import { useAuth } from "@clerk/react-router";
 import { format } from "date-fns";
 import {
     User, Mail, Calendar, CreditCard, FileText,
-    MoreHorizontal, Check, X, Plus, Pencil, Trash2, Camera
+    MoreHorizontal, Check, X, Plus, Pencil, Trash2, Camera, History
 } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -282,10 +282,17 @@ export default function StudentProfilePageComponent() {
                                 Actions <MoreHorizontal className="ml-2 h-4 w-4" />
                             </Button>
                             {showActions && (
-                                <div className="absolute right-0 mt-2 w-48 bg-white border border-zinc-200 rounded-md shadow-lg z-10 py-1">
+                                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-10 py-1">
+                                    <Link
+                                        to={`/studio/${slug}/settings/activity?targetType=member&targetId=${memberId}`}
+                                        onClick={() => setShowActions(false)}
+                                        className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                                    >
+                                        <History className="h-4 w-4" /> View activity
+                                    </Link>
                                     <button
                                         onClick={() => { setShowActions(false); setIsSendingEmail(true); }}
-                                        className="block w-full text-left px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50"
+                                        className="block w-full text-left px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                                     >
                                         Send Email
                                     </button>

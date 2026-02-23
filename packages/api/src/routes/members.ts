@@ -1,6 +1,6 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { createDb } from '../db';
-import { eq, and, or, desc, sql, inArray } from 'drizzle-orm';
+import { eq, and, or, desc, sql, inArray, lte } from 'drizzle-orm';
 import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings, tenants, marketingAutomations, emailLogs, coupons, couponRedemptions, automationLogs, purchasedPacks, waiverSignatures } from '@studio/db/src/schema';
 import { HonoContext } from '../types';
 import { quotaMiddleware } from '../middleware/quota';
@@ -418,6 +418,66 @@ app.get('/me/packs', async (c) => {
         orderBy: [desc(purchasedPacks.createdAt)],
     });
     return c.json(packs);
+});
+
+// GET /me/streak — current and longest attendance streak (for StreakCard / mobile)
+app.get('/me/streak', async (c) => {
+    const db = createDb(c.env.DB);
+    const member = c.get('member');
+    let memberId: string;
+    if (member) {
+        memberId = member.id;
+    } else {
+        const auth = c.get('auth');
+        if (!auth?.userId) return c.json({ error: 'Unauthorized' }, 401);
+        const tenant = c.get('tenant')!;
+        const found = await db.query.tenantMembers.findFirst({ where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id)) });
+        if (!found) return c.json({ error: 'Not a member' }, 404);
+        memberId = found.id;
+    }
+
+    const now = new Date();
+    const pastBookings = await db.select({ startTime: classes.startTime })
+        .from(bookings)
+        .innerJoin(classes, eq(bookings.classId, classes.id))
+        .where(and(
+            eq(bookings.memberId, memberId),
+            eq(bookings.status, 'confirmed'),
+            lte(classes.startTime, now)
+        ))
+        .all();
+
+    const dateSet = new Set<string>();
+    for (const row of pastBookings) {
+        const d = new Date(row.startTime);
+        dateSet.add(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`);
+    }
+    const sortedDates = Array.from(dateSet).sort();
+
+    const oneDay = 24 * 60 * 60 * 1000;
+    const toDate = (s: string) => new Date(s + 'T12:00:00Z').getTime();
+
+    let currentStreak = 0;
+    const todayStr = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
+    const yesterdayStr = new Date(now.getTime() - oneDay).toISOString().slice(0, 10);
+    if (dateSet.has(todayStr) || dateSet.has(yesterdayStr)) {
+        const start = dateSet.has(todayStr) ? todayStr : yesterdayStr;
+        let t = toDate(start);
+        while (dateSet.has(new Date(t).toISOString().slice(0, 10))) {
+            currentStreak++;
+            t -= oneDay;
+        }
+    }
+
+    let longestStreak = 0;
+    let run = 1;
+    for (let i = 1; i < sortedDates.length; i++) {
+        if (toDate(sortedDates[i]) === toDate(sortedDates[i - 1]) + oneDay) run++;
+        else { longestStreak = Math.max(longestStreak, run); run = 1; }
+    }
+    longestStreak = Math.max(longestStreak, run, currentStreak);
+
+    return c.json({ currentStreak, longestStreak });
 });
 
 // PATCH /members/:id/role

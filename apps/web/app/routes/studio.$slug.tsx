@@ -267,7 +267,9 @@ export default function StudioLayout() {
                     <SidebarGroup title="Operations">
                         <NavItem to={`/studio/${slug}/schedule`} icon={<Calendar size={18} />}>Schedule</NavItem>
                         {featureSet.has('course_management') && (
-                            <NavItem to={`/studio/${slug}/courses`} icon={<BookOpen size={18} />}>Course Management</NavItem>
+                            <NavItem to={`/studio/${slug}/courses`} icon={<BookOpen size={18} />}>
+                                {isStudentView ? "Courses" : "Course Management"}
+                            </NavItem>
                         )}
                         <NavItem to={`/studio/${slug}/appointments`} icon={<Clock size={18} />}>Appointments</NavItem>
                         <NavItem to={`/studio/${slug}/checkin`} icon={<CheckCircle2 size={18} />}>

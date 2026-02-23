@@ -116,8 +116,9 @@ export default function PricingWizard() {
 
             if (res.error) throw new Error(res.error);
 
-            const skipped = customizedItems.length - newItems.length;
-            toast.success(`Created ${res.results?.length || 0} pricing options! ${skipped > 0 ? `(${skipped} skipped)` : ''}`);
+            const created = res.created ?? res.results?.filter((r: any) => r.status === 'created').length ?? 0;
+            const skipped = res.skipped ?? (customizedItems.length - newItems.length);
+            toast.success(`Created ${created} pricing options!${skipped > 0 ? ` (${skipped} already existed, skipped)` : ''}`);
             navigate(`/studio/${tenant.slug}/commerce/packs`);
         } catch (e: any) {
             toast.error(e.message || "Failed to create products");

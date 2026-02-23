@@ -21,6 +21,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
     if (searchParams.get('endDate')) query.set('endDate', searchParams.get('endDate')!);
     if (searchParams.get('action')) query.set('action', searchParams.get('action')!);
     if (searchParams.get('actorId')) query.set('actorId', searchParams.get('actorId')!);
+    if (searchParams.get('targetType')) query.set('targetType', searchParams.get('targetType')!);
+    if (searchParams.get('targetId')) query.set('targetId', searchParams.get('targetId')!);
 
     const logs = await apiRequest<any[]>(`/tenant/audit-logs?${query.toString()}`, token).catch(() => []);
 
@@ -39,6 +41,8 @@ export default function ActivityLog() {
     const [endDate, setEndDate] = useState(searchParams.get("endDate") || "");
     const [action, setAction] = useState(searchParams.get("action") || "");
     const [actorId, setActorId] = useState(searchParams.get("actorId") || "");
+    const [targetType, setTargetType] = useState(searchParams.get("targetType") || "");
+    const [targetId, setTargetId] = useState(searchParams.get("targetId") || "");
 
     // Details View State
     const [selectedLog, setSelectedLog] = useState<any>(null);
@@ -52,6 +56,14 @@ export default function ActivityLog() {
         }, 500);
         return () => clearTimeout(timer);
     }, [actorId]);
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (targetId !== (searchParams.get("targetId") || "")) {
+                handleFilterChange();
+            }
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [targetId]);
 
     const handleFilterChange = () => {
         const formData = new FormData();
@@ -59,6 +71,8 @@ export default function ActivityLog() {
         if (endDate) formData.set("endDate", endDate);
         if (action) formData.set("action", action);
         if (actorId) formData.set("actorId", actorId);
+        if (targetType) formData.set("targetType", targetType);
+        if (targetId) formData.set("targetId", targetId);
         submit(formData, { method: "get" });
     };
 
@@ -67,6 +81,8 @@ export default function ActivityLog() {
         setEndDate("");
         setAction("");
         setActorId("");
+        setTargetType("");
+        setTargetId("");
         submit({}, { method: "get" });
     };
 
@@ -157,7 +173,7 @@ export default function ActivityLog() {
                     </div>
 
                     <div className="w-full md:w-48">
-                        <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1">User ID</label>
+                        <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1">Actor (User ID)</label>
                         <div className="relative">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-400" />
                             <input
@@ -170,9 +186,44 @@ export default function ActivityLog() {
                         </div>
                     </div>
 
+                    <div className="w-full md:w-36">
+                        <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1">Target Type</label>
+                        <select
+                            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-sm bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-blue-500 outline-none"
+                            value={targetType}
+                            onChange={(e) => {
+                                setTargetType(e.target.value);
+                                const formData = new FormData();
+                                if (startDate) formData.set("startDate", startDate);
+                                if (endDate) formData.set("endDate", endDate);
+                                if (action) formData.set("action", action);
+                                if (actorId) formData.set("actorId", actorId);
+                                formData.set("targetType", e.target.value);
+                                if (targetId) formData.set("targetId", targetId);
+                                submit(formData, { method: "get" });
+                            }}
+                        >
+                            <option value="">All</option>
+                            <option value="member">Member</option>
+                            <option value="class">Class</option>
+                            <option value="booking">Booking</option>
+                            <option value="tenant">Tenant</option>
+                        </select>
+                    </div>
+                    <div className="w-full md:w-48">
+                        <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1">Target ID (e.g. member)</label>
+                        <input
+                            type="text"
+                            placeholder="ID for entity..."
+                            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-sm bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-blue-500 outline-none"
+                            value={targetId}
+                            onChange={(e) => setTargetId(e.target.value)}
+                        />
+                    </div>
+
                     <button
                         onClick={clearFilters}
-                        disabled={!startDate && !endDate && !action && !actorId}
+                        disabled={!startDate && !endDate && !action && !actorId && !targetType && !targetId}
                         className="px-3 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md disabled:opacity-50 transition-colors"
                     >
                         Clear

@@ -32,6 +32,17 @@ const BulkUpdateSchema = z.object({
     })
 });
 
+const BulkMoveSchema = z.object({
+    classIds: z.array(z.string()).optional(),
+    from: z.string().optional(),
+    to: z.string().optional(),
+    instructorId: z.string().optional(),
+    locationId: z.string().optional(),
+    shiftMinutes: z.number().int(), // positive = later, negative = earlier
+}).refine(d => (d.classIds && d.classIds.length > 0) || (d.from && d.to), {
+    message: 'Provide either classIds or a from/to date range'
+});
+
 // --- Routes ---
 
 // POST /bulk-cancel
@@ -230,6 +241,117 @@ app.openapi(bulkUpdateRoute, async (c) => {
         .run();
 
     return c.json({ success: true, affected: (result.meta as any).changes }, 200);
+});
+
+// POST /bulk-move — Reschedule classes by shifting start times
+const bulkMoveRoute = createRoute({
+    method: 'post',
+    path: '/bulk-move',
+    tags: ['Classes'],
+    summary: 'Bulk reschedule classes (shift by minutes)',
+    request: {
+        body: {
+            content: {
+                'application/json': {
+                    schema: BulkMoveSchema
+                }
+            }
+        }
+    },
+    responses: {
+        200: {
+            content: { 'application/json': { schema: z.object({ success: z.boolean(), affected: z.number() }) } },
+            description: 'Classes rescheduled'
+        },
+        400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Conflict or invalid' },
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' }
+    }
+});
+
+app.openapi(bulkMoveRoute, async (c) => {
+    if (!c.get('can')('manage_classes')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+    const { classIds, from, to, instructorId, locationId, shiftMinutes } = c.req.valid('json');
+
+    let targetIds: string[] = classIds ?? [];
+    if (targetIds.length === 0 && from && to) {
+        const fromDate = new Date(from);
+        const toDate = new Date(to);
+        const filters = [
+            eq(classes.tenantId, tenant.id),
+            eq(classes.status, 'active'),
+            gte(classes.startTime, fromDate),
+            lte(classes.startTime, toDate),
+        ];
+        if (instructorId) filters.push(eq(classes.instructorId, instructorId));
+        if (locationId) filters.push(eq(classes.locationId, locationId));
+        const found = await db.select({ id: classes.id }).from(classes).where(and(...filters)).all();
+        targetIds = found.map(f => f.id);
+    }
+
+    if (targetIds.length === 0) return c.json({ success: true, affected: 0 }, 200);
+
+    const targetClasses = await db.select().from(classes).where(and(
+        inArray(classes.id, targetIds),
+        eq(classes.tenantId, tenant.id),
+        eq(classes.status, 'active')
+    )).all();
+
+    if (targetClasses.length === 0) return c.json({ success: true, affected: 0 }, 200);
+
+    const shiftMs = shiftMinutes * 60 * 1000;
+    const proposedClasses = targetClasses.map(c => ({
+        id: c.id,
+        startTime: new Date(c.startTime.getTime() + shiftMs),
+        durationMinutes: c.durationMinutes,
+        instructorId: c.instructorId,
+        locationId: c.locationId,
+        title: c.title,
+    }));
+
+    // Overlap within the moved set (same instructor or same room)
+    for (let i = 0; i < proposedClasses.length; i++) {
+        for (let j = i + 1; j < proposedClasses.length; j++) {
+            const a = proposedClasses[i];
+            const b = proposedClasses[j];
+            const aEnd = a.startTime.getTime() + a.durationMinutes * 60 * 1000;
+            const bEnd = b.startTime.getTime() + b.durationMinutes * 60 * 1000;
+            const overlaps = a.startTime.getTime() < bEnd && b.startTime.getTime() < aEnd;
+            if (overlaps && (a.instructorId === b.instructorId || a.locationId === b.locationId)) {
+                return c.json({ error: `Reschedule would create overlap: ${a.title} and ${b.title}` }, 400);
+            }
+        }
+    }
+
+    const conflictService = new ConflictService(db);
+    const byInstructor = new Map<string, typeof proposedClasses>();
+    const byRoom = new Map<string, typeof proposedClasses>();
+    for (const p of proposedClasses) {
+        if (!byInstructor.has(p.instructorId)) byInstructor.set(p.instructorId, []);
+        byInstructor.get(p.instructorId)!.push(p);
+        if (!byRoom.has(p.locationId)) byRoom.set(p.locationId, []);
+        byRoom.get(p.locationId)!.push(p);
+    }
+    for (const [instructorId, arr] of byInstructor) {
+        const conflicts = await conflictService.checkInstructorConflictBatch(instructorId, arr);
+        if (conflicts.length > 0) {
+            return c.json({ error: `Instructor conflict at new time ${conflicts[0].proposedClass.startTime.toISOString()}` }, 400);
+        }
+    }
+    for (const [locationId, arr] of byRoom) {
+        const conflicts = await conflictService.checkRoomConflictBatch(locationId, arr);
+        if (conflicts.length > 0) {
+            return c.json({ error: `Room conflict at new time ${conflicts[0].proposedClass.startTime.toISOString()}` }, 400);
+        }
+    }
+
+    for (const cls of targetClasses) {
+        const newStart = new Date(cls.startTime.getTime() + shiftMs);
+        await db.update(classes).set({ startTime: newStart }).where(eq(classes.id, cls.id)).run();
+    }
+
+    return c.json({ success: true, affected: targetClasses.length }, 200);
 });
 
 export default app;

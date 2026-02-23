@@ -453,3 +453,53 @@ Tier 5 finalized the core architecture by focusing on **External Integrations, P
 - **TypeScript Strictness**: Resolved isolated TypeCheck failures in `api` caused by mismatched Cloudflare `Bindings` types (`SVIX_AUTH_TOKEN`) and missing router index exports (`adminApiKeys`).
 - **D1 Migration Conflicts**: Handled an edge-case where `drizzle-kit generate` created duplicate tables (`course_item_completions`) that conflicted with earlier manual schema migrations (`0071_...sql`). Stripped duplicates from the D1 migration file before pushing to prevent `SQLITE_ERROR: table already exists`.
 
+---
+
+## ✅ Verification (Codebase — Feb 2026)
+
+The following tiers/sessions were verified against the repository. Work is **confirmed implemented** unless noted.
+
+### Tier 3 (Session 6) — Verified
+| Item | Status | Location |
+|------|--------|----------|
+| Built-in booking confirmation email | ✅ | `packages/api/src/services/bookings.ts`: `sendBuiltInConfirmation()`, invoked after create |
+| Built-in waitlist promotion email | ✅ | `packages/api/src/services/bookings.ts`: `sendBuiltInWaitlistPromotion()` |
+| 24h class reminder cron + schema | ✅ | `packages/api/src/cron.ts`: `send24hClassReminders()`; `packages/db`: `reminder_sent_at`, migration `0008_booking_reminder.sql` |
+| Portal class review/rating + studio moderation | ✅ | `portal.$slug.history.tsx`: `RateClassDialog`, `POST /reviews`; `studio.$slug.reviews.tsx`: stats, filters, approve/testimonial/delete; nav in `studio.$slug.tsx` |
+| Student attendance history CSV export | ✅ | `packages/api/src/routes/bookings.ts`: `GET /history/export`; `portal.$slug.history.tsx`: Export CSV button |
+
+### Tier 4 (Session 7) — Verified
+| Item | Status | Location |
+|------|--------|----------|
+| Waitlist automation | ✅ | BookingService cancel → `promoteNextInLine` + `sendBuiltInWaitlistPromotion`; D1 batch in bookings flow |
+| Gift cards | ✅ | `packages/api/src/routes/gift-cards.ts` (CRUD, validate, apply); Stripe/checkout/fulfillment; admin & portal usage |
+| Quick Start Wizard | ✅ | `QuickStartModal.tsx`, `studio.$slug.tsx`; `packages/api/src/routes/onboarding.ts`: `POST /quick-start`, `POST /quick-start/skip` |
+| CRM pipeline (leads) | ✅ | `packages/api/src/routes/leads.ts`; `studio.$slug.leads.tsx`, `LeadsPage.tsx`; nav "Leads" |
+| Gamified loyalty challenges | ✅ | `challenges` / `user_challenges`; `packages/api/src/routes/challenges.ts`, `services/challenges.ts`; `loyalty.integration.test.ts` (count, streak, retail_credit) |
+
+### Tier 5 (Session 8) — Verified (with notes)
+| Item | Status | Location / Note |
+|------|--------|-----------------|
+| Advanced payroll (fixed deduction, net GMV) | ✅ | `payroll.ts` config `metadata.fixedDeduction`; `PayrollPage.tsx`; `services/payroll.ts` percentage + fixedDeduction |
+| Partial refunds + pack credit reversal | ✅ | `stripe-webhook.ts`: refund → pack `status: 'refunded'`, `remainingCredits: 0`; `refunds.ts` credit deduction; booking-integration test asserts credit restore |
+| PDF generation | ✅ (variant) | PDF is generated in **scheduled report execution** via `ReportService.generatePdf()` and attached to email in `reports.scheduled.ts` (POST /execute). No standalone `GET /reports/scheduled/:id/pdf` route in codebase. |
+| Svix webhooks | ✅ | `services/webhooks.ts` (Svix client); provisioning in `onboarding.ts`; `tenant.webhooks.ts` GET /portal; events from bookings, stripe-webhook, pos |
+| System resilience (ConflictService batch) | ✅ | `packages/api/src/services/conflicts.ts`: `checkInstructorConflictBatch` / room batch with time-window fetch; used in `classes.schedules.ts`, `classes.bulk.ts` |
+| Database indices | ✅ | `pos_orders`: `tenantCreatedIdx` on `(tenantId, createdAt)`. Subscriptions: `tenantIdx` on `tenantId` (no composite `tenant_id, status` in schema). |
+| Mobile polish / CI-CD | ✅ | Not re-audited in this pass; doc retained as stated. |
+
+**Summary**: Tiers 3, 4, and 5 (Sessions 6–8) are implemented as described. The only doc correction: PDF export is available via scheduled report execution (email attachment), not a separate `GET /reports/scheduled/:id/pdf` endpoint.
+
+---
+
+## 📋 Remaining Work Tracker
+
+See **`docs/planning/remaining.md`** for the current list of improvement-plan items, completion status, and notes. Items completed in Feb 2026: bulk class move (reschedule), audit log entity-centric view, commerce wizard idempotency, backup alerts hook, StreakCard backend.
+
+---
+
+## Recent fixes & polish (Feb 2026)
+
+- **Student view – Courses**: When viewing as a student, sidebar shows "Courses" (not "Course Management"); course list shows "View" linking to portal course page; no "Manage" or "New Course". (`studio.$slug.tsx`, `CoursesPage.tsx`)
+- **Booking insert fix**: Omit `usedPackId` from insert when null so FK to `purchased_packs` is not violated (avoids empty string binding). (`packages/api/src/services/bookings.ts`)
+
