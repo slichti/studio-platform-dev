@@ -173,6 +173,10 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
                 onClose={() => setIsBookingOpen(false)}
                 classEvent={selectedClass}
                 family={family}
+                onSuccess={() => {
+                    queryClient.invalidateQueries({ queryKey: ['classes', slug] });
+                    queryClient.invalidateQueries({ queryKey: ['user'] });
+                }}
             />
         </div>
     );

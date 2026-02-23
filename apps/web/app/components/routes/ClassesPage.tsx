@@ -57,7 +57,7 @@ type ClassEvent = {
 
 export default function ClassesPage() {
     const { slug } = useParams();
-    const { roles, tenant, me, token: contextToken } = useOutletContext<any>() || {};
+    const { roles, tenant, me, token: contextToken, isStudentView } = useOutletContext<any>() || {};
     const member = me; // Map 'me' to 'member' for consistency
     const { getToken } = useAuth();
     const queryClient = useQueryClient();
@@ -235,7 +235,11 @@ export default function ClassesPage() {
                 headers: { 'X-Tenant-Slug': slug! },
                 body: JSON.stringify({ classId: cls.id, attendanceType: 'in_person' })
             });
-            queryClient.invalidateQueries({ queryKey: ['classes-infinite', slug] });
+            await Promise.all([
+                queryClient.refetchQueries({ queryKey: ['classes-infinite', slug] }),
+                queryClient.refetchQueries({ queryKey: ['classes'] }),
+                queryClient.refetchQueries({ queryKey: ['user'] }),
+            ]);
             toast.success("Class booked!");
         } catch (e: any) {
             toast.error(e.message);
@@ -415,28 +419,35 @@ export default function ClassesPage() {
                                                                     </a>
                                                                 )}
                                                                 {cls.status !== 'archived' && (
-                                                                    me ? (
-                                                                        cls.myBooking?.status === 'confirmed' ? (
-                                                                            <Button
-                                                                                variant="destructive"
-                                                                                size="sm"
-                                                                                className="h-7 w-full text-xs"
-                                                                                onClick={() => setConfirmCancelData({ bookingId: cls.myBooking!.id, classId: cls.id })}
-                                                                            >
-                                                                                Cancel
-                                                                            </Button>
-                                                                        ) : cls.myBooking?.status === 'waitlisted' ? (
-                                                                            <Button variant="secondary" disabled size="sm" className="h-7 w-full text-xs">Waitlisted</Button>
-                                                                        ) : (
-                                                                            ((cls.inPersonCount || 0) >= (cls.capacity || Infinity) && !cls.zoomEnabled) ? (
-                                                                                <Button variant="secondary" size="sm" className="h-7 w-full text-xs" onClick={() => joinWaitlist(cls)}>Join Waitlist</Button>
-                                                                            ) : (
-                                                                                <Button size="sm" className="h-7 w-full text-xs" onClick={() => family.length > 0 || cls.zoomEnabled ? setSelectedClass(cls) : handleQuickBook(cls)}>
-                                                                                    Book
+                                                                    me ? (() => {
+                                                                        const isPast = new Date(cls.startTime) <= new Date();
+                                                                        if (isPast && !isAdmin) {
+                                                                            return <span className="text-xs text-zinc-500 dark:text-zinc-400 py-1.5">Ended</span>;
+                                                                        }
+                                                                        if (cls.myBooking?.status === 'confirmed') {
+                                                                            return (
+                                                                                <Button
+                                                                                    variant="destructive"
+                                                                                    size="sm"
+                                                                                    className="h-7 w-full text-xs"
+                                                                                    onClick={() => setConfirmCancelData({ bookingId: cls.myBooking!.id, classId: cls.id })}
+                                                                                >
+                                                                                    Cancel
                                                                                 </Button>
-                                                                            )
-                                                                        )
-                                                                    ) : (
+                                                                            );
+                                                                        }
+                                                                        if (cls.myBooking?.status === 'waitlisted') {
+                                                                            return <Button variant="secondary" disabled size="sm" className="h-7 w-full text-xs">Waitlisted</Button>;
+                                                                        }
+                                                                        if ((cls.inPersonCount || 0) >= (cls.capacity || Infinity) && !cls.zoomEnabled) {
+                                                                            return <Button variant="secondary" size="sm" className="h-7 w-full text-xs" onClick={() => joinWaitlist(cls)}>Join Waitlist</Button>;
+                                                                        }
+                                                                        return (
+                                                                            <Button size="sm" className="h-7 w-full text-xs" onClick={() => family.length > 0 || cls.zoomEnabled ? setSelectedClass(cls) : handleQuickBook(cls)}>
+                                                                                Book
+                                                                            </Button>
+                                                                        );
+                                                                    })() : (
                                                                         <a href="/sign-in" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-7 w-full text-xs")}>
                                                                             Login
                                                                         </a>
@@ -486,8 +497,12 @@ export default function ClassesPage() {
                 classEvent={selectedClass}
                 family={family || []}
                 member={member}
-                onSuccess={() => {
-                    queryClient.invalidateQueries({ queryKey: ['classes-infinite', slug] });
+                onSuccess={async () => {
+                    await Promise.all([
+                        queryClient.refetchQueries({ queryKey: ['classes-infinite', slug] }),
+                        queryClient.refetchQueries({ queryKey: ['classes'] }),
+                        queryClient.refetchQueries({ queryKey: ['user'] }),
+                    ]);
                 }}
             />
 
