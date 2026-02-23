@@ -260,8 +260,16 @@ After any data recovery incident, complete a post-mortem document including:
 
 ---
 
+## Related
+
+- **[Deploy & Staging Checklist](./deploy-checklist.md)** — Pre-deploy backup step and rollback reference.
+- **Rate limiting:** Tuning is deferred; see [Deploy Checklist](./deploy-checklist.md#rate-limiting-tier-83--note) for the note.
+
+---
+
 ## Changelog
 
 | Date | Change | Author |
 |------|--------|--------|
 | 2026-02-06 | Initial DR procedures document | Antigravity |
+| 2026-02-22 | Added Related section (deploy checklist, rate-limit note) | — |

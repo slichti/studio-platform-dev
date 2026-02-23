@@ -519,9 +519,9 @@ Tracked from recommendation backlog. Status updated as work completes.
 ### Tier 8 — Ops & Reliability
 | # | Feature | Status | Notes |
 |---|--------|--------|-------|
-| 8.1 | Deploy & staging checklist | ⬜ | Doc in remaining or ops |
-| 8.2 | Backup runbook | ⬜ | Extend disaster-recovery.md |
-| 8.3 | Rate limiting tuning | ⬜ | Deferred; note in doc |
+| 8.1 | Deploy & staging checklist | ✅ | docs/deploy-checklist.md (pre-deploy, deploy steps, staging verification, rollback) |
+| 8.2 | Backup runbook | ✅ | disaster-recovery.md extended with Related (deploy checklist + rate-limit note) |
+| 8.3 | Rate limiting tuning | ✅ | Deferred; note in deploy-checklist.md and disaster-recovery.md |
 
 ### Tier 9 — Mobile & Engagement
 | # | Feature | Status | Notes |
