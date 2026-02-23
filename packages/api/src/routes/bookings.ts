@@ -291,7 +291,11 @@ app.post('/', async (c) => {
         return c.json({ success: true, id: result.id });
     } catch (e: any) {
         console.error("Booking Error:", e);
-        return c.json({ error: e.message || "Booking failed" }, 400);
+        const message = e?.message ?? '';
+        const safeMessage = message.includes('Failed query') || message.includes('insert into')
+            ? 'Booking failed. Please try again or contact the studio.'
+            : (message || 'Booking failed');
+        return c.json({ error: safeMessage }, 400);
     }
 });
 

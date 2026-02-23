@@ -80,15 +80,18 @@ export class BookingService {
         }
 
         const id = crypto.randomUUID();
-        await this.db.insert(bookings).values({
+        const insertRow: Record<string, unknown> = {
             id,
             classId,
             memberId,
             status: 'confirmed',
             attendanceType,
-            ...(usedPackId ? { usedPackId } : {}), // Omit when null to avoid FK violation (some drivers bind null as '')
             createdAt: new Date()
-        }).run();
+        };
+        if (usedPackId != null && usedPackId !== '') {
+            insertRow.usedPackId = usedPackId;
+        }
+        await this.db.insert(bookings).values(insertRow as typeof bookings.$inferInsert).run();
 
         // Fire built-in booking confirmation email (best-effort, non-blocking)
         this.sendBuiltInConfirmation(id, cls).catch(() => { });
