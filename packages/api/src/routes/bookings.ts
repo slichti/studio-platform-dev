@@ -7,8 +7,12 @@ import { WebhookService } from '../services/webhooks';
 import { HonoContext } from '../types';
 import { BookingService } from '../services/bookings';
 import { ConflictService } from '../services/conflicts';
+import { rateLimitMiddleware } from '../middleware/rate-limit';
 
 const app = new Hono<HonoContext>();
+
+// Stricter rate limits for booking mutations (abuse control)
+const bookingLimit = rateLimitMiddleware({ limit: 20, window: 60, keyPrefix: 'booking' });
 
 // GET /my-upcoming
 app.get('/my-upcoming', async (c) => {
@@ -36,7 +40,7 @@ app.get('/my-upcoming', async (c) => {
 });
 
 // POST /waitlist — join the waitlist for a full class
-app.post('/waitlist', async (c) => {
+app.post('/waitlist', bookingLimit, async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant')!;
     const auth = c.get('auth')!;
@@ -186,7 +190,7 @@ app.get('/:id', async (c) => {
 });
 
 // POST /
-app.post('/', async (c) => {
+app.post('/', bookingLimit, async (c) => {
     const json = await c.req.json();
     const { classId, attendanceType, memberId } = json;
     console.log(`[DEBUG] POST /bookings - Class: ${classId}, AuthUser: ${c.get('auth')?.userId}, Tenant: ${c.get('tenant')?.id}`);

@@ -4,8 +4,12 @@ import { EmailService } from '../services/email';
 import { createDb } from '../db';
 import { eq, and, sql } from 'drizzle-orm';
 import { HonoContext } from '../types';
+import { rateLimitMiddleware } from '../middleware/rate-limit';
 
 const app = new Hono<HonoContext>();
+
+// Stricter limit on public validate (brute-force protection)
+const validateLimit = rateLimitMiddleware({ limit: 30, window: 60, keyPrefix: 'gift-validate' });
 
 // GET /
 app.get('/', async (c) => {
@@ -21,7 +25,7 @@ app.get('/', async (c) => {
 });
 
 // GET /validate/:code
-app.get('/validate/:code', async (c) => {
+app.get('/validate/:code', validateLimit, async (c) => {
     const db = createDb(c.env.DB);
     const card = await db.query.giftCards.findFirst({ where: and(eq(giftCards.tenantId, c.get('tenant')!.id), eq(giftCards.code, c.req.param('code').toUpperCase()), eq(giftCards.status, 'active')) });
     if (!card || (card.expiryDate && new Date(card.expiryDate) < new Date())) return c.json({ error: 'Invalid or expired' }, 404);

@@ -49,6 +49,13 @@ If a deploy causes issues:
 
 ---
 
-## Rate Limiting (Tier 8.3 — Note)
+## Rate Limiting
 
-Rate limiting is implemented (cost-based + Durable Object store where applicable). Further tuning (e.g. stricter per-user limits or per-route limits) is deferred; document any production incidents or desired limits in `docs/security.md` or this checklist for future implementation.
+- **Global:** 300 req/min per user (or IP/token)
+- **Booking:** 20 req/min (POST /bookings, POST /waitlist)
+- **Gift card validate:** 30 req/min (public brute-force protection)
+- **Checkout:** 10 req/min
+- **Guest booking:** 5 req/min
+- **Public schedule:** 60 req/min
+
+See `packages/api/src/middleware/rate-limit.ts` and route-specific overrides. 429 responses include `X-RateLimit-*` headers.

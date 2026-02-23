@@ -562,7 +562,14 @@ Tracked from recommendation backlog. Status updated as work completes.
 | Golden signals endpoint | ✅ | GET /diagnostics/golden-signals (webhooks, clientErrors) |
 | Observability doc | ✅ | docs/observability.md |
 
-### T3, T5–T11 — Pending
+### T6 — Rate limits & abuse controls ✅
+| Item | Status | Notes |
+|------|--------|-------|
+| Booking limits | ✅ | 20 req/min on POST /bookings, POST /waitlist |
+| Gift card validate | ✅ | 30 req/min on GET /validate/:code |
+| Deploy checklist | ✅ | Rate limit summary in docs/deploy-checklist.md |
+
+### T3, T5, T7–T11 — Pending
 - T3: Mobile onboarding loop (push + streak nudges)
 - T5: Performance tuning (schedule, dashboard, LMS)
 - T6: Rate limits (auth, booking, public widgets)
