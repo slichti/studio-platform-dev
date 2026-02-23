@@ -6,6 +6,8 @@ import { useRouter, useSegments } from 'expo-router';
 type AuthContextType = {
     signIn: (token: string) => Promise<void>;
     signOut: () => Promise<void>;
+    /** Request push permission and register token; returns true if granted and registered. Use for onboarding. */
+    requestPushAndRegister: () => Promise<boolean>;
     token: string | null;
     isLoading: boolean;
 };
@@ -13,6 +15,7 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType>({
     signIn: async () => { },
     signOut: async () => { },
+    requestPushAndRegister: async () => false,
     token: null,
     isLoading: true,
 });
@@ -43,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const segments = useSegments();
 
-    const registerForPushNotificationsAsync = async () => {
+    const registerForPushNotificationsAsync = async (): Promise<boolean> => {
         if (Platform.OS === 'android') {
             await Notifications.setNotificationChannelAsync('default', {
                 name: 'default',
@@ -53,42 +56,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
         }
 
-        if (Device.isDevice) {
-            const { status: existingStatus } = await Notifications.getPermissionsAsync();
-            let finalStatus = existingStatus;
-            if (existingStatus !== 'granted') {
-                const { status } = await Notifications.requestPermissionsAsync();
-                finalStatus = status;
-            }
-            if (finalStatus !== 'granted') {
-                console.log('Failed to get push token for push notification!');
-                return;
-            }
-            const projectId = Constants?.expoConfig?.extra?.eas?.projectId || Constants?.easConfig?.projectId;
-            if (!projectId) {
-                console.log("No Project ID found for push notifications");
-                return;
-            }
-            const pushTokenString = (
-                await Notifications.getExpoPushTokenAsync({
-                    projectId,
-                })
-            ).data;
-
-            // Send to backend
-            try {
-                // We use the imported apiRequest which handles Auth header
-                // But we must ensure token is set in AuthStore already.
-                await apiRequest('/users/push-token', {
-                    method: 'POST',
-                    body: JSON.stringify({ token: pushTokenString })
-                });
-                console.log('Push token registered:', pushTokenString);
-            } catch (e) {
-                console.error('Failed to register push token with backend:', e);
-            }
-        } else {
+        if (!Device.isDevice) {
             console.log('Must use physical device for Push Notifications');
+            return false;
+        }
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        if (existingStatus !== 'granted') {
+            const { status } = await Notifications.requestPermissionsAsync();
+            finalStatus = status;
+        }
+        if (finalStatus !== 'granted') {
+            console.log('Failed to get push token for push notification!');
+            return false;
+        }
+        const projectId = Constants?.expoConfig?.extra?.eas?.projectId || Constants?.easConfig?.projectId;
+        if (!projectId) {
+            console.log("No Project ID found for push notifications");
+            return false;
+        }
+        const pushTokenString = (
+            await Notifications.getExpoPushTokenAsync({
+                projectId,
+            })
+        ).data;
+
+        try {
+            await apiRequest('/users/push-token', {
+                method: 'POST',
+                body: JSON.stringify({ token: pushTokenString })
+            });
+            console.log('Push token registered:', pushTokenString);
+            return true;
+        } catch (e) {
+            console.error('Failed to register push token with backend:', e);
+            return false;
         }
     };
 
@@ -135,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ signIn, signOut, token, isLoading }}>
+        <AuthContext.Provider value={{ signIn, signOut, requestPushAndRegister: registerForPushNotificationsAsync, token, isLoading }}>
             {children}
         </AuthContext.Provider>
     );

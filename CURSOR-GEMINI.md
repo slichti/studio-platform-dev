@@ -569,10 +569,16 @@ Tracked from recommendation backlog. Status updated as work completes.
 | Gift card validate | ✅ | 30 req/min on GET /validate/:code |
 | Deploy checklist | ✅ | Rate limit summary in docs/deploy-checklist.md |
 
-### T3, T5, T7–T11 — Pending
-- T3: Mobile onboarding loop (push + streak nudges)
+### T3 — Mobile onboarding loop ✅
+| Item | Status | Notes |
+|------|--------|-------|
+| First-7-days flow | ✅ | Home shows "Get the most out of your first week" when no upcoming + streak 0 |
+| Book first class CTA | ✅ | Card links to schedule; first booking detected via upcoming or streak and marks step done |
+| Enable notifications | ✅ | AuthContext.requestPushAndRegister(); onboarding card CTA requests permission and registers token |
+| Dismiss / Maybe later | ✅ | useOnboarding (SecureStore) tracks firstBooked, notificationsEnabled, dismissed |
+
+### T5, T8–T11 — Pending
 - T5: Performance tuning (schedule, dashboard, LMS)
-- T6: Rate limits (auth, booking, public widgets)
 - T8: RBAC policy helpers, permissions view
 - T9: Data lifecycle (anonymization, retention docs)
 - T10: OpenAPI grouping, dev settings, request log

@@ -2,37 +2,54 @@ import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'rea
 import { useAuth } from '../../context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { apiRequest } from '../../lib/api';
 import { useFocusEffect } from '@react-navigation/native';
+import { useOnboarding } from '../../hooks/useOnboarding';
+import { Bell, Calendar, X } from 'lucide-react-native';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { signOut } = useAuth();
+  const { signOut, requestPushAndRegister } = useAuth();
+  const {
+    showOnboarding,
+    firstBooked,
+    notificationsEnabled,
+    hydrated,
+    markFirstBooked,
+    markNotificationsEnabled,
+    markDismissed,
+  } = useOnboarding();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
   const [upcoming, setUpcoming] = useState<any>(null);
   const [credits, setCredits] = useState(0);
+  const [streak, setStreak] = useState<{ current?: number } | null>(null);
+  const [notificationsRequesting, setNotificationsRequesting] = useState(false);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      // Fetch Member Profile & Credits
       const memberData = await apiRequest('/members/me');
       if (memberData?.member) {
         setProfile(memberData.member);
-        // Calculate total remaining credits
         const packs = memberData.member.purchasedPacks || [];
         const total = packs.reduce((acc: number, p: any) => acc + (p.remainingCredits || 0), 0);
         setCredits(total);
       }
 
-      // Fetch Upcoming
       const upcomingData = await apiRequest('/bookings/my-upcoming');
       if (Array.isArray(upcomingData) && upcomingData.length > 0) {
         setUpcoming(upcomingData[0]);
       } else {
         setUpcoming(null);
+      }
+
+      try {
+        const streakData = await apiRequest('/members/me/streak');
+        setStreak(streakData ?? null);
+      } catch {
+        setStreak(null);
       }
     } catch (e) {
       console.error(e);
@@ -46,6 +63,23 @@ export default function HomeScreen() {
       fetchData();
     }, [])
   );
+
+  const hasBooked = !!upcoming || (Number(streak?.current) ?? 0) > 0;
+  useEffect(() => {
+    if (hydrated && hasBooked && !firstBooked) markFirstBooked();
+  }, [hydrated, hasBooked, firstBooked, markFirstBooked]);
+
+  const showOnboardingCard = hydrated && showOnboarding && !loading && !upcoming && (Number(streak?.current) ?? 0) === 0;
+
+  const handleEnableNotifications = async () => {
+    setNotificationsRequesting(true);
+    try {
+      const ok = await requestPushAndRegister();
+      if (ok) await markNotificationsEnabled();
+    } finally {
+      setNotificationsRequesting(false);
+    }
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -119,6 +153,52 @@ export default function HomeScreen() {
             )}
           </View>
         </View>
+
+        {/* First 7 days onboarding */}
+        {showOnboardingCard && (
+          <View className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
+            <View className="flex-row justify-between items-start mb-3">
+              <Text className="text-lg font-bold text-amber-900">Get the most out of your first week</Text>
+              <TouchableOpacity onPress={markDismissed} hitSlop={12} className="p-1">
+                <X size={18} color="#92400e" />
+              </TouchableOpacity>
+            </View>
+            <Text className="text-amber-800 text-sm mb-4">Book a class, turn on reminders, and we’ll help you stay on track.</Text>
+            <View className="gap-3">
+              <TouchableOpacity
+                className="flex-row items-center gap-3 py-3 px-4 bg-white rounded-xl border border-amber-200"
+                onPress={() => router.push('/(tabs)/schedule')}
+              >
+                <View className="w-10 h-10 rounded-full bg-amber-100 items-center justify-center">
+                  <Calendar size={20} color="#b45309" />
+                </View>
+                <View className="flex-1">
+                  <Text className="font-semibold text-zinc-900">Book your first class</Text>
+                  <Text className="text-zinc-500 text-xs">See the schedule and pick a time</Text>
+                </View>
+              </TouchableOpacity>
+              {!notificationsEnabled && (
+                <TouchableOpacity
+                  className="flex-row items-center gap-3 py-3 px-4 bg-white rounded-xl border border-amber-200"
+                  onPress={handleEnableNotifications}
+                  disabled={notificationsRequesting}
+                >
+                  <View className="w-10 h-10 rounded-full bg-amber-100 items-center justify-center">
+                    <Bell size={20} color="#b45309" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="font-semibold text-zinc-900">Enable notifications</Text>
+                    <Text className="text-zinc-500 text-xs">Reminders and streak nudges</Text>
+                  </View>
+                  {notificationsRequesting && <ActivityIndicator size="small" color="#b45309" />}
+                </TouchableOpacity>
+              )}
+            </View>
+            <TouchableOpacity onPress={markDismissed} className="mt-3 py-2">
+              <Text className="text-amber-700 text-sm font-medium text-center">Maybe later</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Action Items */}
         <Text className="text-lg font-bold text-zinc-900 mb-4">Quick Actions</Text>
