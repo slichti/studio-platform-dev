@@ -137,7 +137,7 @@ describe('Booking Lifecycle Integration', () => {
         sqlite.exec(`CREATE TABLE subscriptions (
             id TEXT PRIMARY KEY, user_id TEXT, tenant_id TEXT, member_id TEXT, plan_id TEXT,
             status TEXT, tier TEXT, current_period_end INTEGER, stripe_subscription_id TEXT,
-            canceled_at INTEGER, paused_until INTEGER, dunning_state TEXT, last_dunning_at INTEGER, created_at INTEGER
+            canceled_at INTEGER, churn_reason TEXT, paused_until INTEGER, dunning_state TEXT, last_dunning_at INTEGER, created_at INTEGER
         )`);
 
         // 14. Platform Config (Required for Webhook Service)

@@ -1,4 +1,3 @@
-import type { Context } from 'hono';
 import type { Permission } from '../services/permissions';
 
 /**
@@ -8,8 +7,8 @@ import type { Permission } from '../services/permissions';
  *
  * Example: const res = guard(c, 'view_reports'); if (res) return res;
  */
-export function guard(c: Context<{ Variables: { can: (p: string) => boolean } }, any, {}>, permission: Permission): ReturnType<Context['json']> | null {
-    const can = c.get('can');
+export function guard(c: any, permission: Permission) {
+    const can = c?.get?.('can');
     if (!can || !can(permission)) {
         return c.json({
             error: 'Forbidden',
