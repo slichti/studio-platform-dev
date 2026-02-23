@@ -26,7 +26,18 @@ export type Permission =
     | 'view_pos'
     | 'view_progress'
     | 'manage_progress'
-    | 'manage_payroll';
+    |     'manage_payroll';
+
+/** All known permissions (for "view my permissions" and policy layer). */
+export const ALL_PERMISSIONS: Permission[] = [
+    'manage_tenant', 'view_tenant', 'manage_billing', 'view_billing',
+    'manage_members', 'view_members', 'manage_classes', 'view_classes',
+    'manage_staff', 'view_reports', 'manage_reports', 'view_financials',
+    'check_in_students', 'manage_pos', 'view_pos', 'manage_inventory',
+    'manage_marketing', 'view_settings', 'manage_settings', 'manage_content',
+    'manage_leads', 'manage_community', 'view_commerce', 'manage_commerce',
+    'view_progress', 'manage_progress', 'manage_payroll'
+];
 
 export const RolePermissions: Record<string, Permission[]> = {
     owner: [ // All permissions + administrative

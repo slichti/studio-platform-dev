@@ -15,6 +15,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { rateLimitMiddleware } from './middleware/rate-limit'; // [NEW]
 import { apiKeyMiddleware } from './middleware/apiKey';
+import { ALL_PERMISSIONS } from './services/permissions';
 
 // Route Imports
 import studioRoutes from './routes/studios';
@@ -607,6 +608,19 @@ studioApp.get('/me', (c) => {
       isPlatformAdmin: user.isPlatformAdmin === true || (!!user.role && ['owner', 'admin', 'system_admin', 'platform_admin'].includes(user.role))
     }
   });
+});
+
+// GET /tenant/me/permissions — effective roles and permission flags (for studio UI / RBAC display)
+studioApp.get('/me/permissions', (c) => {
+  const member = c.get('member');
+  const roles = c.get('roles') || [];
+  const can = c.get('can');
+  if (!member || !can) return c.json({ error: "Not a member" }, 401);
+  const permissions: Record<string, boolean> = {};
+  for (const p of ALL_PERMISSIONS) {
+    permissions[p] = can(p);
+  }
+  return c.json({ roles, permissions });
 });
 
 studioApp.get('/usage', async (c) => {

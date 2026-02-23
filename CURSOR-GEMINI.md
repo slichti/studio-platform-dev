@@ -584,8 +584,15 @@ Tracked from recommendation backlog. Status updated as work completes.
 | Schedule/class list | ✅ | GET /classes already uses batch booking/waitlist counts and batch my-booking fetch |
 | Docs | ✅ | docs/deploy-checklist.md — Performance section (batch queries, bounded payloads) |
 
-### T8–T11 — Pending
-- T8: RBAC policy helpers, permissions view
+### T8 — RBAC phase 2 ✅
+| Item | Status | Notes |
+|------|--------|-------|
+| Policy helper | ✅ | `packages/api/src/lib/policy.ts`: `guard(c, permission)` returns 403 or null |
+| ALL_PERMISSIONS | ✅ | `services/permissions.ts`: canonical list for iteration |
+| View my permissions API | ✅ | GET /tenant/me/permissions returns `{ roles, permissions: Record<string, boolean> }` |
+| Optional studio UI | — | Frontend can call /tenant/me/permissions on profile or settings to show effective permissions |
+
+### T9–T11 — Pending
 - T9: Data lifecycle (anonymization, retention docs)
 - T10: OpenAPI grouping, dev settings, request log
 - T11: Integration tests, smoke tests
