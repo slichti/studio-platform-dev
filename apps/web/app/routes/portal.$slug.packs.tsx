@@ -210,7 +210,14 @@ export default function StudentPortalPacks() {
                                             style={{ width: `${pct}%` }}
                                         />
                                     </div>
-                                    <p className="text-xs text-zinc-400">{usedCredits} used · {pack.remainingCredits} remaining</p>
+                                    <p className="text-xs text-zinc-400 flex items-center justify-between">
+                                        <span>{usedCredits} used · {pack.remainingCredits} remaining</span>
+                                        {pack.initialCredits > 0 && (
+                                            <span className="text-zinc-500 dark:text-zinc-500">
+                                                {Math.round((usedCredits / pack.initialCredits) * 100)}% utilized
+                                            </span>
+                                        )}
+                                    </p>
                                 </div>
                             );
                         })}
@@ -244,35 +251,55 @@ export default function StudentPortalPacks() {
             </section>
 
             {/* Available packs to purchase */}
-            {(availablePacks as any[]).length > 0 && (
-                <section>
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Available Packs</h2>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {(availablePacks as any[]).map((pack: any) => (
-                            <div
-                                key={pack.id}
-                                className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 flex flex-col gap-4"
-                            >
-                                <div className="flex-1">
-                                    <p className="font-bold text-zinc-900 dark:text-zinc-100 text-lg">{pack.name}</p>
-                                    <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-                                        {pack.credits} class credit{pack.credits !== 1 ? "s" : ""}
-                                        {pack.expirationDays ? ` · Valid ${pack.expirationDays} days` : ""}
-                                    </p>
+            {(availablePacks as any[]).length > 0 && (() => {
+                const packs = availablePacks as any[];
+                const withPricePerClass = packs.map((p: any) => ({ ...p, pricePerClass: p.credits > 0 ? p.price / p.credits : p.price }));
+                const bestValueId = withPricePerClass.length > 1
+                    ? withPricePerClass.reduce((a, b) => a.pricePerClass <= b.pricePerClass ? a : b).id
+                    : null;
+                return (
+                    <section>
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Available Packs</h2>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {withPricePerClass.map((pack: any) => (
+                                <div
+                                    key={pack.id}
+                                    className={cn(
+                                        "bg-white dark:bg-zinc-900 rounded-2xl border p-5 flex flex-col gap-4 relative",
+                                        pack.id === bestValueId ? "border-emerald-400 dark:border-emerald-600 ring-1 ring-emerald-200 dark:ring-emerald-800" : "border-zinc-200 dark:border-zinc-800"
+                                    )}
+                                >
+                                    {pack.id === bestValueId && (
+                                        <span className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wide bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full">
+                                            Best value
+                                        </span>
+                                    )}
+                                    <div className="flex-1">
+                                        <p className="font-bold text-zinc-900 dark:text-zinc-100 text-lg">{pack.name}</p>
+                                        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+                                            {pack.credits} class credit{pack.credits !== 1 ? "s" : ""}
+                                            {pack.expirationDays ? ` · Valid ${pack.expirationDays} days` : ""}
+                                        </p>
+                                        {pack.credits > 0 && (
+                                            <p className="text-xs text-zinc-400 mt-0.5">
+                                                {formatCents(pack.pricePerClass)} per class
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <span className="text-2xl font-black text-zinc-900 dark:text-zinc-100 block mb-3">
+                                            {formatCents(pack.price)}
+                                        </span>
+                                        <BuyPackButton pack={pack} slug={slug!} />
+                                    </div>
                                 </div>
-                                <div>
-                                    <span className="text-2xl font-black text-zinc-900 dark:text-zinc-100 block mb-3">
-                                        {formatCents(pack.price)}
-                                    </span>
-                                    <BuyPackButton pack={pack} slug={slug!} />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-            )}
+                            ))}
+                        </div>
+                    </section>
+                );
+            })()}
         </div>
     );
 }

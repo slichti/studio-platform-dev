@@ -548,8 +548,14 @@ Tracked from recommendation backlog. Status updated as work completes.
 | Cohorts report | ✅ | GET /reports/retention/cohorts — signup month with retained30/60/90 and retention rates |
 | Churn reasons in report | ✅ | Churn report includes `churnReasons` from canceled subs (last 90 days) |
 
-### T2–T11 — Pending
-- T2: Membership/pricing clarity (effective price, utilization badges)
+### T2 — Membership/pricing clarity ✅
+| Item | Status | Notes |
+|------|--------|-------|
+| Effective price per class | ✅ | Packs page: $X per class on available packs |
+| Best value badge | ✅ | "Best value" on pack with lowest $/class |
+| Utilization badge | ✅ | "X% utilized" on my packs progress |
+
+### T3–T11 — Pending
 - T3: Mobile onboarding loop (push + streak nudges)
 - T4: Observability (structured logging, golden signals)
 - T5: Performance tuning (schedule, dashboard, LMS)
