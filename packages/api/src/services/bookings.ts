@@ -80,15 +80,19 @@ export class BookingService {
         }
 
         const id = crypto.randomUUID();
-        await this.db.insert(bookings).values({
-            id,
-            classId,
-            memberId,
-            status: 'confirmed',
-            attendanceType,
-            ...(usedPackId != null && usedPackId !== '' ? { usedPackId } : {}),
-            createdAt: new Date()
-        }).run();
+        const createdTs = Math.floor(Date.now() / 1000);
+        // Raw INSERT so we never send used_pack_id when null (D1/Drizzle can expand to full schema and fail on null FK)
+        if (usedPackId != null && usedPackId !== '') {
+            await this.db.run(sql`
+                INSERT INTO bookings (id, class_id, member_id, status, attendance_type, is_guest, created_at, used_pack_id)
+                VALUES (${id}, ${classId}, ${memberId}, 'confirmed', ${attendanceType}, 0, ${createdTs}, ${usedPackId})
+            `);
+        } else {
+            await this.db.run(sql`
+                INSERT INTO bookings (id, class_id, member_id, status, attendance_type, is_guest, created_at)
+                VALUES (${id}, ${classId}, ${memberId}, 'confirmed', ${attendanceType}, 0, ${createdTs})
+            `);
+        }
 
         // Fire built-in booking confirmation email (best-effort, non-blocking)
         this.sendBuiltInConfirmation(id, cls).catch(() => { });
