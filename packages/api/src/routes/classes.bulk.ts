@@ -328,10 +328,14 @@ app.openapi(bulkMoveRoute, async (c) => {
     const byInstructor = new Map<string, typeof proposedClasses>();
     const byRoom = new Map<string, typeof proposedClasses>();
     for (const p of proposedClasses) {
-        if (!byInstructor.has(p.instructorId)) byInstructor.set(p.instructorId, []);
-        byInstructor.get(p.instructorId)!.push(p);
-        if (!byRoom.has(p.locationId)) byRoom.set(p.locationId, []);
-        byRoom.get(p.locationId)!.push(p);
+        if (p.instructorId != null) {
+            if (!byInstructor.has(p.instructorId)) byInstructor.set(p.instructorId, []);
+            byInstructor.get(p.instructorId)!.push(p);
+        }
+        if (p.locationId != null) {
+            if (!byRoom.has(p.locationId)) byRoom.set(p.locationId, []);
+            byRoom.get(p.locationId)!.push(p);
+        }
     }
     for (const [instructorId, arr] of byInstructor) {
         const conflicts = await conflictService.checkInstructorConflictBatch(instructorId, arr);
