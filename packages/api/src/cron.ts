@@ -369,10 +369,10 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
             console.error(`Failed to process automations for tenant ${tenant.id}`, e);
         }
 
-        // Daily: Update Churn Scores
+        // Daily: Update Churn Scores (pass automations so churn_risk_high can fire)
         if (isDailyRun) {
             try {
-                const churnService = new ChurnService(db, tenant.id);
+                const churnService = new ChurnService(db, tenant.id, autoService);
                 await churnService.updateAllScores();
             } catch (e) {
                 console.error(`Failed to update churn scores for tenant ${tenant.id}`, e);

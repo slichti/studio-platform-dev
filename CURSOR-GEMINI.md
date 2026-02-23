@@ -498,6 +498,47 @@ See **`docs/planning/remaining.md`** for the current list of improvement-plan it
 
 ---
 
+## 🎯 Next Tiers 6–10 — Progress Tracker
+
+Tracked from recommendation backlog. Status updated as work completes.
+
+### Tier 6 — Retention & Automation
+| # | Feature | Status | Notes |
+|---|--------|--------|-------|
+| 6.1 | Churn → automations | ✅ | Cron now passes AutomationsService into ChurnService; `churn_risk_high` fires when status → churned |
+| 6.2 | Churn model enhancements | ✅ | Already: cancellations, frequency slope, membership expiry, dunning in `churn.ts` |
+| 6.3 | Referral first-purchase reward | ✅ | `fulfillment.ts` marks pending referral paid and credits referrer on checkout |
+
+### Tier 7 — Analytics & BI
+| # | Feature | Status | Notes |
+|---|--------|--------|-------|
+| 7.1 | At-risk report (14+ days no book) | ⬜ | API + studio UI list |
+| 7.2 | Webhook test + attempt log | ⬜ | Test delivery + recent attempts API |
+| 7.3 | Payroll % net revenue | ✅ | Verified in Tier 5 |
+
+### Tier 8 — Ops & Reliability
+| # | Feature | Status | Notes |
+|---|--------|--------|-------|
+| 8.1 | Deploy & staging checklist | ⬜ | Doc in remaining or ops |
+| 8.2 | Backup runbook | ⬜ | Extend disaster-recovery.md |
+| 8.3 | Rate limiting tuning | ⬜ | Deferred; note in doc |
+
+### Tier 9 — Mobile & Engagement
+| # | Feature | Status | Notes |
+|---|--------|--------|-------|
+| 9.1 | Push token API | ⬜ | POST /users/push-token, store in user_push_tokens |
+| 9.2 | Mobile schedule filters | ⬜ | Category + instructor filters |
+| 9.3 | StreakCard in app | ⬜ | Mobile calls GET /members/me/streak |
+
+### Tier 10 — Product & Compliance
+| # | Feature | Status | Notes |
+|---|--------|--------|-------|
+| 10.1 | OpenAPI/Swagger | ⬜ | Already using zod-openapi; expose UI if missing |
+| 10.2 | Apple compliance | ⬜ | Align with apple_compliance.md |
+| 10.3 | Granular RBAC | ⬜ | Capability-based; larger refactor |
+
+---
+
 ## Recent fixes & polish (Feb 2026)
 
 - **Student view – Courses**: When viewing as a student, sidebar shows "Courses" (not "Course Management"); course list shows "View" linking to portal course page; no "Manage" or "New Course". (`studio.$slug.tsx`, `CoursesPage.tsx`)
