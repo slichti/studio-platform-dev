@@ -606,8 +606,12 @@ Tracked from recommendation backlog. Status updated as work completes.
 | Dev settings page | ✅ | Settings → Developers: webhooks, webhook test (POST /tenant/webhooks/test), request log (GET /tenant/webhooks/logs) |
 | API keys | ✅ | Tenant-scoped keys: GET/POST /admin/api-keys (manage_settings); doc notes optional studio UI |
 
-### T11 — Pending
-- T11: Integration tests, smoke tests
+### T11 — Testing & resilience ✅
+| Item | Status | Notes |
+|------|--------|-------|
+| Retention/churn integration | ✅ | test/integration/retention.integration.test.ts: GET /reports/retention/cohorts, GET /reports/churn (churnReasons when 200) |
+| Smoke tests | ✅ | test/integration/smoke.integration.test.ts: auth required, tenant required, cohorts 200, churn 200/500 |
+| test-utils | ✅ | subscriptions: churn_reason, paused_until for retention tests |
 
 ---
 

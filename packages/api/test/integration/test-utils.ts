@@ -132,7 +132,7 @@ export async function setupTestDb(d1: D1Database) {
             id TEXT PRIMARY KEY, user_id TEXT NOT NULL, tenant_id TEXT NOT NULL, 
             member_id TEXT, plan_id TEXT, status TEXT NOT NULL, tier TEXT DEFAULT 'basic', 
             current_period_end INTEGER, stripe_subscription_id TEXT, canceled_at INTEGER, 
-            dunning_state TEXT, last_dunning_at INTEGER, created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            churn_reason TEXT, paused_until INTEGER, dunning_state TEXT, last_dunning_at INTEGER, created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
 
 
