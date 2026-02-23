@@ -592,8 +592,14 @@ Tracked from recommendation backlog. Status updated as work completes.
 | View my permissions API | ✅ | GET /tenant/me/permissions returns `{ roles, permissions: Record<string, boolean> }` |
 | Optional studio UI | — | Frontend can call /tenant/me/permissions on profile or settings to show effective permissions |
 
-### T9–T11 — Pending
-- T9: Data lifecycle (anonymization, retention docs)
+### T9 — Data lifecycle ✅
+| Item | Status | Notes |
+|------|--------|-------|
+| Retention per table | ✅ | docs/data-lifecycle.md: audit_logs, email/sms/webhook/usage logs, bookings, members |
+| PII locations | ✅ | Documented in data-lifecycle.md (users, profiles, logs, webhooks) |
+| Anonymization runbook | ✅ | Long-inactive member flow: define inactive, export if needed, anonymize in place, optional cron |
+
+### T10–T11 — Pending
 - T10: OpenAPI grouping, dev settings, request log
 - T11: Integration tests, smoke tests
 
