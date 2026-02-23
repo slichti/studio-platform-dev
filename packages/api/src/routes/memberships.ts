@@ -224,6 +224,7 @@ app.get('/my-active', async (c) => {
 /**
  * Cancel a subscription at period end (students can cancel their own;
  * admins can cancel any within the tenant).
+ * Optional body: { reason?: string } — churn reason for analytics (price, schedule, moved, other, etc.)
  */
 app.post('/subscriptions/:id/cancel', async (c) => {
     if (!c.get('auth')?.userId) return c.json({ error: 'Unauthorized' }, 401);
@@ -232,6 +233,12 @@ app.post('/subscriptions/:id/cancel', async (c) => {
     const userId = c.get('auth')!.userId;
     const subscriptionId = c.req.param('id');
     const canManage = c.get('can')('manage_commerce');
+
+    let reason: string | undefined;
+    try {
+        const body = await c.req.json().catch(() => ({}));
+        reason = typeof body?.reason === 'string' ? body.reason.trim().slice(0, 200) : undefined;
+    } catch { /* no body */ }
 
     const sub = await db.select().from(subscriptions)
         .where(and(
@@ -251,9 +258,9 @@ app.post('/subscriptions/:id/cancel', async (c) => {
         await stripe.cancelSubscription(sub.stripeSubscriptionId, true, tenant.stripeAccountId);
     }
 
-    // Mark as canceled immediately in our DB
+    // Mark as canceled in DB with optional churn reason for retention reports
     await db.update(subscriptions)
-        .set({ status: 'canceled', canceledAt: new Date() })
+        .set({ status: 'canceled', canceledAt: new Date(), churnReason: reason ?? null })
         .where(eq(subscriptions.id, subscriptionId));
 
     return c.json({ success: true });

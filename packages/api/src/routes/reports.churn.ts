@@ -3,8 +3,8 @@ import { createOpenAPIApp } from '../lib/openapi';
 import { StudioVariables } from '../types';
 import { createDb } from '../db';
 import { ChurnService } from '../services/churn';
-import { tenantMembers } from '@studio/db/src/schema';
-import { eq, and } from 'drizzle-orm';
+import { tenantMembers, subscriptions } from '@studio/db/src/schema';
+import { eq, and, sql, gte } from 'drizzle-orm';
 
 const app = createOpenAPIApp<StudioVariables>();
 
@@ -70,11 +70,32 @@ app.openapi(createRoute({
     const atRiskMembers = enriched.filter(r => r.riskLevel !== 'low');
     atRiskMembers.sort((a, b) => b.daysSinceLastAttendance - a.daysSinceLastAttendance);
 
+    // Churn reasons from subscription cancellations (last 90 days)
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const churnReasonsRows = await db.select({
+        reason: subscriptions.churnReason,
+        count: sql<number>`count(*)`
+    })
+        .from(subscriptions)
+        .where(and(
+            eq(subscriptions.tenantId, tenantId),
+            eq(subscriptions.status, 'canceled'),
+            gte(subscriptions.canceledAt, ninetyDaysAgo)
+        ))
+        .groupBy(subscriptions.churnReason)
+        .all();
+
+    const churnReasons = churnReasonsRows.map(r => ({
+        reason: r.reason || '(no reason given)',
+        count: r.count
+    }));
+
     return c.json({
         totalMembers: members.length,
         atRiskCount: results.filter(r => r.riskLevel === 'medium').length,
         churnedCount: results.filter(r => r.riskLevel === 'high').length,
-        atRiskMembers: atRiskMembers
+        atRiskMembers: atRiskMembers,
+        churnReasons
     });
 });
 

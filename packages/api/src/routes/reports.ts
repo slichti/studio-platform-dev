@@ -236,6 +236,78 @@ app.get('/retention', async (c) => {
     return c.json(result);
 });
 
+// GET /retention/cohorts — Cohort analysis by signup month with retention at 30/60/90 days
+app.get('/retention/cohorts', async (c) => {
+    if (!c.get('can')('view_reports')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+
+    // Members grouped by join month (cohort)
+    const cohortRows = await db.select({
+        cohortMonth: sql<string>`strftime('%Y-%m', ${tenantMembers.joinedAt})`,
+        memberId: tenantMembers.id
+    })
+        .from(tenantMembers)
+        .where(and(eq(tenantMembers.tenantId, tenant.id), eq(tenantMembers.status, 'active')))
+        .all();
+
+    const memberIds = cohortRows.map(r => r.memberId);
+    if (memberIds.length === 0) return c.json({ cohorts: [] });
+
+    // Last confirmed booking per member
+    const lastBookings = await db.select({
+        memberId: bookings.memberId,
+        lastStart: sql<number>`max(${classes.startTime})`.as('last_start')
+    })
+        .from(bookings)
+        .innerJoin(classes, eq(bookings.classId, classes.id))
+        .where(and(eq(classes.tenantId, tenant.id), eq(bookings.status, 'confirmed'), inArray(bookings.memberId, memberIds)))
+        .groupBy(bookings.memberId)
+        .all();
+    const lastMap = new Map(lastBookings.map(r => [r.memberId, r.lastStart]));
+
+    const byCohort = new Map<string, { total: number; retained30: number; retained60: number; retained90: number }>();
+    for (const row of cohortRows) {
+        const last = lastMap.get(row.memberId);
+        const lastTs = last ? last * 1000 : 0;
+        const lastDate = lastTs ? new Date(lastTs) : null;
+        let r30 = 0, r60 = 0, r90 = 0;
+        if (lastDate) {
+            if (lastDate >= thirtyDaysAgo) r30 = r60 = r90 = 1;
+            else if (lastDate >= sixtyDaysAgo) r60 = r90 = 1;
+            else if (lastDate >= ninetyDaysAgo) r90 = 1;
+        }
+        const cur = byCohort.get(row.cohortMonth) || { total: 0, retained30: 0, retained60: 0, retained90: 0 };
+        cur.total++;
+        cur.retained30 += r30;
+        cur.retained60 += r60;
+        cur.retained90 += r90;
+        byCohort.set(row.cohortMonth, cur);
+    }
+
+    const cohorts = Array.from(byCohort.entries())
+        .sort((a, b) => b[0].localeCompare(a[0]))
+        .slice(0, 12)
+        .map(([month, data]) => ({
+            month,
+            total: data.total,
+            retained30: data.retained30,
+            retained60: data.retained60,
+            retained90: data.retained90,
+            retentionRate30: data.total > 0 ? Math.round((data.retained30 / data.total) * 100) : 0,
+            retentionRate60: data.total > 0 ? Math.round((data.retained60 / data.total) * 100) : 0,
+            retentionRate90: data.total > 0 ? Math.round((data.retained90 / data.total) * 100) : 0
+        }));
+
+    return c.json({ cohorts });
+});
+
 // GET /retention/churn-risk
 // Mounted Churn Router (Replaces simple endpoint)
 app.route('/retention/risk', churnRouter);

@@ -414,6 +414,7 @@ export const subscriptions = sqliteTable('subscriptions', {
     currentPeriodEnd: integer('current_period_end', { mode: 'timestamp' }),
     stripeSubscriptionId: text('stripe_subscription_id'),
     canceledAt: integer('canceled_at', { mode: 'timestamp' }),
+    churnReason: text('churn_reason'), // Reason given at cancellation (price, schedule, moved, other)
 
     // Pause / Vacation Freeze
     pausedUntil: integer('paused_until', { mode: 'timestamp' }),

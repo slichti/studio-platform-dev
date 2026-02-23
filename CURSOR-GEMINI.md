@@ -539,6 +539,28 @@ Tracked from recommendation backlog. Status updated as work completes.
 
 ---
 
+## Enhancement Recommendations (Feb 2026)
+
+### T1 — Retention enhancements ✅
+| Item | Status | Notes |
+|------|--------|-------|
+| Churn reason tagging | ✅ | `subscriptions.churn_reason`; POST /subscriptions/:id/cancel accepts `{ reason }`; portal + profile cancel UI with reason dropdown |
+| Cohorts report | ✅ | GET /reports/retention/cohorts — signup month with retained30/60/90 and retention rates |
+| Churn reasons in report | ✅ | Churn report includes `churnReasons` from canceled subs (last 90 days) |
+
+### T2–T11 — Pending
+- T2: Membership/pricing clarity (effective price, utilization badges)
+- T3: Mobile onboarding loop (push + streak nudges)
+- T4: Observability (structured logging, golden signals)
+- T5: Performance tuning (schedule, dashboard, LMS)
+- T6: Rate limits (auth, booking, public widgets)
+- T8: RBAC policy helpers, permissions view
+- T9: Data lifecycle (anonymization, retention docs)
+- T10: OpenAPI grouping, dev settings, request log
+- T11: Integration tests, smoke tests
+
+---
+
 ## Recent fixes & polish (Feb 2026)
 
 - **Student view – Courses**: When viewing as a student, sidebar shows "Courses" (not "Course Management"); course list shows "View" linking to portal course page; no "Manage" or "New Course". (`studio.$slug.tsx`, `CoursesPage.tsx`)

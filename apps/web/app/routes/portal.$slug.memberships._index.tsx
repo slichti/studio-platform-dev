@@ -53,9 +53,10 @@ export const action = async (args: ActionFunctionArgs) => {
             return { success: true, intent: "resume" };
         }
         if (intent === "cancel") {
+            const reason = (form.get("reason") as string)?.trim() || undefined;
             await apiRequest(`/memberships/subscriptions/${subscriptionId}/cancel`, token, {
                 method: "POST",
-                body: JSON.stringify({}),
+                body: JSON.stringify({ reason }),
                 headers,
             });
             return { success: true, intent: "cancel" };
@@ -87,16 +88,20 @@ const STATUS_COLOR: Record<string, string> = {
 function ActiveSubscriptionCard({ sub }: { sub: any }) {
     const fetcher = useFetcher<typeof action>();
     const [showPause, setShowPause] = useState(false);
+    const [showCancel, setShowCancel] = useState(false);
     const [pauseMonths, setPauseMonths] = useState(1);
     const isPaused = sub.isPaused;
     const isSubmitting = fetcher.state !== "idle";
+    const canceled = (fetcher.data as any)?.success && (fetcher.data as any)?.intent === "cancel";
 
     return (
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
             <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                     <p className="font-semibold text-zinc-900 dark:text-zinc-100 truncate">{sub.plan?.name}</p>
-                    {isPaused ? (
+                    {canceled ? (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">Canceled at period end</p>
+                    ) : isPaused ? (
                         <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5 flex items-center gap-1">
                             <PauseCircle size={12} />
                             Paused — resumes {format(new Date(sub.pausedUntil * 1000), "MMM d, yyyy")}
@@ -110,31 +115,66 @@ function ActiveSubscriptionCard({ sub }: { sub: any }) {
                     )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                    {isPaused ? (
-                        <fetcher.Form method="post">
-                            <input type="hidden" name="intent" value="resume" />
-                            <input type="hidden" name="subscriptionId" value={sub.id} />
-                            <button
-                                type="submit"
-                                disabled={isSubmitting}
-                                className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 border border-indigo-200 dark:border-indigo-800 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
-                            >
-                                <PlayCircle size={13} /> Resume
-                            </button>
-                        </fetcher.Form>
-                    ) : (
-                        <button
-                            onClick={() => setShowPause(p => !p)}
-                            className="flex items-center gap-1 text-xs font-semibold text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 rounded-lg transition-colors"
-                        >
-                            <PauseCircle size={13} /> Pause
-                        </button>
+                    {!canceled && (
+                        isPaused ? (
+                            <fetcher.Form method="post">
+                                <input type="hidden" name="intent" value="resume" />
+                                <input type="hidden" name="subscriptionId" value={sub.id} />
+                                <button
+                                    type="submit"
+                                    disabled={isSubmitting}
+                                    className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 border border-indigo-200 dark:border-indigo-800 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                                >
+                                    <PlayCircle size={13} /> Resume
+                                </button>
+                            </fetcher.Form>
+                        ) : (
+                            <>
+                                <button
+                                    onClick={() => setShowPause(p => !p)}
+                                    className="flex items-center gap-1 text-xs font-semibold text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 rounded-lg transition-colors"
+                                >
+                                    <PauseCircle size={13} /> Pause
+                                </button>
+                                <button
+                                    onClick={() => setShowCancel(c => !c)}
+                                    className="flex items-center gap-1 text-xs font-semibold text-red-500 hover:text-red-700 border border-red-200 dark:border-red-800 px-3 py-1.5 rounded-lg transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            </>
+                        )
                     )}
                 </div>
             </div>
 
+            {/* Cancel with reason */}
+            {showCancel && !canceled && (
+                <fetcher.Form method="post" className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex flex-col gap-2">
+                    <input type="hidden" name="intent" value="cancel" />
+                    <input type="hidden" name="subscriptionId" value={sub.id} />
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <label className="text-xs text-zinc-600 dark:text-zinc-400 font-medium">Reason (optional):</label>
+                        <select name="reason" className="text-xs border border-zinc-200 dark:border-zinc-600 rounded px-2 py-1 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100">
+                            <option value="">—</option>
+                            <option value="price">Too expensive</option>
+                            <option value="schedule">Schedule doesn&apos;t work</option>
+                            <option value="moved">Moved away</option>
+                            <option value="injury">Injury / health</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button type="submit" disabled={isSubmitting} className="text-xs font-semibold bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50">
+                            {isSubmitting ? "Canceling…" : "Yes, cancel at period end"}
+                        </button>
+                        <button type="button" onClick={() => setShowCancel(false)} className="text-xs text-zinc-400 hover:text-zinc-600">Keep</button>
+                    </div>
+                </fetcher.Form>
+            )}
+
             {/* Pause duration picker */}
-            {showPause && !isPaused && (
+            {showPause && !isPaused && !showCancel && (
                 <fetcher.Form method="post" className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center gap-3 flex-wrap">
                     <input type="hidden" name="intent" value="pause" />
                     <input type="hidden" name="subscriptionId" value={sub.id} />

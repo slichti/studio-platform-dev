@@ -102,11 +102,13 @@ export const action = async (args: ActionFunctionArgs) => {
     }
 
     const subscriptionId = form.get("subscriptionId") as string;
+    const reason = (form.get("reason") as string)?.trim() || undefined;
     if (intent === "cancel-subscription" && subscriptionId) {
         try {
             await apiRequest(`/memberships/subscriptions/${subscriptionId}/cancel`, token, {
                 method: "POST",
-                headers: { "X-Tenant-Slug": slug! },
+                body: JSON.stringify({ reason }),
+                headers: { "X-Tenant-Slug": slug!, "Content-Type": "application/json" },
             });
             return { success: true, intent: "cancel-subscription" };
         } catch (e: any) {
@@ -141,27 +143,40 @@ function CancelButton({ subscriptionId }: { subscriptionId: string }) {
     }
 
     return (
-        <fetcher.Form method="post" className="flex items-center gap-2">
+        <fetcher.Form method="post" className="flex flex-col gap-2">
             <input type="hidden" name="intent" value="cancel-subscription" />
             <input type="hidden" name="subscriptionId" value={subscriptionId} />
-            <span className="text-xs text-zinc-600 dark:text-zinc-400">Sure?</span>
-            <button
-                type="submit"
-                disabled={isLoading}
-                className={cn(
-                    "text-xs font-medium px-2 py-1 rounded bg-red-600 text-white hover:bg-red-700 transition-colors",
-                    isLoading && "opacity-50 cursor-wait"
-                )}
-            >
-                {isLoading ? "Canceling…" : "Yes, cancel"}
-            </button>
-            <button
-                type="button"
-                onClick={() => setConfirming(false)}
-                className="text-xs text-zinc-500 hover:text-zinc-700"
-            >
-                Keep
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+                <label className="text-xs text-zinc-600 dark:text-zinc-400">Reason (optional):</label>
+                <select name="reason" className="text-xs border border-zinc-200 dark:border-zinc-600 rounded px-2 py-1 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100">
+                    <option value="">—</option>
+                    <option value="price">Too expensive</option>
+                    <option value="schedule">Schedule doesn't work</option>
+                    <option value="moved">Moved away</option>
+                    <option value="injury">Injury / health</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div className="flex items-center gap-2">
+                <span className="text-xs text-zinc-600 dark:text-zinc-400">Sure?</span>
+                <button
+                    type="submit"
+                    disabled={isLoading}
+                    className={cn(
+                        "text-xs font-medium px-2 py-1 rounded bg-red-600 text-white hover:bg-red-700 transition-colors",
+                        isLoading && "opacity-50 cursor-wait"
+                    )}
+                >
+                    {isLoading ? "Canceling…" : "Yes, cancel"}
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setConfirming(false)}
+                    className="text-xs text-zinc-500 hover:text-zinc-700"
+                >
+                    Keep
+                </button>
+            </div>
         </fetcher.Form>
     );
 }
