@@ -12,6 +12,7 @@ export default function ProfileScreen() {
 
     const [myBookings, setMyBookings] = useState<any[]>([]);
     const [user, setUser] = useState<any>(null);
+    const [streak, setStreak] = useState<{ currentStreak?: number; longestStreak?: number }>({});
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -20,12 +21,14 @@ export default function ProfileScreen() {
 
     const loadData = async () => {
         try {
-            const [bookingsData, userData] = await Promise.all([
+            const [bookingsData, userData, streakData] = await Promise.all([
                 apiRequest('/bookings/my-upcoming'),
-                apiRequest('/tenant/me')
+                apiRequest('/tenant/me'),
+                apiRequest('/members/me/streak').catch(() => ({ currentStreak: 0, longestStreak: 0 }))
             ]);
             setMyBookings(bookingsData);
             setUser(userData);
+            setStreak(Array.isArray(streakData) ? {} : (streakData || {}));
         } catch (e) {
             console.error(e);
         } finally {
@@ -81,8 +84,8 @@ export default function ProfileScreen() {
                     </View>
                 </View>
 
-                {/* Streak */}
-                <StreakCard streak={user?.stats?.currentStreak || 0} />
+                {/* Streak (from GET /members/me/streak) */}
+                <StreakCard streak={streak?.currentStreak ?? user?.stats?.currentStreak ?? 0} />
 
                 <View className="mb-8">
                     <Text className="text-lg font-bold text-zinc-900 mb-4">My Bookings</Text>

@@ -98,8 +98,11 @@ app.openapi(createRoute({
         query: z.object({
             start: z.string().optional(),
             end: z.string().optional(),
+            startDate: z.string().optional(),
+            endDate: z.string().optional(),
             instructorId: z.string().optional(),
             locationId: z.string().optional(),
+            category: z.string().optional(),
             limit: z.coerce.number().int().positive().default(50).optional(),
             offset: z.coerce.number().int().nonnegative().default(0).optional(),
             isCourse: z.string().optional()
@@ -112,15 +115,21 @@ app.openapi(createRoute({
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     const auth = c.get('auth');
-    const { start, end, instructorId, locationId, limit, offset } = c.req.valid('query');
+    const q = c.req.valid('query');
+    const start = q.start ?? q.startDate;
+    const end = q.end ?? q.endDate;
+    const { instructorId, locationId, limit, offset, category } = q;
 
     const conds = [eq(classes.tenantId, tenant.id)];
     if (start) conds.push(gte(classes.startTime, new Date(start)));
     if (end) conds.push(lte(classes.startTime, new Date(end)));
     if (instructorId) conds.push(eq(classes.instructorId, instructorId));
     if (locationId) conds.push(eq(classes.locationId, locationId));
-    if (c.req.valid('query').isCourse !== undefined) {
-        conds.push(eq(classes.isCourse, c.req.valid('query').isCourse === 'true'));
+    if (category && ['class', 'workshop', 'event', 'appointment', 'course'].includes(category)) {
+        conds.push(eq(classes.type, category));
+    }
+    if (q.isCourse !== undefined) {
+        conds.push(eq(classes.isCourse, q.isCourse === 'true'));
     }
 
     const results = await db.query.classes.findMany({

@@ -26,8 +26,10 @@ export default function ScheduleScreen() {
 
     // Filters
     const [selectedInstructor, setSelectedInstructor] = useState<string | null>(null);
+    const [selectedInstructorId, setSelectedInstructorId] = useState<string | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [instructors, setInstructors] = useState<string[]>([]);
+    const [instructorIds, setInstructorIds] = useState<Record<string, string>>({});
     const [categories, setCategories] = useState<string[]>([]);
 
     const fetchSchedule = useCallback(async () => {
@@ -36,20 +38,31 @@ export default function ScheduleScreen() {
             const end = new Date();
             end.setDate(end.getDate() + 14); // Next 2 weeks
 
-            const query = `?startDate=${start.toISOString()}&endDate=${end.toISOString()}&includeArchived=false`;
-            const data = await apiRequest(`/classes${query}`);
+            const params = new URLSearchParams({
+                startDate: start.toISOString(),
+                endDate: end.toISOString()
+            });
+            if (selectedInstructorId) params.set('instructorId', selectedInstructorId);
+            if (selectedCategory && ['class', 'workshop', 'event', 'appointment', 'course'].includes(selectedCategory)) {
+                params.set('category', selectedCategory);
+            }
+            const data = await apiRequest(`/classes?${params.toString()}`);
             setClasses(data);
 
-            // Extract unique instructors and categories
+            // Extract unique instructors (name -> id) and categories
             const insts = new Set<string>();
+            const idMap: Record<string, string> = {};
             const cats = new Set<string>();
             data.forEach((c: any) => {
                 const name = c.instructor?.user?.profile ? `${c.instructor.user.profile.firstName} ${c.instructor.user.profile.lastName}` : 'Staff';
                 insts.add(name);
+                if (c.instructor?.id) idMap[name] = c.instructor.id;
                 if (c.category) cats.add(c.category);
+                else if (c.type) cats.add(c.type);
                 else cats.add('General');
             });
             setInstructors(Array.from(insts));
+            setInstructorIds(idMap);
             setCategories(Array.from(cats));
 
         } catch (e) {
@@ -58,7 +71,7 @@ export default function ScheduleScreen() {
             setLoading(false);
             setRefreshing(false);
         }
-    }, []);
+    }, [selectedInstructorId, selectedCategory]);
 
     useEffect(() => {
         fetchSchedule();
@@ -165,6 +178,7 @@ export default function ScheduleScreen() {
                         onPress={() => {
                             Haptics.selectionAsync();
                             setSelectedInstructor(null);
+                            setSelectedInstructorId(null);
                         }}
                         className={`mr-2 px-4 py-2 rounded-full border ${!selectedInstructor ? 'bg-zinc-800 border-zinc-800' : 'bg-zinc-50 border-zinc-100'}`}
                     >
@@ -176,6 +190,7 @@ export default function ScheduleScreen() {
                             onPress={() => {
                                 Haptics.selectionAsync();
                                 setSelectedInstructor(name);
+                                setSelectedInstructorId(instructorIds[name] ?? null);
                             }}
                             className={`mr-2 px-4 py-2 rounded-full border ${selectedInstructor === name ? 'bg-zinc-800 border-zinc-800' : 'bg-zinc-50 border-zinc-100'}`}
                         >

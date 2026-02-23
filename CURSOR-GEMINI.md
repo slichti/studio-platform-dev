@@ -526,9 +526,9 @@ Tracked from recommendation backlog. Status updated as work completes.
 ### Tier 9 — Mobile & Engagement
 | # | Feature | Status | Notes |
 |---|--------|--------|-------|
-| 9.1 | Push token API | ⬜ | POST /users/push-token, store in user_push_tokens |
-| 9.2 | Mobile schedule filters | ⬜ | Category + instructor filters |
-| 9.3 | StreakCard in app | ⬜ | Mobile calls GET /members/me/streak |
+| 9.1 | Push token API | ✅ | POST /users/push-token stores in users.pushToken; mobile registers on launch |
+| 9.2 | Mobile schedule filters | ✅ | GET /classes accepts startDate/endDate, category, instructorId; schedule screen passes filters |
+| 9.3 | StreakCard in app | ✅ | Profile fetches GET /members/me/streak and passes currentStreak to StreakCard |
 
 ### Tier 10 — Product & Compliance
 | # | Feature | Status | Notes |
