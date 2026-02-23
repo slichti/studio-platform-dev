@@ -55,12 +55,10 @@ export async function apiRequest<T = any>(path: string, token: string | null | u
 
     const headers = new Headers(safeHeaders);
 
+    // Use explicit token first; only fall back to stored impersonation token when none passed (so callers like booking can pass session/cookie token and not be overwritten by stale localStorage)
     if (token) {
         headers.set("Authorization", `Bearer ${token}`);
-    }
-
-    // Client-side Impersonation Override
-    if (typeof window !== "undefined") {
+    } else if (typeof window !== "undefined") {
         const impersonationToken = localStorage.getItem("impersonation_token");
         if (impersonationToken) {
             headers.set("Authorization", `Bearer ${impersonationToken}`);
