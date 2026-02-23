@@ -7,6 +7,7 @@ import { HonoContext } from '../types';
 import churnRouter from './reports.churn';
 import scheduledRouter from './reports.scheduled';
 import { desc } from 'drizzle-orm';
+import { tenantMembers } from '@studio/db/src/schema';
 
 const app = new Hono<HonoContext>();
 
@@ -238,6 +239,63 @@ app.get('/retention', async (c) => {
 // GET /retention/churn-risk
 // Mounted Churn Router (Replaces simple endpoint)
 app.route('/retention/risk', churnRouter);
+
+// GET /at-risk — Members with no booking in the last N days (default 14)
+app.get('/at-risk', async (c) => {
+    if (!c.get('can')('view_reports')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const minDays = Math.min(365, Math.max(1, parseInt(c.req.query('days') || '14')));
+    const now = Date.now() / 1000; // seconds
+
+    // Last confirmed class start per member (for this tenant)
+    const lastPerMember = await db
+        .select({
+            memberId: bookings.memberId,
+            lastStart: sql<number>`max(${classes.startTime})`.as('last_start')
+        })
+        .from(bookings)
+        .innerJoin(classes, eq(bookings.classId, classes.id))
+        .where(and(eq(classes.tenantId, tenant.id), eq(bookings.status, 'confirmed')))
+        .groupBy(bookings.memberId)
+        .all();
+
+    const lastStartMap = new Map(lastPerMember.map(r => [r.memberId, r.lastStart]));
+
+    // All active members
+    const activeMembers = await db.query.tenantMembers.findMany({
+        where: and(eq(tenantMembers.tenantId, tenant.id), eq(tenantMembers.status, 'active')),
+        columns: { id: true, userId: true, profile: true },
+        with: { user: { columns: { id: true, email: true, profile: true } } }
+    });
+
+    const atRisk = activeMembers.filter(m => {
+        const lastStart = lastStartMap.get(m.id) ?? null;
+        if (lastStart == null) return true;
+        const daysSince = (now - lastStart) / 86400;
+        return daysSince >= minDays;
+    });
+
+    const members = atRisk.map(m => {
+        const lastStart = lastStartMap.get(m.id) ?? null;
+        const profile = (m.profile ?? m.user?.profile) as { firstName?: string; lastName?: string } | null;
+        const daysSince = lastStart == null ? null : Math.floor((now - lastStart) / 86400);
+        return {
+            memberId: m.id,
+            email: m.user?.email ?? null,
+            firstName: profile?.firstName ?? null,
+            lastName: profile?.lastName ?? null,
+            lastBookingAt: lastStart ? new Date(lastStart * 1000).toISOString() : null,
+            daysSinceLastBooking: daysSince
+        };
+    });
+
+    members.sort((a, b) => (b.daysSinceLastBooking ?? 0) - (a.daysSinceLastBooking ?? 0));
+
+    return c.json({ total: members.length, minDays, members });
+});
 
 // GET /upcoming-renewals
 app.get('/upcoming-renewals', async (c) => {

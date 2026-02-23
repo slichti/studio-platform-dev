@@ -512,8 +512,8 @@ Tracked from recommendation backlog. Status updated as work completes.
 ### Tier 7 — Analytics & BI
 | # | Feature | Status | Notes |
 |---|--------|--------|-------|
-| 7.1 | At-risk report (14+ days no book) | ⬜ | API + studio UI list |
-| 7.2 | Webhook test + attempt log | ⬜ | Test delivery + recent attempts API |
+| 7.1 | At-risk report (14+ days no book) | ✅ | GET /reports/at-risk?days=14 + Analytics > At-Risk tab with table |
+| 7.2 | Webhook test + attempt log | ✅ | POST /test logs per-endpoint attempt; GET /logs?endpointId= filter |
 | 7.3 | Payroll % net revenue | ✅ | Verified in Tier 5 |
 
 ### Tier 8 — Ops & Reliability

@@ -21,6 +21,7 @@ export default function AnalyticsLayout() {
         { name: 'Financials', path: 'financials' },
         { name: 'Attendance', path: 'attendance' },
         { name: 'Projections', path: 'projections' },
+        { name: 'At-Risk', path: 'at-risk' },
         { name: 'Reports', path: 'reports' },
     ];
 

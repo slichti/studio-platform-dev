@@ -81,6 +81,21 @@ export function useRetention(slug: string) {
     });
 }
 
+export function useAtRisk(slug: string, days: number = 14) {
+    const { getToken } = useAuth();
+    return useQuery({
+        queryKey: ['reports', 'at-risk', slug, days],
+        queryFn: async () => {
+            const token = await getToken();
+            const res = await apiRequest<{ total: number; minDays: number; members: Array<{ memberId: string; email: string | null; firstName: string | null; lastName: string | null; lastBookingAt: string | null; daysSinceLastBooking: number | null }> }>(`/reports/at-risk?days=${days}`, token, {
+                headers: { 'X-Tenant-Slug': slug }
+            });
+            return res;
+        },
+        enabled: !!slug
+    });
+}
+
 export function useLTV(slug: string) {
     const { getToken } = useAuth();
     return useQuery({

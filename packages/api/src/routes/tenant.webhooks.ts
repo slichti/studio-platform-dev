@@ -35,7 +35,7 @@ const ErrorSchema = z.object({ error: z.string() });
 
 // Routes
 
-// GET /logs - List Logs
+// GET /logs - List Logs (optional ?endpointId= for recent attempts per endpoint)
 app.openapi(createRoute({
     method: 'get',
     path: '/logs',
@@ -44,7 +44,8 @@ app.openapi(createRoute({
     request: {
         query: z.object({
             limit: z.string().optional().default('50'),
-            offset: z.string().optional().default('0')
+            offset: z.string().optional().default('0'),
+            endpointId: z.string().optional()
         })
     },
     responses: {
@@ -61,11 +62,15 @@ app.openapi(createRoute({
     if (!c.get('can')('view_settings')) return c.json({ error: 'Unauthorized' }, 403);
     const tenantId = c.get('tenant').id;
     const db = createDb(c.env.DB);
-    const { limit, offset } = c.req.valid('query');
+    const { limit, offset, endpointId } = c.req.valid('query');
+
+    const conditions = endpointId
+        ? and(eq(webhookLogs.tenantId, tenantId), eq(webhookLogs.endpointId, endpointId))
+        : eq(webhookLogs.tenantId, tenantId);
 
     const logs = await db.select()
         .from(webhookLogs)
-        .where(eq(webhookLogs.tenantId, tenantId))
+        .where(conditions)
         .orderBy(desc(webhookLogs.createdAt))
         .limit(parseInt(limit))
         .offset(parseInt(offset))
@@ -110,7 +115,31 @@ app.openapi(createRoute({
 
     const service = new WebhookService(db, c.env.SVIX_AUTH_TOKEN as string);
 
-    await service.dispatch(tenantId, eventType, payload || { message: 'Hello World', timestamp: new Date().toISOString() });
+    const testPayload = payload || { message: 'Hello World', timestamp: new Date().toISOString() };
+    await service.dispatch(tenantId, eventType, testPayload);
+
+    // Log test attempt so it appears in "recent attempts" (GET /logs)
+    const endpoints = await db.select()
+        .from(webhookEndpoints)
+        .where(and(eq(webhookEndpoints.tenantId, tenantId), eq(webhookEndpoints.isActive, true)))
+        .all();
+    const targets = endpoints.filter(ep => {
+        const events = ep.events as unknown as string[];
+        return Array.isArray(events) && (events.includes(eventType) || events.includes('*'));
+    });
+    for (const ep of targets) {
+        await db.insert(webhookLogs).values({
+            id: crypto.randomUUID(),
+            tenantId,
+            endpointId: ep.id,
+            eventType,
+            payload: testPayload,
+            statusCode: null,
+            responseBody: 'Test event dispatched (Svix or platform)',
+            error: null,
+            createdAt: new Date()
+        }).run();
+    }
 
     return c.json({ success: true }, 200);
 });
