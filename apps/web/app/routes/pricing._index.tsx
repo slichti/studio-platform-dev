@@ -10,8 +10,9 @@ import { apiRequest } from "~/utils/api";
 
 export const meta: MetaFunction = () => {
     return [
-        { title: "Pricing - Studio Platform" },
-        { name: "description", content: "Simple, transparent pricing for studios of all sizes." },
+        { title: "Pricing – Studio Platform | Yoga Studio & Gym Management" },
+        { name: "description", content: "Pricing for yoga studio management and small gym management software. Plans for Launch, Growth, and Scale. Start your fitness studio with transparent pricing." },
+        { name: "keywords", content: "yoga studio management pricing, small gym software pricing, studio platform cost, fitness studio subscription" },
     ];
 };
 

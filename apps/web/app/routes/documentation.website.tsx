@@ -1,5 +1,5 @@
 
-import { Globe, Layout, Code, Search } from "lucide-react";
+import { Globe, Layout, Code, Search, MapPin } from "lucide-react";
 
 export default function WebsiteDocs() {
     return (
@@ -62,6 +62,33 @@ export default function WebsiteDocs() {
                             Use our <strong>Embed Code</strong> generator to place your Schedule, Class List, or Checkout flow directly onto your existing WordPress, Squarespace, or Wix site.
                         </p>
                     </div>
+                </section>
+
+                {/* Tenant SEO – Route Students Into Your Business */}
+                <section className="bg-white dark:bg-zinc-900 p-8 rounded-2xl border border-zinc-200 dark:border-zinc-800">
+                    <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-3">
+                        <MapPin className="text-emerald-500" /> Tenant SEO: Route Students Into Your Studio
+                    </h2>
+                    <p className="text-zinc-600 dark:text-zinc-400 mb-6">
+                        Every tenant can perform SEO work themselves to route students, customers, and clients into their business. Use the Website Builder settings to customize how your studio appears in search results.
+                    </p>
+                    <div className="grid md:grid-cols-2 gap-6">
+                        <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-200 dark:border-emerald-800/50">
+                            <strong className="text-emerald-900 dark:text-emerald-300">Location-Based Search</strong>
+                            <p className="text-sm text-emerald-700 dark:text-emerald-400 mt-1">
+                                Add your city and neighborhood to meta titles and descriptions (e.g. &quot;Yoga Studio in Ann Arbor&quot;, &quot;Pilates in Brooklyn&quot;) so local searchers find you when they Google &quot;yoga studio [city]&quot; or &quot;pilates near me&quot;.
+                            </p>
+                        </div>
+                        <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-200 dark:border-emerald-800/50">
+                            <strong className="text-emerald-900 dark:text-emerald-300">Self-Service Controls</strong>
+                            <p className="text-sm text-emerald-700 dark:text-emerald-400 mt-1">
+                                In <strong>Settings → Website</strong>, set a custom SEO title and description for each page. Use keywords like &quot;yoga classes&quot;, &quot;small gym&quot;, &quot;fitness studio&quot; plus your location to improve discoverability.
+                            </p>
+                        </div>
+                    </div>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-500 mt-4">
+                        Your public schedule, class list, and booking flow are all indexable. Embed widgets on your own domain to route traffic into your tenant—or use our hosted pages with your custom domain.
+                    </p>
                 </section>
             </div>
         </div>

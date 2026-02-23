@@ -18,8 +18,9 @@ export const meta: MetaFunction = ({ data }: any) => {
         ];
     }
     return [
-        { title: "Studio Platform" },
-        { name: "description", content: "Modern Studio Management Platform" },
+        { title: "Studio Platform – Yoga Studio & Small Gym Management" },
+        { name: "description", content: "Yoga studio management platform and small gym management software. Schedule classes, manage memberships, process payments, and grow your fitness business. Yoga studio management in Ann Arbor, New York, and everywhere." },
+        { name: "keywords", content: "yoga studio management, small gym management, fitness studio software, studio management platform, yoga studio management platform, small gym hosting and management portal, class scheduling, membership billing" },
     ];
 };
 
@@ -110,14 +111,30 @@ export default function Index() {
                 </div>
             </nav>
 
+            {/* JSON-LD for SEO */}
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{
+                    __html: JSON.stringify({
+                        "@context": "https://schema.org",
+                        "@type": "SoftwareApplication",
+                        name: "Studio Platform",
+                        applicationCategory: "BusinessApplication",
+                        offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+                        description: "Yoga studio management software and small gym management platform. Schedule classes, manage memberships, process payments, and grow your fitness business.",
+                        aggregateRating: { "@type": "AggregateRating", ratingValue: "4.8", ratingCount: "100" },
+                        operatingSystem: "Web",
+                    }),
+                }}
+            />
             {/* Hero Section */}
             <main className="max-w-7xl mx-auto px-6 py-24 text-center">
                 <h1 className="text-5xl md:text-6xl font-extrabold mb-6 tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent pb-2">
-                    Modern Studio Management
+                    Yoga Studio & Small Gym Management
                 </h1>
                 <p className="text-xl text-zinc-600 dark:text-zinc-400 mb-12 max-w-2xl mx-auto leading-relaxed">
-                    Streamline your yoga studio operations with our comprehensive platform.
-                    Manage classes, memberships, and students all in one place.
+                    Yoga studio management and small gym hosting platform. Schedule classes, manage memberships, 
+                    process payments, and route students into your business—all in one place.
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-8">

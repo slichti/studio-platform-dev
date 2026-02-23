@@ -1,12 +1,14 @@
-import { useEffect } from "react";
-// Removed top-level mermaid import to reduce server bundle size
 import { Mail, MessageSquare, Award, UserPlus } from "lucide-react";
+import { MermaidDiagram } from "~/components/MermaidDiagram.client";
+
+const LEAD_STAGES_CHART = `flowchart LR
+A[New Lead] --> B[Contacted]
+B --> C[Trial Started]
+C --> D[Converted Member]
+C --> E[Lost]
+E -.->|Win-Back| B`;
 
 export default function CRMDocs() {
-    useEffect(() => {
-
-    }, []);
-
     return (
         <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div>
@@ -27,16 +29,7 @@ export default function CRMDocs() {
                     </p>
                     <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-lg border border-blue-200 dark:border-blue-800/50">
                         <h4 className="font-bold text-blue-800 dark:text-blue-300 mb-2">Lead Stages</h4>
-                        <pre className="mermaid bg-transparent">
-                            {`
-                            graph LR
-                                A[New Lead] --> B[Contacted]
-                                B --> C[Trial Started]
-                                C --> D[Converted Member]
-                                C --> E[Lost]
-                                E -.->|Win-Back Campaign| B
-                            `}
-                        </pre>
+                        <MermaidDiagram chart={LEAD_STAGES_CHART} title="Lead Pipeline" />
                     </div>
                 </section>
 

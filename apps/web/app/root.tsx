@@ -29,7 +29,9 @@ export const links: LinksFunction = () => [
 ];
 
 export const meta: MetaFunction = () => [
-    { title: "Studio Platform" },
+    { title: "Studio Platform – Yoga Studio & Small Gym Management Software" },
+    { name: "description", content: "Studio Platform is yoga studio management software and small gym management software. Run your fitness studio, yoga studio, or boutique gym with class scheduling, memberships, payments, and more." },
+    { name: "keywords", content: "yoga studio management, small gym management, fitness studio software, studio management platform, gym hosting platform, yoga studio software, boutique gym management, class booking software" },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#18181B" },
     { name: "mobile-web-app-capable", content: "yes" },

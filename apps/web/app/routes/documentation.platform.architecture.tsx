@@ -1,19 +1,30 @@
 
 import { useOutletContext, Navigate } from "react-router";
 import { Server, Database, Cloud, Shield, Globe, Lock } from "lucide-react";
-import { useEffect } from "react";
+import { MermaidDiagram } from "~/components/MermaidDiagram.client";
 
 export default function PlatformArchitecture() {
-    useEffect(() => {
-
-    }, []);
-
     const { isPlatformAdmin } = useOutletContext<{ isPlatformAdmin: boolean }>();
 
     // Guard: Only platform admins can view this
     if (!isPlatformAdmin) {
         return <Navigate to="/documentation" replace />;
     }
+
+    const architectureChart = `graph TD
+    User[User Browser] -->|HTTPS| CF[Cloudflare Network]
+    CF -->|Asset Request| Pages[Pages (Static Assets)]
+    CF -->|API Request| Worker[Worker (Hono API)]
+    Worker -->|Query| D1[(D1 Database)]
+    Worker -->|Upload| R2[(R2 Storage)]
+    Worker -.->|Payment| Stripe[Stripe Connect]
+    Worker -.->|Email| Resend[Resend / SMTP]
+    Worker -.->|SMS| Twilio[Twilio]
+    
+    subgraph "New Capabilities"
+    Worker -->|Aggregations| Analytics[Analytics Engine (SQLite)]
+    Worker -.->|Push| Expo[Expo Push Notifications]
+    end`;
 
     return (
         <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -42,22 +53,7 @@ export default function PlatformArchitecture() {
                             <li>• <strong>Edge Runtime:</strong> Code runs within milliseconds of users globally.</li>
                         </ul>
                         <div className="mt-4">
-                            <pre className="mermaid">
-                                {`graph TD
-    User[User Browser] -->|HTTPS| CF[Cloudflare Network]
-    CF -->|Asset Request| Pages[Pages (Static Assets)]
-    CF -->|API Request| Worker[Worker (Hono API)]
-    Worker -->|Query| D1[(D1 Database)]
-    Worker -->|Upload| R2[(R2 Storage)]
-    Worker -.->|Payment| Stripe[Stripe Connect]
-    Worker -.->|Email| Resend[Resend / SMTP]
-    Worker -.->|SMS| Twilio[Twilio]
-    
-    subgraph "New Capabilities"
-    Worker -->|Aggregations| Analytics[Analytics Engine (SQLite)]
-    Worker -.->|Push| Expo[Expo Push Notifications]
-    end`}
-                            </pre>
+                            <MermaidDiagram chart={architectureChart} title="Request Flow" />
                         </div>
                     </div>
 

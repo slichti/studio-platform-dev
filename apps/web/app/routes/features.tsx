@@ -1,7 +1,11 @@
 
-import { useLoaderData } from "react-router";
+import { useLoaderData, type MetaFunction, type LoaderFunction } from "react-router";
 
-import { LoaderFunction } from "react-router";
+export const meta: MetaFunction = () => [
+    { title: "Features – Studio Platform | Yoga Studio & Gym Management" },
+    { name: "description", content: "Studio Platform features: class scheduling, memberships, POS, CRM, video library, website builder, and more. Yoga studio management and small gym management software." },
+    { name: "keywords", content: "yoga studio management features, small gym management software, studio scheduling, membership billing, fitness studio CRM" },
+];
 import { apiRequest } from "~/utils/api";
 import { useState } from "react";
 import {
