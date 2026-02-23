@@ -449,3 +449,7 @@ Tier 5 finalized the core architecture by focusing on **External Integrations, P
 - Streamlined `Expo` haptics and Native Sharing sheets (Refer & Earn) for iOS and Android bridging.
 - Fixed complex hydration bugs caused by React 18 hydration mismatches with localized timestamp dates on client vs server rendering.
 
+### 5. CI/CD Pipeline Resolution
+- **TypeScript Strictness**: Resolved isolated TypeCheck failures in `api` caused by mismatched Cloudflare `Bindings` types (`SVIX_AUTH_TOKEN`) and missing router index exports (`adminApiKeys`).
+- **D1 Migration Conflicts**: Handled an edge-case where `drizzle-kit generate` created duplicate tables (`course_item_completions`) that conflicted with earlier manual schema migrations (`0071_...sql`). Stripped duplicates from the D1 migration file before pushing to prevent `SQLITE_ERROR: table already exists`.
+
