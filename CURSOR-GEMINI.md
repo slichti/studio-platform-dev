@@ -590,7 +590,7 @@ Tracked from recommendation backlog. Status updated as work completes.
 | Policy helper | ✅ | `packages/api/src/lib/policy.ts`: `guard(c, permission)` returns 403 or null |
 | ALL_PERMISSIONS | ✅ | `services/permissions.ts`: canonical list for iteration |
 | View my permissions API | ✅ | GET /tenant/me/permissions returns `{ roles, permissions: Record<string, boolean> }` |
-| Optional studio UI | — | Frontend can call /tenant/me/permissions on profile or settings to show effective permissions |
+| Optional studio UI | ✅ | Studio Profile shows "Your Permissions" (roles + granted permissions) via GET /tenant/me/permissions |
 
 ### T9 — Data lifecycle ✅
 | Item | Status | Notes |

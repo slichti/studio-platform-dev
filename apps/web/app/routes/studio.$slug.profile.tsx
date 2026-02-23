@@ -199,6 +199,47 @@ function NotificationSettings({ token, slug }: { token: string, slug: string }) 
     );
 }
 
+function MyPermissions({ token, slug }: { token: string, slug: string }) {
+    const [data, setData] = useState<{ roles?: string[]; permissions?: Record<string, boolean> } | null>(null);
+
+    useEffect(() => {
+        apiRequest('/tenant/me/permissions', token, { headers: { 'X-Tenant-Slug': slug } })
+            .then((res: any) => setData(res))
+            .catch(() => setData(null));
+    }, [token, slug]);
+
+    if (!data) return null;
+
+    const roles = data.roles ?? [];
+    const permissions = data.permissions ?? {};
+    const granted = Object.entries(permissions).filter(([, v]) => v).map(([k]) => k);
+
+    return (
+        <div className="bg-white rounded-lg border border-zinc-200 p-6 mb-6">
+            <h3 className="text-lg font-semibold mb-4">Your Permissions</h3>
+            <p className="text-sm text-zinc-500 mb-4">Effective roles and capabilities in this studio.</p>
+            {roles.length > 0 && (
+                <div className="mb-4">
+                    <span className="text-xs font-semibold text-zinc-500 uppercase">Roles</span>
+                    <p className="text-zinc-900 font-medium">{roles.join(', ')}</p>
+                </div>
+            )}
+            {granted.length > 0 && (
+                <div>
+                    <span className="text-xs font-semibold text-zinc-500 uppercase">Granted permissions</span>
+                    <ul className="mt-2 flex flex-wrap gap-2">
+                        {granted.map((p) => (
+                            <li key={p} className="text-xs bg-zinc-100 text-zinc-700 px-2 py-1 rounded">
+                                {p.replace(/_/g, ' ')}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function StudioProfilePage() {
     const { user, token, slug } = useLoaderData<{ user: any, token: string, slug: string }>();
 
@@ -226,6 +267,8 @@ export default function StudioProfilePage() {
             </div>
 
             <NotificationSettings token={token} slug={slug} />
+
+            <MyPermissions token={token} slug={slug} />
 
             <div className="mb-6">
                 <BillingHistory token={token} tenantSlug={slug} />

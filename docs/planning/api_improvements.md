@@ -12,7 +12,7 @@ The current `analytics.ts` provides only utilization, retention, and LTV. Essent
 ## 2. Operations & Bulk Management
 While `/members/bulk` exists, many other areas are missing efficient batch operations:
 - **[IMPROVE] Bulk Class Management**: Ability to bulk-cancel, bulk-move, or bulk-update instructors for a range of class instances.
-- **[NEW] Bulk Check-in**: A "Check-in All" endpoint for classes to reduce manual overhead.
+- **[DONE] Bulk Check-in**: `POST /classes/:id/check-in-all` checks in (or clears) all confirmed bookings for a class; `POST /classes/:id/bulk-check-in` accepts `{ bookingIds, checkedIn }` for a subset.
 - **[DONE] Resource Conflict Detection**: Implemented `ConflictService.checkRoomConflict` to prevent space overlaps.
 
 ## 3. Data Integrity & Schema Gaps
