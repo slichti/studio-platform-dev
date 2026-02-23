@@ -555,9 +555,15 @@ Tracked from recommendation backlog. Status updated as work completes.
 | Best value badge | ✅ | "Best value" on pack with lowest $/class |
 | Utilization badge | ✅ | "X% utilized" on my packs progress |
 
-### T3–T11 — Pending
+### T4 — Observability ✅
+| Item | Status | Notes |
+|------|--------|-------|
+| Structured logging | ✅ | traceId, tenantId, userId, status, durationMs in JSON logs |
+| Golden signals endpoint | ✅ | GET /diagnostics/golden-signals (webhooks, clientErrors) |
+| Observability doc | ✅ | docs/observability.md |
+
+### T3, T5–T11 — Pending
 - T3: Mobile onboarding loop (push + streak nudges)
-- T4: Observability (structured logging, golden signals)
 - T5: Performance tuning (schedule, dashboard, LMS)
 - T6: Rate limits (auth, booking, public widgets)
 - T8: RBAC policy helpers, permissions view

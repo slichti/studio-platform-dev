@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { sql, eq, desc } from 'drizzle-orm';
-import { auditLogs } from '@studio/db/src/schema';
+import { sql, eq, desc, gte, and } from 'drizzle-orm';
+import { auditLogs, webhookLogs } from '@studio/db/src/schema';
 import type { HonoContext } from '../types';
 
 import { authMiddleware } from '../middleware/auth';
@@ -11,6 +11,39 @@ const diagnostics = new Hono<HonoContext>();
 
 // Protect: Auth required
 diagnostics.use('*', authMiddleware);
+
+// GET /golden-signals — Structured metrics for dashboards (error rate, webhook success, latency)
+diagnostics.get('/golden-signals', async (c) => {
+    const db = createDb(c.env.DB);
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const [webhookStats, recentErrors] = await Promise.all([
+        db.select({
+            statusCode: webhookLogs.statusCode,
+            count: sql<number>`count(*)`
+        })
+            .from(webhookLogs)
+            .where(gte(webhookLogs.createdAt, dayAgo))
+            .groupBy(webhookLogs.statusCode)
+            .all(),
+        db.select({ count: sql<number>`count(*)` })
+            .from(auditLogs)
+            .where(and(eq(auditLogs.action, 'client_error'), gte(auditLogs.createdAt, dayAgo)))
+            .all()
+    ]);
+
+    const totalWebhooks = webhookStats.reduce((s, r) => s + r.count, 0);
+    const successWebhooks = webhookStats.filter(r => r.statusCode != null && r.statusCode >= 200 && r.statusCode < 300).reduce((s, r) => s + r.count, 0);
+    const webhookSuccessRate = totalWebhooks > 0 ? Math.round((successWebhooks / totalWebhooks) * 100) : null;
+
+    return c.json({
+        period: '24h',
+        webhooks: { total: totalWebhooks, successRate: webhookSuccessRate },
+        clientErrors: recentErrors[0]?.count ?? 0,
+        logFormat: 'Structured JSON: { timestamp, level, message, traceId, tenantId, userId, status, durationMs }',
+        timestamp: new Date().toISOString()
+    });
+});
 
 diagnostics.get('/', async (c) => {
     const db = createDb(c.env.DB);
