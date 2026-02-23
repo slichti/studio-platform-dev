@@ -153,6 +153,18 @@ Live chat via Durable Objects WebSockets, FAQ management.
 
 ---
 
+## OpenAPI & Personas
+
+OpenAPI specs can be grouped by **persona** for clearer DX and docs:
+
+| Persona | Scope | Typical routes |
+|---------|--------|----------------|
+| **Admin** | Platform / tenant management | `/admin/*`, `/tenant/me`, `/tenant/settings`, `/tenant/usage`, `/tenant/stats`, `/tenant/roles`, `/tenant/webhooks`, `/admin/api-keys` (tenant-scoped keys with `manage_settings`) |
+| **Public** | Unauthenticated | `/public/*`, `/guest/*`, `/website/*`, public schedule and join flows |
+| **Mobile / Portal** | Student and staff app | `/members/me/*`, `/bookings/my-upcoming`, `/classes` (read), `/memberships/*` (portal), `/users/me`, `/users/push-token` |
+
+**Dev settings (Studio UI):** Settings → Developers provides **webhook endpoints** (create/delete), **webhook test tool** (POST /tenant/webhooks/test), and **request log** (GET /tenant/webhooks/logs). API keys are managed via API (`GET/POST /admin/api-keys` with tenant context); studio UI for key create/list can be added in the same Developers page.
+
 ## Design Patterns
 - **Success Responses**: Standard JSON objects.
 - **Error Responses**: `{ error: string, message?: string }`.
