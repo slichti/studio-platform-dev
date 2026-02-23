@@ -533,9 +533,9 @@ Tracked from recommendation backlog. Status updated as work completes.
 ### Tier 10 — Product & Compliance
 | # | Feature | Status | Notes |
 |---|--------|--------|-------|
-| 10.1 | OpenAPI/Swagger | ⬜ | Already using zod-openapi; expose UI if missing |
-| 10.2 | Apple compliance | ⬜ | Align with apple_compliance.md |
-| 10.3 | Granular RBAC | ⬜ | Capability-based; larger refactor |
+| 10.1 | OpenAPI/Swagger | ✅ | GET /docs = Swagger UI, GET /doc = OpenAPI 3.0 JSON; zod-openapi in use |
+| 10.2 | Apple compliance | ✅ | docs/apple_compliance.md: account deletion (in-app), IAP vs physical, Sign in with Apple |
+| 10.3 | Granular RBAC | ✅ | Capability-based `can()` in place (Session 2 audit); further granularity = future refactor |
 
 ---
 
