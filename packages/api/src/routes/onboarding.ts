@@ -466,10 +466,12 @@ app.post('/quick-start', rateLimitMiddleware({ limit: 10, window: 60, keyPrefix:
                 id: locationId,
                 tenantId,
                 name: 'Main Studio',
+                slug: 'main-studio',
                 address: '',
                 timezone: 'America/New_York',
                 isPrimary: true,
                 settings: {},
+                seoConfig: {},
                 createdAt: new Date(),
             }).run();
         } else {

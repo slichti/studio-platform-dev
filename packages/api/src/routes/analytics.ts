@@ -125,4 +125,45 @@ app.get('/ltv', async (c) => {
     });
 });
 
+// GET /seo - SEO & Search Dominance Stats
+app.get('/seo', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context required" }, 400);
+    if (!c.get('can')('view_reports')) return c.json({ error: 'Unauthorized' }, 403);
+
+    const { locations } = await import('@studio/db/src/schema');
+
+    // 1. Indexing Status
+    const seoConfig = (tenant.seoConfig || {}) as any;
+    const indexingEnabled = !!seoConfig.indexingEnabled;
+
+    // 2. GBP Connectivity
+    const gbpConnected = !!tenant.gbpToken;
+
+    // 3. Location Slugs & SEO Health
+    const allLocations = await db.select().from(locations).where(eq(locations.tenantId, tenant.id));
+    const locationStats = allLocations.map(loc => ({
+        id: loc.id,
+        name: loc.name,
+        slug: (loc as any).slug,
+        hasSeoConfig: !!(loc as any).seoConfig && Object.keys((loc as any).seoConfig as object).length > 0,
+        isActive: !!loc.isActive
+    }));
+
+    // 4. Sitemap Health
+    const sitemapEligible = !!tenant.isPublic && indexingEnabled;
+
+    return c.json({
+        stats: {
+            indexingEnabled,
+            gbpConnected,
+            sitemapEligible,
+            totalLocations: allLocations.length,
+            seoOptimizedLocations: locationStats.filter(l => l.hasSeoConfig).length
+        },
+        locations: locationStats
+    });
+});
+
 export default app;

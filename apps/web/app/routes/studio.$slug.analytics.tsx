@@ -23,6 +23,7 @@ export default function AnalyticsLayout() {
         { name: 'Projections', path: 'projections' },
         { name: 'At-Risk', path: 'at-risk' },
         { name: 'Reports', path: 'reports' },
+        { name: 'SEO', path: 'seo' },
     ];
 
     return (

@@ -95,7 +95,9 @@ erDiagram
         string id PK
         string tenant_id FK
         string name
+        string slug UK
         string timezone
+        json seo_config
     }
     class_series {
         string id PK

@@ -311,10 +311,15 @@ export const locations = sqliteTable('locations', {
     layout: text('layout', { mode: 'json' }), // JSON: { rows: 5, cols: 5, spots: [{ id: 'A1', type: 'standard', x: 0, y: 0 }] }
     timezone: text('timezone').default('UTC'),
     isPrimary: integer('is_primary', { mode: 'boolean' }).default(false),
+    slug: text('slug').notNull(), // URL friendly name e.g. "downtown-studio"
+    seoConfig: text('seo_config', { mode: 'json' }), // { titleTemplate, metaDescription, indexingEnabled }
     settings: text('settings', { mode: 'json' }), // Location-specific settings (hours, contact, etc)
     isActive: integer('is_active', { mode: 'boolean' }).default(true),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
-});
+}, (table) => ({
+    tenantIdx: index('location_tenant_idx').on(table.tenantId),
+    slugIdx: uniqueIndex('location_slug_idx').on(table.tenantId, table.slug),
+}));
 
 // --- Class Series (Recurring Logic) ---
 export const classSeries = sqliteTable('class_series', {
