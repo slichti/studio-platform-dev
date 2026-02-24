@@ -54,7 +54,20 @@ export default function SettingsSEO() {
 
     if (!initialized) return null;
 
-    const city = tenant.branding?.location?.split(',')[0] || "Austin";
+    const getCity = () => {
+        if (tenant.primaryLocation?.address) {
+            const parts = tenant.primaryLocation.address.split(',');
+            if (parts.length >= 2) {
+                // Return second to last part or second part depending on format
+                // Usually "Street, City, State ZIP"
+                return parts[parts.length - 2].trim();
+            }
+            return parts[parts.length - 1].trim();
+        }
+        return tenant.branding?.location?.split(',')[0] || "[City]";
+    };
+
+    const city = getCity();
     const businessType = tenant.branding?.businessType || "Yoga Studio";
 
     return (

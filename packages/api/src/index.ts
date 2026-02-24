@@ -1,6 +1,6 @@
 // import { Hono } from 'hono' - Replaced by OpenAPIHono
 import { createDb } from './db';
-import { tenants, tenantMembers, tenantFeatures, users, classes, bookings, posOrders, purchasedPacks, waiverTemplates, waiverSignatures, tenantRoles, platformConfig, customRoles, memberCustomRoles } from '@studio/db/src/schema';
+import { tenants, tenantMembers, tenantFeatures, users, classes, bookings, posOrders, purchasedPacks, waiverTemplates, waiverSignatures, tenantRoles, platformConfig, customRoles, memberCustomRoles, locations } from '@studio/db/src/schema';
 import { sql, eq, and, count, sum, gte, like, or } from 'drizzle-orm';
 import { sign, verify } from 'hono/jwt';
 import { EncryptionUtils } from './utils/encryption';
@@ -550,6 +550,17 @@ studioApp.get('/info', async (c) => {
     .where(and(eq(tenantFeatures.tenantId, tenant.id), eq(tenantFeatures.featureKey, 'kiosk')))
     .get();
 
+  // Fetch primary location for localized UI hints
+  const primaryLocation = await db.select({
+    id: locations.id,
+    name: locations.name,
+    address: locations.address,
+    slug: locations.slug
+  })
+    .from(locations)
+    .where(and(eq(locations.tenantId, tenant.id), eq(locations.isPrimary, true)))
+    .get();
+
   return c.json({
     id: tenant.id,
     name: tenant.name,
@@ -563,6 +574,7 @@ studioApp.get('/info', async (c) => {
     mobileAppConfig: tenant.mobileAppConfig,
     stripeAccountId: tenant.stripeAccountId,
     branding: tenant.branding,
+    primaryLocation,
     features: Array.from(c.get('features') || []),
     platformFeatures: globalFeatures
   });

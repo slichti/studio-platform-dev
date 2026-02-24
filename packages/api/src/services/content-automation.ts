@@ -1,5 +1,5 @@
 import { eq, and, sql, lt, or, isNotNull } from 'drizzle-orm';
-import { tenantSeoContentSettings, platformSeoTopics, tenants, communityPosts, tenantMembers, users } from '@studio/db/src/schema';
+import { tenantSeoContentSettings, platformSeoTopics, tenants, communityPosts, tenantMembers, users, locations } from '@studio/db/src/schema';
 import { GeminiService } from './gemini';
 import { PushService } from './push';
 
@@ -35,10 +35,22 @@ export class ContentAutomationService {
 
         for (const item of pending) {
             try {
+                // Fetch primary location for accurate city fallback
+                const primaryLoc = await db.select({ address: locations.address })
+                    .from(locations)
+                    .where(and(eq(locations.tenantId, item.tenant.id), eq(locations.isPrimary, true)))
+                    .get();
+
+                let city = item.tenant.branding?.location?.split(',')[0];
+                if (!city && primaryLoc?.address) {
+                    const parts = primaryLoc.address.split(',');
+                    city = parts.length >= 2 ? parts[parts.length - 2].trim() : parts[parts.length - 1].trim();
+                }
+
                 // 2. Aggregate locale info
                 const localeInfo = {
                     studioName: item.tenant.name,
-                    city: item.tenant.branding?.location || 'Unknown City', // Fallback
+                    city: city || 'Your City', // Fallback to a generic term instead of a hardcoded city
                     businessType: item.tenant.branding?.businessType || 'Fitness Studio'
                 };
 
