@@ -26,7 +26,7 @@ const createMockBuilder = () => {
         orderBy: vi.fn(() => builder),
         limit: vi.fn(() => builder),
         get: mockGet,
-        all: vi.fn(),
+        all: vi.fn(() => []),
         select: vi.fn(() => builder),
         update: vi.fn(() => builder),
         set: vi.fn(() => builder),

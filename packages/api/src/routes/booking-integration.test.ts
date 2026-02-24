@@ -20,7 +20,6 @@ describe('Booking Lifecycle Integration', () => {
     beforeEach(async () => {
         // Setup In-Memory SQLite DB
         sqlite = new Database(':memory:');
-        db = drizzle(sqlite, { schema });
 
         // Create Tables manually (minimal schema for test)
         // 1. Tenants
@@ -39,6 +38,8 @@ describe('Booking Lifecycle Integration', () => {
             aggregator_config TEXT, is_test INTEGER DEFAULT 0 NOT NULL,
             seo_config TEXT, gbp_token TEXT
         )`);
+
+        db = drizzle(sqlite, { schema });
 
         // 2. Users
         sqlite.exec(`CREATE TABLE users (

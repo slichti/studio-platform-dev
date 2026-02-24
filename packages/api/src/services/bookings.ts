@@ -457,7 +457,7 @@ export class BookingService {
                     }
 
                     // Trigger: class_attended (for SEO Review Engine)
-                    const seoConfig = (tenant.seoConfig || {}) as any;
+                    const seoConfig = (tenant?.seoConfig || {}) as any;
                     await autoService.dispatchTrigger('class_attended', {
                         userId: member.user.id,
                         email: member.user.email,

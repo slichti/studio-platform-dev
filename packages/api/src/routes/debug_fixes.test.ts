@@ -25,12 +25,6 @@ describe('Debug Fixes Verification', () => {
 
     beforeEach(async () => {
         sqlite = new Database(':memory:');
-        mockDb = drizzle(sqlite, { schema });
-
-        // Polyfill batch for tests (UsageService uses it)
-        mockDb.batch = async (queries: any[]) => {
-            return Promise.all(queries);
-        };
 
         // Minimal schema setup for tests matching production
         sqlite.exec(`CREATE TABLE tenants (
@@ -49,6 +43,13 @@ describe('Debug Fixes Verification', () => {
             seo_config TEXT, gbp_token TEXT,
             created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`);
+
+        mockDb = drizzle(sqlite, { schema });
+
+        // Polyfill batch for tests (UsageService uses it)
+        mockDb.batch = async (queries: any[]) => {
+            return Promise.all(queries);
+        };
         sqlite.exec(`CREATE TABLE users (
             id TEXT PRIMARY KEY, email TEXT NOT NULL, profile TEXT, is_platform_admin INTEGER DEFAULT 0,
             role TEXT DEFAULT 'user' NOT NULL, phone TEXT, dob INTEGER, address TEXT, is_minor INTEGER DEFAULT 0,

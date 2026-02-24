@@ -51,7 +51,8 @@ export class AutomationsService {
                 eq(marketingAutomations.timingType, 'immediate') // We only handle immediate here. Delayed ones need a queue or scheduler (Out of Scope for MVP unless heavily requested)
             )).all();
 
-        for (const auto of automations) {
+        const results = Array.isArray(automations) ? automations : (automations as any)?.results || [];
+        for (const auto of results) {
             // Check Conditions
             if (!this.checkConditions(auto.triggerCondition, context.data)) continue;
 
