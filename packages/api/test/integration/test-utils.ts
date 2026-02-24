@@ -52,7 +52,9 @@ export async function setupTestDb(d1: D1Database) {
             billing_exempt INTEGER DEFAULT 0, storage_usage INTEGER DEFAULT 0, member_count INTEGER DEFAULT 0, 
             instructor_count INTEGER DEFAULT 0, last_billed_at INTEGER, archived_at INTEGER, 
             grace_period_ends_at INTEGER, student_access_disabled INTEGER DEFAULT 0, 
-            aggregator_config TEXT, is_test INTEGER DEFAULT 0 NOT NULL, created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            aggregator_config TEXT, is_test INTEGER DEFAULT 0 NOT NULL,
+            seo_config TEXT, gbp_token TEXT,
+            created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
 
         d1.prepare(`CREATE TABLE users (
@@ -335,7 +337,9 @@ export async function setupTestDb(d1: D1Database) {
             width INTEGER, height INTEGER, size_bytes INTEGER DEFAULT 0, 
             status TEXT DEFAULT 'processing', source TEXT DEFAULT 'upload', 
             video_provider TEXT DEFAULT 'offline', livekit_room_name TEXT, livekit_room_sid TEXT, 
-            trim_start INTEGER, trim_end INTEGER, created_at INTEGER DEFAULT (strftime('%s', 'now')), 
+            trim_start INTEGER, trim_end INTEGER, 
+            poster_url TEXT, tags TEXT,
+            created_at INTEGER DEFAULT (strftime('%s', 'now')), 
             updated_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
 

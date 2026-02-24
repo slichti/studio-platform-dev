@@ -45,7 +45,9 @@ describe('Debug Fixes Verification', () => {
             sms_limit INTEGER, email_limit INTEGER, streaming_limit INTEGER, billing_exempt INTEGER DEFAULT 0 NOT NULL,
             storage_usage INTEGER DEFAULT 0 NOT NULL, member_count INTEGER DEFAULT 0 NOT NULL, instructor_count INTEGER DEFAULT 0 NOT NULL,
             last_billed_at INTEGER, archived_at INTEGER, grace_period_ends_at INTEGER, student_access_disabled INTEGER DEFAULT 0 NOT NULL,
-            aggregator_config TEXT, is_test INTEGER DEFAULT 0 NOT NULL, created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            aggregator_config TEXT, is_test INTEGER DEFAULT 0 NOT NULL, 
+            seo_config TEXT, gbp_token TEXT,
+            created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`);
         sqlite.exec(`CREATE TABLE users (
             id TEXT PRIMARY KEY, email TEXT NOT NULL, profile TEXT, is_platform_admin INTEGER DEFAULT 0,
