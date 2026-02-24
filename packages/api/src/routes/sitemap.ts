@@ -1,6 +1,6 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { createDb } from '../db';
-import { tenants, classes, videos, locations } from '@studio/db/src/schema';
+import { tenants, classes, videos, locations, communityPosts } from '@studio/db/src/schema';
 import { eq, and, gt } from 'drizzle-orm';
 import { Bindings, Variables } from '../types';
 
@@ -92,6 +92,22 @@ sitemapRoute.get('/sitemap.xml', async (c) => {
             for (const loc of allLocations) {
                 const lastMod = loc.createdAt ? new Date(loc.createdAt as Date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
                 const urlNode = `  <url>\n    <loc>https://studio-platform.com/studios/${loc.slug}/locations/${loc.locationId}</loc>\n    <lastmod>${lastMod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+                await writer.write(encoder.encode(urlNode));
+            }
+
+            // 5. Stream all Blog Posts (Tier 7: Content Automation)
+            const allBlogs = await db.select({
+                id: communityPosts.id,
+                tenantSlug: tenants.slug,
+                createdAt: communityPosts.createdAt
+            }).from(communityPosts)
+                .innerJoin(tenants, eq(communityPosts.tenantId, tenants.id))
+                .where(eq(communityPosts.type, 'blog'))
+                .all();
+
+            for (const blog of allBlogs) {
+                const lastMod = blog.createdAt ? new Date(blog.createdAt as Date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+                const urlNode = `  <url>\n    <loc>https://studio-platform.com/studios/${blog.tenantSlug}/blog/${blog.id}</loc>\n    <lastmod>${lastMod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
                 await writer.write(encoder.encode(urlNode));
             }
 

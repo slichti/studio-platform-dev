@@ -6,7 +6,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { apiRequest } from '../../lib/api';
 import { useFocusEffect } from '@react-navigation/native';
 import { useOnboarding } from '../../hooks/useOnboarding';
-import { Bell, Calendar, X } from 'lucide-react-native';
+import { Bell, Calendar, X, BookOpen } from 'lucide-react-native';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -25,6 +25,7 @@ export default function HomeScreen() {
   const [upcoming, setUpcoming] = useState<any>(null);
   const [credits, setCredits] = useState(0);
   const [streak, setStreak] = useState<{ current?: number } | null>(null);
+  const [latestBlog, setLatestBlog] = useState<any>(null);
   const [notificationsRequesting, setNotificationsRequesting] = useState(false);
 
   const fetchData = async () => {
@@ -38,11 +39,21 @@ export default function HomeScreen() {
         setCredits(total);
       }
 
-      const upcomingData = await apiRequest('/bookings/my-upcoming');
+      const [upcomingData, blogData] = await Promise.all([
+        apiRequest('/bookings/my-upcoming'),
+        apiRequest('/community?type=blog&limit=1')
+      ]);
+
       if (Array.isArray(upcomingData) && upcomingData.length > 0) {
         setUpcoming(upcomingData[0]);
       } else {
         setUpcoming(null);
+      }
+
+      if (Array.isArray(blogData) && blogData.length > 0) {
+        setLatestBlog(blogData[0]);
+      } else {
+        setLatestBlog(null);
       }
 
       try {
@@ -202,7 +213,7 @@ export default function HomeScreen() {
 
         {/* Action Items */}
         <Text className="text-lg font-bold text-zinc-900 mb-4">Quick Actions</Text>
-        <View className="flex-row gap-4">
+        <View className="flex-row gap-4 mb-8">
 
           <TouchableOpacity
             className="flex-1 aspect-square bg-blue-50 rounded-2xl justify-center items-center border border-blue-100 active:bg-blue-100"
@@ -225,6 +236,42 @@ export default function HomeScreen() {
             <Text className="text-green-700 font-bold mt-2">Check In</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Recent Insights (Local Blogging) */}
+        {latestBlog && (
+          <View className="mb-8">
+            <View className="flex-row justify-between items-center mb-4">
+              <Text className="text-lg font-bold text-zinc-900">Recent Insights</Text>
+              <TouchableOpacity>
+                <Text className="text-zinc-500 text-sm font-medium">See all</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              className="bg-white border border-zinc-200 rounded-3xl overflow-hidden shadow-sm"
+              activeOpacity={0.9}
+            >
+              {latestBlog.imageUrl && (
+                <View className="h-40 bg-zinc-100">
+                  <View className="w-full h-full bg-zinc-200" />
+                </View>
+              )}
+              <View className="p-5">
+                <View className="flex-row items-center gap-2 mb-2">
+                  <View className="px-2 py-1 bg-indigo-50 rounded-md">
+                    <Text className="text-indigo-600 text-[10px] font-bold uppercase tracking-wider">New Article</Text>
+                  </View>
+                  <Text className="text-zinc-400 text-xs">{new Date(latestBlog.createdAt).toLocaleDateString()}</Text>
+                </View>
+                <Text className="text-lg font-bold text-zinc-900 mb-2">
+                  {latestBlog.content?.match(/^## (.*)\n/)?.[1] || 'Untitled Article'}
+                </Text>
+                <Text className="text-zinc-500 text-sm leading-relaxed" numberOfLines={2}>
+                  {latestBlog.content?.replace(/^## .*\n/, '').replace(/[#\*`\n]/g, '').trim()}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
 
       </ScrollView>
     </SafeAreaView>

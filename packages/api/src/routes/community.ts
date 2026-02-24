@@ -13,7 +13,7 @@ app.get('/', async (c) => {
     const member = c.get('member');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
-    const typeFilter = c.req.query('type') as 'post' | 'announcement' | 'event' | 'photo' | undefined;
+    const typeFilter = c.req.query('type') as 'post' | 'announcement' | 'event' | 'photo' | 'blog' | undefined;
     const limit = Math.min(Number(c.req.query('limit') || 50), 100);
 
     const whereClause = typeFilter
@@ -37,6 +37,27 @@ app.get('/', async (c) => {
     return c.json(posts.map(p => ({
         ...p, author: { id: p.authorId, user: { email: p.authorEmail, profile: p.authorProfile } }, isLiked: likedIds.has(p.id)
     })));
+});
+
+// GET / community/:id - Get single post
+app.get('/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const post = await db.select({
+        id: communityPosts.id, content: communityPosts.content, type: communityPosts.type, imageUrl: communityPosts.imageUrl,
+        likesCount: communityPosts.likesCount, commentsCount: communityPosts.commentsCount, isPinned: communityPosts.isPinned,
+        createdAt: communityPosts.createdAt, authorId: tenantMembers.id, authorEmail: users.email, authorProfile: users.profile
+    })
+        .from(communityPosts).innerJoin(tenantMembers, eq(communityPosts.authorId, tenantMembers.id)).innerJoin(users, eq(tenantMembers.userId, users.id))
+        .where(and(eq(communityPosts.id, c.req.param('id')), eq(communityPosts.tenantId, tenant.id))).get();
+
+    if (!post) return c.json({ error: 'Post not found' }, 404);
+
+    return c.json({
+        ...post, author: { id: post.authorId, user: { email: post.authorEmail, profile: post.authorProfile } }
+    });
 });
 
 // POST / community - Create post

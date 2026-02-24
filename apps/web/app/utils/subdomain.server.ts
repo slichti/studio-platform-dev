@@ -36,3 +36,13 @@ export async function getStudioPage(tenantSlug: string, pageSlug: string) {
         return null;
     }
 }
+
+export async function getTenantBySlug(slug: string) {
+    try {
+        const tenant = await apiRequest<any>(`/tenants/${slug}`, null);
+        return tenant;
+    } catch (e) {
+        console.error(`Failed to load tenant ${slug}:`, e);
+        return null;
+    }
+}
