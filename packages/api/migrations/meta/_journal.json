@@ -127,6 +127,13 @@
       "when": 1771947797603,
       "tag": "0017_mature_zzzax",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1771956125567,
+      "tag": "0075_tier7_seo_blogging",
+      "breakpoints": true
     }
   ]
 }
