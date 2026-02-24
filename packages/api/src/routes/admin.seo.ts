@@ -1,8 +1,9 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, platformConfig } from '@studio/db/src/schema';
-import { count, eq, and, sql, desc } from 'drizzle-orm';
+import { tenants, platformConfig, auditLogs } from '@studio/db/src/schema';
+import { count, eq, and, sql, desc, like, or } from 'drizzle-orm';
 import type { HonoContext } from '../types';
+import { SitemapService } from '../services/sitemap';
 
 const app = new Hono<HonoContext>();
 
@@ -129,6 +130,55 @@ app.patch('/tenants/:id/seo', async (c) => {
         .run();
 
     return c.json({ success: true });
+});
+
+// GET /failures - Recent SEO & GBP Failures
+app.get('/failures', async (c) => {
+    const db = createDb(c.env.DB);
+    const failures = await db.select()
+        .from(auditLogs)
+        .where(
+            or(
+                like(auditLogs.action, '%indexing_failed%'),
+                like(auditLogs.action, '%gbp_sync_failed%'),
+                like(auditLogs.action, '%sitemap_error%')
+            )
+        )
+        .orderBy(desc(auditLogs.createdAt))
+        .limit(20)
+        .all();
+
+    return c.json(failures);
+});
+
+// POST /health/validate - Trigger global sitemap validation
+app.get('/health/validate', async (c) => {
+    const db = createDb(c.env.DB);
+    const publicTenants = await db.select({ slug: tenants.slug }).from(tenants).where(eq(tenants.isPublic, true)).limit(10).all();
+
+    // We'll validate a sample of 10 for the quick health check
+    const baseUrl = new URL(c.req.url).origin;
+    const results = await Promise.all(publicTenants.map(async (t) => {
+        const isValid = await SitemapService.validateSitemap(t.slug, baseUrl);
+        return { slug: t.slug, isValid };
+    }));
+
+    const validCount = results.filter(r => r.isValid).length;
+    const healthScore = publicTenants.length > 0 ? (validCount / publicTenants.length) * 100 : 100;
+
+    return c.json({
+        healthScore,
+        totalChecked: publicTenants.length,
+        validCount,
+        details: results
+    });
+});
+
+// POST /rebuild - Trigger global sitemap/cache rebuild
+app.post('/rebuild', async (c) => {
+    const db = createDb(c.env.DB);
+    const result = await SitemapService.triggerGlobalRebuild(db);
+    return c.json(result);
 });
 
 export default app;

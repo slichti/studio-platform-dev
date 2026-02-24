@@ -11,21 +11,24 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken } = await getAuth(args);
     const token = await getToken();
 
-    const [stats, tenants, platformConfig] = await Promise.all([
+    const [stats, tenants, platformConfig, failures] = await Promise.all([
         apiRequest("/admin/seo/stats", token),
         apiRequest("/admin/seo/tenants", token),
-        apiRequest("/admin/seo/config", token)
+        apiRequest("/admin/seo/config", token),
+        apiRequest("/admin/seo/failures", token)
     ]);
 
-    return { stats, tenants, platformConfig };
+    return { stats, tenants, platformConfig, failures };
 };
 
 export default function AdminSEO() {
-    const { stats, tenants, platformConfig: initialConfig } = useLoaderData<typeof loader>();
+    const { stats, tenants, platformConfig: initialConfig, failures } = useLoaderData<typeof loader>();
     const navigate = useNavigate();
     const { getToken } = useAuth();
     const [isSaving, setIsSaving] = useState(false);
+    const [isValidating, setIsValidating] = useState(false);
     const [platformConfig, setPlatformConfig] = useState(initialConfig);
+    const [healthRes, setHealthRes] = useState<any>(null);
 
     const handleSaveConfig = async () => {
         setIsSaving(true);
@@ -67,6 +70,33 @@ export default function AdminSEO() {
             navigate(".", { replace: true });
         } catch (err) {
             console.error("Failed to disconnect GBP", err);
+        }
+    };
+
+    const handleValidateHealth = async () => {
+        setIsValidating(true);
+        try {
+            const token = await getToken();
+            const res = await apiRequest("/admin/seo/health/validate", token);
+            setHealthRes(res);
+        } catch (err) {
+            console.error("Health validation failed", err);
+        } finally {
+            setIsValidating(false);
+        }
+    };
+
+    const handleGlobalRebuild = async () => {
+        if (!confirm("This will touch all tenant updated_at timestamps to clear cached sitemap state. Proceed?")) return;
+        setIsSaving(true);
+        try {
+            const token = await getToken();
+            await apiRequest("/admin/seo/rebuild", token, { method: "POST" });
+            alert("Global sitemap/cache rebuild triggered successfully.");
+        } catch (err) {
+            console.error("Global rebuild failed", err);
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -220,10 +250,86 @@ export default function AdminSEO() {
                 <StatCard
                     title="Queue Backlog"
                     value={stats.queueBacklog}
-                    icon={<AlertCircle size={18} />}
-                    description="Pending indexing notifications"
-                    color="text-zinc-500"
+                    icon={<Loader2 size={18} className={stats.queueBacklog > 50 ? "animate-spin" : ""} />}
+                    description="Pending Indexing API requests"
+                    color="text-amber-500"
                 />
+                <StatCard
+                    title="Sitemap Health"
+                    value={healthRes ? `${Math.round(healthRes.healthScore)}%` : "Check"}
+                    icon={<Search size={18} />}
+                    description={healthRes ? `Based on ${healthRes.totalChecked} samples` : "Click Validate to check"}
+                    color={healthRes ? (healthRes.healthScore > 90 ? "text-green-500" : "text-amber-500") : "text-zinc-400"}
+                />
+            </div>
+
+            {/* Platform Health & Failures Section */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                {/* Failure Log */}
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm overflow-hidden">
+                    <div className="flex items-center gap-2 mb-6">
+                        <AlertCircle className="text-red-500" size={18} />
+                        <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Recent SEO Failures</h2>
+                    </div>
+
+                    <div className="space-y-3">
+                        {failures.length === 0 ? (
+                            <div className="py-10 text-center">
+                                <CheckCircle className="mx-auto text-green-500 mb-2" size={32} />
+                                <p className="text-sm text-zinc-500">No recent failures detected.</p>
+                            </div>
+                        ) : (
+                            failures.map((f: any) => (
+                                <div key={f.id} className="p-3 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-lg flex items-start gap-3">
+                                    <XCircle className="text-red-500 shrink-0 mt-0.5" size={14} />
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center justify-between mb-0.5">
+                                            <span className="text-xs font-bold text-red-700 dark:text-red-400 uppercase tracking-tight">{f.action.replace(/_/g, ' ')}</span>
+                                            <span className="text-[10px] text-red-500/60">{new Date(f.createdAt).toLocaleTimeString()}</span>
+                                        </div>
+                                        <p className="text-[10px] text-red-800/80 dark:text-red-300/80 line-clamp-1">Target: {f.targetId || 'Global'}</p>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+
+                {/* Platform Actions */}
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
+                    <div className="flex items-center gap-2 mb-6">
+                        <Power className="text-indigo-500" size={18} />
+                        <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Platform Governance</h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <button
+                            onClick={handleValidateHealth}
+                            disabled={isValidating}
+                            className="p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl text-left hover:border-indigo-500 transition-all group"
+                        >
+                            <div className="flex items-center justify-between mb-2">
+                                <Search size={20} className="text-zinc-400 group-hover:text-indigo-500 transition-colors" />
+                                {isValidating && <Loader2 size={16} className="animate-spin text-indigo-500" />}
+                            </div>
+                            <h3 className="text-sm font-semibold mb-1">Validate Sitemaps</h3>
+                            <p className="text-[10px] text-zinc-500 leading-relaxed">Probe a sample of public tenant sitemaps for 200 OK edge responses.</p>
+                        </button>
+
+                        <button
+                            onClick={handleGlobalRebuild}
+                            disabled={isSaving}
+                            className="p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl text-left hover:border-red-500 transition-all group"
+                        >
+                            <div className="flex items-center justify-between mb-2">
+                                <Power size={20} className="text-zinc-400 group-hover:text-red-500 transition-colors" />
+                                {isSaving && <Loader2 size={16} className="animate-spin text-red-500" />}
+                            </div>
+                            <h3 className="text-sm font-semibold mb-1 text-red-600 dark:text-red-400">Rebuild Persistence</h3>
+                            <p className="text-[10px] text-zinc-500 leading-relaxed">Invalidate edge-cached sitemap manifests across the entire platform.</p>
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {/* Tenant SEO Table */}
