@@ -36,6 +36,18 @@
     - Added "Notify" button (Bell icon) and Modal to Admin Tenant List.
     - Logs action in `auditLogs`.
 
+## 3. SEO Content Automation (Tier 7)
+
+### AI Local Blogging
+- **Goal**: Automate local blogging for tenants via Gemini AI.
+- **Verification**:
+    - Implemented `GeminiService` for localized content generation.
+    - Created `portal.$slug.blog` (Student Portal) for private engagement.
+    - Created `site.$slug.blog` (Marketing Site) for public-facing SEO.
+    - Integrated "Recent Insights" section in the mobile app Home Screen.
+    - Updated `packages/api/src/routes/sitemap.ts` to include automated blog posts.
+    - Injected `BlogPosting` JSON-LD schema for search engine discovery.
+
 ## Manual Testing Guide
 
 ### Onboarding
