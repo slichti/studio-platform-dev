@@ -83,6 +83,7 @@ import progressRoutes from './routes/progress';
 import adminBackups from './routes/admin.backups'; // [NEW] Backup Management
 import adminOwners from './routes/admin.tenants.owners'; // [NEW] Ownership Management
 import adminApiKeys from './routes/admin.api-keys'; // [NEW] API Key Management
+import adminSeo from './routes/admin.seo'; // [NEW] SEO Management
 
 import { seoMiddleware } from './middleware/seo';
 import sitemapRoute from './routes/sitemap';
@@ -901,6 +902,7 @@ app.route('/admin/mobile', adminMobile); // [NEW] Backed Admin Mobile
 app.route('/admin/search', adminSearch); // [NEW] Global Search
 app.route('/admin/backups', adminBackups); // [NEW] Backup Management
 app.route('/admin/tenants', adminOwners); // [NEW] Ownership Management
+app.route('/admin/seo', adminSeo); // [NEW] SEO Management
 app.route('/onboarding', onboarding);
 app.route('/import', dataImport);
 app.route('/webhooks', webhookRoutes);
