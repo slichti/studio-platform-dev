@@ -71,6 +71,11 @@ export const tenants = sqliteTable('tenants', {
     // Test tenant marker (seeded via admin)
     isTest: integer('is_test', { mode: 'boolean' }).default(false).notNull(),
 
+    // Phase 17: SEO Management
+    seoConfig: text('seo_config', { mode: 'json' }), // { titleTemplate, defaultMetaDescription, defaultSchemaType, indexingEnabled }
+    gbpToken: text('gbp_token', { mode: 'json' }), // Encrypted JSON: { accessToken, refreshToken, expiryDate, locationId }
+
+
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 

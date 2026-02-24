@@ -84,6 +84,9 @@ import adminBackups from './routes/admin.backups'; // [NEW] Backup Management
 import adminOwners from './routes/admin.tenants.owners'; // [NEW] Ownership Management
 import adminApiKeys from './routes/admin.api-keys'; // [NEW] API Key Management
 
+import { seoMiddleware } from './middleware/seo';
+import sitemapRoute from './routes/sitemap';
+
 import { createOpenAPIApp } from './lib/openapi';
 import { Bindings, Variables, StudioVariables } from './types';
 import { swaggerUI } from '@hono/swagger-ui';
@@ -221,6 +224,7 @@ app.get('/', (c) => {
 
 app.route('/public', publicRoutes); // [NEW] Mount public routes
 app.route('/aggregators', aggregatorRoutes); // [NEW] Aggregator Feeds
+app.route('/', sitemapRoute); // [NEW] Global Sitemap
 
 app.get('/public/tenant/:slug', async (c) => {
   const slug = c.req.param('slug');
@@ -792,6 +796,7 @@ app.route('/video-management', videoManagement);
 
 
 
+app.use('/studios/*', seoMiddleware);
 app.route('/studios', studioRoutes);
 app.route('/tenants', studioRoutes); // Alias for legacy frontend compatibility
 

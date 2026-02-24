@@ -64,7 +64,8 @@ flowchart TB
 ```mermaid
 flowchart LR
     subgraph "Request Flow"
-        REQ[HTTP Request] --> MW{Tenant Middleware}
+        REQ[HTTP Request] --> EDGE[Edge Middleware: SEO HTMLRewriter]
+        EDGE --> MW{Tenant Middleware}
         MW -->|X-Tenant-Slug Header| RESOLVE[Slug Resolution]
         MW -->|Subdomain| RESOLVE
         RESOLVE --> DB[(D1)]

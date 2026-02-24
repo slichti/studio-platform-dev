@@ -24,6 +24,8 @@ erDiagram
         json zapier_credentials
         json google_credentials
         json slack_credentials
+        json seo_config
+        json gbp_token
     }
     tenant_members {
         string id PK

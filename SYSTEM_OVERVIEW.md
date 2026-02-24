@@ -210,6 +210,11 @@ The platform includes built-in course building and delivery capabilities. Instru
 - **Interactive Features**: Students can submit assignments (text/files) and participate in threaded discussions on individual lessons via the Comments system.
 - **Assessments**: Automatically tracks course progress and generates completion certificates upon reaching 100%.
 
+### 9. Multi-Tenant Edge SEO
+The platform implements dynamic local SEO management directly at the Cloudflare edge to provide high-performance organic acquisition funnels.
+- **Dynamic Meta Injection**: An `HTMLRewriter` middleware intercepts all studio page requests, injecting tailored `<title>`, `<meta>` descriptions, and Schema.org rich results (e.g. `YogaStudio`, `VideoObject`) fetched directly from D1, bypassing origin server rendering constraints.
+- **Streaming Sitemaps**: The global `/sitemap.xml` route generates infinite-scale sitemaps by utilizing D1 cursors and Cloudflare's `TransformStream` to stream all tenant routes without hitting memory limits.
+
 ## Security Implementation
 
 ### Authentication Strategy
