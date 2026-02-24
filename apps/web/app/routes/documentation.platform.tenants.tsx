@@ -1,6 +1,15 @@
 
 import { useOutletContext, Navigate } from "react-router";
-import { Users, CreditCard, ToggleLeft, Activity, ShieldAlert, BarChart3, Smartphone } from "lucide-react";
+import { Users, CreditCard, ToggleLeft, Activity, ShieldAlert, Smartphone } from "lucide-react";
+import { ClientOnly } from "~/components/ClientOnly";
+import { MermaidDiagram } from "~/components/MermaidDiagram.client";
+
+const LIFECYCLE_CHART = `flowchart LR
+A[Active] -->|pause| P[Paused]
+P -->|resume| A
+P -->|suspend| S[Suspended]
+S -->|resolve| A
+A -->|archive| X[Archived]`;
 
 export default function PlatformTenants() {
     const { isPlatformAdmin } = useOutletContext<{ isPlatformAdmin: boolean }>();
@@ -134,7 +143,10 @@ export default function PlatformTenants() {
                         <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-3">
                             <Activity className="text-orange-500" /> Lifecycle Status
                         </h2>
-                        <ul className="space-y-3 text-sm">
+                        <ClientOnly fallback={<div className="h-24 flex items-center justify-center text-zinc-500 text-sm">Loading diagram…</div>}>
+                            <MermaidDiagram chart={LIFECYCLE_CHART} title="Tenant Lifecycle" />
+                        </ClientOnly>
+                        <ul className="space-y-3 text-sm mt-4">
                             <li className="flex items-center gap-3">
                                 <span className="w-2 h-2 rounded-full bg-green-500" />
                                 <strong>Active:</strong> Fully operational.

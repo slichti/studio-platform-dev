@@ -334,6 +334,9 @@ export default function StudioLayout() {
                                 {featureSet.has('website_builder') && (
                                     <NavItem to={`/studio/${slug}/website/pages`} icon={<Globe size={18} />}>Website Builder</NavItem>
                                 )}
+                                {featureSet.has('website_builder') && (
+                                    <NavItem to={`/studio/${slug}/settings/seo`} icon={<Search size={18} />}>SEO & Discoverability</NavItem>
+                                )}
                                 <NavItem to={`/studio/${slug}/settings/embeds`} icon={<Code size={18} />}>Website Widgets</NavItem>
                                 {featureSet.has('mobile_app') && (
                                     <NavItem to={`/studio/${slug}/settings/mobile`} icon={<Smartphone size={18} />}>Mobile App</NavItem>

@@ -1,6 +1,7 @@
 
 import { useOutletContext, Navigate } from "react-router";
 import { Server, Database, Cloud, Shield, Globe, Lock } from "lucide-react";
+import { ClientOnly } from "~/components/ClientOnly";
 import { MermaidDiagram } from "~/components/MermaidDiagram.client";
 
 export default function PlatformArchitecture() {
@@ -11,20 +12,17 @@ export default function PlatformArchitecture() {
         return <Navigate to="/documentation" replace />;
     }
 
-    const architectureChart = `graph TD
-    User[User Browser] -->|HTTPS| CF[Cloudflare Network]
-    CF -->|Asset Request| Pages[Pages (Static Assets)]
-    CF -->|API Request| Worker[Worker (Hono API)]
-    Worker -->|Query| D1[(D1 Database)]
-    Worker -->|Upload| R2[(R2 Storage)]
-    Worker -.->|Payment| Stripe[Stripe Connect]
-    Worker -.->|Email| Resend[Resend / SMTP]
-    Worker -.->|SMS| Twilio[Twilio]
-    
-    subgraph "New Capabilities"
-    Worker -->|Aggregations| Analytics[Analytics Engine (SQLite)]
-    Worker -.->|Push| Expo[Expo Push Notifications]
-    end`;
+    const architectureChart = `flowchart TD
+User[User Browser] -->|HTTPS| CF[Cloudflare Network]
+CF -->|Assets| Pages[Cloudflare Pages]
+CF -->|API| Worker[Hono API Worker]
+Worker --> D1[(D1 Database)]
+Worker --> R2[(R2 Storage)]
+Worker -.-> Stripe[Stripe Connect]
+Worker -.-> Resend[Resend Email]
+Worker -.-> Twilio[Twilio SMS]
+Worker --> Analytics[Analytics Engine]
+Worker -.-> Expo[Expo Push]`;
 
     return (
         <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -53,7 +51,9 @@ export default function PlatformArchitecture() {
                             <li>• <strong>Edge Runtime:</strong> Code runs within milliseconds of users globally.</li>
                         </ul>
                         <div className="mt-4">
-                            <MermaidDiagram chart={architectureChart} title="Request Flow" />
+                            <ClientOnly fallback={<div className="h-48 flex items-center justify-center text-zinc-500 text-sm">Loading diagram…</div>}>
+                                <MermaidDiagram chart={architectureChart} title="Request Flow" />
+                            </ClientOnly>
                         </div>
                     </div>
 

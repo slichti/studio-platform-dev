@@ -1,4 +1,5 @@
 import { Mail, MessageSquare, Award, UserPlus } from "lucide-react";
+import { ClientOnly } from "~/components/ClientOnly";
 import { MermaidDiagram } from "~/components/MermaidDiagram.client";
 
 const LEAD_STAGES_CHART = `flowchart LR
@@ -29,7 +30,9 @@ export default function CRMDocs() {
                     </p>
                     <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-lg border border-blue-200 dark:border-blue-800/50">
                         <h4 className="font-bold text-blue-800 dark:text-blue-300 mb-2">Lead Stages</h4>
-                        <MermaidDiagram chart={LEAD_STAGES_CHART} title="Lead Pipeline" />
+                        <ClientOnly fallback={<div className="h-32 flex items-center justify-center text-zinc-500 text-sm">Loading diagram…</div>}>
+                            <MermaidDiagram chart={LEAD_STAGES_CHART} title="Lead Pipeline" />
+                        </ClientOnly>
                     </div>
                 </section>
 

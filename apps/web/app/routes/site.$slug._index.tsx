@@ -10,8 +10,9 @@ export const meta: MetaFunction = ({ data }: any) => {
         return [{ title: "Page Not Found" }];
     }
 
-    const title = data.page.seoTitle || data.page.title;
-    const description = data.page.seoDescription || "";
+    const seo = data.page.tenantSettings?.seo || {};
+    const title = data.page.seoTitle || seo.defaultTitle || data.page.title;
+    const description = data.page.seoDescription || seo.defaultDescription || "";
 
     return [
         { title },

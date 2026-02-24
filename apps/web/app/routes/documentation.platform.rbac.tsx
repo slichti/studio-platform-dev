@@ -1,5 +1,6 @@
 import { useOutletContext, Navigate } from "react-router";
 import { Shield, Users, KeyRound, Network, FileText, Layers, Code } from "lucide-react";
+import { ClientOnly } from "~/components/ClientOnly";
 import { MermaidDiagram } from "~/components/MermaidDiagram.client";
 
 const RBAC_FLOW_CHART = `flowchart TD
@@ -300,7 +301,9 @@ export default function PlatformRBAC() {
                 <p className="text-sm text-zinc-600 dark:text-zinc-400 max-w-3xl">
                     Every authenticated request passes through auth, tenant resolution, and permission resolution before sensitive handlers run.
                 </p>
-                <MermaidDiagram chart={RBAC_FLOW_CHART} title="Request → Permission Resolution" />
+                <ClientOnly fallback={<div className="h-64 flex items-center justify-center text-zinc-500 text-sm">Loading diagram…</div>}>
+                    <MermaidDiagram chart={RBAC_FLOW_CHART} title="Request → Permission Resolution" />
+                </ClientOnly>
             </section>
 
             {/* Feature Map Diagram */}
@@ -308,7 +311,9 @@ export default function PlatformRBAC() {
                 <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                     <Network className="text-violet-500" /> Feature Map by Role
                 </h2>
-                <MermaidDiagram chart={FEATURE_MAP_CHART} title="Roles → Feature Domains" />
+                <ClientOnly fallback={<div className="h-48 flex items-center justify-center text-zinc-500 text-sm">Loading diagram…</div>}>
+                    <MermaidDiagram chart={FEATURE_MAP_CHART} title="Roles → Feature Domains" />
+                </ClientOnly>
             </section>
 
             {/* Where Enforcement Lives */}
