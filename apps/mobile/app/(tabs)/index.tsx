@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Image, RefreshControl } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -251,9 +251,11 @@ export default function HomeScreen() {
               activeOpacity={0.9}
             >
               {latestBlog.imageUrl && (
-                <View className="h-40 bg-zinc-100">
-                  <View className="w-full h-full bg-zinc-200" />
-                </View>
+                <Image
+                  source={{ uri: latestBlog.imageUrl }}
+                  className="w-full h-40 bg-zinc-100"
+                  resizeMode="cover"
+                />
               )}
               <View className="p-5">
                 <View className="flex-row items-center gap-2 mb-2">
