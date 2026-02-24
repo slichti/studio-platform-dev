@@ -22,6 +22,15 @@ database_name = "studio-platform-db"
 binding = "R2"
 bucket_name = "studio-platform-assets"
 
+[[queues.producers]]
+queue = "seo-indexing-queue"
+binding = "SEO_INDEXING_QUEUE"
+
+[[queues.consumers]]
+queue = "seo-indexing-queue"
+max_batch_size = 10
+max_batch_timeout = 30
+
 [durable_objects]
 bindings = [
   { name = "CHAT_ROOM", class_name = "ChatRoom" },

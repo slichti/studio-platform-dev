@@ -1158,6 +1158,9 @@ export const videos = sqliteTable('videos', {
     trimStart: integer('trim_start'),
     trimEnd: integer('trim_end'),
 
+    posterUrl: text('poster_url'),
+    tags: text('tags', { mode: 'json' }),
+
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({

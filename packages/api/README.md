@@ -25,7 +25,12 @@ Uses Expo Push API for sending notifications to the mobile app.
     *   Substitute Filled (notify requester)
 *   **Requirements**:
     *   User must have `pushToken` stored in `users` table.
-    *   User must have `push: true` in preferences.
+### SEO Management (Tier 2 & 3)
+Advanced multi-tenant SEO infrastructure with automated local search integration.
+*   **Google Business Profile**: OAuth-based NAP (Name, Address, Phone) syncing and Review Engine automation.
+*   **Indexing Service**: Cloudflare Queue (`seo-indexing-queue`) for real-time Google Indexing API notifications.
+*   **Dynamic Metadata**: Edge-rendered AI meta descriptions and rich Schema.org JSON-LD injection (LocalBusiness, Event, VideoObject).
+*   **Streaming Sitemaps**: High-performance XML sitemap generation for studios, classes, and LMS videos.
 
 ## Performance & Scalability
 

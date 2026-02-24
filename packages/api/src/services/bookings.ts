@@ -456,6 +456,19 @@ export class BookingService {
                         });
                     }
 
+                    // Trigger: class_attended (for SEO Review Engine)
+                    const seoConfig = (tenant.seoConfig || {}) as any;
+                    await autoService.dispatchTrigger('class_attended', {
+                        userId: member.user.id,
+                        email: member.user.email,
+                        firstName: (member.user.profile as any)?.firstName,
+                        data: {
+                            classTitle: booking.class.title,
+                            classId: booking.classId,
+                            googleReviewLink: seoConfig.googleReviewLink
+                        }
+                    });
+
                 } catch (e) {
                     console.error("[BookingService] Automation Error", e);
                 }

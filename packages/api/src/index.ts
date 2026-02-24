@@ -144,6 +144,94 @@ app.get('/studios/gc-callback', authMiddleware, tenantMiddleware, async (c) => {
   } catch (e: any) { return c.json({ error: e.message }, 500); }
 });
 
+// GOOGLE BUSINESS PROFILE OAUTH ROUTES
+app.get('/studios/gbp-connect', authMiddleware, tenantMiddleware, async (c) => {
+  const tenantId = c.req.query('tenantId');
+  if (!tenantId) return c.json({ error: 'Tenant ID required' }, 400);
+
+  const isPlatformAdmin = c.get('auth')?.claims?.isPlatformAdmin === true;
+  if (!isPlatformAdmin && !c.get('can')('manage_tenant')) return c.json({ error: "Forbidden" } as any, 403);
+
+  const clientId = (c.env.GOOGLE_CLIENT_ID as string) || (c.env.ENVIRONMENT === 'test' ? 'mock-google-id' : '');
+  const clientSecret = (c.env.GOOGLE_CLIENT_SECRET as string) || (c.env.ENVIRONMENT === 'test' ? 'mock-google-secret' : '');
+  const encryptionSecret = (c.env.ENCRYPTION_SECRET as string) || (c.env.ENVIRONMENT === 'test' ? 'test-secret-must-be-32-chars-lng' : '');
+
+  const { GoogleBusinessProfileService } = await import('./services/google-business');
+  const service = new GoogleBusinessProfileService(clientId, clientSecret, `${new URL(c.req.url).origin}/studios/gbp-callback`);
+  const state = await sign({ tenantId, userId: c.get('auth')!.userId, exp: Math.floor(Date.now() / 1000) + 600 }, encryptionSecret, 'HS256');
+  return c.redirect(service.getAuthUrl(state));
+});
+
+app.get('/studios/gbp-callback', authMiddleware, tenantMiddleware, async (c) => {
+  const { code, state, error } = c.req.query();
+  if (error || !code || !state) return c.json({ error: error || 'Missing params' }, 400);
+
+  const encryptionSecret = (c.env.ENCRYPTION_SECRET as string) || (c.env.ENVIRONMENT === 'test' ? 'test-secret-must-be-32-chars-lng' : '');
+  const clientId = (c.env.GOOGLE_CLIENT_ID as string) || (c.env.ENVIRONMENT === 'test' ? 'mock-google-id' : '');
+  const clientSecret = (c.env.GOOGLE_CLIENT_SECRET as string) || (c.env.ENVIRONMENT === 'test' ? 'mock-google-secret' : '');
+
+  let tenantIdStr: string;
+  try {
+    const payload = await verify(state, encryptionSecret, 'HS256');
+    if (payload.userId !== c.get('auth')?.userId) return c.json({ error: "User mismatch" }, 403);
+    tenantIdStr = payload.tenantId as string;
+  } catch (e) { return c.json({ error: "Invalid state" }, 400); }
+
+  const { GoogleBusinessProfileService } = await import('./services/google-business');
+  const service = new GoogleBusinessProfileService(clientId, clientSecret, `${new URL(c.req.url).origin}/studios/gbp-callback`);
+  const db = createDb(c.env.DB);
+  const encryption = new EncryptionUtils(encryptionSecret);
+
+  try {
+    const tokens = await service.exchangeCode(code);
+    const gbpToken: any = { accessToken: await encryption.encrypt(tokens.access_token), expiryDate: Date.now() + (tokens.expires_in * 1000) };
+    if (tokens.refresh_token) gbpToken.refreshToken = await encryption.encrypt(tokens.refresh_token);
+
+    // Also try to fetch the first account/location if possible, or leave it for later UI selection
+    await db.update(tenants).set({ gbpToken }).where(eq(tenants.id, tenantIdStr)).run();
+    return c.text('Google Business Profile connected! You can now sync your NAP data.');
+  } catch (e: any) { return c.json({ error: e.message }, 500); }
+});
+
+app.post('/studios/gbp-sync', authMiddleware, tenantMiddleware, async (c) => {
+  const tenant = c.get('tenant');
+  if (!c.get('can')('manage_tenant')) return c.json({ error: "Forbidden" }, 403);
+  if (!tenant.gbpToken) return c.json({ error: "GBP not connected" }, 400);
+
+  const encryptionSecret = (c.env.ENCRYPTION_SECRET as string) || (c.env.ENVIRONMENT === 'test' ? 'test-secret-must-be-32-chars-lng' : '');
+  const encryption = new EncryptionUtils(encryptionSecret);
+
+  const tokenData = tenant.gbpToken as any;
+  const accessToken = await encryption.decrypt(tokenData.accessToken);
+
+  const { GoogleBusinessProfileService } = await import('./services/google-business');
+  const gbp = new GoogleBusinessProfileService(
+    c.env.GOOGLE_CLIENT_ID as string,
+    c.env.GOOGLE_CLIENT_SECRET as string,
+    ''
+  );
+
+  try {
+    const branding = (tenant.branding || {}) as any;
+    const settings = (tenant.settings || {}) as any;
+
+    // NAP Data from tenant branding
+    const napData = {
+      storefrontAddress: branding.physicalAddress,
+      regularHours: settings.businessHours,
+      // ... other fields
+    };
+
+    // This would ideally use a stored locationId from onboarding or a selection UI
+    if (!tokenData.locationId) return c.json({ error: "No GBP Location selected" }, 400);
+
+    await gbp.updateLocation(accessToken, tokenData.locationId, napData);
+    return c.json({ success: true });
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500);
+  }
+});
+
 app.doc('/doc', {
   openapi: '3.0.0',
   info: {
@@ -869,5 +957,17 @@ app.route('/docs', docRoutes); // Mount docs at /docs
 
 export default {
   fetch: app.fetch,
-  scheduled
+  scheduled,
+  async queue(batch: any, env: any) {
+    const { GoogleIndexingService } = await import('./services/google-indexing');
+    const indexing = new GoogleIndexingService(env.GOOGLE_SERVICE_ACCOUNT_EMAIL, env.GOOGLE_PRIVATE_KEY);
+    for (const msg of batch.messages) {
+      try {
+        await indexing.notifyUpdate(msg.body.url);
+      } catch (e) {
+        console.error('Indexing Error:', e);
+        msg.retry();
+      }
+    }
+  }
 }

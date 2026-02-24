@@ -32,6 +32,7 @@ flowchart TB
         TWILIO[Twilio<br/>SMS]
         SVIX[Svix<br/>Webhooks]
         EXPO[Expo<br/>Push Notifications]
+        GOOGLE[Google APIs<br/>GBP & Indexing]
     end
 
     WEB --> PAGES
@@ -45,6 +46,7 @@ flowchart TB
     WORKERS --> DO
     
     WORKERS --> EXPO
+    WORKERS --> GOOGLE
     
     subgraph "Automation Engine"
         AUTO[Automation Service]
@@ -57,6 +59,7 @@ flowchart TB
     AUTO --> RESEND
     AUTO --> TWILIO
     AUTO --> EXPO
+    AUTO --> GOOGLE
 ```
 
 ## Multi-Tenant Architecture

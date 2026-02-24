@@ -115,6 +115,19 @@ erDiagram
         enum status
         enum type
     }
+    videos {
+        string id PK
+        string tenant_id FK
+        string title
+        string description
+        string r2_key
+        string cloudflare_stream_id
+        integer duration
+        string status
+        string poster_url
+        json tags
+        timestamp created_at
+    }
     bookings {
         string id PK
         string class_id FK
