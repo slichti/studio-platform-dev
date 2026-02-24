@@ -450,6 +450,47 @@ erDiagram
     users ||--o{ automation_logs : "recorded for"
 
     %% ─────────────────────────────────────────────
+    %% Community & Blogging
+    %% ─────────────────────────────────────────────
+    community_posts {
+        string id PK
+        string tenant_id FK
+        string author_id FK
+        string content
+        enum type
+        string image_url
+        integer likes_count
+        integer comments_count
+        boolean is_pinned
+        string topic_id FK
+        boolean is_generated
+        timestamp created_at
+    }
+
+    tenants ||--o{ community_posts : "hosts"
+    tenant_members ||--o{ community_posts : "authors"
+
+    %% ─────────────────────────────────────────────
+    %% SEO Content Automation (Tier 7)
+    %% ─────────────────────────────────────────────
+    platform_seo_topics {
+        string id PK
+        string name
+        string description
+    }
+    tenant_seo_content_settings {
+        string id PK
+        string tenant_id FK
+        string topic_id FK
+        enum frequency
+        boolean is_enabled
+    }
+
+    platform_seo_topics ||--o{ tenant_seo_content_settings : "subscribed by"
+    tenants ||--o{ tenant_seo_content_settings : "configures"
+    platform_seo_topics ||--o{ community_posts : "guides"
+
+    %% ─────────────────────────────────────────────
     %% Discounts & Coupons
     %% ─────────────────────────────────────────────
     coupons {

@@ -21,11 +21,25 @@ The system operates across three tiers:
 
 ### Tier 3: Advanced Automation
 - **LMS SEO**: Automatic `VideoObject` schema generation for on-demand videos, including thumbnail locations and duration.
-- **Dynamic Schema Factory**: High-level service that generates valid Schema.org JSON-LD for:
-    - `LocalBusiness` (Studios)
-    - `Event` (Classes)
-    - `VideoObject` (VOD Lessons)
-- **Streaming Sitemaps**: Dynamic XML generation that streams directly from D1 to the client, supporting deep links for classes and videos.
+- **Dynamic Schema Factory**: High-level service that generates valid Schema.org JSON-LD for `LocalBusiness`, `Event`, and `VideoObject`.
+- **Streaming Sitemaps**: Dynamic XML generation that streams directly from D1 to the client.
+
+### Tier 4: Local Dominance & Insights
+- **Local Landing Pages**: Automated generation of SEO-optimized public pages for studio locations (e.g., `/site/:slug`).
+- **SEO Analytics**: Real-time tracking of search visibility and local rankings surfaced in the Studio Dashboard.
+
+### Tier 5: Platform SEO Intelligence
+- **Governance Dashboard**: Centralized platform-wide monitoring of sitemap health, indexing queues, and GBP sync failures.
+- **Validation Engine**: Automated health checks for tenant sitemaps and NAP consistency across the platform.
+
+### Tier 6: Growth & Funnel Optimization
+- **Active Management**: Capability for platform admins to override tenant SEO configs and toggle indexing/GBP features.
+- **Strategic Guidance**: Built-in recommendations and strategy overlays to help studio owners optimize their local search presence.
+
+### Tier 7: SEO Content Automation (Local Blogging)
+- **AI-Powered Blogging**: Automated generation of location-specific blog posts using Gemini AI, based on global SEO topics.
+- **Cross-Platform Syndication**: Blog posts are automatically distributed to the Marketing Site (Public), Student Portal (Engaged), and Mobile App (On-the-go).
+- **Structured Data**: Automatic injection of `BlogPosting` schema to maximize organic reach for studio locations.
 
 ## Database Integration
 

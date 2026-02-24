@@ -50,12 +50,15 @@ flowchart TB
     
     subgraph "Automation Engine"
         AUTO[Automation Service]
+        CONTENT[Content Automation Engine<br/>Gemini AI Blogging]
         QUEUE[Task Queue]
         CRON[Cron Triggers<br/>*/15 * * * *]
     end
     
     WORKERS --> AUTO
     CRON --> AUTO
+    AUTO --> CONTENT
+    CONTENT --> GOOGLE
     AUTO --> RESEND
     AUTO --> TWILIO
     AUTO --> EXPO
@@ -68,7 +71,8 @@ flowchart TB
 flowchart LR
     subgraph "Request Flow"
         REQ[HTTP Request] --> EDGE[Edge Middleware: SEO HTMLRewriter]
-        EDGE --> MW{Tenant Middleware}
+        EDGE -->|Public Site / Blog| SEO_INJECT[Structured Data Injection<br/>BlogPosting / LocalBusiness]
+        SEO_INJECT --> MW{Tenant Middleware}
         MW -->|X-Tenant-Slug Header| RESOLVE[Slug Resolution]
         MW -->|Subdomain| RESOLVE
         RESOLVE --> DB[(D1)]

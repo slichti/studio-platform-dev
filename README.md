@@ -12,7 +12,7 @@ The modern, all-in-one platform for dance, yoga, and fitness studios.
 *   **Website Builder:** Drag-and-drop website editor with custom domains.
 *   **Student App:** Mobile app for students to book classes and manage their accounts.
 *   **Automations:** Powerful email and SMS marketing automations with trigger events (Birthday, Absent, Trial Ending, Membership Dunning, etc).
-*   **SEO Management:** Automated multi-tenant localized SEO via edge-rendered HTMLRewriter, streaming D1 sitemaps (Studios, Classes, Videos, Locations), and dynamic Schema.org injection (LocalBusiness, Event, VideoObject). Includes Google Business Profile OAuth sync, real-time Google Indexing API integration, automated location URLs (slugs), and platform-wide SEO health oversight for admins.
+*   **SEO Management:** Automated multi-tenant localized SEO via edge-rendered HTMLRewriter, streaming D1 sitemaps, and dynamic Schema.org injection. Includes Google Business Profile OAuth sync, real-time Google Indexing API integration, and **AI-Powered Local Blogging** via Gemini AI, automatically syndicating SEO-optimized content across the Marketing Site, Student Portal, and Mobile App.
 *   **QR Codes:** Generate tracking-ready QR codes for check-in, app downloads, and marketing.
 *   **High Performance Edge:** Sub-50ms latency for core operations via Cloudflare Workers and D1 batching.
 
