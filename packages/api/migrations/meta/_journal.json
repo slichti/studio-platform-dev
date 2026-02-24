@@ -43,6 +43,83 @@
       "when": 1771797916231,
       "tag": "0005_fuzzy_the_anarchist",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1771936081777,
+      "tag": "0064_fix_classes_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1771936081778,
+      "tag": "0065_fix_instructor_constraint",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1771936081779,
+      "tag": "0066_courses_feature_additions",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1771936081780,
+      "tag": "0067_fix_missing_course_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1771936081781,
+      "tag": "0068_course_enrollments_prereqs",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1771936081782,
+      "tag": "0069_classes_vod_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1771936081783,
+      "tag": "0070_cohort_end_date",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1771936081784,
+      "tag": "0071_course_item_completions",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1771936081785,
+      "tag": "0072_membership_plans_trial_days",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1771936081786,
+      "tag": "0073_subscription_churn_reason",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1771936081787,
+      "tag": "0074_seo_management",
+      "breakpoints": true
     }
   ]
 }

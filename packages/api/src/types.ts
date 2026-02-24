@@ -35,6 +35,9 @@ export interface Bindings {
     ZOOM_CLIENT_ID?: string;
     ZOOM_CLIENT_SECRET?: string;
     SVIX_AUTH_TOKEN?: string;
+    SEO_INDEXING_QUEUE?: Queue;
+    GOOGLE_SERVICE_ACCOUNT_EMAIL?: string;
+    GOOGLE_PRIVATE_KEY?: string;
 }
 
 export interface Variables {
