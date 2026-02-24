@@ -18,6 +18,7 @@ import configRouter from './admin.config';
 import couponsRouter from './admin.coupons';
 import automationsRouter from './admin.automations';
 import bookingsRouter from './admin.bookings';
+import seoRouter from './admin.seo';
 
 const app = new Hono<HonoContext>();
 
@@ -69,6 +70,7 @@ app.route('/config', configRouter);
 app.route('/platform/config', configRouter); // Alias for frontend compatibility (/admin/platform/config)
 app.route('/coupons', couponsRouter);
 app.route('/automations', automationsRouter);
+app.route('/seo', seoRouter);
 
 // GET /logs - Recent Audit Logs (Global view)
 app.get('/logs', async (c) => {

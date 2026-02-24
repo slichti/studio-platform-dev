@@ -86,6 +86,7 @@ export default function AdminLayout() {
         { label: "Platform Features", href: "/admin/features", icon: "⚙️" },
         { label: "Platform Plans", href: "/admin/plans", icon: "💎" },
         { label: "Projections", href: "/admin/projections", icon: "📈" },
+        { label: "SEO Management", href: "/admin/seo", icon: "🔍" },
         { label: "System Status", href: "/admin/status", icon: "🟢" },
         { label: "Tenants", href: "/admin/tenants", icon: "🏢" },
         { label: "Video Manager", href: "/admin/videos", icon: "🎬" },
