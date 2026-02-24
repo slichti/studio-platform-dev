@@ -1586,21 +1586,44 @@ export const customFieldValues = sqliteTable('custom_field_values', {
     uniqueVal: uniqueIndex('cf_val_unique_idx').on(table.targetId, table.definitionId),
 }));
 
+export const platformSeoTopics = sqliteTable('platform_seo_topics', {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    description: text('description'),
+    isActive: integer('is_active', { mode: 'boolean' }).default(true).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+});
+
+export const tenantSeoContentSettings = sqliteTable('tenant_seo_content_settings', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+    topicId: text('topic_id').notNull().references(() => platformSeoTopics.id),
+    frequency: text('frequency', { enum: ['daily', 'weekly', 'bi-weekly', 'monthly'] }).default('weekly').notNull(),
+    nextRunAt: integer('next_run_at', { mode: 'timestamp' }),
+    isActive: integer('is_active', { mode: 'boolean' }).default(true).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantTopicIdx: uniqueIndex('tenant_seo_topic_idx').on(table.tenantId, table.topicId),
+}));
+
 // --- Community Feed ---
 export const communityPosts = sqliteTable('community_posts', {
     id: text('id').primaryKey(),
     tenantId: text('tenant_id').notNull().references(() => tenants.id),
     authorId: text('author_id').notNull().references(() => tenantMembers.id),
     content: text('content').notNull(),
-    type: text('type', { enum: ['post', 'announcement', 'event', 'photo'] }).default('post').notNull(),
+    type: text('type', { enum: ['post', 'announcement', 'event', 'photo', 'blog'] }).default('post').notNull(),
     imageUrl: text('image_url'),
     likesCount: integer('likes_count').default(0),
     commentsCount: integer('comments_count').default(0),
     isPinned: integer('is_pinned', { mode: 'boolean' }).default(false),
+    topicId: text('topic_id').references(() => platformSeoTopics.id),
+    isGenerated: integer('is_generated', { mode: 'boolean' }).default(false),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     tenantIdx: index('community_post_tenant_idx').on(table.tenantId),
     pinnedIdx: index('community_post_pinned_idx').on(table.tenantId, table.isPinned),
+    topicIdx: index('community_post_topic_idx').on(table.topicId),
 }));
 
 export const communityComments = sqliteTable('community_comments', {
@@ -1659,6 +1682,7 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
     tasks: many(tasks),
     memberTags: many(tags),
     customFieldDefinitions: many(customFieldDefinitions),
+    seoAutomation: many(tenantSeoContentSettings),
 }));
 
 export const tenantMembersRelations = relations(tenantMembers, ({ one, many }) => ({
@@ -2136,6 +2160,21 @@ export const webhookLogsRelations = relations(webhookLogs, ({ one }) => ({
         fields: [webhookLogs.endpointId],
         references: [webhookEndpoints.id],
     }),
+}));
+
+export const tenantSeoContentSettingsRelations = relations(tenantSeoContentSettings, ({ one }) => ({
+    tenant: one(tenants, {
+        fields: [tenantSeoContentSettings.tenantId],
+        references: [tenants.id],
+    }),
+    topic: one(platformSeoTopics, {
+        fields: [tenantSeoContentSettings.topicId],
+        references: [platformSeoTopics.id],
+    }),
+}));
+
+export const platformSeoTopicsRelations = relations(platformSeoTopics, ({ many }) => ({
+    automations: many(tenantSeoContentSettings),
 }));
 
 // --- Website Builder: Settings ---

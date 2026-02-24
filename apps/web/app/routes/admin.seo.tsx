@@ -2,7 +2,7 @@ import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link } from "react-router";
 import { getAuth } from "../utils/auth-wrapper.server";
 import { apiRequest } from "../utils/api";
-import { Globe, Search, ExternalLink, CheckCircle, XCircle, AlertCircle, Save, Loader2, Power, Info, Sparkles, HelpCircle } from "lucide-react";
+import { Globe, Search, ExternalLink, CheckCircle, XCircle, AlertCircle, Save, Loader2, Power, Info, Sparkles, HelpCircle, Plus, Calendar, Settings2 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "@clerk/react-router";
@@ -11,24 +11,28 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken } = await getAuth(args);
     const token = await getToken();
 
-    const [stats, tenants, platformConfig, failures] = await Promise.all([
+    const [stats, tenants, platformConfig, failures, topics] = await Promise.all([
         apiRequest("/admin/seo/stats", token),
         apiRequest("/admin/seo/tenants", token),
         apiRequest("/admin/seo/config", token),
-        apiRequest("/admin/seo/failures", token)
+        apiRequest("/admin/seo/failures", token),
+        apiRequest("/admin/seo/topics", token)
     ]);
 
-    return { stats, tenants, platformConfig, failures };
+    return { stats, tenants, platformConfig, failures, topics };
 };
 
 export default function AdminSEO() {
-    const { stats, tenants, platformConfig: initialConfig, failures } = useLoaderData<typeof loader>();
+    const { stats, tenants, platformConfig: initialConfig, failures, topics: initialTopics } = useLoaderData<typeof loader>();
     const navigate = useNavigate();
     const { getToken } = useAuth();
     const [isSaving, setIsSaving] = useState(false);
     const [isValidating, setIsValidating] = useState(false);
     const [platformConfig, setPlatformConfig] = useState(initialConfig);
     const [healthRes, setHealthRes] = useState<any>(null);
+    const [topics, setTopics] = useState(initialTopics);
+    const [newTopic, setNewTopic] = useState({ name: '', description: '' });
+    const [editingTenantAutomation, setEditingTenantAutomation] = useState<string | null>(null);
 
     const handleSaveConfig = async () => {
         setIsSaving(true);
@@ -97,6 +101,37 @@ export default function AdminSEO() {
             console.error("Global rebuild failed", err);
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleAddTopic = async () => {
+        if (!newTopic.name) return;
+        setIsSaving(true);
+        try {
+            const token = await getToken();
+            const res = await apiRequest("/admin/seo/topics", token, {
+                method: "POST",
+                body: JSON.stringify(newTopic)
+            });
+            setTopics([{ id: res.id, ...newTopic, isActive: true }, ...topics]);
+            setNewTopic({ name: '', description: '' });
+        } catch (err) {
+            console.error("Failed to add topic", err);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleUpdateAutomation = async (tenantId: string, topicId: string, frequency: string, isActive: boolean) => {
+        try {
+            const token = await getToken();
+            await apiRequest(`/admin/seo/tenants/${tenantId}/automation`, token, {
+                method: "PATCH",
+                body: JSON.stringify({ topicId, frequency, isActive })
+            });
+            navigate(".", { replace: true });
+        } catch (err) {
+            console.error("Failed to update automation", err);
         }
     };
 
@@ -332,6 +367,65 @@ export default function AdminSEO() {
                 </div>
             </div>
 
+            {/* Global SEO Topics Management */}
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-2">
+                        <Sparkles className="text-amber-500" size={18} />
+                        <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Global SEO Content Topics</h2>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Topic Creation */}
+                    <div className="space-y-4">
+                        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Create New Topic</h3>
+                        <div className="space-y-3">
+                            <input
+                                type="text"
+                                placeholder="Topic Name (e.g., Post-Workout Recovery)"
+                                value={newTopic.name}
+                                onChange={(e) => setNewTopic({ ...newTopic, name: e.target.value })}
+                                className="w-full px-3 py-2 text-sm bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                            />
+                            <textarea
+                                placeholder="Topic Description for AI Guidance..."
+                                value={newTopic.description}
+                                onChange={(e) => setNewTopic({ ...newTopic, description: e.target.value })}
+                                rows={2}
+                                className="w-full px-3 py-2 text-sm bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                            />
+                            <button
+                                onClick={handleAddTopic}
+                                disabled={isSaving || !newTopic.name}
+                                className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+                            >
+                                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                                Add to Library
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Topic List */}
+                    <div className="space-y-4">
+                        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Topics Library</h3>
+                        <div className="max-h-[200px] overflow-y-auto space-y-2 pr-2">
+                            {topics.map((topic: any) => (
+                                <div key={topic.id} className="p-3 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-lg flex items-center justify-between group">
+                                    <div className="min-w-0">
+                                        <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{topic.name}</div>
+                                        <div className="text-[10px] text-zinc-500 line-clamp-1">{topic.description}</div>
+                                    </div>
+                                    <button className="text-zinc-400 hover:text-indigo-500 opacity-0 group-hover:opacity-100 transition-all">
+                                        <Settings2 size={14} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* Tenant SEO Table */}
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm">
                 <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
@@ -353,67 +447,173 @@ export default function AdminSEO() {
                                 <th className="px-6 py-3 text-center">Visibility</th>
                                 <th className="px-6 py-3 text-center">Indexing (Toggle)</th>
                                 <th className="px-6 py-3 text-center">GBP Sync</th>
+                                <th className="px-6 py-3 text-center">AI Blogging</th>
                                 <th className="px-6 py-3 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                            {tenants.map((tenant: any) => (
-                                <tr key={tenant.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
-                                    <td className="px-6 py-4">
-                                        <div className="font-medium text-zinc-900 dark:text-zinc-100">{tenant.name}</div>
-                                        <div className="text-xs text-zinc-400 font-mono">/{tenant.slug}</div>
-                                    </td>
-                                    <td className="px-6 py-4 text-center">
-                                        {tenant.isPublic ? (
-                                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full uppercase">
-                                                Public
-                                            </span>
-                                        ) : (
-                                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-2 py-0.5 rounded-full uppercase">
-                                                Private
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4 text-center">
-                                        <button
-                                            onClick={() => handleToggleIndexing(tenant.id, tenant.seoConfig?.indexingEnabled)}
-                                            className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ring-offset-2 focus:ring-2 focus:ring-indigo-500 ${tenant.seoConfig?.indexingEnabled ? 'bg-indigo-600' : 'bg-zinc-200 dark:bg-zinc-700'}`}
-                                        >
-                                            <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${tenant.seoConfig?.indexingEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
-                                        </button>
-                                    </td>
-                                    <td className="px-6 py-4 text-center">
-                                        {tenant.hasGbp ? (
-                                            <div className="flex items-center justify-center gap-2">
-                                                <CheckCircle size={16} className="text-blue-500" />
+                            {tenants.map((tenant: any) => {
+                                const automation = (tenant.seoAutomation || [])[0]; // For MVP, show first topic subscription
+
+                                return (
+                                    <tr key={tenant.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="font-medium text-zinc-900 dark:text-zinc-100">{tenant.name}</div>
+                                            <div className="text-xs text-zinc-400 font-mono">/{tenant.slug}</div>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            {tenant.isPublic ? (
+                                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full uppercase">
+                                                    Public
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-2 py-0.5 rounded-full uppercase">
+                                                    Private
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <button
+                                                onClick={() => handleToggleIndexing(tenant.id, tenant.seoConfig?.indexingEnabled)}
+                                                className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ring-offset-2 focus:ring-2 focus:ring-indigo-500 ${tenant.seoConfig?.indexingEnabled ? 'bg-indigo-600' : 'bg-zinc-200 dark:bg-zinc-700'}`}
+                                            >
+                                                <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${tenant.seoConfig?.indexingEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                                            </button>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            {tenant.hasGbp ? (
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <CheckCircle size={16} className="text-blue-500" />
+                                                    <button
+                                                        onClick={() => handleDisconnectGbp(tenant.id)}
+                                                        className="text-[10px] text-zinc-400 hover:text-red-500 transition-colors uppercase font-semibold"
+                                                    >
+                                                        Disconnect
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <XCircle size={16} className="text-zinc-300 dark:text-zinc-700 mx-auto" />
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <div className="flex flex-col items-center gap-1">
+                                                {automation?.isActive ? (
+                                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase">
+                                                        <Calendar size={10} /> {automation.frequency}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-[10px] text-zinc-400 uppercase font-medium">Disabled</span>
+                                                )}
                                                 <button
-                                                    onClick={() => handleDisconnectGbp(tenant.id)}
-                                                    className="text-[10px] text-zinc-400 hover:text-red-500 transition-colors uppercase font-semibold"
+                                                    onClick={() => setEditingTenantAutomation(tenant.id)}
+                                                    className="text-[10px] text-indigo-500 hover:underline font-semibold uppercase"
                                                 >
-                                                    Disconnect
+                                                    Configure
                                                 </button>
                                             </div>
-                                        ) : (
-                                            <XCircle size={16} className="text-zinc-300 dark:text-zinc-700 mx-auto" />
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-3">
-                                            <Link
-                                                to={`/portal/${tenant.slug}`}
-                                                target="_blank"
-                                                className="text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                                                title="View Portal"
-                                            >
-                                                <ExternalLink size={16} />
-                                            </Link>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex items-center justify-end gap-3">
+                                                <Link
+                                                    to={`/portal/${tenant.slug}`}
+                                                    target="_blank"
+                                                    className="text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                    title="View Portal"
+                                                >
+                                                    <ExternalLink size={16} />
+                                                </Link>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
+
+                {/* Automation Edit Modal (Inline Overlay) */}
+                {editingTenantAutomation && (
+                    <div className="fixed inset-0 bg-zinc-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-2xl max-w-md w-full animate-in zoom-in-95 duration-200">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                    <Settings2 className="text-indigo-500" size={18} />
+                                    Content Automation Settings
+                                </h3>
+                                <button
+                                    onClick={() => setEditingTenantAutomation(null)}
+                                    className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors"
+                                >
+                                    <XCircle size={20} />
+                                </button>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Select Primary Topic</label>
+                                    <select
+                                        className="w-full px-3 py-2 text-sm bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                        onChange={(e) => {
+                                            const topic = topics.find((t: any) => t.id === e.target.value);
+                                            if (topic) handleUpdateAutomation(editingTenantAutomation, topic.id, 'weekly', true);
+                                        }}
+                                        defaultValue={(tenants.find((t: any) => t.id === editingTenantAutomation)?.seoAutomation?.[0])?.topicId || ''}
+                                    >
+                                        <option value="" disabled>Choose a topic...</option>
+                                        {topics.map((t: any) => (
+                                            <option key={t.id} value={t.id}>{t.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Posting Frequency</label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {['weekly', 'bi-weekly', 'monthly'].map((f) => {
+                                            const current = (tenants.find((t: any) => t.id === editingTenantAutomation)?.seoAutomation?.[0])?.frequency === f;
+                                            return (
+                                                <button
+                                                    key={f}
+                                                    onClick={() => {
+                                                        const automation = (tenants.find((t: any) => t.id === editingTenantAutomation)?.seoAutomation?.[0]);
+                                                        if (automation) handleUpdateAutomation(editingTenantAutomation, automation.topicId, f, true);
+                                                    }}
+                                                    className={`py-2 text-[10px] font-bold uppercase rounded-lg border transition-all ${current ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:border-indigo-300'}`}
+                                                >
+                                                    {f}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                                    <button
+                                        onClick={() => {
+                                            const automation = (tenants.find((t: any) => t.id === editingTenantAutomation)?.seoAutomation?.[0]);
+                                            if (automation) handleUpdateAutomation(editingTenantAutomation, automation.topicId, automation.frequency, !automation.isActive);
+                                            else handleUpdateAutomation(editingTenantAutomation, topics[0]?.id, 'weekly', true);
+                                        }}
+                                        className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${(tenants.find((t: any) => t.id === editingTenantAutomation)?.seoAutomation?.[0])?.isActive
+                                                ? 'bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/20 hover:bg-red-100'
+                                                : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/20 hover:bg-emerald-100'
+                                            }`}
+                                    >
+                                        {(tenants.find((t: any) => t.id === editingTenantAutomation)?.seoAutomation?.[0])?.isActive ? (
+                                            <>
+                                                <XCircle size={16} /> Disable Automation
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CheckCircle size={16} /> Enable Automation
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

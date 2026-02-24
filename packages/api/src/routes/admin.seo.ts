@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, platformConfig, auditLogs } from '@studio/db/src/schema';
+import { tenants, platformConfig, auditLogs, platformSeoTopics, tenantSeoContentSettings } from '@studio/db/src/schema';
 import { count, eq, and, sql, desc, like, or } from 'drizzle-orm';
 import type { HonoContext } from '../types';
 import { SitemapService } from '../services/sitemap';
@@ -41,25 +41,29 @@ app.get('/stats', async (c) => {
 // GET /tenants - Detailed SEO list
 app.get('/tenants', async (c) => {
     const db = createDb(c.env.DB);
-    const limit = Number(c.req.query('limit')) || 50;
-    const offset = Number(c.req.query('offset')) || 0;
+    const limit = Number(c.req.query('limit')) || 100;
 
-    const list = await db.select({
-        id: tenants.id,
-        name: tenants.name,
-        slug: tenants.slug,
-        isPublic: tenants.isPublic,
-        seoConfig: tenants.seoConfig,
-        hasGbp: sql<boolean>`${tenants.gbpToken} IS NOT NULL`,
-        createdAt: tenants.createdAt
-    })
-        .from(tenants)
-        .orderBy(desc(tenants.createdAt))
-        .limit(limit)
-        .offset(offset)
-        .all();
+    const list = await db.query.tenants.findMany({
+        columns: {
+            id: true,
+            name: true,
+            slug: true,
+            isPublic: true,
+            seoConfig: true,
+            gbpToken: true,
+            createdAt: true
+        },
+        with: {
+            seoAutomation: true
+        },
+        orderBy: (tenants, { desc }) => [desc(tenants.createdAt)],
+        limit
+    });
 
-    return c.json(list);
+    return c.json(list.map(t => ({
+        ...t,
+        hasGbp: !!t.gbpToken
+    })));
 });
 
 // GET /config - Global Platform SEO Config
@@ -175,10 +179,55 @@ app.get('/health/validate', async (c) => {
 });
 
 // POST /rebuild - Trigger global sitemap/cache rebuild
-app.post('/rebuild', async (c) => {
+// GET /topics - Global SEO Topics
+app.get('/topics', async (c) => {
     const db = createDb(c.env.DB);
-    const result = await SitemapService.triggerGlobalRebuild(db);
-    return c.json(result);
+    const list = await db.select().from(platformSeoTopics).orderBy(desc(platformSeoTopics.createdAt)).all();
+    return c.json(list);
+});
+
+// POST /topics - Create SEO Topic
+app.post('/topics', async (c) => {
+    const db = createDb(c.env.DB);
+    const { name, description } = await c.req.json();
+    const id = crypto.randomUUID();
+    await db.insert(platformSeoTopics).values({ id, name, description, isActive: true }).run();
+    return c.json({ id });
+});
+
+// PATCH /topics/:id - Update SEO Topic
+app.patch('/topics/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const id = c.req.param('id');
+    const body = await c.req.json();
+    await db.update(platformSeoTopics).set(body).where(eq(platformSeoTopics.id, id)).run();
+    return c.json({ success: true });
+});
+
+// GET /tenants/:id/automation - Tenant Content Automation Settings
+app.get('/tenants/:id/automation', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+    const settings = await db.select().from(tenantSeoContentSettings).where(eq(tenantSeoContentSettings.tenantId, tenantId)).all();
+    return c.json(settings);
+});
+
+// PATCH /tenants/:id/automation - Toggle/Update Tenant content automation
+app.patch('/tenants/:id/automation', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+    const { topicId, frequency, isActive } = await c.req.json();
+
+    const id = crypto.randomUUID();
+    await db.insert(tenantSeoContentSettings)
+        .values({ id, tenantId, topicId, frequency, isActive, updatedAt: new Date() })
+        .onConflictDoUpdate({
+            target: [tenantSeoContentSettings.tenantId, tenantSeoContentSettings.topicId],
+            set: { frequency, isActive, updatedAt: new Date() }
+        })
+        .run();
+
+    return c.json({ success: true });
 });
 
 export default app;

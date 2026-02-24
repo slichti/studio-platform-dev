@@ -13,6 +13,7 @@ import { PushService } from './services/push';
 import { MonitoringService } from './services/monitoring';
 import { createSystemBackup } from '../scripts/backup-system';
 import { backupAllTenants } from '../scripts/backup-tenants';
+import { ContentAutomationService } from './services/content-automation';
 
 export const scheduled = async (event: any, env: any, ctx: any) => {
     console.log("Cron trigger fired:", event.cron);
@@ -400,6 +401,17 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
         await nudgeService.checkInactiveStudents(14); // 14 days inactive
     } catch (e) {
         console.error("Failed to process nudges", e);
+    }
+
+    // 6b. SEO Content Automation (AI Blog Generation)
+    // Run this on every tick, the service handles internal frequency checks
+    try {
+        if (env.GEMINI_API_KEY) {
+            console.log("🤖 Processing SEO Content Automation...");
+            await ContentAutomationService.processPendingPosts(db, env.GEMINI_API_KEY);
+        }
+    } catch (e) {
+        console.error("Failed to process SEO content automation", e);
     }
 
     // 7. Scheduled Reports
