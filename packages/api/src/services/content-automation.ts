@@ -1,6 +1,7 @@
-import { eq, and, sql, lt, or } from 'drizzle-orm';
-import { tenantSeoContentSettings, platformSeoTopics, tenants, communityPosts, tenantMembers } from '@studio/db/src/schema';
+import { eq, and, sql, lt, or, isNotNull } from 'drizzle-orm';
+import { tenantSeoContentSettings, platformSeoTopics, tenants, communityPosts, tenantMembers, users } from '@studio/db/src/schema';
 import { GeminiService } from './gemini';
+import { PushService } from './push';
 
 export class ContentAutomationService {
     static async processPendingPosts(db: any, geminiApiKey: string) {
@@ -42,18 +43,23 @@ export class ContentAutomationService {
                 };
 
                 // 3. Generate content
-                const { title, content } = await gemini.generateBlogPost(
+                const { title, content, imagePrompt } = await gemini.generateBlogPost(
                     item.topic.name,
                     item.topic.description || '',
                     localeInfo
-                );
+                ) as any;
 
                 // 4. Find an author (usually the owner)
-                // We'll pick the first member we find for now, or a system account if we had one
                 const author = await db.select().from(tenantMembers).where(eq(tenantMembers.tenantId, item.tenant.id)).limit(1).get();
                 if (!author) continue;
 
-                // 5. Publish post
+                // 5. Generate AI image URL (Pollinations.ai demo)
+                // In production, this might be saved to R2 first
+                const imageUrl = imagePrompt
+                    ? `https://pollinations.ai/p/${encodeURIComponent(imagePrompt)}?width=1024&height=1024&nologo=true`
+                    : null;
+
+                // 6. Publish post
                 const postId = crypto.randomUUID();
                 await db.insert(communityPosts).values({
                     id: postId,
@@ -61,12 +67,41 @@ export class ContentAutomationService {
                     authorId: author.id,
                     content: `## ${title}\n\n${content}`,
                     type: 'blog',
+                    imageUrl,
                     topicId: item.topic.id,
                     isGenerated: true,
                     createdAt: new Date()
                 }).run();
 
-                // 6. Update nextRunAt based on frequency
+                // 7. Push Notifications to all students
+                try {
+                    const tokens = await db.select({ token: users.pushToken })
+                        .from(tenantMembers)
+                        .innerJoin(users, eq(tenantMembers.userId, users.id))
+                        .where(
+                            and(
+                                eq(tenantMembers.tenantId, item.tenant.id),
+                                eq(tenantMembers.status, 'active'),
+                                isNotNull(users.pushToken)
+                            )
+                        )
+                        .all();
+
+                    const pushTokens = tokens.map((t: any) => t.token);
+                    if (pushTokens.length > 0) {
+                        const pushService = new PushService(db, item.tenant.id);
+                        await pushService.sendPush(
+                            pushTokens,
+                            `New Blog: ${title}`,
+                            `Check out our latest insights on ${item.topic.name}. Now available in the community feed!`,
+                            { postId, type: 'blog' }
+                        );
+                    }
+                } catch (pushErr) {
+                    console.error(`Failed to send push for tenant ${item.tenant.slug}:`, pushErr);
+                }
+
+                // 8. Update nextRunAt based on frequency
                 const nextRun = this.calculateNextRun(item.settings.frequency);
                 await db.update(tenantSeoContentSettings)
                     .set({ nextRunAt: nextRun, updatedAt: new Date() })
@@ -75,7 +110,7 @@ export class ContentAutomationService {
 
                 processedCount++;
             } catch (err) {
-                console.error(`Failed to process crypto-blog for tenant ${item.tenant.slug}:`, err);
+                console.error(`Failed to process blog for tenant ${item.tenant.slug}:`, err);
             }
         }
 

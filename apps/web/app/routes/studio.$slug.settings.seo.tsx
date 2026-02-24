@@ -54,55 +54,93 @@ export default function SettingsSEO() {
 
     if (!initialized) return null;
 
+    const city = tenant.branding?.location?.split(',')[0] || "Austin";
+    const businessType = tenant.branding?.businessType || "Yoga Studio";
+
     return (
         <div className="max-w-2xl pb-10">
             <div className="mb-8">
                 <Link to={`/studio/${tenant.slug}/settings`} className="text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300 mb-2 inline-block">← Back to Settings</Link>
-                <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                    <Search className="text-blue-500" /> SEO & Discoverability
-                </h1>
-                <p className="text-zinc-600 dark:text-zinc-400 mt-1">Help search engines and local searchers find your studio. These defaults apply when individual pages don't have their own meta.</p>
+                <div className="flex items-start justify-between">
+                    <div>
+                        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                            <Search className="text-blue-500" /> SEO & Discoverability
+                        </h1>
+                        <p className="text-zinc-600 dark:text-zinc-400 mt-1">Optimize how your studio appears in Google, Maps, and social media.</p>
+                    </div>
+                    <div className="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/50 rounded-full">
+                        <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter">Locally Optimized</span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="mb-6 p-4 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100/50 dark:border-blue-800/30 rounded-xl flex gap-3">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg h-fit text-blue-600">
+                    <Search size={18} />
+                </div>
+                <div>
+                    <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Why this matters?</h3>
+                    <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5 leading-relaxed">
+                        97% of people learn more about a local company online than anywhere else. These settings ensure that when someone searches for <strong>"{businessType} in {city}"</strong>, your studio stands out with professional metadata.
+                    </p>
+                </div>
             </div>
 
             <form onSubmit={handleSave} className="space-y-6">
                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
-                    <label className="block text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Default Meta Title</label>
+                    <div className="flex items-center justify-between mb-2">
+                        <label className="block text-sm font-semibold text-zinc-900 dark:text-zinc-100">Search Result Title</label>
+                        <span className={`text-[10px] font-mono ${seoDefaultTitle.length > 60 ? 'text-red-500' : 'text-zinc-400'}`}>
+                            {seoDefaultTitle.length}/60
+                        </span>
+                    </div>
                     <input
                         type="text"
                         value={seoDefaultTitle}
                         onChange={(e) => setSeoDefaultTitle(e.target.value)}
-                        placeholder="e.g. Yoga Studio | Pilates & Fitness in Ann Arbor"
+                        placeholder={`${businessType} | Pilates & Fitness in ${city}`}
                         className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white dark:bg-zinc-950"
                         maxLength={70}
                     />
-                    <p className="text-xs text-zinc-500 mt-1">Recommended: under 60 characters. Include your studio name and location.</p>
+                    <p className="text-xs text-zinc-500 mt-2 leading-relaxed">
+                        This is the main headline in search results. <strong>Pro Tip:</strong> Place your most important keyword (e.g., {businessType}) first.
+                    </p>
                 </div>
 
                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
-                    <label className="block text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Default Meta Description</label>
+                    <div className="flex items-center justify-between mb-2">
+                        <label className="block text-sm font-semibold text-zinc-900 dark:text-zinc-100">Search Meta Description</label>
+                        <span className={`text-[10px] font-mono ${seoDefaultDescription.length > 155 ? 'text-red-500' : 'text-zinc-400'}`}>
+                            {seoDefaultDescription.length}/155
+                        </span>
+                    </div>
                     <textarea
                         value={seoDefaultDescription}
                         onChange={(e) => setSeoDefaultDescription(e.target.value)}
-                        placeholder="e.g. Book yoga and pilates classes in Ann Arbor. Drop-in, memberships, and class packs available."
+                        placeholder={`Book ${businessType.toLowerCase()} classes in ${city}. High-performance training, memberships, and community insights available.`}
                         rows={3}
                         className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white dark:bg-zinc-950 resize-none"
                         maxLength={160}
                     />
-                    <p className="text-xs text-zinc-500 mt-1">Recommended: under 160 characters. Describe your studio and offerings.</p>
+                    <p className="text-xs text-zinc-500 mt-2 leading-relaxed">
+                        A short summary to entice searchers to click. Include a call-to-action like "Book Today" or "Join our Community."
+                    </p>
                 </div>
 
                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
                     <label className="block text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-2 flex items-center gap-2">
-                        <MapPin className="text-emerald-500" /> Location (City / Region)
+                        <MapPin className="text-emerald-500" size={18} /> Local Service Area (City)
                     </label>
                     <input
                         type="text"
                         value={seoLocation}
                         onChange={(e) => setSeoLocation(e.target.value)}
-                        placeholder="e.g. Ann Arbor, MI or Brooklyn, NY"
+                        placeholder={`e.g. ${city}, TX or Brooklyn, NY`}
                         className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white dark:bg-zinc-950"
                     />
-                    <p className="text-xs text-zinc-500 mt-1">Used for local search. Include when people search &quot;yoga studio [city]&quot;.</p>
+                    <p className="text-xs text-zinc-500 mt-2 leading-relaxed">
+                        Critical for <strong>Google Maps</strong> and local search relevance. Ensure this matches your physical location for best performance.
+                    </p>
                 </div>
 
                 <button

@@ -21,7 +21,8 @@ export class GeminiService {
             3. Naturally incorporate keywords related to the topic and the local area.
             4. Structure with clear headings (Markdown).
             5. The content should feel "local" and relevant to the community.
-            6. Output the result in JSON format with "title" and "content" fields.
+            6. Provide a "imagePrompt": a short, descriptive prompt (max 20 words) that describes a high-end, aesthetic photography scene representing this blog post topic for an AI image generator. Avoid text in the image.
+            7. Output the result in JSON format with "title", "content", and "imagePrompt" fields.
         `;
 
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${this.apiKey}`;

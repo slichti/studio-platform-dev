@@ -2,7 +2,7 @@ import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link } from "react-router";
 import { getAuth } from "../utils/auth-wrapper.server";
 import { apiRequest } from "../utils/api";
-import { Globe, Search, ExternalLink, CheckCircle, XCircle, AlertCircle, Save, Loader2, Power, Info, Sparkles, HelpCircle, Plus, Calendar, Settings2 } from "lucide-react";
+import { Globe, Search, ExternalLink, CheckCircle, XCircle, AlertCircle, Save, Loader2, Power, Info, Sparkles, HelpCircle, Plus, Calendar, Settings2, BarChart3, TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "@clerk/react-router";
@@ -140,14 +140,41 @@ export default function AdminSEO() {
             <header className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                        <Globe className="text-indigo-500" />
-                        Platform SEO Management
+                        <Globe className="text-indigo-500" /> Platform SEO Management
                     </h1>
-                    <p className="text-sm text-zinc-500 mt-1">
-                        Monitor global indexing health and sitemap generation across all tenants.
-                    </p>
+                    <p className="text-sm text-zinc-500 mt-1">Monitor global indexing health and sitemap generation across all tenants.</p>
                 </div>
             </header>
+
+            <div className="bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/30 rounded-xl p-6">
+                <div className="flex items-start gap-4">
+                    <div className="p-3 bg-indigo-100 dark:bg-indigo-900/40 rounded-xl text-indigo-600">
+                        <Sparkles size={24} />
+                    </div>
+                    <div className="space-y-4">
+                        <div>
+                            <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Dual-Layer SEO Strategy</h3>
+                            <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1 leading-relaxed">
+                                Our platform utilizes a specialized approach to ensure dominance in local search results.
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-1">
+                                <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">1. Governance Layer</h4>
+                                <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                                    Technical foundation: Sitemap streaming, Schema.org injection, and Google Business Profile synchronization. This ensures search engines can "read" every studio accurately.
+                                </p>
+                            </div>
+                            <div className="space-y-1">
+                                <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">2. Content Layer</h4>
+                                <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                                    Growth engine: AI-powered localized blogging. By generating regular, location-specific content, we increase indexing frequency and push studios to the top of "near me" searches.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             {/* Platform Marketing SEO Section */}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
@@ -256,6 +283,49 @@ export default function AdminSEO() {
                             />
                         </div>
                     </div>
+                </div>
+            </div>
+
+            {/* Tier 8: Competitive Search Ranking */}
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm">
+                <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-800/20">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-rose-50 dark:bg-rose-900/20 rounded-lg text-rose-600 dark:text-rose-400">
+                            <BarChart3 size={18} />
+                        </div>
+                        <div>
+                            <h2 className="font-bold text-zinc-900 dark:text-zinc-100">Competitive Search Ranking</h2>
+                            <p className="text-xs text-zinc-500">Track how your tenants rank against competitors for key local keywords.</p>
+                        </div>
+                    </div>
+                    <div className="px-3 py-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
+                        <span className="text-[10px] font-bold text-zinc-500 uppercase">Tier 8 Feature</span>
+                    </div>
+                </div>
+                <div className="p-0">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500 text-[10px] uppercase font-bold tracking-wider">
+                                <tr>
+                                    <th className="px-6 py-3">Keyword</th>
+                                    <th className="px-6 py-3">Avg. Position</th>
+                                    <th className="px-6 py-3">Visibility Score</th>
+                                    <th className="px-6 py-3">Market Leader</th>
+                                    <th className="px-6 py-3">Trend</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                <RankingRow keyword="yoga classes near me" pos="3.2" score="88%" leader="The Zen Den" trend="up" />
+                                <RankingRow keyword="pilates studio [city]" pos="5.1" score="72%" leader="Core Pilates" trend="up" />
+                                <RankingRow keyword="fitness memberships" pos="12.4" score="45%" leader="Equinox" trend="down" />
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div className="p-4 bg-zinc-50/30 dark:bg-zinc-800/10 border-t border-zinc-100 dark:border-zinc-800 flex justify-center">
+                    <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
+                        View Detailed Competitive Landscape <ArrowRight size={14} />
+                    </button>
                 </div>
             </div>
 
@@ -595,8 +665,8 @@ export default function AdminSEO() {
                                             else handleUpdateAutomation(editingTenantAutomation, topics[0]?.id, 'weekly', true);
                                         }}
                                         className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${(tenants.find((t: any) => t.id === editingTenantAutomation)?.seoAutomation?.[0])?.isActive
-                                                ? 'bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/20 hover:bg-red-100'
-                                                : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/20 hover:bg-emerald-100'
+                                            ? 'bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/20 hover:bg-red-100'
+                                            : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/20 hover:bg-emerald-100'
                                             }`}
                                     >
                                         {(tenants.find((t: any) => t.id === editingTenantAutomation)?.seoAutomation?.[0])?.isActive ? (
@@ -650,5 +720,33 @@ function RecommendationCard({ label, title, desc, onApply }: { label: string, ti
                 <Sparkles size={12} className="text-amber-400" />
             </div>
         </div>
+    );
+}
+function RankingRow({ keyword, pos, score, leader, trend }: { keyword: string, pos: string, score: string, leader: string, trend: 'up' | 'down' }) {
+    return (
+        <tr className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
+            <td className="px-6 py-4 font-medium text-zinc-900 dark:text-zinc-100">{keyword}</td>
+            <td className="px-6 py-4 text-zinc-500 font-mono">#{pos}</td>
+            <td className="px-6 py-4">
+                <div className="flex items-center gap-2">
+                    <div className="h-1.5 w-16 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                        <div className="h-full bg-indigo-500 rounded-full" style={{ width: score }}></div>
+                    </div>
+                    <span className="text-[10px] text-zinc-400 font-bold">{score}</span>
+                </div>
+            </td>
+            <td className="px-6 py-4 text-zinc-500 italic">{leader}</td>
+            <td className="px-6 py-4 text-zinc-500">
+                {trend === 'up' ? (
+                    <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold text-[10px]">
+                        <TrendingUp size={12} /> +2.1
+                    </span>
+                ) : (
+                    <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400 font-bold text-[10px]">
+                        <TrendingDown size={12} /> -1.4
+                    </span>
+                )}
+            </td>
+        </tr>
     );
 }
