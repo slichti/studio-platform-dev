@@ -32,5 +32,5 @@ Tier 3 introduces high-level AI features and deep integration with the LMS and V
 | T3.2 | Video Schema | VideoObject schema for on-demand videos | Completed |
 | T3.3 | Multi-Loc SEO| Sub-sitemaps for multi-studio tenants | Completed |
 | T3.4 | Review AI | Generate draft responses for Google Reviews using tenant context | Pending |
-| T3.5 | Local Pages | Programmatic generation of neighborhood-specific landing pages | Pending |
-| T3.6 | SEO Dashboard | Tenant-facing ranking and visibility metrics (via SE Ranking API) | Pending |
+| T3.5 | Local Pages | Programmatic generation of neighborhood-specific landing pages | Completed |
+| T3.6 | SEO Dashboard | Tenant-facing ranking and visibility metrics (via SE Ranking API) | Completed |

@@ -632,3 +632,23 @@ Tracked from recommendation backlog. Status updated as work completes.
 - **Student view – Courses**: When viewing as a student, sidebar shows "Courses" (not "Course Management"); course list shows "View" linking to portal course page; no "Manage" or "New Course". (`studio.$slug.tsx`, `CoursesPage.tsx`)
 - **Booking insert fix**: Omit `usedPackId` from insert when null so FK to `purchased_packs` is not violated (avoids empty string binding). (`packages/api/src/services/bookings.ts`)
 
+---
+
+## Phase 14 — SEO Integration (Verified)
+
+**Summary:** Comprehensive SEO integration completed across Platform and Tenant levels, including automated schema generation, dynamic sitemaps, and indexing APIs.
+
+### Tier 1 & 2: Technical SEO & Local Integration ✅
+- **Edge Routing & HTMLRewriter**: Middleware (`seo.ts`) injects dynamic `<title>`, `<meta>`, and JSON-LD schemas (`LocalBusiness`, `Event`, `VideoObject`) into HTML responses.
+- **Streamed Sitemap**: `/sitemap.xml` uses memory-efficient streaming to expose tenants, class schedules, videos, and multi-location sub-pages.
+- **Platform SEO Admin**: `admin.seo.tsx` allows platform-wide defaults, toggling tenant indexing, and monitoring sitemap health + queue backlog.
+- **Tenant SEO Settings**: Studio admins can configure their NAP data, business type, and SEO title/description overrides (`studio.$slug.settings.seo.tsx`).
+- **Google Automation**: Integration with Google Indexing API (via Cloudflare Queues) and GBP OAuth connection implemented.
+- **Review Engine**: Automated Google Review prompts trigger via class check-in data via `AutomationsService`.
+
+### Tier 3: Advanced Automation ✅
+- **AI Meta-Gen & Video Schema**: Dynamic meta definitions and LMS/Video SEO schema generation implemented.
+- **Multi-Location Pages**: Landing pages per location exist (`portal.$slug.locations.$locationSlug.tsx`) and are exposed to streaming sitemaps.
+- **SEO Analytics**: Tenant-facing SEO Dashboard (`studio.$slug.analytics.seo.tsx`) tracks Indexing Status, GBP connection, Sitemap Health, and Location Search Dominance.
+- **Content Automation**: Initial Gemini API integration exists (`gemini.ts`) for AI blog generation.
+- **Pending**: T3.4 (Review AI – Gemini auto-responders) remains pending for future implementation.
