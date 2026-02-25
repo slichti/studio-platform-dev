@@ -554,6 +554,7 @@ const getMemberNotesRoute = createRoute({
     responses: {
         200: { content: { 'application/json': { schema: z.object({ notes: z.array(z.any()) }) } }, description: 'Notes' },
         403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' },
+        404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Member not found' },
         500: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Internal Server Error' }
     }
 });
@@ -678,7 +679,8 @@ const createMemberNoteRoute = createRoute({
     responses: {
         200: { content: { 'application/json': { schema: z.object({ note: z.any() }) } }, description: 'Note created' }, // Schema could be tighter
         400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Author error' },
-        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' }
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' },
+        404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Member not found' }
     }
 });
 
