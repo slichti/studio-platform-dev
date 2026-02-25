@@ -24,15 +24,14 @@ export interface SeedOptions {
 /**
  * Helper to chunk batch inserts to stay within D1 parameter limits.
  */
-async function batchInsert(db: any, table: any, values: any[], onConflict: boolean = true) {
+async function batchInsert(db: any, table: any, values: any[], onConflict: boolean = true, maxChunk?: number) {
     if (values.length === 0) return;
 
     const tableConfig = getTableConfig(table);
     const columnsPerRow = tableConfig.columns.length;
 
-    // D1 hard limit: 100 bound parameters per query.
-    // For a 16-column table, this means max 6 rows per batch.
-    const CHUNK_SIZE = Math.max(1, Math.floor(100 / columnsPerRow));
+    // D1 hard limit: 100 bound parameters per query; use 99 to stay safe.
+    const CHUNK_SIZE = maxChunk ?? Math.max(1, Math.floor(99 / columnsPerRow));
 
     console.log(`[batchInsert] Table: ${tableConfig.name}, Rows: ${values.length}, Cols/Row: ${columnsPerRow}, ChunkSize: ${CHUNK_SIZE}, onConflict: ${onConflict}`);
 
@@ -246,6 +245,7 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
             location = (await tx.insert(locations).values({
                 id: 'loc_' + crypto.randomUUID(),
                 tenantId: tenantId,
+                slug: 'main-studio',
                 name: "Main Studio",
                 address: "123 Yoga Lane",
                 isPrimary: true,
@@ -284,7 +284,8 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
             status: 'active' as const,
             createdAt: now
         }));
-        await batchInsert(tx, subscriptions, subscriptionValues);
+        // Plain insert, smaller chunks (3 rows = 45 params) to stay well under D1's 100-param limit.
+        await batchInsert(tx, subscriptions, subscriptionValues, false, 3);
 
         // 7. Create Classes (Schedule)
         console.log("Creating schedule...");
