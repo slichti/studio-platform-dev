@@ -562,7 +562,28 @@ app.openapi(getMemberNotesRoute, async (c) => {
     try {
         if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
         const db = createDb(c.env.DB);
-        const list = await db.query.studentNotes.findMany({ where: eq(studentNotes.studentId, c.req.valid('param').id), orderBy: [desc(studentNotes.createdAt)], with: { author: { with: { user: true } } } });
+        const tenant = c.get('tenant')!;
+        const memberId = c.req.valid('param').id;
+
+        // Ensure the member exists within the current tenant
+        const member = await db.query.tenantMembers.findFirst({
+            where: and(
+                eq(tenantMembers.id, memberId),
+                eq(tenantMembers.tenantId, tenant.id)
+            ),
+            columns: { id: true }
+        });
+        if (!member) return c.json({ error: 'Member not found' }, 404);
+
+        // Scope notes to both the member and tenant for isolation
+        const list = await db.query.studentNotes.findMany({
+            where: and(
+                eq(studentNotes.studentId, memberId),
+                eq(studentNotes.tenantId, tenant.id)
+            ),
+            orderBy: [desc(studentNotes.createdAt)],
+            with: { author: { with: { user: true } } }
+        });
         return c.json({ notes: list as any[] }, 200);
     } catch (e) {
         console.error('[API] Error fetching member notes:', e);
@@ -664,11 +685,34 @@ const createMemberNoteRoute = createRoute({
 app.openapi(createMemberNoteRoute, async (c) => {
     if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
-    const author = await db.query.tenantMembers.findFirst({ where: and(eq(tenantMembers.userId, c.get('auth').userId), eq(tenantMembers.tenantId, c.get('tenant')!.id)) });
+    const tenant = c.get('tenant')!;
+    const author = await db.query.tenantMembers.findFirst({
+        where: and(
+            eq(tenantMembers.userId, c.get('auth').userId),
+            eq(tenantMembers.tenantId, tenant.id)
+        )
+    });
     if (!author) return c.json({ error: 'Author error' }, 400);
+    const memberId = c.req.valid('param').id;
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(
+            eq(tenantMembers.id, memberId),
+            eq(tenantMembers.tenantId, tenant.id)
+        ),
+        columns: { id: true }
+    });
+    if (!member) return c.json({ error: 'Member not found' }, 404);
+
     const { note } = c.req.valid('json');
     const id = crypto.randomUUID();
-    await db.insert(studentNotes).values({ id, studentId: c.req.valid('param').id, authorId: author.id, note, tenantId: c.get('tenant')!.id, createdAt: new Date() }).run();
+    await db.insert(studentNotes).values({
+        id,
+        studentId: memberId,
+        authorId: author.id,
+        note,
+        tenantId: tenant.id,
+        createdAt: new Date()
+    }).run();
     return c.json({ note: { id, note } }, 200);
 });
 

@@ -415,6 +415,7 @@ const authenticatedPaths = [
   '/challenges', '/challenges/*',
   '/tasks', '/tasks/*',
   '/video', '/video/*',
+  '/chat', '/chat/*',
   '/quizzes', '/quizzes/*',
   '/courses', '/courses/*',
   '/reviews', '/reviews/*'
@@ -423,7 +424,6 @@ const authenticatedPaths = [
 const publicStudioPaths = [
   '/classes', '/classes/*',
   '/commerce', '/commerce/*',
-  '/chat', '/chat/*',
   '/uploads/tenants/*/images/*', // Allow public images
   '/uploads/tenants/*/branding/*' // Allow public branding (logos)
 ];

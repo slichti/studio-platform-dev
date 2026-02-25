@@ -320,6 +320,11 @@ app.delete('/:id', async (c) => {
     });
     if (!b) return c.json({ error: "Not found" }, 404);
 
+    // Ensure booking belongs to the current tenant
+    if (b.member.tenantId !== tenant.id) {
+        return c.json({ error: "Forbidden" }, 403);
+    }
+
     if (b.member.userId !== auth.userId && !c.get('can')('manage_classes')) {
         return c.json({ error: "Forbidden" }, 403);
     }
@@ -332,8 +337,17 @@ app.delete('/:id', async (c) => {
 // PATCH /:id
 app.patch('/:id', async (c) => {
     const db = createDb(c.env.DB);
-    const b = await db.select().from(bookings).where(eq(bookings.id, c.req.param('id'))).get();
+    const tenant = c.get('tenant')!;
+    const b = await db.query.bookings.findFirst({
+        where: eq(bookings.id, c.req.param('id')),
+        with: { member: true }
+    });
     if (!b) return c.json({ error: "Not found" }, 404);
+
+    // Ensure booking belongs to the current tenant
+    if (b.member.tenantId !== tenant.id) {
+        return c.json({ error: "Forbidden" }, 403);
+    }
 
     const auth = c.get('auth')!;
     const member = await db.select().from(tenantMembers).where(and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, c.get('tenant')!.id))).get();

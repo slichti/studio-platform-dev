@@ -59,10 +59,14 @@ Following a comprehensive audit of 92+ API routes, all critical IDOR and privile
 ### IDOR Prevention
 Explicit ownership checks are placed **before** any DB read to prevent Insecure Direct Object Reference attacks:
 
-- **Bookings**: `GET /bookings/:id` verifies `booking.memberId === currentMember.id` OR `can('manage_classes')`.
+- **Bookings (reads)**: `GET /bookings/:id` verifies `booking.memberId === currentMember.id` OR `can('manage_classes')`.
+- **Bookings (mutations)**: `PATCH /bookings/:id` and `DELETE /bookings/:id` also assert that the booking's member belongs to the active tenant before allowing staff-level overrides.
 - **Tags**: `GET /tags/assignments/:targetId` verifies `can('manage_members')` — prevents students from discovering tag assignments on arbitrary member IDs.
 - **Custom Fields**: `GET /custom-fields/values/:targetId` verifies `can('manage_members')` — prevents students from reading field values for arbitrary entities.
 - **Packs**: `GET /members/me/packs` is scoped to `memberId` of the authenticated user — no ID parameter accepted.
+‑ **Member Notes**: `GET/POST /members/:id/notes` validate that the target member belongs to the current tenant and always filter notes by both `studentId` and `tenantId`.
+‑ **Progress Entries**: `POST /progress/entries` ensures the `memberId` used for staff-logged entries exists in the current tenant before writing any data.
+‑ **Chat**: `/chat/*` routes require authentication and only return rooms/messages whose `tenantId` matches the resolved tenant context.
 
 ## Input Sanitization
 

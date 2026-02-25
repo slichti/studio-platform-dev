@@ -163,6 +163,14 @@ export default function PlatformTenants() {
                                 <span className="w-2 h-2 rounded-full bg-zinc-500" />
                                 <strong>Archived:</strong> Scheduled for deletion.
                             </li>
+                            <li className="flex items-start gap-3">
+                                <span className="w-2 h-2 rounded-full bg-red-600" />
+                                <div>
+                                    <strong>Panic Switch:</strong> The <code>studentAccessDisabled</code> flag blocks public schedules and guest
+                                    flows for the tenant while still allowing authenticated owners/admins (and platform admins) to access
+                                    dashboards and billing tools.
+                                </div>
+                            </li>
                         </ul>
                     </div>
                 </section>

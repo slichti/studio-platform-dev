@@ -181,14 +181,6 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
     // Default 'can' helper for unauthenticated or early returns
     c.set('can', () => false);
 
-    // Authentication is required for studio-scoped routes
-    if (!auth) {
-        // [BYPASS] Some routes might be public but registered under /studios, /locations etc?
-        // Actually, if it's in studioPaths, we usually expect a tenant.
-        // If it's also in authenticatedPaths, authMiddleware should have caught it.
-        // Let's just avoid 500ing.
-        return await next();
-    }
     let roles: string[] = [];
     let assignedPermissions: string[] = [];
     let isPlatformAdmin = false;

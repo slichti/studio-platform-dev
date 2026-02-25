@@ -69,7 +69,26 @@ app.patch('/rooms/:id', async (c) => {
 app.get('/rooms/:id/messages', async (c) => {
     if (!c.get('can')('manage_marketing') && !c.get('can')('manage_tenant')) return c.json({ error: 'Unauthorized' }, 403);
     const db = drizzle(c.env.DB, { schema });
-    return c.json((await db.query.chatMessages.findMany({ where: eq(schema.chatMessages.roomId, c.req.param('id')), orderBy: [desc(schema.chatMessages.createdAt)], limit: 50, with: { user: { columns: { id: true, email: true, profile: true } } } })).reverse());
+    const tenantId = c.get('tenant')!.id;
+    const roomId = c.req.param('id');
+
+    // Ensure the room belongs to the current tenant
+    const room = await db.query.chatRooms.findFirst({
+        where: and(
+            eq(schema.chatRooms.id, roomId),
+            eq(schema.chatRooms.tenantId, tenantId)
+        ),
+        columns: { id: true }
+    });
+    if (!room) return c.json({ error: 'Not found' }, 404);
+
+    const messages = await db.query.chatMessages.findMany({
+        where: eq(schema.chatMessages.roomId, roomId),
+        orderBy: [desc(schema.chatMessages.createdAt)],
+        limit: 50,
+        with: { user: { columns: { id: true, email: true, profile: true } } }
+    });
+    return c.json(messages.reverse());
 });
 
 // POST /rooms/:id/websocket

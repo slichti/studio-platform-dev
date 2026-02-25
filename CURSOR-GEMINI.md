@@ -111,6 +111,13 @@ Audited all 92+ API routes and 8+ portal UI routes for improper student/customer
 - **portal.$slug.tsx**: Enforced tenant membership check — non-members redirected to `/studio/:slug/join`
 - **portal.$slug.profile.tsx**: Replaced hardcoded stats with live API data
 
+### Tenant Isolation Hardening (Follow-up)
+- Member notes (`/members/:id/notes`) now validate that the member belongs to the active tenant and always filter notes by both `studentId` and `tenantId`.
+- Chat routes (`/chat/*`) require authentication and only return rooms/messages for the current tenant.
+- Bookings mutations (`PATCH/DELETE /bookings/:id`) assert that the booking's member is in the active tenant before allowing staff overrides.
+- Progress logging (`POST /progress/entries`) verifies that any staff-specified `memberId` belongs to the tenant.
+- Tenant lifecycle guards (archived, subscription status, `studentAccessDisabled`) are applied to both authenticated and anonymous requests so the “panic switch” truly disables public access for a tenant.
+
 ---
 
 ## 📱 Student Portal Gaps Resolved (Feb 2026 — Session 3)

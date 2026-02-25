@@ -196,6 +196,7 @@ This summarizes **what a logged-in student can do** across web and mobile, enfor
 Underlying enforcement mechanisms:
 - API routes use `c.get('can')(permission)` (via `PermissionService`) for coarse-grained RBAC.
 - Many student routes omit explicit `can()` checks but enforce **ownership** before any DB read/write (e.g., `booking.memberId === currentMember.id`).
+- Cross-tenant isolation is enforced by requiring that IDs (members, bookings, chat rooms, progress entries) not only match the caller's role but also belong to the current tenant (`tenantId` checks in tenant middleware and route handlers).
 
 ---
 

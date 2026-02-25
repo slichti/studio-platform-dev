@@ -264,6 +264,13 @@ export default function PlatformRBAC() {
                         </div>
                     ))}
                 </div>
+
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-4">
+                    In addition to permission checks, cross-tenant isolation is enforced everywhere by combining{" "}
+                    <code className="font-mono text-xs bg-zinc-100 dark:bg-zinc-800 px-1 rounded">tenantId</code>-scoped queries with
+                    ownership rules (e.g. bookings, progress entries, member notes, and chat rooms must all belong to
+                    the active tenant before any read or write is allowed).
+                </p>
             </section>
 
             {/* Student Capability Matrix */}

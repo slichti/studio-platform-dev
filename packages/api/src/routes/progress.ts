@@ -1,8 +1,9 @@
 import { Hono } from 'hono';
+import { and, eq } from 'drizzle-orm';
 import { createDb } from '../db';
 import { HonoContext } from '../types';
 import { ProgressService } from '../services/progress';
-import { progressMetricDefinitions } from '@studio/db/src/schema'; // Type import if needed
+import { progressMetricDefinitions, tenantMembers } from '@studio/db/src/schema'; // Type import if needed
 
 const app = new Hono<HonoContext>();
 
@@ -90,6 +91,21 @@ app.post('/entries', async (c) => {
 
     if (!targetMemberId) {
         return c.json({ error: 'Member not found' }, 400);
+    }
+
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+
+    // Ensure the target member exists within the current tenant (for both students and staff-specified memberId)
+    const targetMember = await db.query.tenantMembers.findFirst({
+        where: and(
+            eq(tenantMembers.id, targetMemberId),
+            eq(tenantMembers.tenantId, tenant.id)
+        ),
+        columns: { id: true }
+    });
+    if (!targetMember) {
+        return c.json({ error: 'Member not found' }, 404);
     }
 
     const service = getService(c);
