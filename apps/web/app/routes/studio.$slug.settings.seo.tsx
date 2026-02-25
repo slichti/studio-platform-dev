@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useOutletContext, Link, useRevalidator } from "react-router";
 import { apiRequest } from "~/utils/api";
 import { useAuth } from "@clerk/react-router";
-import { Search, MapPin, Save } from "lucide-react";
+import { Search, MapPin, Save, Shield } from "lucide-react";
 import { toast } from "sonner";
 
 export default function SettingsSEO() {
@@ -13,6 +13,7 @@ export default function SettingsSEO() {
     const [seoDefaultTitle, setSeoDefaultTitle] = useState("");
     const [seoDefaultDescription, setSeoDefaultDescription] = useState("");
     const [seoLocation, setSeoLocation] = useState("");
+    const [robotsDisallowText, setRobotsDisallowText] = useState("");
     const [initialized, setInitialized] = useState(false);
 
     useEffect(() => {
@@ -20,11 +21,18 @@ export default function SettingsSEO() {
         setSeoDefaultTitle(s.defaultTitle || "");
         setSeoDefaultDescription(s.defaultDescription || "");
         setSeoLocation(s.location || "");
+        const disallow = s.robotsDisallow;
+        setRobotsDisallowText(Array.isArray(disallow) ? disallow.join("\n") : "");
         setInitialized(true);
     }, [tenant?.settings]);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+        // Safety rail: require at least one of title or description
+        if (!seoDefaultTitle.trim() && !seoDefaultDescription.trim()) {
+            toast.error("Add at least a search title or description before saving SEO settings.");
+            return;
+        }
         setLoading(true);
         try {
             const token = await getToken();
@@ -39,6 +47,11 @@ export default function SettingsSEO() {
                             defaultTitle: seoDefaultTitle || undefined,
                             defaultDescription: seoDefaultDescription || undefined,
                             location: seoLocation || undefined,
+                            robotsDisallow: robotsDisallowText
+                                .split("\n")
+                                .map((p) => p.trim())
+                                .filter(Boolean)
+                                .map((p) => (p.startsWith("/") ? p : `/${p}`)),
                         },
                     },
                 }),
@@ -69,6 +82,9 @@ export default function SettingsSEO() {
 
     const city = getCity();
     const businessType = tenant.branding?.businessType || "Yoga Studio";
+    const titleTooLong = seoDefaultTitle.length > 60;
+    const descriptionTooLong = seoDefaultDescription.length > 155;
+    const isSaveDisabled = !seoDefaultTitle.trim() && !seoDefaultDescription.trim();
 
     return (
         <div className="max-w-2xl pb-10">
@@ -103,7 +119,7 @@ export default function SettingsSEO() {
                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-2">
                         <label className="block text-sm font-semibold text-zinc-900 dark:text-zinc-100">Search Result Title</label>
-                        <span className={`text-[10px] font-mono ${seoDefaultTitle.length > 60 ? 'text-red-500' : 'text-zinc-400'}`}>
+                        <span className={`text-[10px] font-mono ${titleTooLong ? 'text-red-500' : 'text-zinc-400'}`}>
                             {seoDefaultTitle.length}/60
                         </span>
                     </div>
@@ -118,12 +134,17 @@ export default function SettingsSEO() {
                     <p className="text-xs text-zinc-500 mt-2 leading-relaxed">
                         This is the main headline in search results. <strong>Pro Tip:</strong> Place your most important keyword (e.g., {businessType}) first.
                     </p>
+                    {titleTooLong && (
+                        <p className="text-[11px] text-red-500 mt-1">
+                            Titles over ~60 characters may be truncated in Google results. Consider shortening this slightly.
+                        </p>
+                    )}
                 </div>
 
                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-2">
                         <label className="block text-sm font-semibold text-zinc-900 dark:text-zinc-100">Search Meta Description</label>
-                        <span className={`text-[10px] font-mono ${seoDefaultDescription.length > 155 ? 'text-red-500' : 'text-zinc-400'}`}>
+                        <span className={`text-[10px] font-mono ${descriptionTooLong ? 'text-red-500' : 'text-zinc-400'}`}>
                             {seoDefaultDescription.length}/155
                         </span>
                     </div>
@@ -138,6 +159,11 @@ export default function SettingsSEO() {
                     <p className="text-xs text-zinc-500 mt-2 leading-relaxed">
                         A short summary to entice searchers to click. Include a call-to-action like "Book Today" or "Join our Community."
                     </p>
+                    {descriptionTooLong && (
+                        <p className="text-[11px] text-red-500 mt-1">
+                            Descriptions longer than ~155 characters may be truncated. Focus on the most important benefits first.
+                        </p>
+                    )}
                 </div>
 
                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
@@ -156,13 +182,36 @@ export default function SettingsSEO() {
                     </p>
                 </div>
 
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="flex items-center gap-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-5 py-2.5 rounded-lg font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-70"
-                >
-                    <Save size={16} /> {loading ? "Saving…" : "Save SEO Settings"}
-                </button>
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
+                    <label className="block text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-2 flex items-center gap-2">
+                        <Shield className="text-zinc-500" size={18} /> Paths to hide from search engines
+                    </label>
+                    <textarea
+                        value={robotsDisallowText}
+                        onChange={(e) => setRobotsDisallowText(e.target.value)}
+                        placeholder={"/draft\n/preview\n/private"}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white dark:bg-zinc-950 resize-none font-mono text-sm"
+                    />
+                    <p className="text-xs text-zinc-500 mt-2 leading-relaxed">
+                        One path per line (e.g. <code className="bg-zinc-100 dark:bg-zinc-800 px-1 rounded">/draft</code>, <code className="bg-zinc-100 dark:bg-zinc-800 px-1 rounded">/preview</code>). These are added under <code className="bg-zinc-100 dark:bg-zinc-800 px-1 rounded">/studios/{tenant.slug}</code> in the global robots.txt so crawlers do not index them. Leave empty to allow all your studio paths.
+                    </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    <button
+                        type="submit"
+                        disabled={loading || isSaveDisabled}
+                        className="flex items-center gap-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-5 py-2.5 rounded-lg font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-70"
+                    >
+                        <Save size={16} /> {loading ? "Saving…" : "Save SEO Settings"}
+                    </button>
+                    {isSaveDisabled && (
+                        <span className="text-[11px] text-zinc-500">
+                            Add a title or description to enable saving.
+                        </span>
+                    )}
+                </div>
             </form>
         </div>
     );

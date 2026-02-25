@@ -41,6 +41,12 @@ The system operates across three tiers:
 - **Cross-Platform Syndication**: Blog posts are automatically distributed to the Marketing Site (Public), Student Portal (Engaged), and Mobile App (On-the-go).
 - **Structured Data**: Automatic injection of `BlogPosting` schema to maximize organic reach for studio locations.
 
+### Review AI (T3.4) & Crawl Controls
+- **Review AI**: Per-review AI draft replies for Google Reviews via Gemini (`GeminiService.generateReviewReplyDraft`). Stored in `reviews.reply_draft` / `reviews.reply_draft_generated_at`. Studio Reviews page: Generate / Edit / Copy / Clear. API: `POST /reviews/:id/draft-reply`, `PATCH /reviews/:id/reply-draft`. Requires `GEMINI_API_KEY`.
+- **Per-tenant robots.txt**: Platform serves `GET /public/robots.txt` with safe defaults (Disallow: /admin, /studio, /sign-in, etc.) plus per-tenant `Disallow: /studios/<slug><path>` for each path in `tenant.settings.seo.robotsDisallow`. Web app `robots.txt` loader fetches from API with fallback. Tenants configure "Paths to hide from search engines" in **Settings → SEO** (one path per line, e.g. `/draft`, `/preview`).
+- **LLM / GEO Snapshot**: `GET /aggregators/llm-snapshot` returns a machine-readable JSON profile per tenant (studio info + up to 25 upcoming classes with booking URLs) for external LLMs and GEO visibility.
+- **SEO safety rails**: Tenant SEO UI validates at least one of title or description; warns when title > 60 or description > 155 characters; Save disabled when both fields empty.
+
 ### Phase 8: Strategic Polish & AI Enrichment
 - **Localized Strategy Guidance**: Built-in strategy overlays on the Admin Dashboard to guide internal staff on governing platform SEO.
 - **Competitive Ranking**: Real-time tracking of keyword performance against local competitors for each studio.
@@ -64,7 +70,8 @@ Videos and classes are enriched with SEO metadata:
 
 ## Configuration
 
-Owners can customize SEO settings via the Studio Admin Dashboard under **Settings > SEO**.
-- **Default Meta Description**: Fallback description for the studio.
-- **Keywords**: Comma-separated list for legacy search support.
-- **Review Prompt Link**: The Google Maps direct review URL.
+Owners can customize SEO settings via the Studio Admin Dashboard under **Settings → SEO & Discoverability**.
+- **Default Meta Title & Description**: Fallback for search results and social shares; validation warns on empty or over-length.
+- **Local Service Area (City)**: Used for local search and meta (e.g. "Yoga Studio in Ann Arbor").
+- **Paths to hide from search engines**: Optional list of paths (e.g. `/draft`, `/preview`) added as `Disallow: /studios/<slug><path>` in the global robots.txt.
+- **Review Prompt Link**: The Google Maps direct review URL (in tenant SEO/GBP config). Use **Marketing → Reviews** for Review AI draft replies.

@@ -57,7 +57,7 @@ export const docsIndex = [
     {
         title: "Website Builder",
         href: "/documentation/website",
-        content: "Drag and Drop, SEO, Widgets, Embeds, Domains, Pages, Hero Section",
+        content: "Drag and Drop, SEO, Widgets, Embeds, Domains, Pages, Hero Section, robots.txt, Review AI, meta title, meta description, paths to hide",
         category: "Online Presence"
     },
     {

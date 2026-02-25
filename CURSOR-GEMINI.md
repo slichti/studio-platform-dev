@@ -653,10 +653,12 @@ Tracked from recommendation backlog. Status updated as work completes.
 - **Content Automation**: Initial Gemini API integration exists (`gemini.ts`) for AI blog generation.
 - **T3.4 Review AI (Completed)**: Gemini-powered draft replies for Google Reviews; stored per-review (`reply_draft`, `reply_draft_generated_at`); API `POST /reviews/:id/draft-reply` and `PATCH /reviews/:id/reply-draft`; Studio Reviews page: Generate / Edit / Copy / Clear. Requires `GEMINI_API_KEY`.
 
+### SEO Enhancements (F.1, F.3, F.4) ✅
+- **F.1 LLM/GEO Snapshot**: `GET /aggregators/llm-snapshot` returns machine-readable JSON per tenant (studio + up to 25 classes with booking URLs).
+- **F.3 Robots overlay**: `GET /public/robots.txt` merges platform defaults with per-tenant `Disallow: /studios/<slug><path>` from `settings.seo.robotsDisallow`. Web robots.txt loader fetches from API; tenant SEO UI has “Paths to hide from search engines” (one per line).
+- **F.4 Safety rails**: Tenant SEO UI requires at least title or description; warns when title &gt; 60 or description &gt; 155 chars; Save disabled when both empty.
+
 ### SEO Future Ideas (Tracked in SEO-PROGRESS.md)
-- **F.1** LLM/GEO Snapshot endpoint per tenant for GEO visibility.
 - **F.2** Canonical & hreflang strategy for custom domains and multi-region.
-- **F.3** Per-tenant robots.txt overlay and crawl budget controls.
-- **F.4** SEO safety rails (validation for empty/duplicate/over-long meta).
 - **F.5** Internal link scaffolding from activity data.
 - **F.6** Programmatic FAQ harvest from support/class copy → FAQPage schema.

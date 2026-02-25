@@ -44,9 +44,9 @@ export default function WebsiteDocs() {
                             <Search className="text-blue-500" /> SEO Optimization
                         </h2>
                         <ul className="space-y-2 text-zinc-600 dark:text-zinc-400 text-sm">
-                            <li className="flex gap-2"><span className="text-blue-500">✓</span> Custom Meta Titles & Descriptions</li>
+                            <li className="flex gap-2"><span className="text-blue-500">✓</span> Custom Meta Titles & Descriptions (with length validation)</li>
                             <li className="flex gap-2"><span className="text-blue-500">✓</span> Open Graph Tags (Title, Description, Image) for beautiful social shares</li>
-                            <li className="flex gap-2"><span className="text-blue-500">✓</span> Automatic Sitemap Generation</li>
+                            <li className="flex gap-2"><span className="text-blue-500">✓</span> Automatic Sitemap Generation &amp; per-tenant robots.txt overlay</li>
                             <li className="flex gap-2"><span className="text-blue-500">✓</span> Fast Loading (Edge Cached)</li>
                         </ul>
                     </div>
@@ -82,7 +82,7 @@ export default function WebsiteDocs() {
                         <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-200 dark:border-emerald-800/50">
                             <strong className="text-emerald-900 dark:text-emerald-300">Self-Service Controls</strong>
                             <p className="text-sm text-emerald-700 dark:text-emerald-400 mt-1">
-                                In <strong>Settings → Website</strong>, set a custom SEO title and description for each page. Use keywords like &quot;yoga classes&quot;, &quot;small gym&quot;, &quot;fitness studio&quot; plus your location to improve discoverability.
+                                In <strong>Settings → SEO &amp; Discoverability</strong>, set default meta title, description, and local service area. Optionally add paths to hide from search engines (e.g. <code className="text-xs">/draft</code>, <code className="text-xs">/preview</code>) so they appear in the platform robots.txt. Use <strong>Marketing → Reviews</strong> for AI-generated reply drafts to Google reviews.
                             </p>
                         </div>
                     </div>
