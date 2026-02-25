@@ -215,6 +215,31 @@ The platform implements dynamic local SEO management directly at the Cloudflare 
 - **Dynamic Meta Injection**: An `HTMLRewriter` middleware intercepts all studio page requests, injecting tailored `<title>`, `<meta>` descriptions, and Schema.org rich results (e.g. `YogaStudio`, `VideoObject`) fetched directly from D1, bypassing origin server rendering constraints.
 - **Streaming Sitemaps**: The global `/sitemap.xml` route generates infinite-scale sitemaps by utilizing D1 cursors and Cloudflare's `TransformStream` to stream all tenant routes without hitting memory limits.
 
+### 10. Real-time Chat & Support
+The platform includes a unified chat system powered by Cloudflare Durable Objects to support both **platform-level support** and **per-tenant studio support**.
+
+- **Public Guest Chat (Platform & Studios)**:
+  - Public visitors can open a chat without authentication via the `GuestChatWidget` (e.g. `/platform/support` or `/:slug/support`).
+  - The widget calls `POST /guest/chat/start` with `{ tenantSlug, name, email, message }`.
+  - The API:
+    - Finds or creates a `users` record by email.
+    - Finds or creates a `tenantMembers` record for that user in the target tenant (including the `platform` tenant).
+    - Creates a `chatRooms` row (`type = 'support'`, `tenantId` set to the resolved tenant) and seeds the initial `chatMessages` row.
+    - Returns a **guest WebSocket token** and `roomId` used to connect to `/chat/rooms/:id/websocket`.
+
+- **Tenant Studio Support Chat (Authenticated)**:
+  - Inside the studio shell (`studio.$slug`), authenticated owners/admins see a floating `ChatWidget`.
+  - The widget connects to a stable `roomId` such as `support-${me.id}` with the current Clerk session token.
+  - On the server, `authMiddleware` and `tenantMiddleware` identify the **exact user and tenant**, so internal support tools can immediately see which studio is asking for help.
+
+- **Platform Support Chat (Marketing Site / Platform Shell)**:
+  - The marketing homepage and platform admin shell also render `ChatWidget` instances with `tenantId = "platform"`.
+  - For signed-in platform admins or staff, the worker knows both the **global user** and the associated studio (if applicable), enabling instant, contextual support.
+
+All chat traffic routes through `/chat/*` (HTTP + WebSocket) and enforces:
+- Authentication (via Clerk JWT or signed guest token) for WebSocket upgrades.
+- Tenant isolation by requiring `chatRooms.tenantId` to match the resolved tenant before returning rooms or messages.
+
 ## Security Implementation
 
 ### Authentication Strategy
