@@ -275,17 +275,18 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
 
         // 6. Create Student Subscriptions (to show up in CUST count)
         console.log("Creating student subscriptions...");
-        const subscriptionValues = students.map(student => ({
-            id: 'sub_' + crypto.randomUUID(),
-            userId: student.userId,
-            tenantId: tenantId,
-            memberId: student.id,
-            planId: planValues[0].id, // Default to Unlimited Month
-            status: 'active' as const,
-            createdAt: now
-        }));
-        // Plain insert, smaller chunks (3 rows = 45 params) to stay well under D1's 100-param limit.
-        await batchInsert(tx, subscriptions, subscriptionValues, false, 3);
+        const planId = planValues[0].id;
+        for (const student of students) {
+            await tx.insert(subscriptions).values({
+                id: 'sub_' + crypto.randomUUID(),
+                userId: student.userId,
+                tenantId: tenantId,
+                memberId: student.id,
+                planId: planId,
+                status: 'active' as const,
+                createdAt: now
+            }).run();
+        }
 
         // 7. Create Classes (Schedule)
         console.log("Creating schedule...");
