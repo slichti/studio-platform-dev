@@ -273,25 +273,11 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
         }));
         await batchInsert(tx, membershipPlans, planValues);
 
-        // 6. Create Student Subscriptions (to show up in CUST count)
-        console.log("Creating student subscriptions...");
-        const planId = planValues[0].id;
-        for (const student of students) {
-            try {
-                await tx.insert(subscriptions).values({
-                    id: 'sub_' + crypto.randomUUID(),
-                    userId: student.userId,
-                    tenantId: tenantId,
-                    memberId: student.id,
-                    planId: planId,
-                    status: 'active' as const,
-                    createdAt: now
-                }).run();
-            } catch (e: any) {
-                console.error('[seedTenant] Subscription insert failed (non-fatal):', e.message);
-                // Continue seeding other data even if sample subscriptions fail
-            }
-        }
+        // 6. (Intentionally skip creating demo subscriptions)
+        // Subscriptions are created via real commerce flows in the app.
+        // To avoid D1 edge-case errors on this optional demo data, we no longer
+        // seed sample subscriptions here. Demo tenants will still have plans,
+        // bookings, and revenue activity from other seeded data.
 
         // 7. Create Classes (Schedule)
         console.log("Creating schedule...");
