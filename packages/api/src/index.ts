@@ -382,7 +382,8 @@ const studioPaths = [
   '/video', '/video/*',
   '/chat', '/chat/*',
   '/studios', '/studios/*',
-  '/quizzes', '/quizzes/*'
+  '/quizzes', '/quizzes/*',
+  '/reviews', '/reviews/*'
 ];
 
 const authenticatedPaths = [
@@ -415,7 +416,8 @@ const authenticatedPaths = [
   '/tasks', '/tasks/*',
   '/video', '/video/*',
   '/quizzes', '/quizzes/*',
-  '/courses', '/courses/*'
+  '/courses', '/courses/*',
+  '/reviews', '/reviews/*'
 ];
 
 const publicStudioPaths = [
@@ -861,6 +863,7 @@ studioApp.post('/portal', async (c) => {
 });
 
 import tasks from './routes/tasks';
+import reviews from './routes/reviews';
 
 // Final Route Mounts
 app.route('/locations', locationRoutes);
@@ -929,6 +932,7 @@ app.route('/public-assets', publicAssets);
 app.route('/guest', guestRoutes);
 app.route('/platform-pages', platformPagesRoutes);
 app.route('/faqs', faqRoutes); // [NEW] FAQ management
+app.route('/reviews', reviews);
 
 
 

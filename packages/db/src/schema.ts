@@ -1656,6 +1656,8 @@ export const reviews = sqliteTable('reviews', {
     isTestimonial: integer('is_testimonial', { mode: 'boolean' }).default(false),
     isApproved: integer('is_approved', { mode: 'boolean' }).default(false),
     isPublic: integer('is_public', { mode: 'boolean' }).default(true),
+    replyDraft: text('reply_draft'),
+    replyDraftGeneratedAt: integer('reply_draft_generated_at', { mode: 'timestamp' }),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     tenantIdx: index('review_tenant_idx').on(table.tenantId),

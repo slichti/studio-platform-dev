@@ -1,6 +1,13 @@
 # SEO-PROGRESS.md: Tiered Implementation Roadmap
 The following structure defines the progress tracking for the SEO feature rollout.
 
+## T3.4 Review AI — Implementation Log
+- **Migration**: `0076_review_reply_draft.sql` — added `reply_draft` and `reply_draft_generated_at` to `reviews`.
+- **Schema**: `packages/db` — `reviews.replyDraft`, `reviews.replyDraftGeneratedAt`.
+- **Gemini**: `GeminiService.generateReviewReplyDraft()` — studio name, location, business type, review content/rating → short reply text.
+- **API**: `POST /reviews/:id/draft-reply` (generate), `PATCH /reviews/:id/reply-draft` (save/clear). Requires `manage_marketing` and `GEMINI_API_KEY`.
+- **UI**: Studio Reviews page — “Generate reply draft” per review; show draft with Copy / Edit / Clear. Human-approved only (copy to Google or edit before use).
+
 ## Tier 1: Technical Foundation and Crawlability
 The objective of Tier 1 is to ensure the platform is fundamentally "Search Ready" by establishing the edge-routing logic and sitemap infrastructure.
 
@@ -31,6 +38,21 @@ Tier 3 introduces high-level AI features and deep integration with the LMS and V
 | T3.1 | AI Meta-Gen | Dynamic meta descriptions using class descriptions | Completed |
 | T3.2 | Video Schema | VideoObject schema for on-demand videos | Completed |
 | T3.3 | Multi-Loc SEO| Sub-sitemaps for multi-studio tenants | Completed |
-| T3.4 | Review AI | Generate draft responses for Google Reviews using tenant context | Pending |
+| T3.4 | Review AI | Generate draft responses for Google Reviews using tenant context | Completed |
 | T3.5 | Local Pages | Programmatic generation of neighborhood-specific landing pages | Completed |
 | T3.6 | SEO Dashboard | Tenant-facing ranking and visibility metrics (via SE Ranking API) | Completed |
+
+---
+
+## Future Ideas & Recommendations (Tracked)
+
+The following items are documented for future implementation. Status: **Not Started** unless noted.
+
+| ID | Idea | Description |
+|----|------|-------------|
+| F.1 | LLM / GEO Snapshot | Machine-readable endpoint per tenant (e.g. `/studios/{slug}/llm.json`) with FAQ JSON, top classes, instructors, locations for external LLMs and GEO. |
+| F.2 | Canonical & hreflang | Strict canonical rules for subdirectory vs custom domain; basic `hreflang` for multi-region studios to avoid authority split. |
+| F.3 | Robots & Crawl Budget | Per-tenant robots.txt overlay (allow/disallow sections, noindex for experiments) with safe platform defaults. |
+| F.4 | SEO Safety Rails | Validation in tenant SEO UI: warn on empty titles, duplicate titles, over-long meta to prevent self-sabotage. |
+| F.5 | Internal Link Scaffolding | Auto-generate internal link blocks on public pages (“Popular classes in {city}”, “Meet our instructors”) from activity data. |
+| F.6 | Programmatic FAQ Harvest | Mine support/tickets and class descriptions to auto-suggest FAQs per tenant with approve/edit UI feeding FAQPage schema. |

@@ -651,4 +651,12 @@ Tracked from recommendation backlog. Status updated as work completes.
 - **Multi-Location Pages**: Landing pages per location exist (`portal.$slug.locations.$locationSlug.tsx`) and are exposed to streaming sitemaps.
 - **SEO Analytics**: Tenant-facing SEO Dashboard (`studio.$slug.analytics.seo.tsx`) tracks Indexing Status, GBP connection, Sitemap Health, and Location Search Dominance.
 - **Content Automation**: Initial Gemini API integration exists (`gemini.ts`) for AI blog generation.
-- **Pending**: T3.4 (Review AI – Gemini auto-responders) remains pending for future implementation.
+- **T3.4 Review AI (Completed)**: Gemini-powered draft replies for Google Reviews; stored per-review (`reply_draft`, `reply_draft_generated_at`); API `POST /reviews/:id/draft-reply` and `PATCH /reviews/:id/reply-draft`; Studio Reviews page: Generate / Edit / Copy / Clear. Requires `GEMINI_API_KEY`.
+
+### SEO Future Ideas (Tracked in SEO-PROGRESS.md)
+- **F.1** LLM/GEO Snapshot endpoint per tenant for GEO visibility.
+- **F.2** Canonical & hreflang strategy for custom domains and multi-region.
+- **F.3** Per-tenant robots.txt overlay and crawl budget controls.
+- **F.4** SEO safety rails (validation for empty/duplicate/over-long meta).
+- **F.5** Internal link scaffolding from activity data.
+- **F.6** Programmatic FAQ harvest from support/class copy → FAQPage schema.

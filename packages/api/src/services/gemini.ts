@@ -66,4 +66,61 @@ export class GeminiService {
             throw err;
         }
     }
+
+    /**
+     * Generates a short, professional draft reply to a Google-style review for a fitness/wellness business.
+     * Suitable for studio owners to copy into Google Business Profile or other review platforms.
+     */
+    async generateReviewReplyDraft(params: {
+        reviewContent: string | null;
+        rating: number;
+        studioName: string;
+        businessType?: string;
+        city?: string;
+    }): Promise<string> {
+        const { reviewContent, rating, studioName, businessType = 'fitness studio', city = '' } = params;
+        const locationHint = city ? ` in ${city}` : '';
+        const prompt = `You are writing a brief, professional owner reply to a customer review for a business called "${studioName}"${locationHint}, a ${businessType}.
+
+Review rating: ${rating} out of 5 stars.
+Review text: ${reviewContent || '(no text provided)'}
+
+Write a single short reply (2-4 sentences, under 350 characters) that:
+1. Thanks the reviewer.
+2. If the rating is 4-5: express gratitude and invite them back.
+3. If the rating is 1-3: acknowledge their feedback and state that you take it seriously and would like to improve.
+4. Sound warm and human, not corporate. Do not use hashtags or excessive punctuation.
+5. Do not repeat the review content verbatim.
+Output only the reply text, no quotes or labels.`;
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${this.apiKey}`;
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: {
+                        temperature: 0.5,
+                        topK: 40,
+                        topP: 0.95,
+                        maxOutputTokens: 256,
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(`Gemini API error: ${response.status} - ${error}`);
+            }
+
+            const data = await response.json() as any;
+            const text = (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+            return text.replace(/^["']|["']$/g, '');
+        } catch (err) {
+            console.error('Failed to generate review reply draft:', err);
+            throw err;
+        }
+    }
 }
