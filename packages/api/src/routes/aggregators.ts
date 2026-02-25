@@ -113,6 +113,28 @@ app.openapi(createRoute({
         )
     });
 
+    // City/region/country: locations table has only `address`; use tenant SEO location or parse address
+    let city: string | null = null;
+    let region: string | null = null;
+    let country: string | null = null;
+    const seoLocation = (tenant.settings as { seo?: { location?: string } } | null)?.seo?.location;
+    if (seoLocation && typeof seoLocation === 'string') {
+        const parts = seoLocation.split(',').map((p) => p.trim()).filter(Boolean);
+        if (parts.length >= 1) city = parts[0];
+        if (parts.length >= 2) region = parts[1];
+        if (parts.length >= 3) country = parts[2];
+        else if (parts.length >= 1) country = 'US';
+    } else if (primaryLocation?.address) {
+        const parts = primaryLocation.address.split(',').map((p) => p.trim()).filter(Boolean);
+        if (parts.length >= 2) {
+            city = parts[parts.length - 2] ?? null;
+            region = parts[parts.length - 1] ?? null;
+            country = 'US';
+        } else if (parts.length >= 1) {
+            city = parts[0] ?? null;
+        }
+    }
+
     const service = new AggregatorService(db, c.env, tenant.id);
     const schedule = await service.getScheduleFeed();
 
@@ -133,9 +155,9 @@ app.openapi(createRoute({
             slug: tenant.slug,
             name: tenant.name,
             business_type: (tenant.seoConfig as any)?.businessType || 'fitness studio',
-            city: primaryLocation?.city || null,
-            region: primaryLocation?.state || null,
-            country: primaryLocation?.country || null
+            city,
+            region,
+            country
         },
         classes
     } as any);
