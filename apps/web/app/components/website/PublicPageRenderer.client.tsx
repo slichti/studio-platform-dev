@@ -7,6 +7,7 @@ import { puckConfig } from "~/components/website/puck-config.client";
 import { SignedIn, useUser } from "@clerk/react-router";
 import { Edit2, Loader2 } from "lucide-react";
 import { ChatWidget } from "~/components/chat/ChatWidget";
+import { API_URL } from "~/utils/api";
 
 interface PublicPageRendererProps {
     page: any;
@@ -16,6 +17,16 @@ interface PublicPageRendererProps {
 export function PublicPageRenderer({ page, tenantSlug }: PublicPageRendererProps) {
     const { user } = useUser();
 
+    const safeContent = page?.content && page.content.root
+        ? page.content
+        : {
+            root: {
+                props: puckConfig.root?.defaultProps || {},
+                children: [],
+            },
+            zones: {},
+        };
+
     return (
         <div className="min-h-screen bg-white relative">
             <Suspense fallback={
@@ -23,11 +34,12 @@ export function PublicPageRenderer({ page, tenantSlug }: PublicPageRendererProps
                     <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
                 </div>
             }>
-                <Render config={puckConfig} data={page.content} />
+                <Render config={puckConfig} data={safeContent} />
             </Suspense>
 
             <ChatWidget
                 roomId={user ? `support-${user.id}` : "support-guest"}
+                tenantSlug={tenantSlug || ""}
                 tenantId={tenantSlug || ""}
                 userId={user?.id}
                 userName={user?.fullName || "Guest"}
@@ -36,6 +48,7 @@ export function PublicPageRenderer({ page, tenantSlug }: PublicPageRendererProps
                     page.content?.root?.props?.chatEnabled !== false
                 }
                 chatConfig={page.tenantSettings?.chatConfig}
+                apiUrl={API_URL}
             />
 
             <SignedIn>
