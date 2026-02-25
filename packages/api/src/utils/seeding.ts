@@ -277,15 +277,20 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
         console.log("Creating student subscriptions...");
         const planId = planValues[0].id;
         for (const student of students) {
-            await tx.insert(subscriptions).values({
-                id: 'sub_' + crypto.randomUUID(),
-                userId: student.userId,
-                tenantId: tenantId,
-                memberId: student.id,
-                planId: planId,
-                status: 'active' as const,
-                createdAt: now
-            }).run();
+            try {
+                await tx.insert(subscriptions).values({
+                    id: 'sub_' + crypto.randomUUID(),
+                    userId: student.userId,
+                    tenantId: tenantId,
+                    memberId: student.id,
+                    planId: planId,
+                    status: 'active' as const,
+                    createdAt: now
+                }).run();
+            } catch (e: any) {
+                console.error('[seedTenant] Subscription insert failed (non-fatal):', e.message);
+                // Continue seeding other data even if sample subscriptions fail
+            }
         }
 
         // 7. Create Classes (Schedule)
