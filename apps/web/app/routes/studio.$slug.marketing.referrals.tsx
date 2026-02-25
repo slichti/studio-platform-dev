@@ -61,7 +61,9 @@ export default function ReferralProgram() {
     const submit = useSubmit();
     const [copied, setCopied] = useState(false);
 
-    const referralLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/studio/${slug}/join?ref=${myCode}`;
+    // Public referral link should point at the studio's public marketing site,
+    // not a non-existent /studio/:slug/join route.
+    const referralLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/site/${slug}?ref=${myCode}`;
 
     const copyToClipboard = async () => {
         await navigator.clipboard.writeText(referralLink);

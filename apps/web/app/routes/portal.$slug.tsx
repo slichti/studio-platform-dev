@@ -48,7 +48,9 @@ export const loader = async (args: LoaderFunctionArgs) => {
         // Verify Membership — users must be a member of this tenant to access the portal
         const membership = me?.tenants?.find((t: any) => t.slug === slug);
         if (!membership) {
-            return redirect(`/studio/${slug}/join`);
+            // If the user isn't a member, send them to the public marketing site
+            // instead of a non-existent /studio/:slug/join route.
+            return redirect(`/site/${slug}`);
         }
 
         return { tenant, me, membership };
