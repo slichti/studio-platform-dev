@@ -180,7 +180,8 @@ export default function AdminTenantsPageComponent() {
             });
             if (res.error) throw new Error(res.error);
             const updated = await apiRequest("/admin/tenants", token);
-            setTenants(updated);
+            // API returns { tenants, total, ... } – we only need the array here
+            setTenants(updated.tenants || updated);
             showSuccess("Date updated.");
         } catch (e: any) {
             setErrorDialog({ isOpen: true, message: e.message });
@@ -269,7 +270,7 @@ export default function AdminTenantsPageComponent() {
             });
             if (res.error) throw new Error(res.error);
             const updated = await apiRequest("/admin/tenants", token);
-            setTenants(updated);
+            setTenants(updated.tenants || updated);
             setSeedModalOpen(false);
             showSuccess(`Created ${res.tenant?.name}`, true);
         } catch (e: any) {
@@ -552,7 +553,7 @@ export default function AdminTenantsPageComponent() {
                     body: JSON.stringify({ trialDays: daysToAdd })
                 });
                 const updated = await apiRequest("/admin/tenants", token);
-                setTenants(updated);
+                setTenants(updated.tenants || updated);
             } catch (e: any) { setErrorDialog({ isOpen: true, message: e.message }); }
         },
         handleCancelSubscription: confirmCancelSubscription,
