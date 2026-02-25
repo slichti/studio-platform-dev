@@ -1,6 +1,7 @@
 
 import { useLoaderData } from "react-router";
 import { useState } from "react";
+import { useAuth } from "@clerk/react-router";
 import { Modal } from "../Modal";
 import { Plus, Search, Phone, Mail, Clock, AlertCircle, CheckCircle, Pencil } from "lucide-react";
 import { format } from "date-fns";
@@ -8,7 +9,8 @@ import { apiRequest } from "../../utils/api";
 import { toast } from "sonner";
 
 export default function LeadsPageComponent() {
-    const { leads: initialLeads, token, slug } = useLoaderData<any>();
+    const { leads: initialLeads, token: loaderToken, slug } = useLoaderData<any>();
+    const { getToken } = useAuth();
     const [leads, setLeads] = useState(initialLeads);
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -27,6 +29,7 @@ export default function LeadsPageComponent() {
         setEditFormData({ ...lead });
         setIsTaskLoading(true);
         try {
+            const token = await getToken() ?? loaderToken;
             const tasks = await apiRequest(`/tasks?leadId=${lead.id}`, token, { headers: { 'X-Tenant-Slug': slug } });
             setLeadTasks(Array.isArray(tasks) ? tasks : []);
         } catch (e) { console.error(e); }
@@ -36,6 +39,7 @@ export default function LeadsPageComponent() {
     const handleUpdateLead = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            const token = await getToken() ?? loaderToken;
             await apiRequest(`/leads/${selectedLead.id}`, token, {
                 method: "PATCH",
                 headers: { 'X-Tenant-Slug': slug },
@@ -52,6 +56,7 @@ export default function LeadsPageComponent() {
         e.preventDefault();
         if (!newTaskTitle) return;
         try {
+            const token = await getToken() ?? loaderToken;
             const newTask = await apiRequest("/tasks", token, {
                 method: "POST",
                 headers: { 'X-Tenant-Slug': slug },
@@ -72,6 +77,7 @@ export default function LeadsPageComponent() {
     const toggleTaskStatus = async (taskId: string, currentStatus: string) => {
         const newStatus = currentStatus === 'done' ? 'todo' : 'done';
         setLeadTasks(leadTasks.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+        const token = await getToken() ?? loaderToken;
         await apiRequest(`/tasks/${taskId}`, token, {
             method: "PATCH",
             headers: { 'X-Tenant-Slug': slug },
@@ -83,6 +89,7 @@ export default function LeadsPageComponent() {
         e.preventDefault();
         setLoading(true);
         try {
+            const token = await getToken() ?? loaderToken;
             const res: any = await apiRequest("/leads", token, {
                 method: "POST",
                 headers: { 'X-Tenant-Slug': slug },
@@ -103,6 +110,7 @@ export default function LeadsPageComponent() {
     const handleStatusChange = async (leadId: string, newStatus: string) => {
         setLeads(leads.map((l: any) => l.id === leadId ? { ...l, status: newStatus } : l));
         try {
+            const token = await getToken() ?? loaderToken;
             await apiRequest(`/leads/${leadId}`, token, {
                 method: "PATCH",
                 headers: { 'X-Tenant-Slug': slug },
