@@ -319,25 +319,27 @@ export async function seedTenant(db: any, options: SeedOptions = {}) {
 
         // 9. Create Bookings (Randomly)
         console.log("Creating bookings...");
-        const bookingValues: any[] = [];
-
         for (const cls of classesList) {
             const count = Math.min(3, students.length);
-            const attendees = students.sort(() => 0.5 - Math.random()).slice(0, Math.floor(Math.random() * (count + 1)));
-            for (const student of attendees) {
-                bookingValues.push({
-                    id: 'booking_' + crypto.randomUUID(),
-                    classId: cls.id,
-                    memberId: student.id,
-                    status: 'confirmed',
-                    attendanceType: 'in_person',
-                    createdAt: now
-                });
-            }
-        }
+            const attendees = students
+                .slice()
+                .sort(() => 0.5 - Math.random())
+                .slice(0, Math.floor(Math.random() * (count + 1)));
 
-        if (bookingValues.length > 0) {
-            await batchInsert(tx, bookings, bookingValues);
+            for (const student of attendees) {
+                try {
+                    await tx.insert(bookings).values({
+                        id: 'booking_' + crypto.randomUUID(),
+                        classId: cls.id,
+                        memberId: student.id,
+                        status: 'confirmed',
+                        attendanceType: 'in_person',
+                        createdAt: now
+                    }).run();
+                } catch (e: any) {
+                    console.error('[seedTenant] Booking insert failed (non-fatal):', e.message);
+                }
+            }
         }
 
         // 10. Retail Products
