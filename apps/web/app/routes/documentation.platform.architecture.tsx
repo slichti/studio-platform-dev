@@ -50,11 +50,6 @@ Worker -.-> Expo[Expo Push]`;
                             <li>• <strong>API Layer:</strong> Cloudflare Workers (Hono framework).</li>
                             <li>• <strong>Edge Runtime:</strong> Code runs within milliseconds of users globally.</li>
                         </ul>
-                        <div className="mt-4">
-                            <ClientOnly fallback={<div className="h-48 flex items-center justify-center text-zinc-500 text-sm">Loading diagram…</div>}>
-                                <MermaidDiagram chart={architectureChart} title="Request Flow" />
-                            </ClientOnly>
-                        </div>
                     </div>
 
                     <div className="p-6 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
@@ -69,6 +64,13 @@ Worker -.-> Expo[Expo Push]`;
                             <li>• <strong>Analytics:</strong> Optimized group-by queries for Reporting.</li>
                         </ul>
                     </div>
+                </div>
+
+                {/* Request Flow diagram - full width for readability, Expand to zoom */}
+                <div className="mt-8 min-h-[340px]">
+                    <ClientOnly fallback={<div className="h-80 flex items-center justify-center text-zinc-500 text-sm rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900">Loading diagram…</div>}>
+                        <MermaidDiagram chart={architectureChart} title="Request Flow" />
+                    </ClientOnly>
                 </div>
             </section>
 
