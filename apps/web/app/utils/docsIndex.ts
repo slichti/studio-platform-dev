@@ -31,6 +31,12 @@ export const docsIndex = [
         category: "Platform"
     },
     {
+        title: "Clerk Configuration",
+        href: "/documentation/platform/clerk",
+        content: "Clerk Dashboard, Social login, OAuth, Google, Facebook, Microsoft, IdP, SSO, sign-in, sign-up, domains, allowed origins, user testing",
+        category: "Platform"
+    },
+    {
         title: "Studio Setup",
         href: "/documentation/setup",
         content: "Configuration, Timezone, Currency, Stripe Connect, Payments, Branding, Logo",
