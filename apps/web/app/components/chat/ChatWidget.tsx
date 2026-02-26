@@ -44,6 +44,9 @@ export function ChatWidget({ roomId, tenantId, tenantSlug, userId, userName, api
     const wsRef = useRef<WebSocket | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const isOpenRef = useRef(isOpen);
+    const reconnectAttemptsRef = useRef(0);
+    const reconnectTimeoutRef = useRef<number | null>(null);
+    const isUnmountedRef = useRef(false);
 
     useEffect(() => {
         isOpenRef.current = isOpen;
@@ -61,20 +64,18 @@ export function ChatWidget({ roomId, tenantId, tenantSlug, userId, userName, api
         scrollToBottom();
     }, [messages, scrollToBottom]);
 
-    // Connect to WebSocket (Persistent)
     useEffect(() => {
-        if (connected) return;
+        if (!enabled) {
+            return;
+        }
 
-        // Use window.location.origin if apiUrl is not provided
+        isUnmountedRef.current = false;
+
         const baseUrl = apiUrl || (typeof window !== 'undefined' ? window.location.origin : '');
         const wsProtocol = baseUrl.startsWith('https') ? 'wss://' : 'ws://';
         const wsHost = baseUrl.replace(/^http(s)?:\/\//, '');
 
         let wsUrl = `${wsProtocol}${wsHost}/chat/rooms/${roomId}/websocket?roomId=${roomId}&userId=${effectiveUserId}&userName=${encodeURIComponent(effectiveUserName)}`;
-
-        if (tenantId && !tenantId.includes('-') && tenantId !== 'platform') { // Basic check for UUID vs Slug - flawed but helpful? No, just use props.
-            // Actually, the issue is that we need to support EITHER tenantId OR tenantSlug.
-        }
 
         if (tenantId) wsUrl += `&tenantId=${tenantId}`;
         if (tenantSlug) wsUrl += `&tenantSlug=${tenantSlug}`;
@@ -83,57 +84,101 @@ export function ChatWidget({ roomId, tenantId, tenantSlug, userId, userName, api
             wsUrl += `&token=${token}`;
         }
 
-        const ws = new WebSocket(wsUrl);
-        wsRef.current = ws;
+        const connect = () => {
+            if (isUnmountedRef.current) return;
 
-        ws.onopen = () => {
-            setConnected(true);
-            console.log("[Chat] Connected");
-        };
+            const ws = new WebSocket(wsUrl);
+            wsRef.current = ws;
 
-        ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-
-                switch (data.type) {
-                    case "history":
-                        setMessages(data.messages || []);
-                        break;
-                    case "message":
-                        setMessages(prev => [...prev, data]);
-                        if (!isOpenRef.current && data.userId !== effectiveUserId) {
-                            setUnreadCount(prev => prev + 1);
-                        }
-                        break;
-                    case "user_list":
-                        setUsers(data.users || []);
-                        break;
-                    case "user_joined":
-                        setUsers(prev => [...prev, { userId: data.userId, userName: data.userName }]);
-                        break;
-                    case "user_left":
-                        setUsers(prev => prev.filter(u => u.userId !== data.userId));
-                        break;
+            ws.onopen = () => {
+                if (isUnmountedRef.current) {
+                    ws.close();
+                    return;
                 }
-            } catch (e) {
-                console.error("[Chat] Parse error:", e);
-            }
+                reconnectAttemptsRef.current = 0;
+                setConnected(true);
+                console.log("[Chat] Connected");
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+
+                    switch (data.type) {
+                        case "history":
+                            setMessages(data.messages || []);
+                            break;
+                        case "message":
+                            setMessages(prev => [...prev, data]);
+                            if (!isOpenRef.current && data.userId !== effectiveUserId) {
+                                setUnreadCount(prev => prev + 1);
+                            }
+                            break;
+                        case "user_list":
+                            setUsers(data.users || []);
+                            break;
+                        case "user_joined":
+                            setUsers(prev => [...prev, { userId: data.userId, userName: data.userName }]);
+                            break;
+                        case "user_left":
+                            setUsers(prev => prev.filter(u => u.userId !== data.userId));
+                            break;
+                    }
+                } catch (e) {
+                    console.warn("[Chat] Parse error:", e);
+                }
+            };
+
+            ws.onclose = (event) => {
+                if (isUnmountedRef.current) return;
+
+                wsRef.current = null;
+                setConnected(false);
+
+                const isNormalClosure = event.code === 1000 || event.code === 1001;
+                if (isNormalClosure) {
+                    console.log("[Chat] Disconnected");
+                    return;
+                }
+
+                const attempt = reconnectAttemptsRef.current + 1;
+                reconnectAttemptsRef.current = attempt;
+                const delay = Math.min(30000, 1000 * Math.pow(2, attempt - 1));
+
+                console.warn(`[Chat] Disconnected (code ${event.code}). Retrying in ${Math.round(delay / 1000)}s (attempt ${attempt})`);
+
+                if (typeof window !== 'undefined') {
+                    if (reconnectTimeoutRef.current !== null) {
+                        window.clearTimeout(reconnectTimeoutRef.current);
+                    }
+                    reconnectTimeoutRef.current = window.setTimeout(connect, delay);
+                }
+            };
+
+            ws.onerror = (e) => {
+                if (isUnmountedRef.current) return;
+                console.warn("[Chat] Error:", e);
+            };
         };
 
-        ws.onclose = () => {
-            setConnected(false);
-            console.log("[Chat] Disconnected");
-        };
-
-        ws.onerror = (e) => {
-            console.error("[Chat] Error:", e);
-        };
+        connect();
 
         return () => {
-            ws.close();
+            isUnmountedRef.current = true;
+            setConnected(false);
+
+            if (typeof window !== 'undefined' && reconnectTimeoutRef.current !== null) {
+                window.clearTimeout(reconnectTimeoutRef.current);
+                reconnectTimeoutRef.current = null;
+            }
+
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                wsRef.current.close();
+            }
+
             wsRef.current = null;
         };
-    }, [roomId, tenantId, userId, userName, apiUrl]); // Removed isOpen dependency
+    }, [roomId, tenantId, tenantSlug, effectiveUserId, effectiveUserName, apiUrl, token, enabled]);
 
     const sendMessage = () => {
         if (!inputValue.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;

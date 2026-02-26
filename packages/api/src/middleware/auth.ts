@@ -21,6 +21,18 @@ export const authMiddleware = createMiddleware<{ Variables: Variables, Bindings:
         // [WEBSOCKET AUTH] Allow query param token for WS upgrades (browsers can't send headers)
         token = c.req.query('token');
     } else {
+        // [CHAT GUEST] Allow WebSocket upgrade for public-site chat with guest ID (no token)
+        if (c.req.header('Upgrade')?.toLowerCase() === 'websocket' && c.req.method === 'GET') {
+            const userId = c.req.query('userId');
+            const tenantSlug = c.req.query('tenantSlug');
+            const tenantId = c.req.query('tenantId');
+            if (userId && userId.startsWith('guest_') && (tenantSlug || tenantId)) {
+                c.set('auth', { userId, claims: { sub: userId, role: 'guest' } });
+                c.set('isImpersonating', false);
+                return await next();
+            }
+        }
+
         // [TEST MOCKING] Allow header bypass in test environment
         if ((c.env as any).ENVIRONMENT === 'test' && c.req.header('TEST-AUTH')) {
             const mockUserId = c.req.header('TEST-AUTH') || 'mock-user';
