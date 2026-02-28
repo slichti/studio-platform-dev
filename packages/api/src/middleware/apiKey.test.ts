@@ -8,7 +8,7 @@ const mockFindFirst = vi.fn();
 const mockCreateDb = vi.fn(() => ({
     query: { tenants: { findFirst: mockFindFirst } },
 }));
-vi.mock('../db', () => ({ createDb: (...args: any[]) => mockCreateDb(...args) }));
+vi.mock('../db', () => ({ createDb: () => mockCreateDb() }));
 
 function createMockContext(authHeader?: string) {
     const setFn = vi.fn();

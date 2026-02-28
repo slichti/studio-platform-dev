@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import React, { Suspense } from 'react';
 const Cropper = React.lazy(() => import('react-easy-crop'));
 import { getCroppedImg } from '../utils/cropImage';
-import { Upload, Wand2, ChevronDown, Trash2 } from 'lucide-react';
+import { Upload, Wand2, ChevronDown, Trash2, Type } from 'lucide-react';
 
 interface CardCreatorProps {
     initialImage?: string;
@@ -33,6 +33,15 @@ const DIRECTION_OPTIONS = [
 const CANVAS_WIDTH = 600;
 const CANVAS_HEIGHT = 450;
 
+const FONT_SIZE_OPTIONS = [
+    { label: 'XS', titlePx: 20, subtitlePx: 12 },
+    { label: 'S', titlePx: 28, subtitlePx: 14 },
+    { label: 'M', titlePx: 36, subtitlePx: 16 },
+    { label: 'L', titlePx: 42, subtitlePx: 18 },
+    { label: 'XL', titlePx: 52, subtitlePx: 22 },
+    { label: '2XL', titlePx: 64, subtitlePx: 26 },
+];
+
 // --- Canvas rendering ---
 function renderCardToCanvas(
     canvas: HTMLCanvasElement,
@@ -43,6 +52,8 @@ function renderCardToCanvas(
         direction: number;
         title: string;
         subtitle: string;
+        titleFontSize: number;
+        subtitleFontSize: number;
     }
 ) {
     const ctx = canvas.getContext('2d');
@@ -87,7 +98,9 @@ function renderCardToCanvas(
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        const fontSize = Math.min(42, CANVAS_WIDTH / (options.title.length * 0.55));
+        // Use the user-selected font size, but clamp to fit width
+        const maxFontSize = options.titleFontSize;
+        const fontSize = Math.min(maxFontSize, CANVAS_WIDTH / (options.title.length * 0.55));
         ctx.font = `bold ${fontSize}px "Inter", "Segoe UI", system-ui, sans-serif`;
 
         // Text shadow
@@ -107,7 +120,7 @@ function renderCardToCanvas(
         ctx.save();
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.font = `400 18px "Inter", "Segoe UI", system-ui, sans-serif`;
+        ctx.font = `400 ${options.subtitleFontSize}px "Inter", "Segoe UI", system-ui, sans-serif`;
 
         ctx.shadowColor = 'rgba(0,0,0,0.4)';
         ctx.shadowBlur = 8;
@@ -137,6 +150,10 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
     const [subtitle, setSubtitle] = useState(initialSubtitle || "");
     const [tab, setTab] = useState<'upload' | 'generate'>(initialImage ? 'upload' : 'generate');
 
+    // --- Font size state ---
+    const [fontSizeIndex, setFontSizeIndex] = useState(3); // Default to 'L' (42px title)
+    const currentFontSize = FONT_SIZE_OPTIONS[fontSizeIndex];
+
     // --- Upload state ---
     const [imageSrc, setImageSrc] = useState<string | null>(initialImage || null);
     const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -159,8 +176,12 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
         if (tab !== 'generate') return;
         const canvas = previewCanvasRef.current;
         if (!canvas) return;
-        renderCardToCanvas(canvas, { bgType, color1, color2, direction, title, subtitle });
-    }, [tab, bgType, color1, color2, direction, title, subtitle]);
+        renderCardToCanvas(canvas, {
+            bgType, color1, color2, direction, title, subtitle,
+            titleFontSize: currentFontSize.titlePx,
+            subtitleFontSize: currentFontSize.subtitlePx,
+        });
+    }, [tab, bgType, color1, color2, direction, title, subtitle, fontSizeIndex]);
 
     // --- Upload handlers ---
     const onCropComplete = useCallback((_croppedArea: any, croppedAreaPixels: any) => {
@@ -200,7 +221,11 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
     const handleApplyGenerated = async () => {
         const canvas = exportCanvasRef.current;
         if (!canvas) return;
-        renderCardToCanvas(canvas, { bgType, color1, color2, direction, title, subtitle });
+        renderCardToCanvas(canvas, {
+            bgType, color1, color2, direction, title, subtitle,
+            titleFontSize: currentFontSize.titlePx,
+            subtitleFontSize: currentFontSize.subtitlePx,
+        });
         const blob = await canvasToBlob(canvas);
         const previewUrl = URL.createObjectURL(blob);
         onChange({ image: blob, title, subtitle, previewUrl });
@@ -369,6 +394,52 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
             {/* ===== GENERATE TAB ===== */}
             {tab === 'generate' && (
                 <div className="space-y-4">
+                    {/* Text overlay inputs — placed BEFORE the preview so the user types text first */}
+                    <div className="grid grid-cols-1 gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                        <div className="flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">
+                            <Type size={13} />
+                            Text Overlay
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium mb-1 text-zinc-500 dark:text-zinc-400">Title</label>
+                            <input
+                                value={title}
+                                onChange={(e) => handleTitleChange(e.target.value)}
+                                className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-indigo-500 focus:border-indigo-500 text-zinc-900 dark:text-zinc-100 text-sm"
+                                placeholder="3 MONTH MEMBERSHIP"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium mb-1 text-zinc-500 dark:text-zinc-400">Subtitle (Optional)</label>
+                            <input
+                                value={subtitle}
+                                onChange={(e) => handleSubtitleChange(e.target.value)}
+                                className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-indigo-500 focus:border-indigo-500 text-zinc-900 dark:text-zinc-100 text-sm"
+                                placeholder="Unlimited Yoga"
+                            />
+                        </div>
+                        {/* Font size selector */}
+                        <div>
+                            <label className="block text-xs font-medium mb-1.5 text-zinc-500 dark:text-zinc-400">Font Size</label>
+                            <div className="flex rounded-md bg-zinc-100 dark:bg-zinc-800 p-0.5 gap-0.5">
+                                {FONT_SIZE_OPTIONS.map((opt, idx) => (
+                                    <button
+                                        key={opt.label}
+                                        type="button"
+                                        onClick={() => setFontSizeIndex(idx)}
+                                        className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all ${fontSizeIndex === idx
+                                            ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                                            : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                                            }`}
+                                        title={`Title: ${opt.titlePx}px, Subtitle: ${opt.subtitlePx}px`}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Presets */}
                     <div>
                         <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase mb-2">Presets</label>
@@ -498,27 +569,29 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
             {/* Hidden export canvas (full resolution) */}
             <canvas ref={exportCanvasRef} className="hidden" width={CANVAS_WIDTH} height={CANVAS_HEIGHT} />
 
-            {/* Text overlay inputs (shared for both tabs) */}
-            <div className="grid grid-cols-1 gap-3 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-                <div>
-                    <label className="block text-xs font-medium mb-1 text-zinc-500 dark:text-zinc-400">Overlay Title</label>
-                    <input
-                        value={title}
-                        onChange={(e) => handleTitleChange(e.target.value)}
-                        className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-indigo-500 focus:border-indigo-500 text-zinc-900 dark:text-zinc-100"
-                        placeholder="3 MONTH MEMBERSHIP"
-                    />
+            {/* Text overlay inputs (shared — only for upload tab since generate tab has its own above) */}
+            {tab === 'upload' && (
+                <div className="grid grid-cols-1 gap-3 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                    <div>
+                        <label className="block text-xs font-medium mb-1 text-zinc-500 dark:text-zinc-400">Overlay Title</label>
+                        <input
+                            value={title}
+                            onChange={(e) => handleTitleChange(e.target.value)}
+                            className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-indigo-500 focus:border-indigo-500 text-zinc-900 dark:text-zinc-100"
+                            placeholder="3 MONTH MEMBERSHIP"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium mb-1 text-zinc-500 dark:text-zinc-400">Overlay Subtitle (Optional)</label>
+                        <input
+                            value={subtitle}
+                            onChange={(e) => handleSubtitleChange(e.target.value)}
+                            className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-indigo-500 focus:border-indigo-500 text-zinc-900 dark:text-zinc-100"
+                            placeholder="Unlimited Yoga"
+                        />
+                    </div>
                 </div>
-                <div>
-                    <label className="block text-xs font-medium mb-1 text-zinc-500 dark:text-zinc-400">Overlay Subtitle (Optional)</label>
-                    <input
-                        value={subtitle}
-                        onChange={(e) => handleSubtitleChange(e.target.value)}
-                        className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-indigo-500 focus:border-indigo-500 text-zinc-900 dark:text-zinc-100"
-                        placeholder="Unlimited Yoga"
-                    />
-                </div>
-            </div>
+            )}
         </div>
     );
 }
