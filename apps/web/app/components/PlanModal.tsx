@@ -117,7 +117,7 @@ export function PlanModal({ isOpen, plan, onClose, onSave, isSubmitting, tenantS
                             onChange={(newData) => setCardData(prev => ({ ...prev, ...newData }))}
                         />
                         <p className="text-xs text-zinc-500">
-                            Upload an image and set text overlays to customize how this plan appears in the store.
+                            Upload an image or generate a card with custom colors and text overlays. Recommended image size: <strong>900×600px</strong> (3:2 ratio, max 5 MB).
                         </p>
                     </div>
 
