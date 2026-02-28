@@ -554,7 +554,7 @@ These endpoints serve booking widgets and checkout flows embedded in public stud
     *   Stored in `gift_cards` table (Partial redemption supported).
     *   Split-tender checkout (Gift Card + Credit Card).
     *   Tracked via `gift_card_transactions`.
-*   **Discounts**:
+*   **Coupons**:
     *   Coupon system (`coupons` table) with usage limits and expiry.
     *   Auto-applied or code-based.
 *   **POS**:

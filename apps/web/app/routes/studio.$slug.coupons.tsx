@@ -24,7 +24,7 @@ export const loader: LoaderFunction = async (args: any) => {
     return { coupons, token, slug };
 };
 
-export default function DiscountsPage() {
+export default function CouponsPage() {
     const { coupons: initialCoupons, token, slug } = useLoaderData<any>();
     const [coupons, setCoupons] = useState(initialCoupons);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -88,7 +88,7 @@ export default function DiscountsPage() {
         <div className="max-w-4xl mx-auto py-8 px-4">
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-zinc-900">Discounts</h1>
+                    <h1 className="text-2xl font-bold text-zinc-900">Coupons</h1>
                     <p className="text-zinc-500">Manage promo codes and coupons.</p>
                 </div>
                 <button
@@ -152,7 +152,7 @@ export default function DiscountsPage() {
                     <thead className="bg-zinc-50">
                         <tr>
                             <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase">Code</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase">Discount</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase">Value</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase">Status</th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase">Actions</th>
                         </tr>

@@ -780,7 +780,7 @@ export const purchasedPacks = sqliteTable('purchased_packs', {
     memberCreditsIdx: index('pack_member_credits_idx').on(table.memberId, table.remainingCredits), // Fast credit check
 }));
 
-// --- Phase 4: Discounts ---
+// --- Phase 4: Coupons ---
 export const coupons = sqliteTable('coupons', {
     id: text('id').primaryKey(),
     tenantId: text('tenant_id').notNull().references(() => tenants.id),

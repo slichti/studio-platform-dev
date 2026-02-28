@@ -92,7 +92,7 @@ const FEATURE_CATEGORIES = [
             'Built-in email marketing',
             'Mailchimp & Flodesk integrations',
             'Lead capture forms',
-            'Discount codes & promotions',
+            'Coupon codes & promotions',
             'Referral program tools',
             'Automated reminders & follow-ups'
         ]

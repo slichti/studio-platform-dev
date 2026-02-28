@@ -363,7 +363,7 @@ export default function StudioLayout() {
                                 {featureSet.has('financials') && (
                                     <NavItem to={`/studio/${slug}/finances`} end icon={<DollarSign size={18} />}>Finances</NavItem>
                                 )}
-                                <NavItem to={`/studio/${slug}/discounts`} icon={<Tag size={18} />}>Discounts</NavItem>
+                                <NavItem to={`/studio/${slug}/coupons`} icon={<Tag size={18} />}>Coupons</NavItem>
                                 <NavItem to={`/studio/${slug}/settings/integrations`} icon={<Smartphone size={18} />}>Integrations</NavItem>
                                 <NavItem to={`/studio/${slug}/settings/developers`} icon={<Terminal size={18} />}>Developers</NavItem>
                                 {featureSet.has('chat') && (

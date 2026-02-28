@@ -491,7 +491,7 @@ erDiagram
     platform_seo_topics ||--o{ community_posts : "guides"
 
     %% ─────────────────────────────────────────────
-    %% Discounts & Coupons
+    %% Coupons
     %% ─────────────────────────────────────────────
     coupons {
         string id PK

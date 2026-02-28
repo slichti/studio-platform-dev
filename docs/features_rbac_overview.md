@@ -184,7 +184,7 @@ This summarizes **what a logged-in student can do** across web and mobile, enfor
 | Domain           | Student CAN                                                                 | Student CANNOT                                                            |
 |------------------|------------------------------------------------------------------------------|---------------------------------------------------------------------------|
 | Classes          | View schedule, book classes, cancel own bookings, view history              | Create/edit/delete classes, change instructors, run class reports        |
-| Packs & Credits  | View own packs and balances; purchase packs via checkout                    | Create/edit pack definitions or discounts                                |
+| Packs & Credits  | View own packs and balances; purchase packs via checkout                    | Create/edit pack definitions or coupons                                |
 | Memberships      | Browse plans, subscribe, pause/resume/cancel own subscription               | Create/modify/delete membership plans or global pricing                  |
 | Courses          | Enroll, watch lessons, submit quizzes/assignments, see own progress         | Create/edit/delete courses and curriculum, view other members’ progress  |
 | Profile          | View & edit own basic profile (name, phone, bio, notification prefs)        | Edit other profiles, manage tenant-wide settings                         |

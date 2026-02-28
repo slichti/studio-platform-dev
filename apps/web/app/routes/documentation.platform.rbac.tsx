@@ -107,7 +107,7 @@ const FULL_ROLE_MATRIX = [
 
 const STUDENT_CAPABILITY_ROWS = [
     { domain: "Classes", can: "View schedule, book classes, cancel own bookings, view history", cannot: "Create/edit/delete classes, change instructors, run class reports" },
-    { domain: "Packs & Credits", can: "View own packs and balances; purchase packs via checkout", cannot: "Create/edit pack definitions or discounts" },
+    { domain: "Packs & Credits", can: "View own packs and balances; purchase packs via checkout", cannot: "Create/edit pack definitions or coupons" },
     { domain: "Memberships", can: "Browse plans, subscribe, pause/resume/cancel own subscription", cannot: "Create/modify/delete membership plans or global pricing" },
     { domain: "Courses", can: "Enroll, watch lessons, submit quizzes/assignments, see own progress", cannot: "Create/edit/delete courses and curriculum, view other members' progress" },
     { domain: "Profile", can: "View & edit own basic profile (name, phone, bio, notification prefs)", cannot: "Edit other profiles, manage tenant-wide settings" },
