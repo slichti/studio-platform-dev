@@ -1,5 +1,5 @@
 
-import { useLoaderData, type MetaFunction, type LoaderFunction } from "react-router";
+import { useLoaderData, Link, type MetaFunction, type LoaderFunction } from "react-router";
 
 export const meta: MetaFunction = () => [
     { title: "Features – Studio Platform | Yoga Studio & Gym Management" },
@@ -13,6 +13,8 @@ import {
     User, Settings, Zap, ChevronDown, ChevronUp, Check, ArrowRight,
     Star, Shield, Smartphone, Clock, BookOpen, Heart
 } from "lucide-react";
+import { PublicNav } from "~/components/PublicNav";
+import { PublicFooter } from "~/components/PublicFooter";
 
 interface FAQ {
     id: string;
@@ -194,7 +196,8 @@ export default function FeaturesPage() {
     const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-white">
+        <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-white dark:from-zinc-950 dark:to-zinc-900">
+            <PublicNav />
             {/* Hero Section */}
             <section className="relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 opacity-10" />
@@ -215,19 +218,19 @@ export default function FeaturesPage() {
                             we've built the complete toolkit for yoga studios, fitness centers, and wellness businesses.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                            <a
-                                href="/signup"
+                            <Link
+                                to="/sign-up"
                                 className="inline-flex items-center justify-center gap-2 bg-zinc-900 text-white px-8 py-4 rounded-xl font-semibold hover:bg-zinc-800 transition shadow-lg shadow-zinc-900/20"
                             >
                                 Start Free Trial
                                 <ArrowRight size={20} />
-                            </a>
-                            <a
-                                href="/contact"
+                            </Link>
+                            <Link
+                                to="/pricing"
                                 className="inline-flex items-center justify-center gap-2 bg-white text-zinc-900 px-8 py-4 rounded-xl font-semibold border-2 border-zinc-200 hover:border-zinc-300 transition"
                             >
-                                Schedule Demo
-                            </a>
+                                View Pricing
+                            </Link>
                         </div>
                     </div>
                 </div>
@@ -363,25 +366,27 @@ export default function FeaturesPage() {
                         Join hundreds of studios using our platform to grow their business and delight their students.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                        <a
-                            href="/signup"
+                        <Link
+                            to="/sign-up"
                             className="inline-flex items-center justify-center gap-2 bg-white text-zinc-900 px-8 py-4 rounded-xl font-semibold hover:bg-zinc-100 transition shadow-lg"
                         >
                             Start Your Free Trial
                             <ArrowRight size={20} />
-                        </a>
-                        <a
-                            href="/contact"
+                        </Link>
+                        <Link
+                            to="/pricing"
                             className="inline-flex items-center justify-center gap-2 bg-zinc-800 text-white px-8 py-4 rounded-xl font-semibold border border-zinc-700 hover:bg-zinc-700 transition"
                         >
-                            Talk to Sales
-                        </a>
+                            View Pricing
+                        </Link>
                     </div>
                     <p className="text-zinc-500 text-sm mt-6">
                         No credit card required • Free 14-day trial • Cancel anytime
                     </p>
                 </div>
             </section>
+
+            <PublicFooter />
         </div>
     );
 }

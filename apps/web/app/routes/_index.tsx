@@ -2,8 +2,9 @@
 import { type LoaderFunctionArgs, type MetaFunction } from "react-router";
 
 import { Link, useLoaderData } from "react-router";
-import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/react-router";
-import { ThemeToggle } from "~/components/ThemeToggle";
+import { SignedIn, SignedOut, useUser } from "@clerk/react-router";
+import { PublicNav } from "~/components/PublicNav";
+import { PublicFooter } from "~/components/PublicFooter";
 import { ChatWidget } from "~/components/chat/ChatWidget";
 import { getStudioPage, getSubdomain } from "~/utils/subdomain.server";
 import { lazy, Suspense } from "react";
@@ -73,43 +74,7 @@ export default function Index() {
 
     return (
         <div className="font-sans min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 transition-colors duration-300">
-            {/* Navigation */}
-            <nav className="flex justify-between items-center px-8 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/80 backdrop-blur-sm sticky top-0 z-50">
-                <div className="flex items-center gap-3">
-                    <span className="text-xl font-bold tracking-tight">🧘 Studio Platform</span>
-                </div>
-                <div className="flex items-center gap-6">
-                    <ThemeToggle />
-                    <Link to="/pricing" className="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
-                        Pricing
-                    </Link>
-                    {/* @ts-ignore */}
-                    {!!user?.publicMetadata?.isPlatformAdmin && (
-                        <Link to="/admin" className="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
-                            Admin
-                        </Link>
-                    )}
-                    <SignedIn>
-                        <Link to="/dashboard" className="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
-                            Dashboard
-                        </Link>
-                        <div className="flex items-center gap-3 pl-2 border-l border-zinc-200 dark:border-zinc-800">
-                            <span className="text-sm text-zinc-700 dark:text-zinc-300">
-                                {user?.firstName ? `Hi, ${user.firstName}` : ''}
-                            </span>
-                            <UserButton afterSignOutUrl="/" />
-                        </div>
-                    </SignedIn>
-                    <SignedOut>
-                        <Link to="/sign-in" className="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
-                            Sign In
-                        </Link>
-                        <Link to="/sign-up" className="px-4 py-2 bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900 rounded-md text-sm font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors">
-                            Get Started
-                        </Link>
-                    </SignedOut>
-                </div>
-            </nav>
+            <PublicNav />
 
             {/* JSON-LD for SEO */}
             <script
@@ -133,7 +98,7 @@ export default function Index() {
                     Yoga Studio & Small Gym Management
                 </h1>
                 <p className="text-xl text-zinc-600 dark:text-zinc-400 mb-12 max-w-2xl mx-auto leading-relaxed">
-                    Yoga studio management and small gym hosting platform. Schedule classes, manage memberships, 
+                    Yoga studio management and small gym hosting platform. Schedule classes, manage memberships,
                     process payments, and route students into your business—all in one place.
                 </p>
 
@@ -223,6 +188,7 @@ export default function Index() {
                     </div>
                 </div>
             </div>
+            <PublicFooter />
             <ChatWidget
                 roomId={user ? `support-${user.id}` : "support-guest"}
                 tenantId="platform"

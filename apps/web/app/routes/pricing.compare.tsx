@@ -2,9 +2,9 @@
 import type { MetaFunction } from "react-router";
 
 import { Link } from "react-router";
-import { ThemeToggle } from "~/components/ThemeToggle";
 import { Check, Minus, HelpCircle } from "lucide-react";
-import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/react-router";
+import { PublicNav } from "~/components/PublicNav";
+import { PublicFooter } from "~/components/PublicFooter";
 
 export const meta: MetaFunction = () => {
     return [
@@ -84,7 +84,6 @@ import { useState, useEffect } from "react";
 // ... (existing imports)
 
 export default function ComparePlans() {
-    const { user } = useUser();
     const [plans, setPlans] = useState<Plan[]>([]);
 
     useEffect(() => {
@@ -129,37 +128,7 @@ export default function ComparePlans() {
 
     return (
         <div className="font-sans min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 transition-colors duration-300">
-            {/* Same Nav ... */}
-            <nav className="flex justify-between items-center px-8 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/80 backdrop-blur-sm sticky top-0 z-50">
-                <div className="flex items-center gap-3">
-                    <Link to="/" className="text-xl font-bold tracking-tight hover:opacity-80 transition-opacity">
-                        🧘 Studio Platform
-                    </Link>
-                </div>
-                <div className="flex items-center gap-6">
-                    <ThemeToggle />
-                    <Link to="/pricing" className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                        Pricing
-                    </Link>
-                    <Link to="/admin" className="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
-                        Admin
-                    </Link>
-                    <SignedIn>
-                        <Link to="/dashboard" className="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
-                            Dashboard
-                        </Link>
-                        <UserButton afterSignOutUrl="/" />
-                    </SignedIn>
-                    <SignedOut>
-                        <Link to="/sign-in" className="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
-                            Sign In
-                        </Link>
-                        <Link to="/sign-up" className="px-4 py-2 bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900 rounded-md text-sm font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors">
-                            Get Started
-                        </Link>
-                    </SignedOut>
-                </div>
-            </nav>
+            <PublicNav />
 
             <main className="py-24 px-6 max-w-7xl mx-auto">
                 <div className="text-center mb-16">
@@ -246,12 +215,7 @@ export default function ComparePlans() {
                     </table>
                 </div>
             </main>
-            {/* Footer */}
-            <footer className="py-12 px-6 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
-                <div className="max-w-7xl mx-auto text-center text-zinc-500 dark:text-zinc-400 text-sm">
-                    © {new Date().getFullYear()} Studio Platform. All rights reserved.
-                </div>
-            </footer>
+            <PublicFooter />
         </div>
     );
 }
