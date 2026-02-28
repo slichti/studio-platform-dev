@@ -268,7 +268,7 @@ app.onError((err: any, c) => {
   }
 
   // Only expose detailed error info in non-production environments
-  const isDev = (c.env as any).ENVIRONMENT !== 'production';
+  const isDev = ['dev', 'development', 'local', 'test'].includes((c.env as any).ENVIRONMENT);
 
   if (isDev) {
     return c.json({
@@ -288,12 +288,6 @@ app.onError((err: any, c) => {
 
 app.use('*', cors({
   origin: (origin, c) => {
-    // Allow any origin for public assets, guest routes, and public tenant info
-    const path = c.req.path;
-    if (path.startsWith('/public-assets/') || path.startsWith('/guest/') || path.startsWith('/public/')) {
-      return origin || '*';
-    }
-
     if (!origin) return 'https://studio-platform-web.pages.dev';
     if (origin.endsWith('.pages.dev') || origin.endsWith('.slichti.org') || origin.includes('localhost')) {
       return origin;

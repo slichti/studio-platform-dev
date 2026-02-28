@@ -13,12 +13,31 @@ import { AppError, NotFoundError, UnauthorizedError, BadRequestError } from '../
 const app = new Hono<HonoContext>();
 
 app.post('/zoom', async (c) => {
-    const body = await c.req.json();
+    const rawBody = await c.req.text();
+    const body = JSON.parse(rawBody);
     if (body.event === 'endpoint.url_validation') {
         const secret = c.env.ZOOM_WEBHOOK_SECRET_TOKEN;
         const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
         const sig = Array.from(new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body.payload.plainToken)))).map(b => b.toString(16).padStart(2, '0')).join('');
         return c.json({ plainToken: body.payload.plainToken, encryptedToken: sig });
+    }
+
+    // Verify Zoom webhook signature for all non-validation events
+    const zoomSignature = c.req.header('x-zm-signature');
+    const zoomTimestamp = c.req.header('x-zm-request-timestamp');
+    const secret = c.env.ZOOM_WEBHOOK_SECRET_TOKEN;
+
+    if (!zoomSignature || !zoomTimestamp || !secret) {
+        return c.json({ error: 'Missing signature or configuration' }, 401);
+    }
+
+    const message = `v0:${zoomTimestamp}:${rawBody}`;
+    const hmacKey = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const hashBytes = await crypto.subtle.sign('HMAC', hmacKey, new TextEncoder().encode(message));
+    const expectedSig = `v0=${Array.from(new Uint8Array(hashBytes)).map(b => b.toString(16).padStart(2, '0')).join('')}`;
+
+    if (zoomSignature !== expectedSig) {
+        return c.json({ error: 'Invalid Zoom signature' }, 401);
     }
 
     if (body.event === 'recording.completed') {

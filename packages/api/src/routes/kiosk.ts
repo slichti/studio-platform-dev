@@ -114,7 +114,25 @@ app.openapi(createRoute({
         return c.json({ error: "Kiosk PIN is not configured." }, 400);
     }
 
-    if (settings.kioskPin !== pin) {
+    // Constant-time PIN comparison to prevent timing attacks
+    const encoder = new TextEncoder();
+    const pinBytes = encoder.encode(pin);
+    const storedPinBytes = encoder.encode(settings.kioskPin);
+    if (pinBytes.length !== storedPinBytes.length) {
+        return c.json({ error: "Invalid PIN" }, 401);
+    }
+    const key = await crypto.subtle.importKey('raw', new Uint8Array(32), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const [pinMac, storedMac] = await Promise.all([
+        crypto.subtle.sign('HMAC', key, pinBytes),
+        crypto.subtle.sign('HMAC', key, storedPinBytes)
+    ]);
+    const pinMacArr = new Uint8Array(pinMac);
+    const storedMacArr = new Uint8Array(storedMac);
+    let match = true;
+    for (let i = 0; i < pinMacArr.length; i++) {
+        if (pinMacArr[i] !== storedMacArr[i]) match = false;
+    }
+    if (!match) {
         return c.json({ error: "Invalid PIN" }, 401);
     }
 

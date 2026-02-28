@@ -21,15 +21,22 @@ export const authMiddleware = createMiddleware<{ Variables: Variables, Bindings:
         // [WEBSOCKET AUTH] Allow query param token for WS upgrades (browsers can't send headers)
         token = c.req.query('token');
     } else {
-        // [CHAT GUEST] Allow WebSocket upgrade for public-site chat with guest ID (no token)
+        // [CHAT GUEST] Allow WebSocket upgrade for public-site chat with signed guest token
         if (c.req.header('Upgrade')?.toLowerCase() === 'websocket' && c.req.method === 'GET') {
-            const userId = c.req.query('userId');
-            const tenantSlug = c.req.query('tenantSlug');
-            const tenantId = c.req.query('tenantId');
-            if (userId && userId.startsWith('guest_') && (tenantSlug || tenantId)) {
-                c.set('auth', { userId, claims: { sub: userId, role: 'guest' } });
-                c.set('isImpersonating', false);
-                return await next();
+            const guestToken = c.req.query('guestToken');
+            if (guestToken) {
+                try {
+                    const { verify: verifyJwt } = await import('hono/jwt');
+                    const signingSecret = c.env.IMPERSONATION_SECRET || c.env.CLERK_SECRET_KEY;
+                    const payload = await verifyJwt(guestToken, signingSecret, 'HS256');
+                    if (payload.role === 'guest' && payload.sub) {
+                        c.set('auth', { userId: payload.sub as string, claims: payload as any });
+                        c.set('isImpersonating', false);
+                        return await next();
+                    }
+                } catch (e) {
+                    // Invalid guest token, fall through to 401
+                }
             }
         }
 
@@ -52,8 +59,8 @@ export const authMiddleware = createMiddleware<{ Variables: Variables, Bindings:
 
     // [E2E BYPASS] Allow raw user IDs in Dev/Test
     // If token starts with 'user_' and we are in dev/test, treat it as the ID.
-    const env = (c.env as any).ENVIRONMENT || 'local';
-    if (token.startsWith('user_') && ['test', 'dev', 'local'].includes(env)) {
+    const env = (c.env as any).ENVIRONMENT || 'production';
+    if (token.startsWith('user_') && ['test'].includes(env)) {
         c.set('auth', { userId: token, claims: { sub: token } });
         // Mock isImpersonating to allow logic that depends on it or strict checks?
         // No, just set auth is enough for standard endpoints.
@@ -68,7 +75,11 @@ export const authMiddleware = createMiddleware<{ Variables: Variables, Bindings:
 
         // 1. Check for Impersonation Token (Custom JWT, HS256)
         if (header.alg === 'HS256') {
-            const signingSecret = c.env.IMPERSONATION_SECRET || c.env.CLERK_SECRET_KEY;
+            const signingSecret = c.env.IMPERSONATION_SECRET || ((c.env as any).ENVIRONMENT === 'test' ? c.env.CLERK_SECRET_KEY : null);
+            if (!signingSecret) {
+                console.error('IMPERSONATION_SECRET is not configured');
+                return c.json({ error: 'Server configuration error' }, 500);
+            }
             try {
                 const payload = await verify(token, signingSecret, 'HS256');
                 if (payload.impersonatorId || payload.role === 'guest') {
@@ -178,7 +189,8 @@ export const optionalAuthMiddleware = createMiddleware<{ Variables: Variables, B
 
     if (authHeader && authHeader.startsWith('Bearer ')) {
         token = authHeader.split(' ')[1];
-    } else if (c.req.query('token')) {
+    } else if (c.req.header('Upgrade') === 'websocket' && c.req.query('token')) {
+        // Only allow query param tokens for WebSocket upgrades (browsers can't send headers)
         token = c.req.query('token');
     }
 
@@ -208,7 +220,11 @@ export const optionalAuthMiddleware = createMiddleware<{ Variables: Variables, B
         if (header.alg === 'HS256') {
 
             // Check implicit secret or explicit IMPERSONATION_SECRET if available on env (cast as any if Bindings not unified yet)
-            const secret = (c.env as any).IMPERSONATION_SECRET || (c.env as any).CLERK_SECRET_KEY;
+            const secret = (c.env as any).IMPERSONATION_SECRET || ((c.env as any).ENVIRONMENT === 'test' ? (c.env as any).CLERK_SECRET_KEY : null);
+            if (!secret) {
+                // If no impersonation secret configured and not in test, skip HS256 verification
+                return await next();
+            }
             try {
                 const payload = await verify(token, secret, 'HS256');
                 if (payload.impersonatorId || payload.role === 'guest') {

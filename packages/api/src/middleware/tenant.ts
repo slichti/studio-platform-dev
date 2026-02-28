@@ -111,8 +111,7 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
 
     if (!tenant) {
         return c.json({
-            error: `Tenant not found. Context: ${hostname}, Header: ${headerTenantSlug || 'N/A'}, ID: ${headerTenantId || 'N/A'}`,
-            debug: true
+            error: 'Tenant not found'
         }, 404);
     }
 

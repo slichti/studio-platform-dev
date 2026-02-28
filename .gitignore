@@ -11,6 +11,10 @@ yarn-debug.log*
 yarn-error.log*
 .turbo
 
+# Database dumps and local DB
+*.sql
+local.db
+
 # Web build artifacts
 /apps/web/build/
 /apps/web/.wrangler/

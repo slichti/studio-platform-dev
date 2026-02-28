@@ -65,7 +65,7 @@ export const rateLimitMiddleware = (options: RateLimitOptions = {}) => {
 
         // Get RateLimiter Stub
         // [TEST ENVIRONMENT BYPASS]
-        if ((c.env as any).ENVIRONMENT === 'test' || (c.env as any).ENVIRONMENT === 'dev' || c.req.header('TEST-AUTH')) {
+        if ((c.env as any).ENVIRONMENT === 'test' || (c.env as any).ENVIRONMENT === 'dev') {
             await next();
             return;
         }
