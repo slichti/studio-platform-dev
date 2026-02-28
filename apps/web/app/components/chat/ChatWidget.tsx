@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { MessageCircle, X, Send, Users } from "lucide-react";
+import { getReconnectDelay } from "~/utils/chatReconnect";
 
 interface ChatMessage {
     id: string;
@@ -143,7 +144,7 @@ export function ChatWidget({ roomId, tenantId, tenantSlug, userId, userName, api
 
                 const attempt = reconnectAttemptsRef.current + 1;
                 reconnectAttemptsRef.current = attempt;
-                const delay = Math.min(30000, 1000 * Math.pow(2, attempt - 1));
+                const delay = getReconnectDelay(attempt);
 
                 console.warn(`[Chat] Disconnected (code ${event.code}). Retrying in ${Math.round(delay / 1000)}s (attempt ${attempt})`);
 

@@ -43,4 +43,19 @@ test.describe('Platform Smoke Tests', () => {
         // Should redirect to login or show unauthorized
         await expect(page).toHaveURL(/.*sign-in.*/);
     });
+
+    test('sign-in page loads', async ({ page }) => {
+        await page.goto('/sign-in');
+        await expect(page).toHaveURL(/.*sign-in/);
+    });
+
+    test('sign-up page loads', async ({ page }) => {
+        await page.goto('/sign-up');
+        await expect(page).toHaveURL(/.*sign-up/);
+    });
+
+    test('documentation redirects to sign-in when not authenticated', async ({ page }) => {
+        await page.goto('/documentation');
+        await expect(page).toHaveURL(/.*sign-in.*/);
+    });
 });

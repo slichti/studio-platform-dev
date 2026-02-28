@@ -3,10 +3,12 @@ import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 
 import { useLoaderData, useOutletContext, Form, useNavigation, Link } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
+import { useAuth } from "@clerk/react-router";
 import { apiRequest } from "../utils/api";
-import { useState } from "react";
-import { Plus, Package, Calendar, DollarSign, Sparkles } from "lucide-react";
+import { useState, useRef } from "react";
+import { Plus, Package, Calendar, DollarSign, Sparkles, ChevronDown, ChevronUp, Image as ImageIcon } from "lucide-react";
 import { format } from "date-fns";
+import { CardCreator } from "../components/CardCreator";
 
 type ClassPackDefinition = {
     id: string;
@@ -63,10 +65,53 @@ export const action = async (args: ActionFunctionArgs) => {
 export default function ClassPacksPage() {
     const { packs, params } = useLoaderData<{ packs: ClassPackDefinition[]; params: { slug: string } }>();
     const { me, roles } = useOutletContext<any>() || {}; // Fallback for safety
+    const { getToken } = useAuth();
     const navigation = useNavigation();
     const [isCreating, setIsCreating] = useState(false);
+    const [showImageSection, setShowImageSection] = useState(false);
+    const [imageUrl, setImageUrl] = useState('');
+    const [imageBlob, setImageBlob] = useState<Blob | null>(null);
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const formRef = useRef<HTMLFormElement>(null);
 
     const isSubmitting = navigation.state === "submitting";
+
+    const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        // If we have an image blob, upload it first
+        if (imageBlob) {
+            e.preventDefault();
+            setUploadingImage(true);
+            try {
+                const token = await getToken();
+                const uploadFormData = new FormData();
+                const file = new File([imageBlob], 'pack-card.jpg', { type: 'image/jpeg' });
+                uploadFormData.append('file', file);
+
+                const apiUrl = import.meta.env.VITE_API_URL || 'https://studio-platform-api.slichti.workers.dev';
+                const res = await fetch(`${apiUrl}/uploads/r2-image`, {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'X-Tenant-Slug': params.slug!,
+                    },
+                    body: uploadFormData,
+                });
+
+                if (res.ok) {
+                    const data = await res.json() as { url: string };
+                    setImageUrl(data.url);
+                    // Submit the form after a tick to let state update
+                    setTimeout(() => {
+                        formRef.current?.submit();
+                    }, 50);
+                }
+            } catch (err) {
+                console.error('Image upload failed', err);
+            } finally {
+                setUploadingImage(false);
+            }
+        }
+    };
 
     return (
         <div className="max-w-5xl mx-auto py-8">
@@ -98,8 +143,9 @@ export default function ClassPacksPage() {
             {isCreating && (
                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 mb-8 shadow-sm">
                     <h2 className="text-lg font-semibold mb-4 text-zinc-900 dark:text-zinc-100">New Class Pack</h2>
-                    <Form method="post" onSubmit={() => setIsCreating(false)}>
+                    <Form method="post" onSubmit={handleFormSubmit} ref={formRef}>
                         <input type="hidden" name="intent" value="create_pack" />
+                        <input type="hidden" name="imageUrl" value={imageUrl} />
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                             <div>
                                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Pack Name</label>
@@ -144,27 +190,37 @@ export default function ClassPacksPage() {
                                 />
                                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Leave blank for no expiration.</p>
                             </div>
+
+                            {/* Cover Image with CardCreator */}
                             <div className="md:col-span-2">
-                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Cover Image</label>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        name="imageUrl"
-                                        placeholder="Paste image URL here..."
-                                        className="flex-1 px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
-                                    />
+                                <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
                                     <button
                                         type="button"
-                                        onClick={() => window.open('https://www.canva.com/create/social-media-graphics/', '_blank')}
-                                        className="px-3 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-md text-sm font-medium hover:from-purple-600 hover:to-indigo-700 flex items-center gap-2"
+                                        onClick={() => setShowImageSection(!showImageSection)}
+                                        className="w-full flex items-center justify-between px-4 py-3 bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-750 transition-colors text-left"
                                     >
-                                        <span className="font-bold font-serif italic text-lg leading-none transform -translate-y-[1px]">C</span>
-                                        Design in Canva
+                                        <span className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                                            <ImageIcon className="h-4 w-4" />
+                                            Cover Image
+                                            {imageUrl && <span className="text-green-600 text-xs">(Added)</span>}
+                                        </span>
+                                        {showImageSection ? <ChevronUp className="h-4 w-4 text-zinc-400" /> : <ChevronDown className="h-4 w-4 text-zinc-400" />}
                                     </button>
+                                    {showImageSection && (
+                                        <div className="p-4 border-t border-zinc-200 dark:border-zinc-700">
+                                            <CardCreator
+                                                initialImage={imageUrl || undefined}
+                                                onChange={(data) => {
+                                                    setImageBlob(data.image);
+                                                    if (data.previewUrl) setImageUrl(data.previewUrl);
+                                                }}
+                                            />
+                                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2">
+                                                Upload or generate a 600×450 (4:3) cover image for this class pack.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                                    Design your cover in Canva, then copy and paste the image link here.
-                                </p>
                             </div>
                         </div>
 
@@ -189,10 +245,10 @@ export default function ClassPacksPage() {
                             </button>
                             <button
                                 type="submit"
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || uploadingImage}
                                 className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
                             >
-                                {isSubmitting ? "Creating..." : "Create Pack"}
+                                {uploadingImage ? "Uploading Image..." : isSubmitting ? "Creating..." : "Create Pack"}
                             </button>
                         </div>
                     </Form>
@@ -270,4 +326,3 @@ export default function ClassPacksPage() {
         </div>
     );
 }
-

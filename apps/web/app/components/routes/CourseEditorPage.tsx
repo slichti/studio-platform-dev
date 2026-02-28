@@ -4,7 +4,8 @@ import {
     ArrowLeft, Save, Plus, Trash2, Calendar, GripVertical,
     Video, BookOpen, ChevronRight, Settings, CheckSquare,
     LayoutDashboard, GraduationCap, Globe, Users, TrendingUp,
-    ArrowUpDown, Loader2, FileText, ClipboardList
+    ArrowUpDown, Loader2, FileText, ClipboardList,
+    ChevronDown, ChevronUp, Image as ImageIcon
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -19,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { ComponentErrorBoundary } from "~/components/ErrorBoundary";
 import { SkeletonLoader } from "~/components/ui/SkeletonLoader";
 import { Modal } from "~/components/Modal";
+import { CardCreator } from "~/components/CardCreator";
 
 import { useCourse, useCourses } from "~/hooks/useCourses";
 import { apiRequest } from "~/utils/api";
@@ -451,6 +453,9 @@ export default function CourseEditorPage() {
     const [formData, setFormData] = useState<any>(null);
     const [isDirty, setIsDirty] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [showCourseImage, setShowCourseImage] = useState(false);
+    const [courseImageBlob, setCourseImageBlob] = useState<Blob | null>(null);
+    const [uploadingCourseImage, setUploadingCourseImage] = useState(false);
 
     // Curriculum state
     const [curriculum, setCurriculum] = useState<any[]>([]);
@@ -510,10 +515,36 @@ export default function CourseEditorPage() {
         setSaving(true);
         try {
             const token = await getToken();
+
+            // Upload course image if present
+            let thumbnailUrl = formData.thumbnailUrl;
+            if (courseImageBlob) {
+                setUploadingCourseImage(true);
+                const imgFormData = new FormData();
+                const file = new File([courseImageBlob], 'course-card.jpg', { type: 'image/jpeg' });
+                imgFormData.append('file', file);
+
+                const apiUrl = import.meta.env.VITE_API_URL || 'https://studio-platform-api.slichti.workers.dev';
+                const uploadRes = await fetch(`${apiUrl}/uploads/r2-image`, {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'X-Tenant-Slug': slug!,
+                    },
+                    body: imgFormData,
+                });
+                if (uploadRes.ok) {
+                    const uploadData = await uploadRes.json() as { url: string };
+                    thumbnailUrl = uploadData.url;
+                }
+                setUploadingCourseImage(false);
+                setCourseImageBlob(null);
+            }
+
             await apiRequest(`/courses/${id}`, token, {
                 method: 'PATCH',
                 headers: { 'X-Tenant-Slug': slug! },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({ ...formData, thumbnailUrl })
             });
             queryClient.invalidateQueries({ queryKey: ['course', slug, id] });
             setIsDirty(false);
@@ -766,6 +797,43 @@ export default function CourseEditorPage() {
                                     onChange={e => handleFieldChange('description', e.target.value)}
                                 />
                             </div>
+
+                            {/* Cover Image */}
+                            <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCourseImage(!showCourseImage)}
+                                    className="w-full flex items-center justify-between px-4 py-3 bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-750 transition-colors text-left"
+                                >
+                                    <span className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                                        <ImageIcon className="w-4 h-4" />
+                                        Cover Image
+                                        {(course.thumbnailUrl || courseImageBlob) && <span className="text-green-600 text-xs">(Set)</span>}
+                                    </span>
+                                    {showCourseImage ? <ChevronUp className="w-4 h-4 text-zinc-400" /> : <ChevronDown className="w-4 h-4 text-zinc-400" />}
+                                </button>
+                                {showCourseImage && (
+                                    <div className="p-4 border-t border-zinc-200 dark:border-zinc-700">
+                                        <CardCreator
+                                            initialImage={course.thumbnailUrl || undefined}
+                                            onChange={(data) => {
+                                                setCourseImageBlob(data.image);
+                                                setIsDirty(true);
+                                            }}
+                                        />
+                                        <p className="text-xs text-zinc-500 mt-2">
+                                            Upload or generate a 600×450 (4:3) thumbnail. Click Save to apply.
+                                        </p>
+                                        {uploadingCourseImage && (
+                                            <div className="flex items-center gap-2 text-sm text-indigo-600 mt-2">
+                                                <div className="h-4 w-4 animate-spin rounded-full border-t-2 border-indigo-600 border-r-2" />
+                                                Uploading...
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="grid grid-cols-2 gap-6">
                                 <div className="space-y-1">
                                     <label className="text-sm font-semibold">Price ($)</label>

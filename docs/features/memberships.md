@@ -20,6 +20,7 @@ membership_plans
   currency         default 'usd'
   interval         enum: 'month' | 'year' | 'week'
   image_url
+  image_library       JSON  ← Image library for rotation/scheduling
   overlay_title
   overlay_subtitle
   vod_enabled      boolean
@@ -161,7 +162,8 @@ Plans with `trial_days > 0` pass `subscription_data: { trial_period_days: plan.t
 | Interval | month / year / week |
 | Free Trial (days) | `0` disables trial |
 | VOD Access | Boolean toggle |
-| Image | Uploaded via `CardCreator` → R2 |
+| Image | Uploaded via `CardCreator` (600×450px, 4:3) → R2 |
+| Image Library | Multiple images with scheduling for seasonal rotation |
 | Overlay Title / Subtitle | Displayed on card image |
 
 ---
@@ -179,7 +181,7 @@ const { data: plans } = usePlans(slug, { includeArchived: true });
 const { data: subs } = useActiveSubscriptions(slug);
 ```
 
-`Plan` type includes: `id`, `name`, `description`, `price`, `currency`, `interval`, `imageUrl`, `vodEnabled`, `trialDays`, `active`, `stripeProductId`, `stripePriceId`.
+`Plan` type includes: `id`, `name`, `description`, `price`, `currency`, `interval`, `imageUrl`, `imageLibrary`, `vodEnabled`, `trialDays`, `active`, `stripeProductId`, `stripePriceId`.
 
 ---
 

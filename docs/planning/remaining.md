@@ -69,3 +69,17 @@ Tracked from API Audit, walkthroughs, and ops. Updated as items are completed.
 **Status:** ✅
 
 - Per-user and stricter cost-based limits implemented via `rateLimitMiddleware` and a Durable Object store, with higher-cost weights for exports, payroll generation, bulk operations, analytics, and imports. Documented in `deploy-checklist.md` and `api_improvements.md`.
+---
+
+## 8. AI Chatbot (Multi-tenant RAG)
+**Source:** User request (Feb 2026)  
+**Status:** ⬜ Not started
+
+- **Scope:** 
+    - **Initial Contact:** Handle general platform questions (support, product docs).
+    - **Tenant-specific:** Answer student questions (payment status, class schedules) using tool-calling.
+    - **RAG Architecture:** Multi-tenant vector knowledge base (Cloudflare Vectorize) + dynamic function calling (Drizzle DB).
+- **Core Components:**
+    - `packages/api`: New `POST /chat` endpoint with tenant-filtering and tool-calling.
+    - `apps/web`: React Chat Interface with `useChat` hook (Vercel AI SDK).
+    - AI-managed context for "Next Class" and "Membership Expiry" verification.

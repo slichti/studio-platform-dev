@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import React, { Suspense } from 'react';
 const Cropper = React.lazy(() => import('react-easy-crop'));
 import { getCroppedImg } from '../utils/cropImage';
-import { Upload, Wand2, ChevronDown } from 'lucide-react';
+import { Upload, Wand2, ChevronDown, Trash2 } from 'lucide-react';
 
 interface CardCreatorProps {
     initialImage?: string;
@@ -30,8 +30,8 @@ const DIRECTION_OPTIONS = [
     { label: '↗', value: 45 },
 ];
 
-const CANVAS_WIDTH = 900;
-const CANVAS_HEIGHT = 600;
+const CANVAS_WIDTH = 600;
+const CANVAS_HEIGHT = 450;
 
 // --- Canvas rendering ---
 function renderCardToCanvas(
@@ -87,7 +87,7 @@ function renderCardToCanvas(
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        const fontSize = Math.min(56, CANVAS_WIDTH / (options.title.length * 0.55));
+        const fontSize = Math.min(42, CANVAS_WIDTH / (options.title.length * 0.55));
         ctx.font = `bold ${fontSize}px "Inter", "Segoe UI", system-ui, sans-serif`;
 
         // Text shadow
@@ -107,7 +107,7 @@ function renderCardToCanvas(
         ctx.save();
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.font = `400 24px "Inter", "Segoe UI", system-ui, sans-serif`;
+        ctx.font = `400 18px "Inter", "Segoe UI", system-ui, sans-serif`;
 
         ctx.shadowColor = 'rgba(0,0,0,0.4)';
         ctx.shadowBlur = 8;
@@ -240,8 +240,8 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
                     type="button"
                     onClick={() => setTab('upload')}
                     className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${tab === 'upload'
-                            ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
-                            : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
+                        ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                        : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
                         }`}
                 >
                     <Upload size={15} /> Upload Image
@@ -250,8 +250,8 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
                     type="button"
                     onClick={() => setTab('generate')}
                     className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${tab === 'generate'
-                            ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
-                            : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
+                        ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                        : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
                         }`}
                 >
                     <Wand2 size={15} /> Generate Card
@@ -264,7 +264,7 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
                     {uploadMode === 'upload' && (
                         <div className="border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg p-8 text-center bg-zinc-50 dark:bg-zinc-800/50 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800">
                             <p className="text-zinc-500 dark:text-zinc-400 mb-2 font-medium">Upload a background image for your membership card.</p>
-                            <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Recommended: 900×600px (3:2 ratio). Max 5 MB.</p>
+                            <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Recommended: 600×450px (4:3 ratio). Max 5 MB.</p>
                             <input
                                 type="file"
                                 accept="image/*"
@@ -288,7 +288,7 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
                                     image={imageSrc}
                                     crop={crop}
                                     zoom={zoom}
-                                    aspect={3 / 2}
+                                    aspect={4 / 3}
                                     onCropChange={setCrop}
                                     onCropComplete={onCropComplete}
                                     onZoomChange={setZoom}
@@ -315,7 +315,7 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
 
                     {uploadMode === 'preview' && (
                         <div className="space-y-4">
-                            <div className="relative w-full aspect-[3/2] rounded-lg overflow-hidden shadow-md group">
+                            <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden shadow-md group">
                                 {imageSrc && (
                                     <img
                                         src={imageSrc}
@@ -329,13 +329,35 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
                                         {subtitle && <p className="text-sm text-zinc-700 dark:text-zinc-300 mt-1">{subtitle}</p>}
                                     </div>
                                 </div>
-                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                                     <button
                                         type="button"
                                         onClick={() => setUploadMode('crop')}
                                         className="bg-white text-zinc-900 px-4 py-2 rounded-full font-medium hover:bg-zinc-100 shadow-lg transform transition-transform hover:scale-105"
                                     >
                                         Edit Image
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setUploadMode('upload');
+                                            setImageSrc(null);
+                                        }}
+                                        className="bg-white text-zinc-900 px-4 py-2 rounded-full font-medium hover:bg-zinc-100 shadow-lg transform transition-transform hover:scale-105"
+                                    >
+                                        Replace
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setImageSrc(null);
+                                            setUploadMode('upload');
+                                            onChange({ image: null, title, subtitle, previewUrl: '' });
+                                        }}
+                                        className="bg-red-500 text-white p-2 rounded-full hover:bg-red-600 shadow-lg transform transition-transform hover:scale-105"
+                                        title="Remove Image"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
                                     </button>
                                 </div>
                             </div>
@@ -439,8 +461,8 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
                                                 type="button"
                                                 onClick={() => { setDirection(opt.value); setActivePreset(null); }}
                                                 className={`w-8 h-10 rounded text-sm font-medium transition-all ${direction === opt.value
-                                                        ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
-                                                        : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                                                    ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
+                                                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700'
                                                     }`}
                                             >
                                                 {opt.label}
@@ -453,7 +475,7 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
                     </div>
 
                     {/* Live preview canvas */}
-                    <div className="relative w-full aspect-[3/2] rounded-lg overflow-hidden shadow-md border border-zinc-200 dark:border-zinc-700">
+                    <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden shadow-md border border-zinc-200 dark:border-zinc-700">
                         <canvas
                             ref={previewCanvasRef}
                             className="w-full h-full"

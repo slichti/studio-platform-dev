@@ -58,6 +58,7 @@ erDiagram
         string currency
         enum interval
         string image_url
+        json image_library
         string overlay_title
         string overlay_subtitle
         boolean vod_enabled
@@ -116,6 +117,8 @@ erDiagram
         integer duration_minutes
         enum status
         enum type
+        string thumbnail_url
+        json image_library
     }
     videos {
         string id PK
@@ -158,6 +161,7 @@ erDiagram
         string slug UK
         string description
         string thumbnail_url
+        json image_library
         boolean is_published
         enum delivery_mode
         timestamp cohort_start_date
@@ -337,6 +341,7 @@ erDiagram
         string name
         integer credits
         integer price
+        json image_library
     }
     purchased_packs {
         string id PK

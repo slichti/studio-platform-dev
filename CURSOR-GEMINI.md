@@ -669,3 +669,18 @@ Tracked from recommendation backlog. Status updated as work completes.
 - **F.2** Canonical & hreflang strategy for custom domains and multi-region.
 - **F.5** Internal link scaffolding from activity data.
 - **F.6** Programmatic FAQ harvest from support/class copy → FAQPage schema.
+---
+
+## Phase 15 — AI Chatbot Integration (Planned)
+
+**Summary:** Multi-tenant AI support system using Retrieval-Augmented Generation (RAG) and tool-calling to handle platform and studio-specific queries.
+
+### Proposed Architecture
+- **Knowledge Base:** Cloudflare Vectorize storing multi-tenant documents (Policies, FAQs, Docs) with strict `tenant_id` filtering.
+- **Tool Calling:** LLM functions for live data retrieval (Schedule lookups via Drizzle, Payment status via Stripe).
+- **Frontend:** Floating Chat Widget using Vercel AI SDK for streaming responses and state management.
+
+### Milestone Goals
+- [ ] **RAG Pipeline:** Automated ingestion of studio documentation into vector storage.
+- [ ] **Secure Context:** AI validated against tenant-scoped data only.
+- [ ] **Support Actions:** AI-driven class booking/cancelling and account lookups.

@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Modal } from "./Modal";
 import { apiRequest } from "../utils/api";
 import { useAuth } from "@clerk/react-router";
+import { CardCreator } from "./CardCreator";
+import { ChevronDown, ChevronUp, Image as ImageIcon } from "lucide-react";
 
 import { useParams } from "react-router";
 import { DateTimePicker } from "./ui/DateTimePicker";
@@ -55,6 +57,11 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
         contentCollectionId: ""
     });
 
+    // Image state
+    const [showImageSection, setShowImageSection] = useState(false);
+    const [imageBlob, setImageBlob] = useState<Blob | null>(null);
+    const [imagePreview, setImagePreview] = useState<string>('');
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -62,6 +69,28 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
 
         try {
             const token = await getToken();
+
+            // Upload image if present
+            let thumbnailUrl: string | undefined;
+            if (imageBlob) {
+                const imgFormData = new FormData();
+                const file = new File([imageBlob], 'class-card.jpg', { type: 'image/jpeg' });
+                imgFormData.append('file', file);
+
+                const apiUrl = import.meta.env.VITE_API_URL || 'https://studio-platform-api.slichti.workers.dev';
+                const uploadRes = await fetch(`${apiUrl}/uploads/r2-image`, {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'X-Tenant-Slug': slug!,
+                    },
+                    body: imgFormData,
+                });
+                if (uploadRes.ok) {
+                    const uploadData = await uploadRes.json() as { url: string };
+                    thumbnailUrl = uploadData.url;
+                }
+            }
 
             let recurrenceRule = undefined;
             if (formData.isRecurring) {
@@ -101,7 +130,8 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                     isCourse: formData.isCourse,
                     courseId: formData.courseId || undefined,
                     recordingPrice: (formData.isCourse || formData.courseId) && formData.recordingPrice ? Number(formData.recordingPrice) : null,
-                    contentCollectionId: (formData.isCourse || formData.courseId) && formData.contentCollectionId ? formData.contentCollectionId : null
+                    contentCollectionId: (formData.isCourse || formData.courseId) && formData.contentCollectionId ? formData.contentCollectionId : null,
+                    thumbnailUrl,
                 })
             });
 
@@ -142,6 +172,9 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                     recordingPrice: "",
                     contentCollectionId: ""
                 });
+                setImageBlob(null);
+                setImagePreview('');
+                setShowImageSection(false);
             }
         } catch (e: any) {
             const errMsg = e.data?.error || e.message || "Failed to create class";
@@ -260,6 +293,36 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                         </select>
                         <p className="text-[10px] text-blue-600">Linking will automatically associate this session with the course curriculum.</p>
                     </div>
+                </div>
+
+                {/* Cover Image Section */}
+                <div className="border border-zinc-200 rounded-lg overflow-hidden">
+                    <button
+                        type="button"
+                        onClick={() => setShowImageSection(!showImageSection)}
+                        className="w-full flex items-center justify-between px-4 py-3 bg-zinc-50 hover:bg-zinc-100 transition-colors text-left"
+                    >
+                        <span className="flex items-center gap-2 text-sm font-medium text-zinc-700">
+                            <ImageIcon className="w-4 h-4" />
+                            Cover Image
+                            {imagePreview && <span className="text-green-600 text-xs">(Added)</span>}
+                        </span>
+                        {showImageSection ? <ChevronUp className="w-4 h-4 text-zinc-400" /> : <ChevronDown className="w-4 h-4 text-zinc-400" />}
+                    </button>
+                    {showImageSection && (
+                        <div className="p-4 border-t border-zinc-200">
+                            <CardCreator
+                                initialImage={imagePreview || undefined}
+                                onChange={(data) => {
+                                    setImageBlob(data.image);
+                                    setImagePreview(data.previewUrl);
+                                }}
+                            />
+                            <p className="text-xs text-zinc-500 mt-2">
+                                Upload or generate a 600×450 (4:3) cover image. Optional for classes and events.
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 <div>

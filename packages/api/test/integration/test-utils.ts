@@ -26,6 +26,7 @@ export async function setupTestDb(d1: D1Database) {
         'referrals', 'member_tags', 'members_to_tags', 'custom_field_definitions',
         'custom_field_values', 'community_posts', 'community_comments',
         'community_likes', 'reviews', 'video_purchases',
+        'api_keys',
         'quizzes', 'quiz_questions', 'quiz_submissions',
         'course_enrollments', 'courses', 'course_modules', 'course_access_codes',
         'course_prerequisites', 'articles', 'assignments', 'assignment_submissions',
@@ -76,6 +77,13 @@ export async function setupTestDb(d1: D1Database) {
         d1.prepare(`CREATE TABLE tenant_roles (
             id TEXT PRIMARY KEY, member_id TEXT NOT NULL, role TEXT NOT NULL, 
             custom_role_id TEXT, permissions TEXT, created_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )`),
+
+        d1.prepare(`CREATE TABLE api_keys (
+            id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL REFERENCES tenants(id), name TEXT NOT NULL,
+            key_hash TEXT NOT NULL UNIQUE, prefix TEXT NOT NULL, last_used_at INTEGER,
+            expires_at INTEGER, active INTEGER DEFAULT 1 NOT NULL,
+            created_at INTEGER DEFAULT (strftime('%s', 'now')), updated_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
 
         d1.prepare(`CREATE TABLE locations (

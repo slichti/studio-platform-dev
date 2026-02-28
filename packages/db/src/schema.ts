@@ -367,6 +367,7 @@ export const classes = sqliteTable('classes', {
     zoomPassword: text('zoom_password'),
     zoomEnabled: integer('zoom_enabled', { mode: 'boolean' }).default(false),
     thumbnailUrl: text('thumbnail_url'),
+    imageLibrary: text('image_library', { mode: 'json' }), // JSON array of image entries for rotation
     cloudflareStreamId: text('cloudflare_stream_id'),
     recordingStatus: text('recording_status', { enum: ['processing', 'ready', 'error'] }),
 
@@ -689,6 +690,7 @@ export const membershipPlans = sqliteTable('membership_plans', {
     currency: text('currency').default('usd'),
     interval: text('interval', { enum: ['month', 'year', 'week', 'one_time'] }).default('month'),
     imageUrl: text('image_url'),
+    imageLibrary: text('image_library', { mode: 'json' }), // JSON array of { id, url, label, isActive, activeFrom, activeUntil }
     overlayTitle: text('overlay_title'),
     overlaySubtitle: text('overlay_subtitle'),
     vodEnabled: integer('vod_enabled', { mode: 'boolean' }).default(false), // Grant VOD access?
@@ -756,6 +758,7 @@ export const classPackDefinitions = sqliteTable('class_pack_definitions', {
     credits: integer('credits').notNull(), // Number of classes
     expirationDays: integer('expiration_days'), // Validity in days
     imageUrl: text('image_url'), // Visual representation
+    imageLibrary: text('image_library', { mode: 'json' }), // JSON array of image entries for rotation
     vodEnabled: integer('vod_enabled', { mode: 'boolean' }).default(false), // Grant VOD access?
     active: integer('active', { mode: 'boolean' }).default(true),
     stripeProductId: text('stripe_product_id'),
@@ -1250,6 +1253,7 @@ export const courses = sqliteTable('courses', {
     description: text('description'),
     slug: text('slug').notNull(), // for public URLs
     thumbnailUrl: text('thumbnail_url'),
+    imageLibrary: text('image_library', { mode: 'json' }), // JSON array of image entries for rotation
     price: integer('price').default(0), // Total course price in cents
     memberPrice: integer('member_price'), // Discounted price for members
     status: text('status', { enum: ['draft', 'active', 'archived'] }).default('draft').notNull(),
