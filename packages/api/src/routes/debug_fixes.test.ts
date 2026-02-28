@@ -89,7 +89,7 @@ describe('Debug Fixes Verification', () => {
             is_course INTEGER DEFAULT 0,
             content_collection_id TEXT,
             course_id TEXT,
-            google_event_id TEXT, created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            google_event_id TEXT, image_library TEXT, created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`);
         sqlite.exec(`CREATE TABLE locations (
             id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, address TEXT, capacity INTEGER, 

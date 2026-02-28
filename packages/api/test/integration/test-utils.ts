@@ -110,6 +110,7 @@ export async function setupTestDb(d1: D1Database) {
             content_collection_id TEXT,
             course_id TEXT,
             google_event_id TEXT,
+            image_library TEXT,
             created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
 
@@ -134,6 +135,7 @@ export async function setupTestDb(d1: D1Database) {
             price INTEGER DEFAULT 0, currency TEXT DEFAULT 'usd', "interval" TEXT DEFAULT 'month', 
             image_url TEXT, overlay_title TEXT, overlay_subtitle TEXT, vod_enabled INTEGER DEFAULT 0, 
             active INTEGER DEFAULT 1, stripe_product_id TEXT, stripe_price_id TEXT,
+            image_library TEXT,
             created_at INTEGER DEFAULT (strftime('%s', 'now')),
             updated_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
@@ -151,6 +153,7 @@ export async function setupTestDb(d1: D1Database) {
             price INTEGER DEFAULT 0, credits INTEGER NOT NULL, expiration_days INTEGER, 
             image_url TEXT, vod_enabled INTEGER DEFAULT 0, active INTEGER DEFAULT 1, 
             stripe_product_id TEXT, stripe_price_id TEXT,
+            image_library TEXT,
             created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
 
@@ -425,6 +428,7 @@ export async function setupTestDb(d1: D1Database) {
         delivery_mode TEXT DEFAULT 'self_paced',
         cohort_start_date INTEGER,
         cohort_end_date INTEGER,
+        image_library TEXT,
         created_at INTEGER DEFAULT (strftime('%s', 'now')),
         updated_at INTEGER DEFAULT (strftime('%s', 'now'))
     )`).run();

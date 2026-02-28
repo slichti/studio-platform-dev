@@ -86,31 +86,36 @@ describe('authMiddleware', () => {
         expect(next).toHaveBeenCalled();
     });
 
-    it('sets guest auth when Upgrade=websocket, GET, and guest_* userId + tenantSlug', async () => {
+    it('sets guest auth when Upgrade=websocket, GET, and valid signed guestToken', async () => {
+        // The middleware now verifies a signed guestToken JWT via hono/jwt
+        const { verify: mockVerify } = await import('hono/jwt');
+        vi.mocked(mockVerify).mockResolvedValueOnce({ sub: 'guest_abc123', role: 'guest', tenantSlug: 'my-studio' });
         const { c, next, setFn } = createMockContext({
             upgrade: 'websocket',
             method: 'GET',
-            query: { userId: 'guest_abc123', tenantSlug: 'my-studio' },
-            env: { ENVIRONMENT: 'production' },
+            query: { guestToken: 'signed.guest.jwt' },
+            env: { ENVIRONMENT: 'production', IMPERSONATION_SECRET: 'test-secret' },
         });
         await authMiddleware(c, next);
         expect(setFn).toHaveBeenCalledWith('auth', expect.objectContaining({ userId: 'guest_abc123', claims: expect.objectContaining({ sub: 'guest_abc123', role: 'guest' }) }));
         expect(next).toHaveBeenCalled();
     });
 
-    it('sets guest auth when Upgrade=websocket and tenantId (no slug)', async () => {
-        const { c, next, setFn } = createMockContext({
+    it('returns 401 when Upgrade=websocket and guestToken verification fails', async () => {
+        const { verify: mockVerify } = await import('hono/jwt');
+        vi.mocked(mockVerify).mockRejectedValueOnce(new Error('Invalid token'));
+        const { c, next, jsonFn } = createMockContext({
             upgrade: 'websocket',
             method: 'GET',
-            query: { userId: 'guest_xyz', tenantId: 'tenant-uuid-123' },
-            env: { ENVIRONMENT: 'production' },
+            query: { guestToken: 'bad.guest.token' },
+            env: { ENVIRONMENT: 'production', IMPERSONATION_SECRET: 'test-secret' },
         });
         await authMiddleware(c, next);
-        expect(setFn).toHaveBeenCalledWith('auth', expect.objectContaining({ userId: 'guest_xyz' }));
-        expect(next).toHaveBeenCalled();
+        expect(jsonFn).toHaveBeenCalledWith({ error: 'Unauthorized' }, 401);
+        expect(next).not.toHaveBeenCalled();
     });
 
-    it('returns 401 for WebSocket without guest_ userId', async () => {
+    it('returns 401 for WebSocket without guestToken or token', async () => {
         const { c, next, jsonFn } = createMockContext({
             upgrade: 'websocket',
             method: 'GET',
@@ -122,7 +127,7 @@ describe('authMiddleware', () => {
         expect(next).not.toHaveBeenCalled();
     });
 
-    it('returns 401 for WebSocket guest without tenantSlug or tenantId', async () => {
+    it('returns 401 for WebSocket guest without guestToken', async () => {
         const { c, next, jsonFn } = createMockContext({
             upgrade: 'websocket',
             method: 'GET',

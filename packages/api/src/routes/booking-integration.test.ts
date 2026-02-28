@@ -73,7 +73,7 @@ describe('Booking Lifecycle Integration', () => {
             is_course INTEGER DEFAULT 0,
             content_collection_id TEXT,
             course_id TEXT,
-            google_event_id TEXT, created_at INTEGER
+            google_event_id TEXT, image_library TEXT, created_at INTEGER
         )`);
 
         // 5. Bookings
@@ -89,7 +89,7 @@ describe('Booking Lifecycle Integration', () => {
         sqlite.exec(`CREATE TABLE class_pack_definitions (
             id TEXT PRIMARY KEY, tenant_id TEXT, name TEXT, price INTEGER DEFAULT 0, credits INTEGER,
             expiration_days INTEGER, image_url TEXT, vod_enabled INTEGER DEFAULT 0, active INTEGER DEFAULT 1,
-            stripe_product_id TEXT, stripe_price_id TEXT,
+            stripe_product_id TEXT, stripe_price_id TEXT, image_library TEXT,
             created_at INTEGER
         )`);
 
