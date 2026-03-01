@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '@studio/db/src/schema';
 import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
+import { defaultPlatformPages } from '../utils/defaultPlatformPages';
 
 const app = new Hono<{ Bindings: any; Variables: any }>();
 
@@ -87,11 +88,23 @@ app.post('/pages', authMiddleware, requirePlatformAdmin, async (c) => {
     }
 
     const id = crypto.randomUUID();
+
+    // Determine default content
+    let finalContent = body.content;
+    const isContentEmpty = !finalContent || Object.keys(finalContent).length === 0 || (finalContent.content && finalContent.content.length === 0);
+    if (isContentEmpty) {
+        if (defaultPlatformPages[body.slug]) {
+            finalContent = defaultPlatformPages[body.slug];
+        } else {
+            finalContent = { root: { props: {} }, content: [] };
+        }
+    }
+
     await db.insert(schema.platformPages).values({
         id,
         slug: body.slug,
         title: body.title,
-        content: body.content || { root: { props: {} }, content: [] },
+        content: finalContent,
         seoTitle: body.seoTitle,
         seoDescription: body.seoDescription,
         isPublished: false,

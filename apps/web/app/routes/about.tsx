@@ -75,12 +75,12 @@ function FallbackAboutContent() {
                                 <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Community First</h3>
                                 <p className="text-zinc-500 dark:text-zinc-400 text-sm">Tools designed specifically to foster connection.</p>
                             </div>
-                            <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800 mt-8">
+                            <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800">
                                 <Users className="w-10 h-10 text-blue-500 mb-4" />
                                 <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Built for Growth</h3>
                                 <p className="text-zinc-500 dark:text-zinc-400 text-sm">Marketing and CRM tools that fill your classes.</p>
                             </div>
-                            <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800 -mt-8">
+                            <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800">
                                 <Shield className="w-10 h-10 text-green-500 mb-4" />
                                 <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Reliable & Secure</h3>
                                 <p className="text-zinc-500 dark:text-zinc-400 text-sm">Enterprise-grade infrastructure you can trust.</p>
