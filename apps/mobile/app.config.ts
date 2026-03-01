@@ -52,6 +52,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                 foregroundImage: icon, // Use same icon for adaptive for now, or add specific support later
                 backgroundColor: primaryColor
             },
+            // @ts-expect-error edgeToEdgeEnabled removed from SDK 55 types but still functional
             edgeToEdgeEnabled: true,
             predictiveBackGestureEnabled: false
         },
