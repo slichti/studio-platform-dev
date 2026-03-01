@@ -551,7 +551,7 @@ export const puckConfig: Config = {
         TextBlock: {
             label: "Text Block",
             fields: {
-                content: { type: "textarea" },
+                content: { type: "richtext" },
                 alignment: { type: "select", options: [{ label: "Left", value: "left" }, { label: "Center", value: "center" }] },
                 backgroundColor: { type: "text", label: "Background Color" },
                 textColor: { type: "text", label: "Text Color" },
