@@ -8,6 +8,12 @@ Some dependencies are pinned or capped to avoid breaking the build. Do not upgra
 - **Reason:** `@cloudflare/vitest-pool-workers` supports Vitest 2.0.x–3.2.x only. Vitest 4 is not yet supported.
 - **When upgrading:** Check [@cloudflare/vitest-pool-workers](https://www.npmjs.com/package/@cloudflare/vitest-pool-workers) for Vitest 4 support before bumping.
 
+## React Router (apps/web)
+
+- **Constraint:** Pinned to exact `7.13.0` (no `^` caret). Do not upgrade to `7.13.1`.
+- **Reason:** `react-router@7.13.1` has a known SSR crash regression ([remix-run/react-router#14831](https://github.com/remix-run/react-router/issues/14831)) causing `useLoaderData must be used within a data router` crashes on Cloudflare Workers.
+- **When upgrading:** Wait for `7.13.2+` with the fix confirmed, then test SSR locally before deploying.
+
 ## Mobile: Tailwind 3 + react-native-css-interop (apps/mobile)
 
 - **Constraint:** Keep `tailwindcss` at `^3.4.x` and `react-native-css-interop` at `^0.0.34` in `apps/mobile`.
