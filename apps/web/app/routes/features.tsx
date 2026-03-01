@@ -193,7 +193,19 @@ export const loader: LoaderFunction = async (args: any) => {
 export default function FeaturesPage() {
     const { faqs } = useLoaderData<{ faqs: FAQ[] }>();
     const [expandedFaq, setExpandedFaq] = useState<string | null>(null);
-    const [activeCategory, setActiveCategory] = useState<string | null>(null);
+    const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+
+    const toggleCategory = (id: string) => {
+        setExpandedCategories(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    };
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-white dark:from-zinc-950 dark:to-zinc-900">
@@ -274,12 +286,12 @@ export default function FeaturesPage() {
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {FEATURE_CATEGORIES.map((category) => {
                         const Icon = category.icon;
-                        const isActive = activeCategory === category.id;
+                        const isActive = expandedCategories.has(category.id);
 
                         return (
                             <div
                                 key={category.id}
-                                onClick={() => setActiveCategory(isActive ? null : category.id)}
+                                onClick={() => toggleCategory(category.id)}
                                 className={`bg-white border rounded-2xl p-6 cursor-pointer transition-all duration-300 ${isActive
                                     ? 'border-zinc-900 shadow-xl ring-2 ring-zinc-900/10'
                                     : 'border-zinc-200 hover:border-zinc-300 hover:shadow-lg'
