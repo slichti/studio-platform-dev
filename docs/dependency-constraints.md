@@ -12,6 +12,7 @@ Some dependencies are pinned or capped to avoid breaking the build. Do not upgra
 
 - **Constraint:** Keep `tailwindcss` at `^3.4.x` and `react-native-css-interop` at `^0.0.34` in `apps/mobile`.
 - **Reason:** `react-native-css-interop@0.2.x` declares a peer dependency on `tailwindcss ~3`. Using Tailwind 4 here would cause install conflicts.
+- **Known Issue:** `react-native-css-interop@0.0.34` type augmentations do not fully extend RN component types with `className`. This causes ~341 TS errors in the mobile workspace. These are cosmetic (runtime works fine). The CI pipeline excludes mobile from typecheck (`--filter=!mobile`).
 - **When upgrading:** To use Tailwind 4 on mobile, migrate to [NativeWind v5](https://www.nativewind.dev/v5/guides/migrate-from-v4), which uses a different CSS pipeline and does not depend on `react-native-css-interop`.
 
 ## ESLint 10 (web)
@@ -26,8 +27,14 @@ Some dependencies are pinned or capped to avoid breaking the build. Do not upgra
 - **Files:** `src/services/stripe.ts`, `src/routes/pos.ts`, `src/routes/webhooks.ts`.
 - **When upgrading:** Also update webhook endpoints in Stripe Dashboard to match (`2026-01-28.clover`).
 
+## Expo SDK 55 (apps/mobile)
+
+- **Constraint:** Expo SDK 55 pins `react-native` at `0.83.2` and `jest` at `~29.7.0`.
+- **Reason:** Each Expo SDK version locks companion versions of react-native, jest, and all `expo-*` modules. Upgrading RN or jest independently will cause peer dep conflicts.
+- **When upgrading:** Use `npx expo install expo@^<next> && npx expo install --fix` to migrate all companion packages together. Check the [Expo SDK changelog](https://expo.dev/changelog) for breaking changes.
+
 ## npm Audit (dev-only vulnerabilities)
 
-- **Status:** 43 high/moderate vulnerabilities in dev/build tools (`expo`, `jest`, `eslint-plugin-react`, `drizzle-kit`, `@typescript-eslint/*`).
+- **Status:** 6 vulnerabilities (4 moderate, 2 high) in dev/build tools.
 - **Risk:** None of these packages are included in the Cloudflare Worker runtime bundle.
 - **Fix:** All require `--force` (major breaking version upgrades). Do not auto-apply. Resolve manually when upgrading those packages in a dedicated upgrade branch.

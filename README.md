@@ -168,7 +168,7 @@ This monorepo handles multiple applications and packages. Here are the primary t
 *   **Payments:** `@stripe/react-stripe-js`
 
 #### **Mobile (`apps/mobile`)**
-*   **Framework:** `expo` v54, `react-native`
+*   **Framework:** `expo` v55, `react-native`
 *   **Routing:** `expo-router`
 *   **Styling:** `nativewind` v4, `tailwindcss`
 *   **Auth:** `expo-secure-store`
