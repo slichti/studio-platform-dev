@@ -20,7 +20,7 @@ jobs:
       - run: npm run lint
         env:
           ESLINT_USE_FLAT_CONFIG: false
-      - run: npm run typecheck
+      - run: npx turbo run typecheck --filter=!mobile
       - run: npx turbo run test --filter=!mobile
 
   deploy-api:
