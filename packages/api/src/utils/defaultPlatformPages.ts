@@ -21,7 +21,7 @@ export const defaultPlatformPages: Record<string, any> = {
             }
         ],
         zones: {
-            "cols-about-left": [
+            "cols-about:left": [
                 {
                     type: "TextBlock",
                     props: {
@@ -31,7 +31,7 @@ export const defaultPlatformPages: Record<string, any> = {
                     }
                 }
             ],
-            "cols-about-center": [
+            "cols-about:center": [
                 {
                     type: "FeatureGrid",
                     props: {
