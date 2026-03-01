@@ -4,19 +4,22 @@ export const docsIndex = [
         title: "Platform Architecture",
         href: "/documentation/platform/architecture",
         content: "Cloudflare Workers, D1 Database, Edge Network, Infrastructure, Serverless, Request Flow",
-        category: "Platform"
+        category: "Platform",
+        adminOnly: true
     },
     {
         title: "RBAC, Roles & Permissions",
         href: "/documentation/platform/rbac",
         content: "Roles, permissions, capabilities, student matrix, PermissionService, ALL_PERMISSIONS, RolePermissions, c.get('can')",
-        category: "Platform"
+        category: "Platform",
+        adminOnly: true
     },
     {
         title: "Course Management — Platform Guide",
         href: "/documentation/platform/courses",
         content: "Feature flag, course_management, enable courses, tenant feature, hybrid curriculum, enrollment, progress, VOD, live sessions, Scale tier",
-        category: "Platform"
+        category: "Platform",
+        adminOnly: true
     },
     {
         title: "Reports & Analytics",
@@ -28,13 +31,15 @@ export const docsIndex = [
         title: "Tenant Management",
         href: "/documentation/platform/tenants",
         content: "Provisioning, Feature Flags, Billing Tiers, Suspended, Paused, Lifecycle",
-        category: "Platform"
+        category: "Platform",
+        adminOnly: true
     },
     {
         title: "Clerk Configuration",
         href: "/documentation/platform/clerk",
         content: "Clerk Dashboard, Social login, OAuth, Google, Facebook, Microsoft, IdP, SSO, sign-in, sign-up, domains, allowed origins, user testing",
-        category: "Platform"
+        category: "Platform",
+        adminOnly: true
     },
     {
         title: "Studio Setup",

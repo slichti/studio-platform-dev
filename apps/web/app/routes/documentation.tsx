@@ -49,7 +49,9 @@ export default function HelpLayout() {
 
     const isPlatformAdmin = dbUser?.isPlatformAdmin || dbUser?.role === 'owner' || dbUser?.role === 'admin';
 
-    const fuse = new Fuse(docsIndex, {
+    const filteredDocsIndex = isPlatformAdmin ? docsIndex : docsIndex.filter((doc: any) => !doc.adminOnly);
+
+    const fuse = new Fuse(filteredDocsIndex, {
         keys: ["title", "content", "category"],
         threshold: 0.3,
     });
