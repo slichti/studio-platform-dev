@@ -19,11 +19,12 @@ export const meta: MetaFunction = ({ data }: any) => {
     ];
 };
 
-export async function loader({ request }: LoaderFunctionArgs) {
+export async function loader({ request, context }: LoaderFunctionArgs) {
     const protocol = request.url.startsWith('https') ? 'https' : 'http';
     const host = request.headers.get('host') || 'localhost:3000';
     try {
-        const apiUrl = process.env.API_URL || 'http://localhost:8787';
+        const env = (context as any)?.cloudflare?.env || (context as any)?.env || {};
+        const apiUrl = env.VITE_API_URL || process.env.API_URL || 'http://localhost:8787';
         const res = await fetch(`${apiUrl}/platform-pages/pages/terms`);
         if (res.ok) {
             const page = await res.json();

@@ -219,13 +219,13 @@ export default function FeaturesPage() {
                             <Star size={16} className="fill-current" />
                             All-in-One Studio Management
                         </div>
-                        <h1 className="text-4xl md:text-6xl font-bold text-zinc-900 mb-6 leading-tight">
+                        <h1 className="text-4xl md:text-6xl font-bold text-zinc-900 dark:text-zinc-100 mb-6 leading-tight">
                             Everything You Need to{' '}
                             <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                                 Run Your Studio
                             </span>
                         </h1>
-                        <p className="text-xl text-zinc-600 mb-8 leading-relaxed">
+                        <p className="text-xl text-zinc-600 dark:text-zinc-400 mb-8 leading-relaxed">
                             From class scheduling and online booking to memberships, payments, and marketing —
                             we've built the complete toolkit for yoga studios, fitness centers, and wellness businesses.
                         </p>
@@ -249,7 +249,7 @@ export default function FeaturesPage() {
             </section>
 
             {/* Trust Badges */}
-            <section className="border-y border-zinc-200 bg-white py-8">
+            <section className="border-y border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 py-8">
                 <div className="max-w-6xl mx-auto px-4">
                     <div className="flex flex-wrap items-center justify-center gap-8 md:gap-16 text-zinc-500 text-sm">
                         <div className="flex items-center gap-2">
@@ -275,10 +275,10 @@ export default function FeaturesPage() {
             {/* Features Grid */}
             <section className="max-w-6xl mx-auto px-4 py-20">
                 <div className="text-center mb-16">
-                    <h2 className="text-3xl md:text-4xl font-bold text-zinc-900 mb-4">
+                    <h2 className="text-3xl md:text-4xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">
                         Powerful Features, Simple to Use
                     </h2>
-                    <p className="text-lg text-zinc-600 max-w-2xl mx-auto">
+                    <p className="text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
                         Everything you need to manage classes, grow your community, and run a successful studio.
                     </p>
                 </div>
@@ -292,21 +292,21 @@ export default function FeaturesPage() {
                             <div
                                 key={category.id}
                                 onClick={() => toggleCategory(category.id)}
-                                className={`bg-white border rounded-2xl p-6 cursor-pointer transition-all duration-300 ${isActive
-                                    ? 'border-zinc-900 shadow-xl ring-2 ring-zinc-900/10'
-                                    : 'border-zinc-200 hover:border-zinc-300 hover:shadow-lg'
+                                className={`bg-white dark:bg-zinc-900 border rounded-2xl p-6 cursor-pointer transition-all duration-300 ${isActive
+                                    ? 'border-zinc-900 dark:border-zinc-700 shadow-xl ring-2 ring-zinc-900/10 dark:ring-zinc-700/30'
+                                    : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 hover:shadow-lg'
                                     }`}
                             >
                                 <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl ${category.color} text-white mb-4`}>
                                     <Icon size={24} />
                                 </div>
-                                <h3 className="text-lg font-bold text-zinc-900 mb-2">{category.title}</h3>
-                                <p className="text-zinc-600 text-sm mb-4">{category.description}</p>
+                                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-2">{category.title}</h3>
+                                <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-4">{category.description}</p>
 
                                 {isActive && (
-                                    <ul className="space-y-2 pt-4 border-t border-zinc-100">
+                                    <ul className="space-y-2 pt-4 border-t border-zinc-100 dark:border-zinc-800">
                                         {category.features.map((feature, i) => (
-                                            <li key={i} className="flex items-start gap-2 text-sm text-zinc-600">
+                                            <li key={i} className="flex items-start gap-2 text-sm text-zinc-600 dark:text-zinc-400">
                                                 <Check size={16} className="text-green-500 mt-0.5 flex-shrink-0" />
                                                 {feature}
                                             </li>
@@ -314,7 +314,7 @@ export default function FeaturesPage() {
                                     </ul>
                                 )}
 
-                                <button className="mt-4 text-sm font-medium text-zinc-500 hover:text-zinc-900 flex items-center gap-1 transition">
+                                <button className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 flex items-center gap-1 transition">
                                     {isActive ? 'Show less' : 'View features'}
                                     {isActive ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                                 </button>
@@ -326,13 +326,13 @@ export default function FeaturesPage() {
 
             {/* FAQ Section */}
             {faqs.length > 0 && (
-                <section className="bg-zinc-50 py-20">
+                <section className="bg-zinc-50 dark:bg-zinc-950 py-20 border-t border-zinc-200 dark:border-zinc-800">
                     <div className="max-w-3xl mx-auto px-4">
                         <div className="text-center mb-12">
-                            <h2 className="text-3xl md:text-4xl font-bold text-zinc-900 mb-4">
+                            <h2 className="text-3xl md:text-4xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">
                                 Frequently Asked Questions
                             </h2>
-                            <p className="text-lg text-zinc-600">
+                            <p className="text-lg text-zinc-600 dark:text-zinc-400">
                                 Have questions? We've got answers.
                             </p>
                         </div>
@@ -341,13 +341,13 @@ export default function FeaturesPage() {
                             {faqs.map((faq) => (
                                 <div
                                     key={faq.id}
-                                    className="bg-white border border-zinc-200 rounded-xl overflow-hidden"
+                                    className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden"
                                 >
                                     <button
                                         onClick={() => setExpandedFaq(expandedFaq === faq.id ? null : faq.id)}
-                                        className="w-full flex items-center justify-between p-6 text-left hover:bg-zinc-50 transition"
+                                        className="w-full flex items-center justify-between p-6 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition"
                                     >
-                                        <span className="font-semibold text-zinc-900 pr-4">{faq.question}</span>
+                                        <span className="font-semibold text-zinc-900 dark:text-zinc-100 pr-4">{faq.question}</span>
                                         {expandedFaq === faq.id ? (
                                             <ChevronUp className="text-zinc-400 flex-shrink-0" size={20} />
                                         ) : (
@@ -356,7 +356,7 @@ export default function FeaturesPage() {
                                     </button>
                                     {expandedFaq === faq.id && (
                                         <div className="px-6 pb-6">
-                                            <p className="text-zinc-600 leading-relaxed whitespace-pre-wrap">
+                                            <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed whitespace-pre-wrap">
                                                 {faq.answer}
                                             </p>
                                         </div>
