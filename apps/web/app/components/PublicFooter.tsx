@@ -26,7 +26,7 @@ export function PublicFooter() {
                     <div>
                         <h4 className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm mb-4">Company</h4>
                         <ul className="space-y-3 text-sm">
-                            <li><Link to="/" className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">About</Link></li>
+                            <li><Link to="/about" className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">About</Link></li>
                         </ul>
                     </div>
                     {/* Legal */}
