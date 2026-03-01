@@ -13,7 +13,7 @@
         "react-native": "*"
     },
     "devDependencies": {
-        "eslint": "^10.0.1",
+        "eslint": "^10.0.2",
         "react": "^19.2.4",
         "typescript": "^5.9.3"
     }
