@@ -500,6 +500,13 @@ export const puckConfig: Config = {
             secondaryColor: "#18181b",
             chatEnabled: true,
         },
+        render: ({ children }: any) => {
+            return (
+                <div className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 font-sans antialiased">
+                    {children}
+                </div>
+            );
+        }
     },
     components: {
         Hero: {
