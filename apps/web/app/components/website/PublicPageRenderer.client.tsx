@@ -11,10 +11,11 @@ import { API_URL } from "~/utils/api";
 
 interface PublicPageRendererProps {
     page: any;
-    tenantSlug: string;
+    tenantSlug?: string;
+    isPlatformPage?: boolean;
 }
 
-export function PublicPageRenderer({ page, tenantSlug }: PublicPageRendererProps) {
+export function PublicPageRenderer({ page, tenantSlug, isPlatformPage }: PublicPageRendererProps) {
     const { user } = useUser();
 
     const safeContent = page?.content && page.content.root
@@ -54,7 +55,7 @@ export function PublicPageRenderer({ page, tenantSlug }: PublicPageRendererProps
             <SignedIn>
                 <div className="fixed bottom-6 left-6 z-50">
                     <Link
-                        to={`/studio/${tenantSlug}/website/editor/${page.id}`}
+                        to={isPlatformPage ? `/admin/website/edit/${page.id}` : `/studio/${tenantSlug}/website/editor/${page.id}`}
                         className="flex items-center gap-2 bg-zinc-900 text-white px-4 py-2.5 rounded-full shadow-lg hover:bg-zinc-800 transition-transform hover:scale-105"
                     >
                         <Edit2 size={16} />

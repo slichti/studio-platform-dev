@@ -110,7 +110,7 @@ export default function AboutPage() {
                 <main className="flex-1">
                     <ClientOnly fallback={<div className="h-64 flex items-center justify-center">Loading content...</div>}>
                         <Suspense fallback={<div className="h-64 flex items-center justify-center">Loading content...</div>}>
-                            <PublicPageRenderer content={page.content} />
+                            <PublicPageRenderer page={page} tenantSlug="platform" isPlatformPage={true} />
                         </Suspense>
                     </ClientOnly>
                 </main>
