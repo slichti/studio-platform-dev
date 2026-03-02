@@ -53,10 +53,12 @@ flowchart TB
         CONTENT[Content Automation Engine<br/>Gemini AI Blogging]
         QUEUE[Task Queue]
         CRON[Cron Triggers<br/>*/15 * * * *]
+        ENROLL[(Automation Enrollments<br/>Sequence State)]
     end
     
     WORKERS --> AUTO
     CRON --> AUTO
+    AUTO --> ENROLL
     AUTO --> CONTENT
     CONTENT --> GOOGLE
     AUTO --> RESEND
@@ -64,6 +66,13 @@ flowchart TB
     AUTO --> EXPO
     AUTO --> GOOGLE
 ```
+
+### Multi-Step Automations
+The platform supports complex, multi-step marketing sequences.
+- **Sequencer**: A state machine that processes actions (Email, Delay) in order.
+- **Enrollment**: Users are "enrolled" in a flow, tracking their `currentStepIndex` and `nextExecutionAt`.
+- **Background Processing**: A cron job periodically wakes up to process due enrollments.
+- **Engagement**: Engagement events (Opens/Clicks) are tracked per-step for conversion analysis.
 
 ## Multi-Tenant Architecture
 

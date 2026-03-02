@@ -622,26 +622,11 @@ export const marketingAutomations = sqliteTable('marketing_automations', {
     triggerEvent: text('trigger_event').notNull(), // e.g. 'new_student', 'class_attended', 'order_completed', 'absent'
     triggerCondition: text('trigger_condition', { mode: 'json' }), // Filter: { planId: '...', minAmount: 1000 }
 
-    // Template & Targeting
-    templateId: text('template_id'), // Resend Template ID (optional, overrides content)
-    audienceFilter: text('audience_filter', { mode: 'json' }), // { ageMin: 18, ageMax: 65, tags: ['vip'] }
-
-    subject: text('subject').notNull(),
-    content: text('content'), // HTML or Text (nullable for simple triggers)
-
     isEnabled: integer('is_enabled', { mode: 'boolean' }).default(false).notNull(),
     metadata: text('metadata', { mode: 'json' }), // Extra UI config
 
-    // Timing Logic
-    timingType: text('timing_type', { enum: ['immediate', 'delay', 'before', 'after'] }).default('immediate').notNull(),
-    timingValue: integer('timing_value').default(0), // Hours. e.g. 24 for "1 day after". 48 for "2 days before" (if timingType=before)
-
-    // Legacy/Convenience (keep for migration or map to timingType='delay')
-    delayHours: integer('delay_hours').default(0),
-
-    channels: text('channels', { mode: 'json' }).default(sql`'["email"]'`), // ['email', 'sms']
-    recipients: text('recipients', { mode: 'json' }).default(sql`'["student"]'`), // ['student', 'owner']
-    couponConfig: text('coupon_config', { mode: 'json' }), // { type: 'percent', value: 20, validityDays: 7 }
+    // Array of steps. E.g. [{ type: "delay", delayHours: 24 }, { type: "email", subject: "...", content: "..." }]
+    steps: text('steps', { mode: 'json' }).default(sql`'[]'`).notNull(),
 
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
@@ -649,16 +634,41 @@ export const marketingAutomations = sqliteTable('marketing_automations', {
     tenantIdx: index('automation_tenant_idx').on(table.tenantId),
 }));
 
-export const automationLogs = sqliteTable('automation_logs', {
+export const automationEnrollments = sqliteTable('automation_enrollments', {
     id: text('id').primaryKey(),
     tenantId: text('tenant_id').notNull().references(() => tenants.id),
     automationId: text('automation_id').notNull().references(() => marketingAutomations.id),
     userId: text('user_id').notNull().references(() => users.id),
+
+    currentStepIndex: integer('current_step_index').default(0).notNull(),
+    nextExecutionAt: integer('next_execution_at', { mode: 'timestamp' }).notNull(),
+    status: text('status', { enum: ['active', 'completed', 'cancelled'] }).default('active').notNull(),
+
+    contextData: text('context_data', { mode: 'json' }), // Event data that triggered this
+
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('enrollment_tenant_idx').on(table.tenantId),
+    autoIdx: index('enrollment_auto_idx').on(table.automationId),
+    userIdx: index('enrollment_user_idx').on(table.userId),
+    statusIdx: index('enrollment_status_idx').on(table.status),
+    executionIdx: index('enrollment_execution_idx').on(table.nextExecutionAt),
+}));
+
+export const automationLogs = sqliteTable('automation_logs', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    automationId: text('automation_id').notNull().references(() => marketingAutomations.id),
+    stepIndex: integer('step_index').default(0), // Which step in the sequence this log refers to
+    userId: text('user_id').notNull().references(() => users.id),
     channel: text('channel').notNull(), // 'email' or 'sms'
     triggeredAt: integer('triggered_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    openedAt: integer('opened_at', { mode: 'timestamp' }),
+    clickedAt: integer('clicked_at', { mode: 'timestamp' }),
     metadata: text('metadata', { mode: 'json' }), // { generatedCouponId: '...' }
 }, (table) => ({
-    uniqueLog: uniqueIndex('automation_log_unique_idx').on(table.automationId, table.userId, table.channel), // Prevent duplicate send of SAME automation to SAME user
+    uniqueLog: uniqueIndex('automation_log_unique_idx').on(table.automationId, table.userId, table.channel, table.stepIndex), // Prevent duplicate send of SAME step to SAME user
     tenantIdx: index('automation_log_tenant_idx').on(table.tenantId),
 }));
 

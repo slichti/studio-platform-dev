@@ -316,7 +316,7 @@ export class EmailService {
     }
 
     // Legacy support for plain HTML generic emails
-    async sendGenericEmail(to: string, subject: string, html: string, isNotification = false, attachments?: any[]) {
+    async sendGenericEmail(to: string, subject: string, html: string, isNotification = false, attachments?: any[], tags?: { name: string, value: string }[]) {
         if (!await this.checkAndTrackUsage()) {
             await this.logEmail(to, subject, 'generic_email', { html }, 'failed', 'Usage limit reached');
             return;
@@ -327,7 +327,8 @@ export class EmailService {
                 ...this.getRecipients(to, isNotification ? 'notification' : 'transactional'),
                 subject,
                 html,
-                attachments
+                attachments,
+                tags
             });
             await this.incrementUsage();
             await this.logEmail(to, subject, 'generic_email', { html }, 'sent');
@@ -384,9 +385,9 @@ export class EmailService {
     }
 
     // Legacy / Placeholder methods to fix compilation
-    async sendTemplate(to: string, templateId: string, data: any) {
+    async sendTemplate(to: string, templateId: string, data: any, tags?: { name: string, value: string }[]) {
         console.warn(`[Legacy] sendTemplate called for ${templateId}. Falling back to generic.`);
-        return this.sendGenericEmail(to, `Update: ${templateId}`, JSON.stringify(data));
+        return this.sendGenericEmail(to, `Update: ${templateId}`, JSON.stringify(data), false, undefined, tags);
     }
 
     async notifyNoShow(to: string, feeAmount: number, classTitle: string) {

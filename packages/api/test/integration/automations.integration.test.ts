@@ -57,17 +57,16 @@ describe('Automations Integration', () => {
             videoProvider: 'offline'
         }).run();
 
-        // Delayed Automation (Class Booked, 1 Hour Delay)
+        // Multi-step Automation: Delay 1 hour -> Email
         await db.insert(schema.marketingAutomations).values({
             id: AUTO_DELAY_ID,
             tenantId: TENANT_ID,
             triggerEvent: 'class_booked',
-            subject: 'Class Followup',
-            content: 'Thanks for booking!',
             isEnabled: true,
-            timingType: 'delay',
-            timingValue: 1,
-            channels: ['email']
+            steps: [
+                { type: 'delay', delayHours: 1 },
+                { type: 'email', subject: 'Class Followup', content: 'Thanks for booking!', channels: ['email'] }
+            ]
         }).run();
     });
 

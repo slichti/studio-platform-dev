@@ -1,6 +1,6 @@
 import { createDb } from '../db';
 import { eq, and, lt, gt, gte, lte, or, isNull, sql, inArray } from 'drizzle-orm';
-import { marketingAutomations, automationLogs, subscriptions, tenantMembers, users, tenants, coupons, bookings, posOrders, classes, locations, waiverSignatures } from '@studio/db/src/schema'; // Added bookings, posOrders, locations, waiverSignatures
+import { marketingAutomations, automationEnrollments, automationLogs, subscriptions, tenantMembers, users, tenants, coupons, bookings, posOrders, classes, locations, waiverSignatures } from '@studio/db/src/schema'; // Added bookings, posOrders, locations, waiverSignatures
 import { EmailService } from './email';
 import { SmsService } from './sms'; // Active
 import { PushService } from './push';
@@ -42,22 +42,17 @@ export class AutomationsService {
      * Handles "Immediate" timing automations.
      */
     async dispatchTrigger(triggerEvent: string, context: { userId: string, memberId?: string, email?: string, phone?: string, firstName?: string, lastName?: string, data?: any }) {
-        // ... (unchanged select) ...
         const automations = await this.db.select().from(marketingAutomations)
             .where(and(
                 eq(marketingAutomations.tenantId, this.tenantId),
                 eq(marketingAutomations.isEnabled, true),
-                eq(marketingAutomations.triggerEvent, triggerEvent),
-                eq(marketingAutomations.timingType, 'immediate') // We only handle immediate here. Delayed ones need a queue or scheduler (Out of Scope for MVP unless heavily requested)
+                eq(marketingAutomations.triggerEvent, triggerEvent)
             )).all();
 
         const results = Array.isArray(automations) ? automations : (automations as any)?.results || [];
         for (const auto of results) {
-            // Check Conditions
             if (!this.checkConditions(auto.triggerCondition, context.data)) continue;
-
-            // Execute
-            await this.executeAutomation(auto, context);
+            await this.enrollUser(auto, context);
         }
     }
 
@@ -106,11 +101,8 @@ export class AutomationsService {
                     await this.processAttendanceStreakAtRisk(auto, now);
                     break;
                 default:
-                    if (auto.timingType === 'before') {
-                        await this.processBeforeEventTriggers(auto, now);
-                    } else if (auto.timingType === 'delay') {
-                        await this.processDelayedTriggers(auto, now);
-                    }
+                    // Only process beforeEvent Triggers since delays are handled by the sequence engine
+                    await this.processBeforeEventTriggers(auto, now);
                     break;
             }
         }
@@ -144,7 +136,7 @@ export class AutomationsService {
             if (!m.dob) continue;
             const dob = new Date(m.dob);
             if (dob.getMonth() === todayMonth && dob.getDate() === todayDate) {
-                await this.executeAutomation(auto, {
+                await this.enrollUser(auto, {
                     userId: m.userId,
                     email: m.email,
                     firstName: (m.profile as any)?.firstName
@@ -207,7 +199,7 @@ export class AutomationsService {
             const lastActiveDate = new Date(lastActiveTimestamp);
 
             if (lastActiveDate < cutoffDate) {
-                await this.executeAutomation(auto, {
+                await this.enrollUser(auto, {
                     userId: c.userId,
                     email: c.email,
                     firstName: (c.profile as any)?.firstName
@@ -248,7 +240,7 @@ export class AutomationsService {
 
         for (const m of newMembers as any[]) {
             if (!signedMap.has(m.id)) {
-                await this.executeAutomation(auto, {
+                await this.enrollUser(auto, {
                     userId: m.userId,
                     email: m.email,
                     firstName: (m.profile as any)?.firstName
@@ -343,7 +335,7 @@ export class AutomationsService {
             if (lastCheckedInAt !== undefined) {
                 const lastDate = new Date(Number(lastCheckedInAt));
                 if (lastDate < cutoffInactivity) {
-                    await this.executeAutomation(auto, {
+                    await this.enrollUser(auto, {
                         userId: m.userId,
                         email: m.email,
                         firstName: (m.profile as any)?.firstName
@@ -385,7 +377,7 @@ export class AutomationsService {
         for (const sub of validSubs as any[]) {
             const user = userMap.get(sub.userId);
             if (user) {
-                await this.executeAutomation(auto, {
+                await this.enrollUser(auto, {
                     userId: user.id,
                     email: user.email,
                     firstName: (user.profile as any)?.firstName,
@@ -505,7 +497,7 @@ export class AutomationsService {
 
         // Execute
         for (const c of candidates as any[]) {
-            await this.executeAutomation(auto, {
+            await this.enrollUser(auto, {
                 userId: c.userId,
                 email: c.email,
                 firstName: c.firstName,
@@ -574,7 +566,7 @@ export class AutomationsService {
                 const member = memberMap.get(b.memberId);
                 if (!cls || !member || !member.user) continue;
 
-                await this.executeAutomation(auto, {
+                await this.enrollUser(auto, {
                     userId: member.user.id,
                     email: member.user.email,
                     firstName: (member.user.profile as any)?.firstName,
@@ -635,8 +627,106 @@ export class AutomationsService {
         return true; // Placeholder: To be implemented in dispatchTrigger loop or passed in context
     }
 
-    private async executeAutomation(automation: any, context: { userId: string, email?: string, firstName?: string, lastName?: string, data?: any }) {
-        const recipients = (automation.recipients as string[]) || ['student'];
+    public async enrollUser(automation: any, context: { userId: string, email?: string, firstName?: string, lastName?: string, data?: any }) {
+        if (!automation.steps || !Array.isArray(automation.steps) || automation.steps.length === 0) return;
+
+        // Check if currently active in this automation
+        const existing = await this.db.select().from(automationEnrollments)
+            .where(and(
+                eq(automationEnrollments.automationId, automation.id),
+                eq(automationEnrollments.userId, context.userId),
+                eq(automationEnrollments.status, 'active')
+            )).get();
+
+        if (existing) return; // Already enrolled and active
+
+        const now = new Date();
+        const enrollmentId = crypto.randomUUID();
+
+        await this.db.insert(automationEnrollments).values({
+            id: enrollmentId,
+            tenantId: this.tenantId,
+            automationId: automation.id,
+            userId: context.userId,
+            currentStepIndex: 0,
+            nextExecutionAt: now,
+            status: 'active',
+            contextData: context
+        }).run();
+
+        // Immediately process to execute step 0
+        await this.processSingleEnrollment(enrollmentId, automation, 0, context, now);
+    }
+
+    async processActiveEnrollments() {
+        const now = new Date();
+        const enrollments = await this.db.select()
+            .from(automationEnrollments)
+            .innerJoin(marketingAutomations, eq(automationEnrollments.automationId, marketingAutomations.id))
+            .where(and(
+                eq(automationEnrollments.tenantId, this.tenantId),
+                eq(automationEnrollments.status, 'active'),
+                lte(automationEnrollments.nextExecutionAt, now)
+            )).all();
+
+        for (const row of enrollments as any[]) {
+            const enroll = row.automation_enrollments;
+            const auto = row.marketing_automations;
+            await this.processSingleEnrollment(enroll.id, auto, enroll.currentStepIndex, enroll.contextData as any || {}, now);
+        }
+    }
+
+    private async processSingleEnrollment(enrollmentId: string, auto: any, stepIndex: number, context: any, now: Date) {
+        const steps = auto.steps as any[] || [];
+        if (stepIndex >= steps.length) {
+            // Sequence completed
+            await this.db.update(automationEnrollments)
+                .set({ status: 'completed', updatedAt: new Date() })
+                .where(eq(automationEnrollments.id, enrollmentId)).run();
+            return;
+        }
+
+        const step = steps[stepIndex];
+        let nextExecutionAt = now;
+        let advanceStep = false;
+
+        if (step.type === 'delay') {
+            const hours = step.delayHours || 24;
+            nextExecutionAt = new Date(now.getTime() + (hours * 60 * 60 * 1000));
+            advanceStep = true;
+        } else if (step.type === 'email') {
+            await this.executeActionStep(step, auto, context, stepIndex);
+            advanceStep = true;
+        } else if (step.type === 'condition') {
+            advanceStep = true; // Future MVP branching
+        } else {
+            advanceStep = true; // Unknown step, skip
+        }
+
+        if (advanceStep) {
+            const nextIndex = stepIndex + 1;
+            if (nextIndex >= steps.length) {
+                await this.db.update(automationEnrollments)
+                    .set({ status: 'completed', updatedAt: new Date() })
+                    .where(eq(automationEnrollments.id, enrollmentId)).run();
+            } else {
+                if (step.type === 'delay') {
+                    await this.db.update(automationEnrollments)
+                        .set({ currentStepIndex: nextIndex, nextExecutionAt: nextExecutionAt, updatedAt: new Date() })
+                        .where(eq(automationEnrollments.id, enrollmentId)).run();
+                } else {
+                    // If it was an action, we move to the next step immediately recursively
+                    await this.db.update(automationEnrollments)
+                        .set({ currentStepIndex: nextIndex, updatedAt: new Date() })
+                        .where(eq(automationEnrollments.id, enrollmentId)).run();
+                    await this.processSingleEnrollment(enrollmentId, auto, nextIndex, context, now);
+                }
+            }
+        }
+    }
+
+    private async executeActionStep(step: any, auto: any, context: { userId: string, email?: string, firstName?: string, lastName?: string, data?: any }, stepIndex?: number) {
+        const recipients = (step.recipients as string[]) || ['student'];
 
         const shared = await this.getSharedContext();
         const sharedContext = {
@@ -646,7 +736,7 @@ export class AutomationsService {
 
         // 1. Send to Student (Original Target)
         if (recipients.includes('student')) {
-            await this.dispatchToUser(automation, context, 'student', sharedContext);
+            await this.dispatchToUser(auto, step, context, 'student', sharedContext, stepIndex);
         }
 
         // 2. Send to Owners
@@ -665,8 +755,6 @@ export class AutomationsService {
                 )).all();
 
             for (const owner of owners) {
-                // Enrich context for Owner
-                // They need to know WHO the event is about (The Student)
                 const ownerContext = {
                     userId: owner.userId,
                     email: owner.email,
@@ -680,42 +768,46 @@ export class AutomationsService {
                         isOwnerNotification: true
                     }
                 };
-                await this.dispatchToUser(automation, ownerContext, 'owner', sharedContext);
+                await this.dispatchToUser(auto, step, ownerContext, 'owner', sharedContext, stepIndex);
             }
         }
     }
 
     private async dispatchToUser(
-        automation: any,
+        auto: any,
+        step: any,
         context: { userId: string, email?: string, firstName?: string, lastName?: string, data?: any },
         recipientType: string,
-        sharedContext: { tenantName: string, locationAddress: string }
+        sharedContext: { tenantName: string, locationAddress: string },
+        stepIndex?: number
     ) {
         // 1. Idempotency Check
-        const channels: string[] = automation.channels || ['email'];
+        const channels: string[] = step.channels || ['email'];
         const channel = channels[0] || 'email';
         const logId = crypto.randomUUID();
 
         let timeWindow = 0; // Forever
-        if (automation.triggerEvent === 'birthday') timeWindow = 300 * 24; // ~1 year
-        if (automation.triggerEvent === 'absent') timeWindow = 14 * 24; // Don't spam absent nudges more than once per 2 weeks?
-        if (automation.triggerEvent === 'new_student') timeWindow = 0; // Check ever
+        if (auto.triggerEvent === 'birthday') timeWindow = 300 * 24; // ~1 year
+        if (auto.triggerEvent === 'absent') timeWindow = 14 * 24; // Don't spam absent nudges more than once per 2 weeks?
+        if (auto.triggerEvent === 'new_student') timeWindow = 0; // Check ever
 
         if (timeWindow > 0) {
             const cutoff = new Date(Date.now() - (timeWindow * 60 * 60 * 1000));
             const recent = await this.db.select().from(automationLogs)
                 .where(and(
-                    eq(automationLogs.automationId, automation.id),
-                    eq(automationLogs.userId, context.userId), // Idempotency per recipient
+                    eq(automationLogs.automationId, auto.id),
+                    eq(automationLogs.userId, context.userId),
+                    stepIndex !== undefined ? eq(automationLogs.stepIndex, stepIndex) : undefined,
                     gt(automationLogs.triggeredAt, cutoff)
                 )).get();
             if (recent) return;
         } else {
-            // Default: Check if EVER sent (for Welcome/Nudge) works best for retention.
+            // Default: Check if step was already processed
             const existing = await this.db.select().from(automationLogs)
                 .where(and(
-                    eq(automationLogs.automationId, automation.id),
-                    eq(automationLogs.userId, context.userId)
+                    eq(automationLogs.automationId, auto.id),
+                    eq(automationLogs.userId, context.userId),
+                    stepIndex !== undefined ? eq(automationLogs.stepIndex, stepIndex) : undefined
                 )).get();
             if (existing) return;
         }
@@ -738,22 +830,22 @@ export class AutomationsService {
 
         // 2. Coupon Generation
         let couponCode = null;
-        if (automation.couponConfig) {
-            const prefix = automation.couponConfig.prefix || 'AUTO';
+        if (step.couponConfig) {
+            const prefix = step.couponConfig.prefix || 'AUTO';
             const userPart = context.firstName ? context.firstName.substring(0, 3).toUpperCase() : 'MEM';
             const rand = Math.floor(1000 + Math.random() * 9000);
             couponCode = `${prefix}-${userPart}-${rand}`;
 
             const expiresAt = new Date();
-            expiresAt.setDate(expiresAt.getDate() + (automation.couponConfig.validityDays || 7));
+            expiresAt.setDate(expiresAt.getDate() + (step.couponConfig.validityDays || 7));
             try {
-                // @ts-ignore - coupons might not be in the current schema import scope but it was working before
+                // @ts-ignore
                 await this.db.insert(coupons).values({
                     id: crypto.randomUUID(),
                     tenantId: this.tenantId,
                     code: couponCode,
-                    type: automation.couponConfig.type,
-                    value: automation.couponConfig.value,
+                    type: step.couponConfig.type,
+                    value: step.couponConfig.value,
                     active: true,
                     usageLimit: 1,
                     expiresAt
@@ -765,11 +857,17 @@ export class AutomationsService {
 
         try {
             if (channels.includes('email') && context.email) {
-                if (automation.templateId) {
+                if (step.templateId) {
                     // Use Template
+                    const tags = [
+                        { name: 'automation_id', value: auto.id },
+                        { name: 'tenant_id', value: this.tenantId }
+                    ];
+                    if (stepIndex !== undefined) tags.push({ name: 'step_index', value: stepIndex.toString() });
+
                     await this.emailService.sendTemplate(
                         context.email,
-                        automation.templateId,
+                        step.templateId,
                         {
                             firstName: context.firstName,
                             lastName: context.lastName,
@@ -778,18 +876,25 @@ export class AutomationsService {
                             title: extendedContext.title,
                             studioName: extendedContext.title,
                             address: extendedContext.address
-                        }
+                        },
+                        tags
                     );
                 } else {
                     // Standard Content Replacement
-                    let content = automation.content;
-                    let subject = automation.subject;
+                    let content = step.content;
+                    let subject = step.subject;
 
                     // Apply template processing using the existing helper
                     content = this.processTemplate(content, extendedContext, couponCode);
                     subject = this.processTemplate(subject, extendedContext, couponCode);
 
-                    await this.emailService.sendGenericEmail(context.email, subject, content, true);
+                    const tags = [
+                        { name: 'automation_id', value: auto.id },
+                        { name: 'tenant_id', value: this.tenantId }
+                    ];
+                    if (stepIndex !== undefined) tags.push({ name: 'step_index', value: stepIndex.toString() });
+
+                    await this.emailService.sendGenericEmail(context.email, subject, content, true, undefined, tags);
                 }
             }
 
@@ -802,8 +907,8 @@ export class AutomationsService {
                 }
 
                 if (pushToken) {
-                    let body = automation.content;
-                    let subject = automation.subject;
+                    let body = step.content;
+                    let subject = step.subject;
                     body = this.processTemplate(body, extendedContext, couponCode);
                     subject = this.processTemplate(subject, extendedContext, couponCode);
 
@@ -812,7 +917,7 @@ export class AutomationsService {
 
                     await this.pushService.sendPush(pushToken, subject, textBody, {
                         ...context.data,
-                        automationId: automation.id
+                        automationId: auto.id
                     });
                 }
             }
@@ -821,14 +926,15 @@ export class AutomationsService {
             await this.db.insert(automationLogs).values({
                 id: logId,
                 tenantId: this.tenantId,
-                automationId: automation.id,
+                automationId: auto.id,
+                stepIndex: stepIndex || 0,
                 userId: context.userId,
                 channel: channel,
                 metadata: { couponCode, recipientType }
             }).run();
 
         } catch (e) {
-            console.error(`Automation Failed ${automation.id}`, e);
+            console.error(`Automation Failed ${auto.id}`, e);
         }
     }
 

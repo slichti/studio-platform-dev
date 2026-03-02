@@ -367,6 +367,7 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
 
         try {
             await autoService.processTimeBasedAutomations();
+            await autoService.processActiveEnrollments(); // Advance any delayed sequences
         } catch (e) {
             console.error(`Failed to process automations for tenant ${tenant.id}`, e);
         }

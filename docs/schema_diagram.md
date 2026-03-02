@@ -438,7 +438,20 @@ erDiagram
         string subject
         boolean is_enabled
         json channels
+        json steps
         json trigger_condition
+    }
+    automation_enrollments {
+        string id PK
+        string tenant_id FK
+        string automation_id FK
+        string user_id FK
+        string status
+        integer current_step_index
+        timestamp next_execution_at
+        json context_data
+        timestamp created_at
+        timestamp updated_at
     }
     automation_logs {
         string id PK
@@ -446,12 +459,17 @@ erDiagram
         string automation_id FK
         string user_id FK
         string channel
+        integer step_index
         timestamp triggered_at
+        timestamp opened_at
+        timestamp clicked_at
         json metadata
     }
 
     tenants ||--o{ marketing_automations : "configures"
+    marketing_automations ||--o{ automation_enrollments : "enrolls"
     marketing_automations ||--o{ automation_logs : "generates"
+    users ||--o{ automation_enrollments : "progresses through"
     users ||--o{ automation_logs : "recorded for"
 
     %% ─────────────────────────────────────────────

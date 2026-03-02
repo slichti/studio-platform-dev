@@ -141,6 +141,13 @@
       "when": 1772478875199,
       "tag": "0077_resend_and_image_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1772481777131,
+      "tag": "0020_sad_loa",
+      "breakpoints": true
     }
   ]
 }

@@ -35,10 +35,7 @@ app.post('/', async (c) => {
             id,
             tenantId: null, // Platform-wide
             triggerEvent: body.triggerEvent,
-            subject: body.subject,
-            content: body.content,
-            timingType: body.timingType || 'immediate',
-            timingValue: body.timingValue || 0,
+            steps: body.steps || [],
             isEnabled: true,
             createdAt: new Date(),
             updatedAt: new Date()
@@ -60,10 +57,7 @@ app.patch('/:id', async (c) => {
     try {
         const updateData: any = { updatedAt: new Date() };
         if (body.isEnabled !== undefined) updateData.isEnabled = body.isEnabled;
-        if (body.subject) updateData.subject = body.subject;
-        if (body.content) updateData.content = body.content;
-        if (body.timingType) updateData.timingType = body.timingType;
-        if (body.timingValue !== undefined) updateData.timingValue = body.timingValue;
+        if (body.steps) updateData.steps = body.steps;
 
         await db.update(marketingAutomations)
             .set(updateData)
@@ -113,11 +107,12 @@ app.post('/:id/test', async (c) => {
         const { Resend } = await import('resend');
         const resend = new Resend(c.env.RESEND_API_KEY);
 
+        const firstEmailStep = (automation.steps as any[])?.find(s => s.type === 'email') || {};
         await resend.emails.send({
             from: 'Platform <noreply@' + ((c.env as any).DOMAIN || 'platform.com') + '>',
             to: email,
-            subject: `[TEST] ${automation.subject}`,
-            html: automation.content || '<p>Test email content</p>'
+            subject: `[TEST] ${firstEmailStep.subject || 'Test Automation'}`,
+            html: firstEmailStep.content || '<p>Test email content</p>'
         });
 
         return c.json({ success: true, sentTo: email });

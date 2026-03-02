@@ -136,11 +136,7 @@ marketing.post('/automations', async (c) => {
             id,
             tenantId: tenant.id,
             triggerEvent: body.triggerEvent,
-            subject: body.subject,
-            content: body.content,
-            templateId: body.templateId,
-            timingType: body.timingType || 'immediate',
-            timingValue: body.timingValue || 0,
+            steps: body.steps || [],
             isEnabled: true,
             createdAt: new Date(),
             updatedAt: new Date()
@@ -168,11 +164,7 @@ marketing.patch('/automations/:id', async (c) => {
     try {
         const updateData: any = { updatedAt: new Date() };
         if (body.isEnabled !== undefined) updateData.isEnabled = body.isEnabled;
-        if (body.subject) updateData.subject = body.subject;
-        if (body.content) updateData.content = body.content;
-        if (body.templateId !== undefined) updateData.templateId = body.templateId;
-        if (body.timingType) updateData.timingType = body.timingType;
-        if (body.timingValue !== undefined) updateData.timingValue = body.timingValue;
+        if (body.steps) updateData.steps = body.steps;
 
         await db.update(marketingAutomations)
             .set(updateData)

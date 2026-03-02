@@ -47,6 +47,8 @@ export async function setupTestDb(d1: D1Database) {
             resend_credentials TEXT, twilio_credentials TEXT, flodesk_credentials TEXT, currency TEXT DEFAULT 'usd', 
             zoom_credentials TEXT, mailchimp_credentials TEXT, zapier_credentials TEXT, google_credentials TEXT, 
             slack_credentials TEXT, google_calendar_credentials TEXT, resend_audience_id TEXT, 
+            resend_domain_id TEXT, resend_domain_status TEXT, resend_domain_records TEXT,
+            resend_api_key_id TEXT, resend_api_key TEXT, resend_newsletter_segment_id TEXT,
             status TEXT DEFAULT 'active', tier TEXT DEFAULT 'launch', subscription_status TEXT DEFAULT 'active', 
             is_public INTEGER DEFAULT 0, sms_usage INTEGER DEFAULT 0, email_usage INTEGER DEFAULT 0, 
             streaming_usage INTEGER DEFAULT 0, sms_limit INTEGER, email_limit INTEGER, streaming_limit INTEGER, 
@@ -63,6 +65,7 @@ export async function setupTestDb(d1: D1Database) {
             is_platform_admin INTEGER DEFAULT 0, role TEXT DEFAULT 'user', phone TEXT, 
             dob INTEGER, address TEXT, is_minor INTEGER DEFAULT 0, stripe_customer_id TEXT, 
             stripe_account_id TEXT, mfa_enabled INTEGER DEFAULT 0, push_token TEXT, 
+            is_unsubscribed INTEGER DEFAULT 0,
             last_active_at INTEGER, last_location TEXT, created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
 
@@ -225,7 +228,8 @@ export async function setupTestDb(d1: D1Database) {
         d1.prepare(`CREATE TABLE marketing_automations (
             id TEXT PRIMARY KEY, tenant_id TEXT, trigger_event TEXT NOT NULL, 
             trigger_condition TEXT, template_id TEXT, audience_filter TEXT, 
-            subject TEXT NOT NULL, content TEXT, is_enabled INTEGER DEFAULT 0, 
+            subject TEXT, content TEXT, is_enabled INTEGER DEFAULT 0, 
+            steps TEXT, -- JSON array of steps
             metadata TEXT, timing_type TEXT DEFAULT 'immediate', timing_value INTEGER DEFAULT 0, 
             delay_hours INTEGER DEFAULT 0, channels TEXT DEFAULT '["email"]', 
             recipients TEXT DEFAULT '["student"]', coupon_config TEXT, 
@@ -278,8 +282,19 @@ export async function setupTestDb(d1: D1Database) {
 
         d1.prepare(`CREATE TABLE automation_logs (
             id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, automation_id TEXT NOT NULL, 
+            step_index INTEGER DEFAULT 0,
             user_id TEXT NOT NULL, channel TEXT NOT NULL, metadata TEXT, 
+            opened_at INTEGER, clicked_at INTEGER,
             triggered_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+        )`),
+
+        d1.prepare(`CREATE TABLE automation_enrollments (
+            id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, automation_id TEXT NOT NULL, 
+            user_id TEXT NOT NULL, current_step_index INTEGER DEFAULT 0,
+            next_execution_at INTEGER, status TEXT DEFAULT 'active', 
+            context_data TEXT, -- JSON
+            created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+            updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
         )`),
 
         d1.prepare(`CREATE TABLE platform_config (
