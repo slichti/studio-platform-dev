@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ConfirmationDialog } from "~/components/Dialogs";
 import { ComponentErrorBoundary } from "~/components/ErrorBoundary";
 import { CreateClassModal } from "../CreateClassModal";
+import { CreateBulkClassModal } from "../CreateBulkClassModal";
 import { BookingModal } from "../BookingModal";
 
 import { useClasses, useInfiniteClasses } from "~/hooks/useClasses";
@@ -119,6 +120,7 @@ export default function ClassesPage() {
     // State
     const [selectedClass, setSelectedClass] = useState<ClassEvent | null>(null);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [isCreateBulkOpen, setIsCreateBulkOpen] = useState(false);
     const [confirmArchiveData, setConfirmArchiveData] = useState<{ id: string, archive: boolean } | null>(null);
     const [confirmCancelData, setConfirmCancelData] = useState<{ bookingId: string, classId: string } | null>(null);
     const [bulkCancelOpen, setBulkCancelOpen] = useState(false);
@@ -302,6 +304,9 @@ export default function ClassesPage() {
                             <Button variant="outline" onClick={() => setBulkCancelOpen(true)} className="text-red-600 border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20">
                                 <Trash2 className="h-4 w-4 mr-2" /> Bulk Cancel
                             </Button>
+                            <Button onClick={() => setIsCreateBulkOpen(true)} variant="secondary" className="mr-2">
+                                <Plus className="h-4 w-4 mr-2" /> Bulk Schedule
+                            </Button>
                             <Button onClick={() => setIsCreateOpen(true)}>
                                 <Plus className="h-4 w-4 mr-2" /> Create Class
                             </Button>
@@ -482,6 +487,17 @@ export default function ClassesPage() {
             <CreateClassModal
                 isOpen={isCreateOpen}
                 onClose={() => setIsCreateOpen(false)}
+                onSuccess={handleCreateSuccess}
+                tenantId={tenant?.id}
+                locations={metadata.locations}
+                instructors={metadata.instructors}
+                plans={metadata.plans}
+                courses={metadata.courses}
+            />
+
+            <CreateBulkClassModal
+                isOpen={isCreateBulkOpen}
+                onClose={() => setIsCreateBulkOpen(false)}
                 onSuccess={handleCreateSuccess}
                 tenantId={tenant?.id}
                 locations={metadata.locations}

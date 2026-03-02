@@ -489,6 +489,23 @@ const FAQBlock = ({ title, category, maxItems, backgroundColor, textColor }: any
 // --- Puck Config Export ---
 
 export const puckConfig: Config = {
+    categories: {
+        layout: {
+            components: ["Section", "Columns"]
+        },
+        typography: {
+            components: ["PageTitle", "TextBlock"]
+        },
+        media: {
+            components: ["Hero", "VideoHero", "ImageComponent", "MasonryGallery", "LogoCloud"]
+        },
+        marketing: {
+            components: ["FeatureGrid", "PricingTable", "Testimonials", "StatsCounter", "ContactForm", "MapSection"]
+        },
+        dynamic: {
+            components: ["ClassSchedule", "InstructorGrid", "MembershipPreview", "FAQBlock"]
+        }
+    },
     root: {
         fields: {
             title: { type: "text", label: "Page Title" },
@@ -536,6 +553,7 @@ export const puckConfig: Config = {
                 subtitle: "Your wellness journey starts here",
                 ctaText: "Book a Class",
                 ctaLink: "/schedule",
+                backgroundImage: "https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?q=80&w=2070&auto=format&fit=crop",
                 alignment: "center",
                 overlayOpacity: 0.5,
                 backgroundColor: "#18181b",
@@ -589,6 +607,8 @@ export const puckConfig: Config = {
                 aspectRatio: { type: "text", label: "Aspect Ratio (e.g. 1/1, 16/9)" }
             },
             defaultProps: {
+                src: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=2120&auto=format&fit=crop",
+                alt: "Studio session",
                 maxWidth: "100%",
                 borderRadius: "20px"
             },
@@ -819,7 +839,14 @@ export const puckConfig: Config = {
                 backgroundColor: { type: "text" }
             },
             defaultProps: {
-                images: [{}, {}, {}, {}, {}, {}],
+                images: [
+                    { src: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=500&auto=format&fit=crop" },
+                    { src: "https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?q=80&w=500&auto=format&fit=crop" },
+                    { src: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=500&auto=format&fit=crop" },
+                    { src: "https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=500&auto=format&fit=crop" },
+                    { src: "https://images.unsplash.com/photo-1552196563-55259259a441?q=80&w=500&auto=format&fit=crop" },
+                    { src: "https://images.unsplash.com/photo-1603988363607-e1e4a66962c6?q=80&w=500&auto=format&fit=crop" }
+                ],
                 backgroundColor: "#fafafa"
             },
             render: MasonryGallery

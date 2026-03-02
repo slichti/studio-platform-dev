@@ -43,6 +43,39 @@ const BulkMoveSchema = z.object({
     message: 'Provide either classIds or a from/to date range'
 });
 
+const BulkCreateSchema = z.object({
+    title: z.string(),
+    description: z.string().optional(),
+    instructorId: z.string().optional(),
+    locationId: z.string().optional(),
+    capacity: z.coerce.number().optional(),
+    price: z.coerce.number().optional(),
+    durationMinutes: z.coerce.number(),
+
+    // Date range targeting
+    startDate: z.string(), // YYYY-MM-DD
+    endDate: z.string(),   // YYYY-MM-DD
+    daysOfWeek: z.array(z.number().int().min(0).max(6)), // 0=Sun, 1=Mon, ..., 6=Sat
+    startTime: z.string(), // HH:mm
+
+    // extra configuration
+    zoomEnabled: z.boolean().default(false),
+    createZoomMeeting: z.boolean().optional(),
+    minStudents: z.coerce.number().default(1),
+    autoCancelThreshold: z.coerce.number().optional(),
+    autoCancelEnabled: z.boolean().optional(),
+    type: z.enum(['class', 'workshop', 'event', 'appointment', 'course']).default('class'),
+    memberPrice: z.coerce.number().optional().nullable(),
+    allowCredits: z.boolean().default(true),
+    includedPlanIds: z.array(z.string()).optional(),
+    payrollModel: z.enum(['flat', 'percentage', 'hourly']).optional().nullable(),
+    payrollValue: z.coerce.number().optional().nullable(),
+    isCourse: z.boolean().optional(),
+    recordingPrice: z.coerce.number().optional().nullable(),
+    contentCollectionId: z.string().optional().nullable(),
+    courseId: z.string().optional().nullable(),
+});
+
 // --- Routes ---
 
 // POST /bulk-cancel
@@ -356,6 +389,151 @@ app.openapi(bulkMoveRoute, async (c) => {
     }
 
     return c.json({ success: true, affected: targetClasses.length }, 200);
+});
+
+// POST /bulk-create — Generate multiple classes over a date range on specific days
+const bulkCreateRoute = createRoute({
+    method: 'post',
+    path: '/bulk-create',
+    tags: ['Classes'],
+    summary: 'Bulk create classes over a date range',
+    request: {
+        body: {
+            content: {
+                'application/json': {
+                    schema: BulkCreateSchema
+                }
+            }
+        }
+    },
+    responses: {
+        201: {
+            content: { 'application/json': { schema: z.object({ success: z.boolean(), created: z.number() }) } },
+            description: 'Classes created'
+        },
+        400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Conflict or invalid input' },
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' }
+    }
+});
+
+app.openapi(bulkCreateRoute, async (c) => {
+    if (!c.get('can')('manage_classes')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+    const body = c.req.valid('json');
+
+    const start = new Date(body.startDate + "T00:00:00");
+    const end = new Date(body.endDate + "T23:59:59");
+    const [hours, minutes] = body.startTime.split(':').map(Number);
+
+    if (end < start) return c.json({ error: 'End date must be after start date' }, 400);
+    if (body.daysOfWeek.length === 0) return c.json({ error: 'Must select at least one day of the week' }, 400);
+
+    // Generate occurrences
+    const occurrences: Date[] = [];
+    const current = new Date(start);
+    while (current <= end) {
+        if (body.daysOfWeek.includes(current.getDay())) {
+            const occ = new Date(current);
+            occ.setHours(hours, minutes, 0, 0);
+            occurrences.push(occ);
+        }
+        current.setDate(current.getDate() + 1);
+    }
+
+    if (occurrences.length === 0) {
+        return c.json({ success: true, created: 0 }, 201);
+    }
+
+    // Propose classes for conflict checking
+    const proposedClasses = occurrences.map((occ, idx) => ({
+        id: `temp-${idx}`,
+        startTime: occ,
+        durationMinutes: body.durationMinutes,
+        instructorId: body.instructorId || null,
+        locationId: body.locationId || null,
+        title: body.title
+    }));
+
+    const conflictService = new ConflictService(db);
+
+    if (body.instructorId) {
+        const conflicts = await conflictService.checkInstructorConflictBatch(body.instructorId, proposedClasses as any);
+        if (conflicts.length > 0) {
+            return c.json({ error: `Instructor conflict at ${conflicts[0].proposedClass.startTime.toISOString()}` }, 400);
+        }
+    }
+
+    if (body.locationId) {
+        const conflicts = await conflictService.checkRoomConflictBatch(body.locationId, proposedClasses as any);
+        if (conflicts.length > 0) {
+            return c.json({ error: `Room conflict at ${conflicts[0].proposedClass.startTime.toISOString()}` }, 400);
+        }
+    }
+
+    let shouldCreateZoom = body.createZoomMeeting || body.zoomEnabled;
+    let zmUrl: string | null = null;
+    let zmPwd: string | null = null;
+    let zmId: string | null = null;
+
+    if (shouldCreateZoom) {
+        try {
+            const { ZoomService } = await import('../services/zoom');
+            const { EncryptionUtils } = await import('../utils/encryption');
+            const zs = await ZoomService.getForTenant(tenant, c.env, new EncryptionUtils(c.env.ENCRYPTION_SECRET as string));
+            if (zs) {
+                // Bulk creation might just use a single recurring zoom link if preferred, 
+                // but here we just create one for all, or skip it. Let's create one meeting if requested,
+                // treating it as a "Personal Meeting ID" loose equivalent, or we should generate per occurrence.
+                // Generating 50 zoom meetings might hit rate limits. 
+                // Let's create one meeting without fixed time as a placeholder if possible, or skip.
+                const m: any = await zs.createMeeting(body.title, occurrences[0], body.durationMinutes);
+                zmId = m.id?.toString() || null;
+                zmUrl = m.join_url || null;
+                zmPwd = m.password || null;
+            }
+        } catch (e) { console.error("Zoom creation failed:", e); }
+    }
+
+    const classData = occurrences.map(occ => {
+        return {
+            id: crypto.randomUUID(),
+            tenantId: tenant.id,
+            instructorId: body.instructorId || null,
+            locationId: body.locationId || null,
+            title: body.title,
+            description: body.description || null,
+            startTime: occ,
+            durationMinutes: body.durationMinutes,
+            capacity: body.capacity || null,
+            price: body.price || 0,
+            memberPrice: body.memberPrice || null,
+            type: body.type as any,
+            minStudents: body.minStudents || 1,
+            autoCancelThreshold: body.autoCancelThreshold || null,
+            autoCancelEnabled: !!body.autoCancelEnabled,
+            allowCredits: body.allowCredits !== false,
+            includedPlanIds: body.includedPlanIds || [],
+            zoomEnabled: !!body.zoomEnabled,
+            zoomMeetingId: zmId,
+            zoomMeetingUrl: zmUrl,
+            zoomPassword: zmPwd,
+            status: 'active' as const,
+            payrollModel: body.payrollModel || null,
+            payrollValue: body.payrollValue || null,
+            isCourse: !!body.isCourse,
+            recordingPrice: body.recordingPrice || null,
+            contentCollectionId: body.contentCollectionId || null,
+            courseId: body.courseId || null,
+            createdAt: new Date()
+        };
+    });
+
+    if (classData.length > 0) {
+        await db.insert(classes).values(classData).run();
+    }
+
+    return c.json({ success: true, created: classData.length }, 201);
 });
 
 export default app;
