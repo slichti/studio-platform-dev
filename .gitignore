@@ -12,7 +12,6 @@ yarn-error.log*
 .turbo
 
 # Database dumps and local DB
-*.sql
 local.db
 
 # Web build artifacts
