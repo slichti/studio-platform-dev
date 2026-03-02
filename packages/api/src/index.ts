@@ -40,6 +40,7 @@ import admin from './routes/admin';
 import onboarding from './routes/onboarding';
 import dataImport from './routes/import';
 import webhookRoutes from './routes/webhooks';
+import resendWebhooksApp from './routes/webhooks.resend';
 import uploadRoutes from './routes/uploads';
 import userRoutes from './routes/users';
 import commerce from './routes/commerce';
@@ -915,6 +916,7 @@ app.route('/admin/seo', adminSeo); // [NEW] SEO Management
 app.route('/onboarding', onboarding);
 app.route('/import', dataImport);
 app.route('/webhooks', webhookRoutes);
+app.route('/webhooks/resend', resendWebhooksApp);
 app.route('/integrations', tenantIntegrations);
 app.route('/diagnostics', diagnosticsRoutes);
 app.route('/telemetry', telemetryRoutes);
@@ -936,13 +938,14 @@ studioApp.route('/custom-fields', customFieldRoutes);
 studioApp.route('/audit-logs', auditLogRoutes);
 
 import tenantDomainRouter from './routes/tenant.domain';
-
 import tenantMobileRouter from './routes/tenant.mobile';
+import tenantEmailMarketingRouter from './routes/tenant.email-marketing';
 
 studioApp.route('/invites', invitesRouter);
 studioApp.route('/webhooks', tenantWebhooksRouter);
 studioApp.route('/domain', tenantDomainRouter); // [NEW] Domain Management
 studioApp.route('/mobile-config', tenantMobileRouter); // [NEW] Mobile Config
+studioApp.route('/email-marketing', tenantEmailMarketingRouter); // [NEW] Email Marketing
 
 studioApp.route('/progress', progressRoutes); // [NEW] Progress Tracking
 

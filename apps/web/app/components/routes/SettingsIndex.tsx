@@ -1,7 +1,7 @@
 
 import { useSubmit, Link, Form, useOutletContext, useParams } from "react-router";
 import { useState, useEffect } from "react";
-import { Settings, Save, MapPin, Plus, Trash2, CreditCard, ShoppingBag, Globe, Search } from "lucide-react";
+import { Settings, Save, MapPin, Plus, Trash2, CreditCard, ShoppingBag, Globe, Search, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmationDialog } from "~/components/Dialogs";
 import { apiRequest, API_URL } from "~/utils/api";
@@ -234,6 +234,18 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                             <div>
                                 <div className="font-medium text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400">SEO & Discoverability</div>
                                 <div className="text-xs text-zinc-500 dark:text-zinc-400">Set default meta title, description, and location for search engines.</div>
+                            </div>
+                            <span className="text-zinc-400 group-hover:text-blue-500 ml-auto">→</span>
+                        </div>
+                    </Link>
+                )}
+                {tenant.features?.includes?.("marketing") && (
+                    <Link to={`/studio/${tenant.slug}/settings/email`} className="block mt-4 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:border-blue-300 dark:hover:border-blue-700 transition-colors group">
+                        <div className="flex items-center gap-3">
+                            <Mail size={18} className="text-blue-500" />
+                            <div>
+                                <div className="font-medium text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400">Email Marketing</div>
+                                <div className="text-xs text-zinc-500 dark:text-zinc-400">Configure custom email domain and marketing audiences.</div>
                             </div>
                             <span className="text-zinc-400 group-hover:text-blue-500 ml-auto">→</span>
                         </div>

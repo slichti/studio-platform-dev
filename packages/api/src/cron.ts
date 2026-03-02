@@ -14,6 +14,7 @@ import { MonitoringService } from './services/monitoring';
 import { createSystemBackup } from '../scripts/backup-system';
 import { backupAllTenants } from '../scripts/backup-tenants';
 import { ContentAutomationService } from './services/content-automation';
+import { ResendManagementService } from './services/resend';
 
 export const scheduled = async (event: any, env: any, ctx: any) => {
     console.log("Cron trigger fired:", event.cron);
@@ -379,6 +380,54 @@ export const scheduled = async (event: any, env: any, ctx: any) => {
                 console.error(`Failed to update churn scores for tenant ${tenant.id}`, e);
             }
         }
+    }
+
+    // --- Resend Background Jobs (Email Marketing) ---
+    try {
+        const resendManagementService = new ResendManagementService(env.RESEND_API_KEY, db);
+
+        // 1. Verify pending domains (run every tick)
+        const pendingTenants = await db.query.tenants.findMany({
+            where: eq(tenants.resendDomainStatus, 'pending')
+        });
+
+        for (const tenant of pendingTenants) {
+            try {
+                console.log(`[Cron] Verifying pending Resend domain for tenant: ${tenant.id}`);
+                const updates = await resendManagementService.verifyTenantDomain(tenant.id);
+                if (updates.resendDomainStatus === 'verified') {
+                    console.log(`[Cron] Successfully verified domain for tenant: ${tenant.id}`);
+                }
+            } catch (e) {
+                console.error(`[Cron] Failed to verify domain for tenant ${tenant.id}:`, e);
+            }
+        }
+
+        // 2. Cleanup canceled tenants (run daily)
+        if (isDailyRun) {
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+            const tenantsToCleanup = await db.query.tenants.findMany({
+                where: and(
+                    eq(tenants.subscriptionStatus, 'canceled'),
+                    isNotNull(tenants.resendDomainId)
+                )
+            });
+
+            for (const tenant of tenantsToCleanup) {
+                if (tenant.currentPeriodEnd && new Date(tenant.currentPeriodEnd) < thirtyDaysAgo) {
+                    try {
+                        console.log(`[Cron] Revoking Resend access for canceled tenant: ${tenant.id}`);
+                        await resendManagementService.revokeTenantAccess(tenant.id);
+                    } catch (e) {
+                        console.error(`[Cron] Failed to revoke Resend access for tenant ${tenant.id}:`, e);
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        console.error('[Cron] Error in Resend Background Jobs:', e);
     }
 
     // 5. Billing Renewal Notifications

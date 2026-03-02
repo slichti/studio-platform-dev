@@ -11,7 +11,7 @@ The modern, all-in-one platform for dance, yoga, and fitness studios.
 *   **RBAC & Security:** Comprehensive role-based access control audited across 92+ API routes. Students are precisely scoped to their own data with explicit IDOR guards on tag assignments, custom field values, and booking records.
 *   **Website Builder:** Drag-and-drop website editor with custom domains.
 *   **Student App:** Mobile app for students to book classes and manage their accounts.
-*   **Automations:** Powerful email and SMS marketing automations with trigger events (Birthday, Absent, Trial Ending, Membership Dunning, etc).
+*   **Automations & Email Marketing:** Powerful email and SMS marketing automations with trigger events (Birthday, Absent, Trial Ending). Full multi-tenant Email Marketing system allowing studios to attach custom domains, sync newsletter audiences, and send HTML broadcasts.
 *   **SEO Management:** Automated multi-tenant localized SEO via edge-rendered HTMLRewriter, streaming D1 sitemaps, and dynamic Schema.org injection. Includes Google Business Profile OAuth sync, real-time Google Indexing API integration, and **AI-Powered Local Blogging** via Gemini AI (with AI-generated imagery). Now features **Strategic Strategy Guidance**, **Competitive Search Ranking**, and **Automated Student Push Notifications** for all newly published content.
 *   **QR Codes:** Generate tracking-ready QR codes for check-in, app downloads, and marketing.
 *   **High Performance Edge:** Sub-50ms latency for core operations via Cloudflare Workers and D1 batching.

@@ -486,6 +486,94 @@ const FAQBlock = ({ title, category, maxItems, backgroundColor, textColor }: any
     );
 };
 
+// Newsletter Signup
+const NewsletterSignupBlock = ({ title, subtitle, buttonText, placeholderText, backgroundColor, textColor }: any) => {
+    return (
+        <section
+            className="py-24 px-8 transition-colors"
+            style={{ backgroundColor: backgroundColor || '#f4f4f5', color: textColor || 'inherit' }}
+        >
+            <div className="max-w-3xl mx-auto text-center bg-white dark:bg-zinc-900 p-16 rounded-[3rem] shadow-xl border border-zinc-100 dark:border-zinc-800">
+                <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                </div>
+                <h2 className="text-4xl font-black mb-4 tracking-tight">{title || "Subscribe to our Newsletter"}</h2>
+                <p className="text-zinc-500 dark:text-zinc-400 mb-10 font-medium text-lg">{subtitle || "Get the latest updates and offers."}</p>
+                <form
+                    className="flex flex-col sm:flex-row gap-4 max-w-xl mx-auto group"
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        const form = e.target as HTMLFormElement;
+                        const emailInput = form.elements.namedItem('email') as HTMLInputElement;
+                        const submitButton = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+
+                        // Disable button to prevent double submission
+                        if (submitButton) {
+                            submitButton.disabled = true;
+                            submitButton.textContent = "Subscribing...";
+                        }
+
+                        // Extract slug from URL if running in browser
+                        let slug = '';
+                        if (typeof window !== 'undefined') {
+                            const match = window.location.pathname.match(/\/studio\/([^\/]+)/);
+                            if (match && match[1]) {
+                                slug = match[1];
+                            }
+                        }
+
+                        fetch('/api/public/newsletter/subscribe', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email: emailInput.value, slug })
+                        })
+                            .then(res => res.json())
+                            .then(data => {
+                                if (data.success) {
+                                    form.reset();
+                                    if (submitButton) {
+                                        submitButton.textContent = "Subscribed!";
+                                        submitButton.classList.add("bg-green-600", "hover:bg-green-700");
+                                        submitButton.classList.remove("bg-blue-600", "hover:bg-blue-700");
+                                    }
+                                } else {
+                                    alert(data.error || "Failed to subscribe");
+                                    if (submitButton) {
+                                        submitButton.disabled = false;
+                                        submitButton.textContent = buttonText || "Subscribe";
+                                    }
+                                }
+                            })
+                            .catch(err => {
+                                alert("An error occurred");
+                                if (submitButton) {
+                                    submitButton.disabled = false;
+                                    submitButton.textContent = buttonText || "Subscribe";
+                                }
+                            });
+                    }}
+                >
+                    <input
+                        type="email"
+                        name="email"
+                        required
+                        placeholder={placeholderText || "Enter your email address"}
+                        className="flex-1 px-6 py-4 rounded-full bg-zinc-50 dark:bg-zinc-800 border-none text-zinc-900 dark:text-white focus:ring-4 ring-blue-500/10 transition-all font-medium"
+                    />
+                    <button
+                        type="submit"
+                        className="bg-blue-600 text-white px-8 py-4 rounded-full font-bold text-lg hover:scale-[1.02] active:scale-95 transition-all shadow-xl whitespace-nowrap min-w-[140px]"
+                    >
+                        {buttonText || "Subscribe"}
+                    </button>
+                </form>
+            </div>
+        </section>
+    );
+};
+
 // --- Puck Config Export ---
 
 export const puckConfig: Config = {
@@ -500,7 +588,7 @@ export const puckConfig: Config = {
             components: ["Hero", "VideoHero", "ImageComponent", "MasonryGallery", "LogoCloud"]
         },
         marketing: {
-            components: ["FeatureGrid", "PricingTable", "Testimonials", "StatsCounter", "ContactForm", "MapSection"]
+            components: ["FeatureGrid", "PricingTable", "Testimonials", "StatsCounter", "ContactForm", "MapSection", "NewsletterSignup"]
         },
         dynamic: {
             components: ["ClassSchedule", "InstructorGrid", "MembershipPreview", "FAQBlock"]
@@ -878,6 +966,26 @@ export const puckConfig: Config = {
                 textColor: "#18181b"
             },
             render: FAQBlock
+        },
+        NewsletterSignup: {
+            label: "Newsletter Signup",
+            fields: {
+                title: { type: "text" },
+                subtitle: { type: "textarea" },
+                buttonText: { type: "text", label: "Button Text" },
+                placeholderText: { type: "text", label: "Placeholder Text" },
+                backgroundColor: { type: "text", label: "Background Color (Hex)" },
+                textColor: { type: "text", label: "Text Color (Hex)" }
+            },
+            defaultProps: {
+                title: "Subscribe to our Newsletter",
+                subtitle: "Get the latest updates, class schedules, and special offers delivered to your inbox.",
+                buttonText: "Subscribe",
+                placeholderText: "Enter your email address",
+                backgroundColor: "#f4f4f5",
+                textColor: "#18181b"
+            },
+            render: NewsletterSignupBlock
         },
     },
 };

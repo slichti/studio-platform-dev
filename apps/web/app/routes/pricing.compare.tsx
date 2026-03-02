@@ -70,7 +70,9 @@ const STATIC_FEATURES_TEMPLATE = [
     {
         category: "Marketing & Branding",
         items: [
-            { name: "Email Notifications", launch: "Transactional", growth: "Campaigns", scale: "White-label" },
+            { name: "Email Marketing (Newsletters)", launch: false, growth: true, scale: true },
+            { name: "Custom Email Domains", launch: false, growth: false, scale: true },
+            { name: "Automated Workflows (CRM)", launch: false, growth: true, scale: true },
             { name: "SMS Notifications", launch: false, growth: true, scale: true },
             { name: "Custom Domain", launch: false, growth: false, scale: true },
             { name: "White Label Branding", launch: false, growth: false, scale: true },

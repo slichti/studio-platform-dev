@@ -91,9 +91,9 @@ const FEATURE_CATEGORIES = [
         icon: Mail,
         color: 'bg-orange-500',
         features: [
-            'Built-in email marketing',
-            'Mailchimp & Flodesk integrations',
-            'Lead capture forms',
+            'Built-in Email Marketing & Newsletters',
+            'Custom Sender Domains (SPF/DKIM)',
+            'Lead capture forms & Widgets',
             'Coupon codes & promotions',
             'Referral program tools',
             'Automated reminders & follow-ups'

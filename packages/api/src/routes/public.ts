@@ -2,8 +2,9 @@ import { Hono } from 'hono';
 import { createDb } from '../db';
 import { platformPlans, tenants } from '@studio/db/src/schema';
 import { eq } from 'drizzle-orm';
+import { ResendManagementService } from '../services/resend';
 
-const app = new Hono<{ Bindings: { DB: D1Database } }>();
+const app = new Hono<{ Bindings: { DB: D1Database, RESEND_API_KEY: string } }>();
 
 const ROBOTS_BASE_URL = 'https://studio-platform.com';
 
@@ -83,6 +84,42 @@ app.get('/plans', async (c) => {
     }));
 
     return c.json(publicPlans);
+});
+
+// POST /public/newsletter/subscribe - Subscribe to a studio's newsletter
+app.post('/newsletter/subscribe', async (c) => {
+    try {
+        const body = await c.req.json();
+        const { email, slug } = body;
+
+        if (!email || !slug) {
+            return c.json({ success: false, error: 'Email and studio slug are required' }, 400);
+        }
+
+        const db = createDb(c.env.DB);
+
+        // Find tenant by slug
+        const tenant = await db.query.tenants.findFirst({
+            where: eq(tenants.slug, slug)
+        });
+
+        if (!tenant) {
+            return c.json({ success: false, error: 'Studio not found' }, 404);
+        }
+
+        if (!tenant.resendNewsletterSegmentId) {
+            return c.json({ success: false, error: 'This studio does not have a newsletter configured yet.' }, 400);
+        }
+
+        // Add to Resend audience
+        const resendService = new ResendManagementService(c.env.RESEND_API_KEY, db as any);
+        await resendService.addContactToAudience(tenant.id, email);
+
+        return c.json({ success: true, message: 'Successfully subscribed' });
+    } catch (error: any) {
+        console.error('Newsletter subscription error:', error);
+        return c.json({ success: false, error: error.message || 'Failed to subscribe to newsletter' }, 500);
+    }
 });
 
 export default app;

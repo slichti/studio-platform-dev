@@ -32,6 +32,14 @@ export const tenants = sqliteTable('tenants', {
     twilioCredentials: text('twilio_credentials', { mode: 'json' }), // Encrypted JSON: { accountSid, authToken, fromNumber }
     flodeskCredentials: text('flodesk_credentials', { mode: 'json' }), // Encrypted JSON: { apiKey }
 
+    // Email Marketing Automation System (Resend Multi-Tenant)
+    resendDomainId: text('resend_domain_id'),
+    resendDomainStatus: text('resend_domain_status'), // e.g., 'pending', 'verified', 'failed'
+    resendDomainRecords: text('resend_domain_records', { mode: 'json' }), // JSON array of DNS records to configure
+    resendApiKeyId: text('resend_api_key_id'),
+    resendApiKey: text('resend_api_key'), // Encrypted tenant-specific API key for sending
+    resendNewsletterSegmentId: text('resend_newsletter_segment_id'),
+
     currency: text('currency').default('usd').notNull(), // Added currency
     zoomCredentials: text('zoom_credentials', { mode: 'json' }), // Encrypted
     mailchimpCredentials: text('mailchimp_credentials', { mode: 'json' }), // JSON: { apiKey, serverPrefix, listId }
@@ -139,6 +147,7 @@ export const users = sqliteTable('users', {
     pushToken: text('push_token'), // Expo Push Token
     lastActiveAt: integer('last_active_at', { mode: 'timestamp' }), // Timestamp of last API request
     lastLocation: text('last_location', { mode: 'json' }), // JSON: { city, country, lat, lng }
+    isUnsubscribed: integer('is_unsubscribed', { mode: 'boolean' }).default(false), // Global email unsubscribe status (bounces, complaints, manual)
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     emailIdx: index('email_idx').on(table.email),
