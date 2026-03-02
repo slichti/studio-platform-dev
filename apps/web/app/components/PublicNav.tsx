@@ -27,6 +27,9 @@ export function PublicNav() {
                 <Link to="/features" className={navLinkClass('/features')}>
                     Features
                 </Link>
+                <Link to="/comparison" className={navLinkClass('/comparison')}>
+                    Compare
+                </Link>
                 <Link to="/pricing" className={navLinkClass('/pricing')}>
                     Pricing
                 </Link>
