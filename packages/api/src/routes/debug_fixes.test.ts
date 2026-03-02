@@ -33,7 +33,7 @@ describe('Debug Fixes Verification', () => {
             stripe_subscription_id TEXT, current_period_end INTEGER, marketing_provider TEXT DEFAULT 'system' NOT NULL,
             resend_credentials TEXT, twilio_credentials TEXT, flodesk_credentials TEXT, currency TEXT DEFAULT 'usd' NOT NULL,
             zoom_credentials TEXT, mailchimp_credentials TEXT, zapier_credentials TEXT, google_credentials TEXT,
-            slack_credentials TEXT, google_calendar_credentials TEXT, resend_audience_id TEXT, status TEXT DEFAULT 'active' NOT NULL,
+            slack_credentials TEXT, google_calendar_credentials TEXT, resend_audience_id TEXT, resend_domain_id TEXT, resend_domain_status TEXT, resend_domain_records TEXT, resend_api_key_id TEXT, resend_api_key TEXT, resend_newsletter_segment_id TEXT, status TEXT DEFAULT 'active' NOT NULL,
             tier TEXT DEFAULT 'launch' NOT NULL, subscription_status TEXT DEFAULT 'active' NOT NULL, is_public INTEGER DEFAULT 0 NOT NULL,
             sms_usage INTEGER DEFAULT 0 NOT NULL, email_usage INTEGER DEFAULT 0 NOT NULL, streaming_usage INTEGER DEFAULT 0 NOT NULL,
             sms_limit INTEGER, email_limit INTEGER, streaming_limit INTEGER, billing_exempt INTEGER DEFAULT 0 NOT NULL,
@@ -54,7 +54,7 @@ describe('Debug Fixes Verification', () => {
             id TEXT PRIMARY KEY, email TEXT NOT NULL, profile TEXT, is_platform_admin INTEGER DEFAULT 0,
             role TEXT DEFAULT 'user' NOT NULL, phone TEXT, dob INTEGER, address TEXT, is_minor INTEGER DEFAULT 0,
             stripe_customer_id TEXT, stripe_account_id TEXT, mfa_enabled INTEGER DEFAULT 0, push_token TEXT,
-            last_active_at INTEGER, last_location TEXT, created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            last_active_at INTEGER, last_location TEXT, is_unsubscribed INTEGER DEFAULT 0, created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`);
         sqlite.exec(`CREATE TABLE tenant_members (
             id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, user_id TEXT NOT NULL, profile TEXT, settings TEXT,

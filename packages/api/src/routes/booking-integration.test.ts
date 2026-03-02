@@ -29,7 +29,7 @@ describe('Booking Lifecycle Integration', () => {
             stripe_account_id TEXT, stripe_customer_id TEXT, stripe_subscription_id TEXT, current_period_end INTEGER,
             marketing_provider TEXT DEFAULT 'system', resend_credentials TEXT, twilio_credentials TEXT, flodesk_credentials TEXT,
             currency TEXT DEFAULT 'usd', zoom_credentials TEXT, mailchimp_credentials TEXT, zapier_credentials TEXT,
-            google_credentials TEXT, slack_credentials TEXT, google_calendar_credentials TEXT, resend_audience_id TEXT,
+            google_credentials TEXT, slack_credentials TEXT, google_calendar_credentials TEXT, resend_audience_id TEXT, resend_domain_id TEXT, resend_domain_status TEXT, resend_domain_records TEXT, resend_api_key_id TEXT, resend_api_key TEXT, resend_newsletter_segment_id TEXT,
             subscription_status TEXT DEFAULT 'active', is_public INTEGER DEFAULT 0,
             sms_usage INTEGER DEFAULT 0, email_usage INTEGER DEFAULT 0, streaming_usage INTEGER DEFAULT 0,
             sms_limit INTEGER, email_limit INTEGER, streaming_limit INTEGER, billing_exempt INTEGER DEFAULT 0,
@@ -46,7 +46,7 @@ describe('Booking Lifecycle Integration', () => {
             id TEXT PRIMARY KEY, email TEXT, profile TEXT, is_platform_admin INTEGER DEFAULT 0, role TEXT DEFAULT 'user',
             phone TEXT, dob INTEGER, address TEXT, is_minor INTEGER DEFAULT 0,
             stripe_customer_id TEXT, stripe_account_id TEXT, mfa_enabled INTEGER DEFAULT 0, push_token TEXT,
-            last_active_at INTEGER, last_location TEXT, created_at INTEGER
+            last_active_at INTEGER, last_location TEXT, is_unsubscribed INTEGER DEFAULT 0, created_at INTEGER
         )`);
 
         // 3. Tenant Members
