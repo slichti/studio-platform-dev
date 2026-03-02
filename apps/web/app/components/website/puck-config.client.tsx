@@ -3,7 +3,7 @@
 
 import type { Config } from "@puckeditor/core";
 import { lazy, Suspense } from "react";
-const DropZone = lazy(() => import("@puckeditor/core").then(m => ({ default: m.DropZone })));
+import { ErrorBoundary } from "react-error-boundary";
 import DOMPurify from 'isomorphic-dompurify';
 
 // --- Component Definitions ---
@@ -76,7 +76,8 @@ const VideoHero = ({ title, subtitle, ctaText, ctaLink, videoUrl, alignment, ove
 );
 
 // Columns Component
-const Columns = ({ distribution, backgroundColor, textColor, padding }: any) => {
+const Columns = ({ puck, distribution, backgroundColor, textColor, padding }: any) => {
+    const renderDropZone = puck?.renderDropZone || (() => null);
     const cols = distribution === '1-1' ? 'md:grid-cols-2' : distribution === '1-1-1' ? 'md:grid-cols-3' : 'md:grid-cols-4';
     return (
         <section
@@ -85,19 +86,19 @@ const Columns = ({ distribution, backgroundColor, textColor, padding }: any) => 
         >
             <div className={`grid grid-cols-1 ${cols} gap-12 max-w-7xl mx-auto`}>
                 <div className="flex flex-col gap-8">
-                    <Suspense fallback={null}><DropZone zone="left" /></Suspense>
+                    {renderDropZone({ zone: "left" })}
                 </div>
                 <div className="flex flex-col gap-8">
-                    <Suspense fallback={null}><DropZone zone="center" /></Suspense>
+                    {renderDropZone({ zone: "center" })}
                 </div>
                 {(distribution === '1-1-1' || distribution === '1-1-1-1') && (
                     <div className="flex flex-col gap-8">
-                        <Suspense fallback={null}><DropZone zone="right" /></Suspense>
+                        {renderDropZone({ zone: "right" })}
                     </div>
                 )}
                 {distribution === '1-1-1-1' && (
                     <div className="flex flex-col gap-8">
-                        <Suspense fallback={null}><DropZone zone="far-right" /></Suspense>
+                        {renderDropZone({ zone: "far-right" })}
                     </div>
                 )}
             </div>
