@@ -86,6 +86,7 @@ async function main() {
             id: 'loc_' + faker.string.uuid(),
             tenantId: tenantId,
             name: "Main Studio",
+            slug: "main-studio",
             address: "123 Yoga Lane",
             isPrimary: true,
             isActive: true
