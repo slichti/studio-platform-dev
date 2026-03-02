@@ -166,9 +166,9 @@ export default function ComparisonPage() {
                                                             }`}
                                                     >
                                                         {item[comp.id as keyof typeof item] === true ? (
-                                                            <div className="flex justify-center"><Check className="text-green-500 dark:text-green-400" size={20} /></div>
+                                                            <div className="flex justify-center"><Check className="text-green-600 dark:text-green-500 stroke-[3px]" size={24} /></div>
                                                         ) : item[comp.id as keyof typeof item] === false ? (
-                                                            <div className="flex justify-center"><X className="text-zinc-300 dark:text-zinc-600" size={20} /></div>
+                                                            <div className="flex justify-center"><X className="text-zinc-400 dark:text-zinc-500 stroke-[3px]" size={24} /></div>
                                                         ) : (
                                                             <span className="text-xs font-semibold px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
                                                                 {item[comp.id as keyof typeof item]}
