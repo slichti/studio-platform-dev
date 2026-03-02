@@ -1,17 +1,18 @@
 import { Hono } from 'hono';
-import { db } from '../db';
-import { tenants, users } from '@studio/db';
+import { createDb } from '../db';
+import { tenants, users } from '@studio/db/src/schema';
 import { eq } from 'drizzle-orm';
 import { Webhook } from 'svix'; // Although Resend does not use Svix, let's process the JSON body directly or use crypto for webhook signatures if needed.
 // Resend currently sends webhooks as POST requests with a JSON body. 
 
-const resendWebhooksApp = new Hono();
+const resendWebhooksApp = new Hono<{ Bindings: { DB: D1Database } }>();
 
 resendWebhooksApp.post('/', async (c) => {
     try {
         const payload = await c.req.json();
         const type = payload.type;
         const data = payload.data; // The email event data
+        const db = createDb(c.env.DB);
 
         console.log(`[Resend Webhook] Received event type: ${type}`);
 

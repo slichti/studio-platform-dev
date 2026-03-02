@@ -530,7 +530,7 @@ const NewsletterSignupBlock = ({ title, subtitle, buttonText, placeholderText, b
                             body: JSON.stringify({ email: emailInput.value, slug })
                         })
                             .then(res => res.json())
-                            .then(data => {
+                            .then((data: any) => {
                                 if (data.success) {
                                     form.reset();
                                     if (submitButton) {

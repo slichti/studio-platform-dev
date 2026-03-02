@@ -64,15 +64,15 @@ app.openapi(createRoute({
     },
     responses: {
         200: { content: { 'application/json': { schema: z.object({ success: z.boolean() }) } }, description: 'Domain added' },
-        400: { description: 'Invalid domain' },
-        500: { description: 'Server Error' }
+        400: { content: { 'application/json': { schema: z.object({ error: z.string() }) } }, description: 'Invalid domain' },
+        500: { content: { 'application/json': { schema: z.object({ error: z.string() }) } }, description: 'Server Error' }
     }
 }), async (c) => {
     const tenant = c.get('tenant');
     const { domain } = c.req.valid('json');
     const db = createDb(c.env.DB);
 
-    const resend = new ResendManagementService(c.env.RESEND_API_KEY, db);
+    const resend = new ResendManagementService(c.env.RESEND_API_KEY || '', db);
 
     try {
         await resend.setupTenantDomain(tenant.id, domain);
@@ -89,16 +89,17 @@ app.openapi(createRoute({
     tags: ['EmailMarketing'],
     summary: 'Remove custom email domain',
     responses: {
-        200: { content: { 'application/json': { schema: z.object({ success: z.boolean() }) } }, description: 'Domain removed' }
+        200: { content: { 'application/json': { schema: z.object({ success: z.boolean() }) } }, description: 'Domain removed' },
+        500: { content: { 'application/json': { schema: z.object({ error: z.string() }) } }, description: 'Server Error' }
     }
 }), async (c) => {
     const tenant = c.get('tenant');
     const db = createDb(c.env.DB);
-    const resend = new ResendManagementService(c.env.RESEND_API_KEY, db);
+    const resend = new ResendManagementService(c.env.RESEND_API_KEY || '', db);
 
     try {
         await resend.revokeTenantAccess(tenant.id);
-        return c.json({ success: true });
+        return c.json({ success: true } as any);
     } catch (e: any) {
         return c.json({ error: e.message } as any, 500);
     }
@@ -112,18 +113,18 @@ app.openapi(createRoute({
     summary: 'Verify custom email domain',
     responses: {
         200: { content: { 'application/json': { schema: z.object({ success: z.boolean(), status: z.string().optional() }) } }, description: 'Verification refreshed' },
-        400: { description: 'No domain configured' },
-        500: { description: 'Server Error' }
+        400: { content: { 'application/json': { schema: z.object({ error: z.string() }) } }, description: 'No domain configured' },
+        500: { content: { 'application/json': { schema: z.object({ error: z.string() }) } }, description: 'Server Error' }
     }
 }), async (c) => {
     const tenant = c.get('tenant');
     const db = createDb(c.env.DB);
 
-    const resend = new ResendManagementService(c.env.RESEND_API_KEY, db);
+    const resend = new ResendManagementService(c.env.RESEND_API_KEY || '', db);
 
     try {
         const updates = await resend.verifyTenantDomain(tenant.id);
-        return c.json({ success: true, status: updates.resendDomainStatus as string });
+        return c.json({ success: true, status: updates.resendDomainStatus as string } as any);
     } catch (e: any) {
         return c.json({ error: e.message } as any, 500);
     }
@@ -140,14 +141,14 @@ app.openapi(createRoute({
     },
     responses: {
         200: { content: { 'application/json': { schema: z.object({ success: z.boolean(), id: z.string().optional() }) } }, description: 'Broadcast sent' },
-        500: { description: 'Server Error' }
+        500: { content: { 'application/json': { schema: z.object({ error: z.string() }) } }, description: 'Server Error' }
     }
 }), async (c) => {
     const tenant = c.get('tenant');
     const { subject, htmlContent, fromEmail } = c.req.valid('json');
     const db = createDb(c.env.DB);
 
-    const resend = new ResendManagementService(c.env.RESEND_API_KEY, db);
+    const resend = new ResendManagementService(c.env.RESEND_API_KEY || '', db);
 
     try {
         const data = await resend.sendBroadcast(tenant.id, subject, htmlContent, fromEmail);
