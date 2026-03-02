@@ -46,8 +46,8 @@ const FEATURES: FeatureCategory[] = [
         category: "The 'All-In-One' Advantage",
         items: [
             { name: "Built-in Drag & Drop Website Builder", studio: true, mindbody: false, wellness: false, fitdegree: false, arketa: false, tooltip: "Instead of paying for Squarespace or Wix, build and host your entire website inside the platform." },
-            { name: "Shared SMS/Texting Infrastructure", studio: true, mindbody: 'Add-on', wellness: 'Add-on', fitdegree: true, arketa: false, tooltip: "No need for a Twilio subscription or paid SMS add-ons. It's built into our ecosystem." },
-            { name: "Built-in Email Marketing", studio: true, mindbody: 'Add-on', wellness: 'Add-on', fitdegree: false, arketa: true, tooltip: "Stop paying for Mailchimp. Send beautiful newsletters directly from the platform." },
+            { name: "Shared SMS/Texting Infrastructure", studio: true, mindbody: 'Add-on', wellness: 'Add-on', fitdegree: true, arketa: false, tooltip: "Separate paid subscriptions are unnecessary, but optional. SMS capabilities are built into our ecosystem." },
+            { name: "Built-in Email Marketing", studio: true, mindbody: 'Add-on', wellness: 'Add-on', fitdegree: false, arketa: true, tooltip: "Build and send beautifully formatted newsletters directly from the platform." },
             { name: "AI Content Generation (Emails, Blogs)", studio: true, mindbody: false, wellness: false, fitdegree: false, arketa: false, tooltip: "Our AI helps you write marketing emails and SEO-optimized blog posts instantly." },
             { name: "Automated SEO & Geography Tools", studio: true, mindbody: false, wellness: false, fitdegree: false, arketa: false, tooltip: "We automatically create local SEO landing pages linking to your studio." },
         ]
@@ -111,7 +111,7 @@ export default function ComparisonPage() {
                         </div>
                         <h3 className="text-xl font-bold mb-3 dark:text-zinc-100">Shared Comm Infrastructure</h3>
                         <p className="text-zinc-600 dark:text-zinc-400">
-                            Why pay for Twilio and Mailchimp? Because we operate as a unified platform, our tenants enjoy built-in SMS and email campaigns at no extra infrastructure cost.
+                            Separate paid subscriptions are unnecessary, but optional. Our tenants enjoy built-in SMS and email campaigns at no extra infrastructure cost.
                         </p>
                     </div>
                 </section>
