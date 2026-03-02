@@ -107,32 +107,19 @@ const Columns = ({ distribution, backgroundColor, textColor, padding }: any) => 
 
 // Text Block
 const TextBlock = ({ content, alignment, backgroundColor, textColor }: any) => {
-    // Safely extract content string, as it might be an object from a rich text editor plugin
-    const rawContent = typeof content === 'string'
-        ? content
-        : typeof content === 'object' && content !== null
-            ? (content.html || content.text || JSON.stringify(content))
-            : String(content || '');
-
-    const finalContent = rawContent || "<p>Add your content here...</p>";
-
-    // Attempt to sanitize, fallback if DOMPurify is unavailable or broken
-    let sanitizedHtml = finalContent;
-    try {
-        if (typeof DOMPurify !== 'undefined' && DOMPurify && typeof DOMPurify.sanitize === 'function') {
-            sanitizedHtml = String(DOMPurify.sanitize(finalContent));
-        }
-    } catch (e) {
-        console.warn("DOMPurify sanitize failed:", e);
-    }
-
     return (
         <section
             className="py-16 px-8 transition-colors"
             style={{ backgroundColor: backgroundColor || 'transparent', color: textColor || 'inherit' }}
         >
             <div className={`max-w-4xl mx-auto prose prose-2xl dark:prose-invert ${alignment === 'center' ? 'text-center' : ''} `}>
-                <div dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />
+                {typeof content === 'string' ? (
+                    <div dangerouslySetInnerHTML={{
+                        __html: typeof DOMPurify !== 'undefined' && DOMPurify.sanitize ? String(DOMPurify.sanitize(content)) : content
+                    }} />
+                ) : (
+                    <div>{content || <p>Add your content here...</p>}</div>
+                )}
             </div>
         </section>
     );

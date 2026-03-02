@@ -53,15 +53,17 @@ export function PublicPageRenderer({ page, tenantSlug, isPlatformPage }: PublicP
             />
 
             <SignedIn>
-                <div className="fixed bottom-6 left-6 z-50">
-                    <Link
-                        to={isPlatformPage ? `/admin/website/edit/${page.id}` : `/studio/${tenantSlug}/website/editor/${page.id}`}
-                        className="flex items-center gap-2 bg-zinc-900 text-white px-4 py-2.5 rounded-full shadow-lg hover:bg-zinc-800 transition-transform hover:scale-105"
-                    >
-                        <Edit2 size={16} />
-                        <span className="font-medium text-sm">Edit Page</span>
-                    </Link>
-                </div>
+                {!!user?.publicMetadata?.isPlatformAdmin && (
+                    <div className="fixed bottom-6 left-6 z-50">
+                        <Link
+                            to={isPlatformPage ? `/admin/website/edit/${page.id}` : `/studio/${tenantSlug}/website/editor/${page.id}`}
+                            className="flex items-center gap-2 bg-zinc-900 text-white px-4 py-2.5 rounded-full shadow-lg hover:bg-zinc-800 transition-transform hover:scale-105"
+                        >
+                            <Edit2 size={16} />
+                            <span className="font-medium text-sm">Edit Page</span>
+                        </Link>
+                    </div>
+                )}
             </SignedIn>
         </div>
     );
