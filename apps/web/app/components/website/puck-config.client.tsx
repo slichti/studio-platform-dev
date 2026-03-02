@@ -11,7 +11,7 @@ import DOMPurify from 'isomorphic-dompurify';
 // Hero Section
 const Hero = ({ title, subtitle, ctaText, ctaLink, backgroundImage, alignment, overlayOpacity, backgroundColor, textColor }: any) => (
     <section
-        className={`relative py - 32 px - 8 ${alignment === 'left' ? 'text-left' : 'text-center'} overflow - hidden transition - colors`}
+        className={`relative py-32 px-8 ${alignment === 'left' ? 'text-left' : 'text-center'} overflow-hidden transition-colors`}
         style={{
             backgroundColor: backgroundColor || '#18181b', // Default zinc-900
             color: textColor || '#ffffff'
@@ -80,10 +80,10 @@ const Columns = ({ distribution, backgroundColor, textColor, padding }: any) => 
     const cols = distribution === '1-1' ? 'md:grid-cols-2' : distribution === '1-1-1' ? 'md:grid-cols-3' : 'md:grid-cols-4';
     return (
         <section
-            className={`${padding === 'large' ? 'py-32' : padding === 'small' ? 'py-8' : 'py-16'} px - 8 transition - colors`}
+            className={`${padding === 'large' ? 'py-32' : padding === 'small' ? 'py-8' : 'py-16'} px-8 transition-colors`}
             style={{ backgroundColor: backgroundColor || 'transparent', color: textColor || 'inherit' }}
         >
-            <div className={`grid grid - cols - 1 ${cols} gap - 12 max - w - 7xl mx - auto`}>
+            <div className={`grid grid-cols-1 ${cols} gap-12 max-w-7xl mx-auto`}>
                 <div className="flex flex-col gap-8">
                     <Suspense fallback={null}><DropZone zone="left" /></Suspense>
                 </div>
@@ -111,7 +111,7 @@ const TextBlock = ({ content, alignment, backgroundColor, textColor }: any) => (
         className="py-16 px-8 transition-colors"
         style={{ backgroundColor: backgroundColor || 'transparent', color: textColor || 'inherit' }}
     >
-        <div className={`max - w - 4xl mx - auto prose prose - 2xl dark: prose - invert ${alignment === 'center' ? 'text-center' : ''} `}>
+        <div className={`max-w-4xl mx-auto prose prose-2xl dark:prose-invert ${alignment === 'center' ? 'text-center' : ''} `}>
             <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content || "<p>Add your content here...</p>") }} />
         </div>
     </section>
