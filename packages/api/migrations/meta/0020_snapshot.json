@@ -940,36 +940,36 @@
         }
       },
       "indexes": {
-        "enrollment_tenant_idx": {
-          "name": "enrollment_tenant_idx",
+        "automation_enrollment_tenant_idx": {
+          "name": "automation_enrollment_tenant_idx",
           "columns": [
             "tenant_id"
           ],
           "isUnique": false
         },
-        "enrollment_auto_idx": {
-          "name": "enrollment_auto_idx",
+        "automation_enrollment_auto_idx": {
+          "name": "automation_enrollment_auto_idx",
           "columns": [
             "automation_id"
           ],
           "isUnique": false
         },
-        "enrollment_user_idx": {
-          "name": "enrollment_user_idx",
+        "automation_enrollment_user_idx": {
+          "name": "automation_enrollment_user_idx",
           "columns": [
             "user_id"
           ],
           "isUnique": false
         },
-        "enrollment_status_idx": {
-          "name": "enrollment_status_idx",
+        "automation_enrollment_status_idx": {
+          "name": "automation_enrollment_status_idx",
           "columns": [
             "status"
           ],
           "isUnique": false
         },
-        "enrollment_execution_idx": {
-          "name": "enrollment_execution_idx",
+        "automation_enrollment_execution_idx": {
+          "name": "automation_enrollment_execution_idx",
           "columns": [
             "next_execution_at"
           ],

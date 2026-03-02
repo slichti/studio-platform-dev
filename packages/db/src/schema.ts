@@ -649,11 +649,11 @@ export const automationEnrollments = sqliteTable('automation_enrollments', {
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
-    tenantIdx: index('enrollment_tenant_idx').on(table.tenantId),
-    autoIdx: index('enrollment_auto_idx').on(table.automationId),
-    userIdx: index('enrollment_user_idx').on(table.userId),
-    statusIdx: index('enrollment_status_idx').on(table.status),
-    executionIdx: index('enrollment_execution_idx').on(table.nextExecutionAt),
+    tenantIdx: index('automation_enrollment_tenant_idx').on(table.tenantId),
+    autoIdx: index('automation_enrollment_auto_idx').on(table.automationId),
+    userIdx: index('automation_enrollment_user_idx').on(table.userId),
+    statusIdx: index('automation_enrollment_status_idx').on(table.status),
+    executionIdx: index('automation_enrollment_execution_idx').on(table.nextExecutionAt),
 }));
 
 export const automationLogs = sqliteTable('automation_logs', {

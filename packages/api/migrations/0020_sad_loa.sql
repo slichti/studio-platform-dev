@@ -14,11 +14,11 @@ CREATE TABLE `automation_enrollments` (
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE INDEX `enrollment_tenant_idx` ON `automation_enrollments` (`tenant_id`);--> statement-breakpoint
-CREATE INDEX `enrollment_auto_idx` ON `automation_enrollments` (`automation_id`);--> statement-breakpoint
-CREATE INDEX `enrollment_user_idx` ON `automation_enrollments` (`user_id`);--> statement-breakpoint
-CREATE INDEX `enrollment_status_idx` ON `automation_enrollments` (`status`);--> statement-breakpoint
-CREATE INDEX `enrollment_execution_idx` ON `automation_enrollments` (`next_execution_at`);--> statement-breakpoint
+CREATE INDEX `automation_enrollment_tenant_idx` ON `automation_enrollments` (`tenant_id`);--> statement-breakpoint
+CREATE INDEX `automation_enrollment_auto_idx` ON `automation_enrollments` (`automation_id`);--> statement-breakpoint
+CREATE INDEX `automation_enrollment_user_idx` ON `automation_enrollments` (`user_id`);--> statement-breakpoint
+CREATE INDEX `automation_enrollment_status_idx` ON `automation_enrollments` (`status`);--> statement-breakpoint
+CREATE INDEX `automation_enrollment_execution_idx` ON `automation_enrollments` (`next_execution_at`);--> statement-breakpoint
 ALTER TABLE `marketing_automations` ADD `steps` text DEFAULT '[]' NOT NULL;--> statement-breakpoint
 ALTER TABLE `marketing_automations` DROP COLUMN `template_id`;--> statement-breakpoint
 ALTER TABLE `marketing_automations` DROP COLUMN `audience_filter`;--> statement-breakpoint
