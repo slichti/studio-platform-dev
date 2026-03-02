@@ -3,7 +3,7 @@ import { useAuth } from "@clerk/react-router";
 import { useState } from "react";
 import { useOutletContext } from "react-router";
 import {
-    Mail, Plus, Trash2, Save, Send, Settings, Sparkles, Clock, AlertCircle, ChevronRight, Check, X, Pencil, Filter, ChevronDown, CheckCircle, AlertTriangle, Zap, Calendar
+    Mail, Plus, Trash2, Save, Send, Settings, Sparkles, Clock, AlertCircle, ChevronRight, Check, X, Pencil, Filter, ChevronDown, CheckCircle, AlertTriangle, Zap, Calendar, Users
 } from "lucide-react";
 import { Modal } from "~/components/Modal";
 import { RichTextEditor } from "~/components/RichTextEditor";
@@ -696,7 +696,7 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                 isOpen={!!editingAuto}
                 onClose={() => setEditingAuto(null)}
                 title={`Edit Automation`}
-                maxWidth="max-w-5xl"
+                maxWidth="max-w-7xl"
             >
                 {editingAuto && (
                     <form onSubmit={handleUpdateAutomation} className="flex flex-col h-[80vh]">
@@ -706,7 +706,7 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                             <div className="w-1/3 flex flex-col border-r border-zinc-200 bg-white">
                                 <div className="p-4 border-b border-zinc-200 bg-zinc-50/50 flex flex-col gap-3 shrink-0">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-sm font-semibold text-zinc-900">Automation Trigger</span>
+                                        <span className="text-sm font-semibold text-zinc-900">Automation Status</span><span className={`ml-2 text-xs font-semibold ${editForm.isEnabled ? "text-emerald-600" : "text-zinc-500"}`}>{editForm.isEnabled ? "Active" : "Paused"}</span>
                                         <label className="relative inline-flex items-center cursor-pointer">
                                             <input
                                                 type="checkbox"
@@ -731,48 +731,52 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                         </select>
                                     </div>
 
-                                    {/* Simplified Trigger Conditions */}
-                                    <div className="mt-1">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <label className="block text-[10px] uppercase font-bold text-zinc-500">Filter Conditions</label>
-                                            <button
-                                                type="button"
-                                                onClick={() => setEditForm(prev => ({
-                                                    ...prev,
-                                                    conditions: [...prev.conditions, { field: '', operator: 'equals', value: '' }]
-                                                }))}
-                                                className="text-[10px] flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
-                                            >
-                                                <Plus className="h-3 w-3" /> Add
-                                            </button>
-                                        </div>
-                                        {editForm.conditions.length === 0 ? (
-                                            <div className="text-[10px] text-zinc-400 italic">No filters. Runs for all.</div>
-                                        ) : (
-                                            <div className="space-y-1">
-                                                {editForm.conditions.map((c, i) => (
-                                                    <div key={i} className="flex items-center gap-1">
-                                                        <input
-                                                            type="text"
-                                                            value={c.field}
-                                                            onChange={e => { const n = [...editForm.conditions]; n[i].field = e.target.value; setEditForm({ ...editForm, conditions: n }); }}
-                                                            placeholder="field"
-                                                            className="flex-1 min-w-0 border border-zinc-200 rounded px-1.5 py-1 text-[10px]"
-                                                        />
-                                                        <span className="text-[10px] text-zinc-400">=</span>
-                                                        <input
-                                                            type="text"
-                                                            value={c.value}
-                                                            onChange={e => { const n = [...editForm.conditions]; n[i].value = e.target.value; setEditForm({ ...editForm, conditions: n }); }}
-                                                            placeholder="value"
-                                                            className="flex-1 min-w-0 border border-zinc-200 rounded px-1.5 py-1 text-[10px]"
-                                                        />
-                                                        <button type="button" onClick={() => setEditForm({ ...editForm, conditions: editForm.conditions.filter((_, idx) => idx !== i) })} className="text-zinc-400 hover:text-red-500 p-0.5"><X className="h-3 w-3" /></button>
-                                                    </div>
-                                                ))}
+                                    {/* Trigger Conditions */}
+                                    {recommendedFields[String(editForm.triggerEvent)] && (
+                                        <div className="mt-1">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <label className="block text-[10px] uppercase font-bold text-zinc-500">Filter Conditions</label>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setEditForm(prev => ({
+                                                        ...prev,
+                                                        conditions: [...prev.conditions, { field: recommendedFields[String(editForm.triggerEvent)][0], operator: 'equals', value: '' }]
+                                                    }))}
+                                                    className="text-[10px] flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
+                                                >
+                                                    <Plus className="h-3 w-3" /> Add
+                                                </button>
                                             </div>
-                                        )}
-                                    </div>
+                                            {editForm.conditions.length === 0 ? (
+                                                <div className="text-[10px] text-zinc-400 italic">No filters. Runs for all.</div>
+                                            ) : (
+                                                <div className="space-y-1">
+                                                    {editForm.conditions.map((c, i) => (
+                                                        <div key={i} className="flex items-center gap-1">
+                                                            <select
+                                                                value={c.field}
+                                                                onChange={e => { const n = [...editForm.conditions]; n[i].field = e.target.value; setEditForm({ ...editForm, conditions: n }); }}
+                                                                className="flex-1 min-w-0 border border-zinc-200 rounded px-1.5 py-1 text-[10px] bg-white outline-none"
+                                                            >
+                                                                {recommendedFields[String(editForm.triggerEvent)].map((rField: string) => (
+                                                                    <option key={rField} value={rField}>{rField}</option>
+                                                                ))}
+                                                            </select>
+                                                            <span className="text-[10px] text-zinc-400">=</span>
+                                                            <input
+                                                                type="text"
+                                                                value={c.value}
+                                                                onChange={e => { const n = [...editForm.conditions]; n[i].value = e.target.value; setEditForm({ ...editForm, conditions: n }); }}
+                                                                placeholder="value"
+                                                                className="flex-1 min-w-0 border border-zinc-200 rounded px-1.5 py-1 text-[10px] outline-none"
+                                                            />
+                                                            <button type="button" onClick={() => setEditForm({ ...editForm, conditions: editForm.conditions.filter((_, idx) => idx !== i) })} className="text-zinc-400 hover:text-red-500 p-0.5"><X className="h-3 w-3" /></button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Timeline */}
@@ -782,34 +786,37 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                     {editForm.steps.map((step, index) => (
                                         <div key={index} className="relative z-10 flex items-start gap-3 mb-4 group cursor-pointer" onClick={() => setActiveStepIndex(index)}>
                                             <div className={`mt-1 shrink-0 w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors ${activeStepIndex === index ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-zinc-200 text-zinc-400 group-hover:border-blue-300'}`}>
-                                                {step.type === 'delay' ? <Clock className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
+                                                {step.type === 'delay' ? <Clock className="h-4 w-4" /> : step.type === 'resend_list' ? <Users className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
                                             </div>
                                             <div className={`flex-1 rounded-lg border p-3 transition-colors ${activeStepIndex === index ? 'bg-blue-50/30 border-blue-300 ring-1 ring-blue-500' : 'bg-white border-zinc-200 group-hover:bg-zinc-50'}`}>
                                                 <div className="flex items-center justify-between mb-1">
                                                     <span className="text-xs font-semibold text-zinc-900">
-                                                        {step.type === 'delay' ? 'Time Delay' : 'Send Email'}
+                                                        {step.type === 'delay' ? 'Time Delay' : step.type === 'resend_list' ? 'Update List' : 'Send Email'}
                                                     </span>
                                                     <button type="button" onClick={(e) => { e.stopPropagation(); setEditForm(prev => ({ ...prev, steps: prev.steps.filter((_, i) => i !== index) })); if (activeStepIndex === index) setActiveStepIndex(null); }} className="text-zinc-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
                                                         <Trash2 className="h-3.5 w-3.5" />
                                                     </button>
                                                 </div>
                                                 <div className="text-[11px] text-zinc-500 line-clamp-2">
-                                                    {step.type === 'delay' ? `Wait ${step.delayHours || 24} hours` : (step.subject || '(No subject)')}
+                                                    {step.type === 'delay' ? `Wait ${step.duration || step.delayHours || 24} ${step.unit || 'hours'}` : step.type === 'resend_list' ? (step.action === 'add' ? `Add to List: ${step.listId || 'Unspecified'}` : `Remove from List: ${step.listId || 'Unspecified'}`) : (step.subject || '(No subject)')}
                                                 </div>
                                             </div>
                                         </div>
                                     ))}
 
-                                    <div className="relative z-10 flex items-center gap-3 pt-2">
+                                    <div className="relative z-10 flex items-center gap-3 pt-2 pb-4">
                                         <div className="shrink-0 w-8 flex justify-center">
                                             <div className="w-2 h-2 rounded-full bg-zinc-300"></div>
                                         </div>
-                                        <div className="flex gap-2">
-                                            <button type="button" onClick={() => { setEditForm(p => ({ ...p, steps: [...p.steps, { type: 'delay', delayHours: 24 }] })); setActiveStepIndex(editForm.steps.length); }} className="bg-white border border-dashed border-zinc-300 hover:border-zinc-400 text-zinc-600 px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1 shadow-sm transition-colors">
+                                        <div className="flex flex-wrap gap-2">
+                                            <button type="button" onClick={() => { setEditForm(p => ({ ...p, steps: [...p.steps, { type: 'delay', delayHours: 24, duration: 1, unit: 'days' }] })); setActiveStepIndex(editForm.steps.length); }} className="bg-white border border-dashed border-zinc-300 hover:border-zinc-400 text-zinc-600 px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1 shadow-sm transition-colors">
                                                 <Clock className="w-3.5 h-3.5" /> Add Delay
                                             </button>
                                             <button type="button" onClick={() => { setEditForm(p => ({ ...p, steps: [...p.steps, { type: 'email', subject: 'New Email', content: '', channels: ['email'], couponConfig: { enabled: false } }] })); setActiveStepIndex(editForm.steps.length); }} className="bg-white border border-dashed border-zinc-300 hover:border-blue-400 text-blue-600 px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1 shadow-sm transition-colors">
                                                 <Mail className="w-3.5 h-3.5" /> Add Email
+                                            </button>
+                                            <button type="button" onClick={() => { setEditForm(p => ({ ...p, steps: [...p.steps, { type: 'resend_list', listId: '', action: 'add' }] })); setActiveStepIndex(editForm.steps.length); }} className="bg-white border border-dashed border-zinc-300 hover:border-emerald-400 text-emerald-600 px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1 shadow-sm transition-colors">
+                                                <Users className="w-3.5 h-3.5" /> List Action
                                             </button>
                                         </div>
                                     </div>
@@ -829,29 +836,108 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                         {/* Step config form */}
                                         <div className="flex-1 overflow-y-auto p-6 space-y-6 min-w-0">
                                             <div className="flex items-center gap-2 mb-2 pb-4 border-b border-zinc-100">
-                                                {editForm.steps[activeStepIndex].type === 'delay' ? <Clock className="h-5 w-5 text-amber-500" /> : <Mail className="h-5 w-5 text-blue-500" />}
+                                                {editForm.steps[activeStepIndex].type === 'delay' ? <Clock className="h-5 w-5 text-amber-500" /> : editForm.steps[activeStepIndex].type === 'resend_list' ? <Users className="h-5 w-5 text-emerald-500" /> : <Mail className="h-5 w-5 text-blue-500" />}
                                                 <h3 className="font-semibold text-lg text-zinc-900">
-                                                    {editForm.steps[activeStepIndex].type === 'delay' ? 'Configure Delay' : 'Configure Email Content'}
+                                                    {editForm.steps[activeStepIndex].type === 'delay' ? 'Configure Delay' : editForm.steps[activeStepIndex].type === 'resend_list' ? 'Configure List Action' : 'Configure Email Content'}
                                                 </h3>
                                             </div>
 
                                             {editForm.steps[activeStepIndex].type === 'delay' && (
                                                 <div className="max-w-xs space-y-4">
+                                                    <div className="flex gap-3">
+                                                        <div className="flex-1">
+                                                            <label className="block text-sm font-medium text-zinc-700 mb-1">Wait Time</label>
+                                                            <input
+                                                                type="number"
+                                                                min="1"
+                                                                value={editForm.steps[activeStepIndex].duration || editForm.steps[activeStepIndex].delayHours || 24}
+                                                                onChange={e => {
+                                                                    const n = [...editForm.steps];
+                                                                    const duration = parseInt(e.target.value) || 0;
+                                                                    const unit = n[activeStepIndex].unit || 'hours';
+                                                                    n[activeStepIndex].duration = duration;
+                                                                    n[activeStepIndex].delayHours = unit === 'days' ? duration * 24 : unit === 'weeks' ? duration * 168 : duration;
+                                                                    setEditForm({ ...editForm, steps: n });
+                                                                }}
+                                                                className="w-full border border-zinc-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                                                            />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <label className="block text-sm font-medium text-zinc-700 mb-1">Unit</label>
+                                                            <select
+                                                                value={editForm.steps[activeStepIndex].unit || 'hours'}
+                                                                onChange={e => {
+                                                                    const n = [...editForm.steps];
+                                                                    const unit = e.target.value;
+                                                                    const duration = n[activeStepIndex].duration || n[activeStepIndex].delayHours || 24;
+                                                                    n[activeStepIndex].unit = unit;
+                                                                    n[activeStepIndex].delayHours = unit === 'days' ? duration * 24 : unit === 'weeks' ? duration * 168 : duration;
+                                                                    setEditForm({ ...editForm, steps: n });
+                                                                }}
+                                                                className="w-full border border-zinc-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                                            >
+                                                                <option value="hours">Hours</option>
+                                                                <option value="days">Days</option>
+                                                                <option value="weeks">Weeks</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-xs text-zinc-500">The automation will pause here before proceeding to the next step.</p>
+                                                </div>
+                                            )}
+
+                                            {editForm.steps[activeStepIndex].type === 'resend_list' && (
+                                                <div className="max-w-md space-y-4">
                                                     <div>
-                                                        <label className="block text-sm font-medium text-zinc-700 mb-1">Wait Time (Hours)</label>
+                                                        <label className="block text-sm font-medium text-zinc-700 mb-1">Action</label>
+                                                        <div className="flex gap-4">
+                                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                                <input
+                                                                    type="radio"
+                                                                    name="list_action"
+                                                                    value="add"
+                                                                    checked={editForm.steps[activeStepIndex].action !== 'remove'}
+                                                                    onChange={e => {
+                                                                        const n = [...editForm.steps];
+                                                                        n[activeStepIndex].action = 'add';
+                                                                        setEditForm({ ...editForm, steps: n });
+                                                                    }}
+                                                                    className="text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                                                />
+                                                                <span className="text-sm font-medium text-zinc-800">Add to List</span>
+                                                            </label>
+                                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                                <input
+                                                                    type="radio"
+                                                                    name="list_action"
+                                                                    value="remove"
+                                                                    checked={editForm.steps[activeStepIndex].action === 'remove'}
+                                                                    onChange={e => {
+                                                                        const n = [...editForm.steps];
+                                                                        n[activeStepIndex].action = 'remove';
+                                                                        setEditForm({ ...editForm, steps: n });
+                                                                    }}
+                                                                    className="text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                                                />
+                                                                <span className="text-sm font-medium text-zinc-800">Remove from List</span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-zinc-700 mb-1">Resend Audience ID</label>
                                                         <input
-                                                            type="number"
-                                                            min="1"
-                                                            value={editForm.steps[activeStepIndex].delayHours || 24}
+                                                            type="text"
+                                                            value={editForm.steps[activeStepIndex].listId || ''}
                                                             onChange={e => {
                                                                 const n = [...editForm.steps];
-                                                                n[activeStepIndex].delayHours = parseInt(e.target.value) || 0;
+                                                                n[activeStepIndex].listId = e.target.value;
                                                                 setEditForm({ ...editForm, steps: n });
                                                             }}
-                                                            className="w-full border border-zinc-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                                                            className="w-full border border-zinc-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                                                            placeholder="e.g. 78241a2e-4321-4d32-9029..."
                                                         />
                                                     </div>
-                                                    <p className="text-xs text-zinc-500">The automation will pause here for the specified number of hours before proceeding to the next step.</p>
+                                                    <p className="text-xs text-zinc-500">Provide the Resend Audience ID you want the student added or removed from. This must be configured in your Resend account.</p>
                                                 </div>
                                             )}
 
@@ -965,7 +1051,7 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                                         "{{firstName}}",
                                                         "{{lastName}}",
                                                         "{{email}}",
-                                                        "{{address}}",
+                                                        "{{studioAddress}}",
                                                         "{{studioName}}"
                                                     ].map(v => (
                                                         <div

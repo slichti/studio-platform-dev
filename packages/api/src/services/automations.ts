@@ -697,6 +697,9 @@ export class AutomationsService {
         } else if (step.type === 'email') {
             await this.executeActionStep(step, auto, context, stepIndex);
             advanceStep = true;
+        } else if (step.type === 'resend_list') {
+            await this.executeResendListStep(step, context);
+            advanceStep = true;
         } else if (step.type === 'condition') {
             advanceStep = true; // Future MVP branching
         } else {
@@ -770,6 +773,41 @@ export class AutomationsService {
                 };
                 await this.dispatchToUser(auto, step, ownerContext, 'owner', sharedContext, stepIndex);
             }
+        }
+    }
+
+    private async executeResendListStep(step: any, context: { email?: string, firstName?: string, lastName?: string }) {
+        if (!context.email || !step.listId) return;
+        const resend = this.emailService.resendClient;
+        if (!resend || !resend.contacts) return; // If API key is missing or mock client
+
+        try {
+            if (step.action === 'remove') {
+                await resend.contacts.remove({
+                    email: context.email,
+                    audienceId: step.listId
+                });
+            } else {
+                try {
+                    await resend.contacts.create({
+                        email: context.email,
+                        firstName: context.firstName,
+                        lastName: context.lastName,
+                        audienceId: step.listId,
+                        unsubscribed: false
+                    });
+                } catch (e: any) {
+                    // Resend returns an error if the contact already exists. Update it instead.
+                    await resend.contacts.update({
+                        email: context.email,
+                        firstName: context.firstName,
+                        lastName: context.lastName,
+                        audienceId: step.listId
+                    });
+                }
+            }
+        } catch (e: any) {
+            console.error(`[AutomationsService] Failed to process resend_list step for ${context.email}:`, e);
         }
     }
 
