@@ -32,19 +32,6 @@ export default defineConfig({
             external: [],
             output: {
                 inlineDynamicImports: false,
-                manualChunks: (id) => {
-                    if (id.includes('node_modules')) {
-                        if (id.includes('livekit')) return 'vendor-livekit';
-                        if (id.includes('@puckeditor/core')) return 'vendor-puck';
-                        if (id.includes('@sentry')) return 'vendor-sentry';
-                        if (id.includes('@radix-ui')) return 'vendor-radix';
-                        if (id.includes('recharts')) return 'vendor-charts';
-                        if (id.includes('date-fns')) return 'vendor-date-fns';
-                        if (id.includes('tiptap')) return 'vendor-tiptap';
-                        if (id.includes('mermaid')) return 'vendor-mermaid';
-                    }
-                    return undefined;
-                },
             },
         },
     },
