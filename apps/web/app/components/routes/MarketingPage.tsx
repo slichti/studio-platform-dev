@@ -34,6 +34,7 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
         isEnabled: false,
         triggerEvent: '',
         conditions: [] as { field: string, operator: string, value: string }[], // Visual builder state
+        daysBefore: 0,
         steps: [] as any[]
     });
     const [activeStepIndex, setActiveStepIndex] = useState<number | null>(null);
@@ -119,6 +120,7 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
             isEnabled: newAuto.isEnabled,
             triggerEvent: newAuto.triggerEvent,
             conditions: [],
+            daysBefore: 0,
             steps: newAuto.steps
         });
     }
@@ -139,6 +141,10 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                     conditionObject[c.field] = isNum ? Number(c.value) : c.value;
                 }
             });
+
+            if (editForm.triggerEvent === 'birthday' && editForm.daysBefore > 0) {
+                conditionObject.daysBefore = editForm.daysBefore;
+            }
 
             const payload = {
                 isEnabled: editForm.isEnabled,
@@ -570,6 +576,7 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                                         }
                                                         return [];
                                                     })(),
+                                                    daysBefore: Number(auto.triggerCondition?.daysBefore) || 0,
                                                     steps: auto.steps || []
                                                 });
                                             }}
@@ -730,6 +737,46 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                             ))}
                                         </select>
                                     </div>
+
+                                    {editForm.triggerEvent === 'birthday' && (
+                                        <div className="mt-4 p-3 bg-zinc-50 border border-zinc-200 rounded-md">
+                                            <label className="block text-xs font-medium text-zinc-700 mb-2">When should this start?</label>
+                                            <div className="flex items-center gap-3">
+                                                <label className="flex items-center gap-2 text-xs">
+                                                    <input
+                                                        type="radio"
+                                                        checked={editForm.daysBefore === 0}
+                                                        onChange={() => setEditForm({ ...editForm, daysBefore: 0 })}
+                                                        className="text-blue-600 focus:ring-blue-500"
+                                                    />
+                                                    On their birthday
+                                                </label>
+                                                <label className="flex items-center gap-2 text-xs">
+                                                    <input
+                                                        type="radio"
+                                                        checked={editForm.daysBefore > 0}
+                                                        onChange={() => setEditForm({ ...editForm, daysBefore: editForm.daysBefore || 7 })}
+                                                        className="text-blue-600 focus:ring-blue-500"
+                                                    />
+                                                    Before their birthday
+                                                </label>
+                                            </div>
+
+                                            {editForm.daysBefore > 0 && (
+                                                <div className="mt-3 flex items-center gap-2 pl-6">
+                                                    <input
+                                                        type="number"
+                                                        min={1}
+                                                        max={365}
+                                                        value={editForm.daysBefore}
+                                                        onChange={e => setEditForm({ ...editForm, daysBefore: parseInt(e.target.value) || 0 })}
+                                                        className="w-16 h-7 text-xs border border-zinc-200 rounded px-2"
+                                                    />
+                                                    <span className="text-xs text-zinc-500">Days before</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* Trigger Conditions */}
                                     {recommendedFields[String(editForm.triggerEvent)] && (

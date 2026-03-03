@@ -111,10 +111,6 @@ export class AutomationsService {
     // --- Processors ---
 
     private async processBirthday(auto: any, now: Date) {
-        // Find users with birthday today (ignoring year)
-        // SQLite: strftime('%m-%d', dob) = strftime('%m-%d', 'now')
-        // Drizzle might define sql for this.
-
         // MVP: Fetch active members with DOB, filter in JS for simplicity/database compatibility
         const members = await this.db.select({
             userId: users.id,
@@ -129,13 +125,19 @@ export class AutomationsService {
                 eq(tenantMembers.status, 'active')
             )).all();
 
-        const todayMonth = now.getMonth();
-        const todayDate = now.getDate();
+        const config = auto.triggerCondition || {};
+        const offsetDays = Number(config.daysBefore) || 0;
+
+        // The date we are looking for is today + offsetDays.
+        // E.g. If today is June 1st, and offset is 7, we want birthdays on June 8th.
+        const targetDate = new Date(now.getTime() + offsetDays * 24 * 60 * 60 * 1000);
+        const targetMonth = targetDate.getMonth();
+        const targetDay = targetDate.getDate();
 
         for (const m of members as any[]) {
             if (!m.dob) continue;
             const dob = new Date(m.dob);
-            if (dob.getMonth() === todayMonth && dob.getDate() === todayDate) {
+            if (dob.getMonth() === targetMonth && dob.getDate() === targetDay) {
                 await this.enrollUser(auto, {
                     userId: m.userId,
                     email: m.email,
