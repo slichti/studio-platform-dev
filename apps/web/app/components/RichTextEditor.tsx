@@ -9,6 +9,7 @@ interface RichTextEditorProps {
     placeholder?: string;
     className?: string;
     tenantSlug: string;
+    context?: string;
 }
 
 export function RichTextEditor(props: RichTextEditorProps) {

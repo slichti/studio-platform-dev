@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { aiUsageLogs, tenants } from '@studio/db/src/schema';
-import { sql, eq, gte, desc } from 'drizzle-orm';
+import { sql, eq, gte, desc, sum, count } from 'drizzle-orm';
 import type { HonoContext } from '../types';
 
 const ai = new Hono<HonoContext>();
@@ -22,35 +22,35 @@ ai.get('/usage', async (c) => {
         const [summary, byFeature, byModel, byTenant, recentLogs] = await Promise.all([
             // Total Summary
             db.select({
-                totalTokens: sql<number>`SUM(total_tokens)`,
-                promptTokens: sql<number>`SUM(prompt_tokens)`,
-                completionTokens: sql<number>`SUM(completion_tokens)`,
-                count: sql<number>`COUNT(*)`
+                totalTokens: sum(aiUsageLogs.totalTokens),
+                promptTokens: sum(aiUsageLogs.promptTokens),
+                completionTokens: sum(aiUsageLogs.completionTokens),
+                count: count()
             }).from(aiUsageLogs).where(gte(aiUsageLogs.createdAt, thirtyDaysAgo)).get(),
 
             // By Feature
             db.select({
                 feature: aiUsageLogs.feature,
-                totalTokens: sql<number>`SUM(total_tokens)`,
-                count: sql<number>`COUNT(*)`
+                totalTokens: sum(aiUsageLogs.totalTokens),
+                count: count()
             }).from(aiUsageLogs).where(gte(aiUsageLogs.createdAt, thirtyDaysAgo)).groupBy(aiUsageLogs.feature).all(),
 
             // By Model
             db.select({
                 model: aiUsageLogs.model,
-                promptTokens: sql<number>`SUM(prompt_tokens)`,
-                completionTokens: sql<number>`SUM(completion_tokens)`,
-                count: sql<number>`COUNT(*)`
+                promptTokens: sum(aiUsageLogs.promptTokens),
+                completionTokens: sum(aiUsageLogs.completionTokens),
+                count: count()
             }).from(aiUsageLogs).where(gte(aiUsageLogs.createdAt, thirtyDaysAgo)).groupBy(aiUsageLogs.model).all(),
 
             // By Tenant
             db.select({
                 tenantId: aiUsageLogs.tenantId,
                 tenantName: tenants.name,
-                promptTokens: sql<number>`SUM(prompt_tokens)`,
-                completionTokens: sql<number>`SUM(completion_tokens)`,
-                totalTokens: sql<number>`SUM(total_tokens)`,
-                count: sql<number>`COUNT(*)`
+                promptTokens: sum(aiUsageLogs.promptTokens),
+                completionTokens: sum(aiUsageLogs.completionTokens),
+                totalTokens: sum(aiUsageLogs.totalTokens),
+                count: count()
             })
                 .from(aiUsageLogs)
                 .leftJoin(tenants, eq(aiUsageLogs.tenantId, tenants.id))
@@ -79,22 +79,43 @@ ai.get('/usage', async (c) => {
         let totalCost = 0;
         const modelBreakdown = byModel.map(m => {
             const price = PRICING[m.model] || PRICING['gemini-1.5-flash'];
-            const cost = (m.promptTokens * price.prompt) + (m.completionTokens * price.completion);
+            const promptTokens = Number(m.promptTokens || 0);
+            const completionTokens = Number(m.completionTokens || 0);
+            const cost = (promptTokens * price.prompt) + (completionTokens * price.completion);
             totalCost += cost;
-            return { ...m, estimatedCost: cost };
+            return {
+                ...m,
+                promptTokens,
+                completionTokens,
+                totalTokens: Number(m.promptTokens || 0) + Number(m.completionTokens || 0),
+                estimatedCost: cost
+            };
         });
 
         const tenantBreakdown = byTenant.map(t => {
-            // Logic: Assume the default model for simplification in grouping if multiple models used, 
-            // but for accuracy we'd need a sub-query. For now, estimate based on flash as it's the 99% case.
             const price = PRICING['gemini-2.0-flash'];
-            const cost = (t.promptTokens * price.prompt) + (t.completionTokens * price.completion);
-            return { ...t, estimatedCost: cost };
+            const promptTokens = Number(t.promptTokens || 0);
+            const completionTokens = Number(t.completionTokens || 0);
+            const cost = (promptTokens * price.prompt) + (completionTokens * price.completion);
+            return {
+                ...t,
+                promptTokens,
+                completionTokens,
+                totalTokens: Number(t.totalTokens || 0),
+                estimatedCost: cost
+            };
         });
 
         return c.json({
             period: '30d',
-            summary: { ...summary, totalCost },
+            summary: {
+                ...summary,
+                totalCost,
+                totalTokens: Number(summary?.totalTokens || 0),
+                promptTokens: Number(summary?.promptTokens || 0),
+                completionTokens: Number(summary?.completionTokens || 0),
+                count: Number(summary?.count || 0)
+            },
             byFeature,
             byModel: modelBreakdown,
             byTenant: tenantBreakdown,

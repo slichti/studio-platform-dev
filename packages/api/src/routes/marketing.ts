@@ -96,7 +96,8 @@ marketing.post('/sync-members', async (c) => {
 import { GeminiService } from '../services/gemini';
 
 const generateEmailSchema = z.object({
-    prompt: z.string().min(1)
+    prompt: z.string().min(1),
+    context: z.string().optional()
 });
 
 marketing.post('/generate-email', zValidator('json', generateEmailSchema), async (c) => {
@@ -110,7 +111,7 @@ marketing.post('/generate-email', zValidator('json', generateEmailSchema), async
         return c.json({ error: 'AI features not configured (missing GEMINI_API_KEY)' }, 503);
     }
 
-    const { prompt } = c.req.valid('json');
+    const { prompt, context } = c.req.valid('json');
     const tenant = c.get('tenant');
     const aiConfigRow = await createDb(c.env.DB).query.platformConfig.findFirst({
         where: eq(platformConfig.key, 'config_ai')
@@ -120,7 +121,7 @@ marketing.post('/generate-email', zValidator('json', generateEmailSchema), async
     const gemini = new GeminiService(apiKey, configAi);
 
     try {
-        const { content, usage } = await gemini.generateEmailCopy(prompt, tenant?.name);
+        const { content, usage } = await gemini.generateEmailCopy(prompt, tenant?.name, context);
 
         // Log Usage asynchronously (don't block response)
         const db = createDb(c.env.DB);

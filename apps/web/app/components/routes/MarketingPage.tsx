@@ -1158,6 +1158,12 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                                                 }}
                                                                 placeholder="Write your email content..."
                                                                 tenantSlug={slug}
+                                                                context={[
+                                                                    `Trigger Event: ${triggerLabels[editForm.triggerEvent] || editForm.triggerEvent}`,
+                                                                    editForm.steps[activeStepIndex].couponConfig?.enabled
+                                                                        ? `Discount: ${editForm.steps[activeStepIndex].couponConfig.value}${editForm.steps[activeStepIndex].couponConfig.type === 'percent' ? '%' : '$'} off`
+                                                                        : null,
+                                                                ].filter(Boolean).join('\n')}
                                                             />
                                                         </div>
                                                     </div>

@@ -182,7 +182,7 @@ Output only the reply text, no quotes or labels.`;
     /**
      * Generates a beautifully formatted marketing email body in HTML based on a user prompt.
      */
-    async generateEmailCopy(prompt: string, studioName?: string): Promise<AIGenerationResult<string>> {
+    async generateEmailCopy(prompt: string, studioName?: string, context?: string): Promise<AIGenerationResult<string>> {
         const defaultEmailCopyPrompt = `You are an expert, friendly copywriter for a local fitness/wellness studio${studioName ? ` called "${studioName}"` : ''}.
 Write a warm, engaging, and professional email message based on the user's prompt.
 Requirements:
@@ -190,8 +190,12 @@ Requirements:
 2. Use basic HTML tags like <p>, <strong>, <em>, <ul>, <li>, and <br>.
 3. DO NOT wrap the output in a markdown code block (like \`\`\`html). Output the raw HTML elements directly.
 4. Try to make it feel personalized and welcoming.
-5. You may use the variables {{firstName}} and {{studioName}} if appropriate in the context of the email.
-6. Keep it concise, usually 2-4 short paragraphs unless otherwise instructed.`;
+5. You may use the variables {{firstName}}, {{studioName}}, and {{coupon_code}} if appropriate in the context of the email.
+6. If a discount or coupon is mentioned, ALWAYS use the placeholder {{coupon_code}} instead of making up a code.
+7. Keep it concise, usually 2-4 short paragraphs unless otherwise instructed.
+${context ? `
+Specific Context for this email:
+${context}` : ''}`;
 
         const systemPrompt = this.config?.prompts?.emailCopy || defaultEmailCopyPrompt;
         const model = this.config?.model || 'gemini-2.0-flash';

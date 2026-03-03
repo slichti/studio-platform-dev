@@ -15,6 +15,7 @@ interface RichTextEditorProps {
     placeholder?: string;
     className?: string;
     tenantSlug: string;
+    context?: string;
 }
 
 const MenuBar = ({ editor, onImageClick, onAiClick, isGenerating }: { editor: any, onImageClick: () => void, onAiClick: () => void, isGenerating: boolean }) => {
@@ -63,7 +64,7 @@ const MenuBar = ({ editor, onImageClick, onAiClick, isGenerating }: { editor: an
 import { apiRequest } from '~/utils/api';
 import { useAuth } from '@clerk/react-router';
 
-export default function RichTextEditorInternal({ value, onChange, placeholder, className, tenantSlug }: RichTextEditorProps) {
+export default function RichTextEditorInternal({ value, onChange, placeholder, className, tenantSlug, context }: RichTextEditorProps) {
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
     const [isAiModalOpen, setIsAiModalOpen] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -101,7 +102,7 @@ export default function RichTextEditorInternal({ value, onChange, placeholder, c
                     'Content-Type': 'application/json',
                     'X-Tenant-Slug': tenantSlug
                 },
-                body: JSON.stringify({ prompt })
+                body: JSON.stringify({ prompt, context })
             }) as any;
 
             if (!res.error && res.html) {
