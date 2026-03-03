@@ -6,7 +6,7 @@ import {
     Loader2, ArrowRight, Check, Save, ChevronRight, Edit, MoreVertical
 } from "lucide-react";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
-import { Button } from "../ui/Button";
+import { Button } from "../ui/button";
 import { toast } from "sonner";
 import { AutomationCard } from "../marketing/AutomationCard";
 import { AutomationCanvas, type AutomationStep } from "../marketing/AutomationCanvas";

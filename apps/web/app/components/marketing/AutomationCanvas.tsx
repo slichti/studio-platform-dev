@@ -14,8 +14,8 @@ import {
     Copy,
     Zap
 } from 'lucide-react';
-import { Button } from '../ui/Button'; // Assuming existing button component
-import { cn } from '~/utils/cn'; // Assuming usual cn utility
+import { Button } from '../ui/button';
+import { cn } from '../../lib/utils';
 
 export type StepType = 'email' | 'delay' | 'condition' | 'tag_member' | 'create_task' | 'internal_alert';
 
