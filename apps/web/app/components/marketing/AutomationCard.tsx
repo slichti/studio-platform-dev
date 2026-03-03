@@ -27,7 +27,10 @@ export function AutomationCard({ automation, onEdit, onToggle, onDelete, TRIGGER
 
             <div className="p-5 flex-1 flex flex-col">
                 <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-1 line-clamp-2 leading-tight">
-                    {automation.name || automation.subject || "Untitled Automation"}
+                    {automation.name ||
+                        (Array.isArray(automation.steps) && automation.steps.find((s: any) => s.type === 'email')?.subject) ||
+                        automation.subject ||
+                        "Untitled Automation"}
                 </h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4 font-medium uppercase tracking-wider">
                     {trigger.label}

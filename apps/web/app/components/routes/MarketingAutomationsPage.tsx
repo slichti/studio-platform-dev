@@ -193,28 +193,102 @@ function CreateAutomationModal({ onClose, onSave, initialData }: any) {
 
     useEffect(() => {
         if (initialData) {
-            setName(initialData.name || initialData.subject || "");
+            setName(initialData.name || "");
             setTrigger(initialData.triggerEvent || "new_member");
-            setTimingType(initialData.timingType || "immediate");
-            setTimingValue(String(initialData.timingValue || 0));
-            // ... (rest of hydration logic)
-            if (initialData.templateId) {
-                setContentType("template");
-                setTemplateId(initialData.templateId);
+
+            // Extract from legacy if exists, otherwise from steps
+            if (initialData.timingType) {
+                setTimingType(initialData.timingType);
+                setTimingValue(String(initialData.timingValue || 0));
+            }
+
+            // Handle steps-based schema
+            const steps = Array.isArray(initialData.steps) ? initialData.steps : [];
+            const emailStep = steps.find((s: any) => s.type === 'email');
+            const delayStep = steps.find((s: any) => s.type === 'delay');
+
+            if (delayStep) {
+                setTimingType('delay');
+                setTimingValue(String(delayStep.delayHours || 0));
+            }
+
+            if (emailStep) {
+                setSubject(emailStep.subject || "");
+                if (emailStep.templateId) {
+                    setContentType("template");
+                    setTemplateId(emailStep.templateId);
+                } else {
+                    setContentType("simple");
+                    setContent(emailStep.content || "");
+                }
+
+                if (emailStep.couponConfig?.enabled) {
+                    setAddCoupon(true);
+                    setCouponType(emailStep.couponConfig.type || "percent");
+                    setCouponValue(String(emailStep.couponConfig.value || "10"));
+                    setCouponValidity(String(emailStep.couponConfig.validityDays || "7"));
+                }
             } else {
-                setContentType("simple");
+                // Legacy fallback
+                setSubject(initialData.subject || "");
                 setContent(initialData.content || "");
             }
-            setSubject(initialData.subject || "");
+
+            if (initialData.audienceFilter) {
+                setAudienceType('filter');
+                setAgeMin(String(initialData.audienceFilter.ageMin || ""));
+                setAgeMax(String(initialData.audienceFilter.ageMax || ""));
+            }
         }
     }, [initialData]);
 
     const handleSubmit = () => {
-        const payload: any = { name, trigger, timingType, timingValue: parseInt(timingValue) || 0, isActive: true };
-        if (audienceType === 'filter') payload.audienceFilter = { ageMin: parseInt(ageMin), ageMax: parseInt(ageMax) };
-        if (addCoupon) payload.couponConfig = { type: couponType, value: parseInt(couponValue), validityDays: parseInt(couponValidity) };
-        if (contentType === 'template') { payload.templateId = templateId; payload.subject = subject || "Notification"; }
-        else { payload.subject = subject; payload.content = content; }
+        const steps: any[] = [];
+
+        // Add Delay Step if needed
+        if (timingType === 'delay' && parseInt(timingValue) > 0) {
+            steps.push({ type: 'delay', delayHours: parseInt(timingValue) });
+        }
+
+        // Add Email Step
+        const emailStep: any = {
+            type: 'email',
+            subject: subject || (contentType === 'template' ? 'Notification' : ''),
+            channels: ['email'],
+            recipients: ['student']
+        };
+
+        if (contentType === 'template') {
+            emailStep.templateId = templateId;
+        } else {
+            emailStep.content = content;
+        }
+
+        if (addCoupon) {
+            emailStep.couponConfig = {
+                enabled: true,
+                type: couponType,
+                value: parseInt(couponValue),
+                validityDays: parseInt(couponValidity)
+            };
+        }
+
+        steps.push(emailStep);
+
+        const payload: any = {
+            name,
+            triggerEvent: trigger,
+            steps,
+            isEnabled: true
+        };
+
+        if (audienceType === 'filter') {
+            payload.triggerCondition = {
+                ageMin: parseInt(ageMin),
+                ageMax: parseInt(ageMax)
+            };
+        }
+
         onSave(payload);
     };
 
