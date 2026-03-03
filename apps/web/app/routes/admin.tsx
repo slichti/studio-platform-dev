@@ -79,6 +79,7 @@ export default function AdminLayout() {
         { label: "Diagnostics", href: "/admin/diagnostics", icon: "🩺" },
         { label: "Financials", href: "/admin/financials", icon: "💰" },
         { label: "Global Bookings", href: "/admin/bookings", icon: "🎟️" },
+        { label: "Global Email Analytics", href: "/admin/emails", icon: "📧" },
         { label: "Global User Directory", href: "/admin/users", icon: "👥" },
         { label: "Internal Docs", href: "/documentation", icon: "📚" },
         { label: "Marketing Automations", href: "/admin/workflows", icon: "📋" },
