@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { eq, sql, desc } from 'drizzle-orm';
-import { tenantMembers, platformConfig, aiUsageLogs, automationLogs, marketingAutomations } from '@studio/db/src/schema';
+import { tenantMembers, platformConfig, aiUsageLogs, automationLogs, marketingAutomations, marketingCampaigns } from '@studio/db/src/schema';
 import { HonoContext } from '../types';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
@@ -9,6 +9,33 @@ import { EmailService } from '../services/email';
 import { Permission } from '../services/permissions';
 
 const marketing = new Hono<HonoContext>();
+
+/**
+ * [GET] /
+ * List campaigns for this tenant
+ */
+marketing.get('/', async (c) => {
+    const can = c.get('can');
+    if (!can('manage_marketing' as Permission)) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
+
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+
+    try {
+        const campaigns = await db.select()
+            .from(marketingCampaigns)
+            .where(eq(marketingCampaigns.tenantId, tenant.id))
+            .orderBy(desc(marketingCampaigns.createdAt))
+            .all();
+
+        return c.json({ campaigns });
+    } catch (e: any) {
+        console.error('Failed to fetch campaigns:', e);
+        return c.json({ error: 'Failed to fetch campaigns' }, 500);
+    }
+});
 
 /**
  * [GET] /audiences
