@@ -726,3 +726,16 @@ Full SDK migration from Expo 54 to 55:
 - [ ] **RAG Pipeline:** Automated ingestion of studio documentation into vector storage.
 - [ ] **Secure Context:** AI validated against tenant-scoped data only.
 - [ ] **Support Actions:** AI-driven class booking/cancelling and account lookups.
+
+---
+
+## 📈 Recent Progress (Mar 2026)
+
+### Session 16 — MCP Connectivity & Security Hardening
+- **MCP Infrastructure**:
+  - Repaired malformed `mcp_config.json` blocking server initialization.
+  - Integrated **@aikidosec/mcp** for automated security scanning.
+- **Security Hardening (AI & Automations)**:
+  - Mitigated **Information Leakage** in Gemini AI routes by sanitizing error responses (hiding raw stack traces and internal API details).
+  - Standardized error reporting across marketing and automation endpoints to return generic, safe messages to the frontend.
+  - Hardened `/admin/platform/config` with strict role-based authorization.
