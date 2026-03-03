@@ -111,7 +111,8 @@ export default function RichTextEditorInternal({ value, onChange, placeholder, c
                 alert(res.error || 'Failed to generate AI content');
             }
         } catch (e: any) {
-            alert('Failed to connect to AI service');
+            console.error('AI Error:', e);
+            alert(e.message || 'Failed to connect to AI service');
         } finally {
             setIsGenerating(false);
         }
