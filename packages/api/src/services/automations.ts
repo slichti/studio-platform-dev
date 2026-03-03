@@ -1,10 +1,9 @@
 import { createDb } from '../db';
 import { eq, and, lt, gt, gte, lte, or, isNull, sql, inArray } from 'drizzle-orm';
-import { marketingAutomations, automationEnrollments, automationLogs, subscriptions, tenantMembers, users, tenants, coupons, bookings, posOrders, classes, locations, waiverSignatures } from '@studio/db/src/schema'; // Added bookings, posOrders, locations, waiverSignatures
+import { marketingAutomations, automationEnrollments, automationLogs, subscriptions, tenantMembers, users, tenants, coupons, bookings, posOrders, classes, locations, waiverSignatures, tasks, tags, tagAssignments, tenantRoles } from '@studio/db/src/schema'; // Added tasks, tags, tagAssignments
 import { EmailService } from './email';
 import { SmsService } from './sms'; // Active
 import { PushService } from './push';
-import { tenantRoles } from '@studio/db/src/schema';
 import { UsageService } from './pricing';
 
 export class AutomationsService {
@@ -691,6 +690,7 @@ export class AutomationsService {
         const step = steps[stepIndex];
         let nextExecutionAt = now;
         let advanceStep = false;
+        let nextIndex = stepIndex + 1;
 
         if (step.type === 'delay') {
             const hours = step.delayHours || 24;
@@ -703,14 +703,24 @@ export class AutomationsService {
             await this.executeResendListStep(step, context);
             advanceStep = true;
         } else if (step.type === 'condition') {
-            advanceStep = true; // Future MVP branching
+            const result = this.checkConditions(step.condition, context.data || {});
+            nextIndex = result ? (step.trueIndex ?? stepIndex + 1) : (step.falseIndex ?? -1); // -1 means end
+            advanceStep = true;
+        } else if (step.type === 'tag_member') {
+            await this.executeTagStep(step, context);
+            advanceStep = true;
+        } else if (step.type === 'create_task') {
+            await this.executeCreateTaskStep(step, context);
+            advanceStep = true;
+        } else if (step.type === 'internal_alert') {
+            await this.executeInternalAlertStep(step, auto, context);
+            advanceStep = true;
         } else {
             advanceStep = true; // Unknown step, skip
         }
 
         if (advanceStep) {
-            const nextIndex = stepIndex + 1;
-            if (nextIndex >= steps.length) {
+            if (nextIndex < 0 || nextIndex >= steps.length) {
                 await this.db.update(automationEnrollments)
                     .set({ status: 'completed', updatedAt: new Date() })
                     .where(eq(automationEnrollments.id, enrollmentId)).run();
@@ -720,7 +730,7 @@ export class AutomationsService {
                         .set({ currentStepIndex: nextIndex, nextExecutionAt: nextExecutionAt, updatedAt: new Date() })
                         .where(eq(automationEnrollments.id, enrollmentId)).run();
                 } else {
-                    // If it was an action, we move to the next step immediately recursively
+                    // If it was an action or immediate condition, we move to the next step immediately recursively
                     await this.db.update(automationEnrollments)
                         .set({ currentStepIndex: nextIndex, updatedAt: new Date() })
                         .where(eq(automationEnrollments.id, enrollmentId)).run();
@@ -811,6 +821,139 @@ export class AutomationsService {
         } catch (e: any) {
             console.error(`[AutomationsService] Failed to process resend_list step for ${context.email}:`, e);
         }
+    }
+
+    private async executeTagStep(step: any, context: { userId: string, memberId?: string }) {
+        const memberId = context.memberId || (await this.getMemberId(context.userId));
+        if (!memberId) return;
+
+        try {
+            if (step.action === 'add') {
+                const tag = await this.getOrCreateTag(step.tagName);
+                if (!tag) return;
+
+                // Check if already assigned
+                const existing = await this.db.select().from(tagAssignments)
+                    .where(and(
+                        eq(tagAssignments.tagId, tag.id),
+                        eq(tagAssignments.targetId, memberId),
+                        eq(tagAssignments.targetType, 'member')
+                    )).get();
+
+                if (!existing) {
+                    await this.db.insert(tagAssignments).values({
+                        id: crypto.randomUUID(),
+                        tenantId: this.tenantId,
+                        tagId: tag.id,
+                        targetId: memberId,
+                        targetType: 'member'
+                    }).run();
+                }
+            } else {
+                const tag = await this.db.select().from(tags)
+                    .where(and(
+                        eq(tags.name, step.tagName),
+                        eq(tags.tenantId, this.tenantId)
+                    )).get();
+
+                if (tag) {
+                    await this.db.delete(tagAssignments)
+                        .where(and(
+                            eq(tagAssignments.tagId, tag.id),
+                            eq(tagAssignments.targetId, memberId),
+                            eq(tagAssignments.targetType, 'member')
+                        )).run();
+                }
+            }
+        } catch (e) {
+            console.error("[AutomationsService] Tag step failed", e);
+        }
+    }
+
+    private async executeCreateTaskStep(step: any, context: { userId: string, firstName?: string, lastName?: string }) {
+        const memberId = await this.getMemberId(context.userId);
+
+        try {
+            await this.db.insert(tasks).values({
+                id: crypto.randomUUID(),
+                tenantId: this.tenantId,
+                title: this.processTemplate(step.subject || 'Automation Task', context, null),
+                description: this.processTemplate(step.content || '', context, null),
+                status: 'todo',
+                priority: step.priority || 'medium',
+                relatedMemberId: memberId,
+                dueDate: step.delayDays ? new Date(Date.now() + (step.delayDays * 24 * 60 * 60 * 1000)) : null
+            }).run();
+        } catch (e) {
+            console.error("[AutomationsService] Create task step failed", e);
+        }
+    }
+
+    private async getOrCreateTag(name: string) {
+        let tag = await this.db.select().from(tags)
+            .where(and(
+                eq(tags.name, name),
+                eq(tags.tenantId, this.tenantId)
+            )).get();
+
+        if (!tag) {
+            const id = crypto.randomUUID();
+            await this.db.insert(tags).values({
+                id,
+                tenantId: this.tenantId,
+                name
+            }).run();
+            tag = { id, name, tenantId: this.tenantId };
+        }
+        return tag;
+    }
+
+    private async executeInternalAlertStep(step: any, auto: any, context: { userId: string, firstName?: string, lastName?: string, data?: any }) {
+        const shared = await this.getSharedContext();
+        const studentName = `${context.firstName || ''} ${context.lastName || ''}`.trim();
+
+        // Send essentially an 'owner' email
+        const owners = await this.db.select({
+            userId: tenantMembers.userId,
+            email: users.email,
+            profile: users.profile
+        })
+            .from(tenantMembers)
+            .innerJoin(users, eq(tenantMembers.userId, users.id))
+            .innerJoin(tenantRoles, eq(tenantRoles.memberId, tenantMembers.id))
+            .where(and(
+                eq(tenantMembers.tenantId, this.tenantId),
+                eq(tenantRoles.role, 'owner')
+            )).all();
+
+        for (const owner of owners) {
+            const alertContext = {
+                userId: owner.userId,
+                email: owner.email,
+                firstName: (owner.profile as any)?.firstName || 'Owner',
+                data: {
+                    ...context.data,
+                    studentName,
+                    automationName: auto.name
+                }
+            };
+            await this.emailService.sendGenericEmail(
+                owner.email,
+                `Internal Alert: ${auto.name}`,
+                `Automation alert for ${studentName}. \n\nDetails: ${JSON.stringify(context.data)}`,
+                true
+            );
+        }
+    }
+
+    private async getMemberId(userId: string): Promise<string | null> {
+        const member = await this.db.select({ id: tenantMembers.id })
+            .from(tenantMembers)
+            .where(and(
+                eq(tenantMembers.userId, userId),
+                eq(tenantMembers.tenantId, this.tenantId)
+            )).get();
+        return member?.id || null;
     }
 
     private async dispatchToUser(

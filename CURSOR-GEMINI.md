@@ -749,3 +749,16 @@ Full SDK migration from Expo 54 to 55:
   - Updated `AutomationCard` to handle "Recommendation" mode with an "Add to My Studio" action.
   - Implemented real-time adoption flow with loading states and success notifications.
 - **System reuse**: Successfully repurposed existing schema for platform-wide templates without needing new table structures.
+
+### Session 18 — Advanced Studio Automations (Visual Workflow UI)
+- **Visual Workflow Builder**:
+    - Created `AutomationCanvas.tsx`, a node-based visual editor for designing complex automations.
+    - Implemented a 2-step creation flow: Basics (Name/Trigger) followed by the Visual Design Canvas.
+    - Added support for visual branching (If/Else logic) with connection paths.
+- **Backend Automation Engine**:
+    - Refactored `AutomationsService` to support non-linear execution and branching based on conditions.
+    - Implemented new CRM-focused action types: `tag_member`, `create_task`, and `internal_alert`.
+    - Integrated with `tasks`, `tags`, and `tagAssignments` tables in the database.
+- **Schema & Integration**:
+    - Leveraged existing CRM schemas to enable automated operational workflows (e.g., tagging a member on sign-up).
+    - Hardened variable resolution to ensure dynamic data (e.g., member names) is populated correctly across all action types.

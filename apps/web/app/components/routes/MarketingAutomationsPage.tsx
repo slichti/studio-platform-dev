@@ -1,11 +1,15 @@
-
 import { useLoaderData, useSubmit } from "react-router";
 import { useState, useEffect } from "react";
-import { Zap, Plus, Play, Pause, Trash2, Mail, MessageSquare, Users, Clock, X, Calendar, Target, Bell, Sparkles, Loader2, ArrowRight, Check } from "lucide-react";
+import {
+    Zap, Plus, Play, Pause, Trash2, Mail, MessageSquare,
+    Users, Clock, X, Calendar, Target, Bell, Sparkles,
+    Loader2, ArrowRight, Check, Save, ChevronRight, Edit, MoreVertical
+} from "lucide-react";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { Button } from "../ui/Button";
 import { toast } from "sonner";
 import { AutomationCard } from "../marketing/AutomationCard";
-import { TemplateSelector } from "../marketing/TemplateSelector";
+import { AutomationCanvas, type AutomationStep } from "../marketing/AutomationCanvas";
 
 const TRIGGERS = [
     { id: 'new_member', label: 'New Member Signs Up', icon: Users, description: "Send a welcome email when someone joins." },
@@ -15,12 +19,6 @@ const TRIGGERS = [
     { id: 'birthday', label: 'Member Birthday', icon: Bell, description: "Send a birthday wish or gift." },
     { id: 'membership_expiring', label: 'Membership Expiring', icon: Clock, description: "Remind members to renew." },
     { id: 'product_purchase', label: 'Product Purchased', icon: Zap, description: "Thank you email or cross-sell." },
-];
-
-const TIMING_TYPES = [
-    { id: 'immediate', label: 'Immediately' },
-    { id: 'delay', label: 'Delay (Hours)' },
-    { id: 'before', label: 'Before Event (Hours)' },
 ];
 
 export default function MarketingAutomationsPageComponent() {
@@ -58,7 +56,7 @@ export default function MarketingAutomationsPageComponent() {
         formData.append("templateId", templateId);
         submit(formData, { method: "post" });
         toast.promise(
-            new Promise((resolve) => setTimeout(resolve, 1000)), // Simulate wait for action
+            new Promise((resolve) => setTimeout(resolve, 1000)),
             {
                 loading: 'Adopting automation...',
                 success: 'Automation added to your studio! It is paused for review.',
@@ -97,7 +95,6 @@ export default function MarketingAutomationsPageComponent() {
 
     return (
         <div className="flex flex-col h-full bg-zinc-50 dark:bg-zinc-950">
-            {/* Header */}
             <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-8 py-6">
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <div>
@@ -120,19 +117,15 @@ export default function MarketingAutomationsPageComponent() {
                                 Recommended
                             </button>
                         </div>
-                        <button
-                            onClick={openCreate}
-                            className="px-5 py-2.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-full text-sm font-bold hover:scale-105 transition-transform shadow-lg flex items-center gap-2"
-                        >
-                            <Plus size={18} /> Create Workflow
-                        </button>
+                        <Button onClick={openCreate} className="rounded-full px-6 bg-zinc-900 text-white dark:bg-white dark:text-zinc-900">
+                            <Plus size={18} className="mr-2" /> Create Workflow
+                        </Button>
                     </div>
                 </div>
             </header>
 
             <div className="flex-1 overflow-y-auto px-8 py-8">
                 <div className="max-w-7xl mx-auto space-y-8">
-                    {/* Stats Row */}
                     {stats && (
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                             <StatCard label="Active Workflows" value={stats.activeCount || 0} color="text-green-600 dark:text-green-400" />
@@ -142,7 +135,6 @@ export default function MarketingAutomationsPageComponent() {
                         </div>
                     )}
 
-                    {/* Content Grid */}
                     {view === 'my' ? (
                         automations.length === 0 ? (
                             <div className="text-center py-32 bg-white dark:bg-zinc-900 rounded-3xl border border-dashed border-zinc-200 dark:border-zinc-800">
@@ -248,310 +240,102 @@ function StatCard({ label, value, color }: { label: string, value: string | numb
 
 function CreateAutomationModal({ onClose, onSave, initialData }: any) {
     const [step, setStep] = useState(1);
-    const [name, setName] = useState("");
-    const [trigger, setTrigger] = useState("new_member");
-    const [timingType, setTimingType] = useState("immediate");
-    const [timingValue, setTimingValue] = useState("0");
-    const [audienceType, setAudienceType] = useState("all");
-    const [ageMin, setAgeMin] = useState("");
-    const [ageMax, setAgeMax] = useState("");
-    const [addCoupon, setAddCoupon] = useState(false);
-    const [couponType, setCouponType] = useState("percent");
-    const [couponValue, setCouponValue] = useState("10");
-    const [couponValidity, setCouponValidity] = useState("7");
-    const [contentType, setContentType] = useState("template"); // Default to template for better UX
-    const [subject, setSubject] = useState("");
-    const [content, setContent] = useState("");
-    const [templateId, setTemplateId] = useState("");
-    const [aiGenerating, setAiGenerating] = useState(false);
-
-    const handleAiGenerate = async () => {
-        // ... (AI logic remains the same)
-        toast.info("AI Generation simulation: Content populated.");
-        setSubject("Welcome to our community! 🎉");
-        setContent("We are thrilled to have you...");
-    };
-
-    useEffect(() => {
-        if (initialData) {
-            setName(initialData.name || "");
-            setTrigger(initialData.triggerEvent || "new_member");
-
-            // Extract from legacy if exists, otherwise from steps
-            if (initialData.timingType) {
-                setTimingType(initialData.timingType);
-                setTimingValue(String(initialData.timingValue || 0));
-            }
-
-            // Handle steps-based schema
-            const steps = Array.isArray(initialData.steps) ? initialData.steps : [];
-            const emailStep = steps.find((s: any) => s.type === 'email');
-            const delayStep = steps.find((s: any) => s.type === 'delay');
-
-            if (delayStep) {
-                setTimingType('delay');
-                setTimingValue(String(delayStep.delayHours || 0));
-            }
-
-            if (emailStep) {
-                setSubject(emailStep.subject || "");
-                if (emailStep.templateId) {
-                    setContentType("template");
-                    setTemplateId(emailStep.templateId);
-                } else {
-                    setContentType("simple");
-                    setContent(emailStep.content || "");
-                }
-
-                if (emailStep.couponConfig?.enabled) {
-                    setAddCoupon(true);
-                    setCouponType(emailStep.couponConfig.type || "percent");
-                    setCouponValue(String(emailStep.couponConfig.value || "10"));
-                    setCouponValidity(String(emailStep.couponConfig.validityDays || "7"));
-                }
-            } else {
-                // Legacy fallback
-                setSubject(initialData.subject || "");
-                setContent(initialData.content || "");
-            }
-
-            if (initialData.audienceFilter) {
-                setAudienceType('filter');
-                setAgeMin(String(initialData.audienceFilter.ageMin || ""));
-                setAgeMax(String(initialData.audienceFilter.ageMax || ""));
-            }
-        }
-    }, [initialData]);
+    const [name, setName] = useState(initialData?.name || "");
+    const [trigger, setTrigger] = useState(initialData?.triggerEvent || "new_member");
+    const [steps, setSteps] = useState<AutomationStep[]>(initialData?.steps || []);
 
     const handleSubmit = () => {
-        const steps: any[] = [];
-
-        // Add Delay Step if needed
-        if (timingType === 'delay' && parseInt(timingValue) > 0) {
-            steps.push({ type: 'delay', delayHours: parseInt(timingValue) });
-        }
-
-        // Add Email Step
-        const emailStep: any = {
-            type: 'email',
-            subject: subject || (contentType === 'template' ? 'Notification' : ''),
-            channels: ['email'],
-            recipients: ['student']
-        };
-
-        if (contentType === 'template') {
-            emailStep.templateId = templateId;
-        } else {
-            emailStep.content = content;
-        }
-
-        if (addCoupon) {
-            emailStep.couponConfig = {
-                enabled: true,
-                type: couponType,
-                value: parseInt(couponValue),
-                validityDays: parseInt(couponValidity)
-            };
-        }
-
-        steps.push(emailStep);
-
         const payload: any = {
             name,
             triggerEvent: trigger,
             steps,
             isEnabled: true
         };
-
-        if (audienceType === 'filter') {
-            payload.triggerCondition = {
-                ageMin: parseInt(ageMin),
-                ageMax: parseInt(ageMax)
-            };
-        }
-
         onSave(payload);
     };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-zinc-950 rounded-2xl shadow-2xl max-w-4xl w-full h-[80vh] flex flex-col overflow-hidden border border-zinc-200 dark:border-zinc-800">
+            <div className="bg-white dark:bg-zinc-950 rounded-3xl shadow-2xl max-w-5xl w-full h-[90vh] flex flex-col overflow-hidden border border-zinc-200 dark:border-zinc-800">
                 {/* Modal Header */}
                 <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center bg-white dark:bg-zinc-950 sticky top-0 z-10">
                     <div>
                         <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{initialData ? 'Edit Workflow' : 'New Workflow'}</h2>
-                        <p className="text-sm text-zinc-500">Step {step} of 4</p>
+                        <p className="text-sm text-zinc-500">Step {step} of 2</p>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"><X size={20} /></button>
                 </div>
 
                 {/* Progress Bar */}
                 <div className="w-full bg-zinc-100 dark:bg-zinc-900 h-1">
-                    <div className="h-full bg-violet-600 transition-all duration-500 ease-out" style={{ width: `${(step / 4) * 100}%` }} />
+                    <div className="h-full bg-indigo-600 transition-all duration-500 ease-out" style={{ width: `${(step / 2) * 100}%` }} />
                 </div>
 
                 {/* Modal Body */}
                 <div className="flex-1 overflow-y-auto p-8 bg-zinc-50 dark:bg-zinc-900/50">
-                    <div className="max-w-2xl mx-auto">
-                        {step === 1 && (
-                            <div className="space-y-6 animate-in slide-in-from-right-8 duration-300">
-                                <div>
-                                    <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">Workflow Name</label>
-                                    <input value={name} onChange={(e) => setName(e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-violet-500 outline-none transition-all" placeholder="e.g., Welcome Series" autoFocus />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-3">Select Trigger</label>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        {TRIGGERS.map(t => (
-                                            <button
-                                                key={t.id}
-                                                onClick={() => setTrigger(t.id)}
-                                                className={`p-4 rounded-xl border text-left transition-all hover:scale-[1.02] flex items-start gap-3 ${trigger === t.id ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20 ring-1 ring-violet-500' : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-700'}`}
-                                            >
-                                                <div className={`p-2 rounded-lg shrink-0 ${trigger === t.id ? 'bg-violet-100 text-violet-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                                                    <t.icon size={18} />
-                                                </div>
-                                                <div>
-                                                    <div className={`font-bold text-sm ${trigger === t.id ? 'text-violet-900 dark:text-violet-100' : 'text-zinc-900 dark:text-zinc-100'}`}>{t.label}</div>
-                                                    <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 line-clamp-2">{t.description}</div>
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl flex gap-4 items-center">
-                                    <Clock className="text-zinc-400" />
-                                    <div className="flex-1 grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-bold uppercase text-zinc-400 mb-1">Timing</label>
-                                            <select value={timingType} onChange={(e) => setTimingType(e.target.value)} className="w-full bg-transparent font-medium outline-none">
-                                                {TIMING_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                                            </select>
-                                        </div>
-                                        {timingType !== 'immediate' && (
-                                            <div>
-                                                <label className="block text-xs font-bold uppercase text-zinc-400 mb-1">Hours</label>
-                                                <input type="number" value={timingValue} onChange={(e) => setTimingValue(e.target.value)} className="w-full bg-transparent font-medium outline-none" placeholder="0" />
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {step === 2 && (
-                            <div className="space-y-6 animate-in slide-in-from-right-8 duration-300">
-                                <h3 className="text-lg font-bold">Audience Filtering</h3>
-                                <div className="flex gap-4">
-                                    <label className={`flex-1 p-4 rounded-xl border cursor-pointer transition-all ${audienceType === 'all' ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20' : 'bg-white dark:bg-zinc-900 border-zinc-200'}`}>
-                                        <input type="radio" checked={audienceType === 'all'} onChange={() => setAudienceType('all')} className="hidden" />
-                                        <div className="font-bold mb-1">All Members</div>
-                                        <div className="text-sm text-zinc-500">Send to every member who matches the trigger.</div>
-                                    </label>
-                                    <label className={`flex-1 p-4 rounded-xl border cursor-pointer transition-all ${audienceType === 'filter' ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20' : 'bg-white dark:bg-zinc-900 border-zinc-200'}`}>
-                                        <input type="radio" checked={audienceType === 'filter'} onChange={() => setAudienceType('filter')} className="hidden" />
-                                        <div className="font-bold mb-1">Filtered Segment</div>
-                                        <div className="text-sm text-zinc-500">Target specific demographics.</div>
-                                    </label>
-                                </div>
-                                {audienceType === 'filter' && (
-                                    <div className="p-6 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                                        <label className="block text-sm font-bold mb-3">Age Range</label>
-                                        <div className="flex items-center gap-4">
-                                            <input value={ageMin} onChange={(e) => setAgeMin(e.target.value)} placeholder="Min" className="w-24 px-3 py-2 border rounded-lg text-center" />
-                                            <span className="text-zinc-400">-</span>
-                                            <input value={ageMax} onChange={(e) => setAgeMax(e.target.value)} placeholder="Max" className="w-24 px-3 py-2 border rounded-lg text-center" />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {step === 3 && (
-                            <div className="space-y-6 animate-in slide-in-from-right-8 duration-300">
-                                <div className="text-center">
-                                    <h3 className="text-lg font-bold mb-2">Design Your Email</h3>
-                                    <p className="text-zinc-500 text-sm">Choose a template or write from scratch.</p>
-                                </div>
-
+                    {step === 1 && (
+                        <div className="max-w-2xl mx-auto space-y-8 animate-in slide-in-from-right-8 duration-300">
+                            <div>
+                                <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">Workflow Name</label>
                                 <input
-                                    value={subject}
-                                    onChange={(e) => setSubject(e.target.value)}
-                                    className="w-full px-4 py-3 text-lg font-medium border-b-2 border-zinc-200 dark:border-zinc-800 bg-transparent outline-none focus:border-violet-500 transition-colors placeholder:text-zinc-400"
-                                    placeholder="Email Subject Line..."
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    className="w-full px-4 py-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                    placeholder="e.g., Welcome Series"
+                                    autoFocus
                                 />
+                            </div>
 
-                                <div className="flex p-1 bg-zinc-200 dark:bg-zinc-800 rounded-lg mb-6">
-                                    <button onClick={() => setContentType('template')} className={`flex-1 py-1.5 rounded-md text-sm font-bold transition-all ${contentType === 'template' ? 'bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-white' : 'text-zinc-500'}`}>Template Gallery</button>
-                                    <button onClick={() => setContentType('simple')} className={`flex-1 py-1.5 rounded-md text-sm font-bold transition-all ${contentType === 'simple' ? 'bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-white' : 'text-zinc-500'}`}>Simple Text</button>
-                                </div>
-
-                                {contentType === 'template' ? (
-                                    <TemplateSelector selectedId={templateId} onSelect={setTemplateId} />
-                                ) : (
-                                    <div className="space-y-4">
-                                        <textarea
-                                            value={content}
-                                            onChange={(e) => setContent(e.target.value)}
-                                            className="w-full h-64 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-violet-500 outline-none resize-none font-mono text-sm leading-relaxed"
-                                            placeholder="Write your email content here. Supports Markdown..."
-                                        />
-                                        <button onClick={handleAiGenerate} className="text-sm font-bold text-violet-600 flex items-center gap-2 hover:underline">
-                                            <Sparkles size={14} /> Generate with AI
+                            <div>
+                                <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-3 text-center">What triggers this automation?</label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {TRIGGERS.map(t => (
+                                        <button
+                                            key={t.id}
+                                            onClick={() => setTrigger(t.id)}
+                                            className={`p-5 rounded-2xl border text-left transition-all flex items-start gap-4 ${trigger === t.id ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 ring-1 ring-indigo-500' : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-700 shadow-sm'}`}
+                                        >
+                                            <div className={`p-3 rounded-xl shrink-0 ${trigger === t.id ? 'bg-indigo-500 text-white' : 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800'}`}>
+                                                <t.icon size={20} />
+                                            </div>
+                                            <div>
+                                                <div className={`font-bold ${trigger === t.id ? 'text-indigo-900 dark:text-indigo-100' : 'text-zinc-900 dark:text-zinc-100'}`}>{t.label}</div>
+                                                <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2 leading-relaxed">{t.description}</div>
+                                            </div>
                                         </button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {step === 4 && (
-                            <div className="space-y-6 animate-in slide-in-from-right-8 duration-300 text-center py-10">
-                                <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                                    <Check size={40} />
-                                </div>
-                                <h2 className="text-2xl font-black mb-2">Ready to Launch?</h2>
-                                <p className="text-zinc-500 max-w-md mx-auto mb-8">
-                                    Your automation "{name}" is set to trigger on <strong>{TRIGGERS.find(t => t.id === trigger)?.label}</strong>.
-                                </p>
-
-                                <div className="bg-zinc-50 dark:bg-zinc-900 p-6 rounded-2xl max-w-sm mx-auto text-left border border-zinc-200 dark:border-zinc-800">
-                                    <div className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Summary</div>
-                                    <div className="space-y-3 text-sm">
-                                        <div className="flex justify-between">
-                                            <span className="text-zinc-500">Trigger</span>
-                                            <span className="font-medium">{TRIGGERS.find(t => t.id === trigger)?.label}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-zinc-500">Timing</span>
-                                            <span className="font-medium">{timingType === 'immediate' ? 'Immediately' : `${timingValue}h ${timingType}`}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-zinc-500">Content</span>
-                                            <span className="font-medium">{contentType === 'template' ? 'Template: ' + templateId : 'Custom Text'}</span>
-                                        </div>
-                                    </div>
+                                    ))}
                                 </div>
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
+
+                    {step === 2 && (
+                        <div className="h-full -mx-8 -my-8">
+                            <AutomationCanvas
+                                steps={steps}
+                                onChange={setSteps}
+                                triggerEvent={trigger}
+                            />
+                        </div>
+                    )}
                 </div>
 
                 {/* Modal Footer */}
-                <div className="p-6 border-t border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex justify-between items-center sticky bottom-0 z-10">
-                    {step > 1 ? (
-                        <button onClick={() => setStep(step - 1)} className="px-6 py-2.5 font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
-                            Back
-                        </button>
-                    ) : (
-                        <div />
-                    )}
-
-                    <button
-                        onClick={step < 4 ? () => setStep(step + 1) : handleSubmit}
-                        className="px-8 py-2.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-full font-bold hover:scale-105 transition-transform shadow-lg flex items-center gap-2"
-                    >
-                        {step < 4 ? <>Next <ArrowRight size={16} /></> : 'Launch Workflow'}
-                    </button>
+                <div className="p-6 border-t border-zinc-100 dark:border-zinc-800 flex justify-between bg-white dark:bg-zinc-950 sticky bottom-0 z-10">
+                    <Button variant="secondary" onClick={() => step > 1 ? setStep(step - 1) : onClose()}>
+                        {step === 1 ? 'Cancel' : 'Back'}
+                    </Button>
+                    <div className="flex gap-3">
+                        {step < 2 ? (
+                            <Button onClick={() => setStep(step + 1)} disabled={!name} className="px-8 bg-indigo-600 hover:bg-indigo-700 text-white">
+                                Next: Design Flow <ChevronRight size={18} className="ml-1" />
+                            </Button>
+                        ) : (
+                            <Button onClick={handleSubmit} className="px-8 bg-indigo-600 hover:bg-indigo-700 text-white">
+                                <Save size={18} className="mr-2" /> Save Workflow
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
