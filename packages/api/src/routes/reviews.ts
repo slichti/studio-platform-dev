@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { reviews, tenantMembers, users } from '@studio/db/src/schema';
+import { reviews, tenantMembers, users, platformConfig } from '@studio/db/src/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { HonoContext } from '../types';
 import { GeminiService } from '../services/gemini';
@@ -110,7 +110,7 @@ app.post('/:id/draft-reply', async (c) => {
     const seo = settings.seo || {};
 
     const aiConfigRow = await db.query.platformConfig.findFirst({
-        where: eq(require('@studio/db/src/schema').platformConfig.key, 'config_ai')
+        where: eq(platformConfig.key, 'config_ai')
     });
     const configAi = aiConfigRow?.value as any;
 

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { eq } from 'drizzle-orm';
-import { tenantMembers } from '@studio/db/src/schema';
+import { tenantMembers, platformConfig } from '@studio/db/src/schema';
 import { HonoContext } from '../types';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
@@ -113,7 +113,7 @@ marketing.post('/generate-email', zValidator('json', generateEmailSchema), async
     const { prompt } = c.req.valid('json');
     const tenant = c.get('tenant');
     const aiConfigRow = await createDb(c.env.DB).query.platformConfig.findFirst({
-        where: eq(require('@studio/db/src/schema').platformConfig.key, 'config_ai')
+        where: eq(platformConfig.key, 'config_ai')
     });
     const configAi = aiConfigRow?.value as any;
 
