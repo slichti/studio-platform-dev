@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { eq } from 'drizzle-orm';
-import { tenantMembers, platformConfig, aiUsageLogs } from '@studio/db/src/schema';
+import { eq, sql, desc } from 'drizzle-orm';
+import { tenantMembers, platformConfig, aiUsageLogs, automationLogs, marketingAutomations } from '@studio/db/src/schema';
 import { HonoContext } from '../types';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
@@ -148,8 +148,43 @@ marketing.post('/generate-email', zValidator('json', generateEmailSchema), async
 // ============================================================
 // AUTOMATIONS ROUTES (tenant-specific)
 // ============================================================
-import { marketingAutomations } from '@studio/db/src/schema';
-import { desc } from 'drizzle-orm';
+
+// GET /automations/stats - Aggregate stats for this tenant
+marketing.get('/automations/stats', async (c) => {
+    const can = c.get('can');
+    if (!can('manage_marketing' as Permission)) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
+
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+
+    try {
+        const [counts, sentLogs] = await Promise.all([
+            db.select({
+                total: sql`count(*)`,
+                active: sql`count(case when is_enabled = 1 then 1 end)`
+            })
+                .from(marketingAutomations)
+                .where(eq(marketingAutomations.tenantId, tenant.id))
+                .get(),
+
+            db.select({ count: sql`count(*)` })
+                .from(automationLogs)
+                .where(eq(automationLogs.tenantId, tenant.id))
+                .get()
+        ]) as any[];
+
+        return c.json({
+            totalAutomations: Number(counts?.total || 0),
+            activeCount: Number(counts?.active || 0),
+            emailsSent: Number(sentLogs?.count || 0)
+        });
+    } catch (e: any) {
+        console.error('Failed to fetch automation stats:', e);
+        return c.json({ error: 'Failed' }, 500);
+    }
+});
 
 // GET /automations - List automations for this tenant
 marketing.get('/automations', async (c) => {
