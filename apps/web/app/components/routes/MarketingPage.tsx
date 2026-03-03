@@ -3,7 +3,7 @@ import { useAuth } from "@clerk/react-router";
 import { useState } from "react";
 import { useOutletContext } from "react-router";
 import {
-    Mail, Plus, Trash2, Save, Send, Settings, Sparkles, Clock, AlertCircle, ChevronRight, Check, X, Pencil, Filter, ChevronDown, CheckCircle, AlertTriangle, Zap, Calendar, Users
+    Mail, Plus, Trash2, Save, Send, Settings, Sparkles, Clock, AlertCircle, ChevronRight, Check, X, Pencil, Filter, ChevronDown, CheckCircle, AlertTriangle, Zap, Calendar, Users, GripVertical
 } from "lucide-react";
 import { Modal } from "~/components/Modal";
 import { RichTextEditor } from "~/components/RichTextEditor";
@@ -763,13 +763,28 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                                                 ))}
                                                             </select>
                                                             <span className="text-[10px] text-zinc-400">=</span>
-                                                            <input
-                                                                type="text"
-                                                                value={c.value}
-                                                                onChange={e => { const n = [...editForm.conditions]; n[i].value = e.target.value; setEditForm({ ...editForm, conditions: n }); }}
-                                                                placeholder="value"
-                                                                className="flex-1 min-w-0 border border-zinc-200 rounded px-1.5 py-1 text-[10px] outline-none"
-                                                            />
+                                                            {c.field === 'source' ? (
+                                                                <select
+                                                                    value={c.value}
+                                                                    onChange={e => { const n = [...editForm.conditions]; n[i].value = e.target.value; setEditForm({ ...editForm, conditions: n }); }}
+                                                                    className="flex-1 min-w-0 border border-zinc-200 rounded px-1.5 py-1 text-[10px] bg-white outline-none"
+                                                                >
+                                                                    <option value="">Select source...</option>
+                                                                    <option value="website">Website</option>
+                                                                    <option value="referral">Referral</option>
+                                                                    <option value="walk_in">Walk-in</option>
+                                                                    <option value="social_media">Social Media</option>
+                                                                    <option value="other">Other</option>
+                                                                </select>
+                                                            ) : (
+                                                                <input
+                                                                    type="text"
+                                                                    value={c.value}
+                                                                    onChange={e => { const n = [...editForm.conditions]; n[i].value = e.target.value; setEditForm({ ...editForm, conditions: n }); }}
+                                                                    placeholder="value"
+                                                                    className="flex-1 min-w-0 border border-zinc-200 rounded px-1.5 py-1 text-[10px] outline-none"
+                                                                />
+                                                            )}
                                                             <button type="button" onClick={() => setEditForm({ ...editForm, conditions: editForm.conditions.filter((_, idx) => idx !== i) })} className="text-zinc-400 hover:text-red-500 p-0.5"><X className="h-3 w-3" /></button>
                                                         </div>
                                                     ))}
@@ -806,7 +821,41 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                         }
 
                                         return (
-                                            <div key={index} className="relative z-10 flex items-start gap-3 mb-4 group cursor-pointer" onClick={() => setActiveStepIndex(index)}>
+                                            <div
+                                                key={index}
+                                                className="relative z-10 flex items-start gap-2 mb-4 group cursor-pointer"
+                                                onClick={() => setActiveStepIndex(index)}
+                                                draggable
+                                                onDragStart={(e) => {
+                                                    e.dataTransfer.setData("stepIndex", index.toString());
+                                                    e.dataTransfer.effectAllowed = "move";
+                                                }}
+                                                onDragOver={(e) => {
+                                                    e.preventDefault();
+                                                    e.dataTransfer.dropEffect = "move";
+                                                }}
+                                                onDrop={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    const fromIndex = Number(e.dataTransfer.getData("stepIndex"));
+                                                    if (fromIndex === index || isNaN(fromIndex)) return;
+                                                    const newSteps = [...editForm.steps];
+                                                    const [moved] = newSteps.splice(fromIndex, 1);
+                                                    newSteps.splice(index, 0, moved);
+                                                    setEditForm({ ...editForm, steps: newSteps });
+
+                                                    // Maintain active selection
+                                                    if (activeStepIndex === fromIndex) {
+                                                        setActiveStepIndex(index);
+                                                    } else if (activeStepIndex !== null) {
+                                                        if (fromIndex < activeStepIndex && index >= activeStepIndex) setActiveStepIndex(activeStepIndex - 1);
+                                                        else if (fromIndex > activeStepIndex && index <= activeStepIndex) setActiveStepIndex(activeStepIndex + 1);
+                                                    }
+                                                }}
+                                            >
+                                                <div className="mt-3 cursor-grab text-zinc-300 hover:text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Drag to reorder">
+                                                    <GripVertical className="h-4 w-4" />
+                                                </div>
                                                 <div className={`mt-1 shrink-0 w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors ${activeStepIndex === index ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-zinc-200 text-zinc-400 group-hover:border-blue-300'}`}>
                                                     {step.type === 'delay' ? <Clock className="h-4 w-4" /> : step.type === 'resend_list' ? <Users className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
                                                 </div>
