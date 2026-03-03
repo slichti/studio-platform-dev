@@ -141,7 +141,7 @@ marketing.post('/generate-email', zValidator('json', generateEmailSchema), async
         return c.json({ html: content });
     } catch (e: any) {
         console.error('Failed to generate AI email:', e);
-        return c.json({ error: e.message || 'Failed to generate content' }, 500);
+        return c.json({ error: 'Failed to generate content' }, 500);
     }
 });
 
@@ -171,7 +171,7 @@ marketing.get('/automations', async (c) => {
         return c.json(automations);
     } catch (e: any) {
         console.error('Failed to fetch automations:', e);
-        return c.json({ error: e.message }, 500);
+        return c.json({ error: 'Failed to fetch automations' }, 500);
     }
 });
 
@@ -201,7 +201,7 @@ marketing.post('/automations', async (c) => {
         return c.json({ id, success: true }, 201);
     } catch (e: any) {
         console.error('Failed to create automation:', e);
-        return c.json({ error: e.message }, 400);
+        return c.json({ error: 'Failed to create automation' }, 400);
     }
 });
 
@@ -230,7 +230,7 @@ marketing.patch('/automations/:id', async (c) => {
         return c.json({ success: true });
     } catch (e: any) {
         console.error('Failed to update automation:', e);
-        return c.json({ error: e.message }, 400);
+        return c.json({ error: 'Failed to update automation' }, 400);
     }
 });
 
@@ -252,7 +252,7 @@ marketing.delete('/automations/:id', async (c) => {
         return c.json({ success: true });
     } catch (e: any) {
         console.error('Failed to delete automation:', e);
-        return c.json({ error: e.message }, 400);
+        return c.json({ error: 'Failed to delete automation' }, 400);
     }
 });
 

@@ -250,7 +250,8 @@ All chat traffic routes through `/chat/*` (HTTP + WebSocket) and enforces:
 
 ### Role-Based Access Control (RBAC)
 *   **Platform Admin**: Global system access. Validated via `users.isPlatformAdmin`.
-*   **Studio Owner**: Full access to tenant data and settings. Validated via `tenantRoles`.
+*   **Role-Based Access Control (RBAC)**: Full audit of 92+ routes with `can()` guards.
+*   **Error Response Sanitization**: Generic error messages for users; detailed logs for admins (preventing Info Leakage).
 *   **Instructor**: Limited management of classes, members, and bookings.
 *   **Student**: Restricted to own profile, bookings, and public data.
 

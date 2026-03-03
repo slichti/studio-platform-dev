@@ -77,6 +77,12 @@ const safe = query.replace(/["\\]/g, '').trim().slice(0, 200);
 ```
 Prevents quote-based search syntax injection.
 
+### Error Response Sanitization (Information Leakage Prevention)
+All user-facing API routes have been hardened to prevent internal system details from leaking via catch blocks:
+- **Sanitized Errors**: Raw `e.message` or `e.stack` from database or AI service failures is trapped and replaced with a generic message (e.g., "Failed to generate content").
+- **Backend Logging**: Full debug details are retained in the server-side logs via `console.error` for developer troubleshooting.
+- **Targeted Routes**: Hardened all `/admin/platform/config`, `/marketing/generate-email`, and `/reviews/:id/draft-reply` routes.
+
 ### HTML Rendering (XSS Prevention)
 All `dangerouslySetInnerHTML` calls pass content through `DOMPurify.sanitize()`:
 - Course article content

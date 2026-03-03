@@ -144,7 +144,7 @@ app.post('/:id/draft-reply', async (c) => {
         return c.json({ replyDraft: draft });
     } catch (e: any) {
         console.error('Failed to generate review draft:', e);
-        return c.json({ error: e.message || 'Failed to generate review draft' }, 500);
+        return c.json({ error: 'Failed to generate review draft' }, 500);
     }
 });
 

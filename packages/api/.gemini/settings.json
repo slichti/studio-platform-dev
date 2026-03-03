@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "aikido": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@aikidosec/mcp"
+      ],
+      "env": {
+        "AIKIDO_API_KEY": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJhaWtpZG8uZGV2IiwiYXVkIjoiaWRlLmFpa2lkbyIsImlhdCI6MTc3MjU1NTE3OCwibmJmIjoxNzcyNTU1MTY4LCJleHAiOjI1NjE0NzM1NzgsImlzX2lkZV90b2tlbiI6dHJ1ZSwidXNlcl9pZCI6MTM1OTQ2LCJ0b2tlbl9pZCI6MTU2NjEsInJlZ2lvbiI6ImV1In0.rWoNmoZfwuQWZWtRVeYFSxmSHq9M9O2EKb72aiVgfyI"
+      }
+    }
+  }
+}
