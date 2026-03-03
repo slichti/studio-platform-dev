@@ -1,5 +1,5 @@
 import { eq, and, sql, lt, or, isNotNull } from 'drizzle-orm';
-import { tenantSeoContentSettings, platformSeoTopics, tenants, communityPosts, tenantMembers, users, locations } from '@studio/db/src/schema';
+import { tenantSeoContentSettings, platformSeoTopics, tenants, communityPosts, tenantMembers, users, locations, aiUsageLogs } from '@studio/db/src/schema';
 import { GeminiService } from './gemini';
 import { PushService } from './push';
 
@@ -55,11 +55,24 @@ export class ContentAutomationService {
                 };
 
                 // 3. Generate content
-                const { title, content, imagePrompt } = await gemini.generateBlogPost(
+                const { content: aiResult, usage } = await gemini.generateBlogPost(
                     item.topic.name,
                     item.topic.description || '',
                     localeInfo
-                ) as any;
+                );
+                const { title, content, imagePrompt } = aiResult;
+
+                // Log Usage
+                await db.insert(aiUsageLogs).values({
+                    id: crypto.randomUUID(),
+                    tenantId: item.tenant.id,
+                    userId: null,
+                    model: 'gemini-2.0-flash',
+                    feature: 'blog_generation',
+                    promptTokens: usage.promptTokenCount,
+                    completionTokens: usage.candidatesTokenCount,
+                    totalTokens: usage.totalTokenCount,
+                }).run();
 
                 // 4. Find an author (usually the owner)
                 const author = await db.select().from(tenantMembers).where(eq(tenantMembers.tenantId, item.tenant.id)).limit(1).get();

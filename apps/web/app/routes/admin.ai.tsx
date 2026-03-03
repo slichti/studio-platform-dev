@@ -9,6 +9,8 @@ import { Label } from "../components/ui/label";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
+import { Activity, DollarSign, Zap, Clock, User, Building2 } from "lucide-react";
+import { Badge } from "../components/ui/Badge";
 
 export const loader = async (args: any) => {
     const { getToken, userId } = await getAuth(args);
@@ -16,11 +18,15 @@ export const loader = async (args: any) => {
 
     // Authorization is already handled by admin._index.tsx layout, but we fetch the data we need.
     try {
-        const configs = await apiRequest<any[]>("/admin/platform/config", token);
+        const [configs, usage] = await Promise.all([
+            apiRequest<any[]>("/admin/platform/config", token),
+            apiRequest<any>("/admin/ai/usage", token)
+        ]);
         const aiConfigItem = configs.find((c: any) => c.key === "config_ai");
-        return { initialConfig: aiConfigItem?.value || {} };
+        return { initialConfig: aiConfigItem?.value || {}, usage };
     } catch (e: any) {
-        return { initialConfig: {}, error: e.message };
+        console.error("AI Loader Error:", e);
+        return { initialConfig: {}, usage: null, error: e.message };
     }
 };
 
@@ -62,7 +68,7 @@ Requirements:
 };
 
 export default function AdminAIConfiguration() {
-    const { initialConfig, error } = useLoaderData<any>();
+    const { initialConfig, usage, error } = useLoaderData<any>();
     const { getToken } = useAuth();
 
     const [isSaving, setIsSaving] = useState(false);
@@ -118,7 +124,177 @@ export default function AdminAIConfiguration() {
                 </Button>
             </div>
 
+            {usage && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <Card className="bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/20 dark:to-zinc-900 border-indigo-100 dark:border-indigo-900/50">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium flex items-center gap-2">
+                                <DollarSign className="w-4 h-4 text-indigo-600" />
+                                Est. Cost (30d)
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                                ${usage.summary?.totalCost?.toFixed(4) || "0.0000"}
+                            </div>
+                            <p className="text-xs text-zinc-500 mt-1">Based on Gemini token pricing</p>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium flex items-center gap-2">
+                                <Zap className="w-4 h-4 text-amber-500" />
+                                Total Tokens
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                                {usage.summary?.totalTokens?.toLocaleString() || 0}
+                            </div>
+                            <p className="text-xs text-zinc-500 mt-1">{usage.summary?.count || 0} total AI generations</p>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium flex items-center gap-2">
+                                <Activity className="w-4 h-4 text-emerald-500" />
+                                Avg. Req Size
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                                {usage.summary?.count ? Math.round(usage.summary.totalTokens / usage.summary.count).toLocaleString() : 0}
+                            </div>
+                            <p className="text-xs text-zinc-500 mt-1">Tokens per request</p>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+
             <div className="space-y-8">
+                {usage && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Recent AI Activity</CardTitle>
+                            <CardDescription>The last 10 generations performed across the platform.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-zinc-100 dark:border-zinc-800">
+                                            <th className="text-left py-3 font-medium text-zinc-500">Feature</th>
+                                            <th className="text-left py-3 font-medium text-zinc-500">Studio</th>
+                                            <th className="text-left py-3 font-medium text-zinc-500">Tokens</th>
+                                            <th className="text-left py-3 font-medium text-zinc-500">Model</th>
+                                            <th className="text-left py-3 font-medium text-zinc-500">Time</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                        {usage.recentLogs?.map((log: any) => (
+                                            <tr key={log.id} className="group">
+                                                <td className="py-3 capitalize flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
+                                                    <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-tight px-1.5 py-0">
+                                                        {log.feature?.replace('_', ' ')}
+                                                    </Badge>
+                                                </td>
+                                                <td className="py-3 text-zinc-600 dark:text-zinc-400">
+                                                    {log.tenantName || <span className="text-zinc-400 italic">System</span>}
+                                                </td>
+                                                <td className="py-3 tabular-nums font-medium text-zinc-900 dark:text-zinc-100">
+                                                    {log.totalTokens.toLocaleString()}
+                                                </td>
+                                                <td className="py-3 text-xs font-mono text-zinc-500">
+                                                    {log.model}
+                                                </td>
+                                                <td className="py-3 text-zinc-500 flex items-center gap-1.5 whitespace-nowrap">
+                                                    <Clock className="w-3 h-3" />
+                                                    {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {(!usage.recentLogs || usage.recentLogs.length === 0) && (
+                                            <tr>
+                                                <td colSpan={5} className="py-8 text-center text-zinc-500 italic">
+                                                    No AI activity recorded yet.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+
+
+                {usage && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Usage by Tenant</CardTitle>
+                            <CardDescription>Estimated cost and token consumption breakdown per studio (last 30 days).</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-zinc-100 dark:border-zinc-800">
+                                            <th className="text-left py-3 font-medium text-zinc-500">Tenant / Studio</th>
+                                            <th className="text-right py-3 font-medium text-zinc-500">Generations</th>
+                                            <th className="text-right py-3 font-medium text-zinc-500">Total Tokens</th>
+                                            <th className="text-right py-3 font-medium text-zinc-500">Est. Spend</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                        {usage.byTenant?.map((tenant: any) => (
+                                            <tr key={tenant.tenantId || 'system'} className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                                                <td className="py-3 font-medium text-zinc-900 dark:text-zinc-100">
+                                                    {tenant.tenantName || <span className="text-zinc-400 italic">System / Platform</span>}
+                                                </td>
+                                                <td className="py-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
+                                                    {tenant.count.toLocaleString()}
+                                                </td>
+                                                <td className="py-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
+                                                    {tenant.totalTokens.toLocaleString()}
+                                                </td>
+                                                <td className="py-3 text-right tabular-nums font-semibold text-indigo-600 dark:text-indigo-400">
+                                                    ${tenant.estimatedCost.toFixed(4)}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {(!usage.byTenant || usage.byTenant.length === 0) && (
+                                            <tr>
+                                                <td colSpan={4} className="py-8 text-center text-zinc-500 italic">
+                                                    No tenant activity recorded in this period.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                    {usage.byTenant?.length > 0 && (
+                                        <tfoot>
+                                            <tr className="border-t-2 border-zinc-100 dark:border-zinc-800 font-bold">
+                                                <td className="py-4 text-zinc-900 dark:text-zinc-100">Total Platform Spend</td>
+                                                <td className="py-4 text-right tabular-nums">
+                                                    {usage.byTenant.reduce((acc: number, curr: any) => acc + curr.count, 0).toLocaleString()}
+                                                </td>
+                                                <td className="py-4 text-right tabular-nums">
+                                                    {usage.byTenant.reduce((acc: number, curr: any) => acc + curr.totalTokens, 0).toLocaleString()}
+                                                </td>
+                                                <td className="py-4 text-right tabular-nums text-indigo-600 dark:text-indigo-400">
+                                                    ${usage.summary?.totalCost?.toFixed(4) || "0.0000"}
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    )}
+                                </table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
                 <Card>
                     <CardHeader>
                         <CardTitle>Model Settings</CardTitle>

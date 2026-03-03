@@ -1694,6 +1694,7 @@ import { relations } from 'drizzle-orm';
 export const usersRelations = relations(users, ({ many }) => ({
     memberships: many(tenantMembers),
     subscriptions: many(subscriptions),
+    aiUsage: many(aiUsageLogs),
 }));
 
 export const tenantsRelations = relations(tenants, ({ many }) => ({
@@ -1708,6 +1709,7 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
     memberTags: many(tags),
     customFieldDefinitions: many(customFieldDefinitions),
     seoAutomation: many(tenantSeoContentSettings),
+    aiUsage: many(aiUsageLogs),
 }));
 
 export const tenantMembersRelations = relations(tenantMembers, ({ one, many }) => ({
@@ -2143,6 +2145,33 @@ export const platformConfig = sqliteTable('platform_config', {
     description: text('description'),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
+
+export const aiUsageLogs = sqliteTable('ai_usage_logs', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').references(() => tenants.id, { onDelete: 'set null' }),
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+    model: text('model').notNull(),
+    feature: text('feature').notNull(), // 'email_marketing', 'blog_generation', 'review_reply'
+    promptTokens: integer('prompt_tokens').notNull(),
+    completionTokens: integer('completion_tokens').notNull(),
+    totalTokens: integer('total_tokens').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('ai_usage_tenant_idx').on(table.tenantId),
+    featureIdx: index('ai_usage_feature_idx').on(table.feature),
+    createdAtIdx: index('ai_usage_created_idx').on(table.createdAt),
+}));
+
+export const aiUsageLogsRelations = relations(aiUsageLogs, ({ one }) => ({
+    tenant: one(tenants, {
+        fields: [aiUsageLogs.tenantId],
+        references: [tenants.id],
+    }),
+    user: one(users, {
+        fields: [aiUsageLogs.userId],
+        references: [users.id],
+    }),
+}));
 
 // --- Website Builder: Pages ---
 export const websitePages = sqliteTable('website_pages', {

@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { reviews, tenantMembers, users, platformConfig } from '@studio/db/src/schema';
+import { reviews, tenantMembers, users, platformConfig, aiUsageLogs } from '@studio/db/src/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { HonoContext } from '../types';
 import { GeminiService } from '../services/gemini';
@@ -116,13 +116,27 @@ app.post('/:id/draft-reply', async (c) => {
 
     const gemini = new GeminiService(apiKey, configAi);
     try {
-        const draft = await gemini.generateReviewReplyDraft({
+        const { content: draft, usage } = await gemini.generateReviewReplyDraft({
             reviewContent: row.content,
             rating: row.rating,
             studioName: tenant.name,
             businessType: seo.businessType || 'fitness studio',
             city: seo.location,
         });
+
+        // Log Usage asynchronously
+        c.executionCtx.waitUntil(
+            db.insert(aiUsageLogs).values({
+                id: crypto.randomUUID(),
+                tenantId: tenant.id,
+                userId: c.get('auth').userId || null,
+                model: configAi?.model || 'gemini-2.0-flash',
+                feature: 'review_reply',
+                promptTokens: usage.promptTokenCount,
+                completionTokens: usage.candidatesTokenCount,
+                totalTokens: usage.totalTokenCount,
+            }).run()
+        );
 
         const now = Math.floor(Date.now() / 1000);
         await db.update(reviews).set({ replyDraft: draft, replyDraftGeneratedAt: new Date(now * 1000) })

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { eq } from 'drizzle-orm';
-import { tenantMembers, platformConfig } from '@studio/db/src/schema';
+import { tenantMembers, platformConfig, aiUsageLogs } from '@studio/db/src/schema';
 import { HonoContext } from '../types';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
@@ -120,8 +120,24 @@ marketing.post('/generate-email', zValidator('json', generateEmailSchema), async
     const gemini = new GeminiService(apiKey, configAi);
 
     try {
-        const htmlContent = await gemini.generateEmailCopy(prompt, tenant?.name);
-        return c.json({ html: htmlContent });
+        const { content, usage } = await gemini.generateEmailCopy(prompt, tenant?.name);
+
+        // Log Usage asynchronously (don't block response)
+        const db = createDb(c.env.DB);
+        c.executionCtx.waitUntil(
+            db.insert(aiUsageLogs).values({
+                id: crypto.randomUUID(),
+                tenantId: tenant?.id || null,
+                userId: c.get('auth').userId || null,
+                model: configAi?.model || 'gemini-2.0-flash',
+                feature: 'email_marketing',
+                promptTokens: usage.promptTokenCount,
+                completionTokens: usage.candidatesTokenCount,
+                totalTokens: usage.totalTokenCount,
+            }).run()
+        );
+
+        return c.json({ html: content });
     } catch (e: any) {
         console.error('Failed to generate AI email:', e);
         return c.json({ error: e.message || 'Failed to generate content' }, 500);

@@ -15,6 +15,17 @@ export interface GeminiConfig {
     };
 }
 
+export interface AIUsageMetadata {
+    promptTokenCount: number;
+    candidatesTokenCount: number;
+    totalTokenCount: number;
+}
+
+export interface AIGenerationResult<T> {
+    content: T;
+    usage: AIUsageMetadata;
+}
+
 export class GeminiService {
     private apiKey: string;
     private config?: GeminiConfig;
@@ -28,7 +39,7 @@ export class GeminiService {
     /**
      * Generates a blog post using Gemini Pro.
      */
-    async generateBlogPost(topicName: string, topicDesc: string, localeInfo: { studioName: string, city: string, businessType: string }): Promise<{ title: string, content: string, imagePrompt: string }> {
+    async generateBlogPost(topicName: string, topicDesc: string, localeInfo: { studioName: string, city: string, businessType: string }): Promise<AIGenerationResult<{ title: string, content: string, imagePrompt: string }>> {
         const defaultBlogPostPrompt = `
             You are an expert SEO content writer for fitness and wellness studios.
             Write a high-quality, engaging blog post of about 400-600 words for a studio called "{{studioName}}" in {{city}}.
@@ -79,19 +90,23 @@ export class GeminiService {
 
             const data = await response.json() as any;
             const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            const usage = data.usageMetadata as AIUsageMetadata;
 
             // Extract JSON from potential markdown code blocks
             const jsonMatch = text.match(/\{[\s\S]*\}/);
+            let content;
             if (jsonMatch) {
-                return JSON.parse(jsonMatch[0]);
+                content = JSON.parse(jsonMatch[0]);
+            } else {
+                // Fallback if not pure JSON
+                content = {
+                    title: `${topicName} at ${localeInfo.studioName}`,
+                    content: text,
+                    imagePrompt: `A high-end, aesthetic photograph representing ${topicName} for ${localeInfo.studioName}.`
+                };
             }
 
-            // Fallback if not pure JSON
-            return {
-                title: `${topicName} at ${localeInfo.studioName}`,
-                content: text,
-                imagePrompt: `A high-end, aesthetic photograph representing ${topicName} for ${localeInfo.studioName}.`
-            };
+            return { content, usage };
         } catch (err) {
             console.error('Failed to generate blog post:', err);
             throw err;
@@ -108,7 +123,7 @@ export class GeminiService {
         studioName: string;
         businessType?: string;
         city?: string;
-    }): Promise<string> {
+    }): Promise<AIGenerationResult<string>> {
         const { reviewContent, rating, studioName, businessType = 'fitness studio', city = '' } = params;
         const locationHint = city ? ` in ${city}` : '';
 
@@ -152,7 +167,12 @@ Output only the reply text, no quotes or labels.`;
 
             const data = await response.json() as any;
             const text = (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
-            return text.replace(/^["']|["']$/g, '');
+            const usage = data.usageMetadata as AIUsageMetadata;
+
+            return {
+                content: text.replace(/^["']|["']$/g, ''),
+                usage
+            };
         } catch (err) {
             console.error('Failed to generate review reply draft:', err);
             throw err;
@@ -162,7 +182,7 @@ Output only the reply text, no quotes or labels.`;
     /**
      * Generates a beautifully formatted marketing email body in HTML based on a user prompt.
      */
-    async generateEmailCopy(prompt: string, studioName?: string): Promise<string> {
+    async generateEmailCopy(prompt: string, studioName?: string): Promise<AIGenerationResult<string>> {
         const defaultEmailCopyPrompt = `You are an expert, friendly copywriter for a local fitness/wellness studio${studioName ? ` called "${studioName}"` : ''}.
 Write a warm, engaging, and professional email message based on the user's prompt.
 Requirements:
@@ -199,11 +219,12 @@ Requirements:
 
             const data = await response.json() as any;
             let text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            const usage = data.usageMetadata as AIUsageMetadata;
 
             // Strip potential markdown wrappers
             text = text.replace(/^```html\n?/, '').replace(/```$/, '').trim();
 
-            return text;
+            return { content: text, usage };
         } catch (err) {
             console.error('Failed to generate email copy:', err);
             throw err;
