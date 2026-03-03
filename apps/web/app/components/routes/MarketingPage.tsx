@@ -783,26 +783,54 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                 <div className="flex-1 overflow-y-auto p-4 space-y-0 relative">
                                     <div className="absolute left-8 top-0 bottom-0 w-px bg-zinc-200 z-0"></div>
 
-                                    {editForm.steps.map((step, index) => (
-                                        <div key={index} className="relative z-10 flex items-start gap-3 mb-4 group cursor-pointer" onClick={() => setActiveStepIndex(index)}>
-                                            <div className={`mt-1 shrink-0 w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors ${activeStepIndex === index ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-zinc-200 text-zinc-400 group-hover:border-blue-300'}`}>
-                                                {step.type === 'delay' ? <Clock className="h-4 w-4" /> : step.type === 'resend_list' ? <Users className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
-                                            </div>
-                                            <div className={`flex-1 rounded-lg border p-3 transition-colors ${activeStepIndex === index ? 'bg-blue-50/30 border-blue-300 ring-1 ring-blue-500' : 'bg-white border-zinc-200 group-hover:bg-zinc-50'}`}>
-                                                <div className="flex items-center justify-between mb-1">
-                                                    <span className="text-xs font-semibold text-zinc-900">
-                                                        {step.type === 'delay' ? 'Time Delay' : step.type === 'resend_list' ? 'Update List' : 'Send Email'}
-                                                    </span>
-                                                    <button type="button" onClick={(e) => { e.stopPropagation(); setEditForm(prev => ({ ...prev, steps: prev.steps.filter((_, i) => i !== index) })); if (activeStepIndex === index) setActiveStepIndex(null); }} className="text-zinc-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                    </button>
+                                    {editForm.steps.map((step, index) => {
+                                        let cumulativeHours = 0;
+                                        for (let i = 0; i < index; i++) {
+                                            if (editForm.steps[i].type === 'delay') {
+                                                cumulativeHours += editForm.steps[i].delayHours || 24;
+                                            }
+                                        }
+
+                                        let timeText = 'Runs Immediately';
+                                        if (cumulativeHours > 0) {
+                                            if (cumulativeHours % 168 === 0) {
+                                                timeText = `Runs ${cumulativeHours / 168} week${cumulativeHours / 168 > 1 ? 's' : ''} after trigger`;
+                                            } else if (cumulativeHours % 24 === 0) {
+                                                timeText = `Runs ${cumulativeHours / 24} day${cumulativeHours / 24 > 1 ? 's' : ''} after trigger`;
+                                            } else {
+                                                timeText = `Runs ${cumulativeHours} hour${cumulativeHours > 1 ? 's' : ''} after trigger`;
+                                            }
+                                        }
+                                        if (step.type === 'delay') {
+                                            timeText = timeText.replace('Runs ', 'Wait starts ');
+                                        }
+
+                                        return (
+                                            <div key={index} className="relative z-10 flex items-start gap-3 mb-4 group cursor-pointer" onClick={() => setActiveStepIndex(index)}>
+                                                <div className={`mt-1 shrink-0 w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors ${activeStepIndex === index ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-zinc-200 text-zinc-400 group-hover:border-blue-300'}`}>
+                                                    {step.type === 'delay' ? <Clock className="h-4 w-4" /> : step.type === 'resend_list' ? <Users className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
                                                 </div>
-                                                <div className="text-[11px] text-zinc-500 line-clamp-2">
-                                                    {step.type === 'delay' ? `Wait ${step.duration || step.delayHours || 24} ${step.unit || 'hours'}` : step.type === 'resend_list' ? (step.action === 'add' ? `Add to List: ${step.listId || 'Unspecified'}` : `Remove from List: ${step.listId || 'Unspecified'}`) : (step.subject || '(No subject)')}
+                                                <div className={`flex-1 rounded-lg border p-3 transition-colors ${activeStepIndex === index ? 'bg-blue-50/30 border-blue-300 ring-1 ring-blue-500' : 'bg-white border-zinc-200 group-hover:bg-zinc-50'}`}>
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs font-semibold text-zinc-900">
+                                                                {step.type === 'delay' ? 'Time Delay' : step.type === 'resend_list' ? 'Update List' : 'Send Email'}
+                                                            </span>
+                                                            <span className="text-[10px] font-medium text-blue-600 bg-blue-50/50 px-1.5 py-0.5 rounded border border-blue-100">
+                                                                {timeText}
+                                                            </span>
+                                                        </div>
+                                                        <button type="button" onClick={(e) => { e.stopPropagation(); setEditForm(prev => ({ ...prev, steps: prev.steps.filter((_, i) => i !== index) })); if (activeStepIndex === index) setActiveStepIndex(null); }} className="text-zinc-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </button>
+                                                    </div>
+                                                    <div className="text-[11px] text-zinc-500 line-clamp-2">
+                                                        {step.type === 'delay' ? `Wait ${step.duration || step.delayHours || 24} ${step.unit || 'hours'}` : step.type === 'resend_list' ? (step.action === 'add' ? `Add to List: ${step.listId || 'Unspecified'}` : `Remove from List: ${step.listId || 'Unspecified'}`) : (step.subject || '(No subject)')}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
 
                                     <div className="relative z-10 flex items-center gap-3 pt-2 pb-4">
                                         <div className="shrink-0 w-8 flex justify-center">
