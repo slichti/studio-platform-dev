@@ -22,7 +22,7 @@ export function RichTextAiModal({ isOpen, onClose, onGenerate }: RichTextAiModal
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="✨ AI Email Writer">
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4 py-2">
+            <div className="flex flex-col gap-4 py-2">
                 <div>
                     <label className="block text-sm font-medium text-zinc-700 mb-2">
                         What should this email be about?
@@ -48,7 +48,8 @@ export function RichTextAiModal({ isOpen, onClose, onGenerate }: RichTextAiModal
                         Cancel
                     </button>
                     <button
-                        type="submit"
+                        type="button"
+                        onClick={handleSubmit}
                         disabled={!prompt.trim()}
                         className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
@@ -56,7 +57,7 @@ export function RichTextAiModal({ isOpen, onClose, onGenerate }: RichTextAiModal
                         Generate
                     </button>
                 </div>
-            </form>
+            </div>
         </Modal>
     );
 }
