@@ -29,6 +29,44 @@ export default function MarketingAutomationsPageComponent() {
     const [isCreating, setIsCreating] = useState(false);
     const [automationToDelete, setAutomationToDelete] = useState<string | null>(null);
     const [editingAutomation, setEditingAutomation] = useState<any>(null);
+    const [view, setView] = useState<'my' | 'recommended'>('my');
+    const [recommended, setRecommended] = useState<any[]>([]);
+    const [isFetchingRecommended, setIsFetchingRecommended] = useState(false);
+
+    useEffect(() => {
+        if (view === 'recommended' && recommended.length === 0) {
+            fetchRecommended();
+        }
+    }, [view]);
+
+    const fetchRecommended = async () => {
+        setIsFetchingRecommended(true);
+        try {
+            const res = await fetch('/api/marketing/automations/recommended');
+            const data = await res.json() as any[];
+            setRecommended(data);
+        } catch (e) {
+            toast.error("Failed to load recommendations");
+        } finally {
+            setIsFetchingRecommended(false);
+        }
+    };
+
+    const handleAdopt = (templateId: string) => {
+        const formData = new FormData();
+        formData.append("intent", "adopt");
+        formData.append("templateId", templateId);
+        submit(formData, { method: "post" });
+        toast.promise(
+            new Promise((resolve) => setTimeout(resolve, 1000)), // Simulate wait for action
+            {
+                loading: 'Adopting automation...',
+                success: 'Automation added to your studio! It is paused for review.',
+                error: 'Failed to adopt automation',
+            }
+        );
+        setView('my');
+    };
 
     const handleToggle = (id: string) => {
         submit({ intent: 'toggle', id }, { method: 'post' });
@@ -66,12 +104,29 @@ export default function MarketingAutomationsPageComponent() {
                         <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 tracking-tight mb-1">Marketing Automations</h1>
                         <p className="text-zinc-500 dark:text-zinc-400">Engage your community with automated workflows.</p>
                     </div>
-                    <button
-                        onClick={openCreate}
-                        className="px-5 py-2.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-full text-sm font-bold hover:scale-105 transition-transform shadow-lg flex items-center gap-2"
-                    >
-                        <Plus size={18} /> Create Workflow
-                    </button>
+
+                    <div className="flex items-center gap-4">
+                        <div className="flex p-1 bg-zinc-100 dark:bg-zinc-800 rounded-full border border-zinc-200 dark:border-zinc-700">
+                            <button
+                                onClick={() => setView('my')}
+                                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${view === 'my' ? 'bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-white' : 'text-zinc-500'}`}
+                            >
+                                My Studio
+                            </button>
+                            <button
+                                onClick={() => setView('recommended')}
+                                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${view === 'recommended' ? 'bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-white' : 'text-zinc-500'}`}
+                            >
+                                Recommended
+                            </button>
+                        </div>
+                        <button
+                            onClick={openCreate}
+                            className="px-5 py-2.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-full text-sm font-bold hover:scale-105 transition-transform shadow-lg flex items-center gap-2"
+                        >
+                            <Plus size={18} /> Create Workflow
+                        </button>
+                    </div>
                 </div>
             </header>
 
@@ -88,37 +143,63 @@ export default function MarketingAutomationsPageComponent() {
                     )}
 
                     {/* Content Grid */}
-                    {automations.length === 0 ? (
-                        <div className="text-center py-32 bg-white dark:bg-zinc-900 rounded-3xl border border-dashed border-zinc-200 dark:border-zinc-800">
-                            <div className="w-20 h-20 bg-zinc-50 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <Zap size={32} className="text-zinc-300 dark:text-zinc-600" />
+                    {view === 'my' ? (
+                        automations.length === 0 ? (
+                            <div className="text-center py-32 bg-white dark:bg-zinc-900 rounded-3xl border border-dashed border-zinc-200 dark:border-zinc-800">
+                                <div className="w-20 h-20 bg-zinc-50 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                                    <Zap size={32} className="text-zinc-300 dark:text-zinc-600" />
+                                </div>
+                                <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">No automations yet</h3>
+                                <p className="text-zinc-500 dark:text-zinc-400 mb-8 max-w-sm mx-auto">Start building your first automated workflow to engage your members.</p>
+                                <button onClick={openCreate} className="text-blue-600 dark:text-blue-400 font-bold hover:underline">Create your first workflow →</button>
                             </div>
-                            <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">No automations yet</h3>
-                            <p className="text-zinc-500 dark:text-zinc-400 mb-8 max-w-sm mx-auto">Start building your first automated workflow to engage your members.</p>
-                            <button onClick={openCreate} className="text-blue-600 dark:text-blue-400 font-bold hover:underline">Create your first workflow →</button>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {automations.map((auto: any) => (
+                                    <AutomationCard
+                                        key={auto.id}
+                                        automation={auto}
+                                        onEdit={openEdit}
+                                        onToggle={handleToggle}
+                                        onDelete={handleDelete}
+                                        TRIGGERS={TRIGGERS}
+                                    />
+                                ))}
+                                <button
+                                    onClick={openCreate}
+                                    className="group flex flex-col items-center justify-center gap-4 bg-zinc-50 dark:bg-zinc-900/50 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl hover:border-zinc-400 dark:hover:border-zinc-600 transition-colors min-h-[300px]"
+                                >
+                                    <div className="w-16 h-16 bg-white dark:bg-zinc-800 rounded-full shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <Plus size={24} className="text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100" />
+                                    </div>
+                                    <span className="font-bold text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100">Create New Workflow</span>
+                                </button>
+                            </div>
+                        )
+                    ) : view === 'recommended' && isFetchingRecommended ? (
+                        <div className="flex flex-col items-center justify-center py-32 space-y-4">
+                            <Loader2 className="animate-spin text-zinc-400" size={32} />
+                            <p className="text-zinc-500 font-medium">Loading premium templates...</p>
                         </div>
-                    ) : (
+                    ) : view === 'recommended' && recommended.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {automations.map((auto: any) => (
+                            {recommended.map((auto: any) => (
                                 <AutomationCard
                                     key={auto.id}
                                     automation={auto}
-                                    onEdit={openEdit}
-                                    onToggle={handleToggle}
-                                    onDelete={handleDelete}
+                                    onAdopt={handleAdopt}
+                                    isRecommendation={true}
                                     TRIGGERS={TRIGGERS}
                                 />
                             ))}
-                            {/* "Add New" Card */}
-                            <button
-                                onClick={openCreate}
-                                className="group flex flex-col items-center justify-center gap-4 bg-zinc-50 dark:bg-zinc-900/50 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl hover:border-zinc-400 dark:hover:border-zinc-600 transition-colors min-h-[300px]"
-                            >
-                                <div className="w-16 h-16 bg-white dark:bg-zinc-800 rounded-full shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <Plus size={24} className="text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100" />
-                                </div>
-                                <span className="font-bold text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100">Create New Workflow</span>
-                            </button>
+                        </div>
+                    ) : (
+                        <div className="text-center py-32 bg-white dark:bg-zinc-900 rounded-3xl border border-dashed border-zinc-200 dark:border-zinc-800">
+                            <div className="w-20 h-20 bg-zinc-50 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <Sparkles size={32} className="text-zinc-300 dark:text-zinc-600" />
+                            </div>
+                            <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Check back later</h3>
+                            <p className="text-zinc-500 dark:text-zinc-400 mb-8 max-w-sm mx-auto">We're updating our collection of high-performing email workflows.</p>
                         </div>
                     )}
                 </div>

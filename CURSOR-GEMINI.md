@@ -739,3 +739,13 @@ Full SDK migration from Expo 54 to 55:
   - Mitigated **Information Leakage** in Gemini AI routes by sanitizing error responses (hiding raw stack traces and internal API details).
   - Standardized error reporting across marketing and automation endpoints to return generic, safe messages to the frontend.
   - Hardened `/admin/platform/config` with strict role-based authorization.
+
+### Session 17 — Recommended Tenant Email Automations
+- **Backend Infrastructure**:
+  - Implemented `GET /automations/recommended` to fetch platform-wide templates (`tenantId: null`).
+  - Implemented `POST /automations/adopt` to clone recommended templates for specific tenants (paused by default).
+- **Frontend Dashboard**:
+  - Added a "Recommended" tab to the Marketing Automations dashboard.
+  - Updated `AutomationCard` to handle "Recommendation" mode with an "Add to My Studio" action.
+  - Implemented real-time adoption flow with loading states and success notifications.
+- **System reuse**: Successfully repurposed existing schema for platform-wide templates without needing new table structures.

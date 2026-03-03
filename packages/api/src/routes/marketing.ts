@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { eq, sql, desc } from 'drizzle-orm';
 import { tenantMembers, platformConfig, aiUsageLogs, automationLogs, marketingAutomations, marketingCampaigns } from '@studio/db/src/schema';
+import { eq, sql, desc, isNull } from 'drizzle-orm';
 import { HonoContext } from '../types';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
@@ -210,6 +210,75 @@ marketing.get('/automations/stats', async (c) => {
     } catch (e: any) {
         console.error('Failed to fetch automation stats:', e);
         return c.json({ error: 'Failed' }, 500);
+    }
+});
+
+// GET /automations/recommended - List global templates
+marketing.get('/automations/recommended', async (c) => {
+    const can = c.get('can');
+    if (!can('manage_marketing' as Permission)) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
+
+    const db = createDb(c.env.DB);
+
+    try {
+        const recommendations = await db.select()
+            .from(marketingAutomations)
+            .where(isNull(marketingAutomations.tenantId))
+            .orderBy(desc(marketingAutomations.createdAt))
+            .all();
+
+        return c.json(recommendations);
+    } catch (e: any) {
+        console.error('Failed to fetch recommended automations:', e);
+        return c.json({ error: 'Failed to fetch recommended automations' }, 500);
+    }
+});
+
+// POST /automations/adopt - Clone a global template for a tenant
+marketing.post('/automations/adopt', async (c) => {
+    const can = c.get('can');
+    if (!can('manage_marketing' as Permission)) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
+
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+    const { templateId } = await c.req.json();
+
+    if (!templateId) {
+        return c.json({ error: 'templateId is required' }, 400);
+    }
+
+    try {
+        // Fetch the template
+        const template = await db.query.marketingAutomations.findFirst({
+            where: eq(marketingAutomations.id, templateId)
+        });
+
+        if (!template || template.tenantId !== null) {
+            return c.json({ error: 'Template not found' }, 404);
+        }
+
+        // Clone it
+        const id = crypto.randomUUID();
+        await db.insert(marketingAutomations).values({
+            id,
+            tenantId: tenant.id,
+            triggerEvent: template.triggerEvent,
+            triggerCondition: template.triggerCondition,
+            steps: template.steps,
+            isEnabled: false, // Always disabled by default after adoption
+            metadata: template.metadata,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        }).run();
+
+        return c.json({ id, success: true }, 201);
+    } catch (e: any) {
+        console.error('Failed to adopt automation:', e);
+        return c.json({ error: 'Failed to adopt automation' }, 500);
     }
 });
 

@@ -1,15 +1,17 @@
 
-import { Play, Pause, Trash2, Pencil, Calendar, Users, Clock, Zap, Target, Bell, X } from "lucide-react";
+import { Play, Pause, Trash2, Pencil, Calendar, Users, Clock, Zap, Target, Bell, X, Plus } from "lucide-react";
 
 interface AutomationCardProps {
     automation: any;
-    onEdit: (auto: any) => void;
-    onToggle: (id: string) => void;
-    onDelete: (id: string) => void;
+    onEdit?: (auto: any) => void;
+    onToggle?: (id: string) => void;
+    onDelete?: (id: string) => void;
+    onAdopt?: (id: string) => void;
+    isRecommendation?: boolean;
     TRIGGERS: any[];
 }
 
-export function AutomationCard({ automation, onEdit, onToggle, onDelete, TRIGGERS }: AutomationCardProps) {
+export function AutomationCard({ automation, onEdit, onToggle, onDelete, onAdopt, isRecommendation, TRIGGERS }: AutomationCardProps) {
     const trigger = TRIGGERS.find(t => t.id === automation.triggerEvent) || TRIGGERS[0];
     const TriggerIcon = trigger.icon || Zap;
 
@@ -50,26 +52,37 @@ export function AutomationCard({ automation, onEdit, onToggle, onDelete, TRIGGER
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 pt-4 border-t border-zinc-100 dark:border-zinc-800 opacity-60 group-hover:opacity-100 transition-opacity">
-                    <button
-                        onClick={() => onEdit(automation)}
-                        className="flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
-                    >
-                        <Pencil size={14} /> Edit
-                    </button>
-                    <button
-                        onClick={() => onToggle(automation.id)}
-                        className={`p-2 rounded-lg transition-colors ${automation.isActive ? 'text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20' : 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'}`}
-                        title={automation.isActive ? "Pause" : "Activate"}
-                    >
-                        {automation.isActive ? <Pause size={16} /> : <Play size={16} />}
-                    </button>
-                    <button
-                        onClick={() => onDelete(automation.id)}
-                        className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                        title="Delete"
-                    >
-                        <Trash2 size={16} />
-                    </button>
+                    {isRecommendation ? (
+                        <button
+                            onClick={() => onAdopt?.(automation.id)}
+                            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl font-bold hover:scale-[1.02] transition-transform shadow-sm"
+                        >
+                            <Plus size={16} /> Add to My Studio
+                        </button>
+                    ) : (
+                        <>
+                            <button
+                                onClick={() => onEdit?.(automation)}
+                                className="flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                            >
+                                <Pencil size={14} /> Edit
+                            </button>
+                            <button
+                                onClick={() => onToggle?.(automation.id)}
+                                className={`p-2 rounded-lg transition-colors ${automation.isActive ? 'text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20' : 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'}`}
+                                title={automation.isActive ? "Pause" : "Activate"}
+                            >
+                                {automation.isActive ? <Pause size={16} /> : <Play size={16} />}
+                            </button>
+                            <button
+                                onClick={() => onDelete?.(automation.id)}
+                                className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                title="Delete"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
         </div>

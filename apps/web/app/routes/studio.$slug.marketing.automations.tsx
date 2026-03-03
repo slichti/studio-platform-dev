@@ -82,6 +82,16 @@ export const action = async (args: ActionFunctionArgs) => {
         return { success: true };
     }
 
+    if (intent === 'adopt') {
+        const templateId = formData.get("templateId");
+        await apiRequest(`/marketing/automations/adopt`, token, {
+            method: 'POST',
+            body: JSON.stringify({ templateId }),
+            headers: { 'X-Tenant-Slug': tenantSlug }
+        });
+        return { success: true };
+    }
+
     return { success: true };
 };
 
