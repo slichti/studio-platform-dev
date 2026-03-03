@@ -112,7 +112,13 @@ export default function RichTextEditorInternal({ value, onChange, placeholder, c
             }
         } catch (e: any) {
             console.error('AI Error:', e);
-            alert(e.message || 'Failed to connect to AI service');
+            let errMsg = e.message || 'Failed to connect to AI service';
+            if (typeof e.message === 'object') {
+                errMsg = JSON.stringify(e.message);
+            } else if (e.body && typeof e.body === 'object') {
+                errMsg = JSON.stringify(e.body);
+            }
+            alert(errMsg);
         } finally {
             setIsGenerating(false);
         }

@@ -96,7 +96,7 @@ marketing.post('/sync-members', async (c) => {
 import { GeminiService } from '../services/gemini';
 
 const generateEmailSchema = z.object({
-    prompt: z.string().min(5)
+    prompt: z.string().min(1)
 });
 
 marketing.post('/generate-email', zValidator('json', generateEmailSchema), async (c) => {
