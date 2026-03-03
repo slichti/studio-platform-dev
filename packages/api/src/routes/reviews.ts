@@ -115,18 +115,23 @@ app.post('/:id/draft-reply', async (c) => {
     const configAi = aiConfigRow?.value as any;
 
     const gemini = new GeminiService(apiKey, configAi);
-    const draft = await gemini.generateReviewReplyDraft({
-        reviewContent: row.content,
-        rating: row.rating,
-        studioName: tenant.name,
-        businessType: seo.businessType || 'fitness studio',
-        city: seo.location,
-    });
+    try {
+        const draft = await gemini.generateReviewReplyDraft({
+            reviewContent: row.content,
+            rating: row.rating,
+            studioName: tenant.name,
+            businessType: seo.businessType || 'fitness studio',
+            city: seo.location,
+        });
 
-    const now = Math.floor(Date.now() / 1000);
-    await db.update(reviews).set({ replyDraft: draft, replyDraftGeneratedAt: new Date(now * 1000) })
-        .where(and(eq(reviews.id, id), eq(reviews.tenantId, tenant.id))).run();
-    return c.json({ replyDraft: draft });
+        const now = Math.floor(Date.now() / 1000);
+        await db.update(reviews).set({ replyDraft: draft, replyDraftGeneratedAt: new Date(now * 1000) })
+            .where(and(eq(reviews.id, id), eq(reviews.tenantId, tenant.id))).run();
+        return c.json({ replyDraft: draft });
+    } catch (e: any) {
+        console.error('Failed to generate review draft:', e);
+        return c.json({ error: e.message || 'Failed to generate review draft' }, 500);
+    }
 });
 
 // PATCH /:id/reply-draft — Save or clear manual draft

@@ -124,7 +124,7 @@ marketing.post('/generate-email', zValidator('json', generateEmailSchema), async
         return c.json({ html: htmlContent });
     } catch (e: any) {
         console.error('Failed to generate AI email:', e);
-        return c.json({ error: 'Failed to generate content', message: e.message }, 500);
+        return c.json({ error: e.message || 'Failed to generate content' }, 500);
     }
 });
 
