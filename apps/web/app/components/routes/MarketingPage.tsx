@@ -170,7 +170,7 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                     body: JSON.stringify(payload)
                 });
                 if (res.error) throw new Error(res.error);
-                setAutomations([...automations, res]);
+                setAutomations([...automations, { id: res.id, ...payload }]);
                 showNotification("Automation created successfully");
             }
 

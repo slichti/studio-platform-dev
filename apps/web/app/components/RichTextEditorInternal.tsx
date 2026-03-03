@@ -7,6 +7,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { Bold, Italic, List, Link as LinkIcon, Image as ImageIcon, Code, Type, Unlink, Sparkles, Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { RichTextImageModal } from './RichTextImageModal';
+import { RichTextAiModal } from './RichTextAiModal';
 
 interface RichTextEditorProps {
     value: string;
@@ -15,9 +16,7 @@ interface RichTextEditorProps {
     className?: string;
 }
 
-const MenuBar = ({ editor, onImageClick }: { editor: any, onImageClick: () => void }) => {
-    const [isGenerating, setIsGenerating] = useState(false);
-
+const MenuBar = ({ editor, onImageClick, onAiClick, isGenerating }: { editor: any, onImageClick: () => void, onAiClick: () => void, isGenerating: boolean }) => {
     if (!editor) {
         return null;
     }
@@ -32,31 +31,6 @@ const MenuBar = ({ editor, onImageClick }: { editor: any, onImageClick: () => vo
             return;
         }
         editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
-    };
-
-    const generateAIContent = async () => {
-        const prompt = window.prompt('What should this email be about? (e.g. A welcome email for new beginners)');
-        if (!prompt) return;
-
-        setIsGenerating(true);
-        try {
-            const res = await fetch('/api/marketing/generate-email', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt })
-            });
-            const data = await res.json() as any;
-
-            if (res.ok && data.html) {
-                editor.commands.setContent(data.html);
-            } else {
-                alert(data.error || 'Failed to generate AI content');
-            }
-        } catch (e: any) {
-            alert('Failed to connect to AI service');
-        } finally {
-            setIsGenerating(false);
-        }
     };
 
     return (
@@ -75,7 +49,7 @@ const MenuBar = ({ editor, onImageClick }: { editor: any, onImageClick: () => vo
             <div className="w-px h-6 bg-zinc-300 mx-1 self-center" />
             <button
                 type="button"
-                onClick={generateAIContent}
+                onClick={onAiClick}
                 disabled={isGenerating}
                 className="p-1.5 rounded hover:bg-indigo-100 text-indigo-500 transition-colors flex items-center gap-1 text-[11px] font-medium disabled:opacity-50 disabled:cursor-not-allowed ml-auto"
             >
@@ -88,6 +62,8 @@ const MenuBar = ({ editor, onImageClick }: { editor: any, onImageClick: () => vo
 
 export default function RichTextEditorInternal({ value, onChange, placeholder, className }: RichTextEditorProps) {
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+    const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
 
     const extensions = useMemo(() => [
         StarterKit,
@@ -111,14 +87,46 @@ export default function RichTextEditorInternal({ value, onChange, placeholder, c
         }
     }, [value, editor]);
 
+    const handleGenerateAI = async (prompt: string) => {
+        setIsGenerating(true);
+        try {
+            const res = await fetch('/api/marketing/generate-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt })
+            });
+            const data = await res.json() as any;
+
+            if (res.ok && data.html) {
+                editor?.commands.setContent(data.html);
+            } else {
+                alert(data.error || 'Failed to generate AI content');
+            }
+        } catch (e: any) {
+            alert('Failed to connect to AI service');
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
     return (
         <div className={`border border-zinc-300 rounded-lg bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 ${className}`}>
-            <MenuBar editor={editor} onImageClick={() => setIsImageModalOpen(true)} />
+            <MenuBar
+                editor={editor}
+                onImageClick={() => setIsImageModalOpen(true)}
+                onAiClick={() => setIsAiModalOpen(true)}
+                isGenerating={isGenerating}
+            />
             <EditorContent editor={editor} />
             <RichTextImageModal
                 isOpen={isImageModalOpen}
                 onClose={() => setIsImageModalOpen(false)}
                 onSelect={(url) => editor?.chain().focus().setImage({ src: url }).run()}
+            />
+            <RichTextAiModal
+                isOpen={isAiModalOpen}
+                onClose={() => setIsAiModalOpen(false)}
+                onGenerate={handleGenerateAI}
             />
         </div>
     );
