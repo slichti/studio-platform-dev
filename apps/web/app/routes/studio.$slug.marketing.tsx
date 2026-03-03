@@ -21,7 +21,7 @@ export const loader: LoaderFunction = async (args: any) => {
             apiRequest("/marketing/automations", token, { headers: { 'X-Tenant-Slug': slug } }) as Promise<any>
         ]);
         campaigns = campRes.campaigns || [];
-        automations = autoRes.automations || [];
+        automations = autoRes || [];
     } catch (e) {
         console.error("Failed to load marketing data", e);
     }
