@@ -5,11 +5,31 @@ import { eq, sql, and } from 'drizzle-orm';
 import { Webhook } from 'svix'; // Although Resend does not use Svix, let's process the JSON body directly or use crypto for webhook signatures if needed.
 // Resend currently sends webhooks as POST requests with a JSON body. 
 
-const resendWebhooksApp = new Hono<{ Bindings: { DB: D1Database } }>();
+const resendWebhooksApp = new Hono<{ Bindings: { DB: D1Database, RESEND_WEBHOOK_SECRET?: string } }>();
 
 resendWebhooksApp.post('/', async (c) => {
     try {
-        const payload = await c.req.json();
+        const payloadString = await c.req.text();
+        const headers = c.req.header();
+
+        if (!c.env.RESEND_WEBHOOK_SECRET) {
+            console.warn('[Resend Webhook] RESEND_WEBHOOK_SECRET is not set, skipping verification (unsafe)');
+            // Fallback for local dev if needed, otherwise secure by default
+        }
+
+        let payload: any;
+        try {
+            if (c.env.RESEND_WEBHOOK_SECRET) {
+                const wh = new Webhook(c.env.RESEND_WEBHOOK_SECRET as string);
+                payload = wh.verify(payloadString, headers);
+            } else {
+                payload = JSON.parse(payloadString);
+            }
+        } catch (err) {
+            console.error('[Resend Webhook] Invalid signature', err);
+            return c.json({ error: 'Invalid signature' }, 400);
+        }
+
         const type = payload.type;
         const data = payload.data; // The email event data
         const db = createDb(c.env.DB);
