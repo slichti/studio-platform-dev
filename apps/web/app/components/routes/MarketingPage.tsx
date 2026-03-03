@@ -366,12 +366,13 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-zinc-700 mb-1">Message Content</label>
-                                    <RichTextEditor
-                                        value={content}
-                                        onChange={setContent}
-                                        placeholder="Write your beautiful email content..."
-                                        className="min-h-[300px]"
-                                    />
+                                    <div className="flex-1 w-full flex flex-col relative w-full mt-1">
+                                        <RichTextEditor
+                                            value={content}
+                                            onChange={setContent}
+                                            placeholder="Write your beautiful email content..."
+                                        />
+                                    </div>
                                     <div className="flex justify-between items-start mt-2">
                                         <p className="text-xs text-zinc-400">Rich text enabled. Use the toolbar to format.</p>
                                         <div className="text-xs text-zinc-500 text-right flex gap-2 items-center select-none">
@@ -1146,7 +1147,7 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                                     </div>
                                                     <div className="flex-1 flex flex-col min-h-[350px]">
                                                         <label className="block text-sm font-medium text-zinc-700 mb-1">Email Body</label>
-                                                        <div className="flex-1 bg-white border border-zinc-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition-all">
+                                                        <div className="flex-1 w-full flex flex-col relative w-full mt-1">
                                                             <RichTextEditor
                                                                 value={editForm.steps[activeStepIndex].content || ''}
                                                                 onChange={(html) => {
@@ -1155,7 +1156,6 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                                                     setEditForm({ ...editForm, steps: n });
                                                                 }}
                                                                 placeholder="Write your email content..."
-                                                                className="h-full border-none shadow-none ring-0 w-full"
                                                             />
                                                         </div>
                                                     </div>

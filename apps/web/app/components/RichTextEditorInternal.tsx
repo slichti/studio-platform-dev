@@ -4,7 +4,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
-import { Bold, Italic, List, Link as LinkIcon, Image as ImageIcon, Code, Type, Unlink } from 'lucide-react';
+import { Bold, Italic, List, Link as LinkIcon, Image as ImageIcon, Code, Type, Unlink, Sparkles, Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { RichTextImageModal } from './RichTextImageModal';
 
@@ -16,6 +16,8 @@ interface RichTextEditorProps {
 }
 
 const MenuBar = ({ editor, onImageClick }: { editor: any, onImageClick: () => void }) => {
+    const [isGenerating, setIsGenerating] = useState(false);
+
     if (!editor) {
         return null;
     }
@@ -32,6 +34,31 @@ const MenuBar = ({ editor, onImageClick }: { editor: any, onImageClick: () => vo
         editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
     };
 
+    const generateAIContent = async () => {
+        const prompt = window.prompt('What should this email be about? (e.g. A welcome email for new beginners)');
+        if (!prompt) return;
+
+        setIsGenerating(true);
+        try {
+            const res = await fetch('/api/marketing/generate-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt })
+            });
+            const data = await res.json() as any;
+
+            if (res.ok && data.html) {
+                editor.commands.setContent(data.html);
+            } else {
+                alert(data.error || 'Failed to generate AI content');
+            }
+        } catch (e: any) {
+            alert('Failed to connect to AI service');
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
     return (
         <div className="flex flex-wrap gap-1 p-2 border-b bg-zinc-50 rounded-t-lg">
             <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded hover:bg-zinc-200 ${editor.isActive('bold') ? 'bg-zinc-200 text-black' : 'text-zinc-500'}`}><Bold className="w-4 h-4" /></button>
@@ -45,6 +72,16 @@ const MenuBar = ({ editor, onImageClick }: { editor: any, onImageClick: () => vo
             <button type="button" onClick={() => editor.chain().focus().unsetLink().run()} disabled={!editor.isActive('link')} className="p-1.5 rounded hover:bg-zinc-200 text-zinc-500 disabled:opacity-30"><Unlink className="w-4 h-4" /></button>
             <div className="w-px h-6 bg-zinc-300 mx-1 self-center" />
             <button type="button" onClick={onImageClick} className="p-1.5 rounded hover:bg-zinc-200 text-zinc-500"><ImageIcon className="w-4 h-4" /></button>
+            <div className="w-px h-6 bg-zinc-300 mx-1 self-center" />
+            <button
+                type="button"
+                onClick={generateAIContent}
+                disabled={isGenerating}
+                className="p-1.5 rounded hover:bg-indigo-100 text-indigo-500 transition-colors flex items-center gap-1 text-[11px] font-medium disabled:opacity-50 disabled:cursor-not-allowed ml-auto"
+            >
+                {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                {isGenerating ? 'Writing...' : 'AI Writer'}
+            </button>
         </div>
     );
 };

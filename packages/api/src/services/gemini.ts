@@ -123,4 +123,53 @@ Output only the reply text, no quotes or labels.`;
             throw err;
         }
     }
+
+    /**
+     * Generates a beautifully formatted marketing email body in HTML based on a user prompt.
+     */
+    async generateEmailCopy(prompt: string, studioName?: string): Promise<string> {
+        const sysContext = `You are an expert, friendly copywriter for a local fitness/wellness studio${studioName ? ` called "${studioName}"` : ''}.
+Write a warm, engaging, and professional email message based on the user's prompt.
+Requirements:
+1. Output ONLY beautifully formatted HTML that is ready to be injected into a rich text editor.
+2. Use basic HTML tags like <p>, <strong>, <em>, <ul>, <li>, and <br>.
+3. DO NOT wrap the output in a markdown code block (like \`\`\`html). Output the raw HTML elements directly.
+4. Try to make it feel personalized and welcoming.
+5. You may use the variables {{firstName}} and {{studioName}} if appropriate in the context of the email.
+6. Keep it concise, usually 2-4 short paragraphs unless otherwise instructed.`;
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${this.apiKey}`;
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: `${sysContext}\n\nPrompt: ${prompt}` }] }],
+                    generationConfig: {
+                        temperature: 0.7,
+                        topK: 40,
+                        topP: 0.95,
+                        maxOutputTokens: 1024,
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(`Gemini API error: ${response.status} - ${error}`);
+            }
+
+            const data = await response.json() as any;
+            let text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+            // Strip potential markdown wrappers
+            text = text.replace(/^```html\n?/, '').replace(/```$/, '').trim();
+
+            return text;
+        } catch (err) {
+            console.error('Failed to generate email copy:', err);
+            throw err;
+        }
+    }
 }

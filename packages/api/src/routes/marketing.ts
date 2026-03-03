@@ -89,6 +89,40 @@ marketing.post('/sync-members', async (c) => {
     return c.json({ success: true, message: 'Sync started' });
 });
 
+/**
+ * [POST] /generate-email
+ * Uses Gemini to generate AI email copy
+ */
+import { GeminiService } from '../services/gemini';
+
+const generateEmailSchema = z.object({
+    prompt: z.string().min(5)
+});
+
+marketing.post('/generate-email', zValidator('json', generateEmailSchema), async (c) => {
+    const can = c.get('can');
+    if (!can('manage_marketing' as Permission)) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
+
+    const apiKey = c.env.GEMINI_API_KEY;
+    if (!apiKey) {
+        return c.json({ error: 'AI features not configured (missing GEMINI_API_KEY)' }, 503);
+    }
+
+    const { prompt } = c.req.valid('json');
+    const tenant = c.get('tenant');
+    const gemini = new GeminiService(apiKey);
+
+    try {
+        const htmlContent = await gemini.generateEmailCopy(prompt, tenant?.name);
+        return c.json({ html: htmlContent });
+    } catch (e: any) {
+        console.error('Failed to generate AI email:', e);
+        return c.json({ error: 'Failed to generate content', message: e.message }, 500);
+    }
+});
+
 // ============================================================
 // AUTOMATIONS ROUTES (tenant-specific)
 // ============================================================
