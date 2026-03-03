@@ -98,7 +98,7 @@ export default function RichTextEditorInternal({ value, onChange, placeholder, c
             const data = await res.json() as any;
 
             if (res.ok && data.html) {
-                editor?.commands.setContent(data.html);
+                editor?.commands.insertContent(data.html);
                 onChange(data.html);
             } else {
                 alert(data.error || 'Failed to generate AI content');

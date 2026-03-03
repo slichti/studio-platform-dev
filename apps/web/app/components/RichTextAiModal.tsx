@@ -11,10 +11,10 @@ interface RichTextAiModalProps {
 export function RichTextAiModal({ isOpen, onClose, onGenerate }: RichTextAiModalProps) {
     const [prompt, setPrompt] = useState('');
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (prompt.trim()) {
-            onGenerate(prompt.trim());
+            await onGenerate(prompt.trim());
             setPrompt(''); // Reset for next time
             onClose();
         }
