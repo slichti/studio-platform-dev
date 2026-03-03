@@ -14,6 +14,7 @@ interface RichTextEditorProps {
     onChange: (html: string) => void;
     placeholder?: string;
     className?: string;
+    tenantSlug: string;
 }
 
 const MenuBar = ({ editor, onImageClick, onAiClick, isGenerating }: { editor: any, onImageClick: () => void, onAiClick: () => void, isGenerating: boolean }) => {
@@ -59,11 +60,14 @@ const MenuBar = ({ editor, onImageClick, onAiClick, isGenerating }: { editor: an
         </div>
     );
 };
+import { apiRequest } from '~/utils/api';
+import { useAuth } from '@clerk/react-router';
 
-export default function RichTextEditorInternal({ value, onChange, placeholder, className }: RichTextEditorProps) {
+export default function RichTextEditorInternal({ value, onChange, placeholder, className, tenantSlug }: RichTextEditorProps) {
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
     const [isAiModalOpen, setIsAiModalOpen] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
+    const { getToken } = useAuth();
 
     const extensions = useMemo(() => [
         StarterKit,
@@ -90,18 +94,21 @@ export default function RichTextEditorInternal({ value, onChange, placeholder, c
     const handleGenerateAI = async (prompt: string) => {
         setIsGenerating(true);
         try {
-            const res = await fetch('/api/marketing/generate-email', {
+            const token = await getToken();
+            const res = await apiRequest('/marketing/generate-email', token, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Tenant-Slug': tenantSlug
+                },
                 body: JSON.stringify({ prompt })
-            });
-            const data = await res.json() as any;
+            }) as any;
 
-            if (res.ok && data.html) {
-                editor?.commands.insertContent(data.html);
-                onChange(data.html);
+            if (!res.error && res.html) {
+                editor?.commands.insertContent(res.html);
+                onChange(res.html);
             } else {
-                alert(data.error || 'Failed to generate AI content');
+                alert(res.error || 'Failed to generate AI content');
             }
         } catch (e: any) {
             alert('Failed to connect to AI service');

@@ -371,6 +371,7 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                             value={content}
                                             onChange={setContent}
                                             placeholder="Write your beautiful email content..."
+                                            tenantSlug={slug}
                                         />
                                     </div>
                                     <div className="flex justify-between items-start mt-2">
@@ -1156,6 +1157,7 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                                                     setEditForm({ ...editForm, steps: n });
                                                                 }}
                                                                 placeholder="Write your email content..."
+                                                                tenantSlug={slug}
                                                             />
                                                         </div>
                                                     </div>

@@ -8,6 +8,7 @@ interface RichTextEditorProps {
     onChange: (html: string) => void;
     placeholder?: string;
     className?: string;
+    tenantSlug: string;
 }
 
 export function RichTextEditor(props: RichTextEditorProps) {
