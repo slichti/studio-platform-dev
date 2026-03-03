@@ -5,18 +5,24 @@ import { Modal } from "~/components/Modal";
 interface RichTextAiModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onGenerate: (prompt: string) => void;
+    onGenerate: (prompt: string) => Promise<void> | void;
 }
 
 export function RichTextAiModal({ isOpen, onClose, onGenerate }: RichTextAiModalProps) {
     const [prompt, setPrompt] = useState('');
+    const [isGenerating, setIsGenerating] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (prompt.trim()) {
-            await onGenerate(prompt.trim());
-            setPrompt(''); // Reset for next time
-            onClose();
+        if (prompt.trim() && !isGenerating) {
+            setIsGenerating(true);
+            try {
+                await onGenerate(prompt.trim());
+                setPrompt(''); // Reset for next time
+                onClose();
+            } finally {
+                setIsGenerating(false);
+            }
         }
     };
 
@@ -50,11 +56,20 @@ export function RichTextAiModal({ isOpen, onClose, onGenerate }: RichTextAiModal
                     <button
                         type="button"
                         onClick={handleSubmit}
-                        disabled={!prompt.trim()}
+                        disabled={!prompt.trim() || isGenerating}
                         className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                        <Sparkles className="w-4 h-4" />
-                        Generate
+                        {isGenerating ? (
+                            <>
+                                <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                                Generating...
+                            </>
+                        ) : (
+                            <>
+                                <Sparkles className="w-4 h-4" />
+                                Generate
+                            </>
+                        )}
                     </button>
                 </div>
             </div>
