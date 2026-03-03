@@ -1,19 +1,39 @@
+export interface IAIGenBlogPostOptions {
+    topic: string;
+    keywords?: string[];
+    tone?: string;
+    audience?: string;
+    length?: 'short' | 'medium' | 'long';
+}
+
+export interface GeminiConfig {
+    model?: string;
+    prompts?: {
+        blogPost?: string;
+        reviewReply?: string;
+        emailCopy?: string;
+    };
+}
+
 export class GeminiService {
     private apiKey: string;
+    private config?: GeminiConfig;
 
-    constructor(apiKey: string) {
+    constructor(apiKey: string, config?: GeminiConfig) {
+        if (!apiKey) throw new Error("GEMINI_API_KEY is required.");
         this.apiKey = apiKey;
+        this.config = config;
     }
 
     /**
      * Generates a blog post using Gemini Pro.
      */
-    async generateBlogPost(topicName: string, topicDesc: string, localeInfo: { studioName: string, city: string, businessType: string }): Promise<{ title: string, content: string }> {
-        const prompt = `
+    async generateBlogPost(topicName: string, topicDesc: string, localeInfo: { studioName: string, city: string, businessType: string }): Promise<{ title: string, content: string, imagePrompt: string }> {
+        const defaultBlogPostPrompt = `
             You are an expert SEO content writer for fitness and wellness studios.
-            Write a high-quality, engaging blog post of about 400-600 words for a studio called "${localeInfo.studioName}" in ${localeInfo.city}.
-            The studio is a "${localeInfo.businessType}".
-            The topic is "${topicName}": ${topicDesc}
+            Write a high-quality, engaging blog post of about 400-600 words for a studio called "{{studioName}}" in {{city}}.
+            The studio is a "{{businessType}}".
+            The topic is "{{topicName}}": {{topicDesc}}
 
             Requirements:
             1. Include a catchy, SEO-optimized title.
@@ -25,7 +45,17 @@ export class GeminiService {
             7. Output the result in JSON format with "title", "content", and "imagePrompt" fields.
         `;
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`;
+        const systemPromptTemplate = this.config?.prompts?.blogPost || defaultBlogPostPrompt;
+
+        const prompt = systemPromptTemplate
+            .replace(/{{studioName}}/g, localeInfo.studioName)
+            .replace(/{{city}}/g, localeInfo.city)
+            .replace(/{{businessType}}/g, localeInfo.businessType)
+            .replace(/{{topicName}}/g, topicName)
+            .replace(/{{topicDesc}}/g, topicDesc);
+
+        const model = this.config?.model || 'gemini-2.0-flash';
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`;
 
         try {
             const response = await fetch(url, {
@@ -59,7 +89,8 @@ export class GeminiService {
             // Fallback if not pure JSON
             return {
                 title: `${topicName} at ${localeInfo.studioName}`,
-                content: text
+                content: text,
+                imagePrompt: `A high-end, aesthetic photograph representing ${topicName} for ${localeInfo.studioName}.`
             };
         } catch (err) {
             console.error('Failed to generate blog post:', err);
@@ -80,7 +111,8 @@ export class GeminiService {
     }): Promise<string> {
         const { reviewContent, rating, studioName, businessType = 'fitness studio', city = '' } = params;
         const locationHint = city ? ` in ${city}` : '';
-        const prompt = `You are writing a brief, professional owner reply to a customer review for a business called "${studioName}"${locationHint}, a ${businessType}.
+
+        const defaultReviewReplyPrompt = `You are writing a brief, professional owner reply to a customer review for a business called "${studioName}"${locationHint}, a ${businessType}.
 
 Review rating: ${rating} out of 5 stars.
 Review text: ${reviewContent || '(no text provided)'}
@@ -93,14 +125,17 @@ Write a single short reply (2-4 sentences, under 350 characters) that:
 5. Do not repeat the review content verbatim.
 Output only the reply text, no quotes or labels.`;
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`;
+        const systemPrompt = this.config?.prompts?.reviewReply || defaultReviewReplyPrompt;
+
+        const model = this.config?.model || 'gemini-2.0-flash';
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`;
 
         try {
             const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }],
+                    contents: [{ parts: [{ text: systemPrompt }] }],
                     generationConfig: {
                         temperature: 0.5,
                         topK: 40,
@@ -128,7 +163,7 @@ Output only the reply text, no quotes or labels.`;
      * Generates a beautifully formatted marketing email body in HTML based on a user prompt.
      */
     async generateEmailCopy(prompt: string, studioName?: string): Promise<string> {
-        const sysContext = `You are an expert, friendly copywriter for a local fitness/wellness studio${studioName ? ` called "${studioName}"` : ''}.
+        const defaultEmailCopyPrompt = `You are an expert, friendly copywriter for a local fitness/wellness studio${studioName ? ` called "${studioName}"` : ''}.
 Write a warm, engaging, and professional email message based on the user's prompt.
 Requirements:
 1. Output ONLY beautifully formatted HTML that is ready to be injected into a rich text editor.
@@ -138,14 +173,16 @@ Requirements:
 5. You may use the variables {{firstName}} and {{studioName}} if appropriate in the context of the email.
 6. Keep it concise, usually 2-4 short paragraphs unless otherwise instructed.`;
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`;
+        const systemPrompt = this.config?.prompts?.emailCopy || defaultEmailCopyPrompt;
+        const model = this.config?.model || 'gemini-2.0-flash';
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`;
 
         try {
             const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    contents: [{ parts: [{ text: `${sysContext}\n\nPrompt: ${prompt}` }] }],
+                    contents: [{ parts: [{ text: `${systemPrompt}\n\nPrompt: ${prompt}` }] }],
                     generationConfig: {
                         temperature: 0.7,
                         topK: 40,

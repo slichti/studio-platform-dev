@@ -108,7 +108,13 @@ app.post('/:id/draft-reply', async (c) => {
 
     const settings = (tenant.settings as any) || {};
     const seo = settings.seo || {};
-    const gemini = new GeminiService(apiKey);
+
+    const aiConfigRow = await db.query.platformConfig.findFirst({
+        where: eq(require('@studio/db/src/schema').platformConfig.key, 'config_ai')
+    });
+    const configAi = aiConfigRow?.value as any;
+
+    const gemini = new GeminiService(apiKey, configAi);
     const draft = await gemini.generateReviewReplyDraft({
         reviewContent: row.content,
         rating: row.rating,

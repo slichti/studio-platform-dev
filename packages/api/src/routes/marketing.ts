@@ -112,7 +112,12 @@ marketing.post('/generate-email', zValidator('json', generateEmailSchema), async
 
     const { prompt } = c.req.valid('json');
     const tenant = c.get('tenant');
-    const gemini = new GeminiService(apiKey);
+    const aiConfigRow = await createDb(c.env.DB).query.platformConfig.findFirst({
+        where: eq(require('@studio/db/src/schema').platformConfig.key, 'config_ai')
+    });
+    const configAi = aiConfigRow?.value as any;
+
+    const gemini = new GeminiService(apiKey, configAi);
 
     try {
         const htmlContent = await gemini.generateEmailCopy(prompt, tenant?.name);
