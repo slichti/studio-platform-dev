@@ -99,6 +99,7 @@ export default function RichTextEditorInternal({ value, onChange, placeholder, c
 
             if (res.ok && data.html) {
                 editor?.commands.setContent(data.html);
+                onChange(data.html);
             } else {
                 alert(data.error || 'Failed to generate AI content');
             }
