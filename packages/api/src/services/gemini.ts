@@ -25,7 +25,7 @@ export class GeminiService {
             7. Output the result in JSON format with "title", "content", and "imagePrompt" fields.
         `;
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${this.apiKey}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`;
 
         try {
             const response = await fetch(url, {
@@ -93,7 +93,7 @@ Write a single short reply (2-4 sentences, under 350 characters) that:
 5. Do not repeat the review content verbatim.
 Output only the reply text, no quotes or labels.`;
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${this.apiKey}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`;
 
         try {
             const response = await fetch(url, {
@@ -138,7 +138,7 @@ Requirements:
 5. You may use the variables {{firstName}} and {{studioName}} if appropriate in the context of the email.
 6. Keep it concise, usually 2-4 short paragraphs unless otherwise instructed.`;
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${this.apiKey}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`;
 
         try {
             const response = await fetch(url, {
