@@ -1746,6 +1746,23 @@ export const tenantMembersRelations = relations(tenantMembers, ({ one, many }) =
     tags: many(tagAssignments),
 }));
 
+export const studentNotesRelations = relations(studentNotes, ({ one }) => ({
+    student: one(tenantMembers, {
+        fields: [studentNotes.studentId],
+        references: [tenantMembers.id],
+        relationName: 'student',
+    }),
+    author: one(tenantMembers, {
+        fields: [studentNotes.authorId],
+        references: [tenantMembers.id],
+        relationName: 'author',
+    }),
+    tenant: one(tenants, {
+        fields: [studentNotes.tenantId],
+        references: [tenants.id],
+    }),
+}));
+
 export const tenantRolesRelations = relations(tenantRoles, ({ one }) => ({
     member: one(tenantMembers, {
         fields: [tenantRoles.memberId],
