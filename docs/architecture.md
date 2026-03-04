@@ -390,6 +390,33 @@ sequenceDiagram
     end
 ```
 
+### Manual Billing & Invoice Sync
+Manual billing triggered via the Admin Portal follows a "Pending Item -> Finalize" pattern to ensure auditability and immediate receipt dispatch.
+
+```mermaid
+sequenceDiagram
+    actor Admin
+    participant API as BillingService
+    participant DB as D1 Database
+    participant Stripe as Stripe API
+    participant Owner as Tenant Owner (Email)
+
+    Admin->>API: POST /admin/billing/charge
+    API->>DB: Lookup Tenant & Owner Email
+    API->>DB: calculateBillableUsage()
+    
+    API->>Stripe: Create Customer (if missing)
+    API->>Stripe: Create Invoice Items (Base + Overages)
+    API->>Stripe: Create Invoice (auto_advance: true)
+    Stripe-->>API: invoice_id
+    API->>Stripe: Finalize Invoice
+    Stripe->>Stripe: Charge Default Payment Method
+    Stripe-->>Owner: Email Receipt (Automatic)
+    
+    API->>DB: Update last_billed_at
+    API-->>Admin: Success Response
+```
+
 *   **Query Batching**: High-frequency checks (like Tenant Quotas) use `db.batch()` to consolidate multiple count/fetch operations into a single round-trip, reducing overhead by up to 80%.
 *   **SARGable Queries**: Overlap detection logic in `ConflictService` uses indexed range filters on `startTime` (indexed) to coarsely filter candidates before applying precise complex SQL duration math.
 *   **N+1 Elimination**: Background win-back automations use aggregated queries (`MAX`, `GROUP BY`) to fetch activity for all member candidates in a single operation rather than looping over members. Course curriculum enrichment uses 5 parallel batch queries + in-memory lookup maps, replacing per-item sequential queries.

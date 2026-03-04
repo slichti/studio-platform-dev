@@ -591,4 +591,24 @@ export class StripeService {
             options
         );
     }
+
+    /**
+     * Create an Invoice (Manual billing for pending items)
+     */
+    async createInvoice(customerId: string, params: Stripe.InvoiceCreateParams = {}) {
+        return this.stripe.invoices.create({
+            customer: customerId,
+            auto_advance: true,
+            ...params
+        });
+    }
+
+    /**
+     * Finalize an Invoice (Triggers payment and receipts)
+     */
+    async finalizeInvoice(invoiceId: string) {
+        return this.stripe.invoices.finalizeInvoice(invoiceId, {
+            auto_advance: true
+        });
+    }
 }

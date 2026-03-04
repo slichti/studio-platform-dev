@@ -90,6 +90,7 @@ export default function HelpLayout() {
                 { name: "Migration & Import", href: "/documentation/migration", icon: Database },
                 { name: "Setting up your Studio", href: "/documentation/setup", icon: Settings },
                 { name: "Welcome to Studio Platform", href: "/documentation", icon: GraduationCap },
+                { name: "Changelog", href: "/documentation/changelog", icon: FileText },
             ]
         },
 

@@ -13,7 +13,7 @@ The modern, all-in-one platform for dance, yoga, and fitness studios.
 *   **Public Instructor Profiles:** Shareable instructor pages with detailed schedules and approved student reviews.
 *   **Student App:** Mobile app for students to book classes and manage their accounts.
 *   **Automations & Email Marketing:** Powerful email and SMS marketing automations with trigger events (Waitlist Promoted, Pack Credits Low, Birthday, Absent, Trial Ending). Full multi-tenant Email Marketing system allowing studios to attach custom domains, sync newsletter audiences, and send HTML broadcasts.
-*   **Analytics Dashboards:** Comprehensive reporting with churn-risk modeling, revenue breakdown (subscriptions vs packs vs POS), and automation effectiveness tracking.
+*   **Analytics Dashboards:** Comprehensive reporting with churn-risk modeling, revenue breakdown (subscriptions vs packs vs POS), and automation effectiveness tracking. Includes **Automated Billing Sync** with immediate Stripe invoice finalization and email receipts for tenant owners.
 *   **SEO Management:** Automated multi-tenant localized SEO via edge-rendered HTMLRewriter, streaming D1 sitemaps, and dynamic Schema.org injection. Includes Google Business Profile OAuth sync, real-time Google Indexing API integration, and **AI-Powered Local Blogging** via Gemini AI. Now features **Strategic Strategy Guidance**, **Competitive Search Ranking**, **Automated Student Push Notifications**, and **Usage/Cost Tracking** across all AI features.
 *   **QR Codes:** Generate tracking-ready QR codes for check-in, app downloads, and marketing.
 *   **High Performance Edge:** Sub-50ms latency for core operations via Cloudflare Workers and D1 batching.

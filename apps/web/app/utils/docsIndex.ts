@@ -100,5 +100,12 @@ export const docsIndex = [
         href: "/documentation/studio/portal",
         content: "Student View, Scheduling, Profile, Achievements, Progress, History, Bookings",
         category: "Student Experience"
+    },
+    {
+        title: "Platform Changelog",
+        href: "/documentation/changelog",
+        content: "Product updates, feature releases, bug fixes, iterations, version history, git commits",
+        category: "Overview",
+        adminOnly: true
     }
 ];

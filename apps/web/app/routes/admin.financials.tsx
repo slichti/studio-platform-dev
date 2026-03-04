@@ -251,9 +251,9 @@ export default function AdminFinancials() {
                 <div>
                     <strong>Note on Invoicing:</strong>
                     <ul className="list-disc list-inside mt-1 space-y-1 opacity-90 ml-1">
-                        <li>The "Invoice" button generates standard Stripe Invoice Items for <strong>Usage Overages</strong>.</li>
-                        <li>Base Plan fees are typically handled automatically by Stripe Subscriptions if configured. The total above is a <em>projection</em> of comprehensive revenue.</li>
-                        <li>Verify Stripe Subscription status before manual invoicing to avoid double-charging base fees.</li>
+                        <li>The "Invoice" button generates standard Stripe Invoice Items for both <strong>Base Plans</strong> and <strong>Usage Overages</strong>.</li>
+                        <li>This ensures a complete chargeback for the current billing period. Stripe will generate a single invoice for these pending items.</li>
+                        <li>Subsequent renewal charges are typically handled by Stripe Subscriptions if they are active for the tenant.</li>
                     </ul>
                 </div>
             </div>

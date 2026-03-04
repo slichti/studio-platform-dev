@@ -40,7 +40,7 @@ export class BillingService {
 
     async syncUsageToStripe(tenantId: string) {
         const usageService = new UsageService(this.db, tenantId);
-        const { overages, totalRevenue } = await usageService.calculateBillableUsage() as any;
+        const { subscription, overages, totalRevenue } = await usageService.calculateBillableUsage() as any;
 
         if (totalRevenue <= 0) return { total: 0, items: [] };
 
@@ -52,8 +52,18 @@ export class BillingService {
         if (!customerId) {
             console.log(`Creating new Stripe customer for tenant ${tenant.name} (${tenantId})...`);
             try {
+                // Try to find the owner's email
+                const { tenantMembers, tenantRoles, users } = await import('@studio/db/src/schema');
+                const owner = await this.db.select({ email: users.email })
+                    .from(tenantMembers)
+                    .innerJoin(users, eq(tenantMembers.userId, users.id))
+                    .innerJoin(tenantRoles, eq(tenantRoles.memberId, tenantMembers.id))
+                    .where(eq(tenantMembers.tenantId, tenantId))
+                    .where(eq(tenantRoles.role, 'owner'))
+                    .get();
+
                 const customer = await this.stripe.createCustomer({
-                    email: `admin@${tenant.slug}.com`, // Placeholder email or use tenant field if added
+                    email: owner?.email || `admin@${tenant.slug}.com`,
                     name: tenant.name,
                     metadata: { tenantId }
                 });
@@ -71,7 +81,15 @@ export class BillingService {
 
         const itemsCreated = [];
 
-        // Create Invoice Items
+        // 1. Create Invoice Item for Base Subscription (if > 0)
+        const subAmountCents = Math.round(subscription.amount * 100);
+        if (subAmountCents > 0) {
+            const subDesc = `Subscription: ${subscription.name} - ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+            await this.createInvoiceItem(customerId, subAmountCents, subDesc);
+            itemsCreated.push({ key: 'subscription', amountCents: subAmountCents, desc: subDesc });
+        }
+
+        // 2. Create Invoice Items for Overages
         for (const [key, cost] of Object.entries(overages) as [string, any][]) {
             const amountCents = Math.round(cost.amount * 100); // Cost is in dollars/cents?
             // PricingService unit costs: 0.0075 (Dollars?)
@@ -100,6 +118,18 @@ export class BillingService {
             .where(eq(tenants.id, tenantId))
             .run();
 
-        return { total: totalRevenue, items: itemsCreated };
+        // 3. Create and Finalize the Invoice to trigger payment & receipt
+        try {
+            console.log(`Finalizing invoice for customer ${customerId}...`);
+            const invoice = await this.stripe.createInvoice(customerId, {
+                description: `Manual Billing Sync - ${new Date().toLocaleDateString()}`,
+                metadata: { tenantId }
+            });
+            await this.stripe.finalizeInvoice(invoice.id);
+            return { total: totalRevenue, items: itemsCreated, invoiceId: invoice.id };
+        } catch (invErr: any) {
+            console.error(`Failed to finalize invoice for ${tenantId}:`, invErr);
+            return { total: totalRevenue, items: itemsCreated, error: `Invoice Finalization Failed: ${invErr.message}` };
+        }
     }
 }
