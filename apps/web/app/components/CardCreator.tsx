@@ -182,6 +182,7 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
     // --- Font size state ---
     const [fontSizeIndex, setFontSizeIndex] = useState(5); // Default to '2XL' (64px title)
     const currentFontSize = FONT_SIZE_OPTIONS[fontSizeIndex];
+    const [applySuccess, setApplySuccess] = useState(false);
 
     // --- Upload state ---
     const [imageSrc, setImageSrc] = useState<string | null>(initialImage || null);
@@ -277,9 +278,13 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
             previewUrl,
             gradient: bgType === 'gradient' ? { preset: activePreset, color1, color2, direction } : undefined
         });
-        // Switch upload tab to preview to show the result
+        // Switch to upload tab with preview to show the result
         setImageSrc(previewUrl);
         setUploadMode('preview');
+        setTab('upload');
+        // Flash success indicator
+        setApplySuccess(true);
+        setTimeout(() => setApplySuccess(false), 2500);
     };
 
     const handlePresetClick = (preset: typeof GRADIENT_PRESETS[0]) => {
@@ -295,10 +300,8 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
         setTitle(val);
         if (tab === 'upload') {
             onChange({
-                image: null,
                 title: val,
                 subtitle,
-                previewUrl: "",
                 gradient: bgType === 'gradient' ? { preset: activePreset, color1, color2, direction } : undefined
             });
         }
@@ -308,10 +311,8 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
         setSubtitle(val);
         if (tab === 'upload') {
             onChange({
-                image: null,
                 title,
                 subtitle: val,
-                previewUrl: "",
                 gradient: bgType === 'gradient' ? { preset: activePreset, color1, color2, direction } : undefined
             });
         }
@@ -618,10 +619,16 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
                     <button
                         type="button"
                         onClick={handleApplyGenerated}
-                        className="w-full bg-indigo-600 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm flex items-center justify-center gap-2"
+                        className={`w-full px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm flex items-center justify-center gap-2 ${applySuccess
+                                ? 'bg-green-600 text-white'
+                                : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                            }`}
                     >
-                        <Wand2 size={16} />
-                        Apply Generated Card
+                        {applySuccess ? (
+                            <>✓ Card Applied!</>
+                        ) : (
+                            <><Wand2 size={16} /> Apply Generated Card</>
+                        )}
                     </button>
                 </div>
             )}
