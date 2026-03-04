@@ -57,7 +57,7 @@ describe('Debug Fixes Verification', () => {
             last_active_at INTEGER, last_location TEXT, is_unsubscribed INTEGER DEFAULT 0, created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`);
         sqlite.exec(`CREATE TABLE tenant_members (
-            id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, user_id TEXT NOT NULL, profile TEXT, settings TEXT,
+            id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, user_id TEXT NOT NULL, stripe_customer_id TEXT, profile TEXT, settings TEXT,
             custom_fields TEXT, status TEXT DEFAULT 'active' NOT NULL, joined_at INTEGER DEFAULT (strftime('%s', 'now')),
             churn_score INTEGER DEFAULT 100, churn_status TEXT DEFAULT 'safe',
             last_churn_check INTEGER, engagement_score INTEGER DEFAULT 50, last_engagement_calc INTEGER,
