@@ -322,14 +322,14 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                                 initialTitle={formData.name}
                                 initialSubtitle={formData.description}
                                 onChange={(data) => {
-                                    setImageBlob(data.image);
+                                    if (data.image !== undefined) setImageBlob(data.image);
                                     if (data.previewUrl) setImagePreview(data.previewUrl);
-                                    setFormData({
-                                        ...formData,
-                                        name: data.title || formData.name,
-                                        description: data.subtitle || formData.description,
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        name: data.title || prev.name,
+                                        description: data.subtitle || prev.description,
                                         gradient: data.gradient
-                                    });
+                                    }));
                                 }}
                             />
                             <p className="text-xs text-zinc-500 mt-2">

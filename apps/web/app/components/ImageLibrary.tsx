@@ -28,7 +28,7 @@ export function ImageLibrary({ images, onImagesChange, activeImageUrl, onActiveI
     const [uploading, setUploading] = useState(false);
     const [editingSchedule, setEditingSchedule] = useState<string | null>(null);
 
-    const handleAddImage = useCallback(async (data: { image: Blob | null; title: string; subtitle: string; previewUrl: string }) => {
+    const handleAddImage = useCallback(async (data: { image?: Blob | null; title: string; subtitle: string; previewUrl?: string; gradient?: any }) => {
         if (!data.image) return;
 
         setUploading(true);

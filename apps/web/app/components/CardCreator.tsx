@@ -8,11 +8,12 @@ interface CardCreatorProps {
     initialImage?: string;
     initialTitle?: string;
     initialSubtitle?: string;
+    initialGradient?: { preset: string | null, color1: string, color2: string, direction: number };
     onChange: (data: {
-        image: Blob | null,
+        image?: Blob | null,
         title: string,
         subtitle: string,
-        previewUrl: string,
+        previewUrl?: string,
         gradient?: { preset: string | null, color1: string, color2: string, direction: number }
     }) => void;
 }
@@ -150,11 +151,15 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
 }
 
 
-export function CardCreator({ initialImage, initialTitle, initialSubtitle, onChange }: CardCreatorProps) {
+export function CardCreator({ initialImage, initialTitle, initialSubtitle, initialGradient, onChange }: CardCreatorProps) {
     // --- Shared state ---
     const [title, setTitle] = useState(initialTitle || "");
     const [subtitle, setSubtitle] = useState(initialSubtitle || "");
-    const [tab, setTab] = useState<'upload' | 'generate'>(initialImage ? 'upload' : 'generate');
+    const [tab, setTab] = useState<'upload' | 'generate'>(initialImage ? 'upload' : (initialGradient ? 'generate' : 'upload'));
+
+    // Sync with parent when initial props change
+    useEffect(() => setTitle(initialTitle || ""), [initialTitle]);
+    useEffect(() => setSubtitle(initialSubtitle || ""), [initialSubtitle]);
 
     // --- Font size state ---
     const [fontSizeIndex, setFontSizeIndex] = useState(3); // Default to 'L' (42px title)
@@ -168,11 +173,11 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
     const [uploadMode, setUploadMode] = useState<'upload' | 'crop' | 'preview'>(initialImage ? 'preview' : 'upload');
 
     // --- Generate state ---
-    const [bgType, setBgType] = useState<'solid' | 'gradient'>('gradient');
-    const [color1, setColor1] = useState('#667eea');
-    const [color2, setColor2] = useState('#764ba2');
-    const [direction, setDirection] = useState(135);
-    const [activePreset, setActivePreset] = useState<string | null>('Lavender');
+    const [bgType, setBgType] = useState<'solid' | 'gradient'>(initialGradient ? 'gradient' : 'gradient');
+    const [color1, setColor1] = useState(initialGradient?.color1 || '#667eea');
+    const [color2, setColor2] = useState(initialGradient?.color2 || '#764ba2');
+    const [direction, setDirection] = useState(initialGradient?.direction || 135);
+    const [activePreset, setActivePreset] = useState<string | null>(initialGradient?.preset !== undefined ? initialGradient.preset : 'Lavender');
 
     const previewCanvasRef = useRef<HTMLCanvasElement>(null);
     const exportCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -187,7 +192,14 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
             titleFontSize: currentFontSize.titlePx,
             subtitleFontSize: currentFontSize.subtitlePx,
         });
-    }, [tab, bgType, color1, color2, direction, title, subtitle, fontSizeIndex]);
+
+        // Auto-export gradient without requiring image generation click
+        onChange({
+            title,
+            subtitle,
+            gradient: bgType === 'gradient' ? { preset: activePreset, color1, color2, direction } : undefined
+        });
+    }, [tab, bgType, color1, color2, direction, title, subtitle, fontSizeIndex, activePreset, onChange]);
 
     // --- Upload handlers ---
     const onCropComplete = useCallback((_croppedArea: any, croppedAreaPixels: any) => {

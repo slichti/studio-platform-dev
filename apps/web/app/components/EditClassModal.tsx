@@ -270,18 +270,19 @@ export function EditClassModal({ isOpen, onClose, onSuccess, locations = [], ins
                     {showImageSection && (
                         <div className="p-4 border-t border-zinc-200">
                             <CardCreator
-                                initialImage={imagePreview || undefined}
+                                initialImage={imagePreview || initialData.thumbnailUrl}
                                 initialTitle={formData.name}
                                 initialSubtitle={formData.description}
+                                initialGradient={formData.gradient}
                                 onChange={(data) => {
-                                    setImageBlob(data.image);
+                                    if (data.image !== undefined) setImageBlob(data.image);
                                     if (data.previewUrl) setImagePreview(data.previewUrl);
-                                    setFormData({
-                                        ...formData,
-                                        name: data.title || formData.name,
-                                        description: data.subtitle || formData.description,
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        name: data.title || prev.name,
+                                        description: data.subtitle || prev.description,
                                         gradient: data.gradient
-                                    });
+                                    }));
                                 }}
                             />
                             <p className="text-xs text-zinc-500 mt-2">

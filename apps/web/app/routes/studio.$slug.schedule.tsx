@@ -1,7 +1,6 @@
 import { useParams, useOutletContext } from "react-router";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Plus } from "lucide-react";
-import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { WeeklyCalendar } from "../components/schedule/WeeklyCalendar";
@@ -57,6 +56,16 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
         end: new Date(new Date(c.startTime).getTime() + c.durationMinutes * 60000),
         resource: c
     })), [classesData]);
+
+    // Keep selectedClass in sync with classesData updates (e.g. after booking)
+    useEffect(() => {
+        if (selectedClass) {
+            const updated = classesData.find((c: any) => c.id === selectedClass.id);
+            if (updated && JSON.stringify(updated) !== JSON.stringify(selectedClass)) {
+                setSelectedClass(updated);
+            }
+        }
+    }, [classesData]);
 
     // Handlers
     const handleCreateSuccess = () => {

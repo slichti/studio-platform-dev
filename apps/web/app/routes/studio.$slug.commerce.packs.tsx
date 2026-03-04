@@ -210,8 +210,8 @@ export default function ClassPacksPage() {
                                         <div className="p-4 border-t border-zinc-200 dark:border-zinc-700">
                                             <CardCreator
                                                 initialImage={imageUrl || undefined}
-                                                onChange={(data) => {
-                                                    setImageBlob(data.image);
+                                                onChange={(data: any) => {
+                                                    if (data.image !== undefined) setImageBlob(data.image);
                                                     if (data.previewUrl) setImageUrl(data.previewUrl);
                                                 }}
                                             />

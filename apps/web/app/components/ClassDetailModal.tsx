@@ -186,7 +186,7 @@ export function ClassDetailModal({
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            {onEditRequested && userRoles.includes('admin') && (
+                                            {onEditRequested && userRoles?.some((r: string) => ['admin', 'owner', 'instructor'].includes(r)) && (
                                                 <button onClick={onEditRequested} className="text-zinc-500 hover:text-zinc-700 p-1 text-sm bg-zinc-100 rounded-md">
                                                     Edit
                                                 </button>

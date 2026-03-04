@@ -2,7 +2,7 @@ import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { useAuth } from "@clerk/react-router";
 import { apiRequest } from "~/utils/api";
 
-export function useClasses(tenantSlug: string, filters?: { search?: string; status?: string; limit?: number; offset?: number; isCourse?: boolean }, tokenOverride?: string | null) {
+export function useClasses(tenantSlug: string, filters?: { search?: string; status?: string; limit?: number; offset?: number; isCourse?: boolean; dateRange?: { start: Date; end: Date } }, tokenOverride?: string | null) {
     const { getToken } = useAuth();
 
     return useQuery({
@@ -15,6 +15,11 @@ export function useClasses(tenantSlug: string, filters?: { search?: string; stat
             if (filters?.limit) queryParams.set('limit', filters.limit.toString());
             if (filters?.offset) queryParams.set('offset', filters.offset.toString());
             if (filters?.isCourse !== undefined) queryParams.set('isCourse', filters.isCourse.toString());
+
+            if (filters?.dateRange) {
+                if (filters.dateRange.start) queryParams.set('dateStart', filters.dateRange.start.toISOString());
+                if (filters.dateRange.end) queryParams.set('dateEnd', filters.dateRange.end.toISOString());
+            }
 
             return apiRequest(`/classes?${queryParams.toString()}`, token, {
                 headers: { 'X-Tenant-Slug': tenantSlug }

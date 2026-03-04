@@ -107,7 +107,11 @@ export default function ClassRosterPageComponent() {
                                         <div className="h-8 w-8 rounded-full bg-zinc-200 flex items-center justify-center text-xs font-bold text-zinc-500">
                                             {booking.user.profile?.firstName?.[0] || booking.user.email[0].toUpperCase()}
                                         </div>
-                                        <div className="font-medium text-zinc-900">{booking.user.profile?.fullName || 'Unknown Student'}</div>
+                                        <div className="font-medium text-zinc-900">
+                                            {booking.user.profile?.fullName ||
+                                                (booking.user.profile?.firstName && booking.user.profile?.lastName ? `${booking.user.profile.firstName} ${booking.user.profile.lastName}` :
+                                                    booking.user.profile?.firstName || 'Unknown Student')}
+                                        </div>
                                         <button onClick={() => { setSelectedStudentId(booking.memberId); setNotesOpen(true); }} className={`p-1.5 rounded-full ${booking.hasNotes ? 'bg-amber-100 text-amber-600' : 'text-zinc-400'}`}>
                                             <StickyNote size={14} className={booking.hasNotes ? "fill-current" : ""} />
                                         </button>
@@ -147,7 +151,11 @@ export default function ClassRosterPageComponent() {
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
                                             <span className="text-zinc-500 text-sm">{index + 1}.</span>
-                                            <div className="font-medium text-zinc-900">{booking.user.profile?.fullName || 'Unknown Student'}</div>
+                                            <div className="font-medium text-zinc-900">
+                                                {booking.user.profile?.fullName ||
+                                                    (booking.user.profile?.firstName && booking.user.profile?.lastName ? `${booking.user.profile.firstName} ${booking.user.profile.lastName}` :
+                                                        booking.user.profile?.firstName || 'Unknown Student')}
+                                            </div>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-right">

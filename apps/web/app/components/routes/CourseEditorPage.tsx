@@ -817,7 +817,7 @@ export default function CourseEditorPage() {
                                         <CardCreator
                                             initialImage={course.thumbnailUrl || undefined}
                                             onChange={(data) => {
-                                                setCourseImageBlob(data.image);
+                                                if (data.image !== undefined) setCourseImageBlob(data.image);
                                                 setIsDirty(true);
                                             }}
                                         />
