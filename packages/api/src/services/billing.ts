@@ -84,7 +84,8 @@ export class BillingService {
         // 1. Create Invoice Item for Base Subscription (if > 0)
         const subAmountCents = Math.round(subscription.amount * 100);
         if (subAmountCents > 0) {
-            const subDesc = `Subscription: ${subscription.name} - ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+            const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
+            const subDesc = `Platform Subscription: ${subscription.name} - ${currentMonth}`;
             await this.createInvoiceItem(customerId, subAmountCents, subDesc);
             itemsCreated.push({ key: 'subscription', amountCents: subAmountCents, desc: subDesc });
         }
@@ -106,7 +107,8 @@ export class BillingService {
             // Let's assume UNIT COSTS are DOLLARS.
 
             if (amountCents > 0) {
-                const desc = `Overage: ${key.charAt(0).toUpperCase() + key.slice(1)} (${cost.quantity} units)`;
+                const metricLabel = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase();
+                const desc = `Usage Overage: ${metricLabel} Service`;
                 await this.createInvoiceItem(customerId, amountCents, desc);
                 itemsCreated.push({ key, amountCents, desc });
             }
@@ -120,10 +122,15 @@ export class BillingService {
 
         // 3. Create and Finalize the Invoice to trigger payment & receipt
         try {
+            const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
             console.log(`Finalizing invoice for customer ${customerId}...`);
+
             const invoice = await this.stripe.createInvoice(customerId, {
-                description: `Manual Billing Sync - ${new Date().toLocaleDateString()}`,
-                metadata: { tenantId }
+                description: `Studio Platform Subscription & Usage - ${currentMonth}`,
+                metadata: {
+                    tenantId,
+                    billingPeriod: currentMonth
+                }
             });
             await this.stripe.finalizeInvoice(invoice.id);
             return { total: totalRevenue, items: itemsCreated, invoiceId: invoice.id };
