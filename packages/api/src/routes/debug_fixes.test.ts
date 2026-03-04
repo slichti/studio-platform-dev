@@ -73,7 +73,7 @@ describe('Debug Fixes Verification', () => {
             title TEXT NOT NULL, description TEXT, duration_minutes INTEGER NOT NULL,
             price INTEGER DEFAULT 0, currency TEXT DEFAULT 'usd', recurrence_rule TEXT NOT NULL, 
             gradient_preset TEXT, gradient_color1 TEXT, gradient_color2 TEXT, gradient_direction INTEGER,
-            valid_from INTEGER NOT NULL, valid_until INTEGER, created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            thumbnail_url TEXT, valid_from INTEGER NOT NULL, valid_until INTEGER, created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`);
         sqlite.exec(`CREATE TABLE classes (
             id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, instructor_id TEXT, location_id TEXT, series_id TEXT,
