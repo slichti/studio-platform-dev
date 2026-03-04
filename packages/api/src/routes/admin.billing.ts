@@ -173,4 +173,27 @@ app.post('/sync-stats', async (c) => {
     return c.json({ success: true, updated });
 });
 
+// POST /branding/sync - Forcibly sync all tenant branding to Stripe
+app.post('/branding/sync', async (c) => {
+    const db = createDb(c.env.DB);
+    const { BillingService } = await import('../services/billing');
+    if (!c.env.STRIPE_SECRET_KEY) return c.json({ error: "Stripe Key Missing" }, 500);
+
+    const allTenants = await db.select().from(tenants).all();
+    const results = [];
+    const billing = new BillingService(db, c.env.STRIPE_SECRET_KEY);
+
+    for (const tenant of allTenants) {
+        if (tenant.stripeAccountId) {
+            try {
+                const result = await billing.syncTenantBrandingToStripe(tenant.id);
+                results.push({ tenantId: tenant.id, ...result });
+            } catch (e: any) {
+                results.push({ tenantId: tenant.id, error: e.message });
+            }
+        }
+    }
+    return c.json({ success: true, processed: results.length, details: results });
+});
+
 export default app;

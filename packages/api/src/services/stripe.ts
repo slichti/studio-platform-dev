@@ -537,15 +537,17 @@ export class StripeService {
             currency: string;
             description: string;
             metadata?: Record<string, string>;
-        }
+        },
+        connectedAccountId?: string
     ) {
-        return this.stripe.invoiceItems.create({
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        return client.invoiceItems.create({
             customer: customerId,
             amount: params.amount,
             currency: params.currency,
             description: params.description,
             metadata: params.metadata
-        });
+        }, options);
     }
 
     /**
@@ -595,20 +597,50 @@ export class StripeService {
     /**
      * Create an Invoice (Manual billing for pending items)
      */
-    async createInvoice(customerId: string, params: Stripe.InvoiceCreateParams = {}) {
-        return this.stripe.invoices.create({
+    async createInvoice(customerId: string, params: Stripe.InvoiceCreateParams = {}, connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        return client.invoices.create({
             customer: customerId,
             auto_advance: true,
             ...params
-        });
+        }, options);
     }
 
     /**
      * Finalize an Invoice (Triggers payment and receipts)
      */
-    async finalizeInvoice(invoiceId: string) {
-        return this.stripe.invoices.finalizeInvoice(invoiceId, {
+    async finalizeInvoice(invoiceId: string, connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        return client.invoices.finalizeInvoice(invoiceId, {
             auto_advance: true
-        });
+        }, options);
+    }
+
+    /**
+     * Branding & Account Management
+     */
+    async updateAccountBranding(connectedAccountId: string, params: { primaryColor?: string; logo?: string; icon?: string }) {
+        const { client, options } = this.getClient(connectedAccountId);
+        return client.accounts.update(connectedAccountId, {
+            settings: {
+                branding: {
+                    primary_color: params.primaryColor,
+                    logo: params.logo,
+                    icon: params.icon,
+                }
+            }
+        }, options);
+    }
+
+    async uploadFile(data: Buffer | any, purpose: Stripe.FileCreateParams.Purpose, connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        return client.files.create({
+            file: {
+                data,
+                name: 'file.png',
+                type: 'application/octet-stream',
+            },
+            purpose,
+        }, options);
     }
 }

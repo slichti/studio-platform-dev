@@ -139,4 +139,43 @@ export class BillingService {
             return { total: totalRevenue, items: itemsCreated, error: `Invoice Finalization Failed: ${invErr.message}` };
         }
     }
+
+    /**
+     * Syncs Tenant Branding (Logo, Color) to Stripe Connect Account
+     */
+    async syncTenantBrandingToStripe(tenantId: string) {
+        const tenant = await this.db.select().from(tenants).where(eq(tenants.id, tenantId)).get();
+        if (!tenant || !tenant.stripeAccountId) return { error: 'Tenant or Stripe Account not found' };
+
+        const branding = tenant.branding as any;
+        if (!branding) return { error: 'No branding found for tenant' };
+
+        try {
+            let logoFileId = undefined;
+
+            // 1. If logoUrl exists, upload it to Stripe
+            if (branding.logoUrl) {
+                console.log(`Syncing logo for ${tenant.name} from ${branding.logoUrl}...`);
+                const response = await fetch(branding.logoUrl);
+                if (response.ok) {
+                    const arrayBuffer = await response.arrayBuffer();
+                    const buffer = Buffer.from(arrayBuffer);
+                    const file = await this.stripe.uploadFile(buffer, 'business_logo' as any, tenant.stripeAccountId);
+                    logoFileId = file.id;
+                }
+            }
+
+            // 2. Update Stripe Account Settings
+            await this.stripe.updateAccountBranding(tenant.stripeAccountId, {
+                primaryColor: branding.primaryColor || '#008080', // Default teal if none
+                logo: logoFileId,
+                icon: logoFileId // Use same for icon for now
+            });
+
+            return { success: true };
+        } catch (err: any) {
+            console.error(`Failed to sync branding for ${tenantId}:`, err);
+            return { error: `Branding Sync Failed: ${err.message}` };
+        }
+    }
 }
