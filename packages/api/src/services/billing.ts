@@ -40,22 +40,39 @@ export class BillingService {
 
     async syncUsageToStripe(tenantId: string) {
         const usageService = new UsageService(this.db, tenantId);
-        const { costs, total } = await usageService.calculateBillableUsage() as any;
+        const { overages, totalRevenue } = await usageService.calculateBillableUsage() as any;
 
-        if (total <= 0) return { total: 0, items: [] };
+        if (totalRevenue <= 0) return { total: 0, items: [] };
 
         // Get Tenant Stripe Customer ID (Platform Level)
-        // Tenant table has `stripeCustomerId`.
         const tenant = await this.db.select().from(tenants).where(eq(tenants.id, tenantId)).get();
-        if (!tenant || !tenant.stripeCustomerId) {
-            console.error(`Tenant ${tenantId} has no Platform Stripe Customer ID. Cannot bill.`);
-            return { error: 'No Stripe Customer', total };
+        if (!tenant) return { error: 'Tenant not found', total: totalRevenue };
+
+        let customerId = tenant.stripeCustomerId;
+        if (!customerId) {
+            console.log(`Creating new Stripe customer for tenant ${tenant.name} (${tenantId})...`);
+            try {
+                const customer = await this.stripe.createCustomer({
+                    email: `admin@${tenant.slug}.com`, // Placeholder email or use tenant field if added
+                    name: tenant.name,
+                    metadata: { tenantId }
+                });
+                customerId = customer.id;
+                // Save back to DB
+                await this.db.update(tenants)
+                    .set({ stripeCustomerId: customerId })
+                    .where(eq(tenants.id, tenantId))
+                    .run();
+            } catch (stripeErr: any) {
+                console.error(`Failed to create Stripe customer for ${tenantId}:`, stripeErr);
+                return { error: `Stripe Customer Creation Failed: ${stripeErr.message}`, total: totalRevenue };
+            }
         }
 
         const itemsCreated = [];
 
         // Create Invoice Items
-        for (const [key, cost] of Object.entries(costs) as [string, any][]) {
+        for (const [key, cost] of Object.entries(overages) as [string, any][]) {
             const amountCents = Math.round(cost.amount * 100); // Cost is in dollars/cents?
             // PricingService unit costs: 0.0075 (Dollars?)
             // Usually Stripe takes integer cents.
@@ -72,7 +89,7 @@ export class BillingService {
 
             if (amountCents > 0) {
                 const desc = `Overage: ${key.charAt(0).toUpperCase() + key.slice(1)} (${cost.quantity} units)`;
-                await this.createInvoiceItem(tenant.stripeCustomerId, amountCents, desc);
+                await this.createInvoiceItem(customerId, amountCents, desc);
                 itemsCreated.push({ key, amountCents, desc });
             }
         }
@@ -83,6 +100,6 @@ export class BillingService {
             .where(eq(tenants.id, tenantId))
             .run();
 
-        return { total, items: itemsCreated };
+        return { total: totalRevenue, items: itemsCreated };
     }
 }
