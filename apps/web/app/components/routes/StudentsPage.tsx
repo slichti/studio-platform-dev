@@ -90,25 +90,27 @@ export default function StudentsPage() {
 
         try {
             const token = await getToken();
+            const role = formData.get('role');
             const res = await apiRequest(`/members`, token, {
                 method: "POST",
                 headers: { 'X-Tenant-Slug': slug! },
                 body: JSON.stringify({
                     email: formData.get('email'),
-                    firstName: formData.get('firstName'),
-                    lastName: formData.get('lastName'),
-                    role: formData.get('role') // Add role support to creation
+                    firstName: formData.get('firstName') || 'New',
+                    lastName: formData.get('lastName') || 'Member',
+                    ...(role ? { role: String(role) } : {})
                 })
             }) as any;
 
-            if (res.error) toast.error(res.error);
+            if (res.error) toast.error(typeof res.error === 'string' ? res.error : 'Failed to add member');
             else {
                 toast.success("Member added");
                 setIsAddingMember(false);
                 queryClient.invalidateQueries({ queryKey: ['members', slug] });
             }
         } catch (e: any) {
-            toast.error(e.message);
+            const msg = e.message || 'Failed to add member';
+            toast.error(msg.includes('[object') ? 'Validation error — please check your input' : msg);
         } finally {
             setIsSubmitting(false);
         }

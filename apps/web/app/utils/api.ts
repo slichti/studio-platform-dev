@@ -88,7 +88,10 @@ export async function apiRequest<T = any>(path: string, token: string | null | u
         try {
             // Clone the response to avoid consuming the body if JSON parsing fails
             errorData = await res.clone().json();
-            const serverError = (errorData as any).error || res.statusText;
+            const rawError = (errorData as any).error;
+            const serverError = typeof rawError === 'string'
+                ? rawError
+                : rawError?.message || (rawError?.issues ? rawError.issues.map((i: any) => i.message).join(', ') : res.statusText);
             const serverPath = (errorData as any).path ? ` (${(errorData as any).path})` : '';
             const error = new Error(`${serverError}${serverPath}`);
             (error as any).data = errorData;
