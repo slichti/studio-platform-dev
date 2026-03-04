@@ -12,12 +12,13 @@ import {
     ChevronDown,
     Trash2,
     Copy,
-    Zap
+    Zap,
+    MessageSquare
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { cn } from '../../lib/utils';
 
-export type StepType = 'email' | 'delay' | 'condition' | 'tag_member' | 'create_task' | 'internal_alert';
+export type StepType = 'email' | 'sms' | 'delay' | 'condition' | 'tag_member' | 'create_task' | 'internal_alert';
 
 export interface AutomationStep {
     type: StepType;
@@ -69,6 +70,7 @@ export const AutomationCanvas: React.FC<AutomationCanvasProps> = ({ steps, onCha
     const renderNode = (step: AutomationStep, index: number) => {
         const Icon = {
             email: Mail,
+            sms: MessageSquare,
             delay: Clock,
             condition: Filter,
             tag_member: Tag,
@@ -104,7 +106,7 @@ export const AutomationCanvas: React.FC<AutomationCanvasProps> = ({ steps, onCha
                             {step.name || step.type.split('_').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ')}
                         </h4>
                         <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                            {step.type === 'email' ? step.subject : (step.type === 'delay' ? `${step.delayHours}h delay` : 'Configuring...')}
+                            {step.type === 'email' ? step.subject : (step.type === 'sms' ? 'SMS Message' : (step.type === 'delay' ? `${step.delayHours}h delay` : 'Configuring...'))}
                         </p>
                     </div>
 
@@ -194,6 +196,7 @@ export const AutomationCanvas: React.FC<AutomationCanvasProps> = ({ steps, onCha
                                     className="w-full rounded-lg border-slate-200 dark:bg-slate-800 dark:border-slate-700 p-2"
                                 >
                                     <option value="email">Email Student</option>
+                                    <option value="sms">SMS Text Message</option>
                                     <option value="delay">Wait / Delay</option>
                                     <option value="tag_member">Tag Member</option>
                                     <option value="create_task">Create Staff Task</option>
@@ -224,6 +227,22 @@ export const AutomationCanvas: React.FC<AutomationCanvasProps> = ({ steps, onCha
                                             placeholder="Hi {{first_name}}, ..."
                                         />
                                         <p className="text-[10px] text-slate-500 mt-1">Variables: {"{{first_name}}"}{", "}{"{{email}}"}{", "}{"{{studioName}}"}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {steps[selectedStepIndex].type === 'sms' && (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1.5">SMS Message</label>
+                                        <textarea
+                                            value={steps[selectedStepIndex].content || ''}
+                                            onChange={(e) => updateStep(selectedStepIndex, { content: e.target.value })}
+                                            rows={4}
+                                            className="w-full rounded-lg border-slate-200 dark:bg-slate-800 dark:border-slate-700 p-2 text-sm"
+                                            placeholder="Hi {{first_name}}, just a reminder..."
+                                        />
+                                        <p className="text-[10px] text-slate-500 mt-1">Variables: {"{{first_name}}"}{", "}{"{{studioName}}"}</p>
                                     </div>
                                 </div>
                             )}

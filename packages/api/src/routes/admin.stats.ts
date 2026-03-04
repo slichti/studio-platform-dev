@@ -45,7 +45,7 @@ app.get('/email', async (c) => {
 app.get('/communications', async (c) => {
     const db = createDb(c.env.DB);
 
-    const [emailCounts, smsCounts, automationStats, allTenants] = await Promise.all([
+    const [emailCounts, smsCounts, automationStats, allTenants, recentEmailLogs, recentSmsLogs] = await Promise.all([
         db.select({ tenantId: emailLogs.tenantId, count: count(emailLogs.id) })
             .from(emailLogs)
             .groupBy(emailLogs.tenantId)
@@ -61,7 +61,32 @@ app.get('/communications', async (c) => {
         })
             .from(marketingAutomations)
             .all(),
-        db.select({ id: tenants.id, name: tenants.name, slug: tenants.slug }).from(tenants).where(eq(tenants.status, 'active')).all()
+        db.select({ id: tenants.id, name: tenants.name, slug: tenants.slug }).from(tenants).where(eq(tenants.status, 'active')).all(),
+        db.select({
+            id: emailLogs.id,
+            subject: emailLogs.subject,
+            recipient: emailLogs.recipientEmail,
+            sentAt: emailLogs.sentAt,
+            tenantName: tenants.name
+        })
+            .from(emailLogs)
+            .leftJoin(tenants, eq(emailLogs.tenantId, tenants.id))
+            .orderBy(desc(emailLogs.sentAt))
+            .limit(50)
+            .all(),
+        db.select({
+            id: smsLogs.id,
+            body: smsLogs.body,
+            recipient: smsLogs.recipientPhone,
+            sentAt: smsLogs.sentAt,
+            status: smsLogs.status,
+            tenantName: tenants.name
+        })
+            .from(smsLogs)
+            .leftJoin(tenants, eq(smsLogs.tenantId, tenants.id))
+            .orderBy(desc(smsLogs.sentAt))
+            .limit(50)
+            .all()
     ]);
 
     const emailMap = new Map(emailCounts.map(e => [e.tenantId, e.count]));
@@ -93,7 +118,9 @@ app.get('/communications', async (c) => {
     return c.json({
         totals,
         tenants: tenantStats
-            .sort((a, b) => (b.emailCount + b.smsCount) - (a.emailCount + a.smsCount))
+            .sort((a, b) => (b.emailCount + b.smsCount) - (a.emailCount + a.smsCount)),
+        recentEmailLogs,
+        recentSmsLogs
     });
 });
 

@@ -240,6 +240,13 @@ All chat traffic routes through `/chat/*` (HTTP + WebSocket) and enforces:
 - Authentication (via Clerk JWT or signed guest token) for WebSocket upgrades.
 - Tenant isolation by requiring `chatRooms.tenantId` to match the resolved tenant before returning rooms or messages.
 
+### 11. Multi-Step Communications & Marketing Automations
+The platform provides a unified multi-step automation builder for Email and SMS sequences.
+- **Centralized Admin Builder**: Platform admins build global automation sequences within the unified Communications portal (replacing isolated pages).
+- **Multi-Step Sequences**: Automations support complex branching via a natively supported JSON configuration. Nodes include Emails, SMS, time delays, tagging, internal alerts, and explicit conditions.
+- **Tenant Inheritance**: Tenants can browse a curated store of global platform automations and adopt (clone) them into their local studios. Upon import, the multi-step JSON array is seamlessly duplicated.
+- **Trigger Events**: Sequences are automatically initiated by standardized business events like `new_student`, `class_attended`, `subscription_canceled`, or `birthday`.
+
 ## Security Implementation
 
 ### Authentication Strategy
