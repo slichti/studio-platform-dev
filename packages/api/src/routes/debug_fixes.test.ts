@@ -72,6 +72,7 @@ describe('Debug Fixes Verification', () => {
             id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, instructor_id TEXT NOT NULL, location_id TEXT,
             title TEXT NOT NULL, description TEXT, duration_minutes INTEGER NOT NULL,
             price INTEGER DEFAULT 0, currency TEXT DEFAULT 'usd', recurrence_rule TEXT NOT NULL, 
+            gradient_preset TEXT, gradient_color1 TEXT, gradient_color2 TEXT, gradient_direction INTEGER,
             valid_from INTEGER NOT NULL, valid_until INTEGER, created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`);
         sqlite.exec(`CREATE TABLE classes (
@@ -89,6 +90,7 @@ describe('Debug Fixes Verification', () => {
             is_course INTEGER DEFAULT 0,
             content_collection_id TEXT,
             course_id TEXT,
+            gradient_preset TEXT, gradient_color1 TEXT, gradient_color2 TEXT, gradient_direction INTEGER,
             google_event_id TEXT, image_library TEXT, created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`);
         sqlite.exec(`CREATE TABLE locations (

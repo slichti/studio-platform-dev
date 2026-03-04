@@ -112,6 +112,7 @@ export async function setupTestDb(d1: D1Database) {
             is_course INTEGER DEFAULT 0,
             content_collection_id TEXT,
             course_id TEXT,
+            gradient_preset TEXT, gradient_color1 TEXT, gradient_color2 TEXT, gradient_direction INTEGER,
             google_event_id TEXT,
             image_library TEXT,
             created_at INTEGER DEFAULT (strftime('%s', 'now'))
@@ -306,6 +307,7 @@ export async function setupTestDb(d1: D1Database) {
             id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, title TEXT NOT NULL, 
             description TEXT, instructor_id TEXT, location_id TEXT, 
             schedule_config TEXT, status TEXT DEFAULT 'active', 
+            gradient_preset TEXT, gradient_color1 TEXT, gradient_color2 TEXT, gradient_direction INTEGER,
             created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
 

@@ -73,6 +73,7 @@ describe('Booking Lifecycle Integration', () => {
             is_course INTEGER DEFAULT 0,
             content_collection_id TEXT,
             course_id TEXT,
+            gradient_preset TEXT, gradient_color1 TEXT, gradient_color2 TEXT, gradient_direction INTEGER,
             google_event_id TEXT, image_library TEXT, created_at INTEGER
         )`);
 
@@ -123,7 +124,7 @@ describe('Booking Lifecycle Integration', () => {
         sqlite.exec(`CREATE TABLE marketing_automations (
             id TEXT PRIMARY KEY, tenant_id TEXT, trigger_event TEXT, trigger_condition TEXT,
             template_id TEXT, audience_filter TEXT, subject TEXT, content TEXT,
-            is_enabled INTEGER DEFAULT 0, metadata TEXT, timing_type TEXT DEFAULT 'immediate',
+            is_enabled INTEGER DEFAULT 0, steps TEXT, metadata TEXT, timing_type TEXT DEFAULT 'immediate',
             timing_value INTEGER DEFAULT 0, delay_hours INTEGER DEFAULT 0,
             channels TEXT, recipients TEXT, coupon_config TEXT,
             created_at INTEGER, updated_at INTEGER
