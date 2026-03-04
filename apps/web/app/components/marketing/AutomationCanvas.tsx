@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { cn } from '../../lib/utils';
+import { RichTextEditor } from '../RichTextEditor';
+import { useParams } from 'react-router';
 
 export type StepType = 'email' | 'sms' | 'delay' | 'condition' | 'tag_member' | 'create_task' | 'internal_alert';
 
@@ -46,6 +48,7 @@ interface AutomationCanvasProps {
 
 export const AutomationCanvas: React.FC<AutomationCanvasProps> = ({ steps, onChange, triggerEvent }) => {
     const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null);
+    const { slug } = useParams();
 
     const addStep = (index: number) => {
         const newStep: AutomationStep = { type: 'email', subject: 'New Email', content: '' };
@@ -89,23 +92,23 @@ export const AutomationCanvas: React.FC<AutomationCanvasProps> = ({ steps, onCha
                 <div
                     onClick={() => setSelectedStepIndex(index)}
                     className={cn(
-                        "group relative flex items-center gap-4 w-72 p-4 rounded-xl border transition-all cursor-pointer",
+                        "group relative flex items-center gap-3 w-64 p-2.5 rounded-xl border transition-all cursor-pointer",
                         isSelected
                             ? "bg-indigo-50 border-indigo-400 ring-2 ring-indigo-200 dark:bg-indigo-900/20 dark:border-indigo-500"
                             : "bg-white border-slate-200 hover:border-indigo-300 hover:shadow-sm dark:bg-slate-900 dark:border-slate-800"
                     )}
                 >
                     <div className={cn(
-                        "flex items-center justify-center h-10 w-10 rounded-lg",
+                        "flex items-center justify-center h-8 w-8 rounded-md shrink-0",
                         isSelected ? "bg-indigo-500 text-white" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
                     )}>
-                        <Icon size={20} />
+                        <Icon size={16} />
                     </div>
-                    <div className="flex-1 overflow-hidden">
-                        <h4 className="font-semibold text-slate-900 dark:text-slate-100 truncate">
+                    <div className="flex-1 min-w-0 pr-6">
+                        <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate leading-tight mb-0.5">
                             {step.name || step.type.split('_').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ')}
                         </h4>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate leading-tight uppercase font-medium tracking-wide">
                             {step.type === 'email' ? step.subject : (step.type === 'sms' ? 'SMS Message' : (step.type === 'delay' ? `${step.delayHours}h delay` : 'Configuring...'))}
                         </p>
                     </div>
@@ -115,9 +118,9 @@ export const AutomationCanvas: React.FC<AutomationCanvasProps> = ({ steps, onCha
                             e.stopPropagation();
                             removeStep(index);
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-red-500 transition-opacity"
+                        className="opacity-0 group-hover:opacity-100 absolute right-2 p-1.5 text-slate-400 hover:text-red-500 transition-opacity bg-white/80 dark:bg-slate-900/80 rounded-md backdrop-blur-sm"
                     >
-                        <Trash2 size={16} />
+                        <Trash2 size={14} />
                     </button>
                 </div>
 
@@ -139,13 +142,13 @@ export const AutomationCanvas: React.FC<AutomationCanvasProps> = ({ steps, onCha
             {/* Main Canvas Area */}
             <div className="flex-1 overflow-auto p-12 flex flex-col items-center">
                 {/* Trigger Section */}
-                <div className="flex flex-col items-center mb-8">
-                    <div className="flex flex-col items-center gap-2 p-6 bg-white dark:bg-slate-900 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 w-80">
-                        <div className="h-12 w-12 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600">
-                            <Zap size={24} fill="currentColor" />
+                <div className="flex flex-col items-center mb-6">
+                    <div className="flex flex-col items-center gap-1 p-4 bg-white dark:bg-slate-900 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 w-64">
+                        <div className="h-10 w-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600 mb-1">
+                            <Zap size={20} fill="currentColor" />
                         </div>
-                        <h3 className="font-bold text-slate-900 dark:text-slate-100">Trigger</h3>
-                        <p className="text-sm text-center text-slate-500 uppercase tracking-wider font-semibold">
+                        <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Trigger</h3>
+                        <p className="text-[10px] text-center text-slate-500 uppercase tracking-wider font-semibold leading-tight">
                             {triggerEvent.replace('_', ' ')}
                         </p>
                     </div>
@@ -219,13 +222,15 @@ export const AutomationCanvas: React.FC<AutomationCanvasProps> = ({ steps, onCha
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium mb-1.5">Body Content</label>
-                                        <textarea
-                                            value={steps[selectedStepIndex].content || ''}
-                                            onChange={(e) => updateStep(selectedStepIndex, { content: e.target.value })}
-                                            rows={8}
-                                            className="w-full rounded-lg border-slate-200 dark:bg-slate-800 dark:border-slate-700 p-2 text-sm"
-                                            placeholder="Hi {{first_name}}, ..."
-                                        />
+                                        <div className="flex-1 w-full flex flex-col relative w-full mt-1">
+                                            <RichTextEditor
+                                                value={steps[selectedStepIndex].content || ''}
+                                                onChange={(html) => updateStep(selectedStepIndex, { content: html })}
+                                                placeholder="Hi {{first_name}}, ..."
+                                                tenantSlug={slug || 'admin'}
+                                                context={`Trigger Event: ${triggerEvent}`}
+                                            />
+                                        </div>
                                         <p className="text-[10px] text-slate-500 mt-1">Variables: {"{{first_name}}"}{", "}{"{{email}}"}{", "}{"{{studioName}}"}</p>
                                     </div>
                                 </div>
