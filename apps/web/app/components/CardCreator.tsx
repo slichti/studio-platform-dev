@@ -162,7 +162,7 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
     useEffect(() => setSubtitle(initialSubtitle || ""), [initialSubtitle]);
 
     // --- Font size state ---
-    const [fontSizeIndex, setFontSizeIndex] = useState(3); // Default to 'L' (42px title)
+    const [fontSizeIndex, setFontSizeIndex] = useState(5); // Default to '2XL' (64px title)
     const currentFontSize = FONT_SIZE_OPTIONS[fontSizeIndex];
 
     // --- Upload state ---

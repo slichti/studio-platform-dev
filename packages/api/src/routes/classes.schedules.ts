@@ -42,6 +42,13 @@ const ClassSchema = z.object({
     contentCollectionId: z.string().nullable().optional(),
     courseId: z.string().nullable().optional(),
     thumbnailUrl: z.string().nullable().optional(),
+
+    // Enrollment and Access Rules
+    minStudents: z.number().nullable().optional(),
+    autoCancelThreshold: z.number().nullable().optional(),
+    autoCancelEnabled: z.boolean().nullable().optional(),
+    allowCredits: z.boolean().nullable().optional(),
+    includedPlanIds: z.any().nullable().optional(),
     // Augmented fields
     bookingCount: z.number().optional(),
     waitlistCount: z.number().optional(),

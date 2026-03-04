@@ -37,7 +37,7 @@ export function EditClassModal({ isOpen, onClose, onSuccess, locations = [], ins
         capacity: initialData.capacity || 20,
         price: initialData.price || 0,
         createZoom: initialData.zoomEnabled || false,
-        minEnrollment: initialData.minEnrollment || 1,
+        minEnrollment: initialData.minStudents || initialData.minEnrollment || 1,
         autoCancelThreshold: initialData.autoCancelThreshold || 2,
         autoCancelEnabled: initialData.autoCancelEnabled || false,
         type: initialData.type || 'class',
@@ -46,13 +46,18 @@ export function EditClassModal({ isOpen, onClose, onSuccess, locations = [], ins
         payrollModel: initialData.payrollModel || 'default',
         payrollValue: initialData.payrollValue || "",
 
-        includedPlanIds: (initialData.includedPlans || []).map((p: any) => p.id || p) as string[],
+        includedPlanIds: (initialData.includedPlanIds || initialData.includedPlans || []).map((p: any) => p.id || p) as string[],
 
         isCourse: initialData.isCourse || false,
         courseId: initialData.courseId || "",
         recordingPrice: initialData.recordingPrice || "",
         contentCollectionId: initialData.contentCollectionId || "",
-        gradient: initialData.gradientPreset ? { preset: initialData.gradientPreset, color1: initialData.gradientColor1, color2: initialData.gradientColor2, direction: initialData.gradientDirection } : undefined
+        gradient: (initialData.gradientPreset || initialData.gradientColor1) ? {
+            preset: initialData.gradientPreset || null,
+            color1: initialData.gradientColor1,
+            color2: initialData.gradientColor2,
+            direction: initialData.gradientDirection
+        } : undefined
     });
 
     // Image state
