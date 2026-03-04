@@ -149,7 +149,8 @@ app.post('/r2-image', async (c) => {
             .where(eq(tenants.id, tenant.id))
             .run();
 
-        return c.json({ key: objectKey, url: `/uploads/${objectKey}` });
+        const fullUrl = `${new URL(c.req.url).origin}/uploads/${objectKey}`;
+        return c.json({ key: objectKey, url: fullUrl });
     } catch (e: any) {
         return c.json({ error: e.message }, 500);
     }

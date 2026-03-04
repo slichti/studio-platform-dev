@@ -60,10 +60,18 @@ export function EditClassModal({ isOpen, onClose, onSuccess, locations = [], ins
         } : undefined
     });
 
+    // Resolve relative /uploads/ paths to full API URLs
+    const resolveImageUrl = (url: string | null | undefined): string => {
+        if (!url) return '';
+        if (url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:')) return url;
+        const apiBase = import.meta.env.VITE_API_URL || 'https://studio-platform-api.slichti.workers.dev';
+        return `${apiBase}${url.startsWith('/') ? '' : '/'}${url}`;
+    };
+
     // Image state
     const [showImageSection, setShowImageSection] = useState(!!initialData.thumbnailUrl || !!initialData.gradientColor1);
     const [imageBlob, setImageBlob] = useState<Blob | null>(null);
-    const [imagePreview, setImagePreview] = useState<string>(initialData.thumbnailUrl || '');
+    const [imagePreview, setImagePreview] = useState<string>(resolveImageUrl(initialData.thumbnailUrl));
 
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -275,7 +283,7 @@ export function EditClassModal({ isOpen, onClose, onSuccess, locations = [], ins
                     {showImageSection && (
                         <div className="p-4 border-t border-zinc-200">
                             <CardCreator
-                                initialImage={imagePreview || initialData.thumbnailUrl}
+                                initialImage={imagePreview || resolveImageUrl(initialData.thumbnailUrl)}
                                 initialTitle={formData.name}
                                 initialSubtitle={formData.description}
                                 initialGradient={formData.gradient}
